@@ -1,0 +1,17 @@
+streamlit==1.62.0
+requests>=2.28
+sqlalchemy>=2.0
+cryptography>=41.0
+PyGithub>=2.0
+
+# Optional document parsing and utilities
+pypdf>=3.0
+python-docx>=0.8
+python-pptx>=0.6
+openpyxl>=3.1
+pdfplumber>=0.6
+tiktoken>=0.5
+markdown>=3.0
+
+# Development and testing
+pytest>=7.0
