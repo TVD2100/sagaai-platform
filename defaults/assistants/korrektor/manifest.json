@@ -1,0 +1,12 @@
+{
+  "name": "Корректор",
+  "description": "Проверка текста на ошибки.",
+  "service": "YandexAI",
+  "model": "yandexgpt-5.1",
+  "temperature": 0.3,
+  "tools": [],
+  "max_tool_calls": 3,
+  "max_tokens": 12000,
+  "reasoning_effort": "high",
+  "rag_bases": []
+}
