@@ -1,0 +1,28 @@
+{
+  "name": "YaAgent",
+  "description": "Агент по разработке и тестированию агентов и мультиагентных систем на базе Yandex AI Studio. Ищет официальную документацию и использует локальный каталог документации.",
+  "config": {
+    "strong_service": "YandexAI",
+    "strong_model": "deepseek-v4-flash",
+    "strong_temperature": 0.3,
+    "strong_max_tokens": 384000,
+    "weak_service": "YandexAI",
+    "weak_model": "deepseek-v4-flash",
+    "weak_temperature": 0.3,
+    "weak_max_tokens": 384000,
+    "search_service": "YandexAI",
+    "search_model": "aliceai-llm-flash",
+    "search_temperature": 0.3,
+    "search_max_tool_calls": 1,
+    "economy_tail_messages": 30,
+    "economy_cache_enabled": true,
+    "economy_cache_multiplier": 3,
+    "enabled_skills": [],
+    "rag_bases": [
+      "yaagentai_2020"
+    ]
+  },
+  "tools": [],
+  "max_steps": 100,
+  "auto_apply": true
+}
