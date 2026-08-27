@@ -1,0 +1,39 @@
+# Runtime data and user content - created on first run, repo root only
+/.encryption_key
+/sagaai.db
+/devagent.db
+/data/
+/apps/
+/assistants/
+/history/
+/orchestrators/
+/rag_bases/
+/skills/
+/system_prompts/
+/threads/
+/TASK_STATE.md
+
+# DevAgent workspace artifacts (repo root)
+/.dev_agent/
+
+# OS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.pytest_cache/
+.venv/
+venv/
+env/
+build/
+dist/
+
+# Secrets / environment
+.env
+.env.*
+
+# DevAgent task-state journals (runtime)
+/dev_agent/task_states/
