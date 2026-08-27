@@ -1,0 +1,13 @@
+{
+  "name": "Универсальный тьютор",
+  "description": "",
+  "service": "YandexAI",
+  "model": "aliceai-llm",
+  "temperature": 0.3,
+  "tools": ["web_search"],
+  "max_tool_calls": 3,
+  "max_tokens": 20000,
+  "reasoning_effort": "high",
+  "web_search_context_size": "medium",
+  "rag_bases": []
+}
