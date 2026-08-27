@@ -1,0 +1,271 @@
+{
+  "name": "YandexAI",
+  "config_key": "YANDEX_API_KEY",
+  "config_key2": "YANDEX_FOLDER_ID",
+  "key_label": "IAM Token (Bearer)",
+  "key2_label": "Folder ID",
+  "base_url": "https://ai.api.cloud.yandex.net/v1",
+  "auth_type": "yandex_iam",
+  "require_folder_id": true,
+  "temp_min": 0.0,
+  "temp_max": 1.0,
+  "temp_default": 0.3,
+  "temp_step": 0.05,
+  "context_window_default": 32000,
+  "max_tokens_default": 32000,
+  "tools_options": [
+    {
+      "key": "web_search",
+      "label": {
+        "ru": "Веб-поиск",
+        "en": "Web search"
+      }
+    }
+  ],
+  "extra_fields": [
+    {
+      "key": "reasoning_effort",
+      "label": {
+        "en": "Reasoning effort",
+        "ru": "Уровень рассуждений"
+      },
+      "type": "select",
+      "options": [
+        "",
+        "none",
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "default": "",
+      "tooltip": {
+        "en": "Responses API reasoning.effort: empty = model default; none disables thinking, minimal…xhigh enable it with increasing depth",
+        "ru": "Responses API reasoning.effort: пусто = значение модели по умолчанию; none выключает рассуждения, minimal…xhigh включают их с разной глубиной"
+      }
+    },
+    {
+      "key": "web_search_context_size",
+      "label": {
+        "en": "Web search context size",
+        "ru": "Объём контекста веб-поиска"
+      },
+      "type": "select",
+      "options": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "default": "medium",
+      "tooltip": {
+        "en": "How much context the web_search tool may use: low, medium or high",
+        "ru": "Сколько контекстного окна может использовать инструмент веб-поиска: low, medium или high"
+      }
+    },
+    {
+      "key": "web_search_allowed_domains",
+      "label": {
+        "en": "Web search allowed domains",
+        "ru": "Разрешённые домены веб-поиска"
+      },
+      "type": "text",
+      "default": "",
+      "tooltip": {
+        "en": "Optional comma/space separated list of domains the web_search tool is restricted to (e.g. docs.python.org, developer.mozilla.org). Leave empty for unrestricted search",
+        "ru": "Необязательный список доменов через запятую/пробел, которыми ограничен веб-поиск (например, docs.python.org, developer.mozilla.org). Оставьте пустым для поиска без ограничений"
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "yandexgpt-5-lite",
+      "context_window": 32000,
+      "max_tokens": 32000,
+      "reasoning_effort_options": [
+        "",
+        "none",
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ]
+    },
+    {
+      "id": "yandexgpt-5-pro",
+      "context_window": 32000,
+      "max_tokens": 32000,
+      "reasoning_effort_options": [
+        "",
+        "none",
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ]
+    },
+    {
+      "id": "yandexgpt-5.1",
+      "context_window": 32000,
+      "max_tokens": 32000,
+      "reasoning_effort_options": [
+        "",
+        "none",
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ]
+    },
+    {
+      "id": "aliceai-llm",
+      "context_window": 131072,
+      "max_tokens": 131072,
+      "reasoning_effort_options": [
+        "",
+        "none",
+        "minimal",
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    {
+      "id": "aliceai-llm-flash",
+      "context_window": 65536,
+      "max_tokens": 65536,
+      "reasoning_effort_options": [
+        "",
+        "none",
+        "minimal",
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    {
+      "id": "deepseek-v4-flash",
+      "context_window": 1048576,
+      "max_tokens": 384000,
+      "reasoning_effort_options": [
+        "",
+        "none",
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ]
+    },
+    {
+      "id": "qwen3-235b-a22b-fp8",
+      "context_window": 256000,
+      "max_tokens": 256000,
+      "reasoning_effort_options": [
+        "",
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    {
+      "id": "qwen3.6-35b-a3b",
+      "context_window": 256000,
+      "max_tokens": 256000,
+      "reasoning_effort_options": [
+        "",
+        "none",
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ]
+    },
+    {
+      "id": "gpt-oss-120b",
+      "context_window": 128000,
+      "max_tokens": 128000,
+      "reasoning_effort_options": [
+        "",
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    {
+      "id": "gpt-oss-20b",
+      "context_window": 128000,
+      "max_tokens": 128000,
+      "reasoning_effort_options": [
+        "",
+        "low",
+        "medium",
+        "high"
+      ]
+    }
+  ],
+  "embedding_models": [
+    {
+      "id": "text-search-doc",
+      "name": "Yandex Text Search Doc",
+      "dimension": 256,
+      "max_tokens": 2048,
+      "label": {
+        "ru": "Text Search Doc - эмбеддинги документов для индексации RAG",
+        "en": "Text Search Doc - document embeddings for RAG indexing"
+      }
+    },
+    {
+      "id": "text-search-query",
+      "name": "Yandex Text Search Query",
+      "dimension": 256,
+      "max_tokens": 2048,
+      "label": {
+        "ru": "Text Search Query - эмбеддинги запросов для векторного поиска",
+        "en": "Text Search Query - query embeddings for vector search"
+      }
+    }
+  ],
+  "rag_models": [
+    {
+      "id": "yandexgpt-5-pro",
+      "label": {
+        "ru": "YandexGPT 5 Pro (рекомендуется для RAG-генерации)",
+        "en": "YandexGPT 5 Pro (recommended for RAG generation)"
+      }
+    },
+    {
+      "id": "yandexgpt-5-lite",
+      "label": {
+        "ru": "YandexGPT 5 Lite",
+        "en": "YandexGPT 5 Lite"
+      }
+    },
+    {
+      "id": "aliceai-llm-flash",
+      "label": {
+        "ru": "Alice AI LLM Flash (быстрый агентский поиск/суммаризация)",
+        "en": "Alice AI LLM Flash (fast agent search/summarization)"
+      }
+    },
+    {
+      "id": "deepseek-v4-flash",
+      "label": {
+        "ru": "DeepSeek V4 Flash (очень большой контекст)",
+        "en": "DeepSeek V4 Flash (very large context)"
+      }
+    }
+  ],
+  "key_help": {
+    "ru": "IAM-токен или API-ключ Yandex Cloud. Получите его в консоли Yandex Cloud (раздел «Сервисные аккаунты» или «API-ключи»).",
+    "en": "Yandex Cloud IAM token or API key. Get it from the Yandex Cloud console (Service Accounts or API Keys section)."
+  },
+  "key2_help": {
+    "ru": "Идентификатор каталога (folder_id) Yandex Cloud, в котором работает сервис. Укажите пустым, если используется не Yandex Cloud.",
+    "en": "Yandex Cloud folder ID (folder_id) where the service runs. Leave empty if not using Yandex Cloud."
+  }
+}
