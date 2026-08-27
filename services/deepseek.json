@@ -1,0 +1,60 @@
+{
+  "name": "DeepSeek",
+  "config_key": "DEEPSEEK_API_KEY",
+  "base_url": "https://api.deepseek.com/responses",
+  "auth_type": "deepseek_responses",
+  "temp_min": 0.1,
+  "temp_max": 2.0,
+  "temp_default": 0.8,
+  "temp_step": 0.1,
+  "context_window_default": 1000000,
+  "tools_options": [
+    {
+      "key": "web_search",
+      "label": {
+        "ru": "Веб-поиск",
+        "en": "Web search"
+      }
+    }
+  ],
+  "extra_fields": [
+    {
+      "key": "reasoning_effort",
+      "label": {
+        "en": "Reasoning effort",
+        "ru": "Уровень рассуждений"
+      },
+      "type": "select",
+      "options": [
+        "none",
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "default": "max",
+      "tooltip": {
+        "en": "Responses API reasoning.effort: none disables thinking, minimal…max enable it with increasing depth",
+        "ru": "Responses API reasoning.effort: none выключает мышление, minimal…max включают его с разной глубиной"
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "deepseek-v4-flash",
+      "context_window": 1000000,
+      "max_tokens": 384000
+    },
+    {
+      "id": "deepseek-v4-pro",
+      "context_window": 1000000,
+      "max_tokens": 384000
+    }
+  ],
+  "key_help": {
+    "ru": "API-ключ DeepSeek из личного кабинета (platform.deepseek.com). Создайте ключ в разделе API Keys и вставьте его сюда.",
+    "en": "Your DeepSeek API key from the provider's dashboard (platform.deepseek.com). Create a key under API Keys and paste it here."
+  }
+}
