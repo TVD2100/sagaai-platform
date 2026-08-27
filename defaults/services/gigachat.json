@@ -1,0 +1,62 @@
+{
+  "name": "GigaChat",
+  "config_key": "GIGACHAT_API_KEY",
+  "config_key2": "GIGACHAT_SCOPE",
+  "base_url": "https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
+  "auth_type": "gigachat_oauth",
+  "oauth_url": "https://ngw.devices.sberbank.ru:9443/api/v2/oauth",
+  "temp_min": 0.1,
+  "temp_max": 2.0,
+  "temp_default": 0.8,
+  "temp_step": 0.1,
+  "context_window_default": 128000,
+  "max_tokens_default": 32768,
+  "models": [
+    {
+      "id": "GigaChat-2",
+      "context_window": 128000,
+      "max_tokens": 32768
+    },
+    {
+      "id": "GigaChat-2-Pro",
+      "context_window": 128000,
+      "max_tokens": 32768
+    },
+    {
+      "id": "GigaChat-2-Max",
+      "context_window": 128000,
+      "max_tokens": 32768
+    }
+  ],
+  "rag_models": [
+    {
+      "id": "GigaChat-2-Pro",
+      "label": {
+        "ru": "GigaChat 2 Pro (рекомендуется для RAG-генерации)",
+        "en": "GigaChat 2 Pro (recommended for RAG generation)"
+      }
+    },
+    {
+      "id": "GigaChat-2-Max",
+      "label": {
+        "ru": "GigaChat 2 Max",
+        "en": "GigaChat 2 Max"
+      }
+    },
+    {
+      "id": "GigaChat-2",
+      "label": {
+        "ru": "GigaChat 2",
+        "en": "GigaChat 2"
+      }
+    }
+  ],
+  "key_help": {
+    "ru": "Ключ авторизации GigaChat (Authorization Key) из личного кабинета разработчика.",
+    "en": "Your GigaChat authorization key (Authorization Key) from the developer dashboard."
+  },
+  "key2_help": {
+    "ru": "Область доступа (scope) GigaChat, например GIGACHAT_API_PERS. Оставьте как есть, если не уверены.",
+    "en": "GigaChat access scope, e.g. GIGACHAT_API_PERS. Leave unchanged if unsure."
+  }
+}
