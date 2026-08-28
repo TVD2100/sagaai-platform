@@ -137,8 +137,6 @@ roles = {
     "scripts/mig7_skill_tools.py": "Migration helper: add skills-library tools (list_skills_library/get_skill_folder/get_skill_prompt/get_skill_file)",
     "scripts/regenerate_project_map.py": "Regenerates PROJECT_MAP.md with assistant terminology",
     "scripts/_remove_export_import_ui.py": "One-off helper: remove employee export/import UI from orchestrator pages and language files",
-    "dev_agent/AGENT_LOOP_REPORT.md": "Agent loop implementation report",
-    "dev_agent/AGENT_LOOP_SPEC.md": "Agent loop specification",
     "dev_agent/README.md": "DevAgent module readme",
     "dev_agent/__init__.py": "Package marker",
     "dev_agent/agent_loop.py": "Provider-independent agent loop (strong/weak assistant routing, economy mode, skills-library tools classified as weak)",
