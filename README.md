@@ -143,8 +143,8 @@ SagaAI - это многофункциональная платформа по �
 1. **Клонируйте репозиторий:**
 
 ```
-git clone https://github.com/TVD2100/sagaai-platform sagaai  
-cd sagaai
+git clone https://github.com/TVD2100/sagaai-platform SagaAI
+cd SagaAI
 ```
 
 2. **Установите зависимости:**
