@@ -223,8 +223,6 @@
 | `skills/Github_Clean_Copy/SKILL.md` | Markdown | _(описание не задано)_ | - |
 | `skills/Github_Clean_Copy/tests/test_clean_copy_skill.py` | Python | _(описание не задано)_ | - |
 | `skills/Github_Clean_Copy/scripts/make_clean_copy.py` | Python | _(описание не задано)_ | - |
-| `dev_agent/AGENT_LOOP_REPORT.md` | Markdown | Agent loop implementation report | - |
-| `dev_agent/AGENT_LOOP_SPEC.md` | Markdown | Agent loop specification | - |
 | `dev_agent/__init__.py` | Python | Package marker | agent_loop, backup_manager, safe_writer, tool_executor, universal_agent, workspace_tools |
 | `dev_agent/agent_loop.py` | Python | Provider-independent agent loop (strong/weak assistant routing, economy mode, skills-library tools classified as weak) | - |
 | `dev_agent/assistant_detector.py` | Python | Assistant detection/creation helpers (renamed from skill_detector) | storage |
