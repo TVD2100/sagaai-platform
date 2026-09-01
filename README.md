@@ -174,11 +174,6 @@ streamlit run app.py
 
 5. Откройте браузер и перейдите по адресу [http://localhost:8501](http://localhost:8501/).
 
-> 💡 **Защита паролем на Windows.** Вместо команды `export` используйте:
-> - PowerShell: `$env:SAGAAI_AUTH_PASSWORD = 'ваш_надёжный_пароль'`
-> - CMD: `set SAGAAI_AUTH_PASSWORD=ваш_надёжный_пароль`
->
-> затем выполните `streamlit run app.py`.
 
 ### 🐧 macOS / Linux
 
@@ -211,6 +206,12 @@ streamlit run app.py
 export SAGAAI_AUTH_PASSWORD="ваш_надёжный_пароль"  
 streamlit run app.py
 ```
+
+> 💡 **Защита паролем на Windows.** Вместо команды `export` используйте:
+> - PowerShell: `$env:SAGAAI_AUTH_PASSWORD = 'ваш_надёжный_пароль'`
+> - CMD: `set SAGAAI_AUTH_PASSWORD=ваш_надёжный_пароль`
+>
+> затем выполните `streamlit run app.py`.
 
 После этого интерфейс будет показывать форму входа. Пароль не хранится в базе данных и не записывается на диск - сверка выполняется по SHA-256 хешу через `secrets.compare_digest`.
 
