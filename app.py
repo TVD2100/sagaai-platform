@@ -15,7 +15,18 @@ from core.updater import apply_updates, write_running_marker  # noqa: E402
 
 # Cold-start update hook: apply staged downloads while the app is not running
 # yet, then mark this process as live so the CLI refuses in-place apply.
-apply_updates(_project_root)
+_apply_report = apply_updates(_project_root)
+print(
+    "[cold-start apply] ok=%s applied=%r failed=%r error=%r"
+    % (
+        _apply_report.get("ok"),
+        _apply_report.get("applied") or [],
+        _apply_report.get("failed"),
+        _apply_report.get("error"),
+    ),
+    file=sys.stderr,
+    flush=True,
+)
 write_running_marker(_project_root)
 
 import streamlit as st
