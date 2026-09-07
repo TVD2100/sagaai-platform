@@ -14,6 +14,8 @@ import json
 import os
 import subprocess
 import threading
+from datetime import datetime, timezone
+from unittest.mock import patch
 
 import pytest
 
@@ -288,6 +290,11 @@ def test_apply_refuses_when_app_running(tmp_path):
     report = updater.apply_updates(root)
     assert not report["ok"]
     assert "app is running" in report["error"]
+    health_rel = ".dev_agent/updates/health.json"
+    assert os.path.isfile(os.path.join(root, health_rel))
+    health = json.loads(_read_text(root, health_rel))
+    assert health.get("ok") is False
+    assert "app is running" in health.get("error", "")
 
     assert updater.apply_updates(root, force=True)["ok"] is True
 
@@ -337,6 +344,75 @@ def test_running_marker_detection(tmp_path):
         json.dumps({"pid": os.getpid(), "at": "2026-01-01T00:00:00Z"}),
     )
     assert updater.is_app_running(root) is True
+
+
+def test_stopped_and_zombie_processes_are_not_running(tmp_path):
+    root = str(tmp_path)
+    marker = json.dumps({
+        "pid": os.getpid(),
+        "at": datetime.now(timezone.utc).isoformat(),
+    })
+    updater._atomic_write_text(root, updater.RUNNING_FILE_REL, marker)
+    for state in ("T", "Ts", "Z"):
+        with patch("core.updater._pid_state", return_value=state):
+            assert updater.is_app_running(root) is False, state
+
+
+def test_reused_pid_is_not_running(tmp_path):
+    root = str(tmp_path)
+    # Marker written NOW by the (long-gone) original process; the pid is now
+    # taken by an unrelated process started BEFORE the marker plus skew window.
+    now = datetime.now(timezone.utc)
+    marker = json.dumps({"pid": os.getpid(), "at": now.isoformat()})
+    updater._atomic_write_text(root, updater.RUNNING_FILE_REL, marker)
+    old_start = now.timestamp() - 3600
+    with patch("core.updater._pid_state", return_value="S"), patch(
+        "core.updater._pid_start_time", return_value=old_start
+    ):
+        assert updater.is_app_running(root) is False
+
+
+def test_fresh_pid_matching_marker_is_running(tmp_path):
+    root = str(tmp_path)
+    now = datetime.now(timezone.utc)
+    marker = json.dumps({"pid": os.getpid(), "at": now.isoformat()})
+    updater._atomic_write_text(root, updater.RUNNING_FILE_REL, marker)
+    fresh_start = now.timestamp()
+    with patch("core.updater._pid_state", return_value="S"), patch(
+        "core.updater._pid_start_time", return_value=fresh_start
+    ):
+        assert updater.is_app_running(root) is True
+
+
+def test_ps_unavailable_uses_kill_fallback(tmp_path):
+    root = str(tmp_path)
+    marker = json.dumps({"pid": os.getpid(), "at": "2026-01-01T00:00:00Z"})
+    updater._atomic_write_text(root, updater.RUNNING_FILE_REL, marker)
+    with patch("core.updater._pid_state", return_value=None), patch(
+        "core.updater.os.kill", return_value=None
+    ):
+        assert updater.is_app_running(root) is True
+    with patch("core.updater._pid_state", return_value=None), patch(
+        "core.updater.os.kill", side_effect=ProcessLookupError()
+    ):
+        assert updater.is_app_running(root) is False
+
+
+def test_broken_marker_is_not_running(tmp_path):
+    root = str(tmp_path)
+    updater._atomic_write_text(root, updater.RUNNING_FILE_REL, "{broken")
+    assert updater.is_app_running(root) is False
+    updater._atomic_write_text(
+        root, updater.RUNNING_FILE_REL, json.dumps({"no_pid": True})
+    )
+    assert updater.is_app_running(root) is False
+
+
+def test_marker_unixtime_parses_iso_forms():
+    assert updater._marker_unixtime("2026-01-01T00:00:00Z") is not None
+    assert updater._marker_unixtime("2026-01-01T00:00:00") is not None
+    assert updater._marker_unixtime("bad") is None
+    assert updater._marker_unixtime(None) is None
 
 
 def test_stage_does_not_download_unlisted_file(tmp_path):
