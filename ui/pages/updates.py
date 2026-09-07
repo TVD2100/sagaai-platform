@@ -12,9 +12,10 @@ atomically at the next cold start (see the hook in app.py). Code packages
 (units) install only as a whole; selectable content files can be picked
 individually.
 
-This page therefore offers Check / Download (staging) controls in the live
-process and keeps Apply / Rollback disabled while the running marker exists,
-with a hint to restart the application.
+This page offers Check / Download (staging) controls in the live process;
+Apply / Rollback stay available, but while the running marker exists they
+require an explicit confirmation checkbox and run in force mode, with a
+hint to restart the application afterwards.
 
 All user-facing strings go through t(key, lang=lang).
 """
@@ -208,16 +209,22 @@ def _render_pending_section(lang, root):
     running = is_app_running(root)
     if running:
         st.info(t("updates_apply_running_hint", lang=lang))
-    if st.button(
-        t("updates_apply_btn", lang=lang), key="updates_apply", disabled=running
-    ):
-        result = apply_updates(root)
-        if result.get("ok"):
-            st.success(
-                t("updates_apply_done", lang=lang, count=len(result.get("applied") or []))
-            )
+        confirm = st.checkbox(t("updates_apply_confirm", lang=lang), key="updates_apply_confirm")
+    else:
+        confirm = True
+    if st.button(t("updates_apply_btn", lang=lang), key="updates_apply", disabled=False):
+        if running and not confirm:
+            st.warning(t("updates_apply_confirm_needed", lang=lang))
         else:
-            st.error(t("updates_apply_error", lang=lang, error=result.get("error")))
+            result = apply_updates(root, force=running)
+            if result.get("ok"):
+                st.success(
+                    t("updates_apply_done", lang=lang, count=len(result.get("applied") or []))
+                )
+                if running:
+                    st.info(t("updates_need_restart", lang=lang))
+            else:
+                st.error(t("updates_apply_error", lang=lang, error=result.get("error")))
 
 
 def _render_state_section(lang, root):
@@ -246,20 +253,26 @@ def _render_state_section(lang, root):
     running = is_app_running(root)
     if running:
         st.info(t("updates_rollback_hint", lang=lang))
-    if st.button(
-        t("updates_rollback_btn", lang=lang), key="updates_rollback", disabled=running
-    ):
-        result = rollback_updates(root)
-        if result.get("ok"):
-            st.success(
-                t(
-                    "updates_rollback_done",
-                    lang=lang,
-                    count=len(result.get("restored") or []),
-                )
-            )
+        confirm = st.checkbox(t("updates_rollback_confirm", lang=lang), key="updates_rollback_confirm")
+    else:
+        confirm = True
+    if st.button(t("updates_rollback_btn", lang=lang), key="updates_rollback", disabled=False):
+        if running and not confirm:
+            st.warning(t("updates_rollback_confirm_needed", lang=lang))
         else:
-            st.error(t("updates_rollback_error", lang=lang, error=result.get("error")))
+            result = rollback_updates(root, force=running)
+            if result.get("ok"):
+                st.success(
+                    t(
+                        "updates_rollback_done",
+                        lang=lang,
+                        count=len(result.get("restored") or []),
+                    )
+                )
+                if running:
+                    st.info(t("updates_need_restart", lang=lang))
+            else:
+                st.error(t("updates_rollback_error", lang=lang, error=result.get("error")))
 
 
 def _render_health_section(lang, root):
