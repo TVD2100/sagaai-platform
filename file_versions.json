@@ -1,0 +1,1203 @@
+{
+  "schema": 1,
+  "app_version": "0.1.0-preview.2",
+  "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
+  "release_note": {
+    "ru": "Первая публикация конвейера обновлений: манифест версий файлов (file_versions.json) и встроенный апдейтер.",
+    "en": "First release of the update pipeline: file version manifest (file_versions.json) and the built-in updater."
+  },
+  "updated": "2026-09-07T13:43:20Z",
+  "units": {
+    "core": {
+      "version": "1.0.0",
+      "note": {
+        "ru": "Исполняемый код платформы (core, UI, хранилище, тесты). Обновляется только целиком, единым пакетом.",
+        "en": "Platform executable code (core, UI, storage, tests). Updates only as a single atomic unit."
+      },
+      "files": {
+        "__init__.py": {
+          "version": "1.0.0",
+          "sha256": "c0c32fcbd798455f713c21ff241ef34333daf9ca5eaa132b1379377a5c09e12e"
+        },
+        "app.py": {
+          "version": "1.0.0",
+          "sha256": "d2c3ee752ad6b6993d7bc183d30e1ad29ead0bdd63b3da040c6bf11034737cb3"
+        },
+        "assets/favicon.svg": {
+          "version": "1.0.0",
+          "sha256": "381ca5fce23006e7ba48071eb4c23a380f034787d784314d38532cf1e7474f38"
+        },
+        "certs/russian_trusted_root_ca.pem": {
+          "version": "1.0.0",
+          "sha256": "aa800ef345422d6158c6fafe1c06c429dbda21c3df4bb1ccb45a920ec1111399"
+        },
+        "core/__init__.py": {
+          "version": "1.0.0",
+          "sha256": "7b623930ac29db86b2939a3ea163e4c42dd602ea35a2a1151690393e4169ae71"
+        },
+        "core/api_errors.py": {
+          "version": "1.0.0",
+          "sha256": "a832c536eb48c93c03de698b3e2a153e0989ada2c83f5b8e1f68b33bce3801a6"
+        },
+        "core/api_layer.py": {
+          "version": "1.0.0",
+          "sha256": "bae1eb387d9329d4588cb64c8b7d2509d40748b920980ea908a29ee4c690470d"
+        },
+        "core/assistant_creator.py": {
+          "version": "1.0.0",
+          "sha256": "d7fcf53e5b8bf6f8dbb767dcf83495fb999b5f4c520e525bca3199b6ac42c876"
+        },
+        "core/assistant_folders.py": {
+          "version": "1.0.0",
+          "sha256": "2b7f2eb54193bb6dfb1c30089d1b803b76bde608428af644a1ac08c6874f82a3"
+        },
+        "core/assistant_nav.py": {
+          "version": "1.0.0",
+          "sha256": "efbb790f483918ab8072d774993b8f25ddb9332450ad9b0d6f3df558b179042c"
+        },
+        "core/assistant_tools.py": {
+          "version": "1.0.0",
+          "sha256": "d60c4cbb63160eb2cee307065e5087a89ca7018f46d855e14d2836554bf5986d"
+        },
+        "core/assistants.py": {
+          "version": "1.0.0",
+          "sha256": "4f099ba7b366218cad6bbc724b564a8cd1b238ba7a21cdb7a6bc045d0b8f7b63"
+        },
+        "core/auth.py": {
+          "version": "1.0.0",
+          "sha256": "1afde110ac5cce7df39df66344b7312b8b6a8406475bee737f07b58b90942a97"
+        },
+        "core/bootstrap.py": {
+          "version": "1.0.0",
+          "sha256": "533ca9991da71adc73e2151237c210c44dc8fae0e76d458e6ce45cdc0a7e8b24"
+        },
+        "core/config.py": {
+          "version": "1.0.0",
+          "sha256": "7d4da48e173d89c2c602caf57fed8c93164f20b534e9e07e6999db547149cd95"
+        },
+        "core/connectors.py": {
+          "version": "1.0.0",
+          "sha256": "ca1ba639ada92a679b42bead690f1ce625a14e5179f179f5af0d0a1d616ee197"
+        },
+        "core/crypto.py": {
+          "version": "1.0.0",
+          "sha256": "830aad9563569b310ed1afd9c9359a632fb7aba461b196a870e50de14977bcd6"
+        },
+        "core/dangerous.py": {
+          "version": "1.0.0",
+          "sha256": "9e2ac9c04031e053f17123853a4f47b8a8ff65f2bf91980487445b7a56b721e0"
+        },
+        "core/default_imports.py": {
+          "version": "1.0.0",
+          "sha256": "0fce7522662768775eceb738061af9a0b78eba026c9000e6e88b8202c072415a"
+        },
+        "core/defaults.py": {
+          "version": "1.0.0",
+          "sha256": "0f8a7a7d9f09ae03fd14f3be7a2b13b70541c0083d78b7f463e41bd09e83fdf8"
+        },
+        "core/entity_sync.py": {
+          "version": "1.0.0",
+          "sha256": "aabfa31bfdc390c3ea61716c1ebde2f34598483b7fc918eab26eea74ea9b3d54"
+        },
+        "core/env_loader.py": {
+          "version": "1.0.0",
+          "sha256": "75847f514fdc496cbf8ce91e4f627eac6b94cf888f37b74f1b156ee06ae7f677"
+        },
+        "core/files.py": {
+          "version": "1.0.0",
+          "sha256": "fe1f9ab8c691e1333bb1636e7746a0f8c6e2918494a2116f09f540ed1bfbce53"
+        },
+        "core/fs.py": {
+          "version": "1.0.0",
+          "sha256": "bec53c1a8ff7ea9dc91c81586009d0d79fb1ada73f211bcb670baaf873a55118"
+        },
+        "core/github_connector.py": {
+          "version": "1.0.0",
+          "sha256": "ea9562df332ba3fb6416f8f58b415abfb68fc08aa5990213b734bc35c6f6c6d9"
+        },
+        "core/github_tools.py": {
+          "version": "1.0.0",
+          "sha256": "eebaf64165a68a2cfd14242f2cb0fac95c65a13e1cba22e844faf5781d858ac1"
+        },
+        "core/i18n.py": {
+          "version": "1.0.0",
+          "sha256": "cbd8764a168ac1a05f8eb63cedd8b02a9d78c705d51773132251de1e24336ef4"
+        },
+        "core/instructions.py": {
+          "version": "1.0.0",
+          "sha256": "cb13a65ed80970bec038ff820bab9993d18c8136a4e4447237b1e0269175d855"
+        },
+        "core/orchestrator_folders.py": {
+          "version": "1.0.0",
+          "sha256": "524a3cc3646fc6b5cd2a60ad7a9497e4e23655446aa49699a292a9c5ed93ef54"
+        },
+        "core/orchestrators.py": {
+          "version": "1.0.0",
+          "sha256": "8566fc33c835af272606bb4abac1cbfd9b6669edbd5acc63fe518dc7179b90e4"
+        },
+        "core/paths.py": {
+          "version": "1.0.0",
+          "sha256": "29cd026d56e1e490cf0f31300eaba2f6de63c21dcbfa8fbe43b9b879cbb33252"
+        },
+        "core/prompt_guard.py": {
+          "version": "1.0.0",
+          "sha256": "b04f60e3673f760ab11ba4e6e91f24134516f9f4ab6f42210f5c6399dcae39de"
+        },
+        "core/prompt_improver.py": {
+          "version": "1.0.0",
+          "sha256": "3d61f6eee4f8c0c7ccba760cd58e683597581237247f5c35b7e8ce8c6709cda1"
+        },
+        "core/rag.py": {
+          "version": "1.0.0",
+          "sha256": "6260b896cc6ee60907afff2c8c52fa21e8f2661e06b3b74707e3de442407c5a1"
+        },
+        "core/rag_chunker.py": {
+          "version": "1.0.0",
+          "sha256": "2a9718708e1da17dfe8a99890704c56688491ab0f607374bbfe43e0859b0cde7"
+        },
+        "core/rag_embeddings.py": {
+          "version": "1.0.0",
+          "sha256": "c66851c084c9ac6f5e6b61870551b4029b485710c6306e88c1614e3cc12b0a04"
+        },
+        "core/rag_index.py": {
+          "version": "1.0.0",
+          "sha256": "fa0be9b40265d626b4ef47328d69acb00dfc956e064517ba2f05a80994e1c58a"
+        },
+        "core/rag_indexer.py": {
+          "version": "1.0.0",
+          "sha256": "64b21cb62ee92d8732901a67165a42711feb2e1e8d79d26abd71758909536249"
+        },
+        "core/rag_search.py": {
+          "version": "1.0.0",
+          "sha256": "7fbd0f275e62ba63a8450dd4e8ca6c15a081b80a8cc119b218d5a21c7ebecef9"
+        },
+        "core/recent_assistants.py": {
+          "version": "1.0.0",
+          "sha256": "9838aba3f1a7ff6ab4790a18eaac400e8331a4336fce22638c0c45631ad479f3"
+        },
+        "core/recent_workspaces.py": {
+          "version": "1.0.0",
+          "sha256": "bb2dafaa7d161d21f7354f2a1a5185cf596e17a5481cce7f2d26249062a233eb"
+        },
+        "core/render.py": {
+          "version": "1.0.0",
+          "sha256": "ce69f022557b04e41c35e007e108f2cecf109128e01232779c98ab1d935c817d"
+        },
+        "core/services.py": {
+          "version": "1.0.0",
+          "sha256": "668f45fe0922724562ac4e32cc41d5acbeefc9898b80c00437445f9b57b24be9"
+        },
+        "core/skills.py": {
+          "version": "1.0.0",
+          "sha256": "fb2809f6d77e319ab614d0a95ded4e7fe9255171e5f0041399cad25eb5d20748"
+        },
+        "core/skills_library.py": {
+          "version": "1.0.0",
+          "sha256": "c9ce262ba8e169d936910765fa837abe240929333babb07181ff20d75ef9a762"
+        },
+        "core/statistics.py": {
+          "version": "1.0.0",
+          "sha256": "75604227cc2621564fd6075350ad7a6a258bc60e678c11b1ef5bd7c17f3ce013"
+        },
+        "core/threads.py": {
+          "version": "1.0.0",
+          "sha256": "fd2a5e55710b34a6c6b573bdc50a380c7276db80b1b4f061a11f443441588cee"
+        },
+        "core/threads_devagent.py": {
+          "version": "1.0.0",
+          "sha256": "e7af152ac882c5536398dd1709c53178afa4e376b744b1117d06f5e17b645da3"
+        },
+        "core/tools_utils.py": {
+          "version": "1.0.0",
+          "sha256": "eb31b89c7e74fcd318863b8a3cbe3420fb002808b81bfd58c24df4bb9ca63292"
+        },
+        "core/version.py": {
+          "version": "1.0.0",
+          "sha256": "b024f4365648aeeed162f18b0b2d0990b99d3cc6f9c120d2c95b9e9231c32db9"
+        },
+        "dev_agent/__init__.py": {
+          "version": "1.0.0",
+          "sha256": "d87092665bbf50e5270ad17b3c2c7eb8230b22ae968f52113672025267ead063"
+        },
+        "dev_agent/agent_loop.py": {
+          "version": "1.0.0",
+          "sha256": "e47fb351bffa7d20243500dca3c49929c2f51d9db87c32c0ef1f1fe0e7989852"
+        },
+        "dev_agent/assistant_detector.py": {
+          "version": "1.0.0",
+          "sha256": "c502c61260111456f9b025924ceffd68861accdda296c8d0bc9894e246321822"
+        },
+        "dev_agent/assistant_model_resolver.py": {
+          "version": "1.0.0",
+          "sha256": "113a6e4d0bb87174e07d1ee5060fcc5dfebb848d637ff7a1e6fba9d7afd91479"
+        },
+        "dev_agent/backup_manager.py": {
+          "version": "1.0.0",
+          "sha256": "80e46a3e75620994b82995dc70cebee0e1a8971767fd15b1dbc95200c2dc1183"
+        },
+        "dev_agent/config.py": {
+          "version": "1.0.0",
+          "sha256": "073a7c05154b222729137632e399df10dbdb16ff4b8c9b5495aed2e4c8c4ec4a"
+        },
+        "dev_agent/llm_utils.py": {
+          "version": "1.0.0",
+          "sha256": "8159a84e92220788f8e48daa349841b98b4cf0b270c901f357d3d0d5da78c06a"
+        },
+        "dev_agent/safe_writer.py": {
+          "version": "1.0.0",
+          "sha256": "e3c52b184852fba028df4b24795f80ce6f752d5d8b0885aa556861ec0b7badc0"
+        },
+        "dev_agent/task_state.py": {
+          "version": "1.0.0",
+          "sha256": "acc6d5d78515649d9e7e721686d7f75e230a41ada55376cfaa592dafb6ac2029"
+        },
+        "dev_agent/tool_executor.py": {
+          "version": "1.0.0",
+          "sha256": "21b7b333f7e9ebc627a63f7488347adc1c3345b36974b34a995c8c9dd8b2a7c7"
+        },
+        "dev_agent/universal_agent.py": {
+          "version": "1.0.0",
+          "sha256": "674f1814be3dbb587e40ebc11eef058237721c0a5a5a77e7a1a3aa3582d5cae6"
+        },
+        "dev_agent/workspace_tools.py": {
+          "version": "1.0.0",
+          "sha256": "f6a1d558ac4c4c04bf8531cad2d0e77c09e12c2169df8d0d81e1e25b88d62778"
+        },
+        "pytest.ini": {
+          "version": "1.0.0",
+          "sha256": "208d0f9e48700f367ab579de3a91d02a259c8e0322dbfae0758d0cb90cefddb1"
+        },
+        "requirements.txt": {
+          "version": "1.0.0",
+          "sha256": "3d69e9855c0a8f8b3849ba1f1c5bb3c9d4e93f8fdda12707a8b6a754eb9635cb"
+        },
+        "scripts/regenerate_project_map.py": {
+          "version": "1.0.0",
+          "sha256": "12991aadc1114cbfcdf67face789b63745f29b07b14e961eeb9db369e00a7ae9"
+        },
+        "scripts/verify_manifest.py": {
+          "version": "1.0.1",
+          "sha256": "d36a3f752f48cf6936f1b47123dc96d835a3569212d94a08dcb6f7d51159f858"
+        },
+        "storage/__init__.py": {
+          "version": "1.0.0",
+          "sha256": "009189e351a9da1590470b27a3699067e5e4ffa93d8d0a4d4dc06676951a36db"
+        },
+        "storage/db.py": {
+          "version": "1.0.0",
+          "sha256": "6eb2648bf718589f01a6ff16012885ac2b39ec3e060d1e563e3adb33bfd1fdd1"
+        },
+        "storage/models.py": {
+          "version": "1.0.0",
+          "sha256": "3a6d384eb9a6ab186da148608f1130366a869d0d50df6cd8e60b6db8e0d3c52e"
+        },
+        "storage/repository.py": {
+          "version": "1.0.0",
+          "sha256": "178f0387cda3715aded05a1942ed7a07d3b721c6eab74aa75c4eba8cb9538437"
+        },
+        "storage/repository_devagent.py": {
+          "version": "1.0.0",
+          "sha256": "0fb09aae9928599eff99f1aa0d3d68008c0d4df1f3fa31e3b6fefedf0663445f"
+        },
+        "tests/__init__.py": {
+          "version": "1.0.0",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "tests/_st_mock.py": {
+          "version": "1.0.0",
+          "sha256": "c784b836ea93a974b6ca2f22afd1fe5cefe9b4a467651ce72d6076ed5fd5fb24"
+        },
+        "tests/_test_isolation.py": {
+          "version": "1.0.0",
+          "sha256": "1e1a09515968618332b718678c72d495c8965d91eacd89da356cd4d6ececba13"
+        },
+        "tests/conftest.py": {
+          "version": "1.0.0",
+          "sha256": "867574ec8e699ddcc15cf9172d18978d34f30180ffbc73d3ed027fe9d71bc2f3"
+        },
+        "tests/scenarios/test_assistant_sidebar_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "ad35123859af21af8bcb0e13bc92f7a4d2cec650b7e0e2a946db8b5f771853b0"
+        },
+        "tests/scenarios/test_connectors_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "f344db1094ea9fd1850d58982ab63cfb3adc13a97fd494479adbd4a6eddb7da4"
+        },
+        "tests/scenarios/test_first_run_flow.py": {
+          "version": "1.0.0",
+          "sha256": "8d915ef1798f5f013ab4abd8a040ec214e11f49211f867a9e8eb724eddd96e03"
+        },
+        "tests/scenarios/test_json_repair_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "0eda442021938db69707e231cb2fd772b40152fdf18f09ed3a537173484ac8fe"
+        },
+        "tests/scenarios/test_orchestrator_chat_prefs_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "7b48f14f4c6728266c4cb1a9c7846ddb79be1e7da12aa2758d71f8ca311435d3"
+        },
+        "tests/scenarios/test_orchestrator_devagent_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "fe4d92c9d293b0ea9071b44f17ed75d0b0486194fe7f8efb2d87f16171e29b6b"
+        },
+        "tests/scenarios/test_rag_assistant_dialog.py": {
+          "version": "1.0.0",
+          "sha256": "cc5cf32cfc7e8dca2d524dff64349711d8a39657670ec49734335f09d89c47e5"
+        },
+        "tests/scenarios/test_search_in_files_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "5632c2b364039927282ebc26f94235bf6bb882c297a73f024487061ba80d67e1"
+        },
+        "tests/scenarios/test_skills_adaptation_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "3735539b16021245531e3029d531042cd2a58888506e3638a08c955d8fc54070"
+        },
+        "tests/scenarios/test_stats_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "2047e492668ef2730da50aab0bb55548061c6456b6b6acfe2ce9993d6fdf75e3"
+        },
+        "tests/scenarios/test_structured_output_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "0b2ceed95c3a066743232ac8da2bb1f88054cf53f20dec316be6265b022d4111"
+        },
+        "tests/scenarios/test_theme_switch_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "4767182fe6c78b90876946c7d559289f142e366b114ddbf41af5f03eca2385e3"
+        },
+        "tests/scenarios/test_welcome_page_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "242b2e77bdf42473f43801db97b2809ae5a9c3e51a78e518d46af9c1777f6ad5"
+        },
+        "tests/smoke/test_app_smoke.py": {
+          "version": "1.0.0",
+          "sha256": "489f032e47a12d571bc033c280a69494ea7755f03da84d53b9e47cb76550289f"
+        },
+        "tests/test_agent_loop_json_repair.py": {
+          "version": "1.0.0",
+          "sha256": "7c4e3eb46880df89de41ff0400b5545bd62e970da62f7aab31736f4a099d3989"
+        },
+        "tests/test_app_imports.py": {
+          "version": "1.0.0",
+          "sha256": "6eb842dcbb8dd6ff23798af3ce7c56460e439da20bc9630506d0c67cae79ba8b"
+        },
+        "tests/test_apply_patch.py": {
+          "version": "1.0.0",
+          "sha256": "53213a85d18d0c917a42933240d6ab84ac0a13fa866fcf35b8e26645fea18138"
+        },
+        "tests/test_assistant_folders.py": {
+          "version": "1.0.0",
+          "sha256": "c3aa1365361ff8dbc1222b7925dd87d7500336187957ba38b13c86534a7e3c91"
+        },
+        "tests/test_assistant_function_tools.py": {
+          "version": "1.0.0",
+          "sha256": "15ced574bd55a62f5320c27e6daead68296efca8ecd4ccfae34c6c756f780034"
+        },
+        "tests/test_assistant_sidebar_sort.py": {
+          "version": "1.0.0",
+          "sha256": "b0b5312d13ad24f14202990381815d48cdd8e26bf8f92adca65e34a09c177a92"
+        },
+        "tests/test_assistant_temperature.py": {
+          "version": "1.0.0",
+          "sha256": "de79bcbfe1b7a24fa7966cc4c0d24361084b43d9db82c957b12c653256dd27b2"
+        },
+        "tests/test_assistant_tools.py": {
+          "version": "1.0.0",
+          "sha256": "052d0ebb26226449a3e09354b0eb8f72018e4139bfc7832d2bd26fbdf3f365ef"
+        },
+        "tests/test_backup_and_safewriter.py": {
+          "version": "1.0.0",
+          "sha256": "85319600da37774906f21382167ea2370afa088816e436d86f0cff0fdd0e9818"
+        },
+        "tests/test_connectors.py": {
+          "version": "1.0.0",
+          "sha256": "0fed7f6a645b6dc17b040d08d3a3ee30c39d5479fa49441f1d38e6e4b04a1df4"
+        },
+        "tests/test_core_api_json_schema.py": {
+          "version": "1.0.0",
+          "sha256": "0fa61610b9da08fd738f2ab3122eb82b3f3c7f8309fa36c2709f8a16beb796ea"
+        },
+        "tests/test_core_api_layer.py": {
+          "version": "1.0.0",
+          "sha256": "13bde0cead6f3d36dcfd7e07e00727f54b78ec3cabf4e0c22380612b32e6b246"
+        },
+        "tests/test_core_api_send.py": {
+          "version": "1.0.0",
+          "sha256": "ac6e111ac2e8d2e01dfff702995c3214d33bf356a8f0c9a5a03bf4ce4a385091"
+        },
+        "tests/test_core_files.py": {
+          "version": "1.0.0",
+          "sha256": "ea40578f31fe7ee9685af34d058fcdc3c4077d42db79932c21e28a7a36ca3b3f"
+        },
+        "tests/test_crypto.py": {
+          "version": "1.0.0",
+          "sha256": "ae81d11d36948e0a60b58777cdd1199071e9b44f54e24018e4baee4c1bf91913"
+        },
+        "tests/test_deepseek_responses.py": {
+          "version": "1.0.0",
+          "sha256": "bd25aa4f1c1ca1ed529499b14bd3c96a169251237de56753a7be66eb608a3c9d"
+        },
+        "tests/test_default_imports.py": {
+          "version": "1.0.0",
+          "sha256": "e97f7f1e1b7b0d8ca71c4562c1107f3cba94f494ef37cc6ff021718900b4c503"
+        },
+        "tests/test_default_rag_bases.py": {
+          "version": "1.0.0",
+          "sha256": "6e3ff5c8ba9afa25cdc1bf688c7547825be9a171416e9e8e655c43a245527d8b"
+        },
+        "tests/test_devagent_thread_workspace.py": {
+          "version": "1.0.0",
+          "sha256": "495200dad850b8b64fd3da5c526fdd7d05cb3a3f825f639c604688715bbed959"
+        },
+        "tests/test_dispatcher_connections.py": {
+          "version": "1.0.0",
+          "sha256": "96187101339a61a760b6e8cdeb60aaa2c5c9fc72508010cc1a64e57a444af5c2"
+        },
+        "tests/test_employee_management_ui.py": {
+          "version": "1.0.0",
+          "sha256": "3245598541418855fb1c15de5f7140213250c61f937fd70969a10c71fd8c3295"
+        },
+        "tests/test_github_connector.py": {
+          "version": "1.0.0",
+          "sha256": "f7f20157f00936914e9c501a0c940fc6e962e4fd8341dd1ce7c79feb3f032036"
+        },
+        "tests/test_github_tools.py": {
+          "version": "1.0.0",
+          "sha256": "e4fb0ad1bb6eb950621ac2609ccbb8e01cb8718f9f0e21e0e93e7fb0ca8f7dc5"
+        },
+        "tests/test_i18n_serialization.py": {
+          "version": "1.0.0",
+          "sha256": "f7d6321d62a5bf6aac1aea0cd0679289af1e7780a7fb06d4d63132f9f15f421b"
+        },
+        "tests/test_i18n_sync.py": {
+          "version": "1.0.0",
+          "sha256": "8768f7137de3014affe989d9965bec65eb72fdcb90bd7bca1711a49d73c3445b"
+        },
+        "tests/test_list_files.py": {
+          "version": "1.0.0",
+          "sha256": "8cc14759b0c559e2d45f66d2b00fb05320696a36ed329be541310a566f7361cc"
+        },
+        "tests/test_llm_utils_json_schema.py": {
+          "version": "1.0.0",
+          "sha256": "58f49f284caf86676ef26b004a978d1d53a2f44bd60a1df24e623e033bebfdbb"
+        },
+        "tests/test_numeric_arg_coercion.py": {
+          "version": "1.0.0",
+          "sha256": "cb508065c5803865d76a440adf6cdac7e3dbdd3ac665d45ed324ac76bbf64d0a"
+        },
+        "tests/test_orchestrator_chat_prefs.py": {
+          "version": "1.0.0",
+          "sha256": "6d6baa60dd8e85811599feee2e0bbb63b61ecee4a6dcbfd97334d44f7bf4d63e"
+        },
+        "tests/test_orchestrator_connections.py": {
+          "version": "1.0.0",
+          "sha256": "aff80873f2e31bc7e9932b7fdee022942c6cc00602e9eafabd75c35c4492a74a"
+        },
+        "tests/test_orchestrator_economy_cache.py": {
+          "version": "1.0.0",
+          "sha256": "54d29b1762be62669765ebe8ef439d042a28919b54ce4020b36e6536076aec9f"
+        },
+        "tests/test_orchestrator_folders.py": {
+          "version": "1.0.0",
+          "sha256": "2a7a48ea3687236d0fc265385d31ae35a2cd781f44dec495b20ca6028570570c"
+        },
+        "tests/test_phase1_agent_loop.py": {
+          "version": "1.0.0",
+          "sha256": "394fe24763fa8b382e917d190ec12db381a1d61c8bbbe153155d0c2f1852b423"
+        },
+        "tests/test_phase1_core_pure.py": {
+          "version": "1.0.0",
+          "sha256": "7a81851aa3a57d84e212e5d1234a6e176c3788797f3ec55a6dcb41d256973f1d"
+        },
+        "tests/test_phase1_storage.py": {
+          "version": "1.0.0",
+          "sha256": "6d892fecf57b015d338044eb85df114414f6923dfbb34a8afced8dc026c9b1df"
+        },
+        "tests/test_platform_bootstrap.py": {
+          "version": "1.0.0",
+          "sha256": "9704d393ca0094376daa6820b8b491ef77e5af59a0d77ecf3d71e1cd994e1bc4"
+        },
+        "tests/test_platform_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "54b7f8da437adcc8d4a372bd285516d5b18327e5a3919b96447e8a2f164240b9"
+        },
+        "tests/test_preset_orchestrators.py": {
+          "version": "1.0.0",
+          "sha256": "f1ea2a2c6d6ece8e3e7c4c38f4bb1db6671f35740c405a2a277be54ca873c859"
+        },
+        "tests/test_prompt_guard_strict.py": {
+          "version": "1.0.0",
+          "sha256": "0ddba14881ce1bc283fcb3418d41c8e9c982a80acf7c5467cae12e27ab74ba23"
+        },
+        "tests/test_prompt_improver.py": {
+          "version": "1.0.0",
+          "sha256": "0961a7fd8e2c95c963e34ce567fa252ade4367900fd58dcbf4eff5c776a2050f"
+        },
+        "tests/test_propose_file.py": {
+          "version": "1.0.0",
+          "sha256": "d9e53d67e4ff5c34c6d83a69d9c2fc8ffea0daf5a499d1c88e57dc32f7cdc1ff"
+        },
+        "tests/test_propose_file_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "c00b41c7237711c24f2f66792eff3899b60cb7b2c8b041e83ac0cf600f76c80d"
+        },
+        "tests/test_protect_history.py": {
+          "version": "1.0.0",
+          "sha256": "05d194a1639eafdabcfbc82e5b9dd9ff1890009a488bc104abf58236630c1e27"
+        },
+        "tests/test_rag_chunks_and_preset_skills.py": {
+          "version": "1.0.0",
+          "sha256": "d92165914d1c1ab74cb5d2369d805a1eea1805bed94abbc8fb63aa808c44629b"
+        },
+        "tests/test_rag_tools_robustness.py": {
+          "version": "1.0.0",
+          "sha256": "8d40c1d102eaea4944fff0709e3586416ef450b2bd5824a82aa8643bc6523db1"
+        },
+        "tests/test_recent_workspaces.py": {
+          "version": "1.0.0",
+          "sha256": "9876dda70149ee980d60b8c8e9fcf3073baea5f9a397f0742c18a89df9897e30"
+        },
+        "tests/test_render_token_line.py": {
+          "version": "1.0.0",
+          "sha256": "e9ccd5e48cf07b79c87ee7cdccaf51c4e382783d351a776133ad2031596ad7e9"
+        },
+        "tests/test_safety_mode.py": {
+          "version": "1.0.0",
+          "sha256": "fa2bfe445f1c419d9b73bdfbfc0011c8467e9d7b318ecb3caa94123850c866b1"
+        },
+        "tests/test_sanitized_approval_flow.py": {
+          "version": "1.0.0",
+          "sha256": "bcc88feed3abb3dc6f94870e74139111ac7c569b1a09c57081e9a0522fea30ce"
+        },
+        "tests/test_search_in_files.py": {
+          "version": "1.0.0",
+          "sha256": "e9b886c37c68823bd3fe2b34a4153a9a72ea1a0cfa6c2614e1f4de76d2225ce8"
+        },
+        "tests/test_skills_adaptation.py": {
+          "version": "1.0.0",
+          "sha256": "2a4b7bf502fd50e35d9168fc5baa2eaacb7a655af0be8628197274f13e982b62"
+        },
+        "tests/test_skills_library.py": {
+          "version": "1.0.0",
+          "sha256": "82d60e2eb3680a916ed2edddb9adc056a584dde9bee40bb54c7e39dd83a93be8"
+        },
+        "tests/test_st_mock.py": {
+          "version": "1.0.0",
+          "sha256": "8019d551082d081e1a1e5acab17c72d52340b727ca7c1176e7da77fc727dcf84"
+        },
+        "tests/test_statistics.py": {
+          "version": "1.0.0",
+          "sha256": "97f92f38e3f975e2f01266820490743150633aa765bd3208d19f55e07290150e"
+        },
+        "tests/test_stats_page_ui.py": {
+          "version": "1.0.0",
+          "sha256": "30ed983449bb966a75f9d7faee34f82e983cc843c6b40709bbf03a3725ea069d"
+        },
+        "tests/test_storage_page_ui.py": {
+          "version": "1.0.0",
+          "sha256": "c56874e293df9447d8391da7e137ff318f9de8b60a56805ac13fd3c26234ba5f"
+        },
+        "tests/test_structured_output_consumers.py": {
+          "version": "1.0.0",
+          "sha256": "6fc6dde9545fdbcfc1718950e69b991ed5c50558d86fe4374d5cfafe15447261"
+        },
+        "tests/test_task_state.py": {
+          "version": "1.0.0",
+          "sha256": "5685566c2a6cd3b3223eafc2efcaf8c705442b00e1df6500b062830db7e4ae40"
+        },
+        "tests/test_theme_restore.py": {
+          "version": "1.0.0",
+          "sha256": "3fdfde65b9958fc62e3e666ee050d3fb502948ec88c28d2d8d70ee798454cd48"
+        },
+        "tests/test_thread_deeplink.py": {
+          "version": "1.0.0",
+          "sha256": "442b709e37c4be1a81aa3a6b99f5cb68c5b3fcc55ff775a64475ed921d8912de"
+        },
+        "tests/test_thread_file_save.py": {
+          "version": "1.0.0",
+          "sha256": "71df05e2bc9ed2fc43a6174a678a4c69fafaa9ff227fca8344f867c9132adfcb"
+        },
+        "tests/test_tools_utils.py": {
+          "version": "1.0.0",
+          "sha256": "9111bc0ae615e2c66be59ca96b4e451ee967264669bcbc88b058d9c4196beb18"
+        },
+        "tests/test_ui_pages.py": {
+          "version": "1.0.0",
+          "sha256": "86d5dfea5dac24a090ae50ceb657e1b363d91af1567109b5fd9bacf12555a9ff"
+        },
+        "tests/test_ui_tooltips.py": {
+          "version": "1.0.0",
+          "sha256": "3b0919fcd07610e2983eb455357e6294c255c5e1f03581f8e4c230fd39674f9f"
+        },
+        "tests/test_ui_tooltips_orchestrator.py": {
+          "version": "1.0.0",
+          "sha256": "57889faffd9c10737cba1883d5e40d08e4a67fcf1640f616ac05427e728f4295"
+        },
+        "tests/test_universal_developer.py": {
+          "version": "1.0.0",
+          "sha256": "526cee36f97ef6f49d07c6c6290927d6cd951e3473df6cbb8fc7d604455daf47"
+        },
+        "tests/test_usability_fixes.py": {
+          "version": "1.0.0",
+          "sha256": "2ff3a90fc5922b1d026cf9ab5cb2b255b88e54c5dfbdadba551a2c3f88edf87d"
+        },
+        "tests/test_web_search_prompt.py": {
+          "version": "1.0.0",
+          "sha256": "8685ba4e618c7fee1835619d00da4c9ee3178ce9232297b97f1d2a0ad9e73892"
+        },
+        "tests/test_yandex_responses.py": {
+          "version": "1.0.0",
+          "sha256": "d429bdf71ca06f1bc522ca76c9ab2c7bad10d94c39eb3e319bdcb6d07d1ac50a"
+        },
+        "ui/__init__.py": {
+          "version": "1.0.0",
+          "sha256": "364164080192ca393405d235f1fc7ae64d45f48fd0e7a6bf27b064ea439e7a1f"
+        },
+        "ui/app.py": {
+          "version": "1.1.1",
+          "sha256": "767a051c7865b18aecf65fe0dca3062d0b246274413ca36221dcca0f63005228"
+        },
+        "ui/components/__init__.py": {
+          "version": "1.0.0",
+          "sha256": "84c1327e5816d855c9f8c931cf780eb2f4693c5459cf2dea6c3c133651eb30cd"
+        },
+        "ui/components/workspace_picker.py": {
+          "version": "1.0.0",
+          "sha256": "3c18786390bdcd8a8b1309987d0522ee345ec998c19aca56003b9b54685d1716"
+        },
+        "ui/pages/__init__.py": {
+          "version": "1.0.0",
+          "sha256": "580d966418fb40de67b13995294875a6552d7a81a7009b927a672c31b8a189e1"
+        },
+        "ui/pages/assistants.py": {
+          "version": "1.0.0",
+          "sha256": "b107b563931bcc7cd3a7c51d93197e6bacb8832da551255e8c285afe26f68901"
+        },
+        "ui/pages/chat.py": {
+          "version": "1.0.0",
+          "sha256": "600c9f6882a4cb34ed0b0bb045547bb75db4ea36294d715d1d982383bf5af74c"
+        },
+        "ui/pages/connectors.py": {
+          "version": "1.0.0",
+          "sha256": "70482804fa24f56715520fcac9d9b469c7d67ec9900c7ce54a7fc65b58d9470b"
+        },
+        "ui/pages/history.py": {
+          "version": "1.0.0",
+          "sha256": "448dbf67eff496ec7d2689ef5d6f5be3640b79162e7456934ed478856b54ca74"
+        },
+        "ui/pages/orchestrator.py": {
+          "version": "1.0.0",
+          "sha256": "63411d09885328c708b85cba6647b55139149c7e3b1df21d9967ef090b82d9bd"
+        },
+        "ui/pages/orchestrator_settings.py": {
+          "version": "1.0.0",
+          "sha256": "7db5eacec710232d1a27e69b425c85178c32738b10c053d91daf2c2bedf1b5fd"
+        },
+        "ui/pages/orchestrators.py": {
+          "version": "1.0.0",
+          "sha256": "cdb2f3687634a40666c0638631402260049168bff72636eb0422111e5afd2da2"
+        },
+        "ui/pages/settings.py": {
+          "version": "1.0.0",
+          "sha256": "4e86cabf8d25a19a47f2052d35968b93fb66e7aa6e0f5b2b602c5a9c0d153891"
+        },
+        "ui/pages/skills.py": {
+          "version": "1.0.0",
+          "sha256": "bd871f789f30de36f619392626a59faf404432b99c34ba7c23b4438047a5b7de"
+        },
+        "ui/pages/skills_library.py": {
+          "version": "1.0.0",
+          "sha256": "5a507d2bcc91b0269c8c81c029b716ff9d6e278ce16cebdcd9fca20473eed3b6"
+        },
+        "ui/pages/stats.py": {
+          "version": "1.0.0",
+          "sha256": "73148ce017e3932beca0a102cadab3e7f5f45e3b09fd513c6cdd05f6a50c61b1"
+        },
+        "ui/pages/storage.py": {
+          "version": "1.0.0",
+          "sha256": "96322eb8e7b2a314fdfba34843372167d7d1bfc8d65c9118683f7c0f5ea88368"
+        },
+        "ui/pages/welcome.py": {
+          "version": "1.0.0",
+          "sha256": "ce6235fcf9d00a1981b32ea0fcdef7bb7a32c036d33a09d70cbff134cfe138ba"
+        },
+        "tests/test_verify_manifest.py": {
+          "version": "1.0.0",
+          "sha256": "37f312d0189746827d7a713a3cb58a4989cd4580b00753cf3d2565588d0a2ade"
+        },
+        "core/updater_apply.py": {
+          "version": "1.1.0",
+          "sha256": "c9e03ac37d50334f2e8ed0ab3770e16be2535b777d39ea36cde91591cc74858b"
+        },
+        "tests/test_updater_apply.py": {
+          "version": "1.0.0",
+          "sha256": "69f158e7c02e8511a8dc5506352813ccdaeb847009c741eca62e1f6d84f404c9"
+        },
+        "core/updater.py": {
+          "version": "1.0.0",
+          "sha256": "88031aee84a3f1ae4e32760cc5bc06b2e05d920dc1cb3b040b22075be1651be8"
+        },
+        "tests/test_updater.py": {
+          "version": "1.0.0",
+          "sha256": "09fd69d2e0c64445bdda216ac9310c80dde9566017ea0833471986770b245ea2"
+        },
+        "ui/pages/updates.py": {
+          "version": "1.0.0",
+          "sha256": "bf294a0881ae1435fe01336e9cc24ab7f9e0de00de0629ee6f2cc00d4a08bfe6"
+        },
+        "tests/test_updater_ui.py": {
+          "version": "1.0.0",
+          "sha256": "73400eb94627245aae2b722f24561d2833cdf48e5d8c9b1f2bb4075cb70285d9"
+        }
+      }
+    }
+  },
+  "selectable": {
+    "ARCHITECTURE.md": {
+      "version": "1.1.0",
+      "sha256": "ee0fae1c2a22c343c3a552764ff6cde238ddebb327972da6569dcd9fd0577d3f",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "COMPARISON.md": {
+      "version": "1.0.0",
+      "sha256": "913bc500c2dbbb837a8ed7c893e1292fe55e30addc31d0d4f119a6c300636015",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "LICENSE": {
+      "version": "1.0.0",
+      "sha256": "cbbdb52d349f3b39cdf433fb9254513a2850df07117e447b5b91f272c4bce9c4",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "PROJECT_MAP.md": {
+      "version": "1.1.1",
+      "sha256": "9eb541192f49e754ef569bf9bac9e7935e56478d0ca9f515b4fba9f9f2153cf1",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "README.md": {
+      "version": "1.1.0",
+      "sha256": "be4fbe9427d874e4798a0f5272e38b4a0bcbe2f1bf24cb4f7b4330e47ea81736",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "SPEC.md": {
+      "version": "1.1.0",
+      "sha256": "8837c3fb2b7aef48cc681a90ecc1e70d196b78b4b89eb6c6de0ad3c58e82bb2e",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/README.md": {
+      "version": "1.0.0",
+      "sha256": "57a61bebbd6a3c2eacf945a51589c163c7871f94f732049d982295120cbfa08c",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/assistants/README.md": {
+      "version": "1.0.0",
+      "sha256": "ab8e8a9d961d90ea010c55aca9ff018811ee2063c2321b01816123325a5c95a4",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/assistants/korrektor/manifest.json": {
+      "version": "1.0.0",
+      "sha256": "40a351545f2da2d127c5009158f1704d870091b3ad7b43b56e5a1091168b259f",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/assistants/korrektor/prompt.md": {
+      "version": "1.0.0",
+      "sha256": "40f1c6e6778494b82dbee6c7cde27655b4a3184aac388bc1d165173d81752501",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/assistants/universalnyy_tyutor/manifest.json": {
+      "version": "1.0.0",
+      "sha256": "0fe56588f81f0d592de1ae6f7117899eaac5866503139742439cfc8da9576e6f",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/assistants/universalnyy_tyutor/prompt.md": {
+      "version": "1.0.0",
+      "sha256": "b98e8cb94aec9ab60d55cdf8e6163330fe596cca63acff209cddd416298fe9cf",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/instructions/github_connector.md": {
+      "version": "1.0.0",
+      "sha256": "c8c2238041a648cb793688e31543fadcb360605f4492787ea6adb08f2638f0e3",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/langs/en.json": {
+      "version": "1.1.0",
+      "sha256": "428b3c581cbe6e5bf6fe656f17b393767dba12101452e59aeaba40c801a9c854",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/langs/en_guide.md": {
+      "version": "1.0.0",
+      "sha256": "6205bd0b24800b3ec6c23a5bfbd715521cdef3ea8348e38bc54a7f39de48cc06",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/langs/ru.json": {
+      "version": "1.1.0",
+      "sha256": "42b7a9267fe2313d8f12b17a06f73efdcd44ae68e66c5d6cfafe2d6369f9a167",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/langs/ru_guide.md": {
+      "version": "1.0.0",
+      "sha256": "18a18afaa9eb000110743b306f1caa6807f41ccbe9a5f041106f7365f6dbb8d5",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/langs/zh-CN.json": {
+      "version": "1.1.0",
+      "sha256": "76f9403c2c5b071df86c903136316f6f3b15c71a44c4677b624c1eeb901aa4c1",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/langs/zh_CN_guide.md": {
+      "version": "1.0.0",
+      "sha256": "2b360ef793ed5abee89ef763f098932dfdc0c23763b9c0e535457a0c8bbdebca",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/orchestrators/dev_agent/instructions/assistant_creator.md": {
+      "version": "1.0.0",
+      "sha256": "0ee0859573cea86488edd23848324e69c1d3bcd8a75f6f3e2c6c73c33a82ddd4",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/orchestrators/dev_agent/instructions/employee_creator.md": {
+      "version": "1.0.0",
+      "sha256": "6c25e2e92266469bf06d2f63097f1e0214352208751fe2110d9e3d3d34c238b5",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/orchestrators/dev_agent/instructions/github_connector.md": {
+      "version": "1.0.0",
+      "sha256": "55e108bf5a5ecd35c5c7d791945f35cfecf9001cf84c34ea87ede1fc1d479f39",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/orchestrators/dev_agent/instructions/prompt_improver.md": {
+      "version": "1.0.0",
+      "sha256": "b1a00ad0b8c1db28125d9b56c070c6b70e5088948a1562950351fd6732fa8186",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/orchestrators/dev_agent/instructions/self_reflection.md": {
+      "version": "1.0.0",
+      "sha256": "573f972100cce299b71848af2d5b9891e9c2dfa44ee8c4969e69c1d9bf7c1c0e",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/orchestrators/dev_agent/instructions/skill_developer.md": {
+      "version": "1.0.0",
+      "sha256": "dd229c6d7207ddeb71ae0b57969c6e2dd09b53d812e767e8a8af7fcb6b84e2b0",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/orchestrators/ya_agent/instructions/agent_atelier_agents.md": {
+      "version": "1.0.0",
+      "sha256": "d678e30a49e537b8a0b6186b790228157e031d35cff8bbeb2470d64d83cf0d6d",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/orchestrators/ya_agent/instructions/agent_security_guardrails.md": {
+      "version": "1.0.0",
+      "sha256": "d4207248af45f98acf63aff6075e2979b4aa3a6849de494a2c4012abddaab7a5",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/orchestrators/ya_agent/instructions/agent_tools_mcp.md": {
+      "version": "1.0.0",
+      "sha256": "f4817034ab6ea062b4970f0a0e92f581927c61d653a55efa1fed17cfd369129e",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/orchestrators/ya_agent/instructions/agents_responses_api.md": {
+      "version": "1.0.0",
+      "sha256": "550ed1e04000b4fcdae1fd0bf7f5dbb02e46b602641681a2e3948c80e2245e31",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/orchestrators/ya_agent/instructions/fine_tuning_classifiers.md": {
+      "version": "1.0.0",
+      "sha256": "84cc1f17ecd4158117eaaec0d3f2fb232be06542b1688048c618d14245377638",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/orchestrators/ya_agent/instructions/multimodal_yandex_services.md": {
+      "version": "1.0.0",
+      "sha256": "29312d1d96c894e72e25f6818fb0fbd16ab256bccfab04f0c6ec894bb16e8f06",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/orchestrators/ya_agent/instructions/rag_search_embeddings.md": {
+      "version": "1.0.0",
+      "sha256": "52441418ed312a316b8da3272c2da35ebde7eee388eb64a3e9b01b7cfcb13161",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/orchestrators/ya_agent/instructions/yandex_models_reference.md": {
+      "version": "1.0.0",
+      "sha256": "54c010f9e910767558df54fa8a734e1e042cb291b2ae88a782287e5c9402e016",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/orchestrators/ya_agent/orchestrator.json": {
+      "version": "1.0.0",
+      "sha256": "f8ef4e7ea9850c057359e63b029dc137eff3008a8104706982f07e2f6f03ae6e",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/orchestrators/ya_agent/system_prompt.md": {
+      "version": "2.5",
+      "sha256": "6c95d97689f4c84bd52199cfb552f931a12fc66e1fbd738639776007906729e7",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/rag_bases/yaagentai_2020/index.db": {
+      "version": "1.0.0",
+      "sha256": "80fb3dca24d9bb75d2014d2984232f12096ddc1235ea797ca2550560a09997be",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/rag_bases/yaagentai_2020/manifest.json": {
+      "version": "1.0.0",
+      "sha256": "f4472fcbdd0f87f4daef8d42154d723c60011466dbfe96eb47fe8a85a30fca95",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/services/deepseek.json": {
+      "version": "1.0.0",
+      "sha256": "940a2a25a807c984b60f7b0a7b556c2b8849c438cf3f935975f61e56baf565ee",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/services/gigachat.json": {
+      "version": "1.0.0",
+      "sha256": "d6067074be7cbbbefd71fa36e40832b5f9b842cc293f05a842b9b64e8a71ab2a",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/services/yandex.json": {
+      "version": "1.0.0",
+      "sha256": "03960a4c6d326ebdfb3575a068246370001082da6fe16712623d93effd745d60",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/settings/global.json": {
+      "version": "1.0.0",
+      "sha256": "9164b2ec544cb3594faa03fdcc75177494a8d4b829571a3adc070f28267991a9",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/skills/README.md": {
+      "version": "1.0.0",
+      "sha256": "eb4e22ff88ec7ec69535e58a6f25b423f3e6bd2e19a6660e9d96c7db97a77ef2",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/skills/rag_base_creator/SKILL.md": {
+      "version": "1.0.0",
+      "sha256": "59f080ae3e1edd925dfcfdf2b61587a7d4a7174fb16f3ea9e9243adc98a286b0",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/skills/rag_base_creator/scripts/build_base.py": {
+      "version": "1.0.0",
+      "sha256": "53ba3b3490bea9ca330799504db66284523f568d75062454d34f04e371d06e57",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "dev_agent/system_prompt.md": {
+      "version": "3.7",
+      "sha256": "1da5d6ce11ee17c7452d60da639ee9e199e89b6e81c29f450d0e8c06adc3f7ba",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "langs/en.json": {
+      "version": "1.1.0",
+      "sha256": "428b3c581cbe6e5bf6fe656f17b393767dba12101452e59aeaba40c801a9c854",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "langs/en_guide.md": {
+      "version": "1.0.0",
+      "sha256": "4a2120b4fb32395fd70ea39d9a31f01336f79d8cc95b7832bf753fb71750a4f2",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "langs/ru.json": {
+      "version": "1.1.0",
+      "sha256": "42b7a9267fe2313d8f12b17a06f73efdcd44ae68e66c5d6cfafe2d6369f9a167",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "langs/ru_guide.md": {
+      "version": "1.0.0",
+      "sha256": "c1a07704065dca5b265df7471a007686d40b10bbe5f93eb686653f2f2d1c59bd",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "langs/zh-CN.json": {
+      "version": "1.1.0",
+      "sha256": "76f9403c2c5b071df86c903136316f6f3b15c71a44c4677b624c1eeb901aa4c1",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "langs/zh_CN_guide.md": {
+      "version": "1.0.0",
+      "sha256": "0d18e5615fa807bd9cb6b9e4c221f74bc79cd23079471711c05ec086626aef2e",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "services/deepseek.json": {
+      "version": "1.0.0",
+      "sha256": "940a2a25a807c984b60f7b0a7b556c2b8849c438cf3f935975f61e56baf565ee",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "services/gigachat.json": {
+      "version": "1.0.0",
+      "sha256": "d6067074be7cbbbefd71fa36e40832b5f9b842cc293f05a842b9b64e8a71ab2a",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "services/yandex.json": {
+      "version": "1.0.0",
+      "sha256": "03960a4c6d326ebdfb3575a068246370001082da6fe16712623d93effd745d60",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "CHANGELOG.md": {
+      "version": "1.1.1",
+      "sha256": "370075778690313e0312f4dc9c759eeb0a62d03507169f8816219b13a6f92a6e",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/orchestrators/dev_agent/instructions/local_repo_guide.md": {
+      "version": "1.1.1",
+      "sha256": "f5d034154d9f7204f311b2de64241e0a1729bf3c581b72622122c1528283faa4",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    }
+  }
+}
