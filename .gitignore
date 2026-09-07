@@ -37,3 +37,8 @@ dist/
 
 # DevAgent task-state journals (runtime)
 /dev_agent/task_states/
+
+# Local-only working files (never committed)
+/deliverables/
+/personal_assistant_data/
+/GITHUB_FILES.md
