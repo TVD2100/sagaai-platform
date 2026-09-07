@@ -72,8 +72,8 @@
           "sha256": "533ca9991da71adc73e2151237c210c44dc8fae0e76d458e6ce45cdc0a7e8b24"
         },
         "core/config.py": {
-          "version": "1.0.0",
-          "sha256": "7d4da48e173d89c2c602caf57fed8c93164f20b534e9e07e6999db547149cd95"
+          "version": "1.1.0",
+          "sha256": "5633802b5a366840c4d8885a65676b691794821b514be9333f56b6ae4f0fe7f3"
         },
         "core/connectors.py": {
           "version": "1.0.0",
@@ -324,8 +324,8 @@
           "sha256": "f344db1094ea9fd1850d58982ab63cfb3adc13a97fd494479adbd4a6eddb7da4"
         },
         "tests/scenarios/test_first_run_flow.py": {
-          "version": "1.0.0",
-          "sha256": "8d915ef1798f5f013ab4abd8a040ec214e11f49211f867a9e8eb724eddd96e03"
+          "version": "1.0.1",
+          "sha256": "34c1bb562d013313c2b97ab84337d91d3ddcbffc2d1cca07c4f46eab5e04bd7c"
         },
         "tests/scenarios/test_json_repair_scenarios.py": {
           "version": "1.0.0",
@@ -432,8 +432,8 @@
           "sha256": "ae81d11d36948e0a60b58777cdd1199071e9b44f54e24018e4baee4c1bf91913"
         },
         "tests/test_deepseek_responses.py": {
-          "version": "1.0.0",
-          "sha256": "bd25aa4f1c1ca1ed529499b14bd3c96a169251237de56753a7be66eb608a3c9d"
+          "version": "1.0.1",
+          "sha256": "95e3359cfa78eccc70772120c3950b0a1a31dac67da7913364655be7c8bb7ee2"
         },
         "tests/test_default_imports.py": {
           "version": "1.0.0",
@@ -516,8 +516,8 @@
           "sha256": "9704d393ca0094376daa6820b8b491ef77e5af59a0d77ecf3d71e1cd994e1bc4"
         },
         "tests/test_platform_scenarios.py": {
-          "version": "1.0.0",
-          "sha256": "54b7f8da437adcc8d4a372bd285516d5b18327e5a3919b96447e8a2f164240b9"
+          "version": "1.0.1",
+          "sha256": "ee18f1af9edc87e00ff602c1a2b191477aa34e9326804608a39ac47bfe276a27"
         },
         "tests/test_preset_orchestrators.py": {
           "version": "1.0.0",
@@ -620,12 +620,12 @@
           "sha256": "9111bc0ae615e2c66be59ca96b4e451ee967264669bcbc88b058d9c4196beb18"
         },
         "tests/test_ui_pages.py": {
-          "version": "1.0.0",
-          "sha256": "86d5dfea5dac24a090ae50ceb657e1b363d91af1567109b5fd9bacf12555a9ff"
+          "version": "1.0.1",
+          "sha256": "c62c3170dae98fa7820ca09a8cc3902926a497bcc186f79ff2e1c6056ab29a24"
         },
         "tests/test_ui_tooltips.py": {
-          "version": "1.0.0",
-          "sha256": "3b0919fcd07610e2983eb455357e6294c255c5e1f03581f8e4c230fd39674f9f"
+          "version": "1.0.1",
+          "sha256": "fdecf179b5991868e27d1d897911e2d5e61728aaafa0f7224ed90ba79afb2adf"
         },
         "tests/test_ui_tooltips_orchestrator.py": {
           "version": "1.0.0",
@@ -696,8 +696,8 @@
           "sha256": "cdb2f3687634a40666c0638631402260049168bff72636eb0422111e5afd2da2"
         },
         "ui/pages/settings.py": {
-          "version": "1.0.0",
-          "sha256": "4e86cabf8d25a19a47f2052d35968b93fb66e7aa6e0f5b2b602c5a9c0d153891"
+          "version": "1.1.0",
+          "sha256": "6d6b1ca629a023d6869eafc8dff238c539715175f2604c4e594e986f9bb6b7f3"
         },
         "ui/pages/skills.py": {
           "version": "1.0.0",
@@ -780,19 +780,19 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.1.3",
-      "sha256": "45c1afc1b13abf7988ac8385eb608a2c4267ef262ec29132ce1a85856ceb9e84",
+      "version": "1.1.4",
+      "sha256": "a4f5ed30ae637059110f06481c81eb8237d33ba7706dc95278a77b1c92fc81c2",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Актуализированы описания core/config.py и ui/pages/settings.py (приоритет ключей, env-блок).",
+        "en": "Updated descriptions of core/config.py and ui/pages/settings.py (key priority, env block)."
       }
     },
     "README.md": {
-      "version": "1.1.0",
-      "sha256": "be4fbe9427d874e4798a0f5272e38b4a0bcbe2f1bf24cb4f7b4330e47ea81736",
+      "version": "1.1.1",
+      "sha256": "8dc5e96f9f65b36eb4c6d963bc2deae66e6f513a75522eef0645c23193306c18",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Удалён невалидный пример генерации ключа; добавлен запасной запуск python -m streamlit run app.py для Windows.",
+        "en": "Removed an invalid key-generation example; added python -m streamlit run app.py as a fallback command for Windows."
       }
     },
     "SPEC.md": {
@@ -860,11 +860,11 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.1.1",
-      "sha256": "2916139eda23ee93611d17066283c8a8fbf7bc19ae81b14d1ac0ed1ae943e7c2",
+      "version": "1.1.2",
+      "sha256": "d574a1f57db4052d66dc506a0395f2692e63d83fb704f7f9db55cb01b5b5f58f",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Поля ключей всегда редактируемы: значения формы каноничны, переменные окружения — запасной источник; блок env-переменных перенесён вниз страницы настроек.",
+        "en": "Key fields always editable: form values are canonical, environment variables are a fallback; env-vars block moved to the bottom of the settings page."
       }
     },
     "defaults/langs/en_guide.md": {
@@ -876,11 +876,11 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.1.1",
-      "sha256": "2c1a19b8d47f366c6074846c20d68eabdd77b84cd667c37369bc0b4c60c282ee",
+      "version": "1.1.2",
+      "sha256": "3a64649c63db880b3c0f553e43f3b82ef48ed486aac3070c83f7c9f6bd8e6d82",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Поля ключей всегда редактируемы: значения формы каноничны, переменные окружения — запасной источник; блок env-переменных перенесён вниз страницы настроек.",
+        "en": "Key fields always editable: form values are canonical, environment variables are a fallback; env-vars block moved to the bottom of the settings page."
       }
     },
     "defaults/langs/ru_guide.md": {
@@ -892,11 +892,11 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.1.1",
-      "sha256": "8c5b3e8b7c902dd5c1dd92c6a40a4f0c464b7f244d0ffa24976143bd822695c0",
+      "version": "1.1.2",
+      "sha256": "caa5c597e735bc4cd52f2e09af00022e9a3de10e1f9026b3ad7942c08cc64441",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Поля ключей всегда редактируемы: значения формы каноничны, переменные окружения — запасной источник; блок env-переменных перенесён вниз страницы настроек.",
+        "en": "Key fields always editable: form values are canonical, environment variables are a fallback; env-vars block moved to the bottom of the settings page."
       }
     },
     "defaults/langs/zh_CN_guide.md": {
@@ -1116,11 +1116,11 @@
       }
     },
     "langs/en.json": {
-      "version": "1.1.1",
-      "sha256": "2916139eda23ee93611d17066283c8a8fbf7bc19ae81b14d1ac0ed1ae943e7c2",
+      "version": "1.1.2",
+      "sha256": "d574a1f57db4052d66dc506a0395f2692e63d83fb704f7f9db55cb01b5b5f58f",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Поля ключей всегда редактируемы: значения формы каноничны, переменные окружения — запасной источник; блок env-переменных перенесён вниз страницы настроек.",
+        "en": "Key fields always editable: form values are canonical, environment variables are a fallback; env-vars block moved to the bottom of the settings page."
       }
     },
     "langs/en_guide.md": {
@@ -1132,11 +1132,11 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.1.1",
-      "sha256": "2c1a19b8d47f366c6074846c20d68eabdd77b84cd667c37369bc0b4c60c282ee",
+      "version": "1.1.2",
+      "sha256": "3a64649c63db880b3c0f553e43f3b82ef48ed486aac3070c83f7c9f6bd8e6d82",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Поля ключей всегда редактируемы: значения формы каноничны, переменные окружения — запасной источник; блок env-переменных перенесён вниз страницы настроек.",
+        "en": "Key fields always editable: form values are canonical, environment variables are a fallback; env-vars block moved to the bottom of the settings page."
       }
     },
     "langs/ru_guide.md": {
@@ -1148,11 +1148,11 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.1.1",
-      "sha256": "8c5b3e8b7c902dd5c1dd92c6a40a4f0c464b7f244d0ffa24976143bd822695c0",
+      "version": "1.1.2",
+      "sha256": "caa5c597e735bc4cd52f2e09af00022e9a3de10e1f9026b3ad7942c08cc64441",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Поля ключей всегда редактируемы: значения формы каноничны, переменные окружения — запасной источник; блок env-переменных перенесён вниз страницы настроек.",
+        "en": "Key fields always editable: form values are canonical, environment variables are a fallback; env-vars block moved to the bottom of the settings page."
       }
     },
     "langs/zh_CN_guide.md": {
@@ -1189,7 +1189,7 @@
     },
     "CHANGELOG.md": {
       "version": "1.1.2",
-      "sha256": "26ddf3a59520395c9b6200f7d50e82aee6fed573255c8eaf054e3f56943ecaa9",
+      "sha256": "3afe6e2b4210e467b26184769662e700367101d89ad5bc3d51361c49a21d80cf",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
