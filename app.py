@@ -11,6 +11,13 @@ _project_root = os.path.dirname(os.path.abspath(__file__))
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
+from core.updater import apply_updates, write_running_marker  # noqa: E402
+
+# Cold-start update hook: apply staged downloads while the app is not running
+# yet, then mark this process as live so the CLI refuses in-place apply.
+apply_updates(_project_root)
+write_running_marker(_project_root)
+
 import streamlit as st
 
 st.set_page_config(
