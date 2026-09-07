@@ -618,11 +618,12 @@ def test_i18n_scenario(isolated_data):
 
 
 def test_config_secrets_and_connection_scenario(isolated_data, monkeypatch):
-    """Secrets are encrypted at rest; env keys win; connection test works."""
+    """Secrets are encrypted at rest; form keys are canonical, env keys
+    fill only empty values; connection test works."""
     from unittest.mock import MagicMock, patch
 
     from core.config import (
-        save_config, load_config, has_key, list_env_keys,
+        save_config, load_config, load_stored_config, has_key, list_env_keys,
         is_env_key_set_for_service,
     )
     from storage.repository import repo_load_config
@@ -639,13 +640,22 @@ def test_config_secrets_and_connection_scenario(isolated_data, monkeypatch):
     assert raw["openai_key"] == "plain-value"
     assert raw["DEEPSEEK_API_KEY"] != "sk-super-secret"
 
-    # 2. Environment variables override stored values.
+    # 2. Form-entered keys are canonical: env vars do NOT override stored values.
     monkeypatch.setenv("SAGAAI_DEEPSEEK_KEY", "env-key")
-    assert load_config()["DEEPSEEK_API_KEY"] == "env-key"
+    assert load_config()["DEEPSEEK_API_KEY"] == "sk-super-secret"
+    assert load_stored_config()["DEEPSEEK_API_KEY"] == "sk-super-secret"
     assert is_env_key_set_for_service("DeepSeek", "config_key") is True
     info = list_env_keys()
-    assert info["DeepSeek"]["env_wins"] is True
+    assert info["DeepSeek"]["env_set"] is True
     assert info["DeepSeek"]["db_value_masked"] == "***"
+
+    # 3. Env vars fill only values left EMPTY in the form.
+    save_config({"YANDEX_API_KEY": "", "YANDEX_FOLDER_ID": "stored-folder"})
+    monkeypatch.setenv("SAGAAI_YANDEXAI_KEY", "env-ytoken")
+    monkeypatch.setenv("SAGAAI_YANDEXAI_KEY2", "env-yfolder")
+    cfg = load_config()
+    assert cfg["YANDEX_API_KEY"] == "env-ytoken"       # empty -> env fallback
+    assert cfg["YANDEX_FOLDER_ID"] == "stored-folder"  # form value stays canonical
 
     # has_key reflects the configured key.
     assert has_key({"config_key": "DEEPSEEK_API_KEY"}) is True
