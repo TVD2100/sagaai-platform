@@ -63,6 +63,8 @@ SagaAI построена по модульной архитектуре с чё
 | `tools_utils` | Список определений инструментов для страниц помощников |
 | `prompt_improver` | LLM-улучшение промптов помощников на слабой модели DevAgent |
 | `rag` / `rag_chunker` / `rag_embeddings` / `rag_index` / `rag_indexer` / `rag_search` | RAG-подсистема: CRUD баз знаний, чанкинг, Yandex Embeddings, локальный векторный индекс, индексация, семантический поиск |
+| `updater` | Конвейер обновлений: fetch_manifest, check_updates, stage_updates, apply_updates, rollback_updates; CLI check/stage/apply/rollback (raw-канал без токена) |
+| `updater_apply` | Чистый stdlib cold-start апплаер: атомарная запись, бэкапы, откат; хранилище `.dev_agent/updates/` (pending/, state.json, health.json) |
 
 ### 3. Компоненты UI (`ui/components/`)
 
@@ -84,6 +86,7 @@ SagaAI построена по модульной архитектуре с чё
 | `settings` | Настройки API-ключей и переменных окружения |
 | `skills_library` | Библиотека навыков (установка ZIP/GitHub/папки) |
 | `storage` | Управление RAG-базами знаний (создание, файлы, индексация, тестовый поиск) |
+| `updates` | Страница обновлений платформы: проверка, выборочная установка (selectable-файлы, пакеты), применение и откат |
 
 ### 4. Хранилище (`storage/`)
 - `models.py` - SQLAlchemy ORM-модели: `Assistant`, `Thread`, `Message`,
