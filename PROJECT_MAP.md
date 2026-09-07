@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-09-07T17:49:58+00:00`
-- Файлов: **299**
-- Языки: Config: 1, JSON: 20, Markdown: 100, PEM certificate: 1, Python: 181, Text: 1
+- Обновлено: `2026-09-07T20:07:15+00:00`
+- Файлов: **306**
+- Языки: Config: 1, JSON: 20, Markdown: 107, PEM certificate: 1, Python: 181, Text: 1
 
 ## Файлы и назначение
 
@@ -29,7 +29,7 @@
 | `ui/pages/orchestrator.py` | Python | Reusable orchestrator page (chat/history/settings incl. skills tab; no employee export/import UI) | - |
 | `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings entry page | - |
 | `ui/pages/orchestrators.py` | Python | Employees (orchestrators) management page (create/open/settings/delete; export/import deferred) | - |
-| `ui/pages/settings.py` | Python | LLM provider settings page | - |
+| `ui/pages/settings.py` | Python | LLM provider settings page: editable provider forms (canonical keys) at top, compact environment-variable fallback block with status check at the bottom | - |
 | `ui/pages/skills.py` | Python | DEPRECATED shim -> ui/pages/assistants.py (page_assistants) | - |
 | `ui/pages/skills_library.py` | Python | Skills library page (install ZIP/GitHub/folder, edit metadata, delete) | - |
 | `ui/pages/stats.py` | Python | _(описание не задано)_ | - |
@@ -46,7 +46,7 @@
 | `core/assistants.py` | Python | CRUD for AI assistant profiles and their attachment files | storage |
 | `core/auth.py` | Python | Optional password authentication gate | - |
 | `core/bootstrap.py` | Python | First-run provisioning: Assistant/Employee Creator instructions, DevAgent settings, legacy skill_creator migration | - |
-| `core/config.py` | Python | Configuration load/save with secret encryption and env overlay | storage |
+| `core/config.py` | Python | Configuration load/save with secret encryption; keys entered via the settings form are canonical, SAGAAI_<SVC>_KEY / _KEY2 environment variables fill only empty fields (fallback) | storage |
 | `core/connectors.py` | Python | _(описание не задано)_ | - |
 | `core/crypto.py` | Python | Encryption key handling and Fernet helpers | - |
 | `core/dangerous.py` | Python | Dangerous-code assessment for run_code/run_test | - |
@@ -305,6 +305,13 @@
 | `dev_agent/task_states/TASK_STATE__20260907_193433_c755b9.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260907_193440_3c94ed.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260907_193440_6b4a03.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_211109_324a25.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_211109_4ea3d0.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_211109_881828.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_211109_b7755c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_211109_d78905.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_211115_9c3a69.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_211115_d11dc0.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
 | `services/deepseek.json` | JSON | DeepSeek service definition | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
@@ -412,13 +419,13 @@
 - `page_orchestrators` (func, строка 28)
 
 ### `ui/pages/settings.py`
-- `_resolve_label` (func, строка 32)
-- `_render_extra_fields` (func, строка 41)
-- `_render_env_variables_section` (func, строка 90)
-- `_render_models_table` (func, строка 140)
-- `_render_api_keys` (func, строка 176)
-- `_render_folder_sync` (func, строка 288)
-- `page_settings` (func, строка 318)
+- `_resolve_label` (func, строка 36)
+- `_render_extra_fields` (func, строка 45)
+- `_render_env_variables_section` (func, строка 94)
+- `_render_models_table` (func, строка 143)
+- `_render_api_keys` (func, строка 179)
+- `_render_folder_sync` (func, строка 296)
+- `page_settings` (func, строка 326)
 
 ### `ui/pages/skills_library.py`
 - `page_skills_library` (func, строка 28)
@@ -590,30 +597,32 @@
 - `ensure_devagent_settings` (func, строка 162)
 
 ### `core/config.py`
-- `_secret_keys` (func, строка 34)
-- `load_config` (func, строка 49)
-- `save_config` (func, строка 75)
-- `has_key` (func, строка 87)
-- `_env_key_for_service` (func, строка 101)
-- `is_env_key_set_for_service` (func, строка 110)
-- `list_env_keys` (func, строка 118)
-- `_merge_env_keys` (func, строка 165)
-- `_merge_defaults_overrides` (func, строка 229)
-- `_load_devagent_defaults_from_bundle` (func, строка 241)
-- `_get_devagent_defaults` (func, строка 268)
-- `get_devagent_defaults` (func, строка 276)
-- `reload_devagent_defaults` (func, строка 287)
-- `get_default_economy_tail_messages` (func, строка 293)
-- `get_default_economy_cache_enabled` (func, строка 307)
-- `get_default_economy_cache_multiplier` (func, строка 316)
-- `get_default_strong_max_tokens` (func, строка 325)
-- `get_default_weak_max_tokens` (func, строка 334)
-- `_get_global_defaults` (func, строка 348)
-- `reload_global_defaults` (func, строка 360)
-- `get_default_ui_lang` (func, строка 366)
-- `get_default_providers_preset` (func, строка 372)
-- `load_devagent_config` (func, строка 378)
-- `save_devagent_config` (func, строка 401)
+- `_secret_keys` (func, строка 35)
+- `load_stored_config` (func, строка 50)
+- `load_config` (func, строка 71)
+- `save_config` (func, строка 86)
+- `has_key` (func, строка 98)
+- `_env_key_for_service` (func, строка 112)
+- `is_env_key_set_for_service` (func, строка 121)
+- `env_key_name_for_service` (func, строка 129)
+- `list_env_keys` (func, строка 138)
+- `_merge_env_keys` (func, строка 185)
+- `_merge_defaults_overrides` (func, строка 253)
+- `_load_devagent_defaults_from_bundle` (func, строка 265)
+- `_get_devagent_defaults` (func, строка 292)
+- `get_devagent_defaults` (func, строка 300)
+- `reload_devagent_defaults` (func, строка 311)
+- `get_default_economy_tail_messages` (func, строка 317)
+- `get_default_economy_cache_enabled` (func, строка 331)
+- `get_default_economy_cache_multiplier` (func, строка 340)
+- `get_default_strong_max_tokens` (func, строка 349)
+- `get_default_weak_max_tokens` (func, строка 358)
+- `_get_global_defaults` (func, строка 372)
+- `reload_global_defaults` (func, строка 384)
+- `get_default_ui_lang` (func, строка 390)
+- `get_default_providers_preset` (func, строка 396)
+- `load_devagent_config` (func, строка 402)
+- `save_devagent_config` (func, строка 425)
 
 ### `core/connectors.py`
 - `_now` (func, строка 55)
@@ -1654,8 +1663,8 @@
 - `test_rag_base_full_scenario` (func, строка 497)
 - `test_i18n_scenario` (func, строка 585)
 - `test_config_secrets_and_connection_scenario` (func, строка 620)
-- `test_prompt_improvement_scenario` (func, строка 677)
-- `test_api_roundtrip_scenarios` (func, строка 710)
+- `test_prompt_improvement_scenario` (func, строка 687)
+- `test_api_roundtrip_scenarios` (func, строка 720)
 
 ### `tests/test_preset_orchestrators.py`
 - `isolated_data_dir` (func, строка 31)
