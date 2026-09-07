@@ -503,7 +503,7 @@ def test_settings_page_hides_reasoning_effort_field():
         # calls are recorded into st_mock.calls even when the module was already
         # imported by an earlier test (see tests/test_ui_pages.py).
         settings_mod.st = st_mock
-        with patch.object(settings_mod, "load_config", return_value={}), \
+        with patch.object(settings_mod, "load_stored_config", return_value={}), \
              patch.object(settings_mod, "save_config", return_value=True), \
              patch.object(settings_mod, "has_key", return_value=False), \
              patch.object(settings_mod, "list_env_keys", return_value={}), \
