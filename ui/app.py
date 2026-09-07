@@ -130,7 +130,7 @@ def _apply_theme(mode: str, restore_payload: str = "") -> None:
     script = (
         "(function () {"
         "  var w = window.parent === window ? window : window.parent;"
-        "  var path = '/';
+        "  var path = '/';"
         "  try { path = w.location.pathname || '/'; } catch (e) {}"
         "  var key = 'stActiveTheme-' + path + '-v2';"
         "  w.localStorage.setItem(key, JSON.stringify({mode}));"
@@ -144,6 +144,7 @@ def _apply_theme(mode: str, restore_payload: str = "") -> None:
         '<!doctype html><html><body><script>{script}</script></body></html>'.replace("{script}", script),
         unsafe_allow_javascript=True,
     )
+
 
 
 
