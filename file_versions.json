@@ -776,8 +776,8 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.1.1",
-      "sha256": "9eb541192f49e754ef569bf9bac9e7935e56478d0ca9f515b4fba9f9f2153cf1",
+      "version": "1.1.2",
+      "sha256": "17c13b5e8034b3fec745b1c766efdc7088f846d5a423d6212bce1427bcc2d192",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
@@ -1186,14 +1186,6 @@
     "CHANGELOG.md": {
       "version": "1.1.1",
       "sha256": "370075778690313e0312f4dc9c759eeb0a62d03507169f8816219b13a6f92a6e",
-      "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
-      }
-    },
-    "defaults/orchestrators/dev_agent/instructions/local_repo_guide.md": {
-      "version": "1.1.1",
-      "sha256": "f5d034154d9f7204f311b2de64241e0a1729bf3c581b72622122c1528283faa4",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
