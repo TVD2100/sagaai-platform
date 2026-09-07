@@ -2,17 +2,18 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-09-07T11:25:48+00:00`
-- Файлов: **233**
-- Языки: Config: 1, JSON: 18, Markdown: 37, PEM certificate: 1, Python: 180, Text: 1
+- Обновлено: `2026-09-07T17:49:58+00:00`
+- Файлов: **299**
+- Языки: Config: 1, JSON: 20, Markdown: 100, PEM certificate: 1, Python: 181, Text: 1
 
 ## Файлы и назначение
 
 | Файл | Язык | Назначение | Зависит от |
 | --- | --- | --- | --- |
 | `COMPARISON.md` | Markdown | _(описание не задано)_ | - |
+| `GITHUB_FILES.md` | Markdown | _(описание не задано)_ | - |
 | `__init__.py` | Python | Package marker | - |
-| `app.py` | Python | Entry point for the platform | - |
+| `app.py` | Python | Entry point: cold-start update hook (apply_updates + running marker) then delegates to ui.app.main() | - |
 | `file_versions.json` | JSON | Update manifest: units/selectable versions + sha256 (source of truth for the update pipeline) | - |
 | `pytest.ini` | Config | Pytest configuration | - |
 | `requirements.txt` | Text | Python dependencies | - |
@@ -33,7 +34,7 @@
 | `ui/pages/skills_library.py` | Python | Skills library page (install ZIP/GitHub/folder, edit metadata, delete) | - |
 | `ui/pages/stats.py` | Python | _(описание не задано)_ | - |
 | `ui/pages/storage.py` | Python | _(описание не задано)_ | - |
-| `ui/pages/updates.py` | Python | Updates page: check, selective stage (selectable files / units), applied state and rollback; apply happens at cold start only | - |
+| `ui/pages/updates.py` | Python | Updates page: check, selective stage (selectable files / units), applied state and rollback; Apply/Rollback run live with confirmation (force) and restart hint while the app is running | - |
 | `ui/pages/welcome.py` | Python | Welcome / about page | - |
 | `core/__init__.py` | Python | Package marker | - |
 | `core/api_errors.py` | Python | API error hierarchy and user messages | - |
@@ -80,7 +81,7 @@
 | `core/threads.py` | Python | Chat thread persistence for assistants | storage |
 | `core/threads_devagent.py` | Python | DevAgent/orchestrator thread persistence (devagent.db) | storage |
 | `core/tools_utils.py` | Python | Tool definitions list for the Skills/Assistants pages | - |
-| `core/updater.py` | Python | Update pipeline: fetch_manifest, check_updates, stage_updates, apply_updates, rollback_updates; CLI check/stage/apply/rollback over token-free raw channel | - |
+| `core/updater.py` | Python | Update pipeline: fetch_manifest, check_updates, stage_updates, apply_updates, rollback_updates; pid state/zombie/reuse-aware running detection; CLI check/stage/apply/rollback over token-free raw channel | - |
 | `core/updater_apply.py` | Python | Pure-stdlib cold-start applier: atomic writes, backups, rollback; .dev_agent/updates/ (pending/, state.json, health.json) | - |
 | `core/version.py` | Python | _(описание не задано)_ | - |
 | `tests/__init__.py` | Python | Package marker | - |
@@ -153,9 +154,9 @@
 | `tests/test_ui_tooltips.py` | Python | _(описание не задано)_ | - |
 | `tests/test_ui_tooltips_orchestrator.py` | Python | _(описание не задано)_ | - |
 | `tests/test_universal_developer.py` | Python | UniversalDevAgent tests | storage |
-| `tests/test_updater.py` | Python | Updater tests (offline local-HTTP coverage: check/stage/apply, running guard) | - |
+| `tests/test_updater.py` | Python | Updater tests (offline local-HTTP: check/stage/apply, running guard incl. stopped/zombie/reused pid and ps fallback) | - |
 | `tests/test_updater_apply.py` | Python | Cold-start applier tests | - |
-| `tests/test_updater_ui.py` | Python | Updates page tests | - |
+| `tests/test_updater_ui.py` | Python | Updates page tests (check/stage/apply/rollback; running-app confirmation + force flow) | - |
 | `tests/test_usability_fixes.py` | Python | _(описание не задано)_ | - |
 | `tests/test_verify_manifest.py` | Python | Manifest verifier tests | - |
 | `tests/test_web_search_prompt.py` | Python | _(описание не задано)_ | - |
@@ -173,6 +174,7 @@
 | `tests/scenarios/test_stats_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_structured_output_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_theme_switch_scenario.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_updater_runtime_flow.py` | Python | Scenario test: live-page force-apply / force-rollback, refusal while running, re-apply after "restart" | - |
 | `tests/scenarios/test_welcome_page_scenarios.py` | Python | _(описание не задано)_ | - |
 | `storage/__init__.py` | Python | Package marker | - |
 | `storage/db.py` | Python | SQLAlchemy engines; auto-migration skills->assistants, skill_*->assistant_* columns | storage |
@@ -216,6 +218,8 @@
 | `defaults/services/deepseek.json` | JSON | _(описание не задано)_ | - |
 | `defaults/services/gigachat.json` | JSON | _(описание не задано)_ | - |
 | `defaults/services/yandex.json` | JSON | _(описание не задано)_ | - |
+| `personal_assistant_data/calendar.json` | JSON | _(описание не задано)_ | - |
+| `personal_assistant_data/tasks.json` | JSON | _(описание не задано)_ | - |
 | `langs/en.json` | JSON | English UI strings | - |
 | `langs/en_guide.md` | Markdown | English user guide | - |
 | `langs/ru.json` | JSON | Russian UI strings | - |
@@ -238,6 +242,70 @@
 | `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools + legacy skill tool aliases + skills-library tools | assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
 | `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace tools + orchestrator tools) | tool_executor |
 | `dev_agent/workspace_tools.py` | Python | Workspace layer: folders, project map, docs, snapshots | backup_manager |
+| `dev_agent/task_states/TASK_STATE__20260828_185325_0d0824.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260828_185325_3ea18d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260828_185325_82be18.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260828_185325_9be6e0.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260828_185325_a2db0c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260828_185329_1720aa.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260828_185329_57bc52.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260831_085440_1a24f7.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260831_085440_1dffda.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260831_085440_9b831c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260831_085440_9ea76b.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260831_085440_d8a521.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260831_085444_35f6a7.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260831_085444_8e52d7.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260901_080808_0fed1f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260901_080808_1ff6f9.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260901_080808_567cfe.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260901_080808_5e43e2.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260901_080808_d6f1a3.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260901_080812_1a9b47.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260901_080812_fe8fb7.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_144220_07d26a.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_144220_38eacb.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_144220_633645.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_144220_71c61b.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_144220_762156.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_144227_8aff12.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_144227_edc5d4.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_155721_15052c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_155721_297f66.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_155721_2fa957.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_155721_bd37be.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_155721_f2c73c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_155728_10b849.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_155728_48421b.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_165043_1f72ca.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_165043_59138d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_165043_67b2f0.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_165043_a306e1.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_165043_b676a9.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_165050_b2e1bf.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_165050_d963a3.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_173630_78a089.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_173630_daf7aa.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_173630_e2be58.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_173630_e431b1.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_173630_eb90cd.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_173637_aae49d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_173637_d45951.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_174823_146e77.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_174823_2fa9f8.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_174823_5cb00c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_174823_7fb80a.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_174823_d48f9d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_174830_9841fc.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_174830_ae9464.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_193433_17ca7b.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_193433_45cb79.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_193433_9f8e18.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_193433_a003ce.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_193433_c755b9.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_193440_3c94ed.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260907_193440_6b4a03.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
 | `services/deepseek.json` | JSON | DeepSeek service definition | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
 | `services/yandex.json` | JSON | YandexAI service definition | - |
@@ -371,18 +439,18 @@
 - `page_storage` (func, строка 294)
 
 ### `ui/pages/updates.py`
-- `_cached_manifest` (func, строка 38)
-- `_cached_report` (func, строка 44)
-- `_cached_channel` (func, строка 50)
-- `_action_label` (func, строка 55)
-- `_split_updates` (func, строка 62)
-- `_selected_paths` (func, строка 84)
-- `_handle_stage` (func, строка 97)
-- `_render_check_section` (func, строка 118)
-- `_render_pending_section` (func, строка 197)
-- `_render_state_section` (func, строка 223)
-- `_render_health_section` (func, строка 265)
-- `page_updates` (func, строка 278)
+- `_cached_manifest` (func, строка 39)
+- `_cached_report` (func, строка 45)
+- `_cached_channel` (func, строка 51)
+- `_action_label` (func, строка 56)
+- `_split_updates` (func, строка 63)
+- `_selected_paths` (func, строка 85)
+- `_handle_stage` (func, строка 98)
+- `_render_check_section` (func, строка 119)
+- `_render_pending_section` (func, строка 198)
+- `_render_state_section` (func, строка 230)
+- `_render_health_section` (func, строка 278)
+- `page_updates` (func, строка 291)
 
 ### `ui/pages/welcome.py`
 - `_guide_filename` (func, строка 13)
@@ -1005,29 +1073,32 @@
 - `service_supported_tools` (func, строка 73)
 
 ### `core/updater.py`
-- `default_root` (func, строка 61)
-- `_fail` (func, строка 66)
-- `_read_json_file` (func, строка 70)
-- `_sha256_file` (func, строка 79)
-- `_atomic_write_text` (func, строка 87)
-- `_manifest_path` (func, строка 104)
-- `running_marker_path` (func, строка 108)
-- `write_running_marker` (func, строка 113)
-- `is_app_running` (func, строка 125)
-- `_parse_semver` (func, строка 155)
-- `_compare_versions` (func, строка 172)
-- `_effective_channel` (func, строка 187)
-- `fetch_manifest` (func, строка 200)
-- `_validate_manifest` (func, строка 215)
-- `_manifest_entries` (func, строка 225)
-- `check_updates` (func, строка 247)
-- `stage_updates` (func, строка 302)
-- `_download_file` (func, строка 381)
-- `apply_updates` (func, строка 410)
-- `rollback_updates` (func, строка 429)
-- `_build_cli` (func, строка 436)
-- `_load_local_manifest` (func, строка 477)
-- `main` (func, строка 494)
+- `default_root` (func, строка 62)
+- `_fail` (func, строка 67)
+- `_read_json_file` (func, строка 71)
+- `_sha256_file` (func, строка 80)
+- `_atomic_write_text` (func, строка 88)
+- `_manifest_path` (func, строка 105)
+- `running_marker_path` (func, строка 109)
+- `write_running_marker` (func, строка 114)
+- `_pid_state` (func, строка 126)
+- `_pid_start_time` (func, строка 138)
+- `_marker_unixtime` (func, строка 156)
+- `is_app_running` (func, строка 177)
+- `_parse_semver` (func, строка 218)
+- `_compare_versions` (func, строка 235)
+- `_effective_channel` (func, строка 250)
+- `fetch_manifest` (func, строка 263)
+- `_validate_manifest` (func, строка 278)
+- `_manifest_entries` (func, строка 288)
+- `check_updates` (func, строка 310)
+- `stage_updates` (func, строка 365)
+- `_download_file` (func, строка 444)
+- `apply_updates` (func, строка 473)
+- `rollback_updates` (func, строка 512)
+- `_build_cli` (func, строка 529)
+- `_load_local_manifest` (func, строка 570)
+- `main` (func, строка 587)
 
 ### `core/updater_apply.py`
 - `_utc_now` (func, строка 50)
@@ -1986,32 +2057,38 @@
 - `test_read_file_window_reports_remaining_and_hint` (func, строка 434)
 
 ### `tests/test_updater.py`
-- `_sha` (func, строка 23)
-- `_make_manifest` (func, строка 27)
-- `_write` (func, строка 62)
-- `_read_bytes` (func, строка 69)
-- `_read_text` (func, строка 74)
-- `_local_channel` (func, строка 80)
-- `test_check_reports_new_and_updated_files` (func, строка 105)
-- `test_check_uses_manifest_declared_channel_for_default` (func, строка 131)
-- `test_check_marks_out_of_scope_local_files_up_to_date` (func, строка 138)
-- `test_check_invalid_manifest` (func, строка 145)
-- `test_check_bad_entry_missing_sha` (func, строка 151)
-- `test_check_app_version_not_newer_remote` (func, строка 159)
-- `test_compare_versions` (func, строка 168)
-- `test_stage_merges_into_pending_json` (func, строка 177)
-- `test_stage_selection_not_in_manifest_fails` (func, строка 206)
-- `test_stage_sha256_mismatch_fails` (func, строка 218)
-- `test_stage_download_success_via_local_http` (func, строка 239)
-- `test_apply_refuses_when_app_running` (func, строка 281)
-- `test_apply_without_pending_is_healthy` (func, строка 295)
-- `test_apply_applies_staged_files` (func, строка 301)
-- `test_running_marker_detection` (func, строка 323)
-- `test_stage_does_not_download_unlisted_file` (func, строка 342)
-- `test_rollback_updates_no_store` (func, строка 357)
-- `test_write_running_marker` (func, строка 361)
-- `test_app_py_has_cold_start_hook` (func, строка 370)
-- `test_cold_start_hook_applies_then_marks` (func, строка 380)
+- `_sha` (func, строка 25)
+- `_make_manifest` (func, строка 29)
+- `_write` (func, строка 64)
+- `_read_bytes` (func, строка 71)
+- `_read_text` (func, строка 76)
+- `_local_channel` (func, строка 82)
+- `test_check_reports_new_and_updated_files` (func, строка 107)
+- `test_check_uses_manifest_declared_channel_for_default` (func, строка 133)
+- `test_check_marks_out_of_scope_local_files_up_to_date` (func, строка 140)
+- `test_check_invalid_manifest` (func, строка 147)
+- `test_check_bad_entry_missing_sha` (func, строка 153)
+- `test_check_app_version_not_newer_remote` (func, строка 161)
+- `test_compare_versions` (func, строка 170)
+- `test_stage_merges_into_pending_json` (func, строка 179)
+- `test_stage_selection_not_in_manifest_fails` (func, строка 208)
+- `test_stage_sha256_mismatch_fails` (func, строка 220)
+- `test_stage_download_success_via_local_http` (func, строка 241)
+- `test_apply_refuses_when_app_running` (func, строка 283)
+- `test_apply_without_pending_is_healthy` (func, строка 302)
+- `test_apply_applies_staged_files` (func, строка 308)
+- `test_running_marker_detection` (func, строка 330)
+- `test_stopped_and_zombie_processes_are_not_running` (func, строка 349)
+- `test_reused_pid_is_not_running` (func, строка 361)
+- `test_fresh_pid_matching_marker_is_running` (func, строка 375)
+- `test_ps_unavailable_uses_kill_fallback` (func, строка 387)
+- `test_broken_marker_is_not_running` (func, строка 401)
+- `test_marker_unixtime_parses_iso_forms` (func, строка 411)
+- `test_stage_does_not_download_unlisted_file` (func, строка 418)
+- `test_rollback_updates_no_store` (func, строка 433)
+- `test_write_running_marker` (func, строка 437)
+- `test_app_py_has_cold_start_hook` (func, строка 446)
+- `test_cold_start_hook_applies_then_marks` (func, строка 456)
 
 ### `tests/test_updater_apply.py`
 - `_sha` (func, строка 22)
@@ -2048,11 +2125,13 @@
 - `test_stage_sends_selected_paths` (func, строка 192)
 - `test_stage_unit_checkbox_selects_all_unit_files` (func, строка 228)
 - `test_stage_without_selection_warns_and_does_not_call_stage` (func, строка 261)
-- `test_apply_disabled_while_app_is_running` (func, строка 284)
-- `test_apply_calls_applier_when_app_is_stopped` (func, строка 309)
-- `test_rollback_calls_rollback_updates` (func, строка 343)
-- `test_rollback_disabled_while_app_is_running` (func, строка 370)
-- `test_health_error_is_shown` (func, строка 391)
+- `test_apply_requires_confirmation_while_app_is_running` (func, строка 284)
+- `test_apply_calls_applier_with_confirmation_while_running` (func, строка 311)
+- `test_apply_calls_applier_when_app_is_stopped` (func, строка 344)
+- `test_apply_without_confirmation_warns` (func, строка 379)
+- `test_rollback_calls_rollback_updates` (func, строка 403)
+- `test_rollback_requires_confirmation_while_app_is_running` (func, строка 430)
+- `test_health_error_is_shown` (func, строка 453)
 
 ### `tests/test_usability_fixes.py`
 - `ui_env` (func, строка 20)
@@ -2268,6 +2347,18 @@
 - `test_theme_switch_returns_to_assistant_chat` (func, строка 44)
 - `test_theme_switch_returns_to_orchestrator_dialog` (func, строка 81)
 - `test_stale_restore_marker_does_not_resurrect_dialog` (func, строка 112)
+
+### `tests/scenarios/test_updater_runtime_flow.py`
+- `_fresh_page` (func, строка 52)
+- `_enter_page` (func, строка 65)
+- `_render` (func, строка 97)
+- `_button_call` (func, строка 106)
+- `_success_messages` (func, строка 114)
+- `_stage_files` (func, строка 123)
+- `_read_text_file` (func, строка 141)
+- `test_force_apply_from_live_ui` (func, строка 148)
+- `test_force_rollback_from_live_ui` (func, строка 194)
+- `test_refusal_is_visible_and_restart_applies` (func, строка 245)
 
 ### `tests/scenarios/test_welcome_page_scenarios.py`
 - `isolated_data` (func, строка 35)
