@@ -25,8 +25,8 @@ import argparse
 import hashlib
 import json
 import os
+import subprocess
 import sys
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
@@ -52,6 +52,7 @@ DEFAULT_CHANNEL = 'https://raw.githubusercontent.com/TVD2100/sagaai-platform/mai
 MANIFEST_NAME = 'file_versions.json'
 RUNNING_FILE_REL = '.dev_agent/running.json'
 PENDING_REL = '.dev_agent/updates/pending.json'  # must match updater_apply constants
+HEALTH_REL = '.dev_agent/updates/health.json'
 USER_AGENT = 'SagaAI-Updater/1.0'
 DOWNLOAD_TIMEOUT = 30
 
@@ -122,34 +123,96 @@ def write_running_marker(root):
     )
 
 
+def _pid_state(pid):
+    """Return the ps state letter (uppercase) of <pid>, or None."""
+    if os.name != 'posix':
+        return None
+    try:
+        out = subprocess.run(['ps', '-p', str(pid), '-o', 'state='], capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    state = (out.stdout or '').strip().upper()
+    return state or None
+
+
+def _pid_start_time(pid):
+    """Best-effort process start time (Unix time) of <pid>, or None."""
+    if os.name != 'posix':
+        return None
+    try:
+        out = subprocess.run(['ps', '-p', str(pid), '-o', 'lstart='], capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    text = (out.stdout or '').strip()
+    if not text:
+        return None
+    try:
+        stamp = datetime.strptime(text, '%a %b %d %H:%M:%S %Y')
+    except ValueError:
+        return None
+    return stamp.timestamp()
+
+
+def _marker_unixtime(value):
+    """Parse an ISO timestamp into Unix time (UTC), or None."""
+    if not isinstance(value, str) or not value:
+        return None
+    stamp = None
+    value_iso = value.rstrip()
+    if value_iso.endswith('Z'):
+        value_iso = value_iso[:-1] + '+00:00'
+    for fmt in ('%Y-%m-%dT%H:%M:%S.%f%z', '%Y-%m-%dT%H:%M:%S%z', '%Y-%m-%dT%H:%M:%S'):
+        try:
+            stamp = datetime.strptime(value_iso, fmt)
+            break
+        except ValueError:
+            continue
+    if stamp is None:
+        return None
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=timezone.utc)
+    return stamp.timestamp()
+
+
 def is_app_running(root):
     '''True when app.py has written a live running marker for <root>.
 
-    With a valid pid the marker is checked via os.kill(pid, 0); a stale pid
-    (process exited) counts as not running. Missing or unverifiable markers
-    are treated conservatively.
+    Detection rules:
+    - no marker / broken marker -> not running;
+    - invalid or dead pid -> not running;
+    - alive pid whose process is stopped (state T, e.g. Ctrl+Z) or a
+      zombie (state Z) -> not running (it cannot serve the app);
+    - alive pid whose process start time is much older than the marker
+      'at' -> the pid was reused by an unrelated process -> not running;
+    - ps unavailable -> conservative fallback: an alive pid is running.
     '''
     marker = running_marker_path(root)
     if not os.path.isfile(marker):
         return False
     data = _read_json_file(marker, None)
     if not isinstance(data, dict):
-        try:
-            return time.time() - os.path.getmtime(marker) < 600
-        except OSError:
-            return False
+        return False
     pid = data.get('pid')
     if not (isinstance(pid, int) and pid > 0):
-        return True
-    if os.name != 'posix':
-        return True
-    try:
-        os.kill(pid, 0)
-        return True
-    except ProcessLookupError:
         return False
-    except OSError:
-        return True
+    state = _pid_state(pid)
+    if state is None:
+        # ps unavailable: conservative fallback.
+        try:
+            os.kill(pid, 0)
+            return True
+        except OSError:
+            return False
+    if state == 'Z' or state.startswith('T'):
+        return False
+    started = _pid_start_time(pid)
+    marker_at = _marker_unixtime(data.get('at'))
+    if started is not None and marker_at is not None:
+        # A process older than the marker (minus a 300 s clock-skew window)
+        # could not have written it: the pid must have been reused.
+        if started < marker_at - 300:
+            return False
+    return True
 
 
 def _parse_semver(value):
@@ -415,19 +478,49 @@ def apply_updates(root, force=False, logger=None):
     which clears the marker before applying.
     '''
     if is_app_running(root) and not force:
-        return {
+        error = 'the app is running; apply at cold start or use force'
+        report = {
             'ok': False,
             'applied': [],
             'failed': True,
-            'error': 'the app is running; apply at cold start or use force',
-            'logs': [],
+            'error': error,
+            'logs': ['refused: ' + error],
             'health_path': None,
         }
+        try:
+            health = {
+                'ok': False,
+                'at': datetime.now(timezone.utc).isoformat(),
+                'applied': [],
+                'error': error,
+                'details': ['refused: ' + error],
+            }
+            _atomic_write_text(
+                root,
+                HEALTH_REL,
+                json.dumps(health, ensure_ascii=False, indent=2) + '\n',
+            )
+            report['health_path'] = os.path.join(root, HEALTH_REL)
+        except OSError:
+            pass
+        if logger is not None:
+            logger(error)
+        return report
     return apply_pending(root, logger=logger)
 
 
-def rollback_updates(root, rel=None, run_id=None):
-    '''Delegate to core.updater_apply.rollback (single file or whole run).'''
+def rollback_updates(root, rel=None, run_id=None, force=False):
+    '''Delegate to core.updater_apply.rollback (single file or whole run).
+
+    Refuses while the app is running unless force=True (rollback replaces
+    files the running process may already have loaded).
+    '''
+    if is_app_running(root) and not force:
+        return {
+            'ok': False,
+            'restored': [],
+            'error': 'the app is running; rollback at cold start or use force',
+        }
     return _rollback_store(root, rel=rel, run_id=run_id)
 
 
