@@ -4,10 +4,11 @@ Public API mirrors the monolith: load_config, save_config, has_key.
 Also provides DevAgent-specific config helpers (stored in the same KV table).
 
 Secrets (API keys for configured services) are encrypted before entering the DB
-and decrypted on load. Environment variables of the form
+and decrypted on load. Keys entered via the settings form are canonical.
+Environment variables of the form
     SAGAAI_<SERVICE_NAME>_KEY
     SAGAAI_<SERVICE_NAME>_KEY2
-take precedence over the stored values.
+are used as a fallback for keys left empty in the form.
 
 DevAgent settings (load_devagent_config / save_devagent_config) are now proxied
 through core.orchestrators for backward compatibility.
@@ -46,14 +47,12 @@ def _secret_keys() -> set:
     return secrets
 
 
-def load_config() -> dict:
-    """Return the full configuration as a dict.
+def load_stored_config() -> dict:
+    """Return the configuration stored in the DB (decrypted), WITHOUT the
+    environment-variable fallback.
 
-    1. Load raw values from the DB.
-    2. Decrypt known secret keys.  If decryption fails the value is
-       replaced with an empty string so callers never receive a token
-       they cannot use.
-    3. Overlay environment variables (they win).
+    This is the canonical view used by the settings form: values entered via
+    the form are always returned here, regardless of any environment variables.
     """
     config = repo_load_config()
 
@@ -66,7 +65,19 @@ def load_config() -> dict:
             except InvalidToken:
                 config[key] = ""
 
-    # --- overlay environment variables -----------------------------------------
+    return config
+
+
+def load_config() -> dict:
+    """Return the full configuration as a dict.
+
+    1. Load values stored in the DB (decrypted). These are canonical:
+       keys entered via the settings form always win.
+    2. For keys left EMPTY in the DB, fall back to environment variables.
+    """
+    config = load_stored_config()
+
+    # --- fall back to environment variables for empty values -------------------
     _merge_env_keys(config)
 
     return config
@@ -115,6 +126,15 @@ def is_env_key_set_for_service(svc_name: str, config_key_field: str) -> bool:
     return bool(os.environ.get(env_var, "").strip())
 
 
+def env_key_name_for_service(svc_name: str, config_key_field: str) -> str:
+    """Return the environment-variable name for a service API key field.
+
+    e.g. ("deepseek", "config_key") -> "SAGAAI_DEEPSEEK_KEY"
+         ("deepseek", "config_key2") -> "SAGAAI_DEEPSEEK_KEY2"
+    """
+    return _env_key_for_service(svc_name, config_key_field)
+
+
 def list_env_keys() -> dict:
     """Return a dict suitable for display in the settings UI.
     {
@@ -124,7 +144,7 @@ def list_env_keys() -> dict:
                 {"var": "SAGAAI_DEEPSEEK_KEY2", "set": False},  // if config_key2 is defined
             ],
             "db_value_masked": "***" if a secret DB value exists else "",
-            "env_wins": True,   // at least one env var is set
+            "env_set": True,   // at least one env var is set
         },
         ...
     }
@@ -137,7 +157,7 @@ def list_env_keys() -> dict:
     secrets = _secret_keys()
 
     for svc_name, svc in services.items():
-        info = {"env_keys": [], "db_value_masked": "", "env_wins": False}
+        info = {"env_keys": [], "db_value_masked": "", "env_set": False}
         for field in ("config_key", "config_key2"):
             db_key = svc.get(field, "")
             if not db_key:
@@ -146,7 +166,7 @@ def list_env_keys() -> dict:
             is_set = bool(os.environ.get(env_var, "").strip())
             info["env_keys"].append({"var": env_var, "set": is_set})
             if is_set:
-                info["env_wins"] = True
+                info["env_set"] = True
         # Show whether a DB value exists (masked)
         db_key_name = svc.get("config_key", "")
         if db_key_name:
@@ -163,7 +183,11 @@ def list_env_keys() -> dict:
 
 
 def _merge_env_keys(config: dict) -> None:
-    """Overlay environment variables onto *config* in place."""
+    """Fill EMPTY values of *config* from environment variables in place.
+
+    Form-entered values are canonical and are never overwritten; environment
+    variables only fill keys that are missing or empty in the stored config.
+    """
     from core.services import get_services
     services = get_services()
     for svc_name, svc in services.items():
@@ -173,7 +197,7 @@ def _merge_env_keys(config: dict) -> None:
                 continue
             env_var = _env_key_for_service(svc_name, field)
             env_val = os.environ.get(env_var, "").strip()
-            if env_val:
+            if env_val and not config.get(db_key):
                 config[db_key] = env_val
 
 
