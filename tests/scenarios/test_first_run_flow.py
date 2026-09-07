@@ -173,7 +173,7 @@ def test_settings_explain_keys_and_save_them(isolated_data):
             saved_configs.append(dict(cfg))
             return True
 
-        with patch.object(settings_mod, 'load_config', return_value={}), \
+        with patch.object(settings_mod, 'load_stored_config', return_value={}), \
              patch.object(settings_mod, 'has_key', return_value=False), \
              patch.object(settings_mod, 'is_env_key_set_for_service',
                           return_value=False), \
