@@ -201,7 +201,6 @@
 | `defaults/orchestrators/dev_agent/instructions/assistant_creator.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/dev_agent/instructions/employee_creator.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/dev_agent/instructions/github_connector.md` | Markdown | _(описание не задано)_ | - |
-| `defaults/orchestrators/dev_agent/instructions/local_repo_guide.md` | Markdown | Local Repo Guide instruction: repo copy layout, edit rules, GitHub update offer | - |
 | `defaults/orchestrators/dev_agent/instructions/prompt_improver.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/dev_agent/instructions/self_reflection.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/dev_agent/instructions/skill_developer.md` | Markdown | _(описание не задано)_ | - |
