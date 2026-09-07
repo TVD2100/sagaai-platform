@@ -4,9 +4,10 @@ Uses st.session_state.draft_cfg to retain edits across rerenders.
 Each service gets its own st.form with test + save buttons side by side.
 Now supports extra_fields (select/text) per service definition.
 
-Environment-variable section - shows SAGAAI_<SVC>_KEY status and instructions.
-If a key is set via env var, the input field is hidden and replaced with a message.
-Such keys are not persisted to the database on save.
+Environment-variable section - a compact fallback block at the bottom of the
+page that names SAGAAI_<SVC>_KEY variables and offers a status check.
+Keys entered via the form are canonical and are always persisted on save;
+environment variables are used only for fields left empty in the form.
 
 Note: DevAgent settings, economy mode and instructions have been moved
 into the DevAgent / Orchestrator page (ui.pages.orchestrator).
@@ -24,7 +25,10 @@ All user-facing strings go through t(key, lang=lang).
 import streamlit as st
 
 from core.i18n import t
-from core.config import load_config, save_config, has_key, list_env_keys, is_env_key_set_for_service
+from core.config import (
+    load_stored_config, save_config, has_key, list_env_keys,
+    is_env_key_set_for_service, env_key_name_for_service,
+)
 from core.services import get_services
 from core.api_layer import test_connection
 
@@ -88,27 +92,26 @@ def _render_extra_fields(svc, svc_name, draft, lang):
 
 
 def _render_env_variables_section(lang):
-    """Render a help section about environment-variable API keys."""
+    """Render the fallback environment-variables block.
+
+    Shown at the bottom of the page: it NAMES the variables (no OS-specific
+    how-to) and offers a status check. Form-entered keys are canonical;
+    environment variables only fill fields left empty in the form.
+    """
+    st.markdown("---")
     st.header(t("settings_env_header", lang=lang))
     st.markdown(t("settings_env_desc", lang=lang))
 
-    st.caption(t("settings_env_macos_linux", lang=lang))
-    st.code(
-        'export SAGAAI_DEEPSEEK_KEY="sk-..."\n'
-        'export SAGAAI_GIGACHAT_KEY="your-key"\n'
-        'export SAGAAI_YANDEXAI_KEY="API-key"\n'
-        'export SAGAAI_YANDEXAI_KEY2="folder-id"',
-        language="bash",
-    )
-    st.caption(t("settings_env_windows", lang=lang))
-    st.code(
-        'setx SAGAAI_DEEPSEEK_KEY "sk-..."\n'
-        'setx SAGAAI_GIGACHAT_KEY "your-key"\n'
-        'setx SAGAAI_YANDEXAI_KEY "API-key"\n'
-        'setx SAGAAI_YANDEXAI_KEY2 "folder-id"',
-        language="shell",
-    )
-    st.markdown(t("settings_env_restart", lang=lang))
+    # List the variable names for the registered services.
+    services = get_services()
+    if services:
+        var_names = []
+        for svc_name, svc in services.items():
+            for field in ("config_key", "config_key2"):
+                if svc.get(field):
+                    var_names.append(env_key_name_for_service(svc_name, field))
+        if var_names:
+            st.code("\n".join(var_names), language="bash")
 
     if "env_keys_checked" not in st.session_state:
         st.session_state["env_keys_checked"] = False
@@ -130,11 +133,11 @@ def _render_env_variables_section(lang):
                 icon = "\u2705" if ev["set"] else "\u274c"
                 status_parts.append(f"{icon} `{ev['var']}`")
             st.markdown(f"**{svc_name}**: {' \u00b7 '.join(status_parts)}")
-            if data["env_wins"]:
+            if data["env_set"] and not data["db_value_masked"]:
                 st.info(
-                    t("settings_env_priority", lang=lang, service=svc_name)
+                    t("settings_env_in_use", lang=lang, service=svc_name)
                 )
-        st.caption(t("settings_env_priority_footer", lang=lang))
+        st.caption(t("settings_env_footer", lang=lang))
 
 
 def _render_models_table(svc: dict, lang: str) -> None:
@@ -177,7 +180,7 @@ def _render_api_keys(lang):
     """Render the API keys configuration."""
     # Use a session-state draft so edits survive intermediate rerenders
     if "draft_cfg" not in st.session_state:
-        st.session_state.draft_cfg = load_config()
+        st.session_state.draft_cfg = load_stored_config()
     draft = st.session_state.draft_cfg
 
     services = get_services()
@@ -185,9 +188,7 @@ def _render_api_keys(lang):
         st.info(t("settings_no_services", lang=lang))
         return
 
-    # --- Environment variables section --------------------------------------
-    _render_env_variables_section(lang)
-    st.markdown("---")
+    # --- Provider forms (keys entered here are canonical) ------------------
 
     for svc_name, svc in services.items():
         key1_label = svc.get("key_label", "API Key")
@@ -197,38 +198,42 @@ def _render_api_keys(lang):
         key1_help = _resolve_label(svc.get("key_help"), lang, None)
         key2_help = _resolve_label(svc.get("key2_help"), lang, None)
 
-        # Check if keys are set via environment variables
+        # Check if keys are set via environment variables (fallback only; the
+        # form stays editable and wins when a value is entered).
         key1_from_env = bool(key1_field) and is_env_key_set_for_service(svc_name, "config_key")
         key2_from_env = bool(key2_field) and is_env_key_set_for_service(svc_name, "config_key2")
+        key1_env_name = env_key_name_for_service(svc_name, "config_key") if key1_field else ""
+        key2_env_name = env_key_name_for_service(svc_name, "config_key2") if key2_field else ""
 
         with st.expander(f"\U0001f527 {svc_name}", expanded=not has_key(svc)):
             # Per-service form to isolate widget state
             with st.form(key=f"settings_form_{svc_name}", clear_on_submit=False):
                 # --- Key 1 -------------------------------------------------------
-                if key1_from_env:
-                    st.markdown(f"{t('settings_key_from_env', lang=lang)}")
-                    val1 = draft.get(key1_field, "")
-                else:
-                    val1 = st.text_input(
-                        key1_label,
-                        value=draft.get(key1_field, ""),
-                        type="password",
-                        key=f"cfg_{key1_field}",
-                        help=key1_help,
+                val1 = st.text_input(
+                    key1_label,
+                    value=draft.get(key1_field, ""),
+                    type="password",
+                    key=f"cfg_{key1_field}",
+                    help=key1_help,
+                )
+                if key1_from_env and not draft.get(key1_field):
+                    st.caption(
+                        t("settings_key_env_fallback", lang=lang,
+                          var=key1_env_name)
                     )
 
                 # --- Key 2 (optional) --------------------------------------------
-                val2 = ""
                 if key2_field and key2_label:
-                    if key2_from_env:
-                        st.markdown(f"{t('settings_key_from_env', lang=lang)}")
-                        val2 = draft.get(key2_field, "")
-                    else:
-                        val2 = st.text_input(
-                            key2_label,
-                            value=draft.get(key2_field, ""),
-                            key=f"cfg_{key2_field}",
-                            help=key2_help,
+                    val2 = st.text_input(
+                        key2_label,
+                        value=draft.get(key2_field, ""),
+                        key=f"cfg_{key2_field}",
+                        help=key2_help,
+                    )
+                    if key2_from_env and not draft.get(key2_field):
+                        st.caption(
+                            t("settings_key_env_fallback", lang=lang,
+                              var=key2_env_name)
                         )
 
                 # --- Models table (context window + max_tokens) ------------------
@@ -254,11 +259,11 @@ def _render_api_keys(lang):
                     )
 
                 if save_clicked:
-                    # Persist the current form values into draft
-                    # Only save key1/key2 if they are NOT set via environment variable
-                    if not key1_from_env:
-                        draft[key1_field] = val1
-                    if key2_field and key2_label and not key2_from_env:
+                    # Persist the current form values into draft. The form is
+                    # canonical: entered values are ALWAYS saved (they override
+                    # environment variables).
+                    draft[key1_field] = val1
+                    if key2_field and key2_label:
                         draft[key2_field] = val2
                     # Save extra_fields (they are never set via env vars)
                     for fkey, fval in extra_vals.items():
@@ -283,6 +288,9 @@ def _render_api_keys(lang):
                         st.success(t("settings_tested_ok", lang=lang, msg=msg))
                     else:
                         st.error(t("settings_tested_fail", lang=lang, msg=msg))
+
+    # --- Environment variables (fallback) - bottom of the page ---------------
+    _render_env_variables_section(lang)
 
 
 def _render_folder_sync(lang):
