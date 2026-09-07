@@ -6,7 +6,7 @@
     "ru": "Первая публикация конвейера обновлений: манифест версий файлов (file_versions.json) и встроенный апдейтер.",
     "en": "First release of the update pipeline: file version manifest (file_versions.json) and the built-in updater."
   },
-  "updated": "2026-09-07T13:43:20Z",
+  "updated": "2026-09-07T18:09:35Z",
   "units": {
     "core": {
       "version": "1.0.0",
@@ -20,8 +20,8 @@
           "sha256": "c0c32fcbd798455f713c21ff241ef34333daf9ca5eaa132b1379377a5c09e12e"
         },
         "app.py": {
-          "version": "1.0.0",
-          "sha256": "d2c3ee752ad6b6993d7bc183d30e1ad29ead0bdd63b3da040c6bf11034737cb3"
+          "version": "1.0.1",
+          "sha256": "4785e4ab8a2562d9f4098b524666d18ffa9afa20be34edc4120cd073b9c356f1"
         },
         "assets/favicon.svg": {
           "version": "1.0.0",
@@ -732,20 +732,24 @@
           "sha256": "69f158e7c02e8511a8dc5506352813ccdaeb847009c741eca62e1f6d84f404c9"
         },
         "core/updater.py": {
-          "version": "1.0.0",
-          "sha256": "88031aee84a3f1ae4e32760cc5bc06b2e05d920dc1cb3b040b22075be1651be8"
+          "version": "1.0.1",
+          "sha256": "069286d748da1eb055aa445c7a78592ad119d4a5dabb8fca9e1f95de5e55165b"
         },
         "tests/test_updater.py": {
-          "version": "1.0.0",
-          "sha256": "09fd69d2e0c64445bdda216ac9310c80dde9566017ea0833471986770b245ea2"
+          "version": "1.0.1",
+          "sha256": "db2c8ebfa9671fe51fd2d126eeebe51ad3cea97ee8211b77295d62b6b441a66d"
         },
         "ui/pages/updates.py": {
-          "version": "1.0.0",
-          "sha256": "bf294a0881ae1435fe01336e9cc24ab7f9e0de00de0629ee6f2cc00d4a08bfe6"
+          "version": "1.0.1",
+          "sha256": "e4c4a1f9536825c1c06f5ac13417ceb8f70892b27c7820bc3885c334ef9c1b24"
         },
         "tests/test_updater_ui.py": {
+          "version": "1.0.1",
+          "sha256": "b309b4445292a55bc95decb5ce272cd07ebfb9eaaa8689f493a3afe5e93bbb1a"
+        },
+        "tests/scenarios/test_updater_runtime_flow.py": {
           "version": "1.0.0",
-          "sha256": "73400eb94627245aae2b722f24561d2833cdf48e5d8c9b1f2bb4075cb70285d9"
+          "sha256": "0dcc3462b29426b5c1e1a490935f93627d3335931bb74189af14daef9617d120"
         }
       }
     }
@@ -776,8 +780,8 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.1.2",
-      "sha256": "17c13b5e8034b3fec745b1c766efdc7088f846d5a423d6212bce1427bcc2d192",
+      "version": "1.1.3",
+      "sha256": "45c1afc1b13abf7988ac8385eb608a2c4267ef262ec29132ce1a85856ceb9e84",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
@@ -856,8 +860,8 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.1.0",
-      "sha256": "428b3c581cbe6e5bf6fe656f17b393767dba12101452e59aeaba40c801a9c854",
+      "version": "1.1.1",
+      "sha256": "2916139eda23ee93611d17066283c8a8fbf7bc19ae81b14d1ac0ed1ae943e7c2",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
@@ -872,8 +876,8 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.1.0",
-      "sha256": "42b7a9267fe2313d8f12b17a06f73efdcd44ae68e66c5d6cfafe2d6369f9a167",
+      "version": "1.1.1",
+      "sha256": "2c1a19b8d47f366c6074846c20d68eabdd77b84cd667c37369bc0b4c60c282ee",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
@@ -888,8 +892,8 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.1.0",
-      "sha256": "76f9403c2c5b071df86c903136316f6f3b15c71a44c4677b624c1eeb901aa4c1",
+      "version": "1.1.1",
+      "sha256": "8c5b3e8b7c902dd5c1dd92c6a40a4f0c464b7f244d0ffa24976143bd822695c0",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
@@ -1112,8 +1116,8 @@
       }
     },
     "langs/en.json": {
-      "version": "1.1.0",
-      "sha256": "428b3c581cbe6e5bf6fe656f17b393767dba12101452e59aeaba40c801a9c854",
+      "version": "1.1.1",
+      "sha256": "2916139eda23ee93611d17066283c8a8fbf7bc19ae81b14d1ac0ed1ae943e7c2",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
@@ -1128,8 +1132,8 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.1.0",
-      "sha256": "42b7a9267fe2313d8f12b17a06f73efdcd44ae68e66c5d6cfafe2d6369f9a167",
+      "version": "1.1.1",
+      "sha256": "2c1a19b8d47f366c6074846c20d68eabdd77b84cd667c37369bc0b4c60c282ee",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
@@ -1144,8 +1148,8 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.1.0",
-      "sha256": "76f9403c2c5b071df86c903136316f6f3b15c71a44c4677b624c1eeb901aa4c1",
+      "version": "1.1.1",
+      "sha256": "8c5b3e8b7c902dd5c1dd92c6a40a4f0c464b7f244d0ffa24976143bd822695c0",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
@@ -1184,8 +1188,8 @@
       }
     },
     "CHANGELOG.md": {
-      "version": "1.1.1",
-      "sha256": "370075778690313e0312f4dc9c759eeb0a62d03507169f8816219b13a6f92a6e",
+      "version": "1.1.2",
+      "sha256": "26ddf3a59520395c9b6200f7d50e82aee6fed573255c8eaf054e3f56943ecaa9",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
