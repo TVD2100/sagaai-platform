@@ -46,6 +46,7 @@ from ui.pages.skills_library import page_skills_library
 from ui.pages.storage import page_storage
 from ui.pages.connectors import page_connectors
 from ui.pages.stats import page_stats
+from ui.pages.updates import page_updates
 
 
 # ── Icons ─────────────────────────────────────────────────────────────────────
@@ -129,7 +130,7 @@ def _apply_theme(mode: str, restore_payload: str = "") -> None:
     script = (
         "(function () {"
         "  var w = window.parent === window ? window : window.parent;"
-        "  var path = '/';"
+        "  var path = '/';
         "  try { path = w.location.pathname || '/'; } catch (e) {}"
         "  var key = 'stActiveTheme-' + path + '-v2';"
         "  w.localStorage.setItem(key, JSON.stringify({mode}));"
@@ -143,7 +144,6 @@ def _apply_theme(mode: str, restore_payload: str = "") -> None:
         '<!doctype html><html><body><script>{script}</script></body></html>'.replace("{script}", script),
         unsafe_allow_javascript=True,
     )
-
 
 
 
@@ -782,6 +782,20 @@ def main():
         if is_welcome_active:
             st.markdown("</div>", unsafe_allow_html=True)
 
+        # Updates (end of main menu)
+        is_updates_active = (page == "updates")
+        if is_updates_active:
+            st.markdown('<div class="nav-active">', unsafe_allow_html=True)
+        if st.button(
+            f"\U0001f504 {t('nav_updates', lang=lang)}",
+            key="nav_updates",
+            use_container_width=True,
+        ):
+            st.session_state["current_page"] = "updates"
+            st.rerun()
+        if is_updates_active:
+            st.markdown("</div>", unsafe_allow_html=True)
+
         st.markdown("---")
 
         # ═══════════════════════════════════════════════════════════════════
@@ -848,6 +862,8 @@ def main():
     elif page.startswith("orchestrator:"):
         slug = page.split(":", 1)[1]
         page_orchestrator(slug)
+    elif page == "updates":
+        page_updates()
     elif page == "settings":
         page_settings()
     else:
