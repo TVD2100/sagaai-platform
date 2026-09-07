@@ -267,7 +267,7 @@ def test_settings_provider_save_shows_success(mock_env):
     # Ensure the cached module uses the current Streamlit mock.
     settings_mod.st = mock_env
 
-    with patch("ui.pages.settings.load_config", return_value={}), \
+    with patch("ui.pages.settings.load_stored_config", return_value={}), \
          patch("ui.pages.settings.get_services", return_value={"TestSvc": SAMPLE_SERVICE}), \
          patch("ui.pages.settings.save_config", return_value=True), \
          patch("ui.pages.settings.has_key", return_value=False), \
@@ -287,7 +287,7 @@ def test_settings_global_save_button_absent(mock_env):
 
     settings_mod.st = mock_env
 
-    with patch("ui.pages.settings.load_config", return_value={}), \
+    with patch("ui.pages.settings.load_stored_config", return_value={}), \
          patch("ui.pages.settings.get_services", return_value={"TestSvc": SAMPLE_SERVICE}), \
          patch("ui.pages.settings.has_key", return_value=False), \
          patch("ui.pages.settings.is_env_key_set_for_service", return_value=False):
