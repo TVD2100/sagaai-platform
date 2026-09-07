@@ -281,13 +281,14 @@ def test_stage_without_selection_warns_and_does_not_call_stage(tmp_path):
     assert st.warnings
 
 
-def test_apply_disabled_while_app_is_running(tmp_path):
-    """При живом приложении кнопка Apply отрендерена как disabled."""
+def test_apply_requires_confirmation_while_app_is_running(tmp_path):
+    """При живом приложении клик Apply без подтверждения не вызывает apply_updates."""
     pending = (
         {"files": {"content/prompt.md": {"version": "1.0.1", "sha256": "b" * 64}}},
         [],
     )
     with install_streamlit_mock() as st:
+        st.click("updates_apply")
         page = _fresh_page()
         stack, mocks = _enter_patches(
             str(tmp_path),
@@ -303,7 +304,41 @@ def test_apply_disabled_while_app_is_running(tmp_path):
     apply_mock.assert_not_called()
     hit = _button_kwargs(st, "updates_apply")
     assert hit is not None
-    assert hit[1].get("disabled") is True
+    assert hit[1].get("disabled") is not True
+    assert st.warnings
+
+
+def test_apply_calls_applier_with_confirmation_while_running(tmp_path):
+    """При живом приложении подтверждённый Apply вызывает apply_updates(force=True)."""
+    pending = (
+        {"files": {"content/prompt.md": {"version": "1.0.1", "sha256": "b" * 64}}},
+        [],
+    )
+    with install_streamlit_mock() as st:
+        st.click("updates_apply")
+        page = _fresh_page()
+        stack, mocks = _enter_patches(
+            str(tmp_path),
+            [
+                patch("ui.pages.updates.read_pending", return_value=pending),
+                patch(
+                    "ui.pages.updates.apply_updates",
+                    return_value={
+                        "ok": True,
+                        "applied": ["content/prompt.md"],
+                        "failed": False,
+                        "error": None,
+                        "logs": [],
+                        "health_path": "h",
+                    },
+                ),
+            ],
+        )
+        with stack:
+            _render(st, page, updates_apply_confirm=True)
+    apply_mock = mocks[1]
+
+    apply_mock.assert_called_once_with(str(tmp_path), force=True)
 
 
 def test_apply_calls_applier_when_app_is_stopped(tmp_path):
@@ -337,7 +372,32 @@ def test_apply_calls_applier_when_app_is_stopped(tmp_path):
             _render(st, page)
     apply_mock = mocks[2]
 
-    apply_mock.assert_called_once_with(str(tmp_path))
+    apply_mock.assert_called_once_with(str(tmp_path), force=False)
+
+
+
+def test_apply_without_confirmation_warns(tmp_path):
+    """При живом приложении Apply без чекбокса показывает st.warning."""
+    pending = (
+        {"files": {"content/prompt.md": {"version": "1.0.1", "sha256": "b" * 64}}},
+        [],
+    )
+    with install_streamlit_mock() as st:
+        st.click("updates_apply")
+        page = _fresh_page()
+        stack, mocks = _enter_patches(
+            str(tmp_path),
+            [
+                patch("ui.pages.updates.read_pending", return_value=pending),
+                patch("ui.pages.updates.apply_updates"),
+            ],
+        )
+        with stack:
+            _render(st, page)
+    apply_mock = mocks[1]
+
+    apply_mock.assert_not_called()
+    assert st.warnings
 
 
 def test_rollback_calls_rollback_updates(tmp_path):
@@ -364,12 +424,13 @@ def test_rollback_calls_rollback_updates(tmp_path):
             _render(st, page)
     rollback_mock = mocks[3]
 
-    rollback_mock.assert_called_once_with(str(tmp_path))
+    rollback_mock.assert_called_once_with(str(tmp_path), force=False)
 
 
-def test_rollback_disabled_while_app_is_running(tmp_path):
-    """При живом приложении кнопка Rollback отрендерена как disabled."""
+def test_rollback_requires_confirmation_while_app_is_running(tmp_path):
+    """При живом приложении клик Rollback без подтверждения не вызывает rollback_updates."""
     with install_streamlit_mock() as st:
+        st.click("updates_rollback")
         page = _fresh_page()
         stack, mocks = _enter_patches(
             str(tmp_path),
@@ -385,7 +446,8 @@ def test_rollback_disabled_while_app_is_running(tmp_path):
     rollback_mock.assert_not_called()
     hit = _button_kwargs(st, "updates_rollback")
     assert hit is not None
-    assert hit[1].get("disabled") is True
+    assert hit[1].get("disabled") is not True
+    assert st.warnings
 
 
 def test_health_error_is_shown(tmp_path):
