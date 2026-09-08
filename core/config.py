@@ -118,10 +118,38 @@ def _env_key_for_service(svc_name: str, config_key_field: str) -> str:
     return f"SAGAAI_{svc_name.upper()}_KEY{suffix}"
 
 
+def env_key_fields_for_service(svc_name: str) -> tuple:
+    """Return the config-key fields of *svc_name* participating in the
+    environment-variable fallback.
+
+    Both ``config_key`` and ``config_key2`` participate by default. A service
+    may narrow this via the ``env_key_fields`` list in its JSON definition
+    (e.g. GigaChat, whose second field is a scope rather than a second key):
+    only the listed fields are used to build/check ``SAGAAI_<SVC>_KEY``
+    variables and to fill empty config values.
+    """
+    from core.services import get_services
+    svc = get_services().get(svc_name, {})
+    declared = svc.get("env_key_fields")
+    if isinstance(declared, list) and declared:
+        fields = []
+        for field in declared:
+            if field in ("config_key", "config_key2") and svc.get(field) and field not in fields:
+                fields.append(field)
+        if fields:
+            return tuple(fields)
+    return ("config_key", "config_key2")
+
+
 def is_env_key_set_for_service(svc_name: str, config_key_field: str) -> bool:
     """Return True if the environment variable for this service and key field
     (config_key or config_key2) is set and non-empty.
+
+    Fields excluded by the service's ``env_key_fields`` declaration always
+    return False: they never fall back to environment variables.
     """
+    if config_key_field not in env_key_fields_for_service(svc_name):
+        return False
     env_var = _env_key_for_service(svc_name, config_key_field)
     return bool(os.environ.get(env_var, "").strip())
 
@@ -158,7 +186,7 @@ def list_env_keys() -> dict:
 
     for svc_name, svc in services.items():
         info = {"env_keys": [], "db_value_masked": "", "env_set": False}
-        for field in ("config_key", "config_key2"):
+        for field in env_key_fields_for_service(svc_name):
             db_key = svc.get(field, "")
             if not db_key:
                 continue
@@ -191,7 +219,7 @@ def _merge_env_keys(config: dict) -> None:
     from core.services import get_services
     services = get_services()
     for svc_name, svc in services.items():
-        for field in ("config_key", "config_key2"):
+        for field in env_key_fields_for_service(svc_name):
             db_key = svc.get(field, "")
             if not db_key:
                 continue
@@ -242,9 +270,9 @@ _DEVAGENT_FALLBACK_DEFAULTS = {
     "search_max_tool_calls": "1",
     "search_reasoning_effort": "high",
     "web_search_prompt": "",
-    "economy_tail_messages": "30",
+    "economy_tail_messages": "50",
     "economy_cache_enabled": "true",
-    "economy_cache_multiplier": "3",
+    "economy_cache_multiplier": "2",
     "enabled_skills": "[]",
     "enabled_connections": "[]",
 }
@@ -323,9 +351,9 @@ def get_default_economy_tail_messages() -> int:
     """
     defaults = _get_devagent_defaults()
     try:
-        return int(defaults.get("economy_tail_messages", 30))
+        return int(defaults.get("economy_tail_messages", 50))
     except Exception:
-        return 30
+        return 50
 
 
 def get_default_economy_cache_enabled() -> bool:
@@ -341,9 +369,9 @@ def get_default_economy_cache_multiplier() -> int:
     """Return the default cache-window multiplier (xN)."""
     defaults = _get_devagent_defaults()
     try:
-        return max(1, int(defaults.get("economy_cache_multiplier", 3)))
+        return max(1, int(defaults.get("economy_cache_multiplier", 2)))
     except Exception:
-        return 3
+        return 2
 
 
 def get_default_strong_max_tokens() -> int:
