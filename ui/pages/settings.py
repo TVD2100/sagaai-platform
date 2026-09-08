@@ -28,6 +28,7 @@ from core.i18n import t
 from core.config import (
     load_stored_config, save_config, has_key, list_env_keys,
     is_env_key_set_for_service, env_key_name_for_service,
+    env_key_fields_for_service,
 )
 from core.services import get_services
 from core.api_layer import test_connection
@@ -107,7 +108,7 @@ def _render_env_variables_section(lang):
     if services:
         var_names = []
         for svc_name, svc in services.items():
-            for field in ("config_key", "config_key2"):
+            for field in env_key_fields_for_service(svc_name):
                 if svc.get(field):
                     var_names.append(env_key_name_for_service(svc_name, field))
         if var_names:
