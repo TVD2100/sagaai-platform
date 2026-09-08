@@ -6,7 +6,7 @@
     "ru": "Первая публикация конвейера обновлений: манифест версий файлов (file_versions.json) и встроенный апдейтер.",
     "en": "First release of the update pipeline: file version manifest (file_versions.json) and the built-in updater."
   },
-  "updated": "2026-09-07T18:09:35Z",
+  "updated": "2026-09-08T17:51:23Z",
   "units": {
     "core": {
       "version": "1.0.0",
@@ -72,8 +72,8 @@
           "sha256": "533ca9991da71adc73e2151237c210c44dc8fae0e76d458e6ce45cdc0a7e8b24"
         },
         "core/config.py": {
-          "version": "1.1.0",
-          "sha256": "5633802b5a366840c4d8885a65676b691794821b514be9333f56b6ae4f0fe7f3"
+          "version": "1.2.0",
+          "sha256": "be6d1e9b7962a782e4cea826aac96e7f6993159b9066ef3d0d27d7d87d6f298d"
         },
         "core/connectors.py": {
           "version": "1.1.0",
@@ -132,8 +132,8 @@
           "sha256": "524a3cc3646fc6b5cd2a60ad7a9497e4e23655446aa49699a292a9c5ed93ef54"
         },
         "core/orchestrators.py": {
-          "version": "1.1.0",
-          "sha256": "e77ab60f7ff3b3bc55a54f9b7f44753010f9bfd44ce4ff691aad20dcf7d3a5c0"
+          "version": "1.2.0",
+          "sha256": "76a662a8e182c853d4a45b14a5ea6dd602677f7e79d83776d923d2c52631490b"
         },
         "core/paths.py": {
           "version": "1.0.0",
@@ -512,8 +512,8 @@
           "sha256": "6d892fecf57b015d338044eb85df114414f6923dfbb34a8afced8dc026c9b1df"
         },
         "tests/test_platform_bootstrap.py": {
-          "version": "1.0.0",
-          "sha256": "9704d393ca0094376daa6820b8b491ef77e5af59a0d77ecf3d71e1cd994e1bc4"
+          "version": "1.1.0",
+          "sha256": "1c156382dedebb2d54d77dc0b6a293af9e230a604076e12b77227dfa37b5623a"
         },
         "tests/test_platform_scenarios.py": {
           "version": "1.0.1",
@@ -684,8 +684,8 @@
           "sha256": "448dbf67eff496ec7d2689ef5d6f5be3640b79162e7456934ed478856b54ca74"
         },
         "ui/pages/orchestrator.py": {
-          "version": "1.0.0",
-          "sha256": "63411d09885328c708b85cba6647b55139149c7e3b1df21d9967ef090b82d9bd"
+          "version": "1.1.0",
+          "sha256": "36ae3300e68ed747c77751c733d9f7ac3d77903029e31126aa93fcbeffa30265"
         },
         "ui/pages/orchestrator_settings.py": {
           "version": "1.0.0",
@@ -696,8 +696,8 @@
           "sha256": "cdb2f3687634a40666c0638631402260049168bff72636eb0422111e5afd2da2"
         },
         "ui/pages/settings.py": {
-          "version": "1.1.0",
-          "sha256": "6d6b1ca629a023d6869eafc8dff238c539715175f2604c4e594e986f9bb6b7f3"
+          "version": "1.2.0",
+          "sha256": "c6f894ed40da6661a40888572a0c8b240a3d46c1dd32d62706a78ca299e707ec"
         },
         "ui/pages/skills.py": {
           "version": "1.0.0",
@@ -770,6 +770,10 @@
         "tests/scenarios/test_github_rest_scenario.py": {
           "version": "1.0.0",
           "sha256": "743c93400ab05d08982356d3df83ffccc00298dcb9fdbe1a045c5232c144666b"
+        },
+        "tests/scenarios/test_provider_economy_settings_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "309f31735f1c97a3ed1706bbc770dabd14b593d507bf562e5f08d6b50ac7f6b9"
         }
       }
     }
@@ -1040,11 +1044,11 @@
       }
     },
     "defaults/orchestrators/ya_agent/orchestrator.json": {
-      "version": "1.0.0",
-      "sha256": "f8ef4e7ea9850c057359e63b029dc137eff3008a8104706982f07e2f6f03ae6e",
+      "version": "1.1.0",
+      "sha256": "40de8d562dedd999ef8377f0fb47f1d5a3239dfc1c8e9a7f06752e5976d2d514",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Новые дефолты экономии для новых установок: 50 сообщений и множитель x2.",
+        "en": "New economy defaults for fresh installs: 50 messages and x2 multiplier."
       }
     },
     "defaults/orchestrators/ya_agent/system_prompt.md": {
@@ -1080,19 +1084,19 @@
       }
     },
     "defaults/services/gigachat.json": {
-      "version": "1.0.0",
-      "sha256": "d6067074be7cbbbefd71fa36e40832b5f9b842cc293f05a842b9b64e8a71ab2a",
+      "version": "1.1.0",
+      "sha256": "cd9538a92942705cf82d058333fb7ce6c67accca1adafd5d988193b491a1214f",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Env-проверки GigaChat ограничены одним ключом (SAGAAI_GIGACHAT_KEY2 больше не используется).",
+        "en": "GigaChat env checks now use a single key (SAGAAI_GIGACHAT_KEY2 is no longer consulted)."
       }
     },
     "defaults/services/yandex.json": {
-      "version": "1.0.0",
-      "sha256": "03960a4c6d326ebdfb3575a068246370001082da6fe16712623d93effd745d60",
+      "version": "1.0.1",
+      "sha256": "2fcb6665ea403854f88f6def0c19673337177212b1bc5417435b8d596c721392",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Из настроек провайдера YandexAI убраны лишние поля Web search context size / allowed domains.",
+        "en": "Removed the redundant Web search context size / allowed domains fields from the YandexAI provider settings."
       }
     },
     "defaults/settings/global.json": {
@@ -1192,19 +1196,19 @@
       }
     },
     "services/gigachat.json": {
-      "version": "1.0.0",
-      "sha256": "d6067074be7cbbbefd71fa36e40832b5f9b842cc293f05a842b9b64e8a71ab2a",
+      "version": "1.1.0",
+      "sha256": "cd9538a92942705cf82d058333fb7ce6c67accca1adafd5d988193b491a1214f",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Env-проверки GigaChat ограничены одним ключом (SAGAAI_GIGACHAT_KEY2 больше не используется).",
+        "en": "GigaChat env checks now use a single key (SAGAAI_GIGACHAT_KEY2 is no longer consulted)."
       }
     },
     "services/yandex.json": {
-      "version": "1.0.0",
-      "sha256": "03960a4c6d326ebdfb3575a068246370001082da6fe16712623d93effd745d60",
+      "version": "1.0.1",
+      "sha256": "2fcb6665ea403854f88f6def0c19673337177212b1bc5417435b8d596c721392",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Из настроек провайдера YandexAI убраны лишние поля Web search context size / allowed domains.",
+        "en": "Removed the redundant Web search context size / allowed domains fields from the YandexAI provider settings."
       }
     }
   }
