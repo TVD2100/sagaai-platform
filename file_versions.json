@@ -76,8 +76,8 @@
           "sha256": "5633802b5a366840c4d8885a65676b691794821b514be9333f56b6ae4f0fe7f3"
         },
         "core/connectors.py": {
-          "version": "1.0.0",
-          "sha256": "ca1ba639ada92a679b42bead690f1ce625a14e5179f179f5af0d0a1d616ee197"
+          "version": "1.1.0",
+          "sha256": "3b3b094cec913a1825f7c61bff586e81158539f9ecd2c19e97491753c6935d5a"
         },
         "core/crypto.py": {
           "version": "1.0.0",
@@ -124,16 +124,16 @@
           "sha256": "cbd8764a168ac1a05f8eb63cedd8b02a9d78c705d51773132251de1e24336ef4"
         },
         "core/instructions.py": {
-          "version": "1.0.0",
-          "sha256": "cb13a65ed80970bec038ff820bab9993d18c8136a4e4447237b1e0269175d855"
+          "version": "1.1.0",
+          "sha256": "5d0f70ead7bab40cbb091b011f314d3de88420189f7937ff5819066c697f471b"
         },
         "core/orchestrator_folders.py": {
           "version": "1.0.0",
           "sha256": "524a3cc3646fc6b5cd2a60ad7a9497e4e23655446aa49699a292a9c5ed93ef54"
         },
         "core/orchestrators.py": {
-          "version": "1.0.0",
-          "sha256": "8566fc33c835af272606bb4abac1cbfd9b6669edbd5acc63fe518dc7179b90e4"
+          "version": "1.1.0",
+          "sha256": "e77ab60f7ff3b3bc55a54f9b7f44753010f9bfd44ce4ff691aad20dcf7d3a5c0"
         },
         "core/paths.py": {
           "version": "1.0.0",
@@ -256,8 +256,8 @@
           "sha256": "21b7b333f7e9ebc627a63f7488347adc1c3345b36974b34a995c8c9dd8b2a7c7"
         },
         "dev_agent/universal_agent.py": {
-          "version": "1.0.0",
-          "sha256": "674f1814be3dbb587e40ebc11eef058237721c0a5a5a77e7a1a3aa3582d5cae6"
+          "version": "1.1.0",
+          "sha256": "ff9786c22355da4b9619abc12a4a2cb48702e2fcd2e1b17337bacc4e13f3874b"
         },
         "dev_agent/workspace_tools.py": {
           "version": "1.0.0",
@@ -276,8 +276,8 @@
           "sha256": "12991aadc1114cbfcdf67face789b63745f29b07b14e961eeb9db369e00a7ae9"
         },
         "scripts/verify_manifest.py": {
-          "version": "1.0.1",
-          "sha256": "d36a3f752f48cf6936f1b47123dc96d835a3569212d94a08dcb6f7d51159f858"
+          "version": "1.0.2",
+          "sha256": "75483e6a7d4302c0d28ad74d8c471faf90b82662c41fa5d570003e0916df9060"
         },
         "storage/__init__.py": {
           "version": "1.0.0",
@@ -408,8 +408,8 @@
           "sha256": "85319600da37774906f21382167ea2370afa088816e436d86f0cff0fdd0e9818"
         },
         "tests/test_connectors.py": {
-          "version": "1.0.0",
-          "sha256": "0fed7f6a645b6dc17b040d08d3a3ee30c39d5479fa49441f1d38e6e4b04a1df4"
+          "version": "1.1.0",
+          "sha256": "d6e3f255b2e99d5914ac8bec8617c746270d013c0a298406bb6352c2f5b0cda1"
         },
         "tests/test_core_api_json_schema.py": {
           "version": "1.0.0",
@@ -448,8 +448,8 @@
           "sha256": "495200dad850b8b64fd3da5c526fdd7d05cb3a3f825f639c604688715bbed959"
         },
         "tests/test_dispatcher_connections.py": {
-          "version": "1.0.0",
-          "sha256": "96187101339a61a760b6e8cdeb60aaa2c5c9fc72508010cc1a64e57a444af5c2"
+          "version": "1.1.0",
+          "sha256": "b1d9fd73f22d6d028041b46534da999f32fd0fd4c3b7b3c9abbcca4c4c65759d"
         },
         "tests/test_employee_management_ui.py": {
           "version": "1.0.0",
@@ -488,8 +488,8 @@
           "sha256": "6d6baa60dd8e85811599feee2e0bbb63b61ecee4a6dcbfd97334d44f7bf4d63e"
         },
         "tests/test_orchestrator_connections.py": {
-          "version": "1.0.0",
-          "sha256": "aff80873f2e31bc7e9932b7fdee022942c6cc00602e9eafabd75c35c4492a74a"
+          "version": "1.1.0",
+          "sha256": "43bd06ec2893ecd32cd4c5a40a918a0da92747c95adc18c31e9ab406574a4bac"
         },
         "tests/test_orchestrator_economy_cache.py": {
           "version": "1.0.0",
@@ -676,8 +676,8 @@
           "sha256": "600c9f6882a4cb34ed0b0bb045547bb75db4ea36294d715d1d982383bf5af74c"
         },
         "ui/pages/connectors.py": {
-          "version": "1.0.0",
-          "sha256": "70482804fa24f56715520fcac9d9b469c7d67ec9900c7ce54a7fc65b58d9470b"
+          "version": "1.1.0",
+          "sha256": "dd418ab6162e021c4abfa73516caf3f66f951a8a9eb4fc71c10088c087165b48"
         },
         "ui/pages/history.py": {
           "version": "1.0.0",
@@ -720,8 +720,8 @@
           "sha256": "ce6235fcf9d00a1981b32ea0fcdef7bb7a32c036d33a09d70cbff134cfe138ba"
         },
         "tests/test_verify_manifest.py": {
-          "version": "1.0.0",
-          "sha256": "37f312d0189746827d7a713a3cb58a4989cd4580b00753cf3d2565588d0a2ade"
+          "version": "1.0.1",
+          "sha256": "413d6f1cd86e63345f0c6b80eddeeb91cab5b5cbbf953c0529efdb0260bd6e07"
         },
         "core/updater_apply.py": {
           "version": "1.1.0",
@@ -750,17 +750,37 @@
         "tests/scenarios/test_updater_runtime_flow.py": {
           "version": "1.0.0",
           "sha256": "0dcc3462b29426b5c1e1a490935f93627d3335931bb74189af14daef9617d120"
+        },
+        "core/github_connector_rest.py": {
+          "version": "1.0.1",
+          "sha256": "1ea98c16bc1986b1d0ccbfca0dfd28f15b480a0d322a3f59d670a2cd68c2452f"
+        },
+        "core/github_tools_rest.py": {
+          "version": "1.0.0",
+          "sha256": "d33a9516c138aea653e5961f0c020c5ed6d66c91c7422e48986385e9c4fb22e5"
+        },
+        "tests/test_github_connector_rest.py": {
+          "version": "1.0.1",
+          "sha256": "22133375b796b7154fca5397be9a0f93c2c1c39fd8a33b637d3b5548ad1eefed"
+        },
+        "tests/test_github_tools_rest.py": {
+          "version": "1.0.0",
+          "sha256": "ad44307b76d49e4cd0e0818c9507986311b83c37a28a16359bb9e12c67cd88d5"
+        },
+        "tests/scenarios/test_github_rest_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "743c93400ab05d08982356d3df83ffccc00298dcb9fdbe1a045c5232c144666b"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.1.0",
-      "sha256": "ee0fae1c2a22c343c3a552764ff6cde238ddebb327972da6569dcd9fd0577d3f",
+      "version": "1.2.0",
+      "sha256": "d5cc4d68464af21159a025e7705a9a9faedace0a7c613b8f9f7a7737ae20c8dd",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Раздел «Коннекторы» дополнен REST-модулями и выбором каталога инструментов по сервисам.",
+        "en": "Connectors section updated with REST modules and per-service tool catalog selection."
       }
     },
     "COMPARISON.md": {
@@ -780,27 +800,27 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.1.4",
-      "sha256": "a4f5ed30ae637059110f06481c81eb8237d33ba7706dc95278a77b1c92fc81c2",
+      "version": "1.2.0",
+      "sha256": "ce90c3c2aeac3f7b613254baaa1a3e8aa338153e3e5532620fa09159c8a31094",
       "note": {
-        "ru": "Актуализированы описания core/config.py и ui/pages/settings.py (приоритет ключей, env-блок).",
-        "en": "Updated descriptions of core/config.py and ui/pages/settings.py (key priority, env block)."
+        "ru": "Добавлены файлы REST-коннектора и их символы; обновлены описания GitHub-модулей.",
+        "en": "Added REST connector files and symbols; updated GitHub module descriptions."
       }
     },
     "README.md": {
-      "version": "1.1.1",
-      "sha256": "8dc5e96f9f65b36eb4c6d963bc2deae66e6f513a75522eef0645c23193306c18",
+      "version": "1.2.0",
+      "sha256": "f50edd8b3991cc3356213f855f42aa35604634dfb13f319231cc0ebe8857d56d",
       "note": {
-        "ru": "Удалён невалидный пример генерации ключа; добавлен запасной запуск python -m streamlit run app.py для Windows.",
-        "en": "Removed an invalid key-generation example; added python -m streamlit run app.py as a fallback command for Windows."
+        "ru": "Добавлено описание основного REST GitHub-коннектора и пакетной публикации (инструменты ghr_*).",
+        "en": "Added description of the primary REST GitHub connector and batch publishing (ghr_* tools)."
       }
     },
     "SPEC.md": {
-      "version": "1.1.0",
-      "sha256": "8837c3fb2b7aef48cc681a90ecc1e70d196b78b4b89eb6c6de0ad3c58e82bb2e",
+      "version": "1.2.0",
+      "sha256": "0907e7530ef8efcef49d3479b6bd8adabc08754b04729c41f502f396780b629d",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "FR11 дополнен REST-коннектором: сервис github_rest, инструменты ghr_*, batch_commit/batch_upsert.",
+        "en": "FR11 updated with the REST connector: github_rest service, ghr_* tools, batch_commit/batch_upsert."
       }
     },
     "defaults/README.md": {
@@ -852,19 +872,19 @@
       }
     },
     "defaults/instructions/github_connector.md": {
-      "version": "1.0.0",
-      "sha256": "c8c2238041a648cb793688e31543fadcb360605f4492787ea6adb08f2638f0e3",
+      "version": "1.1.0",
+      "sha256": "e2bb3e13d2f839e408e0a8005448ae71fbff3405f468024fb98cc2d150dbf42d",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Инструкция расширена инструментами ghr_* прямого REST-коннектора и пакетной публикацией.",
+        "en": "Instruction extended with the direct REST connector ghr_* tools and batch publishing."
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.1.2",
-      "sha256": "d574a1f57db4052d66dc506a0395f2692e63d83fb704f7f9db55cb01b5b5f58f",
+      "version": "1.2.0",
+      "sha256": "9dfd35050421b2c7377b651da7012623e0ba4c236a91a198a4ab2c225ed7af4e",
       "note": {
-        "ru": "Поля ключей всегда редактируемы: значения формы каноничны, переменные окружения — запасной источник; блок env-переменных перенесён вниз страницы настроек.",
-        "en": "Key fields always editable: form values are canonical, environment variables are a fallback; env-vars block moved to the bottom of the settings page."
+        "ru": "Добавлен ключ connectors_service_github_rest (сервис подключения GitHub REST API).",
+        "en": "Added connectors_service_github_rest key (GitHub REST API connection service)."
       }
     },
     "defaults/langs/en_guide.md": {
@@ -876,11 +896,11 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.1.2",
-      "sha256": "3a64649c63db880b3c0f553e43f3b82ef48ed486aac3070c83f7c9f6bd8e6d82",
+      "version": "1.2.0",
+      "sha256": "30f811d066c8122d2c7ef69f8c853d3679f589321ba1e91377c975613c0d9172",
       "note": {
-        "ru": "Поля ключей всегда редактируемы: значения формы каноничны, переменные окружения — запасной источник; блок env-переменных перенесён вниз страницы настроек.",
-        "en": "Key fields always editable: form values are canonical, environment variables are a fallback; env-vars block moved to the bottom of the settings page."
+        "ru": "Добавлен ключ connectors_service_github_rest (сервис подключения GitHub REST API).",
+        "en": "Added connectors_service_github_rest key (GitHub REST API connection service)."
       }
     },
     "defaults/langs/ru_guide.md": {
@@ -892,11 +912,11 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.1.2",
-      "sha256": "caa5c597e735bc4cd52f2e09af00022e9a3de10e1f9026b3ad7942c08cc64441",
+      "version": "1.2.0",
+      "sha256": "e98c0df0c37be8ce50eaccabb06c5b44a537d0439d12ece89b67a011318e0df2",
       "note": {
-        "ru": "Поля ключей всегда редактируемы: значения формы каноничны, переменные окружения — запасной источник; блок env-переменных перенесён вниз страницы настроек.",
-        "en": "Key fields always editable: form values are canonical, environment variables are a fallback; env-vars block moved to the bottom of the settings page."
+        "ru": "Добавлен ключ connectors_service_github_rest (сервис подключения GitHub REST API).",
+        "en": "Added connectors_service_github_rest key (GitHub REST API connection service)."
       }
     },
     "defaults/langs/zh_CN_guide.md": {
@@ -924,11 +944,11 @@
       }
     },
     "defaults/orchestrators/dev_agent/instructions/github_connector.md": {
-      "version": "1.0.0",
-      "sha256": "55e108bf5a5ecd35c5c7d791945f35cfecf9001cf84c34ea87ede1fc1d479f39",
+      "version": "1.1.0",
+      "sha256": "e2bb3e13d2f839e408e0a8005448ae71fbff3405f468024fb98cc2d150dbf42d",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Инструкция расширена инструментами ghr_* прямого REST-коннектора и пакетной публикацией.",
+        "en": "Instruction extended with the direct REST connector ghr_* tools and batch publishing."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/prompt_improver.md": {
@@ -1116,11 +1136,11 @@
       }
     },
     "langs/en.json": {
-      "version": "1.1.2",
-      "sha256": "d574a1f57db4052d66dc506a0395f2692e63d83fb704f7f9db55cb01b5b5f58f",
+      "version": "1.2.0",
+      "sha256": "9dfd35050421b2c7377b651da7012623e0ba4c236a91a198a4ab2c225ed7af4e",
       "note": {
-        "ru": "Поля ключей всегда редактируемы: значения формы каноничны, переменные окружения — запасной источник; блок env-переменных перенесён вниз страницы настроек.",
-        "en": "Key fields always editable: form values are canonical, environment variables are a fallback; env-vars block moved to the bottom of the settings page."
+        "ru": "Добавлен ключ connectors_service_github_rest (сервис подключения GitHub REST API).",
+        "en": "Added connectors_service_github_rest key (GitHub REST API connection service)."
       }
     },
     "langs/en_guide.md": {
@@ -1132,11 +1152,11 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.1.2",
-      "sha256": "3a64649c63db880b3c0f553e43f3b82ef48ed486aac3070c83f7c9f6bd8e6d82",
+      "version": "1.2.0",
+      "sha256": "30f811d066c8122d2c7ef69f8c853d3679f589321ba1e91377c975613c0d9172",
       "note": {
-        "ru": "Поля ключей всегда редактируемы: значения формы каноничны, переменные окружения — запасной источник; блок env-переменных перенесён вниз страницы настроек.",
-        "en": "Key fields always editable: form values are canonical, environment variables are a fallback; env-vars block moved to the bottom of the settings page."
+        "ru": "Добавлен ключ connectors_service_github_rest (сервис подключения GitHub REST API).",
+        "en": "Added connectors_service_github_rest key (GitHub REST API connection service)."
       }
     },
     "langs/ru_guide.md": {
@@ -1148,11 +1168,11 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.1.2",
-      "sha256": "caa5c597e735bc4cd52f2e09af00022e9a3de10e1f9026b3ad7942c08cc64441",
+      "version": "1.2.0",
+      "sha256": "e98c0df0c37be8ce50eaccabb06c5b44a537d0439d12ece89b67a011318e0df2",
       "note": {
-        "ru": "Поля ключей всегда редактируемы: значения формы каноничны, переменные окружения — запасной источник; блок env-переменных перенесён вниз страницы настроек.",
-        "en": "Key fields always editable: form values are canonical, environment variables are a fallback; env-vars block moved to the bottom of the settings page."
+        "ru": "Добавлен ключ connectors_service_github_rest (сервис подключения GitHub REST API).",
+        "en": "Added connectors_service_github_rest key (GitHub REST API connection service)."
       }
     },
     "langs/zh_CN_guide.md": {
@@ -1182,14 +1202,6 @@
     "services/yandex.json": {
       "version": "1.0.0",
       "sha256": "03960a4c6d326ebdfb3575a068246370001082da6fe16712623d93effd745d60",
-      "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
-      }
-    },
-    "CHANGELOG.md": {
-      "version": "1.1.2",
-      "sha256": "3afe6e2b4210e467b26184769662e700367101d89ad5bc3d51361c49a21d80cf",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
