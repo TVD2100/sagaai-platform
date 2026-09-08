@@ -6,7 +6,7 @@
     "ru": "Первая публикация конвейера обновлений: манифест версий файлов (file_versions.json) и встроенный апдейтер.",
     "en": "First release of the update pipeline: file version manifest (file_versions.json) and the built-in updater."
   },
-  "updated": "2026-09-08T17:51:23Z",
+  "updated": "2026-09-08T20:55:00Z",
   "units": {
     "core": {
       "version": "1.0.0",
@@ -88,12 +88,12 @@
           "sha256": "9e2ac9c04031e053f17123853a4f47b8a8ff65f2bf91980487445b7a56b721e0"
         },
         "core/default_imports.py": {
-          "version": "1.0.0",
-          "sha256": "0fce7522662768775eceb738061af9a0b78eba026c9000e6e88b8202c072415a"
+          "version": "1.1.0",
+          "sha256": "601687d3f47ed14d6e17696fcea4972550d424857e9fc69e2991b4c3e0247608"
         },
         "core/defaults.py": {
-          "version": "1.0.0",
-          "sha256": "0f8a7a7d9f09ae03fd14f3be7a2b13b70541c0083d78b7f463e41bd09e83fdf8"
+          "version": "1.1.0",
+          "sha256": "29dd52169dfb1047a89d98bac5d1f2e59111698d32d53c665ac6e1ef9328808b"
         },
         "core/entity_sync.py": {
           "version": "1.0.0",
@@ -128,12 +128,12 @@
           "sha256": "5d0f70ead7bab40cbb091b011f314d3de88420189f7937ff5819066c697f471b"
         },
         "core/orchestrator_folders.py": {
-          "version": "1.0.0",
-          "sha256": "524a3cc3646fc6b5cd2a60ad7a9497e4e23655446aa49699a292a9c5ed93ef54"
+          "version": "1.1.0",
+          "sha256": "e457904340ea8475ec98e6ececad8be98ee09fcd3959607fca1d5a16e678a915"
         },
         "core/orchestrators.py": {
-          "version": "1.2.0",
-          "sha256": "76a662a8e182c853d4a45b14a5ea6dd602677f7e79d83776d923d2c52631490b"
+          "version": "1.3.0",
+          "sha256": "aa110ba12cd1ab3117831d4bd47ae8b207c069be3e2724e129b9e60cb49fb6d7"
         },
         "core/paths.py": {
           "version": "1.0.0",
@@ -220,8 +220,8 @@
           "sha256": "d87092665bbf50e5270ad17b3c2c7eb8230b22ae968f52113672025267ead063"
         },
         "dev_agent/agent_loop.py": {
-          "version": "1.0.0",
-          "sha256": "e47fb351bffa7d20243500dca3c49929c2f51d9db87c32c0ef1f1fe0e7989852"
+          "version": "1.1.0",
+          "sha256": "de3062309658809ec3170eebdbebb98b0cc50a857c66aa811a1298c0da036042"
         },
         "dev_agent/assistant_detector.py": {
           "version": "1.0.0",
@@ -256,8 +256,8 @@
           "sha256": "21b7b333f7e9ebc627a63f7488347adc1c3345b36974b34a995c8c9dd8b2a7c7"
         },
         "dev_agent/universal_agent.py": {
-          "version": "1.1.0",
-          "sha256": "ff9786c22355da4b9619abc12a4a2cb48702e2fcd2e1b17337bacc4e13f3874b"
+          "version": "1.2.0",
+          "sha256": "925cd5cbd896ccc6cc8551cb48cda5445f72de23df6b4b2cae9481f1a1d39e60"
         },
         "dev_agent/workspace_tools.py": {
           "version": "1.0.0",
@@ -288,12 +288,12 @@
           "sha256": "6eb2648bf718589f01a6ff16012885ac2b39ec3e060d1e563e3adb33bfd1fdd1"
         },
         "storage/models.py": {
-          "version": "1.0.0",
-          "sha256": "3a6d384eb9a6ab186da148608f1130366a869d0d50df6cd8e60b6db8e0d3c52e"
+          "version": "1.1.0",
+          "sha256": "ce7058a55f4cc3f5363b055b4585833386e4feaf5d68a204d0b39061d0ced616"
         },
         "storage/repository.py": {
-          "version": "1.0.0",
-          "sha256": "178f0387cda3715aded05a1942ed7a07d3b721c6eab74aa75c4eba8cb9538437"
+          "version": "1.1.0",
+          "sha256": "df0e72fa52d5e32f6301d1a3228a9f300277ada2acc78a4bd889b84f5731728a"
         },
         "storage/repository_devagent.py": {
           "version": "1.0.0",
@@ -304,8 +304,8 @@
           "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         },
         "tests/_st_mock.py": {
-          "version": "1.0.0",
-          "sha256": "c784b836ea93a974b6ca2f22afd1fe5cefe9b4a467651ce72d6076ed5fd5fb24"
+          "version": "1.1.0",
+          "sha256": "67787749e3cf66384983f007c805c2b12f5d0042acf22e0ab8cb068f7ac9fbb5"
         },
         "tests/_test_isolation.py": {
           "version": "1.0.0",
@@ -364,8 +364,8 @@
           "sha256": "4767182fe6c78b90876946c7d559289f142e366b114ddbf41af5f03eca2385e3"
         },
         "tests/scenarios/test_welcome_page_scenarios.py": {
-          "version": "1.0.0",
-          "sha256": "242b2e77bdf42473f43801db97b2809ae5a9c3e51a78e518d46af9c1777f6ad5"
+          "version": "1.0.1",
+          "sha256": "1179530a0dfe38859e6a0123453d46414be5cd52f7f75799342597ddacdebdfb"
         },
         "tests/smoke/test_app_smoke.py": {
           "version": "1.0.0",
@@ -520,8 +520,8 @@
           "sha256": "ee18f1af9edc87e00ff602c1a2b191477aa34e9326804608a39ac47bfe276a27"
         },
         "tests/test_preset_orchestrators.py": {
-          "version": "1.0.0",
-          "sha256": "f1ea2a2c6d6ece8e3e7c4c38f4bb1db6671f35740c405a2a277be54ca873c859"
+          "version": "1.1.0",
+          "sha256": "ee17f1b1d4f19b7e0c51b01e41da0660c33c073b3b5df88fa8700acb6c71e231"
         },
         "tests/test_prompt_guard_strict.py": {
           "version": "1.0.0",
@@ -684,12 +684,12 @@
           "sha256": "448dbf67eff496ec7d2689ef5d6f5be3640b79162e7456934ed478856b54ca74"
         },
         "ui/pages/orchestrator.py": {
-          "version": "1.1.0",
-          "sha256": "36ae3300e68ed747c77751c733d9f7ac3d77903029e31126aa93fcbeffa30265"
+          "version": "1.2.0",
+          "sha256": "b9c8115f3c2f734df853d2dd036ddeee9c235bf0f1adecf0576a12826794232e"
         },
         "ui/pages/orchestrator_settings.py": {
-          "version": "1.0.0",
-          "sha256": "7db5eacec710232d1a27e69b425c85178c32738b10c053d91daf2c2bedf1b5fd"
+          "version": "1.1.0",
+          "sha256": "26cb6de2ea82e978d4c551c2f74b2cfadc1b60e3df27bfa8f10e8c97bc2936bd"
         },
         "ui/pages/orchestrators.py": {
           "version": "1.0.0",
@@ -774,6 +774,14 @@
         "tests/scenarios/test_provider_economy_settings_scenario.py": {
           "version": "1.0.0",
           "sha256": "309f31735f1c97a3ed1706bbc770dabd14b593d507bf562e5f08d6b50ac7f6b9"
+        },
+        "tests/test_orchestrator_other_settings.py": {
+          "version": "1.0.0",
+          "sha256": "d01f597f047716bd896af56291bdc5b2479584f86d0e70403c666ce793444c3b"
+        },
+        "tests/scenarios/test_orchestrator_other_settings_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "db88cbd471cad26fcf08db86ca8472c612117ce6a83e9ff4674284a71bb10dc0"
         }
       }
     }
@@ -828,8 +836,8 @@
       }
     },
     "defaults/README.md": {
-      "version": "1.0.0",
-      "sha256": "57a61bebbd6a3c2eacf945a51589c163c7871f94f732049d982295120cbfa08c",
+      "version": "1.0.1",
+      "sha256": "6d6ead88037ca3ea3d6ca43297492d1e2a626e6f943e7c12f4982006fc6fbcb0",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
@@ -884,11 +892,11 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.2.0",
-      "sha256": "9dfd35050421b2c7377b651da7012623e0ba4c236a91a198a4ab2c225ed7af4e",
+      "version": "1.3.0",
+      "sha256": "b9cf57398b4cc3a2018f17cd4007e31037c469e5e99f1124530cb21954b54ea2",
       "note": {
-        "ru": "Добавлен ключ connectors_service_github_rest (сервис подключения GitHub REST API).",
-        "en": "Added connectors_service_github_rest key (GitHub REST API connection service)."
+        "ru": "Добавлены ключи вкладки «Другое» (лимит шагов автономного цикла) для настроек сотрудника.",
+        "en": "Added the Other-tab (autonomous-loop step limit) keys for employee settings."
       }
     },
     "defaults/langs/en_guide.md": {
@@ -900,11 +908,11 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.2.0",
-      "sha256": "30f811d066c8122d2c7ef69f8c853d3679f589321ba1e91377c975613c0d9172",
+      "version": "1.3.0",
+      "sha256": "95b17cfadc37210717529cf0c9cf26a9cccdc777d4f4b92934847b0d72a82220",
       "note": {
-        "ru": "Добавлен ключ connectors_service_github_rest (сервис подключения GitHub REST API).",
-        "en": "Added connectors_service_github_rest key (GitHub REST API connection service)."
+        "ru": "Добавлены ключи вкладки «Другое» (лимит шагов автономного цикла) для настроек сотрудника.",
+        "en": "Added the Other-tab (autonomous-loop step limit) keys for employee settings."
       }
     },
     "defaults/langs/ru_guide.md": {
@@ -916,11 +924,11 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.2.0",
-      "sha256": "e98c0df0c37be8ce50eaccabb06c5b44a537d0439d12ece89b67a011318e0df2",
+      "version": "1.3.0",
+      "sha256": "d9dac9ea5b54fc9dc4c63b20408515fb5c7ae1acb98692748edc30f09a90bebd",
       "note": {
-        "ru": "Добавлен ключ connectors_service_github_rest (сервис подключения GitHub REST API).",
-        "en": "Added connectors_service_github_rest key (GitHub REST API connection service)."
+        "ru": "Добавлены ключи вкладки «Другое» (лимит шагов автономного цикла) для настроек сотрудника.",
+        "en": "Added the Other-tab (autonomous-loop step limit) keys for employee settings."
       }
     },
     "defaults/langs/zh_CN_guide.md": {
@@ -1044,11 +1052,11 @@
       }
     },
     "defaults/orchestrators/ya_agent/orchestrator.json": {
-      "version": "1.1.0",
-      "sha256": "40de8d562dedd999ef8377f0fb47f1d5a3239dfc1c8e9a7f06752e5976d2d514",
+      "version": "1.2.0",
+      "sha256": "6906bb06d41243404e8e7bd6e80d3eaadf4d315e1f338ba429575b996f6960d3",
       "note": {
-        "ru": "Новые дефолты экономии для новых установок: 50 сообщений и множитель x2.",
-        "en": "New economy defaults for fresh installs: 50 messages and x2 multiplier."
+        "ru": "Дефолт max_steps поднят до 500 (лимит шагов автономного цикла).",
+        "en": "max_steps default raised to 500 (autonomous-loop step limit)."
       }
     },
     "defaults/orchestrators/ya_agent/system_prompt.md": {
@@ -1140,11 +1148,11 @@
       }
     },
     "langs/en.json": {
-      "version": "1.2.0",
-      "sha256": "9dfd35050421b2c7377b651da7012623e0ba4c236a91a198a4ab2c225ed7af4e",
+      "version": "1.3.0",
+      "sha256": "b9cf57398b4cc3a2018f17cd4007e31037c469e5e99f1124530cb21954b54ea2",
       "note": {
-        "ru": "Добавлен ключ connectors_service_github_rest (сервис подключения GitHub REST API).",
-        "en": "Added connectors_service_github_rest key (GitHub REST API connection service)."
+        "ru": "Добавлены ключи вкладки «Другое» (лимит шагов автономного цикла) для настроек сотрудника.",
+        "en": "Added the Other-tab (autonomous-loop step limit) keys for employee settings."
       }
     },
     "langs/en_guide.md": {
@@ -1156,11 +1164,11 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.2.0",
-      "sha256": "30f811d066c8122d2c7ef69f8c853d3679f589321ba1e91377c975613c0d9172",
+      "version": "1.3.0",
+      "sha256": "95b17cfadc37210717529cf0c9cf26a9cccdc777d4f4b92934847b0d72a82220",
       "note": {
-        "ru": "Добавлен ключ connectors_service_github_rest (сервис подключения GitHub REST API).",
-        "en": "Added connectors_service_github_rest key (GitHub REST API connection service)."
+        "ru": "Добавлены ключи вкладки «Другое» (лимит шагов автономного цикла) для настроек сотрудника.",
+        "en": "Added the Other-tab (autonomous-loop step limit) keys for employee settings."
       }
     },
     "langs/ru_guide.md": {
@@ -1172,11 +1180,11 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.2.0",
-      "sha256": "e98c0df0c37be8ce50eaccabb06c5b44a537d0439d12ece89b67a011318e0df2",
+      "version": "1.3.0",
+      "sha256": "d9dac9ea5b54fc9dc4c63b20408515fb5c7ae1acb98692748edc30f09a90bebd",
       "note": {
-        "ru": "Добавлен ключ connectors_service_github_rest (сервис подключения GitHub REST API).",
-        "en": "Added connectors_service_github_rest key (GitHub REST API connection service)."
+        "ru": "Добавлены ключи вкладки «Другое» (лимит шагов автономного цикла) для настроек сотрудника.",
+        "en": "Added the Other-tab (autonomous-loop step limit) keys for employee settings."
       }
     },
     "langs/zh_CN_guide.md": {
