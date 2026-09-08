@@ -47,6 +47,10 @@ CONNECTOR_SERVICES: Dict[str, Dict[str, Any]] = {
         "name": "GitHub",
         "description": "GitHub API connection (repositories, files, issues)",
     },
+    "github_rest": {
+        "name": "GitHub REST API (direct)",
+        "description": "Direct GitHub REST API v3 connection (requests, batch publishing via Git Data API)",
+    },
 }
 
 _VALID_ID_RE = re.compile(r"^[a-z0-9_-]+$")

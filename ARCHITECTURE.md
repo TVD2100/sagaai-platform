@@ -271,12 +271,30 @@ ID и путь передаются мета-блоком системного �
 - **`core/github_tools.py`** - инструменты `github_list_repos`,
   `github_create_repo`, `github_upload_file`, `github_update_file`,
   `github_read_file` в конвенции `invoke(**kwargs) -> dict`.
+- **`core/github_connector_rest.py`** - основной прямой REST-коннектор
+  (requests, REST API v3, `X-GitHub-Api-Version: 2022-11-28`, Bearer). Тот же
+  набор операций, что у PyGithub-адаптера, плюс Git Data API: `get_ref`,
+  `get_commit`, `get_tree`, а также оптимизированная пакетная публикация
+  `batch_commit` (blobs -> одно дерево с чанкингом по 9000 записей -> один
+  коммит -> PATCH ref; ветка создаётся через POST /git/refs для пустого
+  репозитория) и `batch_upsert` (дифф по blob-SHA с пропуском неизменённых).
+  Ошибки - `GithubRestError` (наследник ValueError) со статусом; токен
+  расшифровывается внутри модуля и не попадает в результаты/ошибки.
+- **`core/github_tools_rest.py`** - инструменты `ghr_*` (9 штук:
+  `ghr_list_repos`, `ghr_create_repo`, `ghr_read_file`, `ghr_upload_file`,
+  `ghr_update_file`, `ghr_delete_file`, `ghr_list_files`, `ghr_batch_commit`,
+  `ghr_batch_upsert`) и каталог `get_tools()`; `files` для batch принимается
+  списком dict'ов или JSON-строкой.
 - **Привязка к оркестраторам**: `config['enabled_connections']` в
   `core/orchestrators.py`; `_extend_prompt_with_connections` добавляет блок
-  `Available service connections` в системный промпт; инструменты
-  регистрируются в диспетчере.
-- **UI**: `ui/pages/connectors.py` (раздел после «Хранилища»), таб
-  «Подключения» в настройках оркестратора.
+  `Available service connections` в системный промпт и каталог инструментов
+  по сервисам включённых соединений (`github` -> `github_tools.get_tools()`,
+  `github_rest` -> `github_tools_rest.get_tools()`); инструменты
+  регистрируются в диспетчере (`dev_agent/universal_agent.py`); инструкция
+  `github_connector` доступна для обоих сервисов.
+- **UI**: `ui/pages/connectors.py` (раздел после «Хранилища») - создание
+  соединений обоих сервисов, тест соединения диспетчеризуется по сервису;
+  таб «Подключения» в настройках оркестратора.
 
 ### Загрузка ключей из shell-профилей
 `env_loader` читает ~/.zshrc и др., не перезаписывает существующие.

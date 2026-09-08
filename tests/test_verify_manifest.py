@@ -157,3 +157,17 @@ def test_app_version_change_is_detected(tmp_path):
     rc, out, err = _run_verifier(repo)
     assert rc == 1
     assert "app_version" in (out + err)
+
+
+def test_changelog_local_only_is_coverage_skip(tmp_path):
+    """A git-tracked CHANGELOG.md must not require a manifest entry."""
+    repo = _build_repo(tmp_path)
+    assert _run_verifier(repo, "--init")[0] == 0
+
+    (repo / "CHANGELOG.md").write_text("# Changelog\n", encoding="utf-8")
+    _git(repo, "add", "CHANGELOG.md")
+    _git(repo, "commit", "-q", "-m", "add changelog")
+
+    rc, out, err = _run_verifier(repo)
+    assert rc == 0, (out, err)
+    assert "CHANGELOG.md" not in (out + err)

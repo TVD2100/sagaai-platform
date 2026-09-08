@@ -110,3 +110,23 @@ def test_build_assistant_dicts_includes_connections_block(orch_slug):
 def test_devagent_default_config_has_key():
     import core.orchestrators as orch_mod
     assert "enabled_connections" in orch_mod._DEVAGENT_DEFAULT_CONFIG
+
+def test_prompt_extended_with_github_rest_connections(orch_slug):
+    from core.orchestrators import _extend_prompt_with_connections, set_enabled_connections
+    set_enabled_connections(orch_slug, ["conn_ghr"])
+    conn = {"service": "github_rest", "name": "My REST GitHub", "account": "bob"}
+    ghr_tools = [
+        {"name": "ghr_batch_commit", "desc": "Publish many files in one commit."},
+        {"name": "ghr_list_repos", "desc": "List repositories (REST)."},
+    ]
+    with mock.patch("core.connectors.get_connection", return_value=conn), mock.patch(
+        "core.github_tools_rest.get_tools", return_value=ghr_tools
+    ):
+        prompt = _extend_prompt_with_connections("Base prompt", orch_slug)
+
+    assert "## Available service connections" in prompt
+    assert "conn_ghr" in prompt
+    assert "bob" in prompt
+    assert "ghr_batch_commit" in prompt
+    assert "ghr_list_repos" in prompt
+    assert "github_list_repos" not in prompt

@@ -40,7 +40,8 @@ from datetime import datetime, timezone
 
 
 MANIFEST_NAME = "file_versions.json"
-COVERAGE_SKIP = {".gitignore", MANIFEST_NAME}
+# Files kept local-only: tracked by git but never published in the manifest.
+COVERAGE_SKIP = {".gitignore", MANIFEST_NAME, "CHANGELOG.md"}
 CHANNEL = "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main"
 UNIT_NAME = "core"
 

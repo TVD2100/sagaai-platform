@@ -105,9 +105,27 @@ def test_services_registry(isolated_data_dir):
     import core.connectors as c
     services = c.list_services()
     assert any(s["id"] == "github" for s in services)
+    assert any(s["id"] == "github_rest" for s in services)
     assert c.get_service("github") is not None
+    assert c.get_service("github_rest") is not None
     with pytest.raises(ValueError):
         c.get_service("nope")
+
+
+def test_create_github_rest_connection_encrypted_token(isolated_data_dir):
+    import core.connectors as c
+    created = c.create_connection("github_rest", "GitHub REST", "ghr_secret999", account="TVD2100")
+    assert created["service"] == "github_rest"
+    assert created["has_token"] is True
+    assert created["token_masked"] == "***"
+    assert "token_encrypted" not in created
+    # On-disk manifest stores only the encrypted token.
+    raw = _load_raw(created["id"])
+    assert "ghr_secret999" not in json.dumps(raw)
+    assert raw["token_encrypted"] and raw["token_encrypted"] != "ghr_secret999"
+    assert c.decrypt_token(created["id"]) == "ghr_secret999"
+    # Public listing never leaks the token either.
+    assert "ghr_secret999" not in json.dumps(c.list_connections())
 
 
 def test_public_manifest_never_leaks_token(isolated_data_dir):

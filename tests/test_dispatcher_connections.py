@@ -95,3 +95,41 @@ class TestDispatcherConnectionTools:
         set_enabled_connections(orch_slug, [])
         agent.attach_orchestrator(orch_slug)
         assert 'github_list_repos' not in agent._extra
+
+    def test_enabled_connections_register_github_rest_tools(self, orch_slug):
+        from dev_agent.universal_agent import UniversalDevAgent
+        from core.connectors import create_connection
+        from core.orchestrators import set_enabled_connections
+        conn = create_connection('github_rest', 'Rest Conn', 'tok')
+        set_enabled_connections(orch_slug, [conn['id']])
+        agent = UniversalDevAgent()
+        agent.attach_orchestrator(orch_slug)
+        names = ('ghr_list_repos', 'ghr_create_repo', 'ghr_read_file',
+                 'ghr_upload_file', 'ghr_update_file', 'ghr_delete_file',
+                 'ghr_list_files', 'ghr_batch_commit', 'ghr_batch_upsert')
+        for name in names:
+            assert name in agent._extra, name
+
+    def test_dispatch_github_rest_tool_missing_connector_id(self, orch_slug):
+        from dev_agent.universal_agent import UniversalDevAgent
+        from core.connectors import create_connection
+        from core.orchestrators import set_enabled_connections
+        conn = create_connection('github_rest', 'Rest Conn', 'tok')
+        set_enabled_connections(orch_slug, [conn['id']])
+        agent = UniversalDevAgent()
+        agent.attach_orchestrator(orch_slug)
+        result = agent.dispatch('ghr_list_repos', {})
+        assert result.get('ok') is False
+        assert 'connector_id' in result.get('error', '')
+
+    def test_both_services_register_both_tool_sets(self, orch_slug):
+        from dev_agent.universal_agent import UniversalDevAgent
+        from core.connectors import create_connection
+        from core.orchestrators import set_enabled_connections
+        conn_gh = create_connection('github', 'Legacy Conn', 'tok')
+        conn_rest = create_connection('github_rest', 'Rest Conn', 'tok')
+        set_enabled_connections(orch_slug, [conn_gh['id'], conn_rest['id']])
+        agent = UniversalDevAgent()
+        agent.attach_orchestrator(orch_slug)
+        for name in ('github_list_repos', 'ghr_list_repos'):
+            assert name in agent._extra, name

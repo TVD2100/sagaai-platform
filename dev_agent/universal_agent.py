@@ -302,6 +302,17 @@ class UniversalDevAgent:
         "github_update_file",
         "github_read_file",
     )
+    _CONNECTION_TOOL_NAMES_REST = (
+        "ghr_list_repos",
+        "ghr_create_repo",
+        "ghr_read_file",
+        "ghr_upload_file",
+        "ghr_update_file",
+        "ghr_delete_file",
+        "ghr_list_files",
+        "ghr_batch_commit",
+        "ghr_batch_upsert",
+    )
 
     def _attach_connection_tools(self, slug: str) -> None:
         """Register/unregister built-in connection tools for an orchestrator.
@@ -313,16 +324,33 @@ class UniversalDevAgent:
         """
         try:
             from core.orchestrators import get_enabled_connections
+            from core.connectors import get_connection
             enabled = get_enabled_connections(slug)
             if not enabled:
-                for name in self._CONNECTION_TOOL_NAMES:
+                for name in self._CONNECTION_TOOL_NAMES + self._CONNECTION_TOOL_NAMES_REST:
                     self._extra.pop(name, None)
                 return
-            from core import github_tools
-            for name in self._CONNECTION_TOOL_NAMES:
-                fn = getattr(github_tools, name, None)
-                if callable(fn):
-                    self._extra[name] = fn
+            services = set()
+            for conn_id in enabled:
+                conn = get_connection(conn_id)
+                if isinstance(conn, dict) and conn.get("service"):
+                    services.add(str(conn["service"]))
+            if not services:
+                # Fallback: connection manifests missing or service unknown -
+                # preserve legacy behavior and register the PyGithub tools.
+                services = {"github"}
+            if "github" in services:
+                from core import github_tools
+                for name in self._CONNECTION_TOOL_NAMES:
+                    fn = getattr(github_tools, name, None)
+                    if callable(fn):
+                        self._extra[name] = fn
+            if "github_rest" in services:
+                from core import github_tools_rest
+                for name in self._CONNECTION_TOOL_NAMES_REST:
+                    fn = getattr(github_tools_rest, name, None)
+                    if callable(fn):
+                        self._extra[name] = fn
         except Exception:
             # Best effort: never break orchestrator attachment on library errors.
             pass

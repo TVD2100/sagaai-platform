@@ -56,8 +56,10 @@
 | `core/env_loader.py` | Python | Loads API keys from shell profiles | - |
 | `core/files.py` | Python | File upload helpers, token estimation, context checks | - |
 | `core/fs.py` | Python | Filesystem helpers (json/text read/write, ensure_dir, combine_nonempty) | - |
-| `core/github_connector.py` | Python | _(описание не задано)_ | - |
-| `core/github_tools.py` | Python | _(описание не задано)_ | - |
+| `core/github_connector.py` | Python | Legacy PyGithub adapter (fallback): test_connection, repo/file ops | - |
+| `core/github_connector_rest.py` | Python | Primary direct REST GitHub connector (requests, API v3): CRUD + Git Data API + batch_commit/batch_upsert | - |
+| `core/github_tools.py` | Python | Legacy PyGithub tool wrappers (github_*), TOOLS catalog | - |
+| `core/github_tools_rest.py` | Python | REST connector tool wrappers (ghr_*), TOOLS catalog | - |
 | `core/i18n.py` | Python | Language discovery and translation helper t() | - |
 | `core/instructions.py` | Python | CRUD for internal instructions (Assistant Creator, Employee Creator) | - |
 | `core/orchestrator_folders.py` | Python | Per-orchestrator folders: bundles, functions, instructions | storage |
@@ -109,8 +111,11 @@
 | `tests/test_devagent_thread_workspace.py` | Python | DevAgent thread workspace persistence tests | storage |
 | `tests/test_dispatcher_connections.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_employee_management_ui.py` | Python | UI regression tests: employee management pages render and expose no export/import employee UI | - |
-| `tests/test_github_connector.py` | Python | _(описание не задано)_ | - |
-| `tests/test_github_tools.py` | Python | _(описание не задано)_ | - |
+| `tests/test_github_connector.py` | Python | Unit tests for legacy PyGithub connector | - |
+| `tests/test_github_connector_rest.py` | Python | Unit tests for REST GitHub connector (mocked HTTP) | - |
+| `tests/test_github_tools.py` | Python | Unit tests for legacy tool wrappers | - |
+| `tests/test_github_tools_rest.py` | Python | Unit tests for ghr_* tool wrappers | - |
+| `tests/scenarios/test_github_rest_scenario.py` | Python | Stateful FakeGitHub scenario: connection -> repo -> batch_commit -> read/update/delete | - |
 | `tests/test_i18n_serialization.py` | Python | _(описание не задано)_ | - |
 | `tests/test_i18n_sync.py` | Python | _(описание не задано)_ | - |
 | `tests/test_list_files.py` | Python | _(описание не задано)_ | - |
@@ -759,6 +764,55 @@
 - `github_update_file` (func, строка 133)
 - `github_read_file` (func, строка 171)
 - `get_tools` (func, строка 241)
+
+### `core/github_connector_rest.py`
+- `GithubRestError` (class, строка 49)
+- `_ensure_requests` (func, строка 61)
+- `_session` (func, строка 72)
+- `_api_base` (func, строка 86)
+- `_describe_rest_error` (func, строка 93)
+- `_request` (func, строка 110)
+- `_quote_path` (func, строка 150)
+- `_quote_branch` (func, строка 158)
+- `_repo_spec` (func, строка 163)
+- `_default_branch` (func, строка 182)
+- `test_connection` (func, строка 193)
+- `get_user_info` (func, строка 218)
+- `list_repos` (func, строка 231)
+- `get_repo_info` (func, строка 263)
+- `create_repo` (func, строка 279)
+- `read_file_meta` (func, строка 305)
+- `read_file` (func, строка 331)
+- `upload_file` (func, строка 364)
+- `update_file` (func, строка 404)
+- `delete_file` (func, строка 442)
+- `list_files` (func, строка 464)
+- `get_ref` (func, строка 494)
+- `get_commit` (func, строка 514)
+- `get_tree` (func, строка 534)
+- `_git_blob_sha` (func, строка 577)
+- `_create_blob` (func, строка 584)
+- `_create_tree_chain` (func, строка 598)
+- `_resolve_target_ref` (func, строка 626)
+- `_publish_commit` (func, строка 655)
+- `_normalize_batch_files` (func, строка 698)
+- `batch_commit` (func, строка 732)
+- `batch_upsert` (func, строка 774)
+
+### `core/github_tools_rest.py`
+- `_get_connector_id` (func, строка 31)
+- `_wrap` (func, строка 39)
+- `_files_arg` (func, строка 49)
+- `ghr_list_repos` (func, строка 65)
+- `ghr_create_repo` (func, строка 83)
+- `ghr_read_file` (func, строка 112)
+- `ghr_upload_file` (func, строка 139)
+- `ghr_update_file` (func, строка 172)
+- `ghr_delete_file` (func, строка 207)
+- `ghr_list_files` (func, строка 240)
+- `ghr_batch_commit` (func, строка 267)
+- `ghr_batch_upsert` (func, строка 298)
+- `get_tools` (func, строка 395)
 
 ### `core/i18n.py`
 - `_lang_dirs` (func, строка 28)
@@ -1478,6 +1532,94 @@
 - `test_github_read_file_ok` (func, строка 91)
 - `test_github_tool_wraps_connector_error` (func, строка 102)
 - `test_get_tools_metadata` (func, строка 110)
+
+### `tests/test_github_connector_rest.py`
+- `isolated_connector` (func, строка 22)
+- `FakeResponse` (class, строка 31)
+- `FakeSession` (class, строка 45)
+- `FakeAPI` (class, строка 68)
+- `test_describe_rest_error` (func, строка 107)
+- `test_quote_path` (func, строка 117)
+- `test_quote_branch` (func, строка 126)
+- `test_git_blob_sha_known_values` (func, строка 130)
+- `test_session_sets_github_api_headers` (func, строка 140)
+- `test_api_base_default_and_override` (func, строка 146)
+- `test_request_uses_bearer_token_and_returns_json` (func, строка 155)
+- `test_request_204_returns_none` (func, строка 168)
+- `test_request_http_error_maps_to_github_rest_error` (func, строка 175)
+- `test_request_network_error_wrapped_and_token_not_leaked` (func, строка 185)
+- `test_repo_spec_owner_form` (func, строка 200)
+- `test_repo_spec_bare_name_uses_login` (func, строка 204)
+- `test_repo_spec_bad_values` (func, строка 211)
+- `test_get_user_info` (func, строка 216)
+- `test_test_connection_updates_account` (func, строка 228)
+- `test_list_repos_paginates_until_short_page` (func, строка 241)
+- `test_get_repo_info` (func, строка 256)
+- `test_create_repo_posts_and_maps_fields` (func, строка 269)
+- `test_create_repo_empty_name_rejected` (func, строка 287)
+- `test_read_file_meta` (func, строка 297)
+- `test_read_file_meta_empty_path_rejected` (func, строка 309)
+- `test_read_file_decodes_base64` (func, строка 314)
+- `test_read_file_quotes_path` (func, строка 328)
+- `test_upload_file_builds_put_payload` (func, строка 334)
+- `test_upload_file_conflict_422` (func, строка 353)
+- `test_upload_file_server_error_wrapped` (func, строка 362)
+- `test_update_file_uses_passed_sha` (func, строка 371)
+- `test_update_file_fetches_sha_when_missing` (func, строка 387)
+- `test_delete_file_returns_clean_summary` (func, строка 401)
+- `test_list_files_dir_and_file` (func, строка 413)
+- `test_list_files_single_item_wrapped_in_list` (func, строка 426)
+- `test_list_files_error_wrapped` (func, строка 434)
+- `test_get_ref_resolves_branch_head` (func, строка 448)
+- `test_get_ref_branch_with_slash` (func, строка 459)
+- `test_get_ref_empty_branch_uses_default` (func, строка 465)
+- `test_get_commit_maps_fields` (func, строка 475)
+- `test_get_commit_empty_sha_rejected` (func, строка 487)
+- `test_get_tree_recursive_entries` (func, строка 492)
+- `test_normalize_batch_files_ok` (func, строка 522)
+- `test_normalize_batch_files_rejects_duplicates` (func, строка 533)
+- `test_normalize_batch_files_rejects_missing_content_and_blob` (func, строка 539)
+- `test_normalize_batch_files_rejects_bad_input` (func, строка 547)
+- `test_normalize_batch_files_strips_leading_slash` (func, строка 552)
+- `test_batch_commit_creates_branch_in_empty_repo` (func, строка 562)
+- `test_batch_commit_updates_existing_branch_with_base_tree` (func, строка 609)
+- `test_batch_commit_uses_provided_blob_sha_without_creating_blob` (func, строка 650)
+- `test_batch_upsert_skips_unchanged_files` (func, строка 681)
+- `test_batch_upsert_creates_blobs_only_for_changed_files` (func, строка 718)
+- `test_batch_upsert_skips_blob_sha_entries_matching_remote` (func, строка 770)
+- `test_batch_commit_tree_chunked_over_limit` (func, строка 794)
+
+### `tests/test_github_tools_rest.py`
+- `test_ghr_list_repos_ok` (func, строка 17)
+- `test_ghr_list_repos_missing_connector_id` (func, строка 25)
+- `test_ghr_list_repos_default_sort` (func, строка 32)
+- `test_ghr_create_repo_ok` (func, строка 39)
+- `test_ghr_create_repo_missing_name` (func, строка 51)
+- `test_ghr_read_file_ok` (func, строка 58)
+- `test_ghr_read_file_missing_repo_or_path` (func, строка 71)
+- `test_ghr_upload_file_ok` (func, строка 77)
+- `test_ghr_update_file_ok` (func, строка 90)
+- `test_ghr_delete_file_ok` (func, строка 103)
+- `test_ghr_list_files_ok` (func, строка 116)
+- `test_ghr_batch_commit_with_list` (func, строка 126)
+- `test_ghr_batch_commit_with_json_string` (func, строка 140)
+- `test_ghr_batch_commit_invalid_json` (func, строка 153)
+- `test_ghr_batch_commit_missing_files` (func, строка 161)
+- `test_ghr_batch_commit_rejects_non_list_entry` (func, строка 168)
+- `test_ghr_batch_upsert_ok` (func, строка 175)
+- `test_ghr_tool_wraps_connector_error` (func, строка 188)
+- `test_ghr_tool_wraps_unexpected_error` (func, строка 197)
+- `test_get_tools_metadata` (func, строка 204)
+
+### `tests/scenarios/test_github_rest_scenario.py`
+- `isolated_data_dir` (func, строка 30)
+- `_github_rest_connection` (func, строка 36)
+- `FakeGitHub` (class, строка 43)
+- `test_scenario_publish_read_update_delete_batch` (func, строка 326)
+- `test_scenario_upload_over_existing_file_fails_cleanly` (func, строка 447)
+- `test_scenario_created_repo_appears_in_listing` (func, строка 466)
+- `test_scenario_missing_repo_and_file_report_clean_errors` (func, строка 483)
+- `test_scenario_tool_layer_returns_error_dicts_for_failures` (func, строка 507)
 
 ### `tests/test_i18n_serialization.py`
 - `test_dumps_lang_preserves_insertion_order` (func, строка 20)

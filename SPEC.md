@@ -221,6 +221,22 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   инструменты оркестраторам: `github_list_repos`, `github_create_repo`,
   `github_upload_file`, `github_update_file`, `github_read_file`
   (`core/github_tools.py`, конвенция `invoke(**kwargs) -> dict`).
+- **Основной REST GitHub-коннектор** (`core/github_connector_rest.py`,
+  прямые запросы к REST API v3 через `requests`, без PyGithub) реализует
+  те же операции (repo CRUD, чтение/запись файлов, метаданные, refs/коммиты/
+  деревья) и добавляет оптимизированную пакетную публикацию через Git Data
+  API: все blobs создаются заранее, затем ОДНО дерево, ОДИН коммит и ОДНО
+  обновление ref для всей пачки файлов (`batch_commit`; ветка создаётся,
+  если репозиторий пуст). `batch_upsert` дополнительно сверяет локальные
+  blob-SHA с удалённым деревом и пропускает неизменённые файлы (при полном
+  совпадении коммит не создаётся).
+- Инструменты REST-коннектора для оркестраторов (`core/github_tools_rest.py`,
+  префикс `ghr_*`): `ghr_list_repos`, `ghr_create_repo`, `ghr_read_file`,
+  `ghr_upload_file`, `ghr_update_file`, `ghr_delete_file`, `ghr_list_files`,
+  `ghr_batch_commit`, `ghr_batch_upsert`; каталог - `get_tools()`.
+  Сервис подключения - `github_rest`; старый `github` (PyGithub) остаётся
+  резервным. Токен шифруется через `core.crypto` при сохранении соединения
+  и никогда не попадает в результаты, ошибки или публичные представления.
 
 ### FR12 - Библиотека навыков (Skills)
 - Навыки лежат в `DATA_DIR/skills/<folder>/`, реестр - `skills/skills.json`;

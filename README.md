@@ -92,6 +92,8 @@ SagaAI - это полноценная ИИ-платформа, ориентир
 
 - При включённом GitHub-подключении оркестратор получает инструменты `github_list_repos`, `github_create_repo`, `github_upload_file`, `github_update_file`, `github_read_file` и инструкцию `github_connector`.
 
+- Основной GitHub-коннектор работает по прямому REST API (сервис `github_rest`): инструменты `ghr_list_repos`, `ghr_create_repo`, `ghr_read_file`, `ghr_upload_file`, `ghr_update_file`, `ghr_delete_file`, `ghr_list_files`, а также оптимизированная пакетная публикация многих файлов одним коммитом через Git Data API - `ghr_batch_commit` и `ghr_batch_upsert`.
+
 ### 📚 Базы знаний (RAG)
 
 - Создание локальных баз знаний с векторным индексом для семантического поиска.

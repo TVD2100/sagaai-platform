@@ -126,23 +126,31 @@ def get_instruction_prompt(instruction_id: str) -> str:
     inst = _read_instruction_file(instruction_id)
     return inst["prompt_text"] if inst else ""
 
-def _connector_service_for_instruction(iid: str) -> Optional[str]:
-    """Return the connector service for a global instruction id, or None.
+def _connector_services_for_instruction(iid: str) -> Optional[set]:
+    """Return the connector services a global instruction applies to, or None.
 
     Instructions whose id ends with ``_connector`` and whose prefix matches a
     known connector service (e.g. ``github_connector``) are available to an
-    orchestrator only when a connection of that service is enabled.
+    orchestrator only when a connection of that service is enabled. Variant
+    services that specialise the base service (e.g. ``github_rest``) get the
+    base instruction as well.
     """
     if not (iid or "").endswith("_connector"):
         return None
     prefix = iid[: -len("_connector")]
     try:
         from core.connectors import CONNECTOR_SERVICES
+        services = set()
         if prefix in CONNECTOR_SERVICES:
-            return prefix
+            services.add(prefix)
+        # Connector variants: github_rest specialises github, so the
+        # github_connector instruction also applies to it.
+        for svc in CONNECTOR_SERVICES:
+            if svc.startswith(prefix + "_"):
+                services.add(svc)
+        return services or None
     except Exception:
-        pass
-    return None
+        return None
 
 
 def list_instructions_for(orchestrator_slug: str) -> List[Dict[str, Any]]:
@@ -171,8 +179,8 @@ def list_instructions_for(orchestrator_slug: str) -> List[Dict[str, Any]]:
     result = []
     for inst in all_instructions:
         iid = inst.get("id")
-        svc = _connector_service_for_instruction(iid)
-        if svc is not None and svc not in enabled_services:
+        services = _connector_services_for_instruction(iid)
+        if services is not None and not (services & enabled_services):
             continue
         result.append(inst)
     return result
@@ -184,8 +192,8 @@ def get_instruction_for(orchestrator_slug: str, instruction_id: str) -> Optional
     Applies the same connector filter as ``list_instructions_for``.
     """
     iid = (instruction_id or "").strip()
-    svc = _connector_service_for_instruction(iid)
-    if svc is not None:
+    services = _connector_services_for_instruction(iid)
+    if services is not None:
         available = {i["id"] for i in list_instructions_for(orchestrator_slug)}
         if iid not in available:
             return None
