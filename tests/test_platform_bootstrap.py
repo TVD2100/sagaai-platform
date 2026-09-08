@@ -10,7 +10,7 @@ Verifies that first-run provisioning seeds:
 
 Also verifies idempotency: re-running bootstrap refreshes prompt text
 but never overwrites user-chosen service/model/temperature settings,
-and backfills missing config fields (e.g. economy_tail_messages=30,
+and backfills missing config fields (e.g. economy_tail_messages=50,
 max_tokens=384000).
 
 This test file deliberately avoids reading back from the DB inside
@@ -188,7 +188,7 @@ def test_ensure_devagent_settings_seeds_config_and_tools(isolated_data_dir):
 
 def test_ensure_devagent_settings_seeds_economy_defaults(isolated_data_dir):
     """A fresh DevAgent orchestrator gets the default economy settings:
-    tail_messages=30, cache_enabled=True, cache_multiplier=3. The on-disk
+    tail_messages=50, cache_enabled=True, cache_multiplier=2. The on-disk
     bundle (orchestrator.json) is created with the same defaults."""
     from core.bootstrap import ensure_devagent_settings
     from core.orchestrators import DEVAGENT_SLUG, get_orchestrator
@@ -197,16 +197,16 @@ def test_ensure_devagent_settings_seeds_economy_defaults(isolated_data_dir):
     ensure_devagent_settings()
     orch = get_orchestrator(DEVAGENT_SLUG)
     cfg = orch["config"]
-    assert cfg.get("economy_tail_messages") == 30
+    assert cfg.get("economy_tail_messages") == 50
     assert cfg.get("economy_cache_enabled") is True
-    assert cfg.get("economy_cache_multiplier") == 3
+    assert cfg.get("economy_cache_multiplier") == 2
 
     # The fresh bundle on disk must also carry the current defaults.
     bundle = load_orchestrator_bundle(DEVAGENT_SLUG)
     assert bundle is not None
-    assert bundle["config"].get("economy_tail_messages") == 30
+    assert bundle["config"].get("economy_tail_messages") == 50
     assert bundle["config"].get("economy_cache_enabled") is True
-    assert bundle["config"].get("economy_cache_multiplier") == 3
+    assert bundle["config"].get("economy_cache_multiplier") == 2
 
 
 def test_ensure_devagent_settings_seeds_max_tokens_in_bundle(isolated_data_dir):
@@ -298,11 +298,11 @@ def test_ensure_devagent_settings_backfills_missing_config_fields(isolated_data_
 
     orch = get_orchestrator(DEVAGENT_SLUG)
     cfg = orch["config"]
-    # Legacy 15 is upgraded to the new default 30.
-    assert cfg["economy_tail_messages"] == 30
+    # Legacy 15 is upgraded to the new default 50.
+    assert cfg["economy_tail_messages"] == 50
     # Missing cache fields are backfilled.
     assert cfg["economy_cache_enabled"] is True
-    assert cfg["economy_cache_multiplier"] == 3
+    assert cfg["economy_cache_multiplier"] == 2
     # Missing max-token fields are backfilled.
     assert cfg["strong_max_tokens"] == 384000
     assert cfg["weak_max_tokens"] == 384000
