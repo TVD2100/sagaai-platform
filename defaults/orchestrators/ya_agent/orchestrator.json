@@ -16,9 +16,9 @@
     "search_model": "aliceai-llm-flash",
     "search_temperature": 0.3,
     "search_max_tool_calls": 1,
-    "economy_tail_messages": 30,
+    "economy_tail_messages": 50,
     "economy_cache_enabled": true,
-    "economy_cache_multiplier": 3,
+    "economy_cache_multiplier": 2,
     "enabled_skills": [],
     "rag_bases": [
       "yaagentai_2020"
