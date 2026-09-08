@@ -1720,7 +1720,7 @@ def _render_economy_settings(slug: str, lang: str) -> None:
         st.error(t("orch_not_found", lang=lang))
         return
     economy_config = get_economy_config(slug)
-    cur_tail = int(economy_config.get("tail_messages", get_economy_tail_messages(slug)))
+    cur_tail = min(100, max(4, int(economy_config.get("tail_messages", get_economy_tail_messages(slug)))))
     cur_cache_enabled = bool(economy_config.get("cache_enabled", False))
     cur_multiplier = int(economy_config.get("cache_multiplier", 2))
 
@@ -1731,7 +1731,7 @@ def _render_economy_settings(slug: str, lang: str) -> None:
     with col_t1:
         sel_tail = st.slider(
             t("orch_economy_tail_label", lang=lang),
-            min_value=4, max_value=30, value=cur_tail, step=2,
+            min_value=4, max_value=100, value=cur_tail, step=2,
             key=f"orch_economy_tail_{slug}",
             help=t("orch_economy_tail_help", lang=lang),
         )
