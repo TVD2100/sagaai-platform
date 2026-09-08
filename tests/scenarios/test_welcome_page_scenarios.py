@@ -9,11 +9,11 @@ render), so prompts/injections never bypass the application flow.
   Scenario 1 - every welcome step button navigates: the four onboarding
                cards route to providers settings, DevAgent settings,
                skills and employees respectively. The DevAgent button opens
-               the dedicated settings page (8 native tabs), NOT the
+               the dedicated settings page (9 native tabs), NOT the
                half-empty chat page that shows the missing-API-key warning.
   Scenario 2 - full DevAgent settings render: with the built-in DevAgent
                profile seeded, the orchestrator_settings page renders all
-               eight tabs and the back-to-chat button without the
+               nine tabs and the back-to-chat button without the
                orchestrator no-API-key warning and without errors.
 """
 from __future__ import annotations
@@ -122,8 +122,8 @@ def test_devagent_settings_full_render_without_api_key_warning(isolated_data):
             if name == "tabs"
             for labels in args
         ]
-        assert any(len(labels) == 8 for labels in tab_calls), (
-            "expected the 8 native settings tabs, got %r" % tab_calls
+        assert any(len(labels) == 9 for labels in tab_calls), (
+            "expected the 9 native settings tabs, got %r" % tab_calls
         )
 
         rendered_keys = {kwargs.get("key") for _n, _a, kwargs in st.calls}

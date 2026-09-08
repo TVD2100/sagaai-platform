@@ -76,6 +76,8 @@ from core.orchestrator_folders import (
     import_orchestrator_folder,
 )
 
+from storage.models import DEFAULT_MAX_STEPS
+
 # Built-in DevAgent orchestrator slug.
 DEVAGENT_SLUG = "dev_agent"
 
@@ -269,7 +271,7 @@ def get_orchestrator_by_slug(slug: str) -> Optional[Dict[str, Any]]:
 
 def create_orchestrator(slug: str, name: str, description: str = "",
                         prompt_text: str = "", config: dict = None,
-                        tools: list = None, max_steps: int = 100,
+                        tools: list = None, max_steps: int = DEFAULT_MAX_STEPS,
                         auto_apply: bool = True) -> Optional[str]:
     """Create a new orchestrator. Returns the id on success, None on failure.
 
@@ -361,7 +363,7 @@ def _sync_orchestrator_folder(slug: str) -> None:
         "prompt_text": orch.get("prompt_text", ""),
         "config": orch.get("config", {}),
         "tools": orch.get("tools", []),
-        "max_steps": orch.get("max_steps", 100),
+        "max_steps": orch.get("max_steps", DEFAULT_MAX_STEPS),
         "auto_apply": orch.get("auto_apply", True),
         "exported_at": datetime.now().isoformat(),
     }
@@ -408,7 +410,7 @@ def reload_orchestrator_from_folder(slug: str) -> Dict[str, Any]:
             description=str(bundle.get("description") or ""),
             config=config,
             tools=tools,
-            max_steps=int(bundle.get("max_steps", existing.get("max_steps", 100)) or 100),
+            max_steps=int(bundle.get("max_steps", existing.get("max_steps", DEFAULT_MAX_STEPS)) or DEFAULT_MAX_STEPS),
             auto_apply=bool(bundle.get("auto_apply", existing.get("auto_apply", True))),
         )
         if not existing.get("is_builtin"):
@@ -426,7 +428,7 @@ def reload_orchestrator_from_folder(slug: str) -> Dict[str, Any]:
         prompt_text=prompt_text,
         config=config,
         tools=tools,
-        max_steps=int(bundle.get("max_steps", 100) or 100),
+        max_steps=int(bundle.get("max_steps", DEFAULT_MAX_STEPS) or DEFAULT_MAX_STEPS),
         auto_apply=bool(bundle.get("auto_apply", True)),
         is_builtin=False,
         sort_order=int(bundle.get("sort_order", 100) or 100),
@@ -1012,7 +1014,7 @@ def export_orchestrator(slug: str) -> Optional[Dict[str, Any]]:
         "prompt_text": orch.get("prompt_text", ""),
         "config": orch.get("config", {}),
         "tools": orch.get("tools", []),
-        "max_steps": orch.get("max_steps", 100),
+        "max_steps": orch.get("max_steps", DEFAULT_MAX_STEPS),
         "auto_apply": orch.get("auto_apply", True),
         "instructions": orch_instr,
         "functions": functions,
@@ -1081,7 +1083,7 @@ def import_orchestrator(data: Dict[str, Any], overwrite: bool = False) -> Dict[s
     prompt_text = data.get("prompt_text", "")
     config = data.get("config", {}) or {}
     raw_tools = data.get("tools", []) or []
-    max_steps = int(data.get("max_steps", 100) or 100)
+    max_steps = int(data.get("max_steps", DEFAULT_MAX_STEPS) or DEFAULT_MAX_STEPS)
     auto_apply = bool(data.get("auto_apply", True))
 
     # Validate prompt_text length.
@@ -1339,7 +1341,7 @@ def ensure_builtin_orchestrators() -> Dict[str, str]:
             prompt_text=prompt_text,
             config=config,
             tools=tool_names,
-            max_steps=100,
+            max_steps=DEFAULT_MAX_STEPS,
             auto_apply=True,
             is_builtin=True,
             sort_order=200,  # after user orchestrators
@@ -1418,11 +1420,22 @@ def ensure_builtin_orchestrators() -> Dict[str, str]:
                 config[k] = v
                 backfilled = True
 
+    # One-time migration of the legacy 100-step default to the current
+    # default. Guarded by a config marker so user-chosen values survive.
+    migrate_max_steps = False
+    if not config.get("max_steps_default_migrated") and existing.get("max_steps") == 100:
+        config["max_steps_default_migrated"] = True
+        migrate_max_steps = True
+        backfilled = True
+
+    update_kwargs: Dict[str, Any] = {}
     if backfilled:
-        repo_update_orchestrator(existing["id"], prompt_text=prompt_text, config=config)
+        update_kwargs["config"] = config
+    if migrate_max_steps:
+        update_kwargs["max_steps"] = DEFAULT_MAX_STEPS
+    repo_update_orchestrator(existing["id"], prompt_text=prompt_text, **update_kwargs)
+    if backfilled:
         _sync_orchestrator_folder(DEVAGENT_SLUG)
-    else:
-        repo_update_orchestrator(existing["id"], prompt_text=prompt_text)
     result = {DEVAGENT_SLUG: "updated"}
     result.update(_ensure_default_orchestrators())
     return result

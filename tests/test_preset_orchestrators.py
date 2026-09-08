@@ -130,6 +130,72 @@ def test_preset_is_idempotent(isolated_data_dir):
     assert result.get(PRESET_SLUG) == "exists", result
 
 
+def _set_max_steps(slug, value):
+    """Force an orchestrator's max_steps and drop the migration marker."""
+    from core.orchestrators import get_orchestrator, save_orchestrator
+
+    orch = get_orchestrator(slug)
+    assert orch is not None
+    cfg = dict(orch["config"] or {})
+    cfg.pop("max_steps_default_migrated", None)
+    assert save_orchestrator(slug, config=cfg, max_steps=value)
+    return get_orchestrator(slug)
+
+
+def test_devagent_legacy_100_migrates_to_default(isolated_data_dir):
+    """The built-in dev_agent with the legacy 100-step limit is upgraded to
+    the current DEFAULT_MAX_STEPS exactly once."""
+    from storage.models import DEFAULT_MAX_STEPS
+    from core.orchestrators import get_orchestrator
+
+    _run_bootstrap()
+    assert _set_max_steps("dev_agent", 100)["max_steps"] == 100
+
+    _run_bootstrap()
+    orch = get_orchestrator("dev_agent")
+    assert orch["max_steps"] == DEFAULT_MAX_STEPS
+    assert orch["config"].get("max_steps_default_migrated") is True
+
+
+def test_devagent_user_max_steps_survives_bootstrap(isolated_data_dir):
+    """A user-chosen dev_agent max_steps value is never overwritten."""
+    from core.orchestrators import get_orchestrator
+
+    _run_bootstrap()
+    assert _set_max_steps("dev_agent", 321)["max_steps"] == 321
+
+    _run_bootstrap()
+    orch = get_orchestrator("dev_agent")
+    assert orch["max_steps"] == 321
+
+
+def test_preset_legacy_100_migrates_to_default(isolated_data_dir):
+    """Bundled default orchestrators with the legacy 100 limit are upgraded
+    to DEFAULT_MAX_STEPS once."""
+    from storage.models import DEFAULT_MAX_STEPS
+    from core.orchestrators import get_orchestrator
+
+    _run_bootstrap()
+    assert _set_max_steps(PRESET_SLUG, 100)["max_steps"] == 100
+
+    _run_bootstrap()
+    orch = get_orchestrator(PRESET_SLUG)
+    assert orch["max_steps"] == DEFAULT_MAX_STEPS
+    assert orch["config"].get("max_steps_default_migrated") is True
+
+
+def test_preset_user_max_steps_survives_bootstrap(isolated_data_dir):
+    """A user-chosen preset max_steps value survives bootstrap runs."""
+    from core.orchestrators import get_orchestrator
+
+    _run_bootstrap()
+    assert _set_max_steps(PRESET_SLUG, 777)["max_steps"] == 777
+
+    _run_bootstrap()
+    orch = get_orchestrator(PRESET_SLUG)
+    assert orch["max_steps"] == 777
+
+
 def test_preset_preserves_user_changes(isolated_data_dir):
     """User-edited YaAgent settings survive subsequent bootstrap runs."""
     from core.orchestrators import save_orchestrator

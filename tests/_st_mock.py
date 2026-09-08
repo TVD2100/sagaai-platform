@@ -36,7 +36,8 @@ class StreamlitMock(types.ModuleType):
         self._buttons_true = set()      # keys/labels that should return True once
         self._selectbox_returns = {}    # key -> value to return
         self._text_returns = {}         # key -> value
-        self._date_returns = {}         # key -> date value to return
+        self._date_returns = {}         # key -> date value
+        self._number_returns = {}       # key -> number value to return
         self.rerun_count = 0
         self.errors = []                # st.error messages
         self.warnings = []              # st.warning messages
@@ -95,7 +96,8 @@ class StreamlitMock(types.ModuleType):
 
     def number_input(self, label="", *args, **kwargs):
         self._rec("number_input", (label,), kwargs)
-        return kwargs.get("value", kwargs.get("min_value", 0))
+        key = kwargs.get("key")
+        return self._number_returns.get(key, kwargs.get("value", kwargs.get("min_value", 0)))
 
     def date_input(self, label="", value=None, *args, **kwargs):
         self._rec("date_input", (label,), kwargs)

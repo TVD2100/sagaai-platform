@@ -31,6 +31,7 @@ from typing import Dict
 
 from core import defaults as defaults_mod
 from core.fs import ensure_dir
+from storage.models import DEFAULT_MAX_STEPS
 from core.orchestrators import (
     DEVAGENT_SLUG,
     DEFAULT_WEB_SEARCH_PROMPT,
@@ -94,6 +95,19 @@ def ensure_default_orchestrators() -> Dict[str, str]:
         # bundled bases checked, while user settings stay untouched.
         preset_rag_bases = cfg.get("rag_bases") or []
         if current:
+            # One-time migration of the legacy 100-step default: existing
+            # default orchestrators created with the old default are upgraded
+            # to the current default once, guarded by a config marker so a
+            # user-chosen max_steps is never overwritten.
+            try:
+                current_cfg = dict(current.get("config", {}) or {})
+                if (not current_cfg.get("max_steps_default_migrated")
+                        and current.get("max_steps") == 100):
+                    current_cfg["max_steps_default_migrated"] = True
+                    save_orchestrator(slug, config=current_cfg,
+                                      max_steps=DEFAULT_MAX_STEPS)
+            except Exception:
+                pass
             # Backfill the preset base assignment only when the user has never
             # chosen a rag_bases list (legacy config, key missing). An explicit
             # user choice - including an empty list - is never overwritten.

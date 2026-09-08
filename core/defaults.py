@@ -44,6 +44,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import core.paths
 
+from storage.models import DEFAULT_MAX_STEPS
+
 
 # ─── Directory helpers ────────────────────────────────────────────────────────
 
@@ -285,7 +287,7 @@ def _load_orchestrator_new_format(folder: str) -> Optional[Dict[str, Any]]:
         "prompt_text": prompt_text,
         "config": config,
         "tools": tools,
-        "max_steps": int(settings.get("max_steps", 100) or 100),
+        "max_steps": int(settings.get("max_steps", DEFAULT_MAX_STEPS) or DEFAULT_MAX_STEPS),
         "auto_apply": bool(settings.get("auto_apply", True)),
         "is_builtin": bool(settings.get("is_builtin", False)),
         "sort_order": int(settings.get("sort_order", 0) or 0),
@@ -365,7 +367,7 @@ def _load_orchestrator_old_format(folder: str) -> Optional[Dict[str, Any]]:
 
     data.setdefault("config", {})
     data.setdefault("tools", [])
-    data.setdefault("max_steps", 100)
+    data.setdefault("max_steps", DEFAULT_MAX_STEPS)
     data.setdefault("auto_apply", True)
     data.setdefault("is_builtin", False)
     data.setdefault("sort_order", 0)

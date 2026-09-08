@@ -83,7 +83,7 @@ orchestrator.json:
   "description": "Описание...",
   "config": { "strong_service": "YandexAI", "strong_model": "deepseek-v4-flash" },
   "tools": [],
-  "max_steps": 100,
+  "max_steps": 500,
   "auto_apply": true,
   "sort_order": 150
 }

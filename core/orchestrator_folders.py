@@ -33,6 +33,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import core.paths
 from core.fs import ensure_dir, read_json_file, read_text_file, write_text_file
+from storage.models import DEFAULT_MAX_STEPS
 from storage.repository import (
     repo_list_orchestrator_instructions,
     repo_get_orchestrator_instruction,
@@ -175,7 +176,7 @@ def load_orchestrator_bundle(slug: str) -> Optional[Dict[str, Any]]:
     bundle.setdefault("name", slug)
     bundle.setdefault("description", "")
     bundle.setdefault("tools", [])
-    bundle.setdefault("max_steps", 100)
+    bundle.setdefault("max_steps", DEFAULT_MAX_STEPS)
     bundle.setdefault("auto_apply", True)
     bundle.setdefault("is_builtin", False)
     bundle.setdefault("sort_order", 0)

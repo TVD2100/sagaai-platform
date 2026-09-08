@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Optional, Callable, Tuple
 from . import config
 from . import workspace_tools as wt
 from .tool_executor import _coerce_numeric_args
+from storage.models import DEFAULT_MAX_STEPS
 
 
 def load_system_prompt() -> str:
@@ -454,7 +455,7 @@ class UniversalDevAgent:
 
     def _create_orchestrator(self, slug: str = "", name: str = "", description: str = "",
                              prompt_text: str = "", config: Optional[dict] = None,
-                             tools: Optional[list] = None, max_steps: int = 100,
+                             tools: Optional[list] = None, max_steps: int = DEFAULT_MAX_STEPS,
                              auto_apply: bool = True, **kwargs) -> Dict[str, Any]:
         from core.orchestrators import create_orchestrator
         from core.orchestrator_folders import safe_orchestrator_slug
@@ -468,7 +469,7 @@ class UniversalDevAgent:
             prompt_text=prompt_text or "",
             config=config or {},
             tools=tools or [],
-            max_steps=int(max_steps or 100),
+            max_steps=int(max_steps or DEFAULT_MAX_STEPS),
             auto_apply=bool(auto_apply),
         )
         if orch_id is None:

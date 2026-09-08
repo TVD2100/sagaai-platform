@@ -43,6 +43,7 @@ from dev_agent.agent_loop import (
     approve_sanitized_content, deny_sanitized_content,
 )
 from dev_agent import workspace_tools as wt
+from storage.models import DEFAULT_MAX_STEPS
 
 from core.orchestrators import (
     get_orchestrator, save_orchestrator,
@@ -701,7 +702,7 @@ def _do_step(slug: str, lang: str) -> None:
         economy_config = get_economy_config(slug)
         state = AgentLoopState(
             task=user_message,
-            max_steps=orch.get("max_steps", 100) if orch else 100,
+            max_steps=orch.get("max_steps", DEFAULT_MAX_STEPS) if orch else DEFAULT_MAX_STEPS,
             auto_apply=True,
             strong_assistant=strong_assistant,
             weak_assistant=weak_assistant,
@@ -2054,6 +2055,39 @@ def _render_orch_connections(slug: str, lang: str) -> None:
             st.success(t("orch_connections_saved", lang=lang))
         else:
             st.error(t("orch_connections_save_error", lang=lang))
+
+
+def _render_other_settings(slug: str, lang: str) -> None:
+    """Manage miscellaneous orchestrator settings (autonomous-loop step limit)."""
+    orch = get_orchestrator(slug)
+    if orch is None:
+        st.error(t("orch_not_found", lang=lang))
+        return
+
+    st.markdown(t("orch_other_section", lang=lang))
+    st.markdown(t("orch_other_section_desc", lang=lang))
+
+    cur_max_steps = int(orch.get("max_steps", DEFAULT_MAX_STEPS) or DEFAULT_MAX_STEPS)
+    sel_max_steps = st.number_input(
+        t("orch_max_steps_label", lang=lang),
+        min_value=1, max_value=10000,
+        value=cur_max_steps, step=50,
+        key=f"orch_max_steps_{slug}",
+        help=t("orch_max_steps_help", lang=lang),
+    )
+    st.caption(t("orch_max_steps_hint", lang=lang, default=DEFAULT_MAX_STEPS))
+
+    st.markdown("---")
+    if st.button(t("orch_save_btn", lang=lang), key=f"orch_save_other_{slug}", type="primary"):
+        try:
+            new_max_steps = int(sel_max_steps)
+        except (TypeError, ValueError):
+            new_max_steps = cur_max_steps
+        new_max_steps = max(1, min(10000, new_max_steps))
+        if save_orchestrator(slug, max_steps=new_max_steps):
+            st.success(t("orch_max_steps_saved", lang=lang, value=new_max_steps))
+        else:
+            st.error(t("orch_other_save_error", lang=lang))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

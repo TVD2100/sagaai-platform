@@ -73,6 +73,7 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 from core.api_layer import send_request
 from core.dangerous import format_reasons_for_ui
+from storage.models import DEFAULT_MAX_STEPS
 
 # Strong tools
 _STRONG_TOOLS: Set[str] = {
@@ -1302,7 +1303,7 @@ class AgentLoopState:
     phase: str = "init"
 
     task: str = ""
-    max_steps: int = 100
+    max_steps: int = DEFAULT_MAX_STEPS
     auto_apply: bool = False
 
     strong_assistant: Dict[str, Any] = field(default_factory=dict)
@@ -2247,7 +2248,7 @@ def run_agent_loop(
     *,
     on_event: Optional[Callable[[dict], None]] = None,
     history: Optional[List[Dict[str, Any]]] = None,
-    max_steps: int = 100,
+    max_steps: int = DEFAULT_MAX_STEPS,
     auto_apply: bool = False,
     lang: Optional[str] = None,
     pending_staged_path: Optional[str] = None,
