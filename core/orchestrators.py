@@ -172,7 +172,7 @@ _DEVAGENT_DEFAULT_CONFIG: Dict[str, Any] = _devagent_default_config()
 
 def _default_economy_tail_messages() -> int:
     """Return the default economy tail length from the canonical DevAgent
-    orchestrator bundle or the built-in fallback (30). This is the single
+    orchestrator bundle or the built-in fallback (50). This is the single
     source of truth for the default value."""
     return get_default_economy_tail_messages()
 
@@ -1395,7 +1395,7 @@ def ensure_builtin_orchestrators() -> Dict[str, str]:
 
     # Legacy configs (created before cache-friendly economy mode) stored
     # economy_tail_messages=15 but have no cache fields. Treat that as the
-    # old built-in default and upgrade it to the new default (30).
+    # old built-in default and upgrade it to the new default (50).
     has_cache_fields = ("economy_cache_enabled" in config) or ("economy_cache_multiplier" in config)
     if not has_cache_fields and config.get("economy_tail_messages") == 15:
         config["economy_tail_messages"] = _default_economy_tail_messages()
