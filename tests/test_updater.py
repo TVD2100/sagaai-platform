@@ -349,7 +349,7 @@ def test_running_marker_detection(tmp_path):
 def test_stopped_and_zombie_processes_are_not_running(tmp_path):
     root = str(tmp_path)
     marker = json.dumps({
-        "pid": os.getpid(),
+        "pid": 12345,
         "at": datetime.now(timezone.utc).isoformat(),
     })
     updater._atomic_write_text(root, updater.RUNNING_FILE_REL, marker)
@@ -363,7 +363,7 @@ def test_reused_pid_is_not_running(tmp_path):
     # Marker written NOW by the (long-gone) original process; the pid is now
     # taken by an unrelated process started BEFORE the marker plus skew window.
     now = datetime.now(timezone.utc)
-    marker = json.dumps({"pid": os.getpid(), "at": now.isoformat()})
+    marker = json.dumps({"pid": 12345, "at": now.isoformat()})
     updater._atomic_write_text(root, updater.RUNNING_FILE_REL, marker)
     old_start = now.timestamp() - 3600
     with patch("core.updater._pid_state", return_value="S"), patch(
@@ -375,7 +375,7 @@ def test_reused_pid_is_not_running(tmp_path):
 def test_fresh_pid_matching_marker_is_running(tmp_path):
     root = str(tmp_path)
     now = datetime.now(timezone.utc)
-    marker = json.dumps({"pid": os.getpid(), "at": now.isoformat()})
+    marker = json.dumps({"pid": 12345, "at": now.isoformat()})
     updater._atomic_write_text(root, updater.RUNNING_FILE_REL, marker)
     fresh_start = now.timestamp()
     with patch("core.updater._pid_state", return_value="S"), patch(
@@ -384,9 +384,10 @@ def test_fresh_pid_matching_marker_is_running(tmp_path):
         assert updater.is_app_running(root) is True
 
 
+@pytest.mark.skipif(os.name != "posix", reason="ps/os.kill fallback is POSIX-only")
 def test_ps_unavailable_uses_kill_fallback(tmp_path):
     root = str(tmp_path)
-    marker = json.dumps({"pid": os.getpid(), "at": "2026-01-01T00:00:00Z"})
+    marker = json.dumps({"pid": 12345, "at": "2026-01-01T00:00:00Z"})
     updater._atomic_write_text(root, updater.RUNNING_FILE_REL, marker)
     with patch("core.updater._pid_state", return_value=None), patch(
         "core.updater.os.kill", return_value=None
@@ -396,6 +397,53 @@ def test_ps_unavailable_uses_kill_fallback(tmp_path):
         "core.updater.os.kill", side_effect=ProcessLookupError()
     ):
         assert updater.is_app_running(root) is False
+
+
+def test_same_process_marker(tmp_path):
+    root = str(tmp_path)
+    assert updater.same_process_marker(root) is False
+    updater.write_running_marker(root)
+    assert updater.same_process_marker(root) is True
+    updater._atomic_write_text(
+        root,
+        updater.RUNNING_FILE_REL,
+        json.dumps({"pid": 12345, "at": "2026-01-01T00:00:00Z"}),
+    )
+    assert updater.same_process_marker(root) is False
+
+
+def test_same_process_pid_is_running_without_ps_or_kill(tmp_path):
+    """Marker written by THIS process short-circuits: no ps, no os.kill."""
+    root = str(tmp_path)
+    updater.write_running_marker(root)
+    with patch("core.updater._pid_state") as ps_mock, patch(
+        "core.updater.os.kill"
+    ) as kill_mock:
+        assert updater.is_app_running(root) is True
+        ps_mock.assert_not_called()
+        kill_mock.assert_not_called()
+
+
+def test_nt_fallback_uses_pid_alive_windows_not_kill(tmp_path):
+    """On Windows the ps fallback must use OpenProcess liveness probing and
+    never call os.kill (signal 0 is CTRL_C_EVENT there and kills the server)."""
+    root = str(tmp_path)
+    marker = json.dumps({"pid": 12345, "at": "2026-01-01T00:00:00Z"})
+    updater._atomic_write_text(root, updater.RUNNING_FILE_REL, marker)
+    with patch("core.updater.os.name", "nt"), patch(
+        "core.updater._pid_state", return_value=None
+    ), patch("core.updater._pid_alive_windows", return_value=True), patch(
+        "core.updater.os.kill"
+    ) as kill_mock:
+        assert updater.is_app_running(root) is True
+        kill_mock.assert_not_called()
+    with patch("core.updater.os.name", "nt"), patch(
+        "core.updater._pid_state", return_value=None
+    ), patch("core.updater._pid_alive_windows", return_value=False), patch(
+        "core.updater.os.kill"
+    ) as kill_mock:
+        assert updater.is_app_running(root) is False
+        kill_mock.assert_not_called()
 
 
 def test_broken_marker_is_not_running(tmp_path):
@@ -445,11 +493,16 @@ def test_write_running_marker(tmp_path):
 
 def test_app_py_has_cold_start_hook():
     """Step 5 guard: app.py must call apply_updates + write_running_marker
-    before importing streamlit."""
+    before importing streamlit, guarded by same_process_marker so streamlit
+    reruns (same process) never re-run the cold-start apply."""
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     src = _read_text(project_root, "app.py")
+    assert "if not same_process_marker(_project_root):" in src
     assert "apply_updates(_project_root)" in src
     assert "write_running_marker(_project_root)" in src
+    guard = src.index("if not same_process_marker(_project_root):")
+    assert src.index("apply_updates(_project_root)") > guard
+    assert src.index("write_running_marker(_project_root)") > guard
     assert src.index("apply_updates(_project_root)") < src.index("import streamlit as st")
 
 
