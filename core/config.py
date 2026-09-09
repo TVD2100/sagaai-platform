@@ -44,6 +44,8 @@ def _secret_keys() -> set:
             val = svc.get(field, "")
             if val:
                 secrets.add(val)
+    # Access page secrets (password for the UI access gate).
+    secrets.add("auth_password")
     return secrets
 
 

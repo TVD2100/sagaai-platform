@@ -64,16 +64,16 @@
           "sha256": "4f099ba7b366218cad6bbc724b564a8cd1b238ba7a21cdb7a6bc045d0b8f7b63"
         },
         "core/auth.py": {
-          "version": "1.0.0",
-          "sha256": "1afde110ac5cce7df39df66344b7312b8b6a8406475bee737f07b58b90942a97"
+          "version": "1.1.0",
+          "sha256": "19d18b24a69e946427068f2b7e875a7fe79425a0692c1fceb0ee010994505423"
         },
         "core/bootstrap.py": {
           "version": "1.0.0",
           "sha256": "533ca9991da71adc73e2151237c210c44dc8fae0e76d458e6ce45cdc0a7e8b24"
         },
         "core/config.py": {
-          "version": "1.2.0",
-          "sha256": "be6d1e9b7962a782e4cea826aac96e7f6993159b9066ef3d0d27d7d87d6f298d"
+          "version": "1.2.1",
+          "sha256": "202e0013583eb3bb82ba994044d4d83026512139ba7e0b5134db69b618aa907d"
         },
         "core/connectors.py": {
           "version": "1.1.0",
@@ -368,8 +368,8 @@
           "sha256": "1179530a0dfe38859e6a0123453d46414be5cd52f7f75799342597ddacdebdfb"
         },
         "tests/smoke/test_app_smoke.py": {
-          "version": "1.0.0",
-          "sha256": "489f032e47a12d571bc033c280a69494ea7755f03da84d53b9e47cb76550289f"
+          "version": "1.0.1",
+          "sha256": "df3fd59d22fdebfacdfc1920ccd37194c8498b9ce53b1cd3149a6edddb982e49"
         },
         "tests/test_agent_loop_json_repair.py": {
           "version": "1.0.0",
@@ -652,8 +652,8 @@
           "sha256": "364164080192ca393405d235f1fc7ae64d45f48fd0e7a6bf27b064ea439e7a1f"
         },
         "ui/app.py": {
-          "version": "1.1.1",
-          "sha256": "767a051c7865b18aecf65fe0dca3062d0b246274413ca36221dcca0f63005228"
+          "version": "1.2.0",
+          "sha256": "8886b7149941209f40441e030eeec53830a06ae69198949f50cdbf0b7d7e9572"
         },
         "ui/components/__init__.py": {
           "version": "1.0.0",
@@ -782,6 +782,18 @@
         "tests/scenarios/test_orchestrator_other_settings_scenario.py": {
           "version": "1.0.0",
           "sha256": "db88cbd471cad26fcf08db86ca8472c612117ce6a83e9ff4674284a71bb10dc0"
+        },
+        "tests/test_auth_access.py": {
+          "version": "1.0.0",
+          "sha256": "dafd3ae4ab539252cbf65780864393afd618905e1525be0dd0706164b929cc7b"
+        },
+        "ui/pages/access.py": {
+          "version": "1.0.0",
+          "sha256": "ffb75aa7f6bf9b60c1a7a0649a98f57f92557fed70b37f89724a94e744577c42"
+        },
+        "tests/scenarios/test_access_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "e5e7389b55b2a21eda9f04c56246191561e647c30b3a5e45ed9b60b21768185e"
         }
       }
     }
@@ -812,27 +824,27 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.2.0",
-      "sha256": "ce90c3c2aeac3f7b613254baaa1a3e8aa338153e3e5532620fa09159c8a31094",
+      "version": "1.3.0",
+      "sha256": "670e2d2b15eab84a8f63176d0b94a387023d30cd277d4fb6b73687568ca545a4",
       "note": {
-        "ru": "Добавлены файлы REST-коннектора и их символы; обновлены описания GitHub-модулей.",
-        "en": "Added REST connector files and symbols; updated GitHub module descriptions."
+        "ru": "Добавлены файлы страницы «Доступы» (ui/pages/access.py, тесты) и обновлены описания core/auth.py, core/config.py, ui/app.py; символы пересобраны.",
+        "en": "Added the Access-page files (ui/pages/access.py, tests) and updated descriptions for core/auth.py, core/config.py, ui/app.py; symbols rebuilt."
       }
     },
     "README.md": {
-      "version": "1.2.0",
-      "sha256": "f50edd8b3991cc3356213f855f42aa35604634dfb13f319231cc0ebe8857d56d",
+      "version": "1.3.0",
+      "sha256": "3079ac6c20b1437d702aae690de966a5eb86b4744149cc41c47d27bb7ee5fc87",
       "note": {
-        "ru": "Добавлено описание основного REST GitHub-коннектора и пакетной публикации (инструменты ghr_*).",
-        "en": "Added description of the primary REST GitHub connector and batch publishing (ghr_* tools)."
+        "ru": "Описана страница «Доступы» и настройка доступа по паролю (форма и SAGAAI_AUTH_PASSWORD, приоритет формы).",
+        "en": "Documented the Access page and password-access setup (form and SAGAAI_AUTH_PASSWORD, form priority)."
       }
     },
     "SPEC.md": {
-      "version": "1.2.0",
-      "sha256": "0907e7530ef8efcef49d3479b6bd8adabc08754b04729c41f502f396780b629d",
+      "version": "1.3.0",
+      "sha256": "ff007d74abecd67aea188cefffc4f08e28406a728df337a9fb0bb898e85c3a1d",
       "note": {
-        "ru": "FR11 дополнен REST-коннектором: сервис github_rest, инструменты ghr_*, batch_commit/batch_upsert.",
-        "en": "FR11 updated with the REST connector: github_rest service, ghr_* tools, batch_commit/batch_upsert."
+        "ru": "Добавлен FR14 - доступ к приложению (страница «Доступы», пароль, интервал повторного запроса, приоритет формы над env).",
+        "en": "Added FR14 - app access (Access page, password, re-ask interval, form-over-env priority)."
       }
     },
     "defaults/README.md": {
@@ -892,8 +904,8 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.3.0",
-      "sha256": "b9cf57398b4cc3a2018f17cd4007e31037c469e5e99f1124530cb21954b54ea2",
+      "version": "1.3.1",
+      "sha256": "660d8193cb22b25a106d4e46480c945ad436ceec1a5ba10acd01c66127a09110",
       "note": {
         "ru": "Добавлены ключи вкладки «Другое» (лимит шагов автономного цикла) для настроек сотрудника.",
         "en": "Added the Other-tab (autonomous-loop step limit) keys for employee settings."
@@ -908,8 +920,8 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.3.0",
-      "sha256": "95b17cfadc37210717529cf0c9cf26a9cccdc777d4f4b92934847b0d72a82220",
+      "version": "1.3.1",
+      "sha256": "a07d1e7556e92155563ac18d6d5ab354f89faa6e33c161164dc96b0bfa243536",
       "note": {
         "ru": "Добавлены ключи вкладки «Другое» (лимит шагов автономного цикла) для настроек сотрудника.",
         "en": "Added the Other-tab (autonomous-loop step limit) keys for employee settings."
@@ -924,8 +936,8 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.3.0",
-      "sha256": "d9dac9ea5b54fc9dc4c63b20408515fb5c7ae1acb98692748edc30f09a90bebd",
+      "version": "1.3.1",
+      "sha256": "2fa970c3d958db44eda44a0f80d5bdb958b6163a34026acb88fa892c31f186e2",
       "note": {
         "ru": "Добавлены ключи вкладки «Другое» (лимит шагов автономного цикла) для настроек сотрудника.",
         "en": "Added the Other-tab (autonomous-loop step limit) keys for employee settings."
@@ -1148,8 +1160,8 @@
       }
     },
     "langs/en.json": {
-      "version": "1.3.0",
-      "sha256": "b9cf57398b4cc3a2018f17cd4007e31037c469e5e99f1124530cb21954b54ea2",
+      "version": "1.3.1",
+      "sha256": "660d8193cb22b25a106d4e46480c945ad436ceec1a5ba10acd01c66127a09110",
       "note": {
         "ru": "Добавлены ключи вкладки «Другое» (лимит шагов автономного цикла) для настроек сотрудника.",
         "en": "Added the Other-tab (autonomous-loop step limit) keys for employee settings."
@@ -1164,8 +1176,8 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.3.0",
-      "sha256": "95b17cfadc37210717529cf0c9cf26a9cccdc777d4f4b92934847b0d72a82220",
+      "version": "1.3.1",
+      "sha256": "04abd66b96a2db503be5231782d2fc42af870700bb6df5c09bcad73293285e52",
       "note": {
         "ru": "Добавлены ключи вкладки «Другое» (лимит шагов автономного цикла) для настроек сотрудника.",
         "en": "Added the Other-tab (autonomous-loop step limit) keys for employee settings."
@@ -1180,8 +1192,8 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.3.0",
-      "sha256": "d9dac9ea5b54fc9dc4c63b20408515fb5c7ae1acb98692748edc30f09a90bebd",
+      "version": "1.3.1",
+      "sha256": "2fa970c3d958db44eda44a0f80d5bdb958b6163a34026acb88fa892c31f186e2",
       "note": {
         "ru": "Добавлены ключи вкладки «Другое» (лимит шагов автономного цикла) для настроек сотрудника.",
         "en": "Added the Other-tab (autonomous-loop step limit) keys for employee settings."

@@ -47,6 +47,7 @@ from ui.pages.storage import page_storage
 from ui.pages.connectors import page_connectors
 from ui.pages.stats import page_stats
 from ui.pages.updates import page_updates
+from ui.pages.access import page_access
 
 
 # ── Icons ─────────────────────────────────────────────────────────────────────
@@ -783,6 +784,20 @@ def main():
         if is_welcome_active:
             st.markdown("</div>", unsafe_allow_html=True)
 
+        # Access (Доступы) - right before Updates
+        is_access_active = (page == "access")
+        if is_access_active:
+            st.markdown('<div class="nav-active">', unsafe_allow_html=True)
+        if st.button(
+            f"\U0001f510 {t('nav_access', lang=lang)}",
+            key="nav_access",
+            use_container_width=True,
+        ):
+            st.session_state["current_page"] = "access"
+            st.rerun()
+        if is_access_active:
+            st.markdown("</div>", unsafe_allow_html=True)
+
         # Updates (end of main menu)
         is_updates_active = (page == "updates")
         if is_updates_active:
@@ -865,6 +880,8 @@ def main():
         page_orchestrator(slug)
     elif page == "updates":
         page_updates()
+    elif page == "access":
+        page_access()
     elif page == "settings":
         page_settings()
     else:

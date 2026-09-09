@@ -297,6 +297,35 @@ def test_no_duplicate_widget_keys(isolated_data):
     )
 
 
+def test_nav_order_access_before_updates(isolated_data):
+    """Sidebar order: Access right before Updates."""
+    with install_streamlit_mock() as st:
+        ui_app = _fresh_ui()
+        st.session_state.update(dict(
+            show_skill_form=False, edit_skill_id=None, user_input_value="",
+            force_send=False, active_thread_id=None, confirm_delete_all=False,
+            attached_file_context="", attached_file_name="", input_key=0,
+            current_page="run", ui_lang="English",
+        ))
+        try:
+            ui_app.main()
+        except StopRerun:
+            pass
+
+    def _index(key):
+        for i, (name, args, kwargs) in enumerate(st.calls):
+            if kwargs.get("key") == key:
+                return i
+        return None
+
+    idx_access = _index("nav_access")
+    idx_updates = _index("nav_updates")
+    assert idx_access is not None and idx_updates is not None, \
+        f"expected sidebar widgets missing: nav_access={idx_access}, nav_updates={idx_updates}"
+    assert idx_access < idx_updates, \
+        f"order violated: access {idx_access} should precede updates {idx_updates}"
+
+
 def test_nav_order_stats_before_about_and_lang_theme_after(isolated_data):
     """Sidebar order: Statistics before About; language/theme selectors after About."""
     with install_streamlit_mock() as st:
