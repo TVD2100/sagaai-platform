@@ -27,7 +27,7 @@
 | `ui/pages/chat.py` | Python | Chat page for AI assistants: selector, history, send form | - |
 | `ui/pages/connectors.py` | Python | _(описание не задано)_ | - |
 | `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | - |
-| `ui/pages/orchestrator.py` | Python | Reusable orchestrator page (chat/history/settings incl. skills tab; no employee export/import UI) | storage |
+| `ui/pages/orchestrator.py` | Python | Reusable orchestrator page (chat/history/settings incl. skills tab; any-format thread-file uploader -> history/<tid>/files; no employee export/import UI) | storage |
 | `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings entry page | - |
 | `ui/pages/orchestrators.py` | Python | Employees (orchestrators) management page (create/open/settings/delete; export/import deferred) | - |
 | `ui/pages/settings.py` | Python | LLM provider settings page: editable provider forms (canonical keys) at top, compact environment-variable fallback block with status check at the bottom | - |
@@ -55,7 +55,7 @@
 | `core/defaults.py` | Python | _(описание не задано)_ | storage |
 | `core/entity_sync.py` | Python | _(описание не задано)_ | storage |
 | `core/env_loader.py` | Python | Loads API keys from shell profiles | - |
-| `core/files.py` | Python | File upload helpers, token estimation, context checks | - |
+| `core/files.py` | Python | File upload helpers, token estimation, context checks, thread-files notice builder | - |
 | `core/fs.py` | Python | Filesystem helpers (json/text read/write, ensure_dir, combine_nonempty) | - |
 | `core/github_connector.py` | Python | Legacy PyGithub adapter (fallback): test_connection, repo/file ops | - |
 | `core/github_connector_rest.py` | Python | Primary direct REST GitHub connector (requests, API v3): CRUD + Git Data API + batch_commit/batch_upsert | - |
@@ -82,7 +82,7 @@
 | `core/skills_library.py` | Python | Standardized skills library: registry skills.json, ZIP/GitHub/folder imports, metadata for orchestrator system prompts | - |
 | `core/statistics.py` | Python | _(описание не задано)_ | - |
 | `core/threads.py` | Python | Chat thread persistence for assistants | storage |
-| `core/threads_devagent.py` | Python | DevAgent/orchestrator thread persistence (devagent.db) | storage |
+| `core/threads_devagent.py` | Python | DevAgent/orchestrator thread persistence (devagent.db) + dialog thread-file storage helpers (save/list/read raw bytes in history/<tid>/files) | storage |
 | `core/tools_utils.py` | Python | Tool definitions list for the Skills/Assistants pages | - |
 | `core/updater.py` | Python | Update pipeline: fetch_manifest, check_updates, stage_updates, apply_updates, rollback_updates; pid state/zombie/reuse-aware running detection; CLI check/stage/apply/rollback over token-free raw channel | - |
 | `core/updater_apply.py` | Python | Pure-stdlib cold-start applier: atomic writes, backups, rollback; .dev_agent/updates/ (pending/, state.json, health.json) | - |
@@ -92,6 +92,7 @@
 | `tests/_test_isolation.py` | Python | _(описание не задано)_ | - |
 | `tests/conftest.py` | Python | Pytest fixture bootstrap | - |
 | `tests/test_agent_loop_json_repair.py` | Python | _(описание не задано)_ | - |
+| `tests/test_agent_loop_thread_context.py` | Python | Thread-context prefix tests (dialog uploads listing in agent requests) | - |
 | `tests/test_app_imports.py` | Python | Importability tests | storage |
 | `tests/test_apply_patch.py` | Python | _(описание не задано)_ | - |
 | `tests/test_assistant_folders.py` | Python | _(описание не задано)_ | storage |
@@ -156,10 +157,12 @@
 | `tests/test_theme_restore.py` | Python | _(описание не задано)_ | - |
 | `tests/test_thread_deeplink.py` | Python | _(описание не задано)_ | - |
 | `tests/test_thread_file_save.py` | Python | _(описание не задано)_ | storage |
+| `tests/test_threads_devagent_files.py` | Python | Thread-file helper tests (save/list/read raw bytes, binary classification, traversal safety, size cap) | - |
 | `tests/test_tools_utils.py` | Python | _(описание не задано)_ | - |
 | `tests/test_ui_pages.py` | Python | UI page tests | - |
 | `tests/test_ui_tooltips.py` | Python | _(описание не задано)_ | - |
 | `tests/test_ui_tooltips_orchestrator.py` | Python | _(описание не задано)_ | - |
+| `tests/test_universal_agent_thread_files.py` | Python | universal_agent list_thread_files/read_thread_file tool tests | - |
 | `tests/test_universal_developer.py` | Python | UniversalDevAgent tests | storage |
 | `tests/test_updater.py` | Python | Updater tests (offline local-HTTP: check/stage/apply, running guard incl. stopped/zombie/reused pid and ps fallback) | - |
 | `tests/test_updater_apply.py` | Python | Cold-start applier tests | - |

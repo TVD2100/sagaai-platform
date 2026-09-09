@@ -1032,6 +1032,22 @@ def _maybe_thread_context(state: "AgentLoopState") -> Optional[str]:
         "Files created during this task that do not belong to any existing "
         "or newly created project folder must be saved into thread_files_dir."
     )
+    # Dialog uploads (history/<tid>/files) are reported as FACTS only. The
+    # platform never parses their content - the model decides itself when
+    # and how to read/extract it (list_thread_files / read_thread_file for
+    # text, run_code for other formats).
+    try:
+        from core.threads_devagent import list_thread_files
+        from core.files import build_thread_files_notice
+        notice = build_thread_files_notice(
+            list_thread_files(tid),
+            header="Dialog uploads available to this thread:",
+        )
+    except Exception:
+        notice = ""
+    if notice:
+        lines.append("")
+        lines.append(notice)
     return "\n".join(lines)
 
 

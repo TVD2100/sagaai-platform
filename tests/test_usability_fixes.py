@@ -530,7 +530,6 @@ def _orch_chat_env(ui_env, monkeypatch, history):
     monkeypatch.setattr(orch_page, "get_orchestrator", lambda slug: orch)
     monkeypatch.setattr(orch_page, "_assistant_has_api_key", lambda svc: True)
     monkeypatch.setattr(orch_page, "t", lambda key, *a, **k: key)
-    monkeypatch.setattr(orch_page, "get_file_uploader_types", lambda: [])
     monkeypatch.setattr(
         orch_page, "build_assistant_dicts",
         lambda slug: ({"service": "Svc", "model": "m1", "temperature": 0.5,
@@ -689,31 +688,28 @@ def test_assistant_chat_omits_caption_without_ts(ui_env, monkeypatch):
 
 
 class _FakeUpload:
-    """Minimal uploaded-file stand-in exposing just the .name attribute."""
+    """Minimal uploaded-file stand-in exposing .name and .read()."""
 
-    def __init__(self, name):
+    def __init__(self, name, data=b"file data"):
         self.name = name
+        self._data = data
+
+    def read(self):
+        return self._data
 
 
 def _orch_upload_env(ui_env, monkeypatch, uploaded, attached=None):
-    """Seed the chat tab and patch the upload-processing helpers.
+    """Seed the chat tab and mock the any-format uploader returning raw bytes.
 
-    ``uploaded`` is a list of file names the mocked uploader returns on
-    every render; ``attached`` is the initial attached-files list.
+    ``uploaded`` is a list of ``(file_name, raw_bytes)`` the mocked uploader
+    returns on every render; ``attached`` is the initial attached-files list.
     """
     orch_page = _orch_chat_env(ui_env, monkeypatch, [])
-    monkeypatch.setattr(orch_page, "extract_file_content",
-                        lambda uf: "file content")
-    monkeypatch.setattr(orch_page, "check_upload_tokens",
-                        lambda content: (True, 5))
-    monkeypatch.setattr(orch_page, "build_attachment_metadata",
-                        lambda name, content: {"name": name,
-                                               "content": content})
     ui_env.session_state["orch_o1_attached"] = list(attached or [])
 
     def _fake_uploader(*a, **k):
         ui_env._rec("file_uploader", a, k)
-        return [_FakeUpload(n) for n in uploaded]
+        return [_FakeUpload(n, d) for n, d in uploaded]
 
     ui_env.file_uploader = _fake_uploader
     return orch_page
@@ -722,16 +718,25 @@ def _orch_upload_env(ui_env, monkeypatch, uploaded, attached=None):
 def test_orch_upload_attaches_file_and_bumps_uploader_key(ui_env, monkeypatch):
     """Uploading a file must add it to the attachment list, bump the reset
     counter (so the uploader widget key changes) and rerun exactly once."""
-    orch_page = _orch_upload_env(ui_env, monkeypatch, uploaded=["report.txt"])
+    orch_page = _orch_upload_env(
+        ui_env, monkeypatch, uploaded=[("report.txt", b"file data")])
     _rerender(ui_env, lambda: orch_page._render_chat_tab("o1", "English"))
 
     attached = ui_env.session_state["orch_o1_attached"]
     assert [f["name"] for f in attached] == ["report.txt"], attached
+    assert attached[0]["data"] == b"file data"
+    assert attached[0]["bytes"] == 9
     assert ui_env.session_state["orch_o1_upload_counter"] == 1
     assert ui_env.rerun_count == 1
 
     keys = [c[2].get("key") for c in ui_env.calls if c[0] == "file_uploader"]
     assert "orch_upload_o1_0" in keys, keys
+    # The any-format uploader must impose NO extension filter.
+    uploader_kwargs = [c[2] for c in ui_env.calls if c[0] == "file_uploader"]
+    assert uploader_kwargs and uploader_kwargs[-1].get("type") is None, \
+        uploader_kwargs
+    # The caption must use the any-type i18n key.
+    assert "orch_attach_any_type" in _captions(ui_env), _captions(ui_env)
 
 
 def test_orch_upload_second_render_settles_without_refire(ui_env, monkeypatch):
@@ -743,7 +748,8 @@ def test_orch_upload_second_render_settles_without_refire(ui_env, monkeypatch):
     mock keeps returning the file to prove the guard works even in the
     worst case.
     """
-    orch_page = _orch_upload_env(ui_env, monkeypatch, uploaded=["report.txt"])
+    orch_page = _orch_upload_env(
+        ui_env, monkeypatch, uploaded=[("archive.zip", b"PK\x03\x04" + bytes(10))])
     _rerender(ui_env, lambda: orch_page._render_chat_tab("o1", "English"))
     assert ui_env.rerun_count == 1
 
@@ -752,29 +758,27 @@ def test_orch_upload_second_render_settles_without_refire(ui_env, monkeypatch):
         "chat page keeps rerunning on every render - sending stays blocked"
     )
     attached = ui_env.session_state["orch_o1_attached"]
-    assert [f["name"] for f in attached] == ["report.txt"]
+    assert [f["name"] for f in attached] == ["archive.zip"]
+    assert attached[0]["data"].startswith(b"PK\x03\x04")
     assert ui_env.session_state["orch_o1_upload_counter"] == 2
     keys = [c[2].get("key") for c in ui_env.calls if c[0] == "file_uploader"]
     assert "orch_upload_o1_1" in keys, keys
 
 
 def test_orch_upload_too_large_shows_error_without_rerun_loop(ui_env, monkeypatch):
-    """A file over the token limit must show the error and reset the widget
-    without entering a rerun loop."""
+    """A file over the raw-byte size cap must show the error and reset the
+    widget without entering a rerun loop."""
     orch_page = _orch_chat_env(ui_env, monkeypatch, [])
-    monkeypatch.setattr(orch_page, "extract_file_content", lambda uf: "big")
-    monkeypatch.setattr(orch_page, "check_upload_tokens",
-                        lambda content: (False, 999))
 
     def _fake_uploader(*a, **k):
         ui_env._rec("file_uploader", a, k)
-        return [_FakeUpload("big.txt")]
+        return [_FakeUpload("big.bin", b"\x00" * (orch_page.MAX_THREAD_FILE_BYTES + 1))]
 
     ui_env.file_uploader = _fake_uploader
 
     _rerender(ui_env, lambda: orch_page._render_chat_tab("o1", "English"))
     assert ui_env.rerun_count == 0
-    assert any("file_too_large_tokens" in str(e) for e in ui_env.errors), \
+    assert any("orch_file_too_large_bytes" in str(e) for e in ui_env.errors), \
         ui_env.errors
     assert ui_env.session_state["orch_o1_attached"] == []
     assert ui_env.session_state["orch_o1_upload_counter"] == 1
@@ -784,13 +788,40 @@ def test_orch_upload_duplicate_is_ignored_without_rerun_loop(ui_env, monkeypatch
     """Re-selecting an already attached file must not duplicate it and must
     not trigger repeated reruns."""
     orch_page = _orch_upload_env(
-        ui_env, monkeypatch, uploaded=["report.txt"],
-        attached=[{"name": "report.txt", "content": "old"}],
+        ui_env, monkeypatch, uploaded=[("report.txt", b"same")],
+        attached=[{"name": "report.txt", "data": b"old", "bytes": 3}],
     )
     _rerender(ui_env, lambda: orch_page._render_chat_tab("o1", "English"))
 
     attached = ui_env.session_state["orch_o1_attached"]
     assert len(attached) == 1, attached
-    assert attached[0]["content"] == "old"
+    assert attached[0]["data"] == b"old"
     assert ui_env.rerun_count == 0
     assert ui_env.session_state["orch_o1_upload_counter"] == 1
+
+
+def test_orch_send_persists_raw_uploads_and_sets_notice(ui_env, monkeypatch):
+    """Sending with attachments must save their RAW BYTES into
+    history/<tid>/files and put the thread-files notice into file_ctx."""
+    orch_page = _orch_chat_env(ui_env, monkeypatch, [])
+    ui_env.session_state["orch_o1_thread_id"] = "tid-test"
+    ui_env.session_state["orch_o1_attached"] = [
+        {"name": "doc.txt", "data": b"hello d1", "bytes": 8},
+        {"name": "arch.zip", "data": b"PK\x03\x04raw", "bytes": 7},
+    ]
+    ui_env.chat_input = lambda *a, **k: "go"
+    monkeypatch.setattr(orch_page, "_do_step", lambda slug, lang: None)
+    _rerender(ui_env, lambda: orch_page._render_chat_tab("o1", "English"))
+
+    assert ui_env.session_state["orch_o1_user_message"] == "go"
+    assert ui_env.session_state["orch_o1_attached"] == []
+
+    import core.threads_devagent as td
+    records = td.list_thread_files("tid-test")
+    names = {r["name"]: r for r in records}
+    assert set(names) == {"doc.txt", "arch.zip"}, names
+    assert td.read_thread_file("tid-test", "doc.txt")["content"] == "hello d1"
+    assert td.read_thread_file("tid-test", "arch.zip")["is_text"] is False
+
+    notice = ui_env.session_state["orch_o1_file_ctx"]
+    assert "doc.txt" in notice and "arch.zip" in notice, notice

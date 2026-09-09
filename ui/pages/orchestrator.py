@@ -22,9 +22,8 @@ from core.services import (
 )
 from core.config import load_config
 from core.files import (
-    get_file_uploader_types, extract_file_content, check_context, estimate_tokens,
-    check_upload_tokens, MAX_UPLOAD_TOKENS,
-    build_attachment_metadata, build_attachments_context, build_saved_files_registry,
+    check_context,
+    build_saved_files_registry, build_thread_files_notice, MAX_THREAD_FILE_BYTES,
 )
 from core.fs import combine_nonempty
 from core.api_layer import send_request
@@ -33,6 +32,7 @@ from core.threads_devagent import (
     create_devagent_thread, load_thread_messages,
     append_thread_message, load_thread_meta,
     sum_thread_tokens, save_thread_workspace,
+    save_thread_file_data, list_thread_files,
 )
 from dev_agent.universal_agent import UniversalDevAgent
 from dev_agent.agent_loop import (
@@ -1245,30 +1245,35 @@ def _render_chat_tab(slug: str, lang: str) -> None:
 
         uploaded_files = st.file_uploader(
             t("orch_attach_label", lang=lang),
-            type=get_file_uploader_types(),
+            type=None,
             accept_multiple_files=True,
             key=f"orch_upload_{slug}_{int(_ss(slug, 'upload_counter') or 0)}",
             label_visibility="collapsed",
         )
-        st.caption(t("file_uploader_types", lang=lang,
-                     types=", ".join(get_file_uploader_types())))
+        st.caption(t("orch_attach_any_type", lang=lang))
 
         if uploaded_files:
+            # Attach the raw bytes UNCHANGED - the platform never parses upload
+            # content. The agent itself decides when/how to extract it after
+            # sending (list_thread_files / read_thread_file, or run_code).
             existing_names = {f["name"] for f in att_files}
             added = False
             for uf in uploaded_files:
                 if uf.name in existing_names:
                     continue
                 try:
-                    content = extract_file_content(uf)
+                    data = uf.read()
                 except Exception:
                     continue
-                ok_tokens, tokens = check_upload_tokens(content)
-                if not ok_tokens:
-                    st.error(t("file_too_large_tokens", lang=lang,
-                               tokens=tokens, max_tokens=MAX_UPLOAD_TOKENS))
+                if len(data) > MAX_THREAD_FILE_BYTES:
+                    st.error(t("orch_file_too_large_bytes", lang=lang,
+                               max_bytes=MAX_THREAD_FILE_BYTES))
                     continue
-                att_files.append(build_attachment_metadata(uf.name, content))
+                att_files.append({
+                    "name": uf.name,
+                    "data": bytes(data),
+                    "bytes": len(data),
+                })
                 added = True
             _set_ss(slug, "attached", att_files)
             # Recreate the uploader widget after processing so the files just
@@ -1298,19 +1303,22 @@ def _render_chat_tab(slug: str, lang: str) -> None:
             tid = _ss(slug, "thread_id")
             if tid:
                 ws_root = wt.current_workspace().get("root", "")
-                # Persist EVERY attachment on disk (small or large) so it
-                # stays available for the whole dialog. Small files keep
-                # their full inline content in this first message too.
+                # Persist EVERY attachment as RAW BYTES into history/<tid>/files.
+                saved_names = []
                 for f in att_files:
-                    if not f.get("path"):
-                        try:
-                            f["path"] = _save_attachment_to_workspace(ws_root, tid, f)
-                        except Exception:
-                            f["path"] = ""
-                if att_files:
-                    ctx_text, name = build_attachments_context(att_files)
-                # Re-announce ALL files of this dialog on every message so
-                # the agent still knows them when economy mode has dropped
+                    try:
+                        save_thread_file_data(tid, f.get("name", ""), f.get("data") or b"")
+                        saved_names.append(f.get("name", ""))
+                    except Exception:
+                        continue
+                if saved_names:
+                    # Tell the agent exactly which files belong to this dialog.
+                    # The notice lists names, absolute paths, sizes and the
+                    # text/binary classification - without extracting content.
+                    ctx_text = build_thread_files_notice(list_thread_files(tid))
+                    name = ", ".join(n for n in saved_names if n)
+                # Re-announce ALL legacy workspace attachments on every message
+                # so the agent still knows them when economy mode has dropped
                 # the beginning of the conversation.
                 registry = build_saved_files_registry(_load_attachments_manifest(ws_root, tid))
                 if registry:

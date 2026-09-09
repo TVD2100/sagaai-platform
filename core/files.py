@@ -3,6 +3,8 @@
 core.files - file extraction, token estimation, context checking.
 No streamlit imports.
 """
+from pathlib import Path
+
 from core.paths import TEXT_FILE_EXTENSIONS, SUPPORTED_UPLOAD_TYPES
 from core.fs import decode_bytes
 
@@ -19,6 +21,12 @@ MAX_UPLOAD_TOKENS = 500_000
 # are saved into the dialog's files folder; only metadata + a preview are
 # passed to the orchestrator (see build_attachment_metadata / build_attachments_context).
 MAX_INLINE_UPLOAD_CHARS = 60_000
+
+# Maximum size of a single dialog attachment saved into history/<tid>/files.
+# The platform stores raw bytes only and never parses uploads; the orchestrator
+# decides itself when and how to extract content (read_thread_file for text,
+# run_code with zipfile/PIL/... for other formats).
+MAX_THREAD_FILE_BYTES = 100 * 1024 * 1024
 
 
 def get_file_uploader_types() -> list:
@@ -142,6 +150,31 @@ def build_saved_files_registry(attachments: list) -> str:
         chars = f.get("chars", 0)
         tokens = f.get("tokens", 0)
         lines.append(f"- {name} ({path}, {chars} chars, ~{tokens} tokens)")
+    return "\n".join(lines)
+
+
+def build_thread_files_notice(files: list, header: str = "Прикреплённые файлы диалога:") -> str:
+    """Return a compact notice describing files saved in the dialog's files
+    folder (``history/<tid>/files``).
+
+    ``files`` is a list of records produced by
+    ``core.threads_devagent.list_thread_files``: ``{name, path, bytes, is_text,
+    probe}``. The notice is injected into the user message at send time AND
+    into the per-request thread-context prefix, so the orchestrator always
+    knows which files belong to the dialog. The platform never parses upload
+    contents here - the orchestrator decides itself when and how to extract
+    content (``read_thread_file`` for text, ``run_code`` for other formats).
+    """
+    if not files:
+        return ""
+    lines = [header]
+    for f in files:
+        name = f.get("name", "?")
+        path = str(f.get("path", "") or "") or "?"
+        size = f.get("bytes", -1)
+        size_part = f"{size} bytes" if size >= 0 else "size unknown"
+        marker = "text" if f.get("is_text") else "binary"
+        lines.append(f"- {name} ({path}, {size_part}, {marker})")
     return "\n".join(lines)
 
 

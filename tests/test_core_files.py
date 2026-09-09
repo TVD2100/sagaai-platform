@@ -5,7 +5,8 @@ from core.files import (
     check_upload_tokens, MAX_UPLOAD_TOKENS, estimate_tokens,
     MAX_INLINE_UPLOAD_CHARS, should_store_uploaded_file,
     build_attachment_metadata, build_attachments_context,
-    build_saved_files_registry,
+    build_saved_files_registry, build_thread_files_notice,
+    MAX_THREAD_FILE_BYTES,
 )
 
 
@@ -110,3 +111,42 @@ def test_build_saved_files_registry_entries():
     assert "Сохранённые файлы диалога:" in reg
     assert "a.txt (.dev_agent/attachments/t1/a.txt, 100 chars, ~30 tokens)" in reg
     assert "b.md (.dev_agent/attachments/t1/b.md, 5000 chars, ~1200 tokens)" in reg
+
+
+def test_max_thread_file_bytes_constant():
+    assert MAX_THREAD_FILE_BYTES == 100 * 1024 * 1024
+
+
+def test_build_thread_files_notice_empty():
+    assert build_thread_files_notice([]) == ""
+    assert build_thread_files_notice(None) == ""
+
+
+def test_build_thread_files_notice_entries():
+    files = [
+        {"name": "archive.zip", "path": "/tmp/history/t1/files/archive.zip",
+         "bytes": 1024, "is_text": False},
+        {"name": "notes.txt", "path": "/tmp/history/t1/files/notes.txt",
+         "bytes": 12, "is_text": True},
+    ]
+    notice = build_thread_files_notice(files)
+    assert "Прикреплённые файлы диалога:" in notice
+    assert "/tmp/history/t1/files/archive.zip" in notice
+    assert "1024 bytes, binary" in notice
+    assert "12 bytes, text" in notice
+
+
+def test_build_thread_files_notice_custom_header():
+    notice = build_thread_files_notice(
+        [{"name": "a.txt", "path": "/x/a.txt", "bytes": 1, "is_text": True}],
+        header="Files of the dialog:",
+    )
+    assert notice.startswith("Files of the dialog:")
+
+
+def test_build_thread_files_notice_unknown_size():
+    notice = build_thread_files_notice(
+        [{"name": "b.bin", "bytes": -1, "path": "", "is_text": False}]
+    )
+    assert "size unknown" in notice
+    assert "?" in notice

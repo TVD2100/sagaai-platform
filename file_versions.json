@@ -6,7 +6,7 @@
     "ru": "Первая публикация конвейера обновлений: манифест версий файлов (file_versions.json) и встроенный апдейтер.",
     "en": "First release of the update pipeline: file version manifest (file_versions.json) and the built-in updater."
   },
-  "updated": "2026-09-08T20:55:00Z",
+  "updated": "2026-09-09T08:07:30Z",
   "units": {
     "core": {
       "version": "1.0.0",
@@ -104,8 +104,8 @@
           "sha256": "75847f514fdc496cbf8ce91e4f627eac6b94cf888f37b74f1b156ee06ae7f677"
         },
         "core/files.py": {
-          "version": "1.0.0",
-          "sha256": "fe1f9ab8c691e1333bb1636e7746a0f8c6e2918494a2116f09f540ed1bfbce53"
+          "version": "1.1.0",
+          "sha256": "3921220298c2aa3a4e725ad1248c4c9a62925c54a3df6706f0cecdf20e8c322d"
         },
         "core/fs.py": {
           "version": "1.0.0",
@@ -204,8 +204,8 @@
           "sha256": "fd2a5e55710b34a6c6b573bdc50a380c7276db80b1b4f061a11f443441588cee"
         },
         "core/threads_devagent.py": {
-          "version": "1.0.0",
-          "sha256": "e7af152ac882c5536398dd1709c53178afa4e376b744b1117d06f5e17b645da3"
+          "version": "1.1.0",
+          "sha256": "de2fc7e2ef39d1ca1c73335e0efb10cc22100f15266f703bd2ef3942bcb3f01b"
         },
         "core/tools_utils.py": {
           "version": "1.0.0",
@@ -220,8 +220,8 @@
           "sha256": "d87092665bbf50e5270ad17b3c2c7eb8230b22ae968f52113672025267ead063"
         },
         "dev_agent/agent_loop.py": {
-          "version": "1.1.0",
-          "sha256": "de3062309658809ec3170eebdbebb98b0cc50a857c66aa811a1298c0da036042"
+          "version": "1.2.0",
+          "sha256": "18e1a5171d593c3ca54ee77070a596a88dd509adab0dd65caaed6e52f6dfbb9e"
         },
         "dev_agent/assistant_detector.py": {
           "version": "1.0.0",
@@ -256,8 +256,8 @@
           "sha256": "21b7b333f7e9ebc627a63f7488347adc1c3345b36974b34a995c8c9dd8b2a7c7"
         },
         "dev_agent/universal_agent.py": {
-          "version": "1.2.0",
-          "sha256": "925cd5cbd896ccc6cc8551cb48cda5445f72de23df6b4b2cae9481f1a1d39e60"
+          "version": "1.3.0",
+          "sha256": "6beaecda084861fd6f8998c48cf6ba54e4160169b995d0cbd904a716f4b5df79"
         },
         "dev_agent/workspace_tools.py": {
           "version": "1.0.0",
@@ -424,8 +424,8 @@
           "sha256": "ac6e111ac2e8d2e01dfff702995c3214d33bf356a8f0c9a5a03bf4ce4a385091"
         },
         "tests/test_core_files.py": {
-          "version": "1.0.0",
-          "sha256": "ea40578f31fe7ee9685af34d058fcdc3c4077d42db79932c21e28a7a36ca3b3f"
+          "version": "1.0.1",
+          "sha256": "0632e6c1c0c09753b4abfa8d76173383f5c162cc6e94425066a8ce962a4db624"
         },
         "tests/test_crypto.py": {
           "version": "1.0.0",
@@ -636,8 +636,8 @@
           "sha256": "526cee36f97ef6f49d07c6c6290927d6cd951e3473df6cbb8fc7d604455daf47"
         },
         "tests/test_usability_fixes.py": {
-          "version": "1.0.0",
-          "sha256": "2ff3a90fc5922b1d026cf9ab5cb2b255b88e54c5dfbdadba551a2c3f88edf87d"
+          "version": "1.0.1",
+          "sha256": "9f3cdec66090789be631f6dea3801deb1a141e90ec8273a826c6f86ad718d5c3"
         },
         "tests/test_web_search_prompt.py": {
           "version": "1.0.0",
@@ -684,8 +684,8 @@
           "sha256": "448dbf67eff496ec7d2689ef5d6f5be3640b79162e7456934ed478856b54ca74"
         },
         "ui/pages/orchestrator.py": {
-          "version": "1.2.0",
-          "sha256": "b9c8115f3c2f734df853d2dd036ddeee9c235bf0f1adecf0576a12826794232e"
+          "version": "1.3.0",
+          "sha256": "3826f6a8d68bab2f600b47b5e3f4103825a1010123978a6e85a50020cd485bcb"
         },
         "ui/pages/orchestrator_settings.py": {
           "version": "1.1.0",
@@ -794,6 +794,22 @@
         "tests/scenarios/test_access_scenarios.py": {
           "version": "1.0.0",
           "sha256": "e5e7389b55b2a21eda9f04c56246191561e647c30b3a5e45ed9b60b21768185e"
+        },
+        "tests/test_agent_loop_thread_context.py": {
+          "version": "1.0.0",
+          "sha256": "0059ab9058cbd45a753543dc965887a1c76103e29b89c3e5b4bee193d20b5982"
+        },
+        "tests/test_threads_devagent_files.py": {
+          "version": "1.0.0",
+          "sha256": "e61b826d4bbab935e1f91c2419b1ac7c59760c041ee761610c61d4821c957a33"
+        },
+        "tests/test_universal_agent_thread_files.py": {
+          "version": "1.0.0",
+          "sha256": "4b3c78afb382a816bc0d9e1f4518543a6cee44c926e12fe5b607993ef23d429d"
+        },
+        "tests/scenarios/test_orchestrator_thread_files.py": {
+          "version": "1.0.0",
+          "sha256": "e498ab8b7c76d451c5ae176a508668011855d73774820a68899eba8a9d16388e"
         }
       }
     }
@@ -824,11 +840,11 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.3.0",
-      "sha256": "670e2d2b15eab84a8f63176d0b94a387023d30cd277d4fb6b73687568ca545a4",
+      "version": "1.4.0",
+      "sha256": "c7c31f3a625ff1b7ae291b32598870b17b85c636c4a4d9b65e6a39e1a1922b62",
       "note": {
-        "ru": "Добавлены файлы страницы «Доступы» (ui/pages/access.py, тесты) и обновлены описания core/auth.py, core/config.py, ui/app.py; символы пересобраны.",
-        "en": "Added the Access-page files (ui/pages/access.py, tests) and updated descriptions for core/auth.py, core/config.py, ui/app.py; symbols rebuilt."
+        "ru": "Добавлены файлы thread-uploads (core/threads_devagent.py, новые тесты) и обновлены описания orchestrator.py, core/files.py, agent_loop.py, universal_agent.py.",
+        "en": "Added thread-upload files (core/threads_devagent.py, new tests) and updated descriptions for orchestrator.py, core/files.py, agent_loop.py, universal_agent.py."
       }
     },
     "README.md": {
@@ -840,11 +856,11 @@
       }
     },
     "SPEC.md": {
-      "version": "1.3.0",
-      "sha256": "ff007d74abecd67aea188cefffc4f08e28406a728df337a9fb0bb898e85c3a1d",
+      "version": "1.4.0",
+      "sha256": "14d7a656ca5b4fc2c332b8f74558bb8614e31fff74c3ce78b46d174ff395808c",
       "note": {
-        "ru": "Добавлен FR14 - доступ к приложению (страница «Доступы», пароль, интервал повторного запроса, приоритет формы над env).",
-        "en": "Added FR14 - app access (Access page, password, re-ask interval, form-over-env priority)."
+        "ru": "FR4 дополнен хранением файлов диалога как сырых байтов в history/<tid>/files; FR6 дополнен загрузчиком вложений любого формата, уведомлениями и инструментами list_thread_files/read_thread_file.",
+        "en": "FR4 extended with raw-bytes dialog file storage in history/<tid>/files; FR6 extended with the any-format uploader, notifications and the list_thread_files/read_thread_file tools."
       }
     },
     "defaults/README.md": {
@@ -904,11 +920,11 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.3.1",
-      "sha256": "660d8193cb22b25a106d4e46480c945ad436ceec1a5ba10acd01c66127a09110",
+      "version": "1.3.2",
+      "sha256": "f482effcd5d8ffa03662f7b22c3d32d9b5cd570fe7b26d7749c66a98e0382701",
       "note": {
-        "ru": "Добавлены ключи вкладки «Другое» (лимит шагов автономного цикла) для настроек сотрудника.",
-        "en": "Added the Other-tab (autonomous-loop step limit) keys for employee settings."
+        "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
+        "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
       }
     },
     "defaults/langs/en_guide.md": {
@@ -920,11 +936,11 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.3.1",
-      "sha256": "a07d1e7556e92155563ac18d6d5ab354f89faa6e33c161164dc96b0bfa243536",
+      "version": "1.3.2",
+      "sha256": "e380b635459772532f730a8d11b4e033bb0e7b9d599833d825a3884b5f5c04d5",
       "note": {
-        "ru": "Добавлены ключи вкладки «Другое» (лимит шагов автономного цикла) для настроек сотрудника.",
-        "en": "Added the Other-tab (autonomous-loop step limit) keys for employee settings."
+        "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
+        "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
       }
     },
     "defaults/langs/ru_guide.md": {
@@ -936,11 +952,11 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.3.1",
-      "sha256": "2fa970c3d958db44eda44a0f80d5bdb958b6163a34026acb88fa892c31f186e2",
+      "version": "1.3.2",
+      "sha256": "d7cd5e240a546533beea7e2fda481bda210de2daf5f7139ac43576e0a76a1c60",
       "note": {
-        "ru": "Добавлены ключи вкладки «Другое» (лимит шагов автономного цикла) для настроек сотрудника.",
-        "en": "Added the Other-tab (autonomous-loop step limit) keys for employee settings."
+        "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
+        "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
       }
     },
     "defaults/langs/zh_CN_guide.md": {
@@ -1152,19 +1168,19 @@
       }
     },
     "dev_agent/system_prompt.md": {
-      "version": "3.7",
-      "sha256": "1da5d6ce11ee17c7452d60da639ee9e199e89b6e81c29f450d0e8c06adc3f7ba",
+      "version": "3.8",
+      "sha256": "84acfd81fd358ba4faa21efa887097254d950027a8faa9138b7e2bf9118f5ce3",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Промпт обновлён до v3.8: инструменты list_thread_files/read_thread_file и правило «агент сам решает, когда извлекать содержимое вложений».",
+        "en": "Prompt updated to v3.8: list_thread_files/read_thread_file tools and the rule that the agent itself decides when to extract attachment content."
       }
     },
     "langs/en.json": {
-      "version": "1.3.1",
-      "sha256": "660d8193cb22b25a106d4e46480c945ad436ceec1a5ba10acd01c66127a09110",
+      "version": "1.3.2",
+      "sha256": "f482effcd5d8ffa03662f7b22c3d32d9b5cd570fe7b26d7749c66a98e0382701",
       "note": {
-        "ru": "Добавлены ключи вкладки «Другое» (лимит шагов автономного цикла) для настроек сотрудника.",
-        "en": "Added the Other-tab (autonomous-loop step limit) keys for employee settings."
+        "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
+        "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
       }
     },
     "langs/en_guide.md": {
@@ -1176,11 +1192,11 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.3.1",
-      "sha256": "04abd66b96a2db503be5231782d2fc42af870700bb6df5c09bcad73293285e52",
+      "version": "1.3.2",
+      "sha256": "9302a46f4924d5be3c969e06c7c24627afeb9466133db2faac738f2bb6eb325c",
       "note": {
-        "ru": "Добавлены ключи вкладки «Другое» (лимит шагов автономного цикла) для настроек сотрудника.",
-        "en": "Added the Other-tab (autonomous-loop step limit) keys for employee settings."
+        "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
+        "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
       }
     },
     "langs/ru_guide.md": {
@@ -1192,11 +1208,11 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.3.1",
-      "sha256": "2fa970c3d958db44eda44a0f80d5bdb958b6163a34026acb88fa892c31f186e2",
+      "version": "1.3.2",
+      "sha256": "d7cd5e240a546533beea7e2fda481bda210de2daf5f7139ac43576e0a76a1c60",
       "note": {
-        "ru": "Добавлены ключи вкладки «Другое» (лимит шагов автономного цикла) для настроек сотрудника.",
-        "en": "Added the Other-tab (autonomous-loop step limit) keys for employee settings."
+        "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
+        "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
       }
     },
     "langs/zh_CN_guide.md": {
@@ -1229,6 +1245,22 @@
       "note": {
         "ru": "Из настроек провайдера YandexAI убраны лишние поля Web search context size / allowed domains.",
         "en": "Removed the redundant Web search context size / allowed domains fields from the YandexAI provider settings."
+      }
+    },
+    "defaults/orchestrators/dev_agent/instructions/repo_sync.md": {
+      "version": "1.0.0",
+      "sha256": "bc14b731449028a6e6f84e19efbc564c1f370f6cccc2d1b13d1701e22602b070",
+      "note": {
+        "ru": "Workflow публикации файлов репозитория на GitHub через манифест. CHANGELOG.md навсегда исключён из загрузки.",
+        "en": "Repository publish workflow via the manifest. CHANGELOG.md is permanently excluded from uploads."
+      }
+    },
+    "defaults/orchestrators/dev_agent/instructions/local_repo_guide.md": {
+      "version": "1.0.0",
+      "sha256": "8bf4bd185c595036276f4edb933fd279a6662d6bb9aedf82cc2ca741999aab81",
+      "note": {
+        "ru": "Руководство по локальной копии репозитория: карта файлов, правка промптов/инструкций, манифест. CHANGELOG.md навсегда исключён из загрузки.",
+        "en": "Guide to the local repository copy: file map, prompt/instruction edits, manifest. CHANGELOG.md is permanently excluded from uploads."
       }
     }
   }

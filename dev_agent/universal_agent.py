@@ -58,6 +58,8 @@ WORKSPACE_TOOL_CATALOG: List[Dict[str, str]] = [
     {"name": "snapshot_all", "desc": "Full-system backup of every project file. In single-file mode backs up only the target file. Args: [note]."},
     {"name": "list_snapshots", "desc": "List full-system snapshots. No args."},
     {"name": "restore_all", "desc": "Restore the whole system from a snapshot. Args: snapshot_id (str)."},
+    {"name": "list_thread_files", "desc": "List dialog uploads of this thread (history/<tid>/files). No args; uses the active thread. Reports names, absolute paths, sizes, text/binary kind - facts only, no content extraction."},
+    {"name": "read_thread_file", "desc": "Read a dialog upload as TEXT with an optional line window. Args: file_name, [offset], [limit]. Binary files are reported as is_text=false with a hint to process them via run_code."},
     # ── Orchestrator management tools ──────────────────────────────────────
     {"name": "list_orchestrators", "desc": "List all orchestrators (slug, name, description). No args."},
     {"name": "get_orchestrator", "desc": "Return a single orchestrator including prompt_text. Args: slug."},
@@ -99,6 +101,8 @@ WORKSPACE_TOOL_ARGS: Dict[str, Dict[str, set]] = {
     "snapshot_all": {"required": set(), "optional": {"note"}},
     "list_snapshots": {"required": set(), "optional": set()},
     "restore_all": {"required": {"snapshot_id"}, "optional": set()},
+    "list_thread_files": {"required": set(), "optional": set()},
+    "read_thread_file": {"required": {"file_name"}, "optional": {"offset", "limit"}},
     "list_orchestrators": {"required": set(), "optional": set()},
     "get_orchestrator": {"required": {"slug"}, "optional": set()},
     "create_orchestrator": {
@@ -221,6 +225,8 @@ class UniversalDevAgent:
             "snapshot_all": lambda **kw: self._snapshot_all(**kw),
             "list_snapshots": lambda **kw: wt.list_snapshots(**kw),
             "restore_all": lambda **kw: self._restore_all(**kw),
+            "list_thread_files": lambda **kw: self._list_thread_files(**kw),
+            "read_thread_file": lambda **kw: self._read_thread_file(**kw),
             # Orchestrator management tools
             "list_orchestrators": lambda **kw: self._list_orchestrators(**kw),
             "get_orchestrator": lambda **kw: self._get_orchestrator(**kw),
@@ -436,6 +442,38 @@ class UniversalDevAgent:
 
     def _restore_all(self, snapshot_id: str | int, **kwargs) -> Dict[str, Any]:
         return wt.restore_all(str(snapshot_id))
+
+    # ─── dialog upload tool wrappers (history/<tid>/files) ─────────────────
+
+    @staticmethod
+    def _active_thread_id() -> str:
+        """Return the active dialog thread id published by the agent loop."""
+        from dev_agent import config as _dagent_config
+        return (getattr(_dagent_config, "ACTIVE_THREAD_ID", "") or "").strip()
+
+    def _list_thread_files(self, **kwargs) -> Dict[str, Any]:
+        from core.threads_devagent import list_thread_files
+        tid = self._active_thread_id()
+        if not tid:
+            return {"ok": False, "error": "No active dialog thread: cannot list dialog uploads."}
+        records = list_thread_files(tid)
+        return {"ok": True, "thread_id": tid, "count": len(records), "files": records}
+
+    def _read_thread_file(self, file_name: str = "", offset: Optional[int] = None,
+                          limit: Optional[int] = None, **kwargs) -> Dict[str, Any]:
+        from core.threads_devagent import read_thread_file
+        tid = self._active_thread_id()
+        if not tid:
+            return {"ok": False, "error": "No active dialog thread: cannot read dialog uploads."}
+        if not file_name:
+            return {"ok": False, "error": "Missing required argument 'file_name'."}
+        # The dispatch layer cannot coerce through the **kwargs lambda, so cast
+        # stringified numerics here (e.g. {"offset": "2"} -> 2).
+        if offset is not None and not isinstance(offset, int):
+            offset = int(str(offset))
+        if limit is not None and not isinstance(limit, int):
+            limit = int(str(limit))
+        return read_thread_file(tid, str(file_name), offset=offset, limit=limit)
 
     # ─── orchestrator tool wrappers ────────────────────────────────────────
 
