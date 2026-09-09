@@ -123,6 +123,24 @@ def write_running_marker(root):
     )
 
 
+def same_process_marker(root):
+    '''True when the running marker for <root> was written by THIS process.
+
+    streamlit re-executes app.py on every rerun inside the same OS process,
+    so app.py uses this helper to run the cold-start apply hook only once.
+    On Windows this also matters for safety: os.kill(pid, 0) is not an
+    existence probe there, it sends CTRL_C_EVENT to our own console group.
+    '''
+    marker = running_marker_path(root)
+    if not os.path.isfile(marker):
+        return False
+    data = _read_json_file(marker, None)
+    if not isinstance(data, dict):
+        return False
+    pid = data.get('pid')
+    return isinstance(pid, int) and pid == os.getpid()
+
+
 def _pid_state(pid):
     """Return the ps state letter (uppercase) of <pid>, or None."""
     if os.name != 'posix':
@@ -151,6 +169,32 @@ def _pid_start_time(pid):
     except ValueError:
         return None
     return stamp.timestamp()
+
+
+def _pid_alive_windows(pid):
+    """True when process <pid> exists on Windows; never sends signals.
+
+    OpenProcess + GetExitCodeProcess is a real existence check. Unlike
+    os.kill(pid, 0), it never delivers a console control event: CPython on
+    Windows maps signal 0 to CTRL_C_EVENT for its own console group, which
+    kills the running streamlit server. Returns False on any failure
+    (permission denied, process gone, kernel call failed).
+    """
+    import ctypes
+
+    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+    STILL_ACTIVE = 259  # a living process reports this pseudo exit code
+    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+    handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not handle:
+        return False
+    try:
+        exit_code = ctypes.c_ulong()
+        if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+            return False
+        return exit_code.value == STILL_ACTIVE
+    finally:
+        kernel32.CloseHandle(handle)
 
 
 def _marker_unixtime(value):
@@ -195,9 +239,17 @@ def is_app_running(root):
     pid = data.get('pid')
     if not (isinstance(pid, int) and pid > 0):
         return False
+    if pid == os.getpid():
+        # This process wrote the marker; it is certainly alive. Also avoids
+        # os.kill on Windows, where signal 0 is CTRL_C_EVENT (console kill).
+        return True
     state = _pid_state(pid)
     if state is None:
         # ps unavailable: conservative fallback.
+        if os.name == 'nt':
+            # NEVER use os.kill on Windows: it maps to a console-control
+            # event for the current console group, not an existence probe.
+            return _pid_alive_windows(pid)
         try:
             os.kill(pid, 0)
             return True
