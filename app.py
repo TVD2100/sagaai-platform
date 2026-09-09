@@ -1,5 +1,5 @@
 """
-app.py — thin entry point for the SagaAI Streamlit application.
+app.py - thin entry point for the SagaAI Streamlit application.
 Sets page config then delegates to ui.app.main().
 """
 import os
@@ -11,23 +11,26 @@ _project_root = os.path.dirname(os.path.abspath(__file__))
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from core.updater import apply_updates, write_running_marker  # noqa: E402
+from core.updater import apply_updates, same_process_marker, write_running_marker  # noqa: E402
 
 # Cold-start update hook: apply staged downloads while the app is not running
 # yet, then mark this process as live so the CLI refuses in-place apply.
-_apply_report = apply_updates(_project_root)
-print(
-    "[cold-start apply] ok=%s applied=%r failed=%r error=%r"
-    % (
-        _apply_report.get("ok"),
-        _apply_report.get("applied") or [],
-        _apply_report.get("failed"),
-        _apply_report.get("error"),
-    ),
-    file=sys.stderr,
-    flush=True,
-)
-write_running_marker(_project_root)
+# Streamlit re-executes app.py on every rerun inside the same process, so the
+# marker identifies reruns and the hook runs only on the real cold start.
+if not same_process_marker(_project_root):
+    _apply_report = apply_updates(_project_root)
+    print(
+        "[cold-start apply] ok=%s applied=%r failed=%r error=%r"
+        % (
+            _apply_report.get("ok"),
+            _apply_report.get("applied") or [],
+            _apply_report.get("failed"),
+            _apply_report.get("error"),
+        ),
+        file=sys.stderr,
+        flush=True,
+    )
+    write_running_marker(_project_root)
 
 import streamlit as st
 
@@ -38,7 +41,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-from core.paths import ensure_data_dirs  # noqa: E402 — after st.set_page_config
+from core.paths import ensure_data_dirs  # noqa: E402 - after st.set_page_config
 from ui.app import main                  # noqa: E402
 
 ensure_data_dirs()
