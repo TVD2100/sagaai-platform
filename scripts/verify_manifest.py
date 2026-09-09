@@ -41,7 +41,16 @@ from datetime import datetime, timezone
 
 MANIFEST_NAME = "file_versions.json"
 # Files kept local-only: tracked by git but never published in the manifest.
-COVERAGE_SKIP = {".gitignore", MANIFEST_NAME, "CHANGELOG.md"}
+COVERAGE_SKIP = {
+    ".gitignore",
+    MANIFEST_NAME,
+    "CHANGELOG.md",
+    # Internal repo-maintenance instructions for DevAgent; they guide editing
+    # and publishing this repository copy and are never offered to end users
+    # as selectable updates.
+    "defaults/orchestrators/dev_agent/instructions/local_repo_guide.md",
+    "defaults/orchestrators/dev_agent/instructions/repo_sync.md",
+}
 CHANNEL = "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main"
 UNIT_NAME = "core"
 
