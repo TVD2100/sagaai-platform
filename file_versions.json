@@ -6,7 +6,7 @@
     "ru": "Первая публикация конвейера обновлений: манифест версий файлов (file_versions.json) и встроенный апдейтер.",
     "en": "First release of the update pipeline: file version manifest (file_versions.json) and the built-in updater."
   },
-  "updated": "2026-09-09T12:11:48Z",
+  "updated": "2026-09-09T12:44:55Z",
   "units": {
     "core": {
       "version": "1.0.0",
@@ -276,8 +276,8 @@
           "sha256": "12991aadc1114cbfcdf67face789b63745f29b07b14e961eeb9db369e00a7ae9"
         },
         "scripts/verify_manifest.py": {
-          "version": "1.0.2",
-          "sha256": "75483e6a7d4302c0d28ad74d8c471faf90b82662c41fa5d570003e0916df9060"
+          "version": "1.0.3",
+          "sha256": "d8139bc88ea8658614333176ce506fac86a7778a1ca10d0d64be067d311bbd13"
         },
         "storage/__init__.py": {
           "version": "1.0.0",
@@ -1245,22 +1245,6 @@
       "note": {
         "ru": "Из настроек провайдера YandexAI убраны лишние поля Web search context size / allowed domains.",
         "en": "Removed the redundant Web search context size / allowed domains fields from the YandexAI provider settings."
-      }
-    },
-    "defaults/orchestrators/dev_agent/instructions/repo_sync.md": {
-      "version": "1.0.0",
-      "sha256": "bc14b731449028a6e6f84e19efbc564c1f370f6cccc2d1b13d1701e22602b070",
-      "note": {
-        "ru": "Workflow публикации файлов репозитория на GitHub через манифест. CHANGELOG.md навсегда исключён из загрузки.",
-        "en": "Repository publish workflow via the manifest. CHANGELOG.md is permanently excluded from uploads."
-      }
-    },
-    "defaults/orchestrators/dev_agent/instructions/local_repo_guide.md": {
-      "version": "1.0.0",
-      "sha256": "8bf4bd185c595036276f4edb933fd279a6662d6bb9aedf82cc2ca741999aab81",
-      "note": {
-        "ru": "Руководство по локальной копии репозитория: карта файлов, правка промптов/инструкций, манифест. CHANGELOG.md навсегда исключён из загрузки.",
-        "en": "Guide to the local repository copy: file map, prompt/instruction edits, manifest. CHANGELOG.md is permanently excluded from uploads."
       }
     }
   }
