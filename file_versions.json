@@ -6,7 +6,7 @@
     "ru": "Первая публикация конвейера обновлений: манифест версий файлов (file_versions.json) и встроенный апдейтер.",
     "en": "First release of the update pipeline: file version manifest (file_versions.json) and the built-in updater."
   },
-  "updated": "2026-09-09T08:07:30Z",
+  "updated": "2026-09-09T12:11:48Z",
   "units": {
     "core": {
       "version": "1.0.0",
@@ -20,8 +20,8 @@
           "sha256": "c0c32fcbd798455f713c21ff241ef34333daf9ca5eaa132b1379377a5c09e12e"
         },
         "app.py": {
-          "version": "1.0.1",
-          "sha256": "4785e4ab8a2562d9f4098b524666d18ffa9afa20be34edc4120cd073b9c356f1"
+          "version": "1.0.2",
+          "sha256": "c6448f4b0ed4682d9706c2a1d9da9171b1ab63b5506bba6b9616df2d1489ad9b"
         },
         "assets/favicon.svg": {
           "version": "1.0.0",
@@ -732,12 +732,12 @@
           "sha256": "69f158e7c02e8511a8dc5506352813ccdaeb847009c741eca62e1f6d84f404c9"
         },
         "core/updater.py": {
-          "version": "1.0.1",
-          "sha256": "069286d748da1eb055aa445c7a78592ad119d4a5dabb8fca9e1f95de5e55165b"
+          "version": "1.0.2",
+          "sha256": "0f5791a46ff9bdf86f60741ca2394b58878f8dce4fd9c6ae3e5417639880ce2a"
         },
         "tests/test_updater.py": {
-          "version": "1.0.1",
-          "sha256": "db2c8ebfa9671fe51fd2d126eeebe51ad3cea97ee8211b77295d62b6b441a66d"
+          "version": "1.0.2",
+          "sha256": "322d5a33239df2192da08e1947bfc11b2a50555f794caa6f63824835064f76d0"
         },
         "ui/pages/updates.py": {
           "version": "1.0.1",
