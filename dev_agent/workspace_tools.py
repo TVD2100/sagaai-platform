@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from . import config
+from . import workspace_binding as wb
 from .backup_manager import BackupManager
 
 # ─── File-type filtering constants (formerly in dev_agent.constants) ──────────
@@ -73,9 +74,16 @@ def set_workspace(path: str) -> Dict[str, Any]:
     """Point DevAgent at a target work folder. Creates it if missing.
 
     Returns the resolved absolute root and whether it is the SagaAI install.
-    Clears any single-file mode.  The chosen folder is recorded in the
-    recent-workspaces history so future tasks can suggest it quickly.
+    Clears any single-file mode. The chosen folder is recorded in the
+    recent-workspaces history. The switch is serialized by the
+    workspace-binding RLock (see _set_workspace_impl).
     """
+    with wb.sync_lock():
+        return _set_workspace_impl(path)
+
+
+def _set_workspace_impl(path: str) -> Dict[str, Any]:
+    """Internal: perform the actual switch (sync_lock held)."""
     config.TARGET_FILE = None   # switching workspace clears single-file mode
 
     raw = str(path or "").strip()
@@ -110,7 +118,14 @@ def set_target_file(file_path: str) -> Dict[str, Any]:
 
     The workspace is set to the parent directory of the file.
     All scanning/mapping operations will only see this one file.
+    The switch is serialized by the workspace-binding RLock.
     """
+    with wb.sync_lock():
+        return _set_target_file_impl(file_path)
+
+
+def _set_target_file_impl(file_path: str) -> Dict[str, Any]:
+    """Internal: perform the actual switch (sync_lock held)."""
     raw = str(file_path or "").strip()
     if not raw:
         config.TARGET_FILE = None

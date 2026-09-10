@@ -1463,11 +1463,19 @@ def _step_agent_loop_impl(
 
     # Publish the active dialog thread id so the per-thread task-state
     # journal layer writes/reads TASK_STATE__<thread_id>.md for THIS dialog.
+    # Threads with a registered workspace binding publish it via the binding,
+    # so the switch and the thread id change atomically under the RLock.
+    _tid = (getattr(state, "thread_id", "") or "").strip()
     try:
         from dev_agent import config as _dagent_config
-        _dagent_config.ACTIVE_THREAD_ID = (getattr(state, "thread_id", "") or "").strip()
+        from dev_agent import workspace_binding as _wb
+        if not _wb.ensure_thread_active(_tid):
+            _dagent_config.ACTIVE_THREAD_ID = _tid
     except Exception:
-        pass
+        try:
+            _dagent_config.ACTIVE_THREAD_ID = _tid
+        except Exception:
+            pass
 
     # Requirement: the journal is written for EVERY task. Auto-create a
     # scaffold journal for this thread when it does not exist yet, so the

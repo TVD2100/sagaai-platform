@@ -23,6 +23,7 @@ from typing import Any, Dict, List, Optional, Callable, Tuple
 
 from . import config
 from . import workspace_tools as wt
+from . import workspace_binding as wb
 from .tool_executor import _coerce_numeric_args
 from storage.models import DEFAULT_MAX_STEPS
 
@@ -199,7 +200,8 @@ build_skill_dict_from_config = build_assistant_dict_from_config
 class UniversalDevAgent:
     """Universal-developer dispatch surface = core tools + workspace tools."""
 
-    def __init__(self, workspace: Optional[str] = None, target_file: Optional[str] = None):
+    def __init__(self, workspace: Optional[str] = None, target_file: Optional[str] = None,
+                 thread_id: Optional[str] = None):
         # Lazy import to break circular dependency with dev_agent.py
         from .tool_executor import ToolExecutor as DevAgent
         if target_file:
@@ -210,6 +212,15 @@ class UniversalDevAgent:
         # currently-selected workspace.
         self.core = DevAgent()
         self.target_file = target_file
+        self.thread_id: Optional[str] = (thread_id or "").strip() or None
+        if self.thread_id and not wb.has_thread(self.thread_id):
+            # Initial binding from the current live config state; the UI
+            # re-binds explicitly when restoring a thread from history.
+            wb.register_thread(self.thread_id,
+                               workspace=str(config.PROJECT_ROOT),
+                               target_file=config.TARGET_FILE or None)
+        if self.thread_id:
+            config.ACTIVE_THREAD_ID = self.thread_id
         self._extra: Dict[str, Callable[..., Dict[str, Any]]] = {
             "set_workspace": lambda **kw: self._set_workspace(**kw),
             "set_target_file": lambda **kw: self._set_target_file(**kw),
@@ -258,6 +269,18 @@ class UniversalDevAgent:
 
     # ─── dispatch ──────────────────────────────────────────────────────────
     def dispatch(self, tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Route a tool call under the binding of THIS dialog thread.
+
+        When the dispatcher knows its thread id and the thread has a bound
+        workspace state, the config globals are swapped to that state for the
+        duration of the call and restored right after (serialized by the
+        workspace-binding RLock). Unbound dispatchers fall back to the legacy
+        process-global behavior.
+        """
+        with wb.thread_context(self.thread_id) as _engaged:
+            return self._dispatch_impl(tool_name, args)
+
+    def _dispatch_impl(self, tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Route to core ToolExecutor or an extra workspace tool.
 
         Catalog tools are validated against WORKSPACE_TOOL_ARGS first: unknown
@@ -415,9 +438,50 @@ class UniversalDevAgent:
         self.core._web_search_config = old_web_search_config
 
     # ─── workspace-tool wrappers ───────────────────────────────────────────
+    def set_thread_id(self, thread_id: Optional[str]) -> None:
+        """Bind this dispatcher to a dialog thread (called by the UI).
+
+        Registers the thread in the workspace-binding registry using the
+        current live config state and publishes the id for the journal layer.
+        A None/empty id detaches the dispatcher (legacy process-global mode).
+        """
+        tid = (thread_id or "").strip() or None
+        self.thread_id = tid
+        if tid:
+            wb.register_thread(tid,
+                               workspace=str(config.PROJECT_ROOT),
+                               target_file=config.TARGET_FILE or None)
+            config.ACTIVE_THREAD_ID = tid
+
+    def _persist_thread_workspace(self) -> None:
+        """Save the current workspace/target_file into the thread's DB meta.
+
+        Best-effort: a persistence failure must never break the switch.
+        """
+        if not self.thread_id:
+            return
+        try:
+            from core.threads_devagent import save_thread_workspace
+            save_thread_workspace(
+                self.thread_id,
+                workspace=str(config.PROJECT_ROOT),
+                target_file=config.TARGET_FILE or None,
+            )
+        except Exception:
+            pass
+
+    def _sync_binding_after_switch(self) -> None:
+        """After a workspace switch: refresh the registry + DB binding."""
+        if self.thread_id:
+            wb.sync_registry_from_config(self.thread_id)
+        config.ACTIVE_THREAD_ID = self.thread_id or ""
+
     def _set_workspace(self, path: str, **kwargs) -> Dict[str, Any]:
         result = wt.set_workspace(path)
-        self.target_file = None
+        if result.get("ok"):
+            self.target_file = None
+            self._sync_binding_after_switch()
+            self._persist_thread_workspace()
         self._recreate_core_preserving_history()
         return result
 
@@ -425,6 +489,8 @@ class UniversalDevAgent:
         result = wt.set_target_file(file_path)
         if result.get("ok"):
             self.target_file = result.get("target_file")
+            self._sync_binding_after_switch()
+            self._persist_thread_workspace()
         self._recreate_core_preserving_history()
         return result
 

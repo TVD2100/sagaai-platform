@@ -28,7 +28,7 @@
 
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional
 
 # ─── Install root (fixed) ─────────────────────────────────────────────────────
 # DevAgent lives at:  <install_root>/dev_agent/config.py
@@ -139,36 +139,97 @@ def set_target_root(path) -> Path:
 
     Passing None or an empty value resets to the install root (legacy mode).
     """
-    global PROJECT_ROOT, WORKING_ON_INSTALL, _RUNTIME_DIR
-    global BACKUPS_DIR, WORKSPACE_DIR, CHANGELOG_FILE, TASK_STATES_DIR
-    global PROJECT_MAP_FILE, SPEC_FILE, ARCHITECTURE_FILE, README_FILE
-    global PROJECT_DOC_NAMES, PROTECTED_FILES
-    global TARGET_FILE
-
     if path is None or str(path).strip() == "":
-        os.environ.pop(TARGET_ENV_VAR, None)
+        # No os.environ mutation: the process environment is shared by all
+        # dialogs and leaked the last-switched workspace into subprocesses.
         new_root = INSTALL_ROOT
     else:
         new_root = Path(path).expanduser().resolve()
-        os.environ[TARGET_ENV_VAR] = str(new_root)
 
+    apply_paths(new_root, target_file=None, thread_id=None, create_dirs=True)
+    return PROJECT_ROOT
+
+
+def apply_paths(root, *, target_file: Optional[str] = None,
+                thread_id: Optional[str] = None,
+                create_dirs: bool = False) -> None:
+    """Repoint every derived path/flag at a (possibly new) target root.
+
+    The single writer for all mutable workspace state. Lighter than
+    set_target_root: does not create runtime dirs unless asked and does not
+    clear the target file unless one is explicitly provided. The workspace-
+    binding layer uses it to swap state for the duration of one tool call.
+    """
+    global PROJECT_ROOT, WORKING_ON_INSTALL, _RUNTIME_DIR
+    global BACKUPS_DIR, WORKSPACE_DIR, CHANGELOG_FILE, TASK_STATES_DIR
+    global PROJECT_MAP_FILE, SPEC_FILE, ARCHITECTURE_FILE, README_FILE
+    global PROJECT_DOC_NAMES, PROTECTED_FILES, TARGET_FILE, ACTIVE_THREAD_ID
+
+    new_root = Path(root).expanduser().resolve()
     PROJECT_ROOT = new_root
-    WORKING_ON_INSTALL = PROJECT_ROOT.resolve() == INSTALL_ROOT.resolve()
-    _RUNTIME_DIR = DEV_AGENT_DIR if WORKING_ON_INSTALL else (PROJECT_ROOT / ".dev_agent")
+    WORKING_ON_INSTALL = new_root == INSTALL_ROOT.resolve()
+    _RUNTIME_DIR = DEV_AGENT_DIR if WORKING_ON_INSTALL else (new_root / ".dev_agent")
     BACKUPS_DIR = _RUNTIME_DIR / "backups"
     WORKSPACE_DIR = _RUNTIME_DIR / "workspace"
     TASK_STATES_DIR = _RUNTIME_DIR / "task_states"
-    CHANGELOG_FILE = PROJECT_ROOT / "CHANGELOG.md"
-    PROJECT_MAP_FILE = PROJECT_ROOT / "PROJECT_MAP.md"
-    SPEC_FILE = PROJECT_ROOT / "SPEC.md"
-    ARCHITECTURE_FILE = PROJECT_ROOT / "ARCHITECTURE.md"
-    README_FILE = PROJECT_ROOT / "README.md"
+    CHANGELOG_FILE = new_root / "CHANGELOG.md"
+    PROJECT_MAP_FILE = new_root / "PROJECT_MAP.md"
+    SPEC_FILE = new_root / "SPEC.md"
+    ARCHITECTURE_FILE = new_root / "ARCHITECTURE.md"
+    README_FILE = new_root / "README.md"
     PROJECT_DOC_NAMES = ("PROJECT_MAP.md", "SPEC.md", "ARCHITECTURE.md", "CHANGELOG.md", "README.md")
     PROTECTED_FILES = _CORE_PROTECTED_FILES if WORKING_ON_INSTALL else ()
-    TARGET_FILE = None   # any workspace switch clears single-file mode
+    if target_file is not None:
+        TARGET_FILE = target_file or None
+    if thread_id is not None:
+        ACTIVE_THREAD_ID = thread_id
 
-    ensure_runtime_dirs()
-    return PROJECT_ROOT
+    if create_dirs:
+        ensure_runtime_dirs()
+
+
+def snapshot_state() -> Dict[str, Any]:
+    """Capture the full mutable workspace state for later restore_state()."""
+    return {
+        "PROJECT_ROOT": PROJECT_ROOT,
+        "WORKING_ON_INSTALL": WORKING_ON_INSTALL,
+        "BACKUPS_DIR": BACKUPS_DIR,
+        "WORKSPACE_DIR": WORKSPACE_DIR,
+        "TASK_STATES_DIR": TASK_STATES_DIR,
+        "CHANGELOG_FILE": CHANGELOG_FILE,
+        "PROJECT_MAP_FILE": PROJECT_MAP_FILE,
+        "SPEC_FILE": SPEC_FILE,
+        "ARCHITECTURE_FILE": ARCHITECTURE_FILE,
+        "README_FILE": README_FILE,
+        "PROJECT_DOC_NAMES": PROJECT_DOC_NAMES,
+        "PROTECTED_FILES": PROTECTED_FILES,
+        "TARGET_FILE": TARGET_FILE,
+        "ACTIVE_THREAD_ID": ACTIVE_THREAD_ID,
+    }
+
+
+def restore_state(state: Dict[str, Any]) -> None:
+    """Restore every mutable global captured by snapshot_state()."""
+    global PROJECT_ROOT, WORKING_ON_INSTALL
+    global BACKUPS_DIR, WORKSPACE_DIR, TASK_STATES_DIR
+    global CHANGELOG_FILE, PROJECT_MAP_FILE, SPEC_FILE
+    global ARCHITECTURE_FILE, README_FILE, PROJECT_DOC_NAMES
+    global PROTECTED_FILES, TARGET_FILE, ACTIVE_THREAD_ID
+
+    PROJECT_ROOT = state["PROJECT_ROOT"]
+    WORKING_ON_INSTALL = state["WORKING_ON_INSTALL"]
+    BACKUPS_DIR = state["BACKUPS_DIR"]
+    WORKSPACE_DIR = state["WORKSPACE_DIR"]
+    TASK_STATES_DIR = state["TASK_STATES_DIR"]
+    CHANGELOG_FILE = state["CHANGELOG_FILE"]
+    PROJECT_MAP_FILE = state["PROJECT_MAP_FILE"]
+    SPEC_FILE = state["SPEC_FILE"]
+    ARCHITECTURE_FILE = state["ARCHITECTURE_FILE"]
+    README_FILE = state["README_FILE"]
+    PROJECT_DOC_NAMES = state["PROJECT_DOC_NAMES"]
+    PROTECTED_FILES = state["PROTECTED_FILES"]
+    TARGET_FILE = state["TARGET_FILE"]
+    ACTIVE_THREAD_ID = state["ACTIVE_THREAD_ID"]
 
 
 def ensure_runtime_dirs() -> None:

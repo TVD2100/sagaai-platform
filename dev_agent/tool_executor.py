@@ -1197,6 +1197,9 @@ class ToolExecutor:
                     ),
                 }
 
+        # Per-call env/cwd: read config.* here, inside the dispatch critical
+        # section (workspace_binding.thread_context), so subprocesses always
+        # inherit THIS thread's root. os.environ is never mutated.
         env = dict(os.environ)
         # Make the project importable as a package (sagaai.dev_agent...).
         env["PYTHONPATH"] = str(config.PROJECT_ROOT.parent) + os.pathsep + env.get("PYTHONPATH", "")

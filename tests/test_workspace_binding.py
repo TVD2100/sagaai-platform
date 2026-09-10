@@ -156,7 +156,7 @@ def test_thread_context_unbound_is_engaged_false_no_swap(tmp_path):
     assert str(config.PROJECT_ROOT) == ws_a
 
 
-def test_thread_context_empty_id_no_swap():
+def test_thread_context_empty_id_no_swap(): 
     with wb.thread_context("") as ctx:
         assert ctx.engaged is False
 
