@@ -9,10 +9,10 @@
   "updated": "2026-09-10T12:59:03Z",
   "units": {
     "core": {
-      "version": "1.1.0",
+      "version": "1.2.0",
       "note": {
-        "ru": "Исполняемый код платформы (core, UI, хранилище, тесты). Обновляется только целиком, единым пакетом. 1.1.0: изоляция рабочей папки между параллельными диалогами DevAgent.",
-        "en": "Platform executable code (core, UI, storage, tests). Updates only as a single atomic unit. 1.1.0: per-dialog workspace isolation for parallel DevAgent chats."
+        "ru": "Исполняемый код платформы (core, UI, хранилище, тесты). Обновляется только целиком, единым пакетом. 1.2.0: SQLite-хаденнинг (WAL, busy_timeout, foreign_keys для основной БД, индекс сообщений), кэш строки токенов/economy и пагинация ленты чата.",
+        "en": "Platform executable code (core, UI, storage, tests). Updates only as a single atomic unit. 1.2.0: SQLite hardening (WAL, busy_timeout, foreign_keys for the main DB, message index), token/economy line cache and chat-feed pagination."
       },
       "files": {
         "__init__.py": {
@@ -284,12 +284,12 @@
           "sha256": "009189e351a9da1590470b27a3699067e5e4ffa93d8d0a4d4dc06676951a36db"
         },
         "storage/db.py": {
-          "version": "1.0.0",
-          "sha256": "6eb2648bf718589f01a6ff16012885ac2b39ec3e060d1e563e3adb33bfd1fdd1"
+          "version": "1.1.1",
+          "sha256": "79bed3de48f9a6282b23d6221aa95172e559a4324619a767659c00e9778db847"
         },
         "storage/models.py": {
-          "version": "1.1.0",
-          "sha256": "ce7058a55f4cc3f5363b055b4585833386e4feaf5d68a204d0b39061d0ced616"
+          "version": "1.2.0",
+          "sha256": "94b143f9fdc1717b31b8c96bdfa9a573e5bc431234d6b8df3b884cdbf9ba55fc"
         },
         "storage/repository.py": {
           "version": "1.1.0",
@@ -684,8 +684,8 @@
           "sha256": "448dbf67eff496ec7d2689ef5d6f5be3640b79162e7456934ed478856b54ca74"
         },
         "ui/pages/orchestrator.py": {
-          "version": "1.4.0",
-          "sha256": "96d63deaabf1a1ad17fe4a3000fff80a416540d2d1ba12ba91ccbc1973ee4971"
+          "version": "1.5.0",
+          "sha256": "66105b76714808c6f84f4e117d3e75c9d87f051315f4f2542fc9455aa114fe21"
         },
         "ui/pages/orchestrator_settings.py": {
           "version": "1.1.0",
@@ -822,6 +822,18 @@
         "tests/scenarios/test_workspace_binding_scenario.py": {
           "version": "1.0.0",
           "sha256": "89c2d62dcf37482dfd7dcf3b5f3b8c62e0eff19d8bff51a2dc3303f6e818d701"
+        },
+        "tests/test_db_concurrency.py": {
+          "version": "1.1.0",
+          "sha256": "d0baae4fb21fbf3d96f1043879ca157cbe3136150db2b89ef988904c0e221b0a"
+        },
+        "tests/test_token_line_cache.py": {
+          "version": "1.0.0",
+          "sha256": "be21ba628aa487b8f80f34796a1a18a376bd737c741c83c167232fc81479787c"
+        },
+        "tests/test_chat_pagination.py": {
+          "version": "1.0.0",
+          "sha256": "dc8d8e8c5d894cb9833232770c5398a8adc5184e0a0270493cf67ac8df5a722f"
         }
       }
     }
@@ -932,8 +944,8 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.3.2",
-      "sha256": "f482effcd5d8ffa03662f7b22c3d32d9b5cd570fe7b26d7749c66a98e0382701",
+      "version": "1.3.3",
+      "sha256": "3f2a825d97c35fa8001e02c4534401d389486db5bd55a5f461ec090154e80122",
       "note": {
         "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
         "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
@@ -948,8 +960,8 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.3.2",
-      "sha256": "e380b635459772532f730a8d11b4e033bb0e7b9d599833d825a3884b5f5c04d5",
+      "version": "1.3.3",
+      "sha256": "cf2396df1db8fcc893f888f7521e2ed45cd366c119198b4d141fa0165e916787",
       "note": {
         "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
         "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
@@ -964,8 +976,8 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.3.2",
-      "sha256": "d7cd5e240a546533beea7e2fda481bda210de2daf5f7139ac43576e0a76a1c60",
+      "version": "1.3.3",
+      "sha256": "a354897ae26e23f0d00ceab9ec8d41f8aec974802bc1932cc68097452a7cfd36",
       "note": {
         "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
         "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
@@ -1188,8 +1200,8 @@
       }
     },
     "langs/en.json": {
-      "version": "1.3.2",
-      "sha256": "f482effcd5d8ffa03662f7b22c3d32d9b5cd570fe7b26d7749c66a98e0382701",
+      "version": "1.3.3",
+      "sha256": "3f2a825d97c35fa8001e02c4534401d389486db5bd55a5f461ec090154e80122",
       "note": {
         "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
         "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
@@ -1204,8 +1216,8 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.3.2",
-      "sha256": "9302a46f4924d5be3c969e06c7c24627afeb9466133db2faac738f2bb6eb325c",
+      "version": "1.3.3",
+      "sha256": "be183b9ac0f19b017fa14776e3aa4bdacf30a14c23cb2f8ce7727adec59336a1",
       "note": {
         "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
         "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
@@ -1220,8 +1232,8 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.3.2",
-      "sha256": "d7cd5e240a546533beea7e2fda481bda210de2daf5f7139ac43576e0a76a1c60",
+      "version": "1.3.3",
+      "sha256": "a354897ae26e23f0d00ceab9ec8d41f8aec974802bc1932cc68097452a7cfd36",
       "note": {
         "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
         "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."

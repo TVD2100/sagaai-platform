@@ -509,6 +509,7 @@
   "orch_service_label_help": "此员工角色的模型提供商。",
   "orch_service_unavailable": "⚠️ 已保存的提供商 `{service}` 不可用。请选择其他提供商。",
   "orch_settings_title": "## ⚙️ 设置：{name}",
+  "orch_show_earlier": "显示更早的消息 ({count})",
   "orch_skills_empty": "尚未安装技能。请在 设置 → 技能 中添加。",
   "orch_skills_empty_hint": "前往 **设置 → 技能**，安装技能（ZIP、GitHub 或本地文件夹），然后选择此员工可用的技能。",
   "orch_skills_save_btn": "💾 保存技能",

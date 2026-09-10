@@ -509,6 +509,7 @@
   "orch_service_label_help": "The model provider for this employee role.",
   "orch_service_unavailable": "⚠️ Saved provider `{service}` is not available. Please pick another provider.",
   "orch_settings_title": "## ⚙️ Settings: {name}",
+  "orch_show_earlier": "Show earlier messages ({count})",
   "orch_skills_empty": "No skills installed yet. Add them under Settings → Skills.",
   "orch_skills_empty_hint": "Go to **Settings → Skills**, install a skill (ZIP, GitHub, or a local folder), then select the skills available to this employee.",
   "orch_skills_save_btn": "💾 Save skills",

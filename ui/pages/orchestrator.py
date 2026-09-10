@@ -43,6 +43,7 @@ from dev_agent.agent_loop import (
     approve_sanitized_content, deny_sanitized_content,
 )
 from dev_agent import workspace_tools as wt
+from dev_agent import workspace_binding as wb
 from storage.models import DEFAULT_MAX_STEPS
 
 from core.orchestrators import (
@@ -59,6 +60,11 @@ from core.orchestrators import (
 from core.skills_library import list_skills as list_library_skills
 from core.rag import list_bases_with_activity
 from core.connectors import list_connections
+
+
+# Pagination window for the chat feed: render at most this many messages
+# initially and widen the window by the same amount on "show earlier".
+CHAT_PAGE_SIZE = 50
 
 
 # ─── Session-state helpers ────────────────────────────────────────────────────
@@ -105,6 +111,9 @@ def _make_state_keys(slug: str) -> dict:
         # separately from loop_state so the accumulation window survives
         # loop-state clearing between turns.
         f"orch_{slug}_economy_cache": None,
+        # Rendered token/economy indicator line (md5 key + html), so the
+        # expensive context estimate is not recomputed on every rerun.
+        f"orch_{slug}_token_line_cache": None,
         f"orch_{slug}_auto_apply": True,
         f"orch_{slug}_attached": [],
         f"orch_{slug}_upload_counter": 0,
@@ -113,6 +122,8 @@ def _make_state_keys(slug: str) -> dict:
         f"orch_{slug}_stop_requested": False,
         f"orch_{slug}_dispatcher": None,
         f"orch_{slug}_saved_msg_count": 0,
+        # Chat feed pagination: at most this many trailing entries shown.
+        f"orch_{slug}_chat_show_count": CHAT_PAGE_SIZE,
         f"orch_{slug}_scroll_to": None,
         f"orch_{slug}_show_func_form": False,
         f"orch_{slug}_edit_func": None,
@@ -317,6 +328,12 @@ def _make_dispatcher(slug: str) -> UniversalDevAgent:
     if dispatcher is None:
         dispatcher = UniversalDevAgent(workspace=None, target_file=None)
         st.session_state[dk] = dispatcher
+    # Keep the dispatcher bound to the active dialog thread. The guard
+    # avoids re-registering on every render: re-registration would snapshot
+    # the live config, which may belong to a parallel dialog.
+    tid = _ss(slug, "thread_id") or None
+    if getattr(dispatcher, "thread_id", None) != tid:
+        dispatcher.set_thread_id(tid)
     dispatcher.core._web_search_enabled = _ss(slug, "web_search") or False
     dispatcher.core._web_search_config = get_web_search_config(slug)
     safety_mode = _ss(slug, "safety_mode")
@@ -821,11 +838,13 @@ def _reset_dialog(slug: str) -> None:
     _set_ss(slug, "history", [])
     _set_ss(slug, "loop_state", None)
     _set_ss(slug, "economy_cache", None)
+    _set_ss(slug, "token_line_cache", None)
     _set_ss(slug, "thread_id", None)
     _set_ss(slug, "stop_requested", False)
     _set_ss(slug, "attached", [])
     _set_ss(slug, "upload_counter", 0)
     _set_ss(slug, "saved_msg_count", 0)
+    _set_ss(slug, "chat_show_count", CHAT_PAGE_SIZE)
     _set_ss(slug, "scroll_to", None)
     if _sk(slug, "dispatcher") in st.session_state:
         del st.session_state[_sk(slug, "dispatcher")]
@@ -853,6 +872,12 @@ def _load_thread(slug: str, tid: str) -> None:
     _set_ss(slug, "history", msgs)
     _set_ss(slug, "thread_id", tid)
     _set_ss(slug, "saved_msg_count", len(msgs))
+    # The workspace was restored above into the live config; mirror it into
+    # the thread binding so the next dispatch applies exactly this state.
+    try:
+        wb.sync_registry_from_config(tid)
+    except Exception:
+        pass
 
 
 # ─── Chat toolbar (single, sticky top) ────────────────────────────────────────
@@ -953,6 +978,137 @@ def _render_chat_toolbar(slug: str, lang: str) -> None:
 #  TAB: CHAT
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def _token_line_cache_key(slug: str, history: list, economy_enabled: bool,
+                          loop_state, prompt_text: str, file_text: str,
+                          strong: dict, services_names: tuple) -> str:
+    """Build a stable cache key capturing every input of the token line.
+
+    The rendered indicator depends on the full history (economy window, per-
+    thread token sums, message classification), the system prompt, the
+    attached-file texts, the strong service/model, the economy config and the
+    live loop state. Hashing a canonical repr of all of them is far cheaper
+    than recomputing context/token estimates on every rerun, and still
+    recomputes whenever any real input changes.
+    """
+    import hashlib
+
+    econ = ()
+    if economy_enabled:
+        cfg = get_economy_config(slug) or {}
+        econ = (
+            bool(cfg.get("cache_enabled", False)),
+            int(cfg.get("cache_multiplier", 1) or 1),
+            int(cfg.get("tail_messages", 0) or 0),
+        )
+    state = ()
+    if loop_state is not None:
+        state = (
+            getattr(loop_state, "phase", None),
+            getattr(loop_state, "economy_anchor", None),
+            getattr(loop_state, "economy_tail_messages", None),
+        )
+    eco_cache = _ss(slug, "economy_cache")
+    if isinstance(eco_cache, dict):
+        state += (
+            eco_cache.get("economy_anchor"),
+            eco_cache.get("economy_tail_messages"),
+        )
+    msg_parts = [
+        (m.get("role"), m.get("content", ""), m.get("ts", ""),
+         bool(m.get("hidden")))
+        for m in history
+    ]
+    payload = repr((
+        _ss(slug, "thread_id"), economy_enabled, econ, state,
+        prompt_text, file_text, strong, services_names, msg_parts,
+    ))
+    return hashlib.md5(payload.encode("utf-8")).hexdigest()
+
+
+def _render_token_line(slug: str, history: list, economy_enabled: bool,
+                       loop_state) -> None:
+    """Render the single-line token/economy indicator, cached per state.
+
+    Recomputing the context estimate and the economy window on every rerun is
+    the main cost of the chat page on long dialogs. The finished HTML is
+    stored in session_state as ``orch_<slug>_token_line_cache`` (dict with
+    ``key`` + ``html``) and reused until one of the inputs changes; when the
+    history/economy config/loop phase/prompt/attachments/service changes, the
+    line is recomputed and the cache refreshed.
+    """
+    _orch = get_orchestrator(slug)
+    _full_sys = _orch.get("prompt_text", "") if _orch else ""
+    _file_text = " ".join(
+        f.get("content", "") if not f.get("stored") else f.get("preview", "")
+        for f in (_ss(slug, "attached") or [])
+    )
+    _strong_assistant, _ = build_assistant_dicts(slug)
+    _services_names = tuple(sorted(get_services().keys()))
+
+    cache_key = _token_line_cache_key(
+        slug, history, economy_enabled, loop_state,
+        _full_sys, _file_text, _strong_assistant, _services_names,
+    )
+    _cached = _ss(slug, "token_line_cache")
+    if (isinstance(_cached, dict) and _cached.get("key") == cache_key
+            and _cached.get("html")):
+        st.markdown(_cached["html"], unsafe_allow_html=True)
+        return
+
+    _effective_history = history
+    _economy_meta = ""
+    if economy_enabled and history:
+        _economy_config = get_economy_config(slug)
+        _temp_state = AgentLoopState(
+            task="",
+            history=list(history),
+            economy_mode=True,
+            thread_id=_ss(slug, "thread_id") or "",
+            economy_cache_enabled=bool(_economy_config.get("cache_enabled", False)),
+            economy_cache_multiplier=int(_economy_config.get("cache_multiplier", 1)),
+        )
+        # Reflect the real window that will be sent next: reuse the live
+        # loop state anchor (if any) so the indicator shows the gradual
+        # growth of the cache-friendly window instead of always the bare tail.
+        if loop_state is not None:
+            _temp_state.workspace_info = getattr(loop_state, "workspace_info", "")
+            _temp_state.economy_anchor = getattr(loop_state, "economy_anchor", None)
+            _temp_state.economy_meta_key = getattr(loop_state, "economy_meta_key", "")
+            _temp_state.economy_tail_messages = getattr(loop_state, "economy_tail_messages", None)
+            _temp_state.web_search_enabled = bool(getattr(loop_state, "web_search_enabled", False))
+        else:
+            _ec = _ss(slug, "economy_cache")
+            if isinstance(_ec, dict):
+                apply_economy_cache(_ec, _temp_state)
+        from dev_agent.agent_loop import _classify_message, _index_message
+        for i, _msg in enumerate(history):
+            if "_index" not in _msg:
+                _cat = _classify_message(_msg)
+                _index_message(_msg, i, _cat)
+        _effective_history = build_economy_context(_temp_state)
+        _raw_total = len(history)
+        # build_economy_context() prepends one hidden meta message; the remaining
+        # entries are the exact history messages actually sent to the model.
+        _sent_total = max(0, len(_effective_history) - 1)
+        _economy_meta = f" 💡 economy ({_sent_total}/{_raw_total} msgs)"
+
+    _effective_text = " ".join(
+        m.get("content", "") for m in _effective_history if not m.get("hidden")
+    )
+    _ctx = check_context(
+        _full_sys, "", combine_nonempty([_effective_text, _file_text]),
+        _strong_assistant, get_services(),
+    )
+    _current_tokens = _ctx["total_tokens"]
+    _tok_in, _tok_out, _tok_cache = sum_thread_tokens(history)
+    _html = (
+        f'<div style="font-size:0.75rem;color:#555;margin-top:6px">'
+        f'{format_token_line(_current_tokens, _tok_in, _tok_out, _economy_meta, tokens_cache=_tok_cache)}</div>'
+    )
+    _set_ss(slug, "token_line_cache", {"key": cache_key, "html": _html})
+    st.markdown(_html, unsafe_allow_html=True)
+
+
 def _render_chat_tab(slug: str, lang: str) -> None:
     orch = get_orchestrator(slug)
     orch_name = orch.get("name", slug) if orch else slug
@@ -1018,7 +1174,23 @@ def _render_chat_tab(slug: str, lang: str) -> None:
         if _msg.get("role") == "assistant" and not _msg.get("hidden") and _msg.get("content"):
             last_assistant_idx = _idx
 
-    for idx, msg in enumerate(history):
+    # Paginate the feed: render only the trailing window, with a
+    # "show earlier" button above it when older messages are hidden.
+    show_count = int(_ss(slug, "chat_show_count") or CHAT_PAGE_SIZE)
+    show_count = max(CHAT_PAGE_SIZE, min(show_count, len(history) or 1))
+    if len(history) > show_count:
+        _remaining = len(history) - show_count
+        if st.button(
+            t("orch_show_earlier", lang=lang, count=_remaining),
+            key=f"orch_show_earlier_{slug}",
+            use_container_width=True,
+        ):
+            _set_ss(slug, "chat_show_count",
+                    min(show_count + CHAT_PAGE_SIZE, len(history)))
+            st.rerun()
+
+    _offset = max(0, len(history) - show_count)
+    for idx, msg in enumerate(history[_offset:], start=_offset):
         if msg.get("hidden"):
             continue
         role = msg.get("role")
@@ -1334,65 +1506,11 @@ def _render_chat_tab(slug: str, lang: str) -> None:
             _do_step(slug=slug, lang=lang)
             st.rerun()
 
-    # ── Token usage indicator (single line, after Upload) ─────────────────
-    _orch = get_orchestrator(slug)
-    _full_sys = _orch.get("prompt_text", "") if _orch else ""
-    _effective_history = history
-    _economy_meta = ""
-    if economy_enabled and history:
-        _economy_config = get_economy_config(slug)
-        _temp_state = AgentLoopState(
-            task="",
-            history=list(history),
-            economy_mode=True,
-            thread_id=_ss(slug, "thread_id") or "",
-            economy_cache_enabled=bool(_economy_config.get("cache_enabled", False)),
-            economy_cache_multiplier=int(_economy_config.get("cache_multiplier", 1)),
-        )
-        # Reflect the real window that will be sent next: reuse the live
-        # loop state anchor (if any) so the indicator shows the gradual
-        # growth of the cache-friendly window instead of always the bare tail.
-        if loop_state is not None:
-            _temp_state.workspace_info = getattr(loop_state, "workspace_info", "")
-            _temp_state.economy_anchor = getattr(loop_state, "economy_anchor", None)
-            _temp_state.economy_meta_key = getattr(loop_state, "economy_meta_key", "")
-            _temp_state.economy_tail_messages = getattr(loop_state, "economy_tail_messages", None)
-            _temp_state.web_search_enabled = bool(getattr(loop_state, "web_search_enabled", False))
-        else:
-            _ec = _ss(slug, "economy_cache")
-            if isinstance(_ec, dict):
-                apply_economy_cache(_ec, _temp_state)
-        from dev_agent.agent_loop import _classify_message, _index_message
-        for i, _msg in enumerate(history):
-            if "_index" not in _msg:
-                _cat = _classify_message(_msg)
-                _index_message(_msg, i, _cat)
-        _effective_history = build_economy_context(_temp_state)
-        _raw_total = len(history)
-        # build_economy_context() prepends one hidden meta message; the remaining
-        # entries are the exact history messages actually sent to the model.
-        _sent_total = max(0, len(_effective_history) - 1)
-        _economy_meta = f" 💡 economy ({_sent_total}/{_raw_total} msgs)"
-
-    _effective_text = " ".join(
-        m.get("content", "") for m in _effective_history if not m.get("hidden")
-    )
-    _file_text = " ".join(
-        f.get("content", "") if not f.get("stored") else f.get("preview", "")
-        for f in (_ss(slug, "attached") or [])
-    )
-    _strong_assistant, _ = build_assistant_dicts(slug)
-    _ctx = check_context(
-        _full_sys, "", combine_nonempty([_effective_text, _file_text]),
-        _strong_assistant, get_services(),
-    )
-    _current_tokens = _ctx["total_tokens"]
-    _tok_in, _tok_out, _tok_cache = sum_thread_tokens(history)
-    st.markdown(
-        f'<div style="font-size:0.75rem;color:#555;margin-top:6px">'
-        f'{format_token_line(_current_tokens, _tok_in, _tok_out, _economy_meta, tokens_cache=_tok_cache)}</div>',
-        unsafe_allow_html=True,
-    )
+    # Token usage indicator (single line, after Upload). The heavy
+    # context/economy computation is cached in _render_token_line and only
+    # rerun when one of its inputs (history, economy config, loop state,
+    # prompt, attachments, services) actually changes.
+    _render_token_line(slug, history, economy_enabled, loop_state)
 
     if agent_is_active:
         if st.button(t("orch_stop_btn", lang=lang), key=f"orch_stop_{slug}",
