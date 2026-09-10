@@ -9,9 +9,91 @@ Each has its own engine and session factory, isolated from the other.
 DB file locations are read from core.paths (overridable via SAGAAI_DATA_DIR).
 """
 import os
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.orm import sessionmaker, Session as _Session
 from storage.models import Base
+
+# SQLite journal mode: WAL lets readers run concurrently with a single
+# writer, which removes the read/write contention that froze the history
+# page while another browser tab kept writing messages.
+_WAL_JOURNAL_MODE = "wal"
+_BUSY_TIMEOUT_MS = 5000
+_MESSAGE_INDEX_NAME = "ix_messages_thread_id_id"
+
+
+def _is_file_db(db_path: str) -> bool:
+    """True when *db_path* points at an on-disk SQLite file (not memory)."""
+    return bool(str(db_path).strip()) and str(db_path) != ":memory:"
+
+
+def _configure_sqlite_connection(dbapi_connection, connection_record, *, enforce_foreign_keys: bool = True) -> None:
+    """Apply per-connection PRAGMAs on every checked-out SQLite connection.
+
+    ``busy_timeout`` replaces the default immediate "database is locked"
+    failure with a short wait, so a write from another tab no longer aborts
+    a concurrent read. ``foreign_keys`` is enforced at the SQLite level only
+    for the MAIN database (the ORM does not enable it automatically); the
+    DevAgent database reuses ``assistant_id`` to store orchestrator slugs,
+    which have no matching ``assistants`` row, so FK checks stay off there.
+    """
+    cursor = dbapi_connection.cursor()
+    try:
+        cursor.execute(f"PRAGMA busy_timeout={_BUSY_TIMEOUT_MS}")
+        if enforce_foreign_keys:
+            cursor.execute("PRAGMA foreign_keys=ON")
+    finally:
+        cursor.close()
+
+
+def _enable_wal(engine, db_path: str) -> str:
+    """Switch a file-backed database to WAL journal mode (persistent).
+
+    Must run before the first write transaction on the database. Uses a raw
+    DBAPI connection because ``PRAGMA journal_mode`` cannot be changed inside
+    an active transaction. The mode is recorded in the database file itself
+    so later processes/connections inherit it.
+    """
+    if not _is_file_db(db_path):
+        return ""
+    raw = engine.raw_connection()
+    try:
+        cursor = raw.cursor()
+        cursor.execute(f"PRAGMA journal_mode={_WAL_JOURNAL_MODE}")
+        row = cursor.fetchone()
+        mode = str(row[0]).lower() if row else ""
+    finally:
+        raw.close()
+    return mode
+
+
+def _ensure_message_index(engine) -> None:
+    """Create the messages(thread_id, id) index on legacy databases.
+
+    Fresh databases get the index from the ORM model's ``__table_args__``;
+    this migration covers databases created before the index existed so
+    per-thread message loads no longer scan the whole table.
+    """
+    with engine.connect() as conn:
+        has_index = conn.exec_driver_sql(
+            "SELECT 1 FROM sqlite_master WHERE type='index' AND name=?",
+            (_MESSAGE_INDEX_NAME,),
+        ).scalar()
+    if not has_index:
+        with engine.connect() as conn:
+            conn.exec_driver_sql(
+                f"CREATE INDEX IF NOT EXISTS {_MESSAGE_INDEX_NAME} "
+                "ON messages (thread_id, id)"
+            )
+            conn.commit()
+
+# DevAgent DB connection hook: busy_timeout without FK checks (assistant_id
+# stores orchestrator slugs there, not assistants.id values).
+def _configure_devagent_connection(dbapi_connection, connection_record) -> None:
+    """Connect hook for the DevAgent DB: busy_timeout only (no FK checks)."""
+    _configure_sqlite_connection(
+        dbapi_connection, connection_record, enforce_foreign_keys=False
+    )
+
 
 # Module-level engines (created lazily on first call)
 _engine = None
@@ -152,12 +234,15 @@ def get_engine():
             connect_args={"check_same_thread": False},
             echo=False,
         )
+        event.listen(_engine, "connect", _configure_sqlite_connection)
+        _enable_wal(_engine, DB_PATH)
         _migrate_threads_table_if_needed(_engine)
         _migrate_assistant_table(_engine)
         _migrate_thread_skill_columns(_engine)
         Base.metadata.create_all(_engine)
         _ensure_thread_columns(_engine)
         _ensure_assistant_columns(_engine)
+        _ensure_message_index(_engine)
     return _engine
 
 
@@ -175,11 +260,14 @@ def get_devagent_engine():
             connect_args={"check_same_thread": False},
             echo=False,
         )
+        event.listen(_devagent_engine, "connect", _configure_devagent_connection)
+        _enable_wal(_devagent_engine, DEVAGENT_DB_PATH)
         # DevAgent DB has its own threads/messages tables.
         # We only need Thread and Message models from Base.
         _migrate_thread_skill_columns(_devagent_engine)
         Base.metadata.create_all(_devagent_engine)
         _ensure_thread_columns(_devagent_engine)
+        _ensure_message_index(_devagent_engine)
     return _devagent_engine
 
 
@@ -194,9 +282,18 @@ def _migrate_threads_table_if_needed(engine) -> None:
         return  # already migrated
 
     # Table exists but schema is stale - drop it so create_all rebuilds.
-    with engine.connect() as conn:
-        conn.exec_driver_sql("DROP TABLE threads")
-        conn.commit()
+    # The connect event enforces foreign_keys=ON, but this legacy drop must
+    # run with foreign_keys=OFF (the messages.thread_id FK would block the
+    # DROP). A raw DBAPI connection is used because the PRAGMA is a no-op
+    # inside an already-started transaction.
+    raw = engine.raw_connection()
+    try:
+        cursor = raw.cursor()
+        cursor.execute("PRAGMA foreign_keys=OFF")
+        cursor.execute("DROP TABLE threads")
+        raw.commit()
+    finally:
+        raw.close()
 
 
 def get_session() -> _Session:
