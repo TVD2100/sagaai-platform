@@ -6,7 +6,7 @@ Tables: Assistant, Thread, Message, ConfigKV, Instruction, Orchestrator,
 """
 from datetime import datetime
 from sqlalchemy import (
-    Column, String, Float, Text, Integer, ForeignKey, DateTime, Boolean
+    Column, String, Float, Text, Integer, ForeignKey, DateTime, Boolean, Index
 )
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -104,6 +104,10 @@ class Thread(Base):
 class Message(Base):
     """A single message within a Thread."""
     __tablename__ = "messages"
+
+    __table_args__ = (
+        Index("ix_messages_thread_id_id", "thread_id", "id"),
+    )
 
     id         = Column(Integer,      primary_key=True, autoincrement=True)
     thread_id  = Column(String(64),   ForeignKey("threads.thread_id", ondelete="CASCADE"),
