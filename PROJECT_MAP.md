@@ -170,6 +170,7 @@
 | `tests/test_usability_fixes.py` | Python | _(описание не задано)_ | - |
 | `tests/test_verify_manifest.py` | Python | Manifest verifier tests | - |
 | `tests/test_web_search_prompt.py` | Python | _(описание не задано)_ | - |
+| `tests/test_workspace_binding.py` | Python | Workspace-per-thread binding unit tests | - |
 | `tests/test_yandex_responses.py` | Python | Yandex Responses API tests | - |
 | `tests/smoke/test_app_smoke.py` | Python | App smoke tests (rendering, navigation order incl. Access before Updates) | - |
 | `tests/scenarios/test_access_scenarios.py` | Python | Scenario tests for password access: happy path login/re-ask, orchestrator-busy bypass, switch OFF, form-over-env priority, mismatch keeps settings | - |
@@ -190,6 +191,7 @@
 | `tests/scenarios/test_theme_switch_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_updater_runtime_flow.py` | Python | Scenario test: live-page force-apply / force-rollback, refusal while running, re-apply after "restart" | - |
 | `tests/scenarios/test_welcome_page_scenarios.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_workspace_binding_scenario.py` | Python | Scenario tests: parallel-dialog workspace isolation, switch survival after reopen, legacy fallback | storage |
 | `storage/__init__.py` | Python | Package marker | - |
 | `storage/db.py` | Python | SQLAlchemy engines; auto-migration skills->assistants, skill_*->assistant_* columns | storage |
 | `storage/models.py` | Python | ORM models: Assistant (assistants), Thread (assistant_id/assistant_name), Message, ConfigKV, Instruction, Orchestrator | - |
@@ -255,6 +257,7 @@
 | `dev_agent/task_state.py` | Python | _(описание не задано)_ | backup_manager |
 | `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools + legacy skill tool aliases + skills-library tools | assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
 | `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace tools + orchestrator tools) | storage, tool_executor |
+| `dev_agent/workspace_binding.py` | Python | Thread-isolated workspace binding: per-thread registry, thread_context config swap, ensure_thread_active | config |
 | `dev_agent/workspace_tools.py` | Python | Workspace layer: folders, project map, docs, snapshots | backup_manager |
 | `dev_agent/task_states/TASK_STATE__20260828_185325_0d0824.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260828_185325_3ea18d.md` | Markdown | _(описание не задано)_ | - |
@@ -2466,6 +2469,26 @@
 - `test_web_search_both_empty_returns_explicit_error` (func, строка 296)
 - `test_catalog_web_search_mentions_instructions` (func, строка 319)
 
+### `tests/test_workspace_binding.py`
+- `isolated_data` (func, строка 32)
+- `clean_config_state` (func, строка 51)
+- `_make_ws` (func, строка 66)
+- `test_register_and_get_thread_state` (func, строка 74)
+- `test_register_empty_id_is_noop` (func, строка 89)
+- `test_clear_thread_forgets_binding` (func, строка 98)
+- `test_sync_registry_from_config_captures_live_state` (func, строка 108)
+- `test_sync_registry_empty_id_is_noop` (func, строка 123)
+- `test_thread_context_applies_and_restores` (func, строка 133)
+- `test_thread_context_unbound_is_engaged_false_no_swap` (func, строка 148)
+- `test_thread_context_empty_id_no_swap` (func, строка 159)
+- `test_thread_context_restores_on_exception` (func, строка 164)
+- `test_ensure_thread_active_applies_without_restore` (func, строка 180)
+- `test_ensure_thread_active_unknown_returns_false` (func, строка 192)
+- `test_ensure_thread_active_empty_id_returns_false` (func, строка 201)
+- `test_ensure_thread_active_workspaceless_pins_thread_id` (func, строка 205)
+- `test_set_target_root_does_not_mutate_os_environ` (func, строка 219)
+- `test_thread_context_parallel_isolation` (func, строка 234)
+
 ### `tests/test_yandex_responses.py`
 - `_yandex_cfg` (func, строка 30)
 - `_responses_payload` (func, строка 36)
@@ -2672,6 +2695,14 @@
 - `_render` (func, строка 43)
 - `test_welcome_step_button_navigates` (func, строка 62)
 - `test_devagent_settings_full_render_without_api_key_warning` (func, строка 90)
+
+### `tests/scenarios/test_workspace_binding_scenario.py`
+- `isolated_data` (func, строка 35)
+- `clean_binding_state` (func, строка 54)
+- `_make_ws` (func, строка 67)
+- `test_scenario_parallel_dialogs_stay_isolated` (func, строка 73)
+- `test_scenario_switched_workspace_survives_restart` (func, строка 135)
+- `test_scenario_unbound_dispatcher_legacy_fallback` (func, строка 184)
 
 ### `storage/db.py`
 - `_db_url` (func, строка 50)
@@ -2920,6 +2951,22 @@
 - `_workspace_usage` (func, строка 136)
 - `build_assistant_dict_from_config` (func, строка 148)
 - `UniversalDevAgent` (class, строка 195)
+
+### `dev_agent/workspace_binding.py`
+- `_norm_tid` (func, строка 46)
+- `_state_from_meta` (func, строка 51)
+- `register_thread` (func, строка 60)
+- `get_thread_state` (func, строка 79)
+- `get_thread_workspace` (func, строка 89)
+- `clear_thread` (func, строка 97)
+- `has_thread` (func, строка 106)
+- `sync_lock` (func, строка 111)
+- `sync_registry_from_config` (func, строка 117)
+- `snapshot_config` (func, строка 137)
+- `restore_config_state` (func, строка 143)
+- `_apply_state_unlocked` (func, строка 151)
+- `ensure_thread_active` (func, строка 163)
+- `thread_context` (class, строка 183)
 
 ### `dev_agent/workspace_tools.py`
 - `detect_language` (func, строка 66)
