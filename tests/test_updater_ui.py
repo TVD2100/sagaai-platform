@@ -465,3 +465,72 @@ def test_health_error_is_shown(tmp_path):
             _render(st, page)
 
     assert any("boom" in msg for msg in st.warnings)
+
+
+def _checkbox_keys(st):
+    """Ключи всех отрендеренных чекбоксов (без повторов)."""
+    seen = []
+    for name, args, kwargs in st.calls:
+        if name == "checkbox" and kwargs.get("key") is not None:
+            key = kwargs["key"]
+            if key not in seen:
+                seen.append(key)
+    return seen
+
+
+def _checkbox_kwargs(st, key):
+    """(args, kwargs) последнего отрендеренного чекбокса с данным key."""
+    for name, args, kwargs in reversed(st.calls):
+        if name == "checkbox" and kwargs.get("key") == key:
+            return (args, kwargs)
+    return None
+
+
+def test_checkboxes_default_to_checked(tmp_path):
+    """Все чекбоксы выбора файлов рендерятся взведёнными по умолчанию."""
+    with install_streamlit_mock() as st:
+        page = _fresh_page()
+        stack, _mocks = _enter_patches(str(tmp_path), [])
+        with stack:
+            _render(
+                st,
+                page,
+                updates_manifest=MANIFEST,
+                updates_report=REPORT_AVAILABLE,
+            )
+
+    assert _checkbox_keys(st) == ["upd_sel_content/prompt.md", "upd_unit_core"]
+    assert _checkbox_kwargs(st, "upd_sel_content/prompt.md")[1].get("value") is True
+    assert _checkbox_kwargs(st, "upd_unit_core")[1].get("value") is True
+
+
+def test_stage_with_default_checkmarks_selects_all_files(tmp_path):
+    """Без изменения галочек Download передаёт в stage полный список файлов."""
+    with install_streamlit_mock() as st:
+        st.click("updates_stage")
+        page = _fresh_page()
+        stack, mocks = _enter_patches(
+            str(tmp_path),
+            [
+                patch(
+                    "ui.pages.updates.stage_updates",
+                    return_value={
+                        "ok": True,
+                        "staged": ["core/x.py", "content/prompt.md"],
+                        "pending_path": "p",
+                    },
+                ),
+            ],
+        )
+        with stack:
+            _render(
+                st,
+                page,
+                updates_manifest=MANIFEST,
+                updates_report=REPORT_AVAILABLE,
+                updates_channel="https://example.test/channel",
+            )
+    stage_mock = mocks[0]
+
+    stage_mock.assert_called_once()
+    assert stage_mock.call_args.kwargs["selection"] == ["core/x.py", "content/prompt.md"]
