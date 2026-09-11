@@ -168,6 +168,7 @@ def _render_check_section(lang, root):
             st.checkbox(
                 f"`{rel}` - {_action_label(item, lang)} - v{item.get('version', '')}",
                 key=f"upd_sel_{rel}",
+                value=True,
             )
 
     for unit_name, items in units.items():
@@ -189,6 +190,7 @@ def _render_check_section(lang, root):
         st.checkbox(
             t("updates_unit_install", lang=lang, name=unit_name),
             key=f"upd_unit_{unit_name}",
+            value=True,
         )
 
     if st.button(t("updates_stage_btn", lang=lang), key="updates_stage"):
