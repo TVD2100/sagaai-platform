@@ -287,34 +287,31 @@ ID и путь передаются мета-блоком системного �
 - **`core/connectors.py`** - CRUD подключений: папка
   `DATA_DIR/connectors/<id>/manifest.json`; токен шифруется через
   `core.crypto.encrypt` и не попадает в публичные представления.
-- **`core/github_connector.py`** - тонкий адаптер PyGithub (ленивый импорт,
-  `GithubConnectorError = ValueError`, `test_connection`, repo/file операции).
-- **`core/github_tools.py`** - инструменты `github_list_repos`,
-  `github_create_repo`, `github_upload_file`, `github_update_file`,
-  `github_read_file` в конвенции `invoke(**kwargs) -> dict`.
-- **`core/github_connector_rest.py`** - основной прямой REST-коннектор
-  (requests, REST API v3, `X-GitHub-Api-Version: 2022-11-28`, Bearer). Тот же
-  набор операций, что у PyGithub-адаптера, плюс Git Data API: `get_ref`,
-  `get_commit`, `get_tree`, а также оптимизированная пакетная публикация
+- **`core/github_connector_rest.py`** - единственный прямой REST-коннектор
+  (requests, REST API v3, `X-GitHub-Api-Version: 2022-11-28`, Bearer).
+  Реализует repo CRUD, чтение/запись файлов и метаданных, плюс Git Data API:
+  `get_ref`, `get_commit`, `get_tree`, а также оптимизированная пакетная публикация
   `batch_commit` (blobs -> одно дерево с чанкингом по 9000 записей -> один
   коммит -> PATCH ref; ветка создаётся через POST /git/refs для пустого
   репозитория) и `batch_upsert` (дифф по blob-SHA с пропуском неизменённых).
   Ошибки - `GithubRestError` (наследник ValueError) со статусом; токен
   расшифровывается внутри модуля и не попадает в результаты/ошибки.
-- **`core/github_tools_rest.py`** - инструменты `ghr_*` (9 штук:
+- **`core/github_tools_rest.py`** - инструменты `ghr_*` (15 штук:
   `ghr_list_repos`, `ghr_create_repo`, `ghr_read_file`, `ghr_upload_file`,
   `ghr_update_file`, `ghr_delete_file`, `ghr_list_files`, `ghr_batch_commit`,
-  `ghr_batch_upsert`) и каталог `get_tools()`; `files` для batch принимается
-  списком dict'ов или JSON-строкой.
+  `ghr_batch_upsert`, `ghr_test_connection`, `ghr_get_repo_info`,
+  `ghr_read_file_meta`, `ghr_get_ref`, `ghr_get_commit`, `ghr_get_tree`)
+  и каталог `get_tools()`; `files` для batch принимается списком dict'ов
+  или JSON-строкой.
 - **Привязка к оркестраторам**: `config['enabled_connections']` в
   `core/orchestrators.py`; `_extend_prompt_with_connections` добавляет блок
   `Available service connections` в системный промпт и каталог инструментов
-  по сервисам включённых соединений (`github` -> `github_tools.get_tools()`,
-  `github_rest` -> `github_tools_rest.get_tools()`); инструменты
-  регистрируются в диспетчере (`dev_agent/universal_agent.py`); инструкция
-  `github_connector` доступна для обоих сервисов.
+  по сервисам включённых соединений (`github_rest` ->
+  `github_tools_rest.get_tools()`); инструменты регистрируются в диспетчере
+  (`dev_agent/universal_agent.py`); инструкция `github_connector` доступна
+  для этого сервиса.
 - **UI**: `ui/pages/connectors.py` (раздел после «Хранилища») - создание
-  соединений обоих сервисов, тест соединения диспетчеризуется по сервису;
+  соединений GitHub (REST), тест соединения через `github_connector_rest`;
   таб «Подключения» в настройках оркестратора.
 
 ### Загрузка ключей из shell-профилей

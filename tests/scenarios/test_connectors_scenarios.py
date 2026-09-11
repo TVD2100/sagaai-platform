@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-Scenario tests for the Connectors feature (core.connectors + GitHub tools + orchestrator binding).
+Scenario tests for the Connectors feature (core.connectors + GitHub REST tools + orchestrator binding).
 
 Walk the feature through its public entry points the way a user would use it:
   1. Happy path: create a connection, list it, test it, update it, delete it.
   2. Token safety: secrets never appear in public manifests / connections list.
   3. Validation errors: bad service / empty name / empty token are rejected.
   4. Orchestrator binding: enabled_connections round-trip and prompt extension.
-  5. GitHub tools: list-repos tool returns repo metadata; errors become ok=False dicts.
+  5. GitHub REST tools: list-repos tool returns repo metadata; errors become ok=False dicts.
   6. Dispatcher integration: the LLM-facing tool names resolve through UniversalDevAgent.
 
-These scenarios run without network access: PyGithub is mocked at the connector layer.
+These scenarios run without network access: the REST HTTP layer is mocked.
 """
 import json
 import os
@@ -60,7 +60,7 @@ def isolated_data_dir():
 
 def _github_connection(isolated_data_dir, name="GitHub-CI", token="ghp_scenario_secret"):
     """Create a GitHub connection for use in scenarios, return its public manifest."""
-    return connectors.create_connection("github", name, token, account="TVD2100")
+    return connectors.create_connection("github_rest", name, token, account="TVD2100")
 
 
 # 1. Happy path ---------------------------------------------------------------
@@ -69,7 +69,7 @@ def test_scenario_connection_lifecycle(isolated_data_dir):
     created = _github_connection(isolated_data_dir, name="Prod-GitHub", token="ghp_prod_token")
     conn_id = created["id"]
     assert created["name"] == "Prod-GitHub"
-    assert created["service"] == "github"
+    assert created["service"] == "github_rest"
     assert created["has_token"] is True
 
     # The connection is visible in the list, sorted by name.
@@ -78,26 +78,15 @@ def test_scenario_connection_lifecycle(isolated_data_dir):
     assert items[0]["id"] == conn_id
 
     # Test-connection at the connector layer updates the stored account.
-    from core import github_connector as gh
-    with mock.patch("core.github_connector._ensure_github") as ensure:
-        import github
-        ensure.return_value = github
-
-        class FakeUser:
-            login = "tvd-ci"
-            name = "TVD CI"
-            id = 42
-            html_url = "https://github.com/tvd-ci"
-
-        class FakeGithub:
-            def __init__(self, token):
-                self.token = token
-
-            def get_user(self):
-                return FakeUser()
-
-        with mock.patch.object(github, "Github", FakeGithub):
-            result = gh.test_connection(conn_id)
+    from core import github_connector_rest as gh
+    with mock.patch("core.github_connector_rest._request") as req:
+        req.return_value = {
+            "login": "tvd-ci",
+            "name": "TVD CI",
+            "id": 42,
+            "html_url": "https://github.com/tvd-ci",
+        }
+        result = gh.test_connection(conn_id)
     assert result["ok"] is True
     assert result["login"] == "tvd-ci"
     assert connectors.get_connection(conn_id)["account"] == "tvd-ci"
@@ -138,9 +127,9 @@ def test_scenario_validation_rejects_bad_input(isolated_data_dir):
     with pytest.raises(ValueError):
         connectors.create_connection("slack", "Slack", "xoxb-token")
     with pytest.raises(ValueError):
-        connectors.create_connection("github", "", "ghp_token")
+        connectors.create_connection("github_rest", "", "ghp_token")
     with pytest.raises(ValueError):
-        connectors.create_connection("github", "Valid", "   ")
+        connectors.create_connection("github_rest", "Valid", "   ")
     assert connectors.list_connections() == []
 
 
@@ -162,15 +151,15 @@ def test_scenario_orchestrator_binding(isolated_data_dir):
     assert set_enabled_connections(slug, [conn["id"], conn["id"], " "]) is True
     assert get_enabled_connections(slug) == [conn["id"]]
 
-    fake_tools = [{"name": "github_list_repos", "desc": "List repositories."}]
+    fake_tools = [{"name": "ghr_list_repos", "desc": "List repositories."}]
     with mock.patch("core.connectors.get_connection", return_value=conn), mock.patch(
-        "core.github_tools.get_tools", return_value=fake_tools
+        "core.github_tools_rest.get_tools", return_value=fake_tools
     ):
         prompt = _extend_prompt_with_connections("Base prompt", slug)
     assert "## Available service connections" in prompt
     assert conn["id"] in prompt
     assert conn["name"] in prompt
-    assert "github_list_repos" in prompt
+    assert "ghr_list_repos" in prompt
 
     # Cleanup: reset DB state for this test process.
     set_enabled_connections(slug, [])
@@ -179,63 +168,44 @@ def test_scenario_orchestrator_binding(isolated_data_dir):
 # 5. GitHub tools -------------------------------------------------------------
 def test_scenario_github_tools_return_clean_dicts(isolated_data_dir):
     """Orchestrator tools return plain ok/result or ok/error dicts (dispatcher-friendly)."""
-    from core import github_tools
+    from core import github_tools_rest as github_tools
 
     conn = _github_connection(isolated_data_dir, name="Tools GH")
 
-    class FakeRepo:
-        full_name = "tvd/scenario-repo"
-        name = "scenario-repo"
-        private = False
-        description = "Scenario repo"
-        html_url = "https://github.com/tvd/scenario-repo"
-        default_branch = "main"
-
-    class FakeRepos:
-        def __iter__(self):
-            return iter([FakeRepo()])
-
-    class FakeUser:
-        login = "tvd"
-
-        def get_repos(self, sort="updated"):
-            return FakeRepos()
-
-    class FakeGithub:
-        def __init__(self, token):
-            self.token = token
-
-        def get_user(self):
-            return FakeUser()
-
-    class FakeModule:
-        Github = FakeGithub
-        GithubException = Exception
-
-    with mock.patch("core.github_connector._ensure_github", return_value=FakeModule()):
-        result = github_tools.github_list_repos(connector_id=conn["id"])
+    repos_payload = [
+        {
+            "full_name": "tvd/scenario-repo",
+            "name": "scenario-repo",
+            "private": False,
+            "description": "Scenario repo",
+            "html_url": "https://github.com/tvd/scenario-repo",
+            "default_branch": "main",
+        }
+    ]
+    with mock.patch("core.github_connector_rest._request", return_value=repos_payload):
+        result = github_tools.ghr_list_repos(connector_id=conn["id"])
     assert result["ok"] is True
     assert result["result"][0]["full_name"] == "tvd/scenario-repo"
 
     # Missing connector_id is a clean error dict, not an exception.
-    result = github_tools.github_list_repos()
+    result = github_tools.ghr_list_repos()
     assert result["ok"] is False
     assert "connector_id" in result["error"]
 
     # A connector failure (unknown repo) is wrapped into an error dict.
-    with mock.patch("core.github_connector._ensure_github", side_effect=Exception("boom")):
-        result = github_tools.github_create_repo(connector_id=conn["id"], name="x")
+    with mock.patch("core.github_connector_rest._request", side_effect=Exception("boom")):
+        result = github_tools.ghr_create_repo(connector_id=conn["id"], name="x")
     assert result["ok"] is False
     assert "failed" in result["error"].lower() or "boom" in result["error"]
 
 
 # 6. Dispatcher integration ---------------------------------------------------
 def test_scenario_github_tool_available_through_dispatcher(isolated_data_dir):
-    """The orchestration loop can call a GitHub tool through UniversalDevAgent.
+    """The orchestration loop can call a GitHub REST tool through UniversalDevAgent.
 
     The user story: connect GitHub, enable the connection on an orchestrator,
     then let the orchestrator's dispatcher answer a 'list my repos' request.
-    The LLM-facing tool name (github_list_repos) must resolve to a real callable.
+    The LLM-facing tool name (ghr_list_repos) must resolve to a real callable.
     """
     from core.orchestrators import create_orchestrator, set_enabled_connections
 
@@ -246,52 +216,34 @@ def test_scenario_github_tool_available_through_dispatcher(isolated_data_dir):
 
     from dev_agent.universal_agent import UniversalDevAgent
 
-    class FakeRepo:
-        full_name = "tvd/dispatcher-repo"
-        name = "dispatcher-repo"
-        private = False
-        description = "Dispatcher repo"
-        html_url = "https://github.com/tvd/dispatcher-repo"
-        default_branch = "main"
-
-    class FakeRepos:
-        def __iter__(self):
-            return iter([FakeRepo()])
-
-    class FakeUser:
-        login = "tvd"
-
-        def get_repos(self, sort="updated"):
-            return FakeRepos()
-
-    class FakeGithub:
-        def __init__(self, token):
-            self.token = token
-
-        def get_user(self):
-            return FakeUser()
-
-    class FakeModule:
-        Github = FakeGithub
-        GithubException = Exception
+    repos_payload = [
+        {
+            "full_name": "tvd/dispatcher-repo",
+            "name": "dispatcher-repo",
+            "private": False,
+            "description": "Dispatcher repo",
+            "html_url": "https://github.com/tvd/dispatcher-repo",
+            "default_branch": "main",
+        }
+    ]
 
     agent = UniversalDevAgent()
     agent.attach_orchestrator(slug)
 
     # The tool is registered and reaches the (mocked) connector layer.
-    with mock.patch("core.github_connector._ensure_github", return_value=FakeModule()):
-        result = agent.dispatch("github_list_repos", {"connector_id": conn["id"]})
+    with mock.patch("core.github_connector_rest._request", return_value=repos_payload):
+        result = agent.dispatch("ghr_list_repos", {"connector_id": conn["id"]})
     assert result["ok"] is True
     assert result["result"][0]["full_name"] == "tvd/dispatcher-repo"
 
     # Without connector_id the tool returns a clean error dict.
-    result = agent.dispatch("github_list_repos", {})
+    result = agent.dispatch("ghr_list_repos", {})
     assert result["ok"] is False
     assert "connector_id" in result["error"]
 
     # After disabling the connection the tool is no longer callable.
     set_enabled_connections(slug, [])
     agent.attach_orchestrator(slug)
-    result = agent.dispatch("github_list_repos", {"connector_id": conn["id"]})
+    result = agent.dispatch("ghr_list_repos", {"connector_id": conn["id"]})
     assert result["ok"] is False
     assert "unknown tool" in result.get("error", "").lower()

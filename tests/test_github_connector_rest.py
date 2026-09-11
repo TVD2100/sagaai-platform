@@ -905,3 +905,117 @@ def test_batch_commit_tree_chunked_over_limit(isolated_connector):
     assert len(tree_urls) == 2
     # The second tree call chains onto the first created tree.
     assert api.calls[-3]["body"]["base_tree"] == "tree-5"
+
+
+def test_batch_commit_retries_ref_update_after_fast_forward(isolated_connector):
+    """A 422 'Update is not a fast forward' on the first ref PATCH must be
+    recovered once: re-read the head, rebuild tree+commit on the new parent,
+    and retry the ref update."""
+    patch_calls = {"count": 0}
+
+    def handler(call):
+        method, url = call["method"], call["url"]
+        if method == "GET" and url.endswith("/git/ref/heads/main"):
+            return {"ref": "refs/heads/main",
+                    "object": {"sha": "parent-1", "type": "commit"}}
+        if method == "POST" and url.endswith("/git/blobs"):
+            return {"sha": "blob-1"}
+        if method == "POST" and url.endswith("/git/trees"):
+            return {"sha": "tree-1"}
+        if method == "POST" and url.endswith("/git/commits"):
+            return {"sha": "commit-1"}
+        if method == "PATCH" and url.endswith("/git/refs/heads/main"):
+            patch_calls["count"] += 1
+            if patch_calls["count"] == 1:
+                raise ghr.GithubRestError(
+                    "Update is not a fast forward", status=422)
+            return {"ref": "refs/heads/main",
+                    "object": {"sha": "commit-2", "type": "commit"}}
+        raise AssertionError(f"Unexpected: {method} {url}")
+
+    # The recovery path re-reads the branch head and the new parent commit.
+    api = FakeAPI(handler)
+    recovered_head = {
+        "ref": "refs/heads/main",
+        "object": {"sha": "parent-2", "type": "commit"},
+    }
+    recovered_commit = {
+        "sha": "parent-2",
+        "tree": {"sha": "base-tree-2"},
+        "parents": [],
+    }
+
+    def _request(conn_id, method, url_path, body=None, params=None,
+                 timeout=ghr._DEFAULT_TIMEOUT):
+        if (method == "GET" and
+                url_path.endswith("/git/ref/heads/main")):
+            # Initial head read vs. recovery head read are hard to tell
+            # apart inside FakeAPI; drive that via a call counter.
+            api.calls.append({"conn_id": conn_id, "method": method,
+                              "url": url_path, "body": body,
+                              "params": params, "timeout": timeout})
+            if sum(1 for c in api.calls
+                   if c["method"] == "GET" and
+                   c["url"].endswith("/git/ref/heads/main")) == 1:
+                return {"ref": "refs/heads/main",
+                        "object": {"sha": "parent-1", "type": "commit"}}
+            return recovered_head
+        if method == "GET" and url_path.endswith("/git/commits/parent-1"):
+            return {"sha": "parent-1",
+                    "tree": {"sha": "base-tree"}, "parents": []}
+        if method == "GET" and url_path.endswith("/git/commits/parent-2"):
+            return recovered_commit
+        return api(conn_id, method, url_path, body=body, params=params,
+                   timeout=timeout)
+
+    files = [{"path": "c.txt", "content": "CCC"}]
+    with mock.patch.object(ghr, "_request", new=_request):
+        result = ghr.batch_commit(
+            isolated_connector, "alice/repo", files, branch="main")
+
+    assert result["ref_retried"] is True
+    assert result["ref_updated"] is True
+    assert patch_calls["count"] == 2
+
+
+def test_batch_commit_ref_retry_raises_when_head_unresolvable(isolated_connector):
+    """When the 422 recovery cannot resolve the new head, the error must be
+    raised instead of retried forever."""
+    def handler(call):
+        method, url = call["method"], call["url"]
+        if method == "GET" and url.endswith("/git/ref/heads/main"):
+            return {"ref": "refs/heads/main",
+                    "object": {"sha": "parent-1", "type": "commit"}}
+        if method == "POST":
+            return {"sha": "x"}
+        if method == "PATCH" and url.endswith("/git/refs/heads/main"):
+            raise ghr.GithubRestError(
+                "Update is not a fast forward", status=422)
+        raise AssertionError(f"Unexpected: {method} {url}")
+
+    api = FakeAPI(handler)
+
+    def _request(conn_id, method, url_path, body=None, params=None,
+                 timeout=ghr._DEFAULT_TIMEOUT):
+        if method == "GET" and url_path.endswith("/git/ref/heads/main"):
+            api.calls.append({"conn_id": conn_id, "method": method,
+                              "url": url_path, "body": body,
+                              "params": params, "timeout": timeout})
+            if sum(1 for c in api.calls
+                   if c["method"] == "GET" and
+                   c["url"].endswith("/git/ref/heads/main")) == 1:
+                return {"ref": "refs/heads/main",
+                        "object": {"sha": "parent-1", "type": "commit"}}
+            return {"ref": "refs/heads/main", "object": {}}
+        if method == "GET" and url_path.endswith("/git/commits/parent-1"):
+            return {"sha": "parent-1",
+                    "tree": {"sha": "base-tree"}, "parents": []}
+        return api(conn_id, method, url_path, body=body, params=params,
+                   timeout=timeout)
+
+    files = [{"path": "c.txt", "content": "CCC"}]
+    with mock.patch.object(ghr, "_request", new=_request):
+        with pytest.raises(ghr.GithubRestError) as exc:
+            ghr.batch_commit(
+                isolated_connector, "alice/repo", files, branch="main")
+    assert "cannot be resolved" in str(exc.value)

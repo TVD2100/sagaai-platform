@@ -76,7 +76,6 @@
   "connectors_save": "Сохранить",
   "connectors_saved": "Подключение сохранено.",
   "connectors_service": "Сервис",
-  "connectors_service_github": "GitHub",
   "connectors_service_github_rest": "GitHub (REST API)",
   "connectors_test_btn": "Проверить подключение",
   "connectors_test_error": "Ошибка подключения: {error}",

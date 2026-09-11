@@ -245,14 +245,13 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   «Подключения») выбираются доступные подключения
   (`config['enabled_connections']`); связанные инструменты и блок
   `Available service connections` добавляются в системный промпт.
-- **GitHub-коннектор** (`core/github_connector.py`, PyGithub) предоставляет
-  инструменты оркестраторам: `github_list_repos`, `github_create_repo`,
-  `github_upload_file`, `github_update_file`, `github_read_file`
-  (`core/github_tools.py`, конвенция `invoke(**kwargs) -> dict`).
-- **Основной REST GitHub-коннектор** (`core/github_connector_rest.py`,
-  прямые запросы к REST API v3 через `requests`, без PyGithub) реализует
-  те же операции (repo CRUD, чтение/запись файлов, метаданные, refs/коммиты/
-  деревья) и добавляет оптимизированную пакетную публикацию через Git Data
+- **GitHub-коннектор:** единственный коннектор GitHub - REST
+  (`core/github_connector_rest.py`, прямые запросы к REST API v3 через
+  `requests`, без PyGithub). Legacy PyGithub-коннектор
+  (`core/github_connector.py`, `core/github_tools.py`, инструменты
+  `github_*`) полностью удалён.
+- REST-коннектор реализует repo CRUD, чтение/запись файлов, метаданные,
+  refs/коммиты/деревья и оптимизированную пакетную публикацию через Git Data
   API: все blobs создаются заранее, затем ОДНО дерево, ОДИН коммит и ОДНО
   обновление ref для всей пачки файлов (`batch_commit`; ветка создаётся,
   если репозиторий пуст). `batch_upsert` дополнительно сверяет локальные
@@ -261,10 +260,13 @@ SagaAI - универсальный AI-ассистент с веб-интерф
 - Инструменты REST-коннектора для оркестраторов (`core/github_tools_rest.py`,
   префикс `ghr_*`): `ghr_list_repos`, `ghr_create_repo`, `ghr_read_file`,
   `ghr_upload_file`, `ghr_update_file`, `ghr_delete_file`, `ghr_list_files`,
-  `ghr_batch_commit`, `ghr_batch_upsert`; каталог - `get_tools()`.
-  Сервис подключения - `github_rest`; старый `github` (PyGithub) остаётся
-  резервным. Токен шифруется через `core.crypto` при сохранении соединения
-  и никогда не попадает в результаты, ошибки или публичные представления.
+  `ghr_batch_commit`, `ghr_batch_upsert`, `ghr_test_connection`,
+  `ghr_get_repo_info`, `ghr_read_file_meta`, `ghr_get_ref`, `ghr_get_commit`,
+  `ghr_get_tree`; каталог - `get_tools()`.
+  Сервис подключения - `github_rest`; legacy-сервис `github` (PyGithub)
+  удалён и больше не существует. Токен шифруется через `core.crypto` при
+  сохранении соединения и никогда не попадает в результаты, ошибки или
+  публичные представления.
 
 ### FR12 - Библиотека навыков (Skills)
 - Навыки лежат в `DATA_DIR/skills/<folder>/`, реестр - `skills/skills.json`;
@@ -390,7 +392,7 @@ SagaAI - универсальный AI-ассистент с веб-интерф
 - Список базовых файлов (87):
   - Корень (2): __init__.py, app.py
   - UI (18): ui/__init__.py, ui/app.py, ui/components/__init__.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/assistants.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/orchestrator.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrators.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/welcome.py
-  - Core (48): core/__init__.py, core/api_errors.py, core/api_layer.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/config.py, core/connectors.py, core/contracts.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/entity_sync.py, core/env_loader.py, core/files.py, core/fs.py, core/github_connector.py, core/github_tools.py, core/i18n.py, core/instructions.py, core/orchestrator_folders.py, core/orchestrators.py, core/paths.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_skills.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skill_creator.py, core/skills.py, core/skills_library.py, core/statistics.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py
+  - Core (48): core/__init__.py, core/api_errors.py, core/api_layer.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/config.py, core/connectors.py, core/contracts.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/entity_sync.py, core/env_loader.py, core/files.py, core/fs.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/orchestrator_folders.py, core/orchestrators.py, core/paths.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_skills.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skill_creator.py, core/skills.py, core/skills_library.py, core/statistics.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py
   - Storage (5): storage/__init__.py, storage/db.py, storage/models.py, storage/repository.py, storage/repository_devagent.py
   - DevAgent (14): dev_agent/__init__.py, dev_agent/agent_loop.py, dev_agent/assistant_detector.py, dev_agent/assistant_model_resolver.py, dev_agent/backup_manager.py, dev_agent/config.py, dev_agent/llm_utils.py, dev_agent/safe_writer.py, dev_agent/skill_detector.py, dev_agent/skill_model_resolver.py, dev_agent/task_state.py, dev_agent/tool_executor.py, dev_agent/universal_agent.py, dev_agent/workspace_tools.py
 

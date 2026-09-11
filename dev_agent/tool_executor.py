@@ -1203,6 +1203,15 @@ class ToolExecutor:
         env = dict(os.environ)
         # Make the project importable as a package (sagaai.dev_agent...).
         env["PYTHONPATH"] = str(config.PROJECT_ROOT.parent) + os.pathsep + env.get("PYTHONPATH", "")
+        # Child processes must resolve runtime data (DB, history, connectors)
+        # to the SAME DATA_DIR as this process, even when it was set via the
+        # environment before startup and is absent from os.environ.
+        try:
+            import core.paths as _paths
+            if _paths.DATA_DIR:
+                env.setdefault("SAGAAI_DATA_DIR", str(_paths.DATA_DIR))
+        except Exception:
+            pass
 
         cleanup = None
         try:
@@ -1302,6 +1311,14 @@ class ToolExecutor:
         env = dict(os.environ)
         # Make the project importable as a package (sagaai.dev_agent...).
         env["PYTHONPATH"] = str(config.PROJECT_ROOT.parent) + os.pathsep + env.get("PYTHONPATH", "")
+        # Same DATA_DIR propagation as run_test: child code must see this
+        # process's runtime data dir.
+        try:
+            import core.paths as _paths
+            if _paths.DATA_DIR:
+                env.setdefault("SAGAAI_DATA_DIR", str(_paths.DATA_DIR))
+        except Exception:
+            pass
 
         cleanup = None
         try:

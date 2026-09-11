@@ -143,7 +143,7 @@ SagaAI умеет подключать внешние сервисы к сотр
 
 - вкладка **«Подключения»** в настройках сотрудника: включение коннекторов для конкретного агента;
 
-- при включённом GitHub-подключении оркестратор получает инструменты `github_list_repos`, `github_create_repo`, `github_upload_file`, `github_update_file`, `github_read_file` и инструкцию `github_connector`.
+- при включённом GitHub-подключении (сервис `github_rest`, прямые запросы к REST API) оркестратор получает инструменты с префиксом `ghr_*` (`ghr_list_repos`, `ghr_create_repo`, `ghr_read_file`, `ghr_upload_file`, `ghr_update_file`, `ghr_delete_file`, `ghr_list_files`, `ghr_batch_commit`, `ghr_batch_upsert` и др.) и инструкцию `github_connector`.
 
 ## 6. Позиционирование SagaAI
 

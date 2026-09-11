@@ -56,8 +56,8 @@ def orch_slug(isolated_data_dir):
     return slug
 
 
-FAKE_CONN = {"service": "github", "name": "My GitHub", "account": "alice"}
-FAKE_TOOLS = [{"name": "github_list_repos", "desc": "List repositories."}]
+FAKE_CONN = {"service": "github_rest", "name": "My GitHub", "account": "alice"}
+FAKE_TOOLS = [{"name": "ghr_list_repos", "desc": "List repositories."}]
 
 
 def test_default_enabled_connections_empty(orch_slug):
@@ -79,17 +79,18 @@ def test_set_enabled_connections_missing_orchestrator(isolated_data_dir):
 def test_prompt_extended_with_connections(orch_slug):
     from core.orchestrators import _extend_prompt_with_connections, set_enabled_connections
     set_enabled_connections(orch_slug, ["conn_github"])
-    with mock.patch("core.connectors.get_connection", return_value=FAKE_CONN), mock.patch("core.github_tools.get_tools", return_value=FAKE_TOOLS):
+    with mock.patch("core.connectors.get_connection", return_value=FAKE_CONN), mock.patch("core.github_tools_rest.get_tools", return_value=FAKE_TOOLS):
         prompt = _extend_prompt_with_connections("Base prompt", orch_slug)
 
     assert "## Available service connections" in prompt
     assert "conn_github" in prompt
     assert "alice" in prompt
-    assert "github_list_repos" in prompt
+    assert "ghr_list_repos" in prompt
     assert "Quick usage notes" in prompt
     assert "Always pass `connector_id`" in prompt
-    assert "`github_upload_file` creates a NEW file" in prompt
-    assert "`github_read_file` first" in prompt
+    assert "`ghr_upload_file` creates a NEW file" in prompt
+    assert "`ghr_read_file` first" in prompt
+    assert "Prefer `ghr_batch_commit` / `ghr_batch_upsert`" in prompt
 
 
 def test_prompt_unchanged_when_no_connections(orch_slug):
@@ -100,7 +101,7 @@ def test_prompt_unchanged_when_no_connections(orch_slug):
 def test_build_assistant_dicts_includes_connections_block(orch_slug):
     from core.orchestrators import build_assistant_dicts, set_enabled_connections
     set_enabled_connections(orch_slug, ["conn_github"])
-    with mock.patch("core.connectors.get_connection", return_value=FAKE_CONN), mock.patch("core.github_tools.get_tools", return_value=FAKE_TOOLS):
+    with mock.patch("core.connectors.get_connection", return_value=FAKE_CONN), mock.patch("core.github_tools_rest.get_tools", return_value=FAKE_TOOLS):
         strong, weak = build_assistant_dicts(orch_slug)
 
     assert "## Available service connections" in strong.get("text", "")

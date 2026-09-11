@@ -547,7 +547,6 @@ def _extend_prompt_with_connections(prompt: str, orchestrator_slug: str = DEVAGE
         return prompt
     try:
         from core.connectors import get_connection
-        from core.github_tools import get_tools as get_github_tools
         from core.github_tools_rest import get_tools as get_github_rest_tools
     except Exception:
         return prompt
@@ -581,9 +580,6 @@ def _extend_prompt_with_connections(prompt: str, orchestrator_slug: str = DEVAGE
     lines.append("")
     lines.append("Available connection tools:")
     try:
-        if "github" in services:
-            for tool in get_github_tools():
-                lines.append(f"- `{tool['name']}` - {tool['desc']}")
         if "github_rest" in services:
             for tool in get_github_rest_tools():
                 lines.append(f"- `{tool['name']}` - {tool['desc']}")
@@ -597,9 +593,9 @@ def _extend_prompt_with_connections(prompt: str, orchestrator_slug: str = DEVAGE
     lines.append("- Always pass `connector_id` (from the list above) as the first argument.")
     lines.append("- `repo` accepts `owner/repo` or a bare repo name of the authenticated user.")
     lines.append("- New repo names must be lowercase, without spaces.")
-    lines.append("- `github_upload_file` creates a NEW file; use `github_update_file` to change an existing file (`ghr_upload_file` / `ghr_update_file` for `github_rest` connections).")
-    lines.append("- For `github_rest` connections prefer `ghr_batch_commit` / `ghr_batch_upsert` to publish many files in ONE commit.")
-    lines.append("- Before updating a file, read it with `github_read_file` first (`ghr_read_file` for `github_rest` connections).")
+    lines.append("- `ghr_upload_file` creates a NEW file; use `ghr_update_file` to change an existing file.")
+    lines.append("- Prefer `ghr_batch_commit` / `ghr_batch_upsert` to publish many files in ONE commit.")
+    lines.append("- Before updating a file, read it with `ghr_read_file` first.")
     lines.append("- For the full usage guide, load the `github_connector` instruction if it is listed in `## Available instructions` of this orchestrator.")
 
     block = "\n".join(lines)

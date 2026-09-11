@@ -76,7 +76,6 @@
   "connectors_save": "Save",
   "connectors_saved": "Connection saved.",
   "connectors_service": "Service",
-  "connectors_service_github": "GitHub",
   "connectors_service_github_rest": "GitHub (REST API)",
   "connectors_test_btn": "Test connection",
   "connectors_test_error": "Connection failed: {error}",

@@ -2,7 +2,7 @@
 """
 core.github_connector_rest - direct GitHub REST API v3 connector (requests).
 
-A PyGithub-free alternative to ``core.github_connector``. It implements the
+The direct PyGithub-free GitHub connector. It implements the
 same user-facing operations over plain HTTP (REST API v3, api version
 ``2022-11-28``) and adds optimized batch publishing for large file sets via
 the Git Data API: all blobs are created first, then ONE tree, ONE commit and
@@ -671,30 +671,69 @@ def _publish_commit(conn_id: str, owner: str, name: str, branch: str,
                     parent: Optional[str], base_tree: Optional[str],
                     tree_entries: List[Dict[str, str]],
                     message: str) -> Dict[str, Any]:
-    """Perform tree+commit+ref-update for a batch and return a summary."""
-    tree_sha = _create_tree_chain(conn_id, owner, name, base_tree or "", tree_entries)
-    commit_body: Dict[str, Any] = {
-        "message": message or f"Batch commit ({len(tree_entries)} files)",
-        "tree": tree_sha,
-    }
-    if parent:
-        commit_body["parents"] = [parent]
-    data = _request(
-        conn_id, "POST", f"/repos/{owner}/{name}/git/commits",
-        body=commit_body, timeout=_BATCH_TIMEOUT,
-    )
-    info = data if isinstance(data, dict) else {}
-    commit_sha = str(info.get("sha") or "")
-    if not commit_sha:
-        raise GithubRestError("GitHub did not return a commit SHA")
+    """Perform tree+commit+ref-update for a batch and return a summary.
+
+    When the ref PATCH fails with a 422 fast-forward conflict (the branch
+    moved between our read and the update), the current branch head is
+    re-read once, tree and commit are rebuilt on the new parent, and the
+    ref update is retried a single time. ``ref_retried`` is True in the
+    returned summary when that recovery path was used.
+    """
+    def _build(p: Optional[str], bt: Optional[str]):
+        tsha = _create_tree_chain(conn_id, owner, name, bt or "", tree_entries)
+        body: Dict[str, Any] = {
+            "message": message or f"Batch commit ({len(tree_entries)} files)",
+            "tree": tsha,
+        }
+        if p:
+            body["parents"] = [p]
+        data = _request(
+            conn_id, "POST", f"/repos/{owner}/{name}/git/commits",
+            body=body, timeout=_BATCH_TIMEOUT,
+        )
+        info = data if isinstance(data, dict) else {}
+        csha = str(info.get("sha") or "")
+        if not csha:
+            raise GithubRestError("GitHub did not return a commit SHA")
+        return tsha, csha
+
+    tree_sha, commit_sha = _build(parent, base_tree)
     ref_created = False
     ref_updated = False
+    ref_retried = False
     if parent is not None:
-        _request(conn_id, "PATCH",
-                 f"/repos/{owner}/{name}/git/refs/heads/{_quote_branch(branch)}",
-                 body={"sha": commit_sha, "force": False},
-                 timeout=_BATCH_TIMEOUT)
-        ref_updated = True
+        try:
+            _request(conn_id, "PATCH",
+                     f"/repos/{owner}/{name}/git/refs/heads/{_quote_branch(branch)}",
+                     body={"sha": commit_sha, "force": False},
+                     timeout=_BATCH_TIMEOUT)
+            ref_updated = True
+        except GithubRestError as e:
+            if e.status != 422:
+                raise
+            # Fast-forward conflict: the branch moved while the batch was
+            # being built. Re-read the head once, rebuild tree+commit on the
+            # new parent and retry the ref update a single time.
+            head = _request(
+                conn_id, "GET",
+                f"/repos/{owner}/{name}/git/ref/heads/{_quote_branch(branch)}"
+            )
+            head_info = head if isinstance(head, dict) else {}
+            new_parent = str((head_info.get("object") or {}).get("sha") or "")
+            if not new_parent:
+                raise GithubRestError(
+                    "GitHub rejected the branch update and the current "
+                    "branch head cannot be resolved"
+                )
+            commit = get_commit(conn_id, f"{owner}/{name}", new_parent)
+            new_base_tree = commit.get("tree_sha") or None
+            tree_sha, commit_sha = _build(new_parent, new_base_tree)
+            _request(conn_id, "PATCH",
+                     f"/repos/{owner}/{name}/git/refs/heads/{_quote_branch(branch)}",
+                     body={"sha": commit_sha, "force": False},
+                     timeout=_BATCH_TIMEOUT)
+            ref_retried = True
+            ref_updated = True
     else:
         _request(conn_id, "POST", f"/repos/{owner}/{name}/git/refs",
                  body={"ref": f"refs/heads/{branch}", "sha": commit_sha},
@@ -707,6 +746,7 @@ def _publish_commit(conn_id: str, owner: str, name: str, branch: str,
         "tree_sha": tree_sha,
         "ref_created": ref_created,
         "ref_updated": ref_updated,
+        "ref_retried": ref_retried,
     }
 
 

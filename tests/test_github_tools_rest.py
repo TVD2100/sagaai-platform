@@ -212,9 +212,95 @@ def test_get_tools_metadata():
         "ghr_update_file",
         "ghr_delete_file",
         "ghr_list_files",
+        "ghr_test_connection",
+        "ghr_get_repo_info",
+        "ghr_read_file_meta",
+        "ghr_get_ref",
+        "ghr_get_commit",
+        "ghr_get_tree",
         "ghr_batch_commit",
         "ghr_batch_upsert",
     }
     for tool in tools:
         assert tool["desc"]
         assert tool["name"] in gtr.TOOLS
+
+
+@mock.patch("core.github_connector_rest.test_connection")
+def test_ghr_test_connection_ok(mock_test):
+    mock_test.return_value = {"ok": True, "login": "alice", "name": "Alice"}
+    result = gtr.ghr_test_connection(connector_id="abc")
+    assert result["ok"] is True
+    assert result["result"]["login"] == "alice"
+    mock_test.assert_called_once_with("abc")
+
+
+@mock.patch("core.github_connector_rest.get_repo_info")
+def test_ghr_get_repo_info_ok(mock_info):
+    mock_info.return_value = {"full_name": "alice/r", "default_branch": "main"}
+    result = gtr.ghr_get_repo_info(connector_id="abc", repo="alice/r")
+    assert result["ok"] is True
+    assert result["result"]["full_name"] == "alice/r"
+    mock_info.assert_called_once_with("abc", "alice/r")
+
+
+def test_ghr_get_repo_info_missing_repo():
+    result = gtr.ghr_get_repo_info(connector_id="abc")
+    assert result["ok"] is False
+    assert "repo" in result["error"]
+
+
+@mock.patch("core.github_connector_rest.read_file_meta")
+def test_ghr_read_file_meta_ok(mock_meta):
+    mock_meta.return_value = {"path": "a.txt", "sha": "s1", "size": 2}
+    result = gtr.ghr_read_file_meta(
+        connector_id="abc", repo="alice/r", path="a.txt", branch="dev",
+    )
+    assert result["ok"] is True
+    assert result["result"]["sha"] == "s1"
+    mock_meta.assert_called_once_with("abc", "alice/r", "a.txt", branch="dev")
+
+
+def test_ghr_read_file_meta_missing_path():
+    result = gtr.ghr_read_file_meta(connector_id="abc", repo="alice/r")
+    assert result["ok"] is False
+    assert "path" in result["error"]
+
+
+@mock.patch("core.github_connector_rest.get_ref")
+def test_ghr_get_ref_ok(mock_ref):
+    mock_ref.return_value = {"ref": "refs/heads/main", "sha": "c1"}
+    result = gtr.ghr_get_ref(connector_id="abc", repo="alice/r", branch="main")
+    assert result["ok"] is True
+    assert result["result"]["sha"] == "c1"
+    mock_ref.assert_called_once_with(
+        "abc", "alice/r", branch="main", resolve=True,
+    )
+
+
+@mock.patch("core.github_connector_rest.get_commit")
+def test_ghr_get_commit_ok(mock_commit):
+    mock_commit.return_value = {"sha": "c1", "message": "m"}
+    result = gtr.ghr_get_commit(
+        connector_id="abc", repo="alice/r", commit_sha="c1",
+    )
+    assert result["ok"] is True
+    mock_commit.assert_called_once_with("abc", "alice/r", "c1")
+
+
+def test_ghr_get_commit_missing_sha():
+    result = gtr.ghr_get_commit(connector_id="abc", repo="alice/r")
+    assert result["ok"] is False
+    assert "commit_sha" in result["error"]
+
+
+@mock.patch("core.github_connector_rest.get_tree")
+def test_ghr_get_tree_ok(mock_tree):
+    mock_tree.return_value = {"tree_sha": "t1", "entries": []}
+    result = gtr.ghr_get_tree(
+        connector_id="abc", repo="alice/r", branch="main", recursive=True,
+    )
+    assert result["ok"] is True
+    mock_tree.assert_called_once_with(
+        "abc", "alice/r", branch="main", recursive=True,
+    )

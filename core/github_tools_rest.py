@@ -2,8 +2,8 @@
 """
 core.github_tools_rest - orchestrator tools for the REST GitHub connector.
 
-Tool layer for ``core.github_connector_rest``. Same platform convention as
-``core.github_tools``:
+Tool layer for ``core.github_connector_rest``. Follows the platform
+convention for orchestrator tools:
 
     invoke(**kwargs) -> dict
 
@@ -264,6 +264,152 @@ def ghr_list_files(**kwargs: Any) -> Dict[str, Any]:
     return _wrap(run, kwargs)
 
 
+def ghr_test_connection(**kwargs: Any) -> Dict[str, Any]:
+    """Validate a GitHub REST connection and refresh its account info.
+
+    Arguments:
+        connector_id (str, required): connection id.
+    Returns:
+        {"ok": True, "result": {"ok": True, "login", "name", "id",
+        "html_url"}}
+    """
+    from core.github_connector_rest import test_connection
+
+    def run():
+        conn_id = _get_connector_id(kwargs)
+        return test_connection(conn_id)
+
+    return _wrap(run, kwargs)
+
+
+def ghr_get_repo_info(**kwargs: Any) -> Dict[str, Any]:
+    """Return metadata for one repository.
+
+    Arguments:
+        connector_id (str, required): connection id.
+        repo (str, required): "owner/repo" or bare repo name.
+    Returns:
+        {"ok": True, "result": {"full_name", "name", "owner", "private",
+        "default_branch", ...}}
+    """
+    from core.github_connector_rest import get_repo_info
+
+    def run():
+        conn_id = _get_connector_id(kwargs)
+        repo = str(kwargs.get("repo") or "").strip()
+        if not repo:
+            raise GithubRestError("Missing required argument: repo")
+        return get_repo_info(conn_id, repo)
+
+    return _wrap(run, kwargs)
+
+
+def ghr_read_file_meta(**kwargs: Any) -> Dict[str, Any]:
+    """Return file metadata (sha, size) without the file content.
+
+    Arguments:
+        connector_id (str, required): connection id.
+        repo (str, required): "owner/repo" or bare repo name.
+        path (str, required): file path in the repository.
+        branch (str, optional): ref / branch to read from.
+    Returns:
+        {"ok": True, "result": {"path", "sha", "size", "url"}}
+    """
+    from core.github_connector_rest import read_file_meta
+
+    def run():
+        conn_id = _get_connector_id(kwargs)
+        repo = str(kwargs.get("repo") or "").strip()
+        path = str(kwargs.get("path") or "").strip()
+        if not repo:
+            raise GithubRestError("Missing required argument: repo")
+        if not path:
+            raise GithubRestError("Missing required argument: path")
+        return read_file_meta(conn_id, repo, path,
+                              branch=str(kwargs.get("branch") or ""))
+
+    return _wrap(run, kwargs)
+
+
+def ghr_get_ref(**kwargs: Any) -> Dict[str, Any]:
+    """Return a branch head as {"ref", "sha", "object_type"}.
+
+    Arguments:
+        connector_id (str, required): connection id.
+        repo (str, required): "owner/repo" or bare repo name.
+        branch (str, optional): branch name (default branch when empty).
+        resolve (bool, optional, default True): resolve the ref.
+    Returns:
+        {"ok": True, "result": {"ref", "sha", "object_type"}}
+    """
+    from core.github_connector_rest import get_ref
+
+    def run():
+        conn_id = _get_connector_id(kwargs)
+        repo = str(kwargs.get("repo") or "").strip()
+        if not repo:
+            raise GithubRestError("Missing required argument: repo")
+        return get_ref(
+            conn_id, repo,
+            branch=str(kwargs.get("branch") or ""),
+            resolve=bool(kwargs.get("resolve", True)),
+        )
+
+    return _wrap(run, kwargs)
+
+
+def ghr_get_commit(**kwargs: Any) -> Dict[str, Any]:
+    """Return a Git commit object.
+
+    Arguments:
+        connector_id (str, required): connection id.
+        repo (str, required): "owner/repo" or bare repo name.
+        commit_sha (str, required): commit SHA.
+    Returns:
+        {"ok": True, "result": {"sha", "message", "tree_sha", "parents"}}
+    """
+    from core.github_connector_rest import get_commit
+
+    def run():
+        conn_id = _get_connector_id(kwargs)
+        repo = str(kwargs.get("repo") or "").strip()
+        commit_sha = str(kwargs.get("commit_sha") or "").strip()
+        if not repo:
+            raise GithubRestError("Missing required argument: repo")
+        if not commit_sha:
+            raise GithubRestError("Missing required argument: commit_sha")
+        return get_commit(conn_id, repo, commit_sha)
+
+    return _wrap(run, kwargs)
+
+
+def ghr_get_tree(**kwargs: Any) -> Dict[str, Any]:
+    """Return the repository tree for a branch.
+
+    Arguments:
+        connector_id (str, required): connection id.
+        repo (str, required): "owner/repo" or bare repo name.
+        branch (str, optional): branch name (default branch when empty).
+        recursive (bool, optional, default False): include nested entries.
+    Returns:
+        {"ok": True, "result": {"tree_sha", "truncated", "entries": [...]}}
+    """
+    from core.github_connector_rest import get_tree
+
+    def run():
+        conn_id = _get_connector_id(kwargs)
+        repo = str(kwargs.get("repo") or "").strip()
+        if not repo:
+            raise GithubRestError("Missing required argument: repo")
+        return get_tree(
+            conn_id, repo,
+            branch=str(kwargs.get("branch") or ""),
+            recursive=bool(kwargs.get("recursive", False)),
+        )
+
+    return _wrap(run, kwargs)
+
+
 def ghr_batch_commit(**kwargs: Any) -> Dict[str, Any]:
     """Publish many files in ONE commit via the Git Data API (optimized).
 
@@ -374,6 +520,48 @@ TOOLS["ghr_list_files"] = {
     "desc": (
         "List top-level entries of a repository directory (REST connector). "
         "Arguments: connector_id, repo, path, branch."
+    ),
+}
+TOOLS["ghr_test_connection"] = {
+    "name": "ghr_test_connection",
+    "desc": (
+        "Validate a GitHub REST connection and refresh its account info. "
+        "Arguments: connector_id (required)."
+    ),
+}
+TOOLS["ghr_get_repo_info"] = {
+    "name": "ghr_get_repo_info",
+    "desc": (
+        "Return metadata for one repository (REST connector). "
+        "Arguments: connector_id (required), repo (required)."
+    ),
+}
+TOOLS["ghr_read_file_meta"] = {
+    "name": "ghr_read_file_meta",
+    "desc": (
+        "Return file metadata sha/size without content (REST connector). "
+        "Arguments: connector_id, repo, path, branch."
+    ),
+}
+TOOLS["ghr_get_ref"] = {
+    "name": "ghr_get_ref",
+    "desc": (
+        "Return a branch head ref (REST connector). "
+        "Arguments: connector_id, repo, branch, resolve."
+    ),
+}
+TOOLS["ghr_get_commit"] = {
+    "name": "ghr_get_commit",
+    "desc": (
+        "Return a Git commit object by SHA (REST connector). "
+        "Arguments: connector_id, repo, commit_sha."
+    ),
+}
+TOOLS["ghr_get_tree"] = {
+    "name": "ghr_get_tree",
+    "desc": (
+        "Return the repository tree for a branch (REST connector). "
+        "Arguments: connector_id, repo, branch, recursive."
     ),
 }
 TOOLS["ghr_batch_commit"] = {

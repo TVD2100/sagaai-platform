@@ -6,7 +6,7 @@ Each connection lives in ``DATA_DIR/connectors/<id>/manifest.json``:
 
     {
         "id": "<uuid8>",
-        "service": "github",
+        "service": "github_rest",
         "name": "GitHub-TVD2100",        # user-visible name
         "account": "TVD2100",             # display info about the account
         "token_encrypted": "<fernet>",    # token encrypted with core.crypto
@@ -43,10 +43,6 @@ CONNECTORS_DIR: str = os.path.join(DATA_DIR, "connectors")
 
 # Known services. Future connectors (gitlab, slack, ...) extend this registry.
 CONNECTOR_SERVICES: Dict[str, Dict[str, Any]] = {
-    "github": {
-        "name": "GitHub",
-        "description": "GitHub API connection (repositories, files, issues)",
-    },
     "github_rest": {
         "name": "GitHub REST API (direct)",
         "description": "Direct GitHub REST API v3 connection (requests, batch publishing via Git Data API)",
@@ -171,7 +167,7 @@ def create_connection(service: str, name: str, token: str,
     """Create a new connection.
 
     Args:
-        service: connector service id ("github").
+        service: connector service id ("github_rest").
         name: user-visible name (e.g. "GitHub-TVD2100").
         token: plaintext API token; it is encrypted before storage.
         account: display account/login info, optional.

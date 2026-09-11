@@ -44,10 +44,11 @@ def _test_connection(conn_id: str, lang: str) -> None:
     try:
         conn = connectors.get_connection(conn_id)
         service = str((conn or {}).get("service") or "")
-        if service == "github_rest":
-            from core.github_connector_rest import test_connection
-        else:
-            from core.github_connector import test_connection
+        if service != "github_rest":
+            st.error(t("connectors_test_error", lang=lang,
+                       error=f"Unsupported service: {service}"))
+            return
+        from core.github_connector_rest import test_connection
         result = test_connection(conn_id)
     except Exception as e:
         st.error(t("connectors_test_error", lang=lang, error=str(e)))

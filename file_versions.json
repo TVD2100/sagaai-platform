@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "0.2.0-preview.1",
+  "app_version": "0.3.0-preview.1",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Крупный пакет 0.2.0: изоляция рабочей папки между параллельными диалогами DevAgent, обновлённая документация и правило системного версионирования.",
-    "en": "Large 0.2.0 package: per-dialog workspace isolation for parallel DevAgent chats, updated documentation and the system versioning rule."
+    "ru": "Переход GitHub-интеграции полностью на REST-коннектор: приоритет пакетной загрузки, 6 новых ghr_-инструментов, авто-ретрай fast-forward, удалён PyGithub-коннектор.",
+    "en": "GitHub integration fully REST-based: batch publish first, 6 new ghr_ tools, fast-forward auto-retry, PyGithub connector removed."
   },
-  "updated": "2026-09-11T08:58:30Z",
+  "updated": "2026-09-11T15:39:25Z",
   "units": {
     "core": {
-      "version": "1.3.0",
+      "version": "1.4.0",
       "note": {
-        "ru": "Исполняемый код платформы (core, UI, хранилище, тесты). Обновляется только целиком, единым пакетом. 1.2.0: SQLite-хаденнинг (WAL, busy_timeout, foreign_keys для основной БД, индекс сообщений), кэш строки токенов/economy и пагинация ленты чата, ретраи при обрывах связи.",
-        "en": "Platform executable code (core, UI, storage, tests). Updates only as a single atomic unit. 1.2.0: SQLite hardening (WAL, busy_timeout, foreign_keys for the main DB, message index), token/economy line cache and chat-feed pagination and connection-loss retries."
+        "ru": "Исполняемый код платформы (core, UI, хранилище, тесты). Обновляется только целиком, единым пакетом. 1.2.0: SQLite-хаденнинг (WAL, busy_timeout, foreign_keys для основной БД, индекс сообщений), кэш строки токенов/economy и пагинация ленты чата, ретраи при обрывах связи. 1.4.0: GitHub-интеграция полностью на REST-коннекторе - 6 новых ghr_-инструментов, приоритет пакетной публикации, авто-ретрай fast-forward, PyGithub удалён.",
+        "en": "Platform executable code (core, UI, storage, tests). Updates only as a single atomic unit. 1.2.0: SQLite hardening (WAL, busy_timeout, foreign_keys for the main DB, message index), token/economy line cache and chat-feed pagination and connection-loss retries. 1.4.0: GitHub integration fully REST-based - 6 new ghr_ tools, batch publishing preferred, fast-forward auto-retry, PyGithub removed."
       },
       "files": {
         "__init__.py": {
@@ -76,8 +76,8 @@
           "sha256": "202e0013583eb3bb82ba994044d4d83026512139ba7e0b5134db69b618aa907d"
         },
         "core/connectors.py": {
-          "version": "1.1.0",
-          "sha256": "3b3b094cec913a1825f7c61bff586e81158539f9ecd2c19e97491753c6935d5a"
+          "version": "1.2.0",
+          "sha256": "cb9e2e8576c537656821ad1b7810a08f8582174fdad1a12d7ffc43569208e0af"
         },
         "core/crypto.py": {
           "version": "1.0.0",
@@ -111,14 +111,6 @@
           "version": "1.0.0",
           "sha256": "bec53c1a8ff7ea9dc91c81586009d0d79fb1ada73f211bcb670baaf873a55118"
         },
-        "core/github_connector.py": {
-          "version": "1.0.0",
-          "sha256": "ea9562df332ba3fb6416f8f58b415abfb68fc08aa5990213b734bc35c6f6c6d9"
-        },
-        "core/github_tools.py": {
-          "version": "1.0.0",
-          "sha256": "eebaf64165a68a2cfd14242f2cb0fac95c65a13e1cba22e844faf5781d858ac1"
-        },
         "core/i18n.py": {
           "version": "1.0.0",
           "sha256": "cbd8764a168ac1a05f8eb63cedd8b02a9d78c705d51773132251de1e24336ef4"
@@ -132,8 +124,8 @@
           "sha256": "e457904340ea8475ec98e6ececad8be98ee09fcd3959607fca1d5a16e678a915"
         },
         "core/orchestrators.py": {
-          "version": "1.3.0",
-          "sha256": "aa110ba12cd1ab3117831d4bd47ae8b207c069be3e2724e129b9e60cb49fb6d7"
+          "version": "1.4.0",
+          "sha256": "c16db7153eaec61f518012fa02e895ff6391c8988526d22cc12984b1d564489b"
         },
         "core/paths.py": {
           "version": "1.0.0",
@@ -212,8 +204,8 @@
           "sha256": "eb31b89c7e74fcd318863b8a3cbe3420fb002808b81bfd58c24df4bb9ca63292"
         },
         "core/version.py": {
-          "version": "1.0.1",
-          "sha256": "8ad82cd6175906197736a8d8255d1288bb8592ea70690c2195397562a3037999"
+          "version": "1.0.2",
+          "sha256": "e25e394f97f1394b0f4fa831092f28ac18244bf14174ddce5ba1d4f0520f02f2"
         },
         "dev_agent/__init__.py": {
           "version": "1.0.0",
@@ -252,12 +244,12 @@
           "sha256": "acc6d5d78515649d9e7e721686d7f75e230a41ada55376cfaa592dafb6ac2029"
         },
         "dev_agent/tool_executor.py": {
-          "version": "1.0.1",
-          "sha256": "4b9874aa414d4108507800b3e2eb5264f93125c1c80e8db37aaa060adafa4989"
+          "version": "1.1.0",
+          "sha256": "9e21161d9cce8fa2b020e270246d82dd7c872b3a49d4fbb1729044c8053330ac"
         },
         "dev_agent/universal_agent.py": {
-          "version": "1.4.0",
-          "sha256": "e8fba0e8f6201824e0cd3d19268a556f37823c8f98e3230b9e761680037d2872"
+          "version": "1.5.0",
+          "sha256": "bf02f875afb6310cce538acd9b7e85a003061c02c37fa9895e71f583d50df9c9"
         },
         "dev_agent/workspace_tools.py": {
           "version": "1.1.0",
@@ -268,8 +260,8 @@
           "sha256": "208d0f9e48700f367ab579de3a91d02a259c8e0322dbfae0758d0cb90cefddb1"
         },
         "requirements.txt": {
-          "version": "1.0.0",
-          "sha256": "3d69e9855c0a8f8b3849ba1f1c5bb3c9d4e93f8fdda12707a8b6a754eb9635cb"
+          "version": "1.1.0",
+          "sha256": "d30b1003cd4c0769a111e2e09fe27302915a6fbca1c614b95bb7a7a9f95cec97"
         },
         "scripts/regenerate_project_map.py": {
           "version": "1.0.0",
@@ -320,8 +312,8 @@
           "sha256": "ad35123859af21af8bcb0e13bc92f7a4d2cec650b7e0e2a946db8b5f771853b0"
         },
         "tests/scenarios/test_connectors_scenarios.py": {
-          "version": "1.0.0",
-          "sha256": "f344db1094ea9fd1850d58982ab63cfb3adc13a97fd494479adbd4a6eddb7da4"
+          "version": "1.1.0",
+          "sha256": "b74bbc13dd321ba565ea70879dee275e065ce0df66d00b1f91add0810fe70e82"
         },
         "tests/scenarios/test_first_run_flow.py": {
           "version": "1.0.1",
@@ -408,8 +400,8 @@
           "sha256": "85319600da37774906f21382167ea2370afa088816e436d86f0cff0fdd0e9818"
         },
         "tests/test_connectors.py": {
-          "version": "1.1.0",
-          "sha256": "d6e3f255b2e99d5914ac8bec8617c746270d013c0a298406bb6352c2f5b0cda1"
+          "version": "1.2.0",
+          "sha256": "a74fdfec88f5ace9893f8c8f8f1061caf9013348cda9f9245046ea7f60d08b62"
         },
         "tests/test_core_api_json_schema.py": {
           "version": "1.0.0",
@@ -448,20 +440,12 @@
           "sha256": "495200dad850b8b64fd3da5c526fdd7d05cb3a3f825f639c604688715bbed959"
         },
         "tests/test_dispatcher_connections.py": {
-          "version": "1.1.0",
-          "sha256": "b1d9fd73f22d6d028041b46534da999f32fd0fd4c3b7b3c9abbcca4c4c65759d"
+          "version": "1.2.0",
+          "sha256": "e5008cc572799595117652d341ef42a0392f6edf5d11105768e8e2af4b17e317"
         },
         "tests/test_employee_management_ui.py": {
           "version": "1.0.0",
           "sha256": "3245598541418855fb1c15de5f7140213250c61f937fd70969a10c71fd8c3295"
-        },
-        "tests/test_github_connector.py": {
-          "version": "1.0.0",
-          "sha256": "f7f20157f00936914e9c501a0c940fc6e962e4fd8341dd1ce7c79feb3f032036"
-        },
-        "tests/test_github_tools.py": {
-          "version": "1.0.0",
-          "sha256": "e4fb0ad1bb6eb950621ac2609ccbb8e01cb8718f9f0e21e0e93e7fb0ca8f7dc5"
         },
         "tests/test_i18n_serialization.py": {
           "version": "1.0.0",
@@ -488,8 +472,8 @@
           "sha256": "6d6baa60dd8e85811599feee2e0bbb63b61ecee4a6dcbfd97334d44f7bf4d63e"
         },
         "tests/test_orchestrator_connections.py": {
-          "version": "1.1.0",
-          "sha256": "43bd06ec2893ecd32cd4c5a40a918a0da92747c95adc18c31e9ab406574a4bac"
+          "version": "1.2.0",
+          "sha256": "05b96109136c5182b214441ba547d032ca3bd50a50a1d9fe7b16501eeecc4660"
         },
         "tests/test_orchestrator_economy_cache.py": {
           "version": "1.0.0",
@@ -676,8 +660,8 @@
           "sha256": "600c9f6882a4cb34ed0b0bb045547bb75db4ea36294d715d1d982383bf5af74c"
         },
         "ui/pages/connectors.py": {
-          "version": "1.1.0",
-          "sha256": "dd418ab6162e021c4abfa73516caf3f66f951a8a9eb4fc71c10088c087165b48"
+          "version": "1.2.0",
+          "sha256": "f0585252398abcd8412f0687e5f1ddc402b61a4d8afca47f07ef3009f612fb07"
         },
         "ui/pages/history.py": {
           "version": "1.0.0",
@@ -752,20 +736,20 @@
           "sha256": "0dcc3462b29426b5c1e1a490935f93627d3335931bb74189af14daef9617d120"
         },
         "core/github_connector_rest.py": {
-          "version": "1.0.1",
-          "sha256": "1ea98c16bc1986b1d0ccbfca0dfd28f15b480a0d322a3f59d670a2cd68c2452f"
+          "version": "1.1.0",
+          "sha256": "6f5d14a6ea6f784fdde12897bbafc807f57d72392ac2dd9b8ef2a9dd9c5ad31c"
         },
         "core/github_tools_rest.py": {
-          "version": "1.0.0",
-          "sha256": "d33a9516c138aea653e5961f0c020c5ed6d66c91c7422e48986385e9c4fb22e5"
+          "version": "1.1.0",
+          "sha256": "f241a6923f007ebb0bbf1bcfa86da4e425592311801a6ca316ad5ef27f407ea7"
         },
         "tests/test_github_connector_rest.py": {
-          "version": "1.0.1",
-          "sha256": "22133375b796b7154fca5397be9a0f93c2c1c39fd8a33b637d3b5548ad1eefed"
+          "version": "1.1.0",
+          "sha256": "933b714e2211979ebb3440dc1222297815a6c73585459e407bd3eb7e972fd39c"
         },
         "tests/test_github_tools_rest.py": {
-          "version": "1.0.0",
-          "sha256": "ad44307b76d49e4cd0e0818c9507986311b83c37a28a16359bb9e12c67cd88d5"
+          "version": "1.1.0",
+          "sha256": "cc32ed671a942f019176da18d0ae07c59deb2f0b3e2d49742ff5ace02f585147"
         },
         "tests/scenarios/test_github_rest_scenario.py": {
           "version": "1.0.0",
@@ -846,25 +830,29 @@
         "tests/scenarios/test_connection_retry_scenarios.py": {
           "version": "1.0.0",
           "sha256": "add50b4f60af1d4dffff8ecf884693e50a4c7991a9b7dceef4a6e5dc47299d52"
+        },
+        "tests/test_tool_executor_env.py": {
+          "version": "1.0.0",
+          "sha256": "2d4fd62d7ff7d98f8891d9afecd6b0fe082446d0c454d3be188cfe8090d2620b"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.4.0",
-      "sha256": "c56d5c8f62bc9459fbac3f3a6d505428fcb19d58ab10678f16630ca1b13555a9",
+      "version": "1.5.0",
+      "sha256": "187fb6e873e1027fd29152f99125f97b8d5658f289ea66540440255a89677aa3",
       "note": {
-        "ru": "Описан механизм прозрачных ретраев при обрывах связи (retry_call, retry_callback, retrying_llm) в цикле оркестратора и принципах.",
-        "en": "Documented the transparent connection-loss retry mechanism (retry_call, retry_callback, retrying_llm) in the orchestrator loop and principles."
+        "ru": "Описание GitHub-коннектора переписано: единственный REST-коннектор, 15 ghr_-инструментов, пакетная публикация через Git Data API, авто-ретрай fast-forward; упоминания PyGithub удалены.",
+        "en": "GitHub connector section rewritten: single REST connector, 15 ghr_ tools, batch publishing via the Git Data API, fast-forward auto-retry; PyGithub references removed."
       }
     },
     "COMPARISON.md": {
-      "version": "1.0.0",
-      "sha256": "913bc500c2dbbb837a8ed7c893e1292fe55e30addc31d0d4f119a6c300636015",
+      "version": "1.1.0",
+      "sha256": "a6cd75a729375d25eb217b9604a2ae3d9464d004870225651e95106e4a3cdfd5",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Список инструментов GitHub заменён на ghr_-инструменты REST-коннектора.",
+        "en": "GitHub tool list replaced with the REST connector ghr_ tools."
       }
     },
     "LICENSE": {
@@ -876,27 +864,27 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.6.0",
-      "sha256": "1e277f41bfd111f75180676085c8ec8c024add99a9bc9316eb958a00769df85d",
+      "version": "1.7.0",
+      "sha256": "b45e0d733994ea2a98379cece6683c4c35429e2046bedca36a92ec9afe99116d",
       "note": {
-        "ru": "Добавлены описание ретраев при обрывах связи в описаниях модулей и новые тестовые файлы (test_api_retry, test_agent_loop_connection_retry, test_connection_retry_scenarios); обновлены секции символов api_layer/agent_loop/assistant_tools.",
-        "en": "Added connection-retry descriptions for modules and new test files (test_api_retry, test_agent_loop_connection_retry, test_connection_retry_scenarios); refreshed api_layer/agent_loop/assistant_tools symbol sections."
+        "ru": "Карта перегенерирована: REST-коннектор (core/github_connector_rest.py, core/github_tools_rest.py и их тесты), PyGithub-модули удалены из карты.",
+        "en": "Map regenerated: REST connector (core/github_connector_rest.py, core/github_tools_rest.py and their tests), PyGithub modules removed from the map."
       }
     },
     "README.md": {
-      "version": "1.4.0",
-      "sha256": "c16ae4ee2e2714c30b073a5b04ac2f7353f8b163021297b1437f6ec3b5d18179",
+      "version": "1.5.0",
+      "sha256": "35fb496c6e0c6983a9931e293b4e838741fa972de6d918d52417431667a74b34",
       "note": {
-        "ru": "Добавлены пункты об изоляции рабочей папки DevAgent между параллельными диалогами (привязка к thread_id).",
-        "en": "Added notes on DevAgent workspace isolation across parallel dialogs (thread_id binding)."
+        "ru": "Разделы GitHub-интеграции обновлены: только REST-коннектор с ghr_-инструментами; версия в заголовке 0.3.0-preview.1.",
+        "en": "GitHub integration sections now reference the REST-only connector with ghr_ tools; header version 0.3.0-preview.1."
       }
     },
     "SPEC.md": {
-      "version": "1.6.0",
-      "sha256": "db29338979450703e2cf1ac578a14b6affd2e96a13691568c93beef328dccab0",
+      "version": "1.7.0",
+      "sha256": "e9a0b0821e03844f991ecb0c13722241c651c253acef52c6421c97dff9d36b0b",
       "note": {
-        "ru": "FR6 дополнено: прозрачные ретраи LLM-запросов при обрывах связи (SAGAAI_NETWORK_RETRY_*), событие retrying_llm и персист user-сообщения до вызова модели.",
-        "en": "FR6 extended: transparent LLM retries on connection loss (SAGAAI_NETWORK_RETRY_*), retrying_llm event and early user-message persistence."
+        "ru": "FR11 переписано: единственный REST-коннектор c ghr_-инструментами и пакетной публикацией, PyGithub-коннектор удалён; обновлён список файлов Core.",
+        "en": "FR11 rewritten: single REST connector with ghr_ tools and batch publishing, PyGithub connector removed; Core file list updated."
       }
     },
     "defaults/README.md": {
@@ -948,19 +936,19 @@
       }
     },
     "defaults/instructions/github_connector.md": {
-      "version": "1.1.0",
-      "sha256": "e2bb3e13d2f839e408e0a8005448ae71fbff3405f468024fb98cc2d150dbf42d",
+      "version": "2.0.0",
+      "sha256": "637f9c2afbf960abc452c4da8cf05a254628a65dec212aeda1736b1775fd50de",
       "note": {
-        "ru": "Инструкция расширена инструментами ghr_* прямого REST-коннектора и пакетной публикацией.",
-        "en": "Instruction extended with the direct REST connector ghr_* tools and batch publishing."
+        "ru": "Инструкция переписана полностью: только REST-коннектор, ghr_-инструменты, приоритет пакетной публикации одним коммитом.",
+        "en": "Instruction rewritten: REST connector only, ghr_ tools, single batch commit as the preferred publish path."
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.3.4",
-      "sha256": "42d5febdf90ed69fe19eb3923e46d89a4019cd3a812618af19ed6b90ba220ede",
+      "version": "1.3.5",
+      "sha256": "4ed373cb88ddd6ae339bb412130681e6cd8830d9d5bf80e98b03bfcf6cfaa704",
       "note": {
-        "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
-        "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
+        "ru": "Удалён ключ connectors_service_github legacy-сервиса (PyGithub); остался только github_rest.",
+        "en": "Removed the legacy github service key (connectors_service_github); only github_rest remains."
       }
     },
     "defaults/langs/en_guide.md": {
@@ -972,11 +960,11 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.3.4",
-      "sha256": "77cb6a9fbc20fe664bd0d19c36ce8444b6b99d7b3b19307df70213fae67c8542",
+      "version": "1.3.5",
+      "sha256": "e6b136069dcd5077892f2afaff49330f90cdb4e72676554c336e370646485298",
       "note": {
-        "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
-        "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
+        "ru": "Удалён ключ connectors_service_github legacy-сервиса (PyGithub); остался только github_rest.",
+        "en": "Removed the legacy github service key (connectors_service_github); only github_rest remains."
       }
     },
     "defaults/langs/ru_guide.md": {
@@ -988,11 +976,11 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.3.4",
-      "sha256": "03f9a13a0787ddbc3cccdd98fce5b6797aaf8ebf7a6eee0f304bdf1333d2f21c",
+      "version": "1.3.5",
+      "sha256": "4c57a2b3ec974edc3fd338e16c94dd68c5192cae14ce9d0e055de73463c8975f",
       "note": {
-        "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
-        "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
+        "ru": "Удалён ключ connectors_service_github legacy-сервиса (PyGithub); остался только github_rest.",
+        "en": "Removed the legacy github service key (connectors_service_github); only github_rest remains."
       }
     },
     "defaults/langs/zh_CN_guide.md": {
@@ -1020,11 +1008,11 @@
       }
     },
     "defaults/orchestrators/dev_agent/instructions/github_connector.md": {
-      "version": "1.1.0",
-      "sha256": "e2bb3e13d2f839e408e0a8005448ae71fbff3405f468024fb98cc2d150dbf42d",
+      "version": "2.0.0",
+      "sha256": "637f9c2afbf960abc452c4da8cf05a254628a65dec212aeda1736b1775fd50de",
       "note": {
-        "ru": "Инструкция расширена инструментами ghr_* прямого REST-коннектора и пакетной публикацией.",
-        "en": "Instruction extended with the direct REST connector ghr_* tools and batch publishing."
+        "ru": "Инструкция переписана полностью: только REST-коннектор, ghr_-инструменты, приоритет пакетной публикации одним коммитом.",
+        "en": "Instruction rewritten: REST connector only, ghr_ tools, single batch commit as the preferred publish path."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/prompt_improver.md": {
@@ -1212,11 +1200,11 @@
       }
     },
     "langs/en.json": {
-      "version": "1.3.4",
-      "sha256": "42d5febdf90ed69fe19eb3923e46d89a4019cd3a812618af19ed6b90ba220ede",
+      "version": "1.3.5",
+      "sha256": "4ed373cb88ddd6ae339bb412130681e6cd8830d9d5bf80e98b03bfcf6cfaa704",
       "note": {
-        "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
-        "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
+        "ru": "Удалён ключ connectors_service_github legacy-сервиса (PyGithub); остался только github_rest.",
+        "en": "Removed the legacy github service key (connectors_service_github); only github_rest remains."
       }
     },
     "langs/en_guide.md": {
@@ -1228,11 +1216,11 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.3.4",
-      "sha256": "ac02af5341145240de250646239c4ac1b3096e65794c89c40058754798237a24",
+      "version": "1.3.5",
+      "sha256": "320a71707b265ae5928350906548afc1ccc07cbaf3552b6ee70c2426328cbf96",
       "note": {
-        "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
-        "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
+        "ru": "Удалён ключ connectors_service_github legacy-сервиса (PyGithub); остался только github_rest.",
+        "en": "Removed the legacy github service key (connectors_service_github); only github_rest remains."
       }
     },
     "langs/ru_guide.md": {
@@ -1244,11 +1232,11 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.3.4",
-      "sha256": "03f9a13a0787ddbc3cccdd98fce5b6797aaf8ebf7a6eee0f304bdf1333d2f21c",
+      "version": "1.3.5",
+      "sha256": "4c57a2b3ec974edc3fd338e16c94dd68c5192cae14ce9d0e055de73463c8975f",
       "note": {
-        "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
-        "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
+        "ru": "Удалён ключ connectors_service_github legacy-сервиса (PyGithub); остался только github_rest.",
+        "en": "Removed the legacy github service key (connectors_service_github); only github_rest remains."
       }
     },
     "langs/zh_CN_guide.md": {

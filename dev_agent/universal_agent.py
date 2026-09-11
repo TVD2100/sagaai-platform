@@ -325,13 +325,6 @@ class UniversalDevAgent:
             self._extra[fname] = fn
         self._attach_connection_tools(slug)
 
-    _CONNECTION_TOOL_NAMES = (
-        "github_list_repos",
-        "github_create_repo",
-        "github_upload_file",
-        "github_update_file",
-        "github_read_file",
-    )
     _CONNECTION_TOOL_NAMES_REST = (
         "ghr_list_repos",
         "ghr_create_repo",
@@ -340,6 +333,12 @@ class UniversalDevAgent:
         "ghr_update_file",
         "ghr_delete_file",
         "ghr_list_files",
+        "ghr_test_connection",
+        "ghr_get_repo_info",
+        "ghr_read_file_meta",
+        "ghr_get_ref",
+        "ghr_get_commit",
+        "ghr_get_tree",
         "ghr_batch_commit",
         "ghr_batch_upsert",
     )
@@ -357,7 +356,7 @@ class UniversalDevAgent:
             from core.connectors import get_connection
             enabled = get_enabled_connections(slug)
             if not enabled:
-                for name in self._CONNECTION_TOOL_NAMES + self._CONNECTION_TOOL_NAMES_REST:
+                for name in self._CONNECTION_TOOL_NAMES_REST:
                     self._extra.pop(name, None)
                 return
             services = set()
@@ -365,16 +364,6 @@ class UniversalDevAgent:
                 conn = get_connection(conn_id)
                 if isinstance(conn, dict) and conn.get("service"):
                     services.add(str(conn["service"]))
-            if not services:
-                # Fallback: connection manifests missing or service unknown -
-                # preserve legacy behavior and register the PyGithub tools.
-                services = {"github"}
-            if "github" in services:
-                from core import github_tools
-                for name in self._CONNECTION_TOOL_NAMES:
-                    fn = getattr(github_tools, name, None)
-                    if callable(fn):
-                        self._extra[name] = fn
             if "github_rest" in services:
                 from core import github_tools_rest
                 for name in self._CONNECTION_TOOL_NAMES_REST:

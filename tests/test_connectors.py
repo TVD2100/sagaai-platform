@@ -28,9 +28,9 @@ def _load_raw(conn_id):
 
 def test_create_connection_roundtrip(isolated_data_dir):
     import core.connectors as c
-    created = c.create_connection("github", "GitHub-TVD2100", "ghp_secret123", account="TVD2100")
+    created = c.create_connection("github_rest", "GitHub-TVD2100", "ghp_secret123", account="TVD2100")
     assert created["id"]
-    assert created["service"] == "github"
+    assert created["service"] == "github_rest"
     assert created["name"] == "GitHub-TVD2100"
     assert created["account"] == "TVD2100"
     assert created["has_token"] is True
@@ -41,7 +41,7 @@ def test_create_connection_roundtrip(isolated_data_dir):
 
 def test_manifest_on_disk_has_no_plaintext_token(isolated_data_dir):
     import core.connectors as c
-    created = c.create_connection("github", "My GitHub", "super-secret-token")
+    created = c.create_connection("github_rest", "My GitHub", "super-secret-token")
     raw = _load_raw(created["id"])
     assert "super-secret-token" not in json.dumps(raw)
     assert raw["token_encrypted"]
@@ -53,8 +53,8 @@ def test_manifest_on_disk_has_no_plaintext_token(isolated_data_dir):
 
 def test_list_and_get(isolated_data_dir):
     import core.connectors as c
-    c.create_connection("github", "Beta", "tok1")
-    c.create_connection("github", "Alpha", "tok2")
+    c.create_connection("github_rest", "Beta", "tok1")
+    c.create_connection("github_rest", "Alpha", "tok2")
     items = c.list_connections()
     assert [x["name"] for x in items] == ["Alpha", "Beta"]
     got = c.get_connection(items[0]["id"])
@@ -65,7 +65,7 @@ def test_list_and_get(isolated_data_dir):
 
 def test_update_connection(isolated_data_dir):
     import core.connectors as c
-    created = c.create_connection("github", "Old", "tok-old")
+    created = c.create_connection("github_rest", "Old", "tok-old")
     updated = c.update_connection(created["id"], name="New Name", token="tok-new")
     assert updated["name"] == "New Name"
     assert updated["has_token"] is True
@@ -78,14 +78,14 @@ def test_update_connection(isolated_data_dir):
 
 def test_set_connection_token(isolated_data_dir):
     import core.connectors as c
-    created = c.create_connection("github", "X", "tok1")
+    created = c.create_connection("github_rest", "X", "tok1")
     assert c.set_connection_token(created["id"], "tok2") is True
     assert c.decrypt_token(created["id"]) == "tok2"
 
 
 def test_delete_connection(isolated_data_dir):
     import core.connectors as c
-    created = c.create_connection("github", "Doomed", "tok")
+    created = c.create_connection("github_rest", "Doomed", "tok")
     conn_id = created["id"]
     assert c.delete_connection(conn_id) is True
     assert c.get_connection(conn_id) == {}
@@ -96,18 +96,19 @@ def test_validation(isolated_data_dir):
     with pytest.raises(ValueError):
         c.create_connection("gitlab", "X", "tok")
     with pytest.raises(ValueError):
-        c.create_connection("github", "", "tok")
+        c.create_connection("github_rest", "", "tok")
     with pytest.raises(ValueError):
-        c.create_connection("github", "X", "")
+        c.create_connection("github_rest", "X", "")
 
 
 def test_services_registry(isolated_data_dir):
     import core.connectors as c
     services = c.list_services()
-    assert any(s["id"] == "github" for s in services)
     assert any(s["id"] == "github_rest" for s in services)
-    assert c.get_service("github") is not None
+    assert all(s["id"] != "github" for s in services)
     assert c.get_service("github_rest") is not None
+    with pytest.raises(ValueError):
+        c.get_service("github")
     with pytest.raises(ValueError):
         c.get_service("nope")
 
@@ -130,7 +131,7 @@ def test_create_github_rest_connection_encrypted_token(isolated_data_dir):
 
 def test_public_manifest_never_leaks_token(isolated_data_dir):
     import core.connectors as c
-    created = c.create_connection("github", "Safe", "not-a-real-token")
+    created = c.create_connection("github_rest", "Safe", "not-a-real-token")
     items = c.list_connections()
     raw_json = json.dumps(items)
     assert "not-a-real-token" not in raw_json
