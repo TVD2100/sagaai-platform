@@ -185,8 +185,11 @@ SagaAI построена по модульной архитектуре с чё
 2. `ui/pages/orchestrator.py` создаёт `AgentLoopState`, заполняет
    `strong_assistant`/`weak_assistant` через
    `core/orchestrators.build_assistant_dicts(slug)`.
-3. `agent_loop.py` переходит в фазу `calling_llm` и отправляет запрос
-   сильной/слабой моделью.
+3. `agent_loop.py` сохраняет сообщение пользователя в историю, переходит
+   в фазу `calling_llm` и отправляет запрос сильной/слабой моделью; при
+   обрыве связи (`RequestTimeoutError` / `NetworkError`) запрос повторяется
+   прозрачно (`retry_call` в `core/api_layer.py`), в ленту чата идёт событие
+   `retrying_llm`.
 4. LLM → `parse_tool_calls` → `tool_executor` → результаты → повтор до
    терминального статуса (`loop_status` или approval-гейт).
 
@@ -229,6 +232,19 @@ system_prompt.md), переводов, сервисов, помощников, �
 ### Dual-model routing
 Агент выбирает модель (strong/weak) на каждом шаге по `classify_step_strength()`.
 Модели берутся из конфигурации оркестратора (`config_json`).
+
+### Прозрачные ретраи при обрывах связи
+LLM-запросы обёрнуты в `retry_call` (`core/api_layer.py`): повторяются
+только `RequestTimeoutError` и `NetworkError`, пауза между попытками -
+`SAGAAI_NETWORK_RETRY_DELAY` (по умолчанию 30 с), максимум
+`SAGAAI_NETWORK_RETRY_ATTEMPTS` попыток подряд (по умолчанию 3); последнее
+исключение помечается атрибутом `attempts`. Колбэк `retry_callback`
+протягивается из `dev_agent/agent_loop.py` через `core/api_layer._do_request`
+и генерирует событие `retrying_llm`, которое рендерит
+`ui/pages/orchestrator.py` (i18n-ключ `orch_retry_llm`). POST-запросы Yandex
+Responses (`core/assistant_tools.py`) обёрнуты тем же механизмом. Сообщение
+пользователя персистится в историю ДО вызова модели - при исчерпании всех
+попыток диалог не теряется, а продолжается со следующего сообщения.
 
 ### Web-search модель (search_service/model)
 Отдельная пара service/model для задач с веб-поиском, хранится в

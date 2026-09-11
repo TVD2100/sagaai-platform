@@ -6,13 +6,13 @@
     "ru": "Крупный пакет 0.2.0: изоляция рабочей папки между параллельными диалогами DevAgent, обновлённая документация и правило системного версионирования.",
     "en": "Large 0.2.0 package: per-dialog workspace isolation for parallel DevAgent chats, updated documentation and the system versioning rule."
   },
-  "updated": "2026-09-10T12:59:03Z",
+  "updated": "2026-09-11T08:58:30Z",
   "units": {
     "core": {
-      "version": "1.2.0",
+      "version": "1.3.0",
       "note": {
-        "ru": "Исполняемый код платформы (core, UI, хранилище, тесты). Обновляется только целиком, единым пакетом. 1.2.0: SQLite-хаденнинг (WAL, busy_timeout, foreign_keys для основной БД, индекс сообщений), кэш строки токенов/economy и пагинация ленты чата.",
-        "en": "Platform executable code (core, UI, storage, tests). Updates only as a single atomic unit. 1.2.0: SQLite hardening (WAL, busy_timeout, foreign_keys for the main DB, message index), token/economy line cache and chat-feed pagination."
+        "ru": "Исполняемый код платформы (core, UI, хранилище, тесты). Обновляется только целиком, единым пакетом. 1.2.0: SQLite-хаденнинг (WAL, busy_timeout, foreign_keys для основной БД, индекс сообщений), кэш строки токенов/economy и пагинация ленты чата, ретраи при обрывах связи.",
+        "en": "Platform executable code (core, UI, storage, tests). Updates only as a single atomic unit. 1.2.0: SQLite hardening (WAL, busy_timeout, foreign_keys for the main DB, message index), token/economy line cache and chat-feed pagination and connection-loss retries."
       },
       "files": {
         "__init__.py": {
@@ -40,8 +40,8 @@
           "sha256": "a832c536eb48c93c03de698b3e2a153e0989ada2c83f5b8e1f68b33bce3801a6"
         },
         "core/api_layer.py": {
-          "version": "1.0.0",
-          "sha256": "bae1eb387d9329d4588cb64c8b7d2509d40748b920980ea908a29ee4c690470d"
+          "version": "1.1.0",
+          "sha256": "2f2d1128abcd7648024e9313b8392e4d4451b18a497b49de7e4239c3313ed218"
         },
         "core/assistant_creator.py": {
           "version": "1.0.0",
@@ -56,8 +56,8 @@
           "sha256": "efbb790f483918ab8072d774993b8f25ddb9332450ad9b0d6f3df558b179042c"
         },
         "core/assistant_tools.py": {
-          "version": "1.0.0",
-          "sha256": "d60c4cbb63160eb2cee307065e5087a89ca7018f46d855e14d2836554bf5986d"
+          "version": "1.1.0",
+          "sha256": "a25909043bec775e942d85458cfe9f8804096ee5f2e8c636e4c905e4737ff2f4"
         },
         "core/assistants.py": {
           "version": "1.0.0",
@@ -220,8 +220,8 @@
           "sha256": "d87092665bbf50e5270ad17b3c2c7eb8230b22ae968f52113672025267ead063"
         },
         "dev_agent/agent_loop.py": {
-          "version": "1.3.0",
-          "sha256": "5e46ccb0d911d661b6814feaf4e67c488d443f5b83f0c06d5946ba00b665e4ca"
+          "version": "1.4.0",
+          "sha256": "1556c1e0bf917abd4af48289d94d7330e9558d92fab5bb88eaf3dafdb9d1b76e"
         },
         "dev_agent/assistant_detector.py": {
           "version": "1.0.0",
@@ -420,8 +420,8 @@
           "sha256": "13bde0cead6f3d36dcfd7e07e00727f54b78ec3cabf4e0c22380612b32e6b246"
         },
         "tests/test_core_api_send.py": {
-          "version": "1.0.0",
-          "sha256": "ac6e111ac2e8d2e01dfff702995c3214d33bf356a8f0c9a5a03bf4ce4a385091"
+          "version": "1.0.1",
+          "sha256": "24b1394503bedeec7d223d06c4069d7197e0e262675103877f5ddb08611607d5"
         },
         "tests/test_core_files.py": {
           "version": "1.0.1",
@@ -564,8 +564,8 @@
           "sha256": "fa2bfe445f1c419d9b73bdfbfc0011c8467e9d7b318ecb3caa94123850c866b1"
         },
         "tests/test_sanitized_approval_flow.py": {
-          "version": "1.0.0",
-          "sha256": "bcc88feed3abb3dc6f94870e74139111ac7c569b1a09c57081e9a0522fea30ce"
+          "version": "1.0.1",
+          "sha256": "bbd2db14113c6a44a37e08a707fe8ab976668a59f0596d8af5b127ca78cb4b7d"
         },
         "tests/test_search_in_files.py": {
           "version": "1.0.0",
@@ -620,8 +620,8 @@
           "sha256": "9111bc0ae615e2c66be59ca96b4e451ee967264669bcbc88b058d9c4196beb18"
         },
         "tests/test_ui_pages.py": {
-          "version": "1.0.1",
-          "sha256": "c62c3170dae98fa7820ca09a8cc3902926a497bcc186f79ff2e1c6056ab29a24"
+          "version": "1.0.2",
+          "sha256": "4cd5fad3ec0f22ba067ae2a7f07f74df28ee018eef4653c2233a41686d9b19eb"
         },
         "tests/test_ui_tooltips.py": {
           "version": "1.0.1",
@@ -684,8 +684,8 @@
           "sha256": "448dbf67eff496ec7d2689ef5d6f5be3640b79162e7456934ed478856b54ca74"
         },
         "ui/pages/orchestrator.py": {
-          "version": "1.5.0",
-          "sha256": "66105b76714808c6f84f4e117d3e75c9d87f051315f4f2542fc9455aa114fe21"
+          "version": "1.6.0",
+          "sha256": "4fa42121b98352f184a9cd66ba189ef1402ea761c9a3ec33a671b2c1c1507088"
         },
         "ui/pages/orchestrator_settings.py": {
           "version": "1.1.0",
@@ -832,19 +832,31 @@
           "sha256": "be21ba628aa487b8f80f34796a1a18a376bd737c741c83c167232fc81479787c"
         },
         "tests/test_chat_pagination.py": {
+          "version": "1.0.1",
+          "sha256": "243eb56ca99bb472d0295c11db04e8cbb4c365eb2c6381971fc6395083b2fac8"
+        },
+        "tests/test_api_retry.py": {
           "version": "1.0.0",
-          "sha256": "dc8d8e8c5d894cb9833232770c5398a8adc5184e0a0270493cf67ac8df5a722f"
+          "sha256": "349cd19dea37f6e15bc07cafe816a3246299b2b3c3816d1cae5ab62f50f65243"
+        },
+        "tests/test_agent_loop_connection_retry.py": {
+          "version": "1.0.0",
+          "sha256": "57c3fed99e3e7c07576de79542052dc8fdcc5e3f2f0b5168203b9fef0dcb2a3b"
+        },
+        "tests/scenarios/test_connection_retry_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "add50b4f60af1d4dffff8ecf884693e50a4c7991a9b7dceef4a6e5dc47299d52"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.3.0",
-      "sha256": "acee5fb17d2dad2067635450139f74c0581a7f589df5376bf698baa7a3c7c817",
+      "version": "1.4.0",
+      "sha256": "c56d5c8f62bc9459fbac3f3a6d505428fcb19d58ab10678f16630ca1b13555a9",
       "note": {
-        "ru": "Добавлен слой изоляции рабочей папки DevAgent (workspace_binding, привязка к thread_id).",
-        "en": "Added the DevAgent workspace-isolation layer (workspace_binding, per-thread binding)."
+        "ru": "Описан механизм прозрачных ретраев при обрывах связи (retry_call, retry_callback, retrying_llm) в цикле оркестратора и принципах.",
+        "en": "Documented the transparent connection-loss retry mechanism (retry_call, retry_callback, retrying_llm) in the orchestrator loop and principles."
       }
     },
     "COMPARISON.md": {
@@ -864,11 +876,11 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.5.0",
-      "sha256": "a5b24f86f52692d5627e19f0db5d6ea69ceb2a892b08256207d77aa6f41cac92",
+      "version": "1.6.0",
+      "sha256": "1e277f41bfd111f75180676085c8ec8c024add99a9bc9316eb958a00769df85d",
       "note": {
-        "ru": "Добавлены workspace_binding.py и тесты изоляции рабочей папки (test_workspace_binding.py, test_workspace_binding_scenario.py).",
-        "en": "Added workspace_binding.py and the workspace-isolation tests (test_workspace_binding.py, test_workspace_binding_scenario.py)."
+        "ru": "Добавлены описание ретраев при обрывах связи в описаниях модулей и новые тестовые файлы (test_api_retry, test_agent_loop_connection_retry, test_connection_retry_scenarios); обновлены секции символов api_layer/agent_loop/assistant_tools.",
+        "en": "Added connection-retry descriptions for modules and new test files (test_api_retry, test_agent_loop_connection_retry, test_connection_retry_scenarios); refreshed api_layer/agent_loop/assistant_tools symbol sections."
       }
     },
     "README.md": {
@@ -880,11 +892,11 @@
       }
     },
     "SPEC.md": {
-      "version": "1.5.0",
-      "sha256": "282c1979279eff603cc88df5c27e82e37cc6ba2e6d8dff2bac3c82b12d7b5579",
+      "version": "1.6.0",
+      "sha256": "db29338979450703e2cf1ac578a14b6affd2e96a13691568c93beef328dccab0",
       "note": {
-        "ru": "Добавлено требование FR8: изоляция рабочей папки DevAgent между параллельными диалогами (thread-привязка).",
-        "en": "Added FR8: DevAgent workspace isolation across parallel dialogs (thread binding)."
+        "ru": "FR6 дополнено: прозрачные ретраи LLM-запросов при обрывах связи (SAGAAI_NETWORK_RETRY_*), событие retrying_llm и персист user-сообщения до вызова модели.",
+        "en": "FR6 extended: transparent LLM retries on connection loss (SAGAAI_NETWORK_RETRY_*), retrying_llm event and early user-message persistence."
       }
     },
     "defaults/README.md": {
@@ -944,8 +956,8 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.3.3",
-      "sha256": "3f2a825d97c35fa8001e02c4534401d389486db5bd55a5f461ec090154e80122",
+      "version": "1.3.4",
+      "sha256": "42d5febdf90ed69fe19eb3923e46d89a4019cd3a812618af19ed6b90ba220ede",
       "note": {
         "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
         "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
@@ -960,8 +972,8 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.3.3",
-      "sha256": "cf2396df1db8fcc893f888f7521e2ed45cd366c119198b4d141fa0165e916787",
+      "version": "1.3.4",
+      "sha256": "77cb6a9fbc20fe664bd0d19c36ce8444b6b99d7b3b19307df70213fae67c8542",
       "note": {
         "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
         "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
@@ -976,8 +988,8 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.3.3",
-      "sha256": "a354897ae26e23f0d00ceab9ec8d41f8aec974802bc1932cc68097452a7cfd36",
+      "version": "1.3.4",
+      "sha256": "03f9a13a0787ddbc3cccdd98fce5b6797aaf8ebf7a6eee0f304bdf1333d2f21c",
       "note": {
         "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
         "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
@@ -1200,8 +1212,8 @@
       }
     },
     "langs/en.json": {
-      "version": "1.3.3",
-      "sha256": "3f2a825d97c35fa8001e02c4534401d389486db5bd55a5f461ec090154e80122",
+      "version": "1.3.4",
+      "sha256": "42d5febdf90ed69fe19eb3923e46d89a4019cd3a812618af19ed6b90ba220ede",
       "note": {
         "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
         "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
@@ -1216,8 +1228,8 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.3.3",
-      "sha256": "be183b9ac0f19b017fa14776e3aa4bdacf30a14c23cb2f8ce7727adec59336a1",
+      "version": "1.3.4",
+      "sha256": "ac02af5341145240de250646239c4ac1b3096e65794c89c40058754798237a24",
       "note": {
         "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
         "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."
@@ -1232,8 +1244,8 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.3.3",
-      "sha256": "a354897ae26e23f0d00ceab9ec8d41f8aec974802bc1932cc68097452a7cfd36",
+      "version": "1.3.4",
+      "sha256": "03f9a13a0787ddbc3cccdd98fce5b6797aaf8ebf7a6eee0f304bdf1333d2f21c",
       "note": {
         "ru": "Добавлены ключи загрузчика вложений любого формата в чате оркестратора (orch_attach_any_type, orch_file_too_large_bytes).",
         "en": "Added any-format uploader keys for the orchestrator chat (orch_attach_any_type, orch_file_too_large_bytes)."

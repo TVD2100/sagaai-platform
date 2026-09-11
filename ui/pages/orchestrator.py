@@ -664,6 +664,14 @@ def _render_event(ev: dict, lang: str) -> None:
                 "executing": t("event_phase_executing", lang=lang),
             }
             st.caption(labels.get(phase, t("event_phase_unknown", lang=lang, phase=phase)))
+    elif etype == "retrying_llm":
+        attempt = ev.get("attempt", "?")
+        attempts = ev.get("attempts", "?")
+        delay = ev.get("delay", 0)
+        if isinstance(delay, float) and delay.is_integer():
+            delay = int(delay)
+        st.warning(t("orch_retry_llm", lang=lang,
+                     attempt=attempt, attempts=attempts, delay=delay))
     elif etype == "sanitized_detected":
         events = ev.get("events", [])
         for info in events:

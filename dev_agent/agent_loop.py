@@ -1637,6 +1637,34 @@ def _step_agent_loop_impl(
             def _on_sanitized(info: dict) -> None:
                 sanitized_events.append(info)
 
+            def _on_retry(info: dict) -> None:
+                emit({
+                    "type": "retrying_llm",
+                    "step": state.steps,
+                    "attempt": info.get("attempt"),
+                    "attempts": info.get("attempts"),
+                    "delay": info.get("delay"),
+                    "error": info.get("error"),
+                })
+
+            # ── Connection resilience: persist the user message BEFORE the
+            # LLM call. If send_request fails (connection lost even after all
+            # retries), the message must already be in history so the user
+            # can see it and resume the dialog.
+            if str(state.user_message).strip():
+                entry = {"role": "user", "content": state.user_message, "ts": _now_ts()}
+                if state.file_name:
+                    entry["file_name"] = state.file_name
+                    entry["file_chars"] = len(state.file_context) if state.file_context else 0
+                stripped = str(state.user_message).strip()
+                if stripped.startswith(_TOOL_RESULT_PREFIX) or stripped.startswith(_AUTO_CONTINUE_PREFIX):
+                    entry["hidden"] = True
+                cat = _classify_message(entry)
+                _index_message(entry, state.next_index, cat)
+                state.next_index += 1
+                state.history.append(entry)
+                state.file_name = ""
+
             state.assistant_text = send_request(
                 state.user_message, assistant,
                 file_context=state.file_context,
@@ -1646,6 +1674,7 @@ def _step_agent_loop_impl(
                 enable_injection_protection=state.enable_injection_protection,
                 sanitized_callback=_on_sanitized,
                 sanitized_approved_paths=state.sanitized_approved_paths,
+                retry_callback=_on_retry,
             )
             state.file_context = ""
 
@@ -1671,19 +1700,7 @@ def _step_agent_loop_impl(
             state.error_message = str(exc)
             return state
 
-        if str(state.user_message).strip():
-            entry = {"role": "user", "content": state.user_message, "ts": _now_ts()}
-            if state.file_name:
-                entry["file_name"] = state.file_name
-                entry["file_chars"] = len(state.file_context) if state.file_context else 0
-            stripped = str(state.user_message).strip()
-            if stripped.startswith(_TOOL_RESULT_PREFIX) or stripped.startswith(_AUTO_CONTINUE_PREFIX):
-                entry["hidden"] = True
-            cat = _classify_message(entry)
-            _index_message(entry, state.next_index, cat)
-            state.next_index += 1
-            state.history.append(entry)
-            state.file_name = ""
+
 
         assistant_msg = {"role": "assistant", "content": state.assistant_text, "ts": _now_ts()}
         # Attach per-step token info to assistant message

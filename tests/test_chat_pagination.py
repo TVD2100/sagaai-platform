@@ -46,6 +46,12 @@ def ui_env(monkeypatch, tmp_path):
         if m == "ui" or m.startswith("ui."):
             sys.modules.pop(m, None)
     with install_streamlit_mock() as st:
+        # Keep chat_input empty: the generic mock stub is truthy and would
+        # enter the real send path (agent loop + LLM call) on every render.
+        def _no_input(*args, **kwargs):
+            st._rec("chat_input", args, kwargs)
+            return ""
+        st.chat_input = _no_input
         yield st
 
 

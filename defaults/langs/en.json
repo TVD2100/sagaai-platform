@@ -537,6 +537,7 @@
   "orch_tab_skills": "🧩 Skills",
   "orch_temperature_label": "Temperature",
   "orch_temperature_label_help": "Creativity of answers: lower is more precise and stable, higher is more varied.",
+  "orch_retry_llm": "⚠️ Connection interrupted. Retry {attempt} of {attempts} (pause {delay} s)...",
   "orch_thinking": "Thinking...",
   "orch_unknown_error": "Unknown error",
   "orch_untitled": "Untitled",

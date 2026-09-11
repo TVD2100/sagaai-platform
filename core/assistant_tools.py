@@ -138,23 +138,41 @@ def _build_yandex_tool_payload(base_url: str, api_key: str, folder_id: str,
 
 
 def _post_yandex_responses(base_url: str, api_key: str, payload: dict,
-                           svc_name: str):
-    """POST the payload to /responses and return the decoded JSON body."""
-    from core.api_layer import MODEL_RESPONSE_TIMEOUT, _VERIFY_TLS, _extract_error_body
-    from core.api_errors import ProviderHTTPError
+                           svc_name: str, retry_callback=None):
+    """POST the payload to /responses and return the decoded JSON body.
+
+    Transport-level failures (timeouts, connection resets) are retried
+    transparently through ``retry_call`` with the shared budget
+    (SAGAAI_NETWORK_RETRY_DELAY / SAGAAI_NETWORK_RETRY_ATTEMPTS). Provider
+    HTTP errors are never retried. ``retry_callback``, when given, receives
+    {attempt, attempts, delay, error} before each scheduled retry.
+    """
+    from core.api_layer import (
+        MODEL_REQUEST_TIMEOUT, _VERIFY_TLS, _extract_error_body, retry_call,
+    )
+    from core.api_errors import NetworkError, ProviderHTTPError, RequestTimeoutError
 
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
-    r = requests.post(
-        f"{base_url}/responses", headers=headers, json=payload,
-        timeout=MODEL_RESPONSE_TIMEOUT, verify=_VERIFY_TLS,
-    )
-    if r.status_code != 200:
-        body = _extract_error_body(r)
-        raise ProviderHTTPError(r.status_code, body, service=svc_name)
-    return r.json()
+
+    def _attempt() -> dict:
+        try:
+            r = requests.post(
+                f"{base_url}/responses", headers=headers, json=payload,
+                timeout=MODEL_REQUEST_TIMEOUT, verify=_VERIFY_TLS,
+            )
+        except requests.exceptions.Timeout:
+            raise RequestTimeoutError(service=svc_name)
+        except requests.exceptions.RequestException as e:
+            raise NetworkError(str(e), service=svc_name)
+        if r.status_code != 200:
+            body = _extract_error_body(r)
+            raise ProviderHTTPError(r.status_code, body, service=svc_name)
+        return r.json()
+
+    return retry_call(_attempt, retry_callback=retry_callback)
 
 
 def _extract_function_calls(data: dict) -> list:
@@ -297,6 +315,7 @@ def run_yandex_responses_tool_loop(
     svc_name: str = "", usage_callback=None,
     tool_choice=None, svc: dict = None, assistant: dict = None,
     on_tool_call: Optional[Callable[[dict], None]] = None,
+    retry_callback: Optional[Callable[[dict], None]] = None,
 ) -> str:
     """Run a Yandex Responses conversation with a native function-call loop.
 
@@ -327,7 +346,8 @@ def run_yandex_responses_tool_loop(
             tool_choice=tool_choice, svc=svc, assistant=assistant,
         )
         try:
-            data = _post_yandex_responses(base_url, api_key, payload, svc_name)
+            data = _post_yandex_responses(base_url, api_key, payload, svc_name,
+                                          retry_callback)
         except Exception as exc:
             status = getattr(exc, "status_code", None)
             has_native_output = any(
@@ -362,7 +382,8 @@ def run_yandex_responses_tool_loop(
                 reasoning_effort=reasoning_effort, cfg=cfg, svc_name=svc_name,
                 tool_choice=tool_choice, svc=svc, assistant=assistant,
             )
-            data = _post_yandex_responses(base_url, api_key, payload, svc_name)
+            data = _post_yandex_responses(base_url, api_key, payload, svc_name,
+                                          retry_callback)
 
         result_text = _extract_responses_text(data)
         # Collect real assistant text only (ignore function_call fenced JSON).

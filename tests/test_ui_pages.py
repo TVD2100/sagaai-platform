@@ -888,3 +888,32 @@ def test_chat_page_keeps_selected_assistant_across_reruns(mock_env):
                for k in button_keys)
     assert any(k and k.startswith("chat_new_dialog_") and k.endswith("_a2")
                for k in button_keys)
+
+
+def test_render_event_retrying_llm_warns_with_i18n(mock_env):
+    """_render_event('retrying_llm') draws st.warning with the translated
+    orch_retry_llm key and the attempt/delay values."""
+    from ui.pages import orchestrator as orch_mod
+
+    orch_mod.st = mock_env
+    ev = {"type": "retrying_llm", "attempt": 2, "attempts": 3, "delay": 30}
+    t_calls = []
+
+    def fake_t(key, *a, **k):
+        t_calls.append((key, k))
+        return key
+
+    with patch.object(orch_mod, "t", side_effect=fake_t):
+        orch_mod._render_event(ev, "English")
+
+    warnings = [
+        (args[0] if args else "", kwargs)
+        for name, args, kwargs in mock_env.calls
+        if name == "warning"
+    ]
+    assert warnings, "st.warning was not rendered for retrying_llm"
+    assert warnings[0][0] == "orch_retry_llm"
+    assert t_calls[0][1]["lang"] == "English"
+    assert t_calls[0][1]["attempt"] == 2
+    assert t_calls[0][1]["attempts"] == 3
+    assert t_calls[0][1]["delay"] == 30

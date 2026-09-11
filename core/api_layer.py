@@ -6,6 +6,7 @@ All failures are raised as subclasses of APIError (core.api_errors).
 Callers should catch APIError for user-facing messages and inspect
 ``exc.code`` for programmatic handling.
 """
+import time
 import uuid
 import json
 
@@ -37,10 +38,13 @@ from core.api_errors import (
     NetworkError,
 )
 
-# Timeout (seconds) for a model COMPLETION request. Large models / long prompts
-# can take a while to generate, so this is intentionally generous. Auxiliary
-# calls (OAuth token, model listing) keep their own short timeouts below.
-MODEL_RESPONSE_TIMEOUT = 600
+# Timeout for a model COMPLETION request, split into (connect, read):
+# * connect 30 s - an unreachable host fails fast instead of freezing the UI;
+# * read 600 s - large models / long prompts generate for minutes.
+# Auxiliary calls (OAuth token, model listing) keep their own short timeouts.
+MODEL_REQUEST_TIMEOUT = (30, 600)
+# Backward-compatible alias (same tuple; requests accepts it directly).
+MODEL_RESPONSE_TIMEOUT = MODEL_REQUEST_TIMEOUT
 
 
 # ─── TLS verification policy ────────────────────────────────────────────────
@@ -78,6 +82,83 @@ def _gigachat_verify():
     if _os.path.isfile(bundle):
         return bundle
     return _VERIFY_TLS
+
+
+# ─── Connection-resilience retries ──────────────────────────────────────────
+# Windows networks (and corporate proxies / NATs) occasionally drop long-lived
+# quiet connections with ConnectionResetError. When a model request fails with
+# a network-level error, retry it transparently: wait NETWORK_RETRY_DELAY
+# seconds and re-send, up to NETWORK_RETRY_ATTEMPTS attempts in a row (3 by
+# default). Provider HTTP errors (4xx/5xx) are NOT retried - only genuine
+# transport failures.
+
+_DEFAULT_RETRY_DELAY = 30.0
+_DEFAULT_RETRY_ATTEMPTS = 3
+
+
+def _retry_params() -> tuple:
+    """Return (delay_seconds, max_attempts) read from env / defaults.
+
+    Optional env overrides:
+      SAGAAI_NETWORK_RETRY_DELAY    - pause between retries, seconds (default 30)
+      SAGAAI_NETWORK_RETRY_ATTEMPTS - total attempts in a row (default 3)
+    Invalid or mis-typed values silently fall back to the defaults.
+    """
+    delay = _DEFAULT_RETRY_DELAY
+    attempts = _DEFAULT_RETRY_ATTEMPTS
+    raw_delay = str(_os.environ.get("SAGAAI_NETWORK_RETRY_DELAY", "")).strip()
+    if raw_delay:
+        try:
+            delay = max(0.0, float(raw_delay))
+        except (TypeError, ValueError):
+            pass
+    raw_attempts = str(_os.environ.get("SAGAAI_NETWORK_RETRY_ATTEMPTS", "")).strip()
+    if raw_attempts:
+        try:
+            attempts = max(1, int(raw_attempts))
+        except (TypeError, ValueError):
+            pass
+    return delay, attempts
+
+
+def retry_call(fn, *, retry_callback=None):
+    """Call *fn* (one network request) with transparent connection retries.
+
+    Returns the callable's result. When it raises RequestTimeoutError or
+    NetworkError, the call is retried after a configurable pause until the
+    total number of attempts reaches ``_retry_params()[1]``. Before each
+    scheduled retry, *retry_callback* (if given) is invoked with
+    {"attempt": N, "attempts": total, "delay": seconds, "error": message}
+    so the UI can show the user that a retry is happening.
+
+    The retry budget is re-read on every iteration, so the environment
+    knobs stay modifiable at runtime. After the final attempt the LAST
+    exception is re-raised with an extra ``attempts`` attribute.
+    """
+    last_exc = None
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            return fn()
+        except (RequestTimeoutError, NetworkError) as exc:
+            last_exc = exc
+            delay, total = _retry_params()
+            if attempt >= total:
+                exc.attempts = attempt
+                raise
+            if retry_callback is not None:
+                try:
+                    retry_callback({
+                        "attempt": attempt,
+                        "attempts": total,
+                        "delay": delay,
+                        "error": str(exc),
+                    })
+                except Exception:
+                    pass  # UI callbacks must never break the retry flow
+            if delay > 0:
+                time.sleep(delay)
 
 
 # Default fallback for max_tokens when neither the model entry nor the service
@@ -1098,40 +1179,55 @@ def send_request(user_message: str, assistant: Optional[dict] = None,
                 tool_choice = {"type": "web_search"}
                 break
 
-    try:
-        def _call(with_schema: bool):
-            return _do_request(
-                auth_type=auth_type, svc_name=svc_name, svc=svc,
-                cfg=cfg, base_url=base_url,
-                model=model, sys_text=sys_text,
-                hist_msgs=hist_msgs, user_content=user_content,
-                temp=temp, max_tokens=max_tokens,
-                tools_list=tools_list, max_tool_calls=max_tool_calls,
-                reasoning_effort=reasoning_effort,
-                tool_choice=tool_choice,
-                usage_callback=usage_callback,
-                native_function_tools=native_function_tools,
-                assistant=assistant,
-                on_tool_call=kwargs.get("on_tool_call"),
-                json_schema=json_schema if with_schema else None,
-            )
+    def _call(with_schema: bool) -> str:
+        def _send_once() -> str:
+            # One physical attempt: normalise transport errors into the
+            # APIError contract (RequestTimeoutError / NetworkError) so
+            # retry_call can decide whether to re-send.
+            try:
+                return _do_request(
+                    auth_type=auth_type, svc_name=svc_name, svc=svc,
+                    cfg=cfg, base_url=base_url,
+                    model=model, sys_text=sys_text,
+                    hist_msgs=hist_msgs, user_content=user_content,
+                    temp=temp, max_tokens=max_tokens,
+                    tools_list=tools_list, max_tool_calls=max_tool_calls,
+                    reasoning_effort=reasoning_effort,
+                    tool_choice=tool_choice,
+                    usage_callback=usage_callback,
+                    native_function_tools=native_function_tools,
+                    assistant=assistant,
+                    on_tool_call=kwargs.get("on_tool_call"),
+                    json_schema=json_schema if with_schema else None,
+                    retry_callback=kwargs.get("retry_callback"),
+                )
+            except APIError:
+                raise
+            except requests.exceptions.Timeout:
+                raise RequestTimeoutError(service=svc_name)
+            except requests.exceptions.RequestException as e:
+                raise NetworkError(str(e), service=svc_name)
+            except Exception as e:
+                raise NetworkError(str(e), service=svc_name)
 
-        try:
-            return _call(True)
-        except ProviderHTTPError as exc:
-            if json_schema and _is_schema_rejection(exc.status_code, exc.body or ""):
-                # Structured output rejected by the provider: retry without
-                # the schema so the call still succeeds.
-                return _call(False)
-            raise
-    except APIError:
+        if native_function_tools:
+            # Every physical POST inside the Yandex tool loop already retries
+            # individually (see core.assistant_tools._post_yandex_responses);
+            # wrapping the whole multi-POST loop again would multiply the
+            # retry budget beyond the configured attempts.
+            return _send_once()
+        # Transparent connection retries: pause + re-send, up to the
+        # configured number of attempts in a row.
+        return retry_call(_send_once, retry_callback=kwargs.get("retry_callback"))
+
+    try:
+        return _call(True)
+    except ProviderHTTPError as exc:
+        if json_schema and _is_schema_rejection(exc.status_code, exc.body or ""):
+            # Structured output rejected by the provider: retry without
+            # the schema so the call still succeeds.
+            return _call(False)
         raise
-    except requests.exceptions.Timeout:
-        raise RequestTimeoutError(service=svc_name)
-    except requests.exceptions.RequestException as e:
-        raise NetworkError(str(e), service=svc_name)
-    except Exception as e:
-        raise NetworkError(str(e), service=svc_name)
 
 
 def _do_request(auth_type: str, svc_name: str, svc: dict, cfg: dict,
@@ -1141,7 +1237,7 @@ def _do_request(auth_type: str, svc_name: str, svc: dict, cfg: dict,
                 tools_list: list, max_tool_calls, usage_callback,
                 tool_choice=None, reasoning_effort=None,
                 native_function_tools: bool = False, assistant: dict = None,
-                on_tool_call=None, json_schema=None) -> str:
+                on_tool_call=None, json_schema=None, retry_callback=None) -> str:
     """Dispatch to the appropriate auth-handler. Internal helper of send_request."""
 
     if auth_type == "bearer":
@@ -1209,6 +1305,7 @@ def _do_request(auth_type: str, svc_name: str, svc: dict, cfg: dict,
                 svc=svc,
                 assistant=assistant,
                 on_tool_call=on_tool_call,
+                retry_callback=retry_callback,
             )
         return _yandex_responses_request(
             base_url, api_key, folder_id, model,

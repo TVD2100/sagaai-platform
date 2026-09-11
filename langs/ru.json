@@ -537,6 +537,7 @@
   "orch_tab_skills": "🧩 Навыки",
   "orch_temperature_label": "Температура",
   "orch_temperature_label_help": "Креативность ответов: ниже — точнее и стабильнее, выше — разнообразнее.",
+  "orch_retry_llm": "⚠️ Связь прервалась. Повторная попытка {attempt} из {attempts} (пауза {delay} с)...",
   "orch_thinking": "Думаю…",
   "orch_unknown_error": "Неизвестная ошибка",
   "orch_untitled": "Без названия",

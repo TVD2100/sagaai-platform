@@ -381,8 +381,9 @@ def test_send_request_unknown_auth_type():
         assert "unknown_auth" in str(exc_info.value)
 
 
-def test_send_request_timeout():
+def test_send_request_timeout(monkeypatch):
     from core.api_layer import send_request
+    monkeypatch.setenv("SAGAAI_NETWORK_RETRY_DELAY", "0")
     with patch("core.api_layer.get_services") as mock_svc, \
          patch("core.api_layer.load_config") as mock_cfg, \
          patch("core.api_layer.load_skill_files_context", return_value=""), \
@@ -395,8 +396,9 @@ def test_send_request_timeout():
             send_request("Привет", _make_skill())
 
 
-def test_send_request_network_error():
+def test_send_request_network_error(monkeypatch):
     from core.api_layer import send_request
+    monkeypatch.setenv("SAGAAI_NETWORK_RETRY_DELAY", "0")
     with patch("core.api_layer.get_services") as mock_svc, \
          patch("core.api_layer.load_config") as mock_cfg, \
          patch("core.api_layer.load_skill_files_context", return_value=""), \

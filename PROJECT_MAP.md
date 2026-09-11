@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-09-09T03:56:19+00:00`
-- Файлов: **396**
-- Языки: Config: 1, JSON: 20, Markdown: 186, PEM certificate: 1, Python: 192, Text: 1
+- Обновлено: `2026-09-11T08:15:00+00:00`
+- Файлов: **399**
+- Языки: Config: 1, JSON: 20, Markdown: 186, PEM certificate: 1, Python: 195, Text: 1
 
 ## Файлы и назначение
 
@@ -27,7 +27,7 @@
 | `ui/pages/chat.py` | Python | Chat page for AI assistants: selector, history, send form | - |
 | `ui/pages/connectors.py` | Python | _(описание не задано)_ | - |
 | `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | - |
-| `ui/pages/orchestrator.py` | Python | Reusable orchestrator page (chat/history/settings incl. skills tab; any-format thread-file uploader -> history/<tid>/files; no employee export/import UI) | storage |
+| `ui/pages/orchestrator.py` | Python | Reusable orchestrator page (chat/history/settings incl. skills tab; any-format thread-file uploader -> history/<tid>/files; retrying_llm event renderer; no employee export/import UI) | storage |
 | `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings entry page | - |
 | `ui/pages/orchestrators.py` | Python | Employees (orchestrators) management page (create/open/settings/delete; export/import deferred) | - |
 | `ui/pages/settings.py` | Python | LLM provider settings page: editable provider forms (canonical keys) at top, compact environment-variable fallback block with status check at the bottom | - |
@@ -39,11 +39,11 @@
 | `ui/pages/welcome.py` | Python | Welcome / about page | - |
 | `core/__init__.py` | Python | Package marker | - |
 | `core/api_errors.py` | Python | API error hierarchy and user messages | - |
-| `core/api_layer.py` | Python | HTTP requests to AI providers; send_request(assistant=...) with legacy skill= alias | - |
+| `core/api_layer.py` | Python | HTTP requests to AI providers; send_request(assistant=...) with legacy skill= alias; transparent connection-loss retries (retry_call: RequestTimeoutError/NetworkError, SAGAAI_NETWORK_RETRY_* env) | - |
 | `core/assistant_creator.py` | Python | Validation and linting helpers for assistant prompts | - |
 | `core/assistant_folders.py` | Python | _(описание не задано)_ | - |
 | `core/assistant_nav.py` | Python | _(описание не задано)_ | - |
-| `core/assistant_tools.py` | Python | _(описание не задано)_ | - |
+| `core/assistant_tools.py` | Python | Yandex Responses tool-loop helpers; _post_yandex_responses wrapped in transparent connection retries (retry_call, MODEL_REQUEST_TIMEOUT) | - |
 | `core/assistants.py` | Python | CRUD for AI assistant profiles and their attachment files | storage |
 | `core/auth.py` | Python | Optional password authentication gate: Access-page settings in ConfigKV (encrypted password), re-ask interval, form-over-env password priority, orchestrator-active bypass | - |
 | `core/bootstrap.py` | Python | First-run provisioning: Assistant/Employee Creator instructions, DevAgent settings, legacy skill_creator migration | - |
@@ -93,6 +93,8 @@
 | `tests/conftest.py` | Python | Pytest fixture bootstrap | - |
 | `tests/test_agent_loop_json_repair.py` | Python | _(описание не задано)_ | - |
 | `tests/test_agent_loop_thread_context.py` | Python | Thread-context prefix tests (dialog uploads listing in agent requests) | - |
+| `tests/test_agent_loop_connection_retry.py` | Python | Agent-loop retry tests (retrying_llm events, early user-message persistence before LLM call) | - |
+| `tests/test_api_retry.py` | Python | Unit tests for the api_layer retry layer (retry_call, attempt markers, retry_callback) | - |
 | `tests/test_app_imports.py` | Python | Importability tests | storage |
 | `tests/test_apply_patch.py` | Python | _(описание не задано)_ | - |
 | `tests/test_assistant_folders.py` | Python | _(описание не задано)_ | storage |
@@ -176,6 +178,7 @@
 | `tests/scenarios/test_access_scenarios.py` | Python | Scenario tests for password access: happy path login/re-ask, orchestrator-busy bypass, switch OFF, form-over-env priority, mismatch keeps settings | - |
 | `tests/scenarios/test_assistant_sidebar_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_connectors_scenarios.py` | Python | _(описание не задано)_ | storage |
+| `tests/scenarios/test_connection_retry_scenarios.py` | Python | Scenario tests: connection-loss retry happy path, exhausted attempts, non-retryable errors | - |
 | `tests/scenarios/test_first_run_flow.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_github_rest_scenario.py` | Python | Stateful FakeGitHub scenario: connection -> repo -> batch_commit -> read/update/delete | - |
 | `tests/scenarios/test_json_repair_scenarios.py` | Python | _(описание не задано)_ | - |
@@ -246,7 +249,7 @@
 | `scripts/regenerate_project_map.py` | Python | Regenerates PROJECT_MAP.md with assistant terminology | - |
 | `scripts/verify_manifest.py` | Python | file_versions.json maintenance: --init/--add/--fix-hashes/--strict/--json | - |
 | `dev_agent/__init__.py` | Python | Package marker | agent_loop, backup_manager, safe_writer, tool_executor, universal_agent, workspace_tools |
-| `dev_agent/agent_loop.py` | Python | Provider-independent agent loop (strong/weak assistant routing, economy mode, skills-library tools classified as weak) | storage |
+| `dev_agent/agent_loop.py` | Python | Provider-independent agent loop (strong/weak assistant routing, economy mode, skills-library tools classified as weak; early user-message persistence before LLM call, retrying_llm retry events) | storage |
 | `dev_agent/assistant_detector.py` | Python | Assistant detection/creation helpers (renamed from skill_detector) | storage |
 | `dev_agent/assistant_model_resolver.py` | Python | Auto model resolution for assistant creation | llm_utils |
 | `dev_agent/backup_manager.py` | Python | Per-file backup/restore manager | - |
@@ -574,37 +577,39 @@
 - `api_error_message` (func, строка 137)
 
 ### `core/api_layer.py`
-- `_gigachat_verify` (func, строка 66)
-- `_parse_sanitized_info` (func, строка 93)
-- `_get_model_max_tokens` (func, строка 119)
-- `_prepare_response_content` (func, строка 140)
-- `_format_function_call_item` (func, строка 175)
-- `_normalise_json_schema` (func, строка 203)
-- `_responses_json_format` (func, строка 222)
-- `_openai_response_format` (func, строка 235)
-- `_gigachat_response_format` (func, строка 249)
-- `_unwrap_json_text` (func, строка 266)
-- `_is_schema_rejection` (func, строка 294)
-- `_extract_responses_text` (func, строка 316)
-- `_extract_deepseek_responses_text` (func, строка 374)
-- `_normalise_tools` (func, строка 386)
-- `_has_native_function_tools` (func, строка 404)
-- `_protect_history` (func, строка 419)
-- `_estimate_tokens_in` (func, строка 492)
-- `_bearer_request` (func, строка 503)
-- `_deepseek_reasoning_effort` (func, строка 578)
-- `_deepseek_responses_request` (func, строка 594)
-- `_yandex_reasoning_effort` (func, строка 696)
-- `_yandex_web_search_config` (func, строка 723)
-- `_assistant_web_search_config` (func, строка 753)
-- `_yandex_responses_request` (func, строка 782)
-- `_gigachat_token` (func, строка 899)
-- `_assistant_rag_context` (func, строка 918)
-- `send_request` (func, строка 969)
-- `_do_request` (func, строка 1137)
-- `_extract_error_body` (func, строка 1297)
-- `_extract_gigachat_error` (func, строка 1318)
-- `test_connection` (func, строка 1333)
+- `_gigachat_verify` (func, строка 70)
+- `_retry_params` (func, строка 99)
+- `retry_call` (func, строка 124)
+- `_parse_sanitized_info` (func, строка 174)
+- `_get_model_max_tokens` (func, строка 200)
+- `_prepare_response_content` (func, строка 221)
+- `_format_function_call_item` (func, строка 256)
+- `_normalise_json_schema` (func, строка 284)
+- `_responses_json_format` (func, строка 303)
+- `_openai_response_format` (func, строка 316)
+- `_gigachat_response_format` (func, строка 330)
+- `_unwrap_json_text` (func, строка 347)
+- `_is_schema_rejection` (func, строка 375)
+- `_extract_responses_text` (func, строка 397)
+- `_extract_deepseek_responses_text` (func, строка 455)
+- `_normalise_tools` (func, строка 467)
+- `_has_native_function_tools` (func, строка 485)
+- `_protect_history` (func, строка 500)
+- `_estimate_tokens_in` (func, строка 573)
+- `_bearer_request` (func, строка 584)
+- `_deepseek_reasoning_effort` (func, строка 659)
+- `_deepseek_responses_request` (func, строка 675)
+- `_yandex_reasoning_effort` (func, строка 777)
+- `_yandex_web_search_config` (func, строка 804)
+- `_assistant_web_search_config` (func, строка 834)
+- `_yandex_responses_request` (func, строка 863)
+- `_gigachat_token` (func, строка 980)
+- `_assistant_rag_context` (func, строка 999)
+- `send_request` (func, строка 1050)
+- `_do_request` (func, строка 1233)
+- `_extract_error_body` (func, строка 1394)
+- `_extract_gigachat_error` (func, строка 1415)
+- `test_connection` (func, строка 1430)
 
 ### `core/assistant_creator.py`
 - `_section_headers` (func, строка 23)
@@ -653,12 +658,12 @@
 - `_build_responses_input_items` (func, строка 58)
 - `_build_yandex_tool_payload` (func, строка 85)
 - `_post_yandex_responses` (func, строка 140)
-- `_extract_function_calls` (func, строка 160)
-- `_item_text` (func, строка 188)
-- `_assistant_allowed_rag_bases` (func, строка 194)
-- `execute_assistant_rag_search` (func, строка 219)
-- `_report_usage` (func, строка 270)
-- `run_yandex_responses_tool_loop` (func, строка 291)
+- `_extract_function_calls` (func, строка 178)
+- `_item_text` (func, строка 206)
+- `_assistant_allowed_rag_bases` (func, строка 212)
+- `execute_assistant_rag_search` (func, строка 237)
+- `_report_usage` (func, строка 288)
+- `run_yandex_responses_tool_loop` (func, строка 309)
 
 ### `core/assistants.py`
 - `_get_user_data_dir` (func, строка 54)
@@ -1312,6 +1317,34 @@
 - `TestRepairUnclosedBracesUnit` (class, строка 26)
 - `TestParseToolCallsRepair` (class, строка 48)
 - `TestSystemPromptDocumentsJsonSelfCheck` (class, строка 117)
+
+### `tests/test_agent_loop_connection_retry.py`
+- `_FakeCore` (class, строка 9)
+- `_FakeDispatcher` (class, строка 22)
+- `_make_state` (func, строка 38)
+- `_replace_send_request` (func, строка 45)
+- `_run_until_terminal` (func, строка 50)
+- `test_user_message_persisted_before_llm_call_on_failure` (func, строка 58)
+- `test_user_message_not_duplicated_after_success` (func, строка 80)
+- `test_retrying_llm_event_emitted_on_retry` (func, строка 102)
+- `test_hidden_tool_result_stays_hidden_when_persisted_early` (func, строка 127)
+
+### `tests/test_api_retry.py`
+- `fast_retries` (func, строка 20)
+- `test_retry_call_succeeds_after_transport_failures` (func, строка 28)
+- `test_retry_call_retries_timeout_errors` (func, строка 44)
+- `test_retry_call_exhausted_marks_attempts` (func, строка 60)
+- `test_retry_call_passes_through_non_retryable_errors` (func, строка 72)
+- `test_retry_call_reports_via_callback` (func, строка 87)
+- `test_retry_call_callback_crash_does_not_break_retries` (func, строка 107)
+- `test_retry_params_defaults_without_env` (func, строка 128)
+- `test_retry_params_env_overrides` (func, строка 136)
+- `test_retry_params_invalid_env_falls_back_to_defaults` (func, строка 144)
+- `test_retry_params_clamps_negative_values` (func, строка 152)
+- `test_retry_call_budget_is_reread_each_attempt` (func, строка 160)
+- `test_send_request_retries_transport_errors_then_succeeds` (func, строка 204)
+- `test_send_request_exhausted_raises_with_attempts` (func, строка 229)
+- `test_send_request_provider_http_error_is_not_retried` (func, строка 248)
 
 ### `tests/test_app_imports.py`
 - `test_all_core_packages_importable` (func, строка 17)
@@ -2567,6 +2600,17 @@
 - `test_scenario_github_tools_return_clean_dicts` (func, строка 180)
 - `test_scenario_github_tool_available_through_dispatcher` (func, строка 233)
 
+### `tests/scenarios/test_connection_retry_scenarios.py`
+- `fast_retries` (func, строка 28)
+- `_FakeCore` (class, строка 34)
+- `_FakeDispatcher` (class, строка 44)
+- `_make_state` (func, строка 60)
+- `_patch_send_request_with_real_retry` (func, строка 69)
+- `_run_until_terminal` (func, строка 95)
+- `test_scenario_flaky_network_recovers_transparently` (func, строка 106)
+- `test_scenario_permanent_outage_preserves_user_message` (func, строка 137)
+- `test_scenario_provider_http_error_fails_fast` (func, строка 161)
+
 ### `tests/scenarios/test_first_run_flow.py`
 - `isolated_data` (func, строка 64)
 - `_render` (func, строка 72)
@@ -2852,10 +2896,10 @@
 - `_maybe_task_state_context` (func, строка 990)
 - `_with_task_state` (func, строка 999)
 - `_maybe_thread_context` (func, строка 1014)
-- `_with_thread_context` (func, строка 1038)
-- `_make_short_summary` (func, строка 1060)
-- `_classify_message` (func, строка 1088)
-- `_index_message` (func, строка 1113)
+- `_with_thread_context` (func, строка 1054)
+- `_make_short_summary` (func, строка 1076)
+- `_classify_message` (func, строка 1104)
+- `_index_message` (func, строка 1129)
 
 ### `dev_agent/assistant_detector.py`
 - `list_all_assistants_for_detection` (func, строка 49)

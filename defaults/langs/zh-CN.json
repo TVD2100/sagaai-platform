@@ -537,6 +537,7 @@
   "orch_tab_skills": "🧩 技能",
   "orch_temperature_label": "温度",
   "orch_temperature_label_help": "回答的创造性：越低越精确稳定，越高越多变。",
+  "orch_retry_llm": "⚠️ 连接中断。正在重试 {attempt}/{attempts}（等待 {delay} 秒）...",
   "orch_thinking": "思考中...",
   "orch_unknown_error": "未知错误",
   "orch_untitled": "未命名",
