@@ -724,12 +724,12 @@
           "sha256": "322d5a33239df2192da08e1947bfc11b2a50555f794caa6f63824835064f76d0"
         },
         "ui/pages/updates.py": {
-          "version": "1.0.1",
-          "sha256": "e4c4a1f9536825c1c06f5ac13417ceb8f70892b27c7820bc3885c334ef9c1b24"
+          "version": "1.1.0",
+          "sha256": "9544562c9c6dfe928bf8535442564143153a41852e5b9a0454a556c7b7d81aa3"
         },
         "tests/test_updater_ui.py": {
-          "version": "1.0.1",
-          "sha256": "b309b4445292a55bc95decb5ce272cd07ebfb9eaaa8689f493a3afe5e93bbb1a"
+          "version": "1.0.2",
+          "sha256": "77d177d6a37304d118aa36b263637e74900b759423c0111a91da541eecf50795"
         },
         "tests/scenarios/test_updater_runtime_flow.py": {
           "version": "1.0.0",
