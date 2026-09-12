@@ -340,6 +340,7 @@ class UniversalDevAgent:
         "ghr_get_commit",
         "ghr_get_tree",
         "ghr_batch_commit",
+        "ghr_batch_commit_paths",
         "ghr_batch_upsert",
     )
 

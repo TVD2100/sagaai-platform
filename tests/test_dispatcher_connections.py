@@ -90,7 +90,8 @@ class TestDispatcherConnectionTools:
                  'ghr_upload_file', 'ghr_update_file', 'ghr_delete_file',
                  'ghr_list_files', 'ghr_test_connection', 'ghr_get_repo_info',
                  'ghr_read_file_meta', 'ghr_get_ref', 'ghr_get_commit',
-                 'ghr_get_tree', 'ghr_batch_commit', 'ghr_batch_upsert')
+                 'ghr_get_tree', 'ghr_batch_commit', 'ghr_batch_commit_paths',
+                 'ghr_batch_upsert')
         for name in names:
             assert name in agent._extra, name
 

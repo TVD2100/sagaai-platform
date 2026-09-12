@@ -29,6 +29,8 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import os
+from pathlib import Path
 import urllib.parse
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -790,7 +792,9 @@ def batch_commit(conn_id: str, repo: str, files: Any,
 
     ``files`` is a list of {"path", "content"} (or {"path", "blob_sha"})
     dictionaries. All blobs are created first, then one tree, one commit
-    and one ref update are performed. Creates the branch when the
+    and one ref update are performed. Change counters are honest: computed
+    against the pre-publish remote tree (new path = created, different
+    blob = updated, same blob = unchanged). Creates the branch when the
     repository has no commits yet.
 
     Note: a completely empty repository rejects Git Data API calls until
@@ -805,8 +809,20 @@ def batch_commit(conn_id: str, repo: str, files: Any,
     owner, name = _repo_spec(conn_id, repo)
     branch, parent, base_tree, _exists = _resolve_target_ref(conn_id, owner, name, branch)
     entries = _normalize_batch_files(files)
-    # Total for reporting (before unchanged-filtering in batch_commit there is
-    # no filtering: every entry is published).
+    # Honest change statistics require the pre-publish remote tree, so it
+    # is fetched BEFORE the commit: a failure here leaves the remote
+    # untouched and the whole call can be retried cleanly.
+    remote_blobs: Dict[str, str] = {}
+    if base_tree:
+        tree_data = _request(
+            conn_id, "GET",
+            f"/repos/{owner}/{name}/git/trees/{base_tree}",
+            params={"recursive": "1"},
+            timeout=_BATCH_TIMEOUT,
+        )
+        for item in (tree_data or {}).get("tree") or []:
+            if isinstance(item, dict) and item.get("type") == "blob":
+                remote_blobs[str(item.get("path") or "")] = str(item.get("sha") or "")
     blob_map: Dict[str, str] = {}
     for entry in entries:
         blob_map[entry["path"]] = entry["blob_sha"] or _create_blob(
@@ -816,19 +832,97 @@ def batch_commit(conn_id: str, repo: str, files: Any,
         {"path": e["path"], "mode": e["mode"], "type": "blob", "sha": blob_map[e["path"]]}
         for e in entries
     ]
+    created = 0
+    updated = 0
+    unchanged = 0
+    for entry in entries:
+        remote_sha = remote_blobs.get(entry["path"], "")
+        if not remote_sha:
+            created += 1
+        elif remote_sha == blob_map[entry["path"]]:
+            unchanged += 1
+        else:
+            updated += 1
     summary = _publish_commit(conn_id, owner, name, branch, parent, base_tree,
                               tree_entries, message)
     summary.update({
-        "files_created": 0,
-        "files_updated": 0,
-        "files_unchanged": 0,
+        "files_created": created,
+        "files_updated": updated,
+        "files_unchanged": unchanged,
         "total_files": len(entries),
         "committed": True,
     })
-    # batch_commit does not diff against the remote tree: all entries are
-    # written (created or effectively replaced) in the single commit.
-    summary["files_created"] = len(entries)
     return summary
+
+
+def _files_from_paths(base_dir: str, paths: Any) -> List[Dict[str, Any]]:
+    """Read batch files from disk under *base_dir*.
+
+    Returns a list of {"path", "content"} dicts suitable for
+    ``batch_commit`` / ``batch_upsert``. Every input path must be a
+    relative, POSIX-style repo path (absolute paths and backslashes are
+    rejected) that resolves to a regular file inside *base_dir* - path
+    traversal is blocked. File contents are read as UTF-8 text.
+    """
+    if not str(base_dir or "").strip():
+        raise GithubRestError("base_dir cannot be empty")
+    if not isinstance(paths, (list, tuple)) or not paths:
+        raise GithubRestError(
+            "paths must be a non-empty list of relative file paths"
+        )
+    base = Path(str(base_dir).strip()).expanduser().resolve()
+    files: List[Dict[str, Any]] = []
+    seen = set()
+    for item in paths:
+        rel_input = str(item or "").strip()
+        if not rel_input:
+            raise GithubRestError("path cannot be empty")
+        if rel_input.startswith("/") or "\\" in rel_input:
+            raise GithubRestError(
+                "Only relative paths are allowed inside the workspace: "
+                f"{rel_input}"
+            )
+        rel = rel_input.replace(os.sep, "/") if os.sep != "/" else rel_input
+        if rel in seen:
+            raise GithubRestError(f"Duplicate path in batch: {rel}")
+        seen.add(rel)
+        abs_path = (base / rel).resolve()
+        try:
+            abs_path.relative_to(base)
+        except ValueError as exc:
+            raise GithubRestError(
+                f"Path escapes the base directory: {rel_input}"
+            ) from exc
+        if not abs_path.is_file():
+            raise GithubRestError(f"File not found: {rel}")
+        try:
+            with open(abs_path, "r", encoding="utf-8") as fh:
+                content = fh.read()
+        except UnicodeDecodeError as exc:
+            raise GithubRestError(
+                "File is not UTF-8 text: "
+                f"{rel} (batch tools publish text files only)"
+            ) from exc
+        except OSError as exc:
+            raise GithubRestError(f"Cannot read file: {rel}: {exc}") from exc
+        files.append({"path": rel, "content": content})
+    return files
+
+
+def batch_commit_paths(conn_id: str, repo: str, paths: Any,
+                       message: str = "", branch: str = "",
+                       base_dir: str = "") -> Dict[str, Any]:
+    """Publish local files from disk in ONE commit (Git Data API).
+
+    Reads every file listed in ``paths`` from ``base_dir`` (pass the
+    active workspace root; when empty, the tool layer falls back to the
+    active DevAgent workspace) and publishes
+    the batch through ``batch_commit`` - the read-from-disk gateway for
+    publishing large local files without inline content. Returns the
+    same summary dict as ``batch_commit``.
+    """
+    files = _files_from_paths(base_dir, paths)
+    return batch_commit(conn_id, repo, files, message=message, branch=branch)
 
 
 def batch_upsert(conn_id: str, repo: str, files: Any,
@@ -911,7 +1005,7 @@ __all__ = [
     "test_connection", "get_user_info", "list_repos", "get_repo_info",
     "create_repo", "read_file", "read_file_meta", "upload_file",
     "update_file", "delete_file", "list_files", "get_ref", "get_commit",
-    "get_tree", "batch_commit", "batch_upsert",
+    "get_tree", "batch_commit", "batch_commit_paths", "batch_upsert",
 ]
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: MIT

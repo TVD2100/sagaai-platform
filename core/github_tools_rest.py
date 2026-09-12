@@ -441,6 +441,56 @@ def ghr_batch_commit(**kwargs: Any) -> Dict[str, Any]:
     return _wrap(run, kwargs)
 
 
+def ghr_batch_commit_paths(**kwargs: Any) -> Dict[str, Any]:
+    """Publish local files from disk in ONE commit (Git Data API).
+
+    Reads every listed workspace file from ``base_dir`` and publishes the
+    batch through ``batch_commit`` - the read-from-disk gateway for large
+    files that cannot be inlined into a tool call.
+
+    Arguments:
+        connector_id (str, required): connection id.
+        repo (str, required): "owner/repo" or bare repo name.
+        paths (list[str], required): relative repo paths inside base_dir.
+        message (str, optional): commit message.
+        branch (str, optional): target branch (created when missing).
+        base_dir (str, optional): workspace root to read from (defaults to
+            the active DevAgent workspace).
+    Returns:
+        same summary dict as ghr_batch_commit.
+    """
+    from core.github_connector_rest import batch_commit_paths
+
+    def run():
+        conn_id = _get_connector_id(kwargs)
+        repo = str(kwargs.get("repo") or "").strip()
+        if not repo:
+            raise GithubRestError("Missing required argument: repo")
+        paths = kwargs.get("paths")
+        if not isinstance(paths, list) or not paths:
+            raise GithubRestError(
+                "Missing required argument: paths "
+                "(list of relative file paths)"
+            )
+        base_dir = str(kwargs.get("base_dir") or "").strip()
+        if not base_dir:
+            try:
+                from dev_agent import config as dev_config
+                base_dir = str(dev_config.PROJECT_ROOT)
+            except Exception:
+                raise GithubRestError(
+                    "Missing required argument: base_dir (workspace root)"
+                )
+        return batch_commit_paths(
+            conn_id, repo, paths,
+            message=str(kwargs.get("message") or ""),
+            branch=str(kwargs.get("branch") or ""),
+            base_dir=base_dir,
+        )
+
+    return _wrap(run, kwargs)
+
+
 def ghr_batch_upsert(**kwargs: Any) -> Dict[str, Any]:
     """Batch create/update by blob-SHA diff; skips unchanged files.
 
@@ -569,6 +619,14 @@ TOOLS["ghr_batch_commit"] = {
     "desc": (
         "Publish many files in ONE commit via the Git Data API. "
         "Arguments: connector_id, repo, files ([{path, content}] or JSON), message, branch."
+    ),
+}
+TOOLS["ghr_batch_commit_paths"] = {
+    "name": "ghr_batch_commit_paths",
+    "desc": (
+        "Publish local files read from the workspace disk in ONE commit. "
+        "Preferred for large files that cannot be inlined. "
+        "Arguments: connector_id, repo, paths, message, branch, base_dir."
     ),
 }
 TOOLS["ghr_batch_upsert"] = {

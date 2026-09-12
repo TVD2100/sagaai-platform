@@ -594,7 +594,7 @@ def _extend_prompt_with_connections(prompt: str, orchestrator_slug: str = DEVAGE
     lines.append("- `repo` accepts `owner/repo` or a bare repo name of the authenticated user.")
     lines.append("- New repo names must be lowercase, without spaces.")
     lines.append("- `ghr_upload_file` creates a NEW file; use `ghr_update_file` to change an existing file.")
-    lines.append("- Prefer `ghr_batch_commit` / `ghr_batch_upsert` to publish many files in ONE commit.")
+    lines.append("- Prefer `ghr_batch_commit` / `ghr_batch_commit_paths` / `ghr_batch_upsert` to publish many files in ONE commit.")
     lines.append("- Before updating a file, read it with `ghr_read_file` first.")
     lines.append("- For the full usage guide, load the `github_connector` instruction if it is listed in `## Available instructions` of this orchestrator.")
 

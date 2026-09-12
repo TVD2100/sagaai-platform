@@ -90,7 +90,7 @@ def test_prompt_extended_with_connections(orch_slug):
     assert "Always pass `connector_id`" in prompt
     assert "`ghr_upload_file` creates a NEW file" in prompt
     assert "`ghr_read_file` first" in prompt
-    assert "Prefer `ghr_batch_commit` / `ghr_batch_upsert`" in prompt
+    assert "Prefer `ghr_batch_commit` / `ghr_batch_commit_paths` / `ghr_batch_upsert`" in prompt
 
 
 def test_prompt_unchanged_when_no_connections(orch_slug):

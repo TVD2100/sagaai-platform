@@ -16,6 +16,14 @@ There is ONE connector family: **`github_rest`** (direct REST API v3,
 any `github_rest` connection. The legacy `github` (PyGithub) connector and
 its `github_*` tools no longer exist - do not call them.
 
+**REST-only rule: never `git push`.** All publishing to GitHub goes
+through these `ghr_*` tools exclusively. Do not use shell commands
+(`git push`, `gh`, `curl`) to publish, and do not guide the user to
+publish from inside an assistant task that way: tokens stay inside the
+platform and every change must be verifiable through the tools below.
+Large local files are published via `ghr_batch_commit_paths` (which reads
+files from the workspace disk), never via shell.
+
 ---
 
 ## Tool signatures
@@ -134,9 +142,33 @@ Arguments:
 - `message` (str, optional): commit message.
 - `branch` (str, optional): target branch; **created automatically** when the
   repository has no commits yet.
-Returns `commit_sha`, `tree_sha`, `total_files`, `files_created`, `committed`,
-`ref_created`, `ref_updated`. Fast-forward conflicts on the ref update are
-retried automatically once (the result carries `ref_retried`).
+Returns `commit_sha`, `tree_sha`, `total_files`, `files_created`,
+`files_updated`, `files_unchanged`, `committed`, `ref_created`,
+`ref_updated`. The counters are **honest**: each path is compared against
+the remote tree BEFORE publishing - a brand-new path counts as
+`files_created`, a different blob as `files_updated`, an identical blob as
+`files_unchanged`. Every listed file still lands in the commit; the
+counters only report what actually changed. Fast-forward conflicts on the
+ref update are retried automatically once (the result carries
+`ref_retried`).
+
+### `ghr_batch_commit_paths` - publish local files from disk (for LARGE files)
+Reads files from the workspace disk and publishes them in ONE commit via
+the same Git Data API pipeline as `ghr_batch_commit`. **Preferred for
+large files** (or large batches) whose content cannot be inlined into a
+tool call.
+Arguments:
+- `connector_id` (str, required).
+- `repo` (str, required).
+- `paths` (list[str], required): relative repo paths inside `base_dir`
+  (e.g. `["README.md", "docs/guide.md"]`). Absolute paths and paths that
+  escape `base_dir` are rejected.
+- `message` (str, optional): commit message.
+- `branch` (str, optional): target branch (created when missing).
+- `base_dir` (str, optional): the local root to read from (defaults to the
+  active DevAgent workspace root; pass it explicitly when publishing from
+  another directory).
+Files must be UTF-8 text. Returns the same summary as `ghr_batch_commit`.
 
 ### `ghr_batch_upsert` - batch with change detection
 Like `ghr_batch_commit`, but compares each local file with the remote tree by
@@ -167,8 +199,13 @@ Use this for incremental sync of a folder to a repository.
    with "File already exists", switch to `ghr_update_file`.
 6. **Read before edit:** before updating a file, read it with `ghr_read_file`
    so you can preserve and modify the existing content deliberately.
-7. **After a write**, report the result: file path(s), commit SHA if present,
-   and confirmation that the change was committed.
+7. **Verify after writing.** Do not trust the success summary alone - when
+   a task publishes or changes files, verify at least one operation:
+   - re-read a changed file with `ghr_read_file` and compare its content/SHA;
+   - for batch operations, check the `commit_sha` with `ghr_get_commit`,
+     or scan the tree with `ghr_get_tree(repo, branch, recursive=true)`
+     and confirm the expected paths are present.
+   Report the verification result to the user together with the change.
 8. **Errors:** when a tool returns `{"ok": false, ...}`, explain the issue
    to the user and suggest a concrete next action (e.g. verify token
    permissions, use a different repo name, or update instead of upload).

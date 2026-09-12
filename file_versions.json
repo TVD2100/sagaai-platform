@@ -124,8 +124,8 @@
           "sha256": "e457904340ea8475ec98e6ececad8be98ee09fcd3959607fca1d5a16e678a915"
         },
         "core/orchestrators.py": {
-          "version": "1.4.1",
-          "sha256": "5f20b4701f76daa7a3ed79b2901f1a85d134e54d49c4a12aacb6dd233fa7c6a6"
+          "version": "1.4.2",
+          "sha256": "665ae406ba1c3c5e846c5f39c09093c56d7eaa409c6a78f8c157dafce4f8d6e9"
         },
         "core/paths.py": {
           "version": "1.0.0",
@@ -248,8 +248,8 @@
           "sha256": "7023a17bb0a0eb02f14422aa6223ee126e96511a3cd3fa71c5a422d895fe93d3"
         },
         "dev_agent/universal_agent.py": {
-          "version": "1.5.0",
-          "sha256": "bf02f875afb6310cce538acd9b7e85a003061c02c37fa9895e71f583d50df9c9"
+          "version": "1.5.1",
+          "sha256": "b7b7244ccd7e7b0cbe9a4cfb09be0d65025501695babc9f4ef9238294cbebe65"
         },
         "dev_agent/workspace_tools.py": {
           "version": "1.1.0",
@@ -440,8 +440,8 @@
           "sha256": "495200dad850b8b64fd3da5c526fdd7d05cb3a3f825f639c604688715bbed959"
         },
         "tests/test_dispatcher_connections.py": {
-          "version": "1.2.0",
-          "sha256": "e5008cc572799595117652d341ef42a0392f6edf5d11105768e8e2af4b17e317"
+          "version": "1.2.1",
+          "sha256": "eb2eb3257dd3f95e6ef6ca4434e49b27a547a20a46a116dcd87a2fc0f254ebfc"
         },
         "tests/test_employee_management_ui.py": {
           "version": "1.0.0",
@@ -472,8 +472,8 @@
           "sha256": "6d6baa60dd8e85811599feee2e0bbb63b61ecee4a6dcbfd97334d44f7bf4d63e"
         },
         "tests/test_orchestrator_connections.py": {
-          "version": "1.2.0",
-          "sha256": "05b96109136c5182b214441ba547d032ca3bd50a50a1d9fe7b16501eeecc4660"
+          "version": "1.2.1",
+          "sha256": "5760f1748d4eb8d6d8acb972ceb667283877ecf92ad89dcea147718b6aed82c5"
         },
         "tests/test_orchestrator_economy_cache.py": {
           "version": "1.0.0",
@@ -736,20 +736,20 @@
           "sha256": "0dcc3462b29426b5c1e1a490935f93627d3335931bb74189af14daef9617d120"
         },
         "core/github_connector_rest.py": {
-          "version": "1.1.0",
-          "sha256": "6f5d14a6ea6f784fdde12897bbafc807f57d72392ac2dd9b8ef2a9dd9c5ad31c"
+          "version": "1.2.0",
+          "sha256": "2b78ff668212b16c315d2700c1a54cbc33154ab428a183944b70683b5540f028"
         },
         "core/github_tools_rest.py": {
-          "version": "1.1.0",
-          "sha256": "f241a6923f007ebb0bbf1bcfa86da4e425592311801a6ca316ad5ef27f407ea7"
+          "version": "1.2.0",
+          "sha256": "d519edf51bdd47916b7fe4617da1dfc34fd110b3a66447338899219e84691b0d"
         },
         "tests/test_github_connector_rest.py": {
-          "version": "1.1.0",
-          "sha256": "933b714e2211979ebb3440dc1222297815a6c73585459e407bd3eb7e972fd39c"
+          "version": "1.2.0",
+          "sha256": "db09ae4f1ef8ad86c258ba5379b1c555f5653801cccfebbd5afd6836440a29d3"
         },
         "tests/test_github_tools_rest.py": {
-          "version": "1.1.0",
-          "sha256": "cc32ed671a942f019176da18d0ae07c59deb2f0b3e2d49742ff5ace02f585147"
+          "version": "1.1.1",
+          "sha256": "785104e7f5dd4f4cdbf6ba0c921be2309ec6607b609dc615c706df38b5d5bc4e"
         },
         "tests/scenarios/test_github_rest_scenario.py": {
           "version": "1.0.0",
@@ -956,11 +956,11 @@
       }
     },
     "defaults/instructions/github_connector.md": {
-      "version": "2.0.0",
-      "sha256": "637f9c2afbf960abc452c4da8cf05a254628a65dec212aeda1736b1775fd50de",
+      "version": "2.1.0",
+      "sha256": "0d37d5e43797d2d5a5715b35dae83738608abd955b9ee44d9cdb5b901ae43e83",
       "note": {
-        "ru": "Инструкция переписана полностью: только REST-коннектор, ghr_-инструменты, приоритет пакетной публикации одним коммитом.",
-        "en": "Instruction rewritten: REST connector only, ghr_ tools, single batch commit as the preferred publish path."
+        "ru": "Инструкция дополнена: REST-only правило (запрет git push / gh / curl), инструмент ghr_batch_commit_paths для публикации файлов с диска, честные счётчики created/updated/unchanged в batch_commit, правило верификации после записи.",
+        "en": "Instruction extended: REST-only rule (no git push/gh/curl), ghr_batch_commit_paths tool for publishing files from disk, honest created/updated/unchanged counters in batch_commit, verify-after-write rule."
       }
     },
     "defaults/langs/en.json": {
@@ -1028,11 +1028,11 @@
       }
     },
     "defaults/orchestrators/dev_agent/instructions/github_connector.md": {
-      "version": "2.0.0",
-      "sha256": "637f9c2afbf960abc452c4da8cf05a254628a65dec212aeda1736b1775fd50de",
+      "version": "2.1.0",
+      "sha256": "0d37d5e43797d2d5a5715b35dae83738608abd955b9ee44d9cdb5b901ae43e83",
       "note": {
-        "ru": "Инструкция переписана полностью: только REST-коннектор, ghr_-инструменты, приоритет пакетной публикации одним коммитом.",
-        "en": "Instruction rewritten: REST connector only, ghr_ tools, single batch commit as the preferred publish path."
+        "ru": "Инструкция дополнена: REST-only правило (запрет git push / gh / curl), инструмент ghr_batch_commit_paths для публикации файлов с диска, честные счётчики created/updated/unchanged в batch_commit, правило верификации после записи.",
+        "en": "Instruction extended: REST-only rule (no git push/gh/curl), ghr_batch_commit_paths tool for publishing files from disk, honest created/updated/unchanged counters in batch_commit, verify-after-write rule."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/prompt_improver.md": {

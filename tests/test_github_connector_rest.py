@@ -693,6 +693,8 @@ def test_batch_commit_updates_existing_branch_with_base_tree(isolated_connector)
                     "object": {"sha": "parent-1", "type": "commit"}}
         if method == "GET" and url.endswith("/git/commits/parent-1"):
             return {"sha": "parent-1", "tree": {"sha": "base-tree"}, "parents": []}
+        if method == "GET" and url.endswith("/git/trees/base-tree"):
+            return {"truncated": False, "tree": []}
         if method == "POST" and url.endswith("/git/blobs"):
             return {"sha": "blob-" + call["body"]["content"]}
         if method == "POST" and url.endswith("/git/trees"):
@@ -714,15 +716,15 @@ def test_batch_commit_updates_existing_branch_with_base_tree(isolated_connector)
     assert result["commit_sha"] == "commit-2"
     assert result["ref_updated"] is True
     assert result["ref_created"] is False
-    tree_call = api.calls[3]
+    tree_call = api.calls[4]
     assert tree_call["body"] == {
         "tree": [{"path": "c.txt", "mode": "100644", "type": "blob", "sha": "blob-CCC"}],
         "base_tree": "base-tree",
     }
-    commit_call = api.calls[4]
+    commit_call = api.calls[5]
     assert commit_call["body"]["parents"] == ["parent-1"]
     assert commit_call["body"]["message"] == "Release v1"
-    patch_call = api.calls[5]
+    patch_call = api.calls[6]
     assert patch_call["body"] == {"sha": "commit-2", "force": False}
 
 
@@ -918,6 +920,8 @@ def test_batch_commit_retries_ref_update_after_fast_forward(isolated_connector):
         if method == "GET" and url.endswith("/git/ref/heads/main"):
             return {"ref": "refs/heads/main",
                     "object": {"sha": "parent-1", "type": "commit"}}
+        if method == "GET" and url.endswith("/git/trees/base-tree"):
+            return {"truncated": False, "tree": []}
         if method == "POST" and url.endswith("/git/blobs"):
             return {"sha": "blob-1"}
         if method == "POST" and url.endswith("/git/trees"):
@@ -986,6 +990,8 @@ def test_batch_commit_ref_retry_raises_when_head_unresolvable(isolated_connector
         if method == "GET" and url.endswith("/git/ref/heads/main"):
             return {"ref": "refs/heads/main",
                     "object": {"sha": "parent-1", "type": "commit"}}
+        if method == "GET" and url.endswith("/git/trees/base-tree"):
+            return {"truncated": False, "tree": []}
         if method == "POST":
             return {"sha": "x"}
         if method == "PATCH" and url.endswith("/git/refs/heads/main"):
@@ -1019,3 +1025,111 @@ def test_batch_commit_ref_retry_raises_when_head_unresolvable(isolated_connector
             ghr.batch_commit(
                 isolated_connector, "alice/repo", files, branch="main")
     assert "cannot be resolved" in str(exc.value)
+def test_files_from_paths_reads_utf8_files(tmp_path):
+    (tmp_path / "a.txt").write_text("AAA", encoding="utf-8")
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "b.txt").write_text("BBB", encoding="utf-8")
+    files = ghr._files_from_paths(str(tmp_path), ["a.txt", "sub/b.txt"])
+    assert files == [
+        {"path": "a.txt", "content": "AAA"},
+        {"path": "sub/b.txt", "content": "BBB"},
+    ]
+
+
+def test_files_from_paths_rejects_traversal_and_absolute_paths(tmp_path):
+    (tmp_path / "a.txt").write_text("AAA", encoding="utf-8")
+    outside = tmp_path.parent / "outside.txt"
+    outside.write_text("SECRET", encoding="utf-8")
+    with pytest.raises(ghr.GithubRestError) as e1:
+        ghr._files_from_paths(str(tmp_path), [str(outside)])
+    assert "absolute" in str(e1.value).lower() or "relative" in str(e1.value).lower()
+    with pytest.raises(ghr.GithubRestError) as e2:
+        ghr._files_from_paths(str(tmp_path), ["../outside.txt"])
+    assert "escapes" in str(e2.value).lower()
+    with pytest.raises(ghr.GithubRestError) as e3:
+        ghr._files_from_paths(str(tmp_path), ["..\\outside.txt"])
+    assert "relative" in str(e3.value).lower()
+
+
+def test_files_from_paths_rejects_missing_duplicates_and_binary(tmp_path):
+    (tmp_path / "a.txt").write_text("AAA", encoding="utf-8")
+    (tmp_path / "bin.dat").write_bytes(b"\xff\xfe\x00binary")
+    with pytest.raises(ghr.GithubRestError) as e1:
+        ghr._files_from_paths(str(tmp_path), ["missing.txt"])
+    assert "not found" in str(e1.value).lower()
+    with pytest.raises(ghr.GithubRestError) as e2:
+        ghr._files_from_paths(str(tmp_path), ["a.txt", "a.txt"])
+    assert "duplicate" in str(e2.value).lower()
+    with pytest.raises(ghr.GithubRestError) as e3:
+        ghr._files_from_paths(str(tmp_path), ["bin.dat"])
+    assert "utf-8" in str(e3.value).lower()
+    with pytest.raises(ghr.GithubRestError) as e4:
+        ghr._files_from_paths("", ["a.txt"])
+    assert "base_dir" in str(e4.value).lower()
+
+
+def test_batch_commit_paths_reads_files_and_publishes_one_commit(tmp_path, isolated_connector):
+    (tmp_path / "a.txt").write_text("AAA", encoding="utf-8")
+    (tmp_path / "b.txt").write_text("BBB", encoding="utf-8")
+    with mock.patch.object(ghr, "batch_commit", return_value={
+        "committed": True, "commit_sha": "c1", "total_files": 2,
+        "files_created": 2, "files_updated": 0, "files_unchanged": 0,
+    }) as mock_batch:
+        result = ghr.batch_commit_paths(
+            isolated_connector, "alice/repo", ["a.txt", "b.txt"],
+            message="release", branch="main", base_dir=str(tmp_path),
+        )
+    mock_batch.assert_called_once_with(
+        isolated_connector, "alice/repo",
+        [{"path": "a.txt", "content": "AAA"},
+         {"path": "b.txt", "content": "BBB"}],
+        message="release", branch="main",
+    )
+    assert result["committed"] is True
+
+
+def test_batch_commit_honest_counters_created_updated_unchanged(isolated_connector):
+    unchanged_sha = ghr._git_blob_sha("AAA")
+    updated_old = ghr._git_blob_sha("OLD")
+
+    def handler(call):
+        method, url = call["method"], call["url"]
+        if method == "GET" and url.endswith("/git/ref/heads/main"):
+            return {"ref": "refs/heads/main",
+                    "object": {"sha": "parent-1", "type": "commit"}}
+        if method == "GET" and url.endswith("/git/commits/parent-1"):
+            return {"sha": "parent-1", "tree": {"sha": "base-tree"}, "parents": []}
+        if method == "GET" and url.endswith("/git/trees/base-tree"):
+            return {"truncated": False, "tree": [
+                {"path": "a.txt", "type": "blob", "sha": unchanged_sha},
+                {"path": "b.txt", "type": "blob", "sha": updated_old},
+            ]}
+        if method == "POST" and url.endswith("/git/blobs"):
+            return {"sha": ghr._git_blob_sha(call["body"]["content"])}
+        if method == "POST" and url.endswith("/git/trees"):
+            return {"sha": "tree-9"}
+        if method == "POST" and url.endswith("/git/commits"):
+            return {"sha": "commit-9"}
+        if method == "PATCH" and url.endswith("/git/refs/heads/main"):
+            return {"ref": "refs/heads/main",
+                    "object": {"sha": "commit-9", "type": "commit"}}
+        raise AssertionError(f"Unexpected: {method} {url}")
+
+    api = FakeAPI(handler)
+    files = [
+        {"path": "a.txt", "content": "AAA"},   # unchanged
+        {"path": "b.txt", "content": "NEW"},   # updated
+        {"path": "c.txt", "content": "CCC"},   # created
+    ]
+    with mock.patch.object(ghr, "_request", new=api):
+        result = ghr.batch_commit(isolated_connector, "alice/repo", files, branch="main")
+    assert result["committed"] is True
+    assert result["files_created"] == 1
+    assert result["files_updated"] == 1
+    assert result["files_unchanged"] == 1
+    assert result["total_files"] == 3
+    tree_call = next(
+        c for c in api.calls
+        if c["method"] == "POST" and c["url"].endswith("/git/trees")
+    )
+    assert {e["path"] for e in tree_call["body"]["tree"]} == {"a.txt", "b.txt", "c.txt"}
