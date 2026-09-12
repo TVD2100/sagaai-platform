@@ -40,8 +40,8 @@
           "sha256": "a832c536eb48c93c03de698b3e2a153e0989ada2c83f5b8e1f68b33bce3801a6"
         },
         "core/api_layer.py": {
-          "version": "1.1.1",
-          "sha256": "c276a95a938e26c491f09a0ac92e18ddfad69bcf563840ef4b1ec8e2525656ad"
+          "version": "1.2.0",
+          "sha256": "ee916fff17de6d857988501d0115be51e65dcfc18b6506fe1746f00f50faba9c"
         },
         "core/assistant_creator.py": {
           "version": "1.0.0",
@@ -244,8 +244,8 @@
           "sha256": "acc6d5d78515649d9e7e721686d7f75e230a41ada55376cfaa592dafb6ac2029"
         },
         "dev_agent/tool_executor.py": {
-          "version": "1.2.0",
-          "sha256": "d5d9601ec502c742306fc6a95bf44bacffe3a4ff0428d1dd11682113caa38286"
+          "version": "1.3.0",
+          "sha256": "7023a17bb0a0eb02f14422aa6223ee126e96511a3cd3fa71c5a422d895fe93d3"
         },
         "dev_agent/universal_agent.py": {
           "version": "1.5.0",
@@ -624,8 +624,8 @@
           "sha256": "53afff48ac7be3d28eb5c8e0c65ed8e77c90295bfa3584a4ab7aa8aa7bd381bd"
         },
         "tests/test_web_search_prompt.py": {
-          "version": "1.0.0",
-          "sha256": "8685ba4e618c7fee1835619d00da4c9ee3178ce9232297b97f1d2a0ad9e73892"
+          "version": "1.0.1",
+          "sha256": "0e6269995794640d527c6454b3c20b4a043932e0daefd51a6f5227fa0f142e79"
         },
         "tests/test_yandex_responses.py": {
           "version": "1.0.0",
@@ -850,6 +850,10 @@
         "tests/scenarios/test_rag_perf_scenarios.py": {
           "version": "1.0.0",
           "sha256": "04b1a4cbebc25141bb8196d95620b9b491faceff1f8cc634c17d2ccd52fc9646"
+        },
+        "tests/test_deepseek_anthropic_web_search.py": {
+          "version": "1.0.0",
+          "sha256": "5d538ad9a5686e354ae34438adfbbd1331a272cd600365dfffadfd3615b08946"
         }
       }
     }
@@ -1152,11 +1156,11 @@
       }
     },
     "defaults/services/deepseek.json": {
-      "version": "1.0.0",
-      "sha256": "940a2a25a807c984b60f7b0a7b556c2b8849c438cf3f935975f61e56baf565ee",
+      "version": "1.1.0",
+      "sha256": "d569f5cfa065134c4bf9aa5400953d332a19b351ce2b6f81887430c93e354d46",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Модель deepseek-flash и серверный веб-поиск через Anthropic-совместимый endpoint (web_search_base_url).",
+        "en": "Model deepseek-flash and server-side web search via the Anthropic-compatible endpoint (web_search_base_url)."
       }
     },
     "defaults/services/gigachat.json": {
@@ -1264,11 +1268,11 @@
       }
     },
     "services/deepseek.json": {
-      "version": "1.0.0",
-      "sha256": "940a2a25a807c984b60f7b0a7b556c2b8849c438cf3f935975f61e56baf565ee",
+      "version": "1.1.0",
+      "sha256": "d569f5cfa065134c4bf9aa5400953d332a19b351ce2b6f81887430c93e354d46",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Модель deepseek-flash и серверный веб-поиск через Anthropic-совместимый endpoint (web_search_base_url).",
+        "en": "Model deepseek-flash and server-side web search via the Anthropic-compatible endpoint (web_search_base_url)."
       }
     },
     "services/gigachat.json": {
