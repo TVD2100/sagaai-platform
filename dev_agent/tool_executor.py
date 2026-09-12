@@ -1265,7 +1265,7 @@ class ToolExecutor:
     def run_code(self, code: Optional[str] = None,
                  path: Optional[str] = None,
                  confirmed_by_user: bool = False) -> Dict[str, Any]:
-        """Run arbitrary Python code in an isolated subprocess with a 3-minute timeout.
+        """Run arbitrary Python code in an isolated subprocess with a 5-minute timeout.
 
         This is the UNIVERSAL ESCAPE HATCH for operations that have no dedicated
         tool. Use run_code when you need to perform non-standard tasks such as:
@@ -1284,7 +1284,7 @@ class ToolExecutor:
           - code: run an inline Python snippet (written to a temp file).
           - path: run a Python script located inside the project.
 
-        The process times out after 3 minutes (180 s). Captures stdout/stderr
+        The process times out after 5 minutes (300 s). Captures stdout/stderr
         (last 4000 chars each) and the return code. The project root is added
         to PYTHONPATH automatically so project imports work.
 
@@ -2406,7 +2406,9 @@ class ToolExecutor:
 
         Archives the previous Active Task into the journal's Task History
         section, so a new task in the same thread extends the SAME file.
-        The journal file is never deleted.
+        The journal file is never deleted. Also allocates a numbered
+        per-task working folder and records its plain path in the
+        ``- task_dir:`` meta line.
         """
         try:
             from dev_agent import task_state as ts
@@ -2417,7 +2419,7 @@ class ToolExecutor:
             return {"ok": False, "error": "task_state_init failed: " + str(e)}
 
     def task_state_read(self) -> Dict[str, Any]:
-        """Read TASK_STATE.md."""
+        """Read this thread's task-state journal, including task_dir."""
         try:
             from dev_agent import task_state as ts
             return ts.read_task_state()
@@ -2425,7 +2427,7 @@ class ToolExecutor:
             return {"ok": False, "error": "task_state_read failed: " + str(e)}
 
     def task_state_update(self, section: str, content: str) -> Dict[str, Any]:
-        """Update one section of TASK_STATE.md, preserving the others."""
+        """Update one section of the journal's Active Task, preserving the others."""
         try:
             from dev_agent import task_state as ts
             return ts.update_task_state_section(section, content)
@@ -2452,7 +2454,10 @@ class ToolExecutor:
             return {"ok": False, "error": "task_state_mark_step failed: " + str(e)}
 
     def task_state_clear(self) -> Dict[str, Any]:
-        """Delete TASK_STATE.md after the task is finished (backup kept)."""
+        """Archive the completed Active Task into Task History.
+
+        The journal file is never deleted.
+        """
         try:
             from dev_agent import task_state as ts
             return ts.clear_task_state()
@@ -2471,8 +2476,8 @@ TOOL_CATALOG = [
     {"name": "create_backup", "desc": "Snapshot a file. Args: path, [note]."},
     {"name": "restore_backup", "desc": "Restore a file from backup. Args: path, [version]."},
     {"name": "show_history", "desc": "Show a file's backup history. Args: path."},
-    {"name": "run_test", "desc": "Run a test in isolation (inline Python snippet or pytest path). ⚠️ If the code contains dangerous patterns, needs user confirmation. Timeout: 60s. Args: code | path, [confirmed_by_user=False]."},
-    {"name": "run_code", "desc": "Universal escape hatch -- run arbitrary Python code or a script in an isolated subprocess. ⚠️ If the code contains dangerous patterns (destructive commands, system modification, network operations), execution is blocked until the user explicitly confirms via the UI. Use when no dedicated tool exists for the operation: install packages, write files bypassing SafeWriter, test external APIs, execute shell commands or scripts. Timeout: 180s (3 min). Args: code | path, [confirmed_by_user=False]."},
+    {"name": "run_test", "desc": "Run a test in isolation (inline Python snippet or pytest path). ⚠️ If the code contains dangerous patterns, needs user confirmation. Timeout: 180s (3 min). Args: code | path, [confirmed_by_user=False]."},
+    {"name": "run_code", "desc": "Universal escape hatch -- run arbitrary Python code or a script in an isolated subprocess. ⚠️ If the code contains dangerous patterns (destructive commands, system modification, network operations), execution is blocked until the user explicitly confirms via the UI. Use when no dedicated tool exists for the operation: install packages, write files bypassing SafeWriter, test external APIs, execute shell commands or scripts. Timeout: 300s (5 min). Args: code | path, [confirmed_by_user=False]."},
     {"name": "list_assistants", "desc": "List all available assistants (name + description, no full prompt). Args: none."},
     {"name": "get_assistant_by_id", "desc": "Get full assistant details including prompt_text. Args: assistant_id."},
     {"name": "update_assistant_by_id", "desc": "Update an existing assistant's fields. Only provided fields are changed; omitted ones keep current values. Before editing: load the Assistant Creator instruction, inspect the assistant with get_assistant_by_id, show the planned changes to the user and get confirmation. Args: assistant_id, [name], [description], [prompt_text], [service], [model], [temperature], [tools], [max_tool_calls], [max_tokens], [reasoning_effort]."},
@@ -2491,11 +2496,11 @@ TOOL_CATALOG = [
     {"name": "get_history_index", "desc": "Return a compact index of all conversation messages (role + category + short summary) for economy mode. Use this to find an older message before retrieving it. Args: [start=0], [limit=200]."},
     {"name": "get_history_messages", "desc": "Return full conversation messages by their 0-based indices from the history index. Tool-result payloads are sanitized. Args: indices (list of integers, e.g. [3, 7, 12])."},
     {"name": "list_recent_workspaces", "desc": "Return up to 5 recently used workspace paths (newest first), each with an index number, absolute path, and short folder name. Non-existent paths are filtered out. Use at the start of a new task to offer the user a quick selection instead of typing the full path. Args: none."},
-    {"name": "task_state_init", "desc": "Start a new task in this thread's task-state journal (TASK_STATE__<thread_id>.md). Archives the previous Active Task into the journal's Task History section, so a new task in the same thread extends the SAME file. The journal file is never deleted. Args: task (overall goal), [architecture], [plan] (steps as '### Step 1 - title')."},
-    {"name": "task_state_read", "desc": "Read this thread's task-state journal: Active Task sections (task, architecture, plan, progress, handoff), step ids, and the archived Task History. Returns exists=False when the file is missing. Args: none."},
-    {"name": "task_state_update", "desc": "Update one section of the journal's Active Task, preserving the others. Args: section (task|architecture|plan|progress|handoff), content (section body without heading)."},
-    {"name": "task_state_mark_step", "desc": "Mark one plan step in the journal (pending|in_progress|done|blocked) and refresh the Progress checklist. Record verification (tests run), result and context (the condensed state the NEXT step needs) BEFORE moving to the next step. Args: step_id (e.g. 'step_1'), [status=done], [verification], [result], [context]."},
-    {"name": "task_state_clear", "desc": "Archive the completed Active Task into the journal's Task History section after a task is finished. The journal file is NEVER deleted. Idempotent: returns archived=False when there is no active task. Args: none."},
+    {"name": "task_state_init", "desc": "Start a new task in this thread's task-state journal (TASK_STATE__<thread_id>.md). Archives the previous Active Task into the journal's Task History section, so a new task in the same thread extends the SAME file. The journal file is never deleted. Also allocates a numbered per-task working folder (task_states/<thread_id>/task_NN/) and records its plain path in the '- task_dir:' meta line. Args: task (overall goal), [architecture], [plan] (steps as '### Step 1 - title')."},
+    {"name": "task_state_read", "desc": "Read this thread's task-state journal: Active Task sections (task, architecture, plan, progress, handoff, analysis, requests), the task_dir meta line (per-task working folder), step ids, and the archived Task History. Returns exists=False when the file is missing. Args: none."},
+    {"name": "task_state_update", "desc": "Update one section of the journal's Active Task, preserving the others. Args: section (task|architecture|plan|progress|handoff|analysis|requests), content (section body without heading)."},
+    {"name": "task_state_mark_step", "desc": "Mark one plan step in the journal (pending|in_progress|done|blocked) and refresh the Progress checklist ('[x]'=done, '[~]'=in_progress, '[ ]'=pending; the Progress counter line is not a step). Record verification (tests run), result and context (the condensed state the NEXT step needs) for each completed step BEFORE moving to the next one. Args: step_id (e.g. 'step_1'), [status=done], [verification], [result], [context]."},
+    {"name": "task_state_clear", "desc": "Archive the completed Active Task (including its task_dir meta) into the journal's Task History section after a task is finished. The journal file is NEVER deleted. Idempotent: returns archived=False when there is no active task. Args: none."},
 ]
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: MIT

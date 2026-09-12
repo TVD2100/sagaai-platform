@@ -11,6 +11,7 @@ write into the real project root, and an isolated thread id so journal files
 are written into TASK_STATE__<thread_id>.md under the temp root.
 """
 import pytest
+from pathlib import Path
 
 from dev_agent import config
 from dev_agent import task_state as ts
@@ -94,7 +95,8 @@ def test_ensure_and_read_roundtrip(sandbox):
     assert r["ok"] and r["exists"]
     assert r["path"].endswith("TASK_STATE__test_thread_123.md")
     assert r["thread_id"] == "test_thread_123"
-    assert set(r["sections"]) == {"task", "architecture", "plan", "progress", "handoff"}
+    assert set(r["sections"]) == {"task", "architecture", "plan", "progress",
+                                "handoff", "analysis", "requests"}
     assert r["history"] == []
 
 
@@ -345,3 +347,92 @@ def test_agent_loop_helpers_present():
     out = agent_loop._with_task_state([{"role": "user", "content": "hi"}])
     assert isinstance(out, list)
     assert out[0]["role"] == "user"
+
+
+# --- New v3.1 capabilities: analysis/requests, task_dir, progress markers,
+# --- and canonical context-section order ---------------------------------
+
+def test_analysis_and_requests_sections_roundtrip(sandbox):
+    ts.ensure_task_state_file()
+    ts.update_task_state_section("analysis", "tried X, failed with Y")
+    ts.update_task_state_section("requests", "- confirm the API choice\n- resolved: kept SQLite")
+    r = ts.read_task_state()
+    assert r["sections"]["analysis"] == "tried X, failed with Y"
+    assert "confirm the API choice" in r["sections"]["requests"]
+    assert "kept SQLite" in r["sections"]["requests"]
+
+
+def test_build_scaffolds_all_seven_sections():
+    text = ts.build_task_state(task="T", plan=PLAN_TEXT)
+    for title in ("Task", "Architecture", "Plan", "Progress", "Handoff",
+                  "Analysis", "Requests"):
+        assert ("### " + title) in text
+
+
+def test_start_task_allocates_numbered_task_dir(sandbox):
+    res = ts.archive_and_start_task(task="Task One", plan=PLAN_TEXT)
+    assert res.get("ok")
+    task_dir = res["task_dir"]
+    assert task_dir.endswith("task_1")
+    assert task_dir.startswith(str(sandbox))
+    # On disk the folder carries the `(current)` marker; the journal stores
+    # the PLAIN path. current_task_dir() resolves the marked form.
+    resolved = ts.current_task_dir()
+    assert resolved is not None and resolved.exists()
+    assert resolved.name in ("task_1", "task_1 (current)")
+    text = ts.task_state_path().read_text(encoding="utf-8")
+    assert f"- task_dir: {task_dir}" in text
+    r = ts.read_task_state()
+    assert r["task_dir"] == task_dir
+
+
+def test_next_task_gets_next_number_and_moves_current_marker(sandbox):
+    first = ts.archive_and_start_task(task="T1")
+    second = ts.archive_and_start_task(task="T2")
+    assert Path(first["task_dir"]).name == "task_1"
+    assert Path(second["task_dir"]).name == "task_2"
+    base = first["task_dir"].rsplit("/", 1)[0]
+    assert Path(base, "task_1").exists()
+    assert Path(base, "task_2 (current)").exists()
+
+
+def test_mark_in_progress_shows_tilde_marker(sandbox):
+    ts.archive_and_start_task(task="T", plan=PLAN_TEXT)
+    res = ts.update_plan_step_status("step_1", status="in_progress")
+    assert res.get("ok") and res.get("status") == "in_progress"
+    r = ts.read_task_state()
+    assert "- [~] Step 1 - Data layer" in r["sections"]["progress"]
+    assert "(status: in_progress)" in r["sections"]["plan"]
+
+
+def test_mark_done_then_pending_toggles_markers(sandbox):
+    ts.archive_and_start_task(task="T", plan=PLAN_TEXT)
+    ts.update_plan_step_status("step_1", status="done")
+    ts.update_plan_step_status("step_1", status="pending")
+    r = ts.read_task_state()
+    progress = r["sections"]["progress"]
+    assert "- [ ] Step 1 - Data layer" in progress
+    assert "- [ ] Step 2 - API layer" in progress
+    assert "Progress: 0/2 steps done." in progress
+
+
+def test_context_section_order_matches_canon(sandbox):
+    ts.archive_and_start_task(task="Order check", architecture="modular",
+                              plan=PLAN_TEXT)
+    ts.update_task_state_section("analysis", "- thought A")
+    ts.update_task_state_section("requests", "- question B")
+    ts.update_task_state_section("handoff", "fact-H")
+    block = ts.task_state_for_context()
+    assert block is not None
+    # The exact canonical order required by the prompts.
+    positions = [
+        block.index("### Task"),
+        block.index("### Progress"),
+        block.index("### Handoff"),
+        block.index("### Plan"),
+        block.index("### Analysis"),
+        block.index("### Requests"),
+        block.index("### Architecture"),
+    ]
+    assert positions == sorted(positions)
+    assert "- task_dir:" in block

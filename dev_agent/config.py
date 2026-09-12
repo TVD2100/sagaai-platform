@@ -109,8 +109,8 @@ PROTECTED_FILES = _CORE_PROTECTED_FILES if WORKING_ON_INSTALL else ()
 
 # ─── Limits & safety ───────────────────────────────────────────────────────────
 MAX_BACKUPS_PER_FILE = 50          # rotate oldest backups beyond this count
-MAX_TEST_TIMEOUT_SEC = 60          # run_test child-process timeout
-MAX_RUN_CODE_TIMEOUT_SEC = 180     # run_code child-process timeout (universal escape hatch)
+MAX_TEST_TIMEOUT_SEC = 180         # run_test child-process timeout
+MAX_RUN_CODE_TIMEOUT_SEC = 300     # run_code child-process timeout (universal escape hatch)
 MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # refuse to read/write files larger than this
 DEFAULT_ENCODING = "utf-8"
 

@@ -6,7 +6,7 @@ for the current dialog thread, stored in the project's hidden runtime dir:
 
     <project>/.dev_agent/task_states/TASK_STATE__<thread_id>.md
 
-Key behaviours (v2):
+Key behaviours (v3):
 
 * The file name embeds the dialog thread id. The thread id and the file
   path are passed to the model inside the injected context block (meta
@@ -19,6 +19,13 @@ Key behaviours (v2):
 * Each plan step supports a ``- context:`` meta line - the condensed state
   the NEXT step needs - so the agent can continue correctly even when a
   large part of its chat history is truncated (economy mode).
+* Each active task gets its OWN numbered working folder
+  ``task_states/<thread_id>/task_NN/`` (NN increments per thread). The path
+  is recorded in the ``- task_dir:`` meta line of the journal and injected
+  into the LLM context, so the agent can keep per-task work files
+  (problem.md, analysis.md, ...) there via the standard file tools.
+* The optional Analysis / Requests sections hold the research notes and
+  the agent↔user requests of the current task.
 
 Journal layout::
 
@@ -26,12 +33,15 @@ Journal layout::
     ## Active Task
     - started: <iso>
     - updated: <iso>
+    - task_dir: <...>/task_states/<thread_id>/task_NN
     ### Task
     ### Architecture
     ### Plan
     ### Step 1 - ... (status: done)
     ### Progress
     ### Handoff
+    ### Analysis
+    ### Requests
     ## Task History
     ### Completed 1 - <title>
     - finished: <iso>
@@ -68,14 +78,21 @@ TASK_STATE_FILENAME = "TASK_STATE.md"
 MAX_STATE_CHARS = 8000
 
 # Active-task section keys (canonical, lowercase keys used by the tools).
-_SECTION_KEYS = {"task", "architecture", "plan", "progress", "handoff"}
+_SECTION_KEYS = {"task", "architecture", "plan", "progress", "handoff",
+                 "analysis", "requests"}
 _SECTION_TITLES = {
     "task": "Task",
     "architecture": "Architecture",
     "plan": "Plan",
     "progress": "Progress",
     "handoff": "Handoff",
+    "analysis": "Analysis",
+    "requests": "Requests",
 }
+
+# Canonical order of active-task sections inside the injected LLM context
+# block (Task -> Progress -> Handoff -> Plan -> Analysis -> Requests).
+_CONTEXT_ORDER = ("task", "progress", "handoff", "plan", "analysis", "requests")
 
 # Top-level journal sections.
 _TOP_TITLES = {"active_task": "Active Task", "task_history": "Task History"}
@@ -105,6 +122,97 @@ def current_thread_id() -> str:
 def task_state_path() -> Path:
     """Absolute path of THIS thread's journal file."""
     return config.TASK_STATES_DIR / f"{TASK_STATE_PREFIX}{current_thread_id()}{TASK_STATE_SUFFIX}"
+
+
+def thread_states_dir() -> Path:
+    """Absolute path of THIS thread's per-task folders directory."""
+    return config.TASK_STATES_DIR / current_thread_id()
+
+
+def _clear_current_marker(base: Path) -> None:
+    """Rename any ``task_NN (current)`` folder back to plain ``task_NN``."""
+    if not base.exists():
+        return
+    for child in base.iterdir():
+        if not child.is_dir():
+            continue
+        m = re.match(r"^task_(\d+) \(current\)$", child.name)
+        if m:
+            plain = base / f"task_{m.group(1)}"
+            child.rename(plain)
+
+
+def _task_folder_number(name: str) -> Optional[int]:
+    """Return the NN of a task folder name (with or without `(current)`)."""
+    m = re.match(r"^task_(\d+)(?:\s*\(current\))?$", name)
+    if not m:
+        return None
+    return int(m.group(1))
+
+
+def _plain_task_dir_path(path: Path) -> Path:
+    """Return the PLAIN (marker-free) form of a task folder path.
+
+    The journal always stores the plain path (stable for the whole task
+    life); the ``(current)`` marker exists only on disk and moves when a
+    new task starts.
+    """
+    n = _task_folder_number(path.name)
+    if n is None:
+        return path
+    return path.parent / f"task_{n}"
+
+
+def _allocate_next_task_dir() -> Path:
+    """Create and return the next numbered CURRENT-task folder for this thread.
+
+    Scans ``task_states/<thread_id>/`` for existing ``task_NN`` folders and
+    creates ``task_<max+1>`` (renamed to ``task_<max+1> (current)``). The
+    ``(current)`` marker is moved off the previous folder. Numbering only
+    grows within one thread.
+    """
+    base = thread_states_dir()
+    base.mkdir(parents=True, exist_ok=True)
+    _clear_current_marker(base)
+    max_n = 0
+    for child in base.iterdir():
+        if child.is_dir():
+            n = _task_folder_number(child.name)
+            if n is not None:
+                max_n = max(max_n, n)
+    plain = base / f"task_{max_n + 1}"
+    plain.mkdir(parents=True, exist_ok=True)
+    marked = base / f"task_{max_n + 1} (current)"
+    plain.rename(marked)
+    return marked
+
+
+def current_task_dir() -> Optional[Path]:
+    """Return the on-disk folder of the CURRENT Active Task, or None.
+
+    The journal stores the plain path (no marker), e.g. ``.../task_1``; the
+    actual folder on disk is ``task_1`` or ``task_1 (current)``. Both names
+    resolve to the same folder here. Returns None when the journal has no
+    task_dir meta or the folder does not exist.
+    """
+    path = task_state_path()
+    if not path.exists():
+        return None
+    try:
+        content = path.read_text(encoding=config.DEFAULT_ENCODING)
+    except OSError:
+        return None
+    top = _split_top_sections(content)
+    raw = (_read_active_meta(top.get("active_task", "")).get("task_dir") or "").strip()
+    if not raw:
+        return None
+    p = Path(raw)
+    if not p.is_absolute():
+        p = config.PROJECT_ROOT / p
+    if p.exists():
+        return p
+    marked = p.parent / (p.name + " (current)")
+    return marked if marked.exists() else None
 
 
 def _now_iso() -> str:
@@ -205,7 +313,7 @@ def _read_active_meta(active_body: str) -> Dict[str, str]:
     for ln in (active_body or "").splitlines():
         if ln.strip().startswith("###"):
             break
-        m = re.match(r"^- (started|updated|status):\s*(.*)$", ln.strip())
+        m = re.match(r"^- (started|updated|status|task_dir):\s*(.*)$", ln.strip())
         if m:
             meta[m.group(1)] = m.group(2).strip()
     return meta
@@ -278,14 +386,20 @@ def render_active_task(
     plan: str = "",
     progress: str = "",
     handoff: str = "",
+    analysis: str = "",
+    requests: str = "",
     started: str = "",
+    task_dir: str = "",
 ) -> str:
     """Render the '## Active Task' journal section."""
     parts: List[str] = ["## Active Task", ""]
     parts.append(f"- started: {started or _now_iso()}")
     parts.append(f"- updated: {_now_iso()}")
+    if task_dir:
+        parts.append(f"- task_dir: {task_dir}")
     parts.append("")
-    for key in ("task", "architecture", "plan", "progress", "handoff"):
+    for key in ("task", "architecture", "plan", "progress", "handoff",
+                "analysis", "requests"):
         value = (locals()[key] or "").strip()
         parts.append(f"### {_SECTION_TITLES[key]}")
         parts.append("")
@@ -324,8 +438,11 @@ def build_task_state(
     plan: str = "",
     progress: str = "",
     handoff: str = "",
+    analysis: str = "",
+    requests: str = "",
     history: Optional[List[Dict[str, str]]] = None,
     started: str = "",
+    task_dir: str = "",
 ) -> str:
     """Render the complete journal file content.
 
@@ -342,7 +459,8 @@ def build_task_state(
         "",
         render_active_task(
             task=task, architecture=architecture, plan=plan,
-            progress=progress, handoff=handoff, started=started,
+            progress=progress, handoff=handoff, analysis=analysis,
+            requests=requests, started=started, task_dir=task_dir,
         ),
         "",
         render_task_history(history or []),
@@ -410,16 +528,26 @@ def _write_journal(
     active: Dict[str, str],
     history: List[Dict[str, str]],
     started: str = "",
+    task_dir: str = "",
 ) -> str:
-    """Render + write the journal; returns the rendered text."""
+    """Render + write the journal; returns the rendered text.
+
+    ``task_dir`` is recorded into the ``- task_dir:`` meta line verbatim;
+    an empty value means this write carries no per-task folder (no new
+    folder is ever allocated here - allocation happens only when a task
+    starts, see archive_and_start_task()).
+    """
     text = build_task_state(
         task=active.get("task", ""),
         architecture=active.get("architecture", ""),
         plan=active.get("plan", ""),
         progress=active.get("progress", ""),
         handoff=active.get("handoff", ""),
+        analysis=active.get("analysis", ""),
+        requests=active.get("requests", ""),
         history=history,
         started=started,
+        task_dir=(task_dir or "").strip(),
     )
     _write_raw(text)
     return text
@@ -499,8 +627,9 @@ def read_task_state() -> Dict[str, Any]:
     """Read and parse this thread's journal.
 
     Returns {"ok", "path", "exists", "thread_id", "content", "sections"
-    (active task task/architecture/plan/progress/handoff), "step_ids",
-    "history" (completed tasks), "size_bytes"}. When the file is missing,
+    (active task task/architecture/plan/progress/handoff/analysis/requests),
+    "task_dir" (the per-task working folder), "step_ids", "history"
+    (completed tasks), "size_bytes"}. When the file is missing,
     returns exists=False (the feature must never be an error).
     """
     _migrate_legacy_file()
@@ -509,7 +638,7 @@ def read_task_state() -> Dict[str, Any]:
         return {
             "ok": True, "path": str(path), "thread_id": current_thread_id(),
             "exists": False, "content": "", "sections": {}, "step_ids": [],
-            "history": [], "size_bytes": 0,
+            "task_dir": "", "history": [], "size_bytes": 0,
         }
     try:
         content = path.read_text(encoding=config.DEFAULT_ENCODING)
@@ -517,6 +646,7 @@ def read_task_state() -> Dict[str, Any]:
         return {"ok": False, "error": str(e)}
     top = _split_top_sections(content)
     active = _split_active_sections(top.get("active_task", ""))
+    meta = _read_active_meta(top.get("active_task", ""))
     return {
         "ok": True,
         "path": str(path),
@@ -524,6 +654,7 @@ def read_task_state() -> Dict[str, Any]:
         "exists": True,
         "content": content,
         "sections": active,
+        "task_dir": (meta.get("task_dir") or "").strip(),
         "step_ids": extract_step_ids(active.get("plan", "")),
         "history": _parse_history_entries(top.get("task_history", "")),
         "size_bytes": len(content.encode(config.DEFAULT_ENCODING)),
@@ -535,7 +666,9 @@ def archive_and_start_task(task: str, architecture: str = "", plan: str = "") ->
 
     If the journal already has an Active Task with real content, it is first
     archived into Task History (requirement: a new task in the same thread
-    extends the same file). The journal file itself is never deleted.
+    extends the same file). The journal file itself is never deleted. A new
+    numbered per-task folder ``task_states/<thread_id>/task_NN/`` is
+    allocated and its path is recorded in the ``- task_dir:`` meta line.
     """
     task = (task or "").strip()
     architecture = (architecture or "").strip()
@@ -556,9 +689,10 @@ def archive_and_start_task(task: str, architecture: str = "", plan: str = "") ->
                 archived_previous = True
         except OSError as e:
             return {"ok": False, "error": str(e)}
+    task_dir = _plain_task_dir_path(_allocate_next_task_dir())
     text = build_task_state(
         task=task, architecture=architecture, plan=plan,
-        history=history, started=_now_iso(),
+        history=history, started=_now_iso(), task_dir=str(task_dir),
     )
     try:
         _write_raw(text)
@@ -568,6 +702,7 @@ def archive_and_start_task(task: str, architecture: str = "", plan: str = "") ->
         "ok": True,
         "path": str(path),
         "thread_id": current_thread_id(),
+        "task_dir": str(task_dir),
         "size_bytes": len(text.encode(config.DEFAULT_ENCODING)),
         "step_ids": extract_step_ids(plan),
         "archived_previous": archived_previous,
@@ -579,7 +714,7 @@ def update_task_state_section(section: str, content: str) -> Dict[str, Any]:
     """Update one section of the Active Task, preserving all others.
 
     Args:
-        section: one of task|architecture|plan|progress|handoff.
+        section: one of task|architecture|plan|progress|handoff|analysis|requests.
         content: new section body (without the `### Title` heading).
 
     Creates a scaffolded journal first if it does not exist.
@@ -603,8 +738,15 @@ def update_task_state_section(section: str, content: str) -> Dict[str, Any]:
     history = _parse_history_entries(top.get("task_history", ""))
     meta = _read_active_meta(top.get("active_task", ""))
     active[key] = (content or "").strip()
+    task_dir = meta.get("task_dir", "")
+    if not task_dir:
+        # A section write creates real active-task content: allocate the
+        # per-task folder once and keep it from now on (stored as the
+        # PLAIN path; the `(current)` marker exists only on disk).
+        task_dir = str(_plain_task_dir_path(_allocate_next_task_dir()))
     try:
-        new_text = _write_journal(active, history, started=meta.get("started", ""))
+        new_text = _write_journal(active, history, started=meta.get("started", ""),
+                                  task_dir=task_dir)
     except OSError as e:
         return {"ok": False, "error": str(e)}
     return {"ok": True, "path": str(path), "section": key,
@@ -725,7 +867,12 @@ def update_plan_step_status(
             cur_status = sm.group(1).strip()
         if item_status is None:
             item_status = cur_status or "pending"
-        mark = "[x]" if item_status == "done" else "[ ]"
+        if item_status == "done":
+            mark = "[x]"
+        elif item_status == "in_progress":
+            mark = "[~]"
+        else:
+            mark = "[ ]"
         if item_status == "done":
             done_items += 1
         progress_lines.append(f"- {mark} Step {info['num']} - {info['title']}")
@@ -734,8 +881,13 @@ def update_plan_step_status(
         progress_lines.append(f"Progress: {done_items}/{total} steps done.")
     active["progress"] = "\n".join(progress_lines).strip()
 
+    task_dir = meta.get("task_dir", "")
+    if not task_dir:
+        # No per-task folder yet: allocate one, stored as the plain path.
+        task_dir = str(_plain_task_dir_path(_allocate_next_task_dir()))
     try:
-        new_text = _write_journal(active, history, started=meta.get("started", ""))
+        new_text = _write_journal(active, history, started=meta.get("started", ""),
+                                  task_dir=task_dir)
     except OSError as e:
         return {"ok": False, "error": str(e)}
     return {"ok": True, "path": str(path), "step_id": step_id, "status": status,
@@ -779,10 +931,12 @@ def task_state_for_context(max_history: int = 3) -> Optional[str]:
     """Return a compact block for injection into the LLM context.
 
     The block starts with the meta info (thread id + journal path) required
-    by the prompt, followed by the current Active Task and the most recent
-    Task History entries. Returns None when the journal is missing (the
-    feature must never break the agent loop). Content is truncated to
-    MAX_STATE_CHARS.
+    by the prompt, followed by the active task rendered as: meta lines
+    (started/updated/task_dir) first, then sections in the canonical order
+    Task -> Progress -> Handoff -> Plan -> Analysis -> Requests (Architecture
+    last), then the most recent Task History entries. Returns None when the
+    journal is missing (the feature must never break the agent loop).
+    Content is truncated to MAX_STATE_CHARS.
     """
     _migrate_legacy_file()
     path = task_state_path()
@@ -800,14 +954,38 @@ def task_state_for_context(max_history: int = 3) -> Optional[str]:
         f"thread_id: {current_thread_id()}\n"
         f"task_state_file: {path}\n"
     )
-    parts: List[str] = [
-        "## Active Task",
-        "",
-        top.get("active_task", "").strip() or _NOT_SET_MARKER,
-    ]
+    meta = _read_active_meta(top.get("active_task", ""))
+    active = _split_active_sections(top.get("active_task", ""))
+    parts: List[str] = []
+    meta_lines: List[str] = []
+    for key in ("started", "updated", "task_dir"):
+        value = (meta.get(key) or "").strip()
+        if value:
+            meta_lines.append(f"- {key}: {value}")
+    has_real = any(
+        (active.get(k) or "").strip() not in ("", _NOT_SET_MARKER)
+        for k in _SECTION_KEYS
+    )
+    if meta_lines or has_real:
+        parts.append("## Active Task")
+        parts.append("")
+        parts.extend(meta_lines)
+        if meta_lines:
+            parts.append("")
+        for key in _CONTEXT_ORDER:
+            value = (active.get(key) or "").strip()
+            parts.append(f"### {_SECTION_TITLES[key]}")
+            parts.append("")
+            parts.append(value if value else _NOT_SET_MARKER)
+            parts.append("")
+        for key in sorted(set(_SECTION_KEYS) - set(_CONTEXT_ORDER)):
+            value = (active.get(key) or "").strip()
+            parts.append(f"### {_SECTION_TITLES[key]}")
+            parts.append("")
+            parts.append(value if value else _NOT_SET_MARKER)
+            parts.append("")
     entries = _parse_history_entries(top.get("task_history", ""))
     if entries:
-        parts.append("")
         parts.append("## Recent Task History")
         parts.append("")
         for entry in entries[-max_history:]:
