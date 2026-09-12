@@ -11,8 +11,9 @@ Covers:
     the global DevAgent config, and task-specific ``instructions`` are
     appended to the base prompt.
   - Provider-specific behavior: Yandex forces ``tool_choice``, DeepSeek
-    does not (plus strict single-search rule), and empty provider responses
-    trigger one retry followed by an explicit error when still empty.
+    routes to the Anthropic-compatible search branch (no ``send_request``),
+    and empty provider responses trigger one retry followed by an explicit
+    error when still empty.
 
 All external HTTP / provider logic is mocked; no network access is needed.
 """
@@ -247,7 +248,7 @@ def test_web_search_yandex_forces_tool_choice():
     assert "exactly ONE web search" not in assistant["text"]
 
 
-def test_web_search_deepseek_not_forced_and_gets_one_search_rule():
+def test_web_search_deepseek_routes_to_anthropic_branch():
     executor = _make_executor()
     executor._web_search_enabled = True
     executor._web_search_config = {
@@ -259,14 +260,19 @@ def test_web_search_deepseek_not_forced_and_gets_one_search_rule():
 
     with patch("dev_agent.tool_executor.load_devagent_config", return_value={}), \
          _patch_services("deepseek_responses", "DeepSeek"), \
-         patch("dev_agent.tool_executor.send_request") as mock_send:
-        mock_send.return_value = "answer"
-        executor.web_search(query="q")
+         patch("dev_agent.tool_executor.send_request") as mock_send, \
+         patch.object(executor, "_run_deepseek_web_search",
+                      return_value={"ok": True, "text": "answer"}) as mock_run:
+        result = executor.web_search(query="q")
 
-    assistant = mock_send.call_args.kwargs["assistant"]
-    assert "tool_choice" not in assistant
-    assert "perform exactly ONE web search" in assistant["text"]
-    assert "Never perform additional searches." in assistant["text"]
+    assert result["ok"] is True
+    # DeepSeek must not go through the generic send_request path.
+    mock_send.assert_not_called()
+    kwargs = mock_run.call_args.kwargs
+    assert kwargs["search_mdl"] == "m"
+    assert kwargs["search_svc_name"] == "DeepSeek"
+    assert kwargs["base_prompt"] == "Base prompt."
+    assert kwargs["query"] == "q"
 
 
 def test_web_search_yandex_retries_once_without_tool_choice_on_empty():
