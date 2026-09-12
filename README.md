@@ -24,7 +24,7 @@ SagaAI - это полноценная ИИ-платформа, ориентир
 
 ### 💬 Чат с AI
 
-- Поддержка OpenAI-совместимых API (YandexAI, DeepSeek) и GigaChat.
+- Поддержка OpenAI-совместимых API (YandexAI, DeepSeek) и GigaChat. Для веб-поиска DeepSeek использует Anthropic-совместимый endpoint (модель deepseek-flash).
 
 - Прикрепление файлов - текстовых, PDF, офисных форматов (docx, pptx, xlsx) с автоматическим извлечением содержимого.
 
@@ -296,4 +296,4 @@ API-ключи, сохраняемые в базе данных, восстан�
 
 - **Тестирование:** pytest
 
-- **AI-провайдеры:** OpenAI-совместимые API (YandexAI, DeepSeek), GigaChat
+- **AI-провайдеры:** OpenAI-совместимые API (YandexAI, DeepSeek), GigaChat; веб-поиск DeepSeek - через Anthropic-совместимый endpoint (модель deepseek-flash)

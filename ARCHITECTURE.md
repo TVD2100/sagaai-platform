@@ -255,6 +255,12 @@ Responses (`core/assistant_tools.py`) обёрнуты тем же механи�
 ### Web-search модель (search_service/model)
 Отдельная пара service/model для задач с веб-поиском, хранится в
 конфигурации оркестратора; используется `tool_executor.web_search()`.
+У DeepSeek встроенный инструмент `web_search` в Responses API молча
+игнорируется, поэтому веб-поиск для DeepSeek выполняется отдельным
+запросом к Anthropic-совместимому endpoint (`web_search_base_url`,
+`https://api.deepseek.com/anthropic/v1/messages`) с моделью
+`deepseek-flash`; ветка выбирается в `tool_executor.web_search()` по
+`auth_type == "deepseek_responses"`.
 
 ### Assistant Creator
 Внутренняя инструкция с id `assistant_creator`. Содержит правила генерации

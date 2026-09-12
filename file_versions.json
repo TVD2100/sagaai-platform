@@ -860,11 +860,11 @@
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.6.0",
-      "sha256": "b7beddf2cdab44b686e6864074200a1c06e4bf2616c0a3b4df030a00d6ce6778",
+      "version": "1.7.0",
+      "sha256": "2cbb57af42d812abc18a731f3285fb5db04fafc77df6b565a5e2b7609e5a058d",
       "note": {
-        "ru": "RAG-подсистема дополнена: кэшированные счётчики в meta индекс-баз, параметр with_stats у API списка баз.",
-        "en": "RAG subsystem extended: cached counters in the index meta table, with_stats parameter on base list APIs."
+        "ru": "Секция Web-search модель дополнена: веб-поиск DeepSeek через Anthropic-совместимый endpoint (web_search_base_url, модель deepseek-flash).",
+        "en": "Web-search model section extended: DeepSeek web search uses the Anthropic-compatible endpoint (web_search_base_url, deepseek-flash model)."
       }
     },
     "COMPARISON.md": {
@@ -884,19 +884,19 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.8.0",
-      "sha256": "3495a41bf95d86b8bfe1ec26221f72b82ba5ad9f26ccd5f367f26624f9633164",
+      "version": "1.9.0",
+      "sha256": "008b77e48964d230e03f686b1bc4244b4606ea49daad4fa01ed9bde1b69237bb",
       "note": {
-        "ru": "Карта перегенерирована: актуализированы описания RAG-модулей (кэшированные счётчики, with_stats), учтены новые тесты; всего 638 файлов.",
-        "en": "Map regenerated: RAG module descriptions updated (cached counters, with_stats), new tests included; 638 files total."
+        "ru": "Карта синхронизирована с кодом: функции веб-поиска DeepSeek через Anthropic-совместимый endpoint (api_layer), новый тест test_deepseek_anthropic_web_search.py, обновлённые описания профилей deepseek; всего 655 файлов.",
+        "en": "Map synced with code: DeepSeek web search via the Anthropic-compatible endpoint (api_layer), new test test_deepseek_anthropic_web_search.py, updated DeepSeek service descriptions; 655 files total."
       }
     },
     "README.md": {
-      "version": "1.6.0",
-      "sha256": "3b972e811ca0131f286f2a39ab30386364002acb9b5abcb0b3dcc714363b7c96",
+      "version": "1.7.0",
+      "sha256": "ee8811cf058da391aa829e32d09e7080d0e0c0337b13a87848e57a1b345a844e",
       "note": {
-        "ru": "Версия в заголовке поднята до 0.3.1-preview.1.",
-        "en": "Header version bumped to 0.3.1-preview.1."
+        "ru": "Упомянут веб-поиск DeepSeek через Anthropic-совместимый endpoint (модель deepseek-flash).",
+        "en": "Mentions DeepSeek web search via the Anthropic-compatible endpoint (deepseek-flash model)."
       }
     },
     "SPEC.md": {

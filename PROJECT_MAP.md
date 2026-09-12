@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-09-12T07:37:37+00:00`
-- Файлов: **638**
-- Языки: Config: 1, JSON: 22, Markdown: 412, PEM certificate: 1, Python: 206, Text: 1
+- Обновлено: `2026-09-12T17:06:04+00:00`
+- Файлов: **655**
+- Языки: Config: 1, JSON: 22, Markdown: 428, PEM certificate: 1, Python: 207, Text: 1
 
 ## Файлы и назначение
 
@@ -110,6 +110,7 @@
 | `tests/test_core_files.py` | Python | File helpers tests | - |
 | `tests/test_crypto.py` | Python | Crypto tests | - |
 | `tests/test_db_concurrency.py` | Python | _(описание не задано)_ | storage |
+| `tests/test_deepseek_anthropic_web_search.py` | Python | DeepSeek Anthropic web search tests | - |
 | `tests/test_deepseek_responses.py` | Python | DeepSeek Responses API tests | - |
 | `tests/test_default_imports.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_default_rag_bases.py` | Python | _(описание не задано)_ | storage |
@@ -243,7 +244,7 @@
 | `defaults/skills/README.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/skills/rag_base_creator/SKILL.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/skills/rag_base_creator/scripts/build_base.py` | Python | _(описание не задано)_ | - |
-| `defaults/services/deepseek.json` | JSON | _(описание не задано)_ | - |
+| `defaults/services/deepseek.json` | JSON | Default DeepSeek service definition (chat + Anthropic-compatible web search) | - |
 | `defaults/services/gigachat.json` | JSON | _(описание не задано)_ | - |
 | `defaults/services/yandex.json` | JSON | _(описание не задано)_ | - |
 | `personal_assistant_data/calendar.json` | JSON | _(описание не задано)_ | - |
@@ -645,7 +646,7 @@
 | `dev_agent/task_states/TASK_STATE__20260912_101157_47241f.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260912_101157_fe35d8.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
-| `services/deepseek.json` | JSON | DeepSeek service definition | - |
+| `services/deepseek.json` | JSON | DeepSeek service definition (chat + Anthropic-compatible web search) | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
 | `services/yandex.json` | JSON | YandexAI service definition | - |
 
@@ -832,17 +833,20 @@
 - `_bearer_request` (func, строка 584)
 - `_deepseek_reasoning_effort` (func, строка 659)
 - `_deepseek_responses_request` (func, строка 675)
-- `_yandex_reasoning_effort` (func, строка 777)
-- `_yandex_web_search_config` (func, строка 804)
-- `_assistant_web_search_config` (func, строка 834)
-- `_yandex_responses_request` (func, строка 863)
-- `_gigachat_token` (func, строка 980)
-- `_assistant_rag_context` (func, строка 999)
-- `send_request` (func, строка 1050)
-- `_do_request` (func, строка 1233)
-- `_extract_error_body` (func, строка 1394)
-- `_extract_gigachat_error` (func, строка 1415)
-- `test_connection` (func, строка 1430)
+- `_anthropic_web_search_used` (func, строка 784)
+- `_extract_anthropic_text` (func, строка 800)
+- `_deepseek_anthropic_web_search` (func, строка 824)
+- `_yandex_reasoning_effort` (func, строка 940)
+- `_yandex_web_search_config` (func, строка 967)
+- `_assistant_web_search_config` (func, строка 997)
+- `_yandex_responses_request` (func, строка 1026)
+- `_gigachat_token` (func, строка 1143)
+- `_assistant_rag_context` (func, строка 1162)
+- `send_request` (func, строка 1213)
+- `_do_request` (func, строка 1396)
+- `_extract_error_body` (func, строка 1557)
+- `_extract_gigachat_error` (func, строка 1578)
+- `test_connection` (func, строка 1593)
 
 ### `core/assistant_creator.py`
 - `_section_headers` (func, строка 23)
@@ -1860,6 +1864,25 @@
 - `test_file_db_uses_wal` (func, строка 135)
 - `test_query_plan_uses_index` (func, строка 146)
 
+### `tests/test_deepseek_anthropic_web_search.py`
+- `_search_response` (func, строка 41)
+- `_no_search_response` (func, строка 80)
+- `_ok_resp` (func, строка 94)
+- `test_anthropic_web_search_used_detects_search_blocks` (func, строка 104)
+- `test_extract_anthropic_text_returns_last_text_block_only` (func, строка 111)
+- `test_extract_anthropic_text_empty` (func, строка 118)
+- `test_payload_shape_and_headers` (func, строка 129)
+- `test_no_tool_choice_in_payload` (func, строка 166)
+- `test_max_uses_mapping_by_search_context_size` (func, строка 177)
+- `test_retry_once_when_first_response_has_no_search` (func, строка 190)
+- `test_explicit_error_when_both_attempts_have_no_search` (func, строка 206)
+- `test_second_attempt_searched_but_empty_answer` (func, строка 219)
+- `test_provider_http_error_is_raised` (func, строка 233)
+- `test_network_error_is_raised` (func, строка 251)
+- `test_web_search_deepseek_routes_to_anthropic_endpoint` (func, строка 271)
+- `test_web_search_deepseek_missing_key_returns_error` (func, строка 311)
+- `test_web_search_deepseek_uses_web_search_base_url_field` (func, строка 338)
+
 ### `tests/test_deepseek_responses.py`
 - `_responses_body` (func, строка 26)
 - `test_extract_deepseek_responses_text_ignores_reasoning` (func, строка 42)
@@ -2799,25 +2822,25 @@
 - `test_changelog_local_only_is_coverage_skip` (func, строка 162)
 
 ### `tests/test_web_search_prompt.py`
-- `test_default_prompt_is_stable` (func, строка 39)
-- `test_get_web_search_prompt_returns_default_when_orchestrator_missing` (func, строка 44)
-- `test_get_web_search_prompt_returns_default_when_key_missing` (func, строка 49)
-- `test_get_web_search_prompt_returns_default_when_key_empty` (func, строка 55)
-- `test_get_web_search_prompt_uses_custom_value` (func, строка 61)
-- `test_get_web_search_config_includes_prompt` (func, строка 69)
-- `test_get_web_search_config_uses_default_prompt_when_missing` (func, строка 88)
-- `_make_executor` (func, строка 98)
-- `_patch_services` (func, строка 107)
-- `test_web_search_sends_orchestrator_prompt_with_instructions` (func, строка 115)
-- `test_web_search_falls_back_to_global_config` (func, строка 159)
-- `test_web_search_without_instructions_uses_base_prompt_only` (func, строка 184)
-- `test_web_search_blocked_when_disabled` (func, строка 204)
-- `test_web_search_returns_error_when_not_configured` (func, строка 212)
-- `test_web_search_yandex_forces_tool_choice` (func, строка 229)
-- `test_web_search_deepseek_not_forced_and_gets_one_search_rule` (func, строка 250)
-- `test_web_search_yandex_retries_once_without_tool_choice_on_empty` (func, строка 272)
-- `test_web_search_both_empty_returns_explicit_error` (func, строка 296)
-- `test_catalog_web_search_mentions_instructions` (func, строка 319)
+- `test_default_prompt_is_stable` (func, строка 40)
+- `test_get_web_search_prompt_returns_default_when_orchestrator_missing` (func, строка 45)
+- `test_get_web_search_prompt_returns_default_when_key_missing` (func, строка 50)
+- `test_get_web_search_prompt_returns_default_when_key_empty` (func, строка 56)
+- `test_get_web_search_prompt_uses_custom_value` (func, строка 62)
+- `test_get_web_search_config_includes_prompt` (func, строка 70)
+- `test_get_web_search_config_uses_default_prompt_when_missing` (func, строка 89)
+- `_make_executor` (func, строка 99)
+- `_patch_services` (func, строка 108)
+- `test_web_search_sends_orchestrator_prompt_with_instructions` (func, строка 116)
+- `test_web_search_falls_back_to_global_config` (func, строка 160)
+- `test_web_search_without_instructions_uses_base_prompt_only` (func, строка 185)
+- `test_web_search_blocked_when_disabled` (func, строка 205)
+- `test_web_search_returns_error_when_not_configured` (func, строка 213)
+- `test_web_search_yandex_forces_tool_choice` (func, строка 230)
+- `test_web_search_deepseek_routes_to_anthropic_branch` (func, строка 251)
+- `test_web_search_yandex_retries_once_without_tool_choice_on_empty` (func, строка 278)
+- `test_web_search_both_empty_returns_explicit_error` (func, строка 302)
+- `test_catalog_web_search_mentions_instructions` (func, строка 325)
 
 ### `tests/test_workspace_binding.py`
 - `isolated_data` (func, строка 32)
