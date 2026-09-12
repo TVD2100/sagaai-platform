@@ -1033,7 +1033,7 @@ def _assistant_rag_context(assistant: dict, user_message: str) -> str:
         }
         parts = []
         for bslug in bases:
-            b = get_base(bslug)
+            b = get_base(bslug, with_stats=False)
             if not b:
                 continue
             slots = {str(s).strip().lower() for s in (b.get("rag_slots") or [])}

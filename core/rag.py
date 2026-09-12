@@ -70,8 +70,13 @@ def _ensure_files_dir(slug: str) -> str:
     return d
 
 
-def list_bases() -> list:
-    """Return manifest dicts for all bases in RAG_BASES_DIR."""
+def list_bases(with_stats: bool = True) -> list:
+    """Return manifest dicts for all bases in RAG_BASES_DIR.
+
+    When *with_stats* is False the ``index_stats`` block is omitted and the
+    SQLite index is never opened - use this on hot paths that only need
+    metadata (orchestrator prompts, UI option lists, RAG tool invocations).
+    """
     result = []
     try:
         names = sorted(os.listdir(RAG_BASES_DIR))
@@ -86,12 +91,16 @@ def list_bases() -> list:
         except Exception:
             continue
         if data.get("slug"):
-            result.append(_with_index_stats(data))
+            result.append(_with_index_stats(data) if with_stats else dict(data))
     return result
 
 
-def get_base(slug: str) -> dict:
-    """Return manifest for *slug*; {} if missing."""
+def get_base(slug: str, with_stats: bool = True) -> dict:
+    """Return manifest for *slug*; {} if missing.
+
+    With *with_stats=False* the SQLite index is never opened and the dict
+    carries no ``index_stats`` block.
+    """
     path = _manifest_path(slug)
     if not os.path.isfile(path):
         return {}
@@ -99,7 +108,7 @@ def get_base(slug: str) -> dict:
         data = json_load(path)
     except Exception:
         return {}
-    return _with_index_stats(data)
+    return _with_index_stats(data) if with_stats else dict(data)
 
 
 def _with_index_stats(data: dict) -> dict:
@@ -321,7 +330,7 @@ def read_file_contents(slug: str, filename: str) -> str:
 
 def allowed_for_slot(slug: str, slot: str) -> bool:
     """True when base *slug* may be used by *slot* (assistant/orchestrator)."""
-    data = get_base(slug)
+    data = get_base(slug, with_stats=False)
     if not data:
         return False
     slots = data.get("rag_slots") or []
@@ -336,7 +345,7 @@ def base_has_credentials(slug: str) -> bool:
     vectorized and is therefore inactive; the UI shows a hint to connect the
     provider's API keys.
     """
-    data = get_base(slug)
+    data = get_base(slug, with_stats=False)
     provider = str(data.get("provider") or "").strip()
     if not provider:
         return False
@@ -413,7 +422,7 @@ def update_chunk(slug: str, chunk_id: int, text: str,
     if not reembed:
         outcome["warning"] = "Chunk text saved; embedding was reset."
         return outcome
-    base = get_base(slug)
+    base = get_base(slug, with_stats=False)
     model = base.get("embedding_model") or "text-search-doc"
     try:
         from core.rag_embeddings import embed_text
@@ -436,12 +445,55 @@ def delete_chunk(slug: str, chunk_id: int) -> bool:
     return _del(index_db_path(slug), chunk_id)
 
 
-def list_bases_with_activity() -> list:
-    """Return all bases with an extra ``active`` flag (credentials present)."""
+def list_bases_with_activity(with_stats: bool = True) -> list:
+    """Return all bases with an extra ``active`` flag (credentials present).
+
+    With *with_stats=False* the SQLite indexes are never opened. Services and
+    the platform config are loaded once for the whole list instead of once
+    per base.
+    """
+    try:
+        from core.services import get_services
+        services = get_services()
+    except Exception:
+        services = {}
+    try:
+        from core.config import load_config
+        cfg = load_config()
+    except Exception:
+        cfg = {}
+
+    def _active(data: dict) -> bool:
+        provider = str(data.get("provider") or "").strip()
+        if not provider:
+            return False
+        svc = services.get(provider, {})
+        if not svc:
+            return False
+        ck1 = str(svc.get("config_key") or "").strip()
+        if not ck1:
+            return False
+        val1 = cfg.get(ck1, "")
+        if isinstance(val1, str):
+            val1 = val1.strip()
+        if not val1:
+            return False
+        ck2 = str(svc.get("config_key2") or "").strip()
+        if ck2 and svc.get("require_folder_id", True):
+            val2 = cfg.get(ck2, "")
+            if isinstance(val2, str):
+                val2 = val2.strip()
+            if not val2:
+                return False
+        return True
+
     out = []
-    for b in list_bases():
+    for b in list_bases(with_stats=with_stats):
         b = dict(b)
-        b["active"] = base_has_credentials(str(b.get("slug") or ""))
+        try:
+            b["active"] = _active(b)
+        except Exception:
+            b["active"] = False
         out.append(b)
     return out
 

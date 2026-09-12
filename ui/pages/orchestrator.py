@@ -2100,7 +2100,7 @@ def _render_orch_rag_bases(slug: str, lang: str) -> None:
     st.markdown(t("orch_rag_bases_section_desc", lang=lang))
 
     try:
-        bases = list_bases_with_activity()
+        bases = list_bases_with_activity(with_stats=False)
     except Exception:
         bases = []
 

@@ -30,6 +30,49 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# Cached counters stored in the meta table. They are maintained
+# incrementally at every write point so index_stats() never has to run
+# COUNT(*) over the (potentially huge) chunks/embeddings tables.
+_CHUNKS_KEY = "chunks_count"
+_EMBEDDINGS_KEY = "embeddings_count"
+
+
+def _ensure_counts(conn: sqlite3.Connection) -> None:
+    """Backfill the cached counters into meta for legacy databases.
+
+    Runs inside the caller's transaction. Databases created by
+    create_index_db() already carry the counters; for older indexes the
+    values are computed with a single COUNT(*) pass and then stored, so
+    the expensive scan happens at most once per database.
+    """
+    conn.execute("CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)")
+    rows = conn.execute(
+        "SELECT k FROM meta WHERE k IN (?, ?)",
+        (_CHUNKS_KEY, _EMBEDDINGS_KEY),
+    ).fetchall()
+    keys = {row["k"] for row in rows}
+    if _CHUNKS_KEY not in keys:
+        n = conn.execute("SELECT COUNT(*) AS n FROM chunks").fetchone()["n"]
+        conn.execute(
+            "INSERT INTO meta(k, v) VALUES(?, ?) ON CONFLICT(k) DO NOTHING",
+            (_CHUNKS_KEY, str(int(n))),
+        )
+    if _EMBEDDINGS_KEY not in keys:
+        n = conn.execute("SELECT COUNT(*) AS n FROM embeddings").fetchone()["n"]
+        conn.execute(
+            "INSERT INTO meta(k, v) VALUES(?, ?) ON CONFLICT(k) DO NOTHING",
+            (_EMBEDDINGS_KEY, str(int(n))),
+        )
+
+
+def _delta_count(conn: sqlite3.Connection, key: str, delta: int) -> None:
+    """Adjust one cached counter in meta (call after _ensure_counts)."""
+    conn.execute(
+        "UPDATE meta SET v = CAST(v AS INTEGER) + ? WHERE k = ?",
+        (int(delta), key),
+    )
+
+
 def _connect(db_path: str) -> sqlite3.Connection:
     """Open (and create directories for) a SQLite connection."""
     parent = os.path.dirname(db_path)
@@ -75,6 +118,9 @@ def create_index_db(db_path: str, dimension: int, provider: str = "",
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_chunks_source ON chunks(source)"
             )
+            # Backfill/inject the cached counters (cheap path: fresh DBs get
+            # zeros, legacy DBs get one-time COUNTs - see _ensure_counts).
+            _ensure_counts(conn)
             for key, value in (
                 ("dimension", str(int(dimension))),
                 ("provider", str(provider or "")),
@@ -110,6 +156,10 @@ def reset_index(db_path: str) -> bool:
         try:
             conn.execute("DROP TABLE IF EXISTS embeddings")
             conn.execute("DROP TABLE IF EXISTS chunks")
+            conn.execute(
+                "DELETE FROM meta WHERE k IN (?, ?)",
+                (_CHUNKS_KEY, _EMBEDDINGS_KEY),
+            )
             conn.commit()
         finally:
             conn.close()
@@ -150,17 +200,20 @@ def add_chunk(db_path: str, text: str, source: str = "",
     try:
         conn = _connect(db_path)
         try:
+            _ensure_counts(conn)
             cur = conn.execute(
                 "INSERT INTO chunks(text, source, chunk_index, created_at) "
                 "VALUES(?, ?, ?, ?)",
                 (text, source, int(chunk_index), _now()),
             )
             chunk_id = cur.lastrowid
+            _delta_count(conn, _CHUNKS_KEY, 1)
             if vector is not None:
                 conn.execute(
                     "INSERT INTO embeddings(chunk_id, vector) VALUES(?, ?)",
                     (chunk_id, pack_vector(vector)),
                 )
+                _delta_count(conn, _EMBEDDINGS_KEY, 1)
             conn.commit()
             return int(chunk_id)
         finally:
@@ -174,11 +227,18 @@ def add_embedding(db_path: str, chunk_id: int, vector) -> bool:
     try:
         conn = _connect(db_path)
         try:
+            _ensure_counts(conn)
+            old_row = conn.execute(
+                "SELECT chunk_id FROM embeddings WHERE chunk_id = ?",
+                (int(chunk_id),),
+            ).fetchone()
             conn.execute(
                 "INSERT INTO embeddings(chunk_id, vector) VALUES(?, ?) "
                 "ON CONFLICT(chunk_id) DO UPDATE SET vector = excluded.vector",
                 (int(chunk_id), pack_vector(vector)),
             )
+            if old_row is None:
+                _delta_count(conn, _EMBEDDINGS_KEY, 1)
             conn.commit()
         finally:
             conn.close()
@@ -341,16 +401,19 @@ def update_chunk_text(db_path: str, chunk_id: int, text: str) -> bool:
     try:
         conn = _connect(db_path)
         try:
+            _ensure_counts(conn)
             cur = conn.execute(
                 "UPDATE chunks SET text = ? WHERE id = ?",
                 (new_text, int(chunk_id)),
             )
             if cur.rowcount == 0:
                 return False
-            conn.execute(
+            cur = conn.execute(
                 "DELETE FROM embeddings WHERE chunk_id = ?",
                 (int(chunk_id),),
             )
+            if cur.rowcount > 0:
+                _delta_count(conn, _EMBEDDINGS_KEY, -1)
             conn.commit()
             return True
         finally:
@@ -364,7 +427,16 @@ def delete_chunk(db_path: str, chunk_id: int) -> bool:
     try:
         conn = _connect(db_path)
         try:
+            _ensure_counts(conn)
+            emb_row = conn.execute(
+                "SELECT chunk_id FROM embeddings WHERE chunk_id = ?",
+                (int(chunk_id),),
+            ).fetchone()
             cur = conn.execute("DELETE FROM chunks WHERE id = ?", (int(chunk_id),))
+            if cur.rowcount > 0:
+                _delta_count(conn, _CHUNKS_KEY, -1)
+                if emb_row is not None:
+                    _delta_count(conn, _EMBEDDINGS_KEY, -1)
             conn.commit()
             return cur.rowcount > 0
         finally:
@@ -378,9 +450,12 @@ def delete_embedding(db_path: str, chunk_id: int) -> bool:
     try:
         conn = _connect(db_path)
         try:
+            _ensure_counts(conn)
             cur = conn.execute(
                 "DELETE FROM embeddings WHERE chunk_id = ?", (int(chunk_id),)
             )
+            if cur.rowcount > 0:
+                _delta_count(conn, _EMBEDDINGS_KEY, -1)
             conn.commit()
             return cur.rowcount > 0
         finally:
@@ -449,7 +524,14 @@ def search_similar(db_path: str, query_vector, top_k: int = 5) -> list:
 
 
 def index_stats(db_path: str) -> dict:
-    """Return diagnostic stats for an index database."""
+    """Return diagnostic stats for an index database.
+
+    Chunk/embedding counts come from the cached meta counters
+    (chunks_count / embeddings_count) maintained incrementally by every
+    write function. Legacy databases without the counters are backfilled
+    with a single COUNT pass on first access; afterwards no table scans
+    are performed.
+    """
     stats = {
         "chunks": 0,
         "embeddings": 0,
@@ -457,27 +539,43 @@ def index_stats(db_path: str) -> dict:
         "provider": "",
         "embedding_model": "",
     }
+    if not os.path.exists(db_path):
+        return stats
     try:
         meta = read_meta(db_path)
         stats["provider"] = meta.get("provider", "")
         stats["embedding_model"] = meta.get("embedding_model", "")
         dim = meta.get("dimension")
         stats["dimension"] = int(dim) if dim else None
+        chunks_v = meta.get(_CHUNKS_KEY)
+        emb_v = meta.get(_EMBEDDINGS_KEY)
     except Exception:
-        pass
-    stats["chunks"] = count_chunks(db_path)
-    if os.path.exists(db_path) and stats["chunks"] > 0:
+        return stats
+    if chunks_v is None or emb_v is None:
+        # Legacy index without cached counters: backfill exactly once.
         try:
             conn = _connect(db_path)
             try:
-                row = conn.execute(
-                    "SELECT COUNT(*) AS n FROM embeddings"
-                ).fetchone()
-                stats["embeddings"] = int(row["n"])
+                _ensure_counts(conn)
+                conn.commit()
             finally:
                 conn.close()
         except Exception:
             pass
+        try:
+            meta = read_meta(db_path)
+            chunks_v = meta.get(_CHUNKS_KEY)
+            emb_v = meta.get(_EMBEDDINGS_KEY)
+        except Exception:
+            return stats
+    try:
+        stats["chunks"] = int(chunks_v or 0)
+    except (TypeError, ValueError):
+        stats["chunks"] = 0
+    try:
+        stats["embeddings"] = int(emb_v or 0)
+    except (TypeError, ValueError):
+        stats["embeddings"] = 0
     return stats
 
 

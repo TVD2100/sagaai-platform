@@ -1584,7 +1584,10 @@ class ToolExecutor:
         """
         try:
             from core.rag import list_bases_with_activity
-            all_bases = list_bases_with_activity()
+            # with_stats=False: the listing tool only returns manifest
+            # metadata; attaching index_stats would open every SQLite
+            # index and stall on large bases.
+            all_bases = list_bases_with_activity(with_stats=False)
         except Exception as e:
             return {"ok": False, "error": f"RAG base list failed: {e}"}
         orch_slug = getattr(self, "_orchestrator_slug", "dev_agent") or "dev_agent"

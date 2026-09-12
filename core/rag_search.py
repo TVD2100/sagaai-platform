@@ -39,7 +39,7 @@ def search_base(slug: str, query: str, top_k: int = DEFAULT_TOP_K,
     Raises RagSearchError when the base is missing or not ready, or when the
     embedding provider credentials are unavailable.
     """
-    base = rag.get_base(slug)
+    base = rag.get_base(slug, with_stats=False)
     if not base:
         raise RagSearchError("RAG base does not exist")
     if base.get("status") not in ("ready",):

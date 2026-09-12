@@ -76,7 +76,7 @@ def index_base(
         IndexingError when the base does not exist, has no files, or when the
         embedding provider credentials are unavailable.
     """
-    base = rag.get_base(slug)
+    base = rag.get_base(slug, with_stats=False)
     if not base:
         raise IndexingError("RAG base does not exist")
 

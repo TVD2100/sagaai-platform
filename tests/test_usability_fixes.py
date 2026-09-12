@@ -484,7 +484,7 @@ def test_assistant_form_switch_clears_stale_prompt_keys(ui_env, monkeypatch):
     import ui.pages.assistants as assistants_mod
 
     monkeypatch.setattr(assistants_mod, "list_tool_definitions", lambda: [])
-    monkeypatch.setattr(assistants_mod, "list_rag_bases", lambda: [])
+    monkeypatch.setattr(assistants_mod, "list_rag_bases", lambda *a, **k: [])
 
     st = ui_env
     st.session_state.update({

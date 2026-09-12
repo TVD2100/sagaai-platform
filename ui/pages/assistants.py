@@ -363,7 +363,7 @@ def page_assistants() -> None:
 
         # --- Knowledge bases (auto-RAG) ---
         st.markdown("### " + t("assistant_rag_bases", lang=lang))
-        rag_bases = list_rag_bases()
+        rag_bases = list_rag_bases(with_stats=False)
         base_options = [b.get("slug", "") for b in rag_bases]
         base_labels = [
             f"{b.get('name') or b.get('slug')} ({b.get('status') or 'draft'})"

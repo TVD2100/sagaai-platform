@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "0.3.0-preview.1",
+  "app_version": "0.3.1-preview.1",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Переход GitHub-интеграции полностью на REST-коннектор: приоритет пакетной загрузки, 6 новых ghr_-инструментов, авто-ретрай fast-forward, удалён PyGithub-коннектор.",
-    "en": "GitHub integration fully REST-based: batch publish first, 6 new ghr_ tools, fast-forward auto-retry, PyGithub connector removed."
+    "ru": "Исправление производительности RAG: статистика индекс-баз кэшируется и обновляется инкрементально, горячие пути интерфейса больше не сканируют большие SQLite-индексы (полные COUNT-сканы убраны).",
+    "en": "RAG performance fix: base index stats are cached and updated incrementally; hot UI paths no longer scan large SQLite indexes (full COUNT scans removed)."
   },
-  "updated": "2026-09-11T15:39:25Z",
+  "updated": "2026-09-12T08:26:26Z",
   "units": {
     "core": {
-      "version": "1.4.0",
+      "version": "1.4.1",
       "note": {
-        "ru": "Исполняемый код платформы (core, UI, хранилище, тесты). Обновляется только целиком, единым пакетом. 1.2.0: SQLite-хаденнинг (WAL, busy_timeout, foreign_keys для основной БД, индекс сообщений), кэш строки токенов/economy и пагинация ленты чата, ретраи при обрывах связи. 1.4.0: GitHub-интеграция полностью на REST-коннекторе - 6 новых ghr_-инструментов, приоритет пакетной публикации, авто-ретрай fast-forward, PyGithub удалён.",
-        "en": "Platform executable code (core, UI, storage, tests). Updates only as a single atomic unit. 1.2.0: SQLite hardening (WAL, busy_timeout, foreign_keys for the main DB, message index), token/economy line cache and chat-feed pagination and connection-loss retries. 1.4.0: GitHub integration fully REST-based - 6 new ghr_ tools, batch publishing preferred, fast-forward auto-retry, PyGithub removed."
+        "ru": "Исполняемый код платформы (core, UI, хранилище, тесты). Обновляется только целиком, единым пакетом. 1.2.0: SQLite-хаденнинг (WAL, busy_timeout, foreign_keys для основной БД, индекс сообщений), кэш строки токенов/economy и пагинация ленты чата, ретраи при обрывах связи. 1.4.0: GitHub-интеграция полностью на REST-коннекторе - 6 новых ghr_-инструментов, приоритет пакетной публикации, авто-ретрай fast-forward, PyGithub удалён. 1.4.1: фикс производительности RAG - кэшированные счётчики чанков/эмбеддингов в meta индекс-баз, горячие пути рендера больше не сканируют большие SQLite-индексы.",
+        "en": "Platform executable code (core, UI, storage, tests). Updates only as a single atomic unit. 1.2.0: SQLite hardening (WAL, busy_timeout, foreign_keys for the main DB, message index), token/economy line cache and chat-feed pagination and connection-loss retries. 1.4.0: GitHub integration fully REST-based - 6 new ghr_ tools, batch publishing preferred, fast-forward auto-retry, PyGithub removed. 1.4.1: RAG perf fix - cached chunk/embedding counters in the index meta table, hot render paths stop scanning large SQLite indexes."
       },
       "files": {
         "__init__.py": {
@@ -40,8 +40,8 @@
           "sha256": "a832c536eb48c93c03de698b3e2a153e0989ada2c83f5b8e1f68b33bce3801a6"
         },
         "core/api_layer.py": {
-          "version": "1.1.0",
-          "sha256": "2f2d1128abcd7648024e9313b8392e4d4451b18a497b49de7e4239c3313ed218"
+          "version": "1.1.1",
+          "sha256": "c276a95a938e26c491f09a0ac92e18ddfad69bcf563840ef4b1ec8e2525656ad"
         },
         "core/assistant_creator.py": {
           "version": "1.0.0",
@@ -124,8 +124,8 @@
           "sha256": "e457904340ea8475ec98e6ececad8be98ee09fcd3959607fca1d5a16e678a915"
         },
         "core/orchestrators.py": {
-          "version": "1.4.0",
-          "sha256": "c16db7153eaec61f518012fa02e895ff6391c8988526d22cc12984b1d564489b"
+          "version": "1.4.1",
+          "sha256": "5f20b4701f76daa7a3ed79b2901f1a85d134e54d49c4a12aacb6dd233fa7c6a6"
         },
         "core/paths.py": {
           "version": "1.0.0",
@@ -140,8 +140,8 @@
           "sha256": "3d61f6eee4f8c0c7ccba760cd58e683597581237247f5c35b7e8ce8c6709cda1"
         },
         "core/rag.py": {
-          "version": "1.0.0",
-          "sha256": "6260b896cc6ee60907afff2c8c52fa21e8f2661e06b3b74707e3de442407c5a1"
+          "version": "1.1.0",
+          "sha256": "bd41b6a5000d0dbe3396261346975141c804d8a7e2b88291c6662fa07dfde801"
         },
         "core/rag_chunker.py": {
           "version": "1.0.0",
@@ -152,16 +152,16 @@
           "sha256": "c66851c084c9ac6f5e6b61870551b4029b485710c6306e88c1614e3cc12b0a04"
         },
         "core/rag_index.py": {
-          "version": "1.0.0",
-          "sha256": "fa0be9b40265d626b4ef47328d69acb00dfc956e064517ba2f05a80994e1c58a"
+          "version": "1.1.0",
+          "sha256": "3e969bdfe0f74adac3112e1086d2c6b45e01d09daa5ea52fff4fcb11636014a8"
         },
         "core/rag_indexer.py": {
-          "version": "1.0.0",
-          "sha256": "64b21cb62ee92d8732901a67165a42711feb2e1e8d79d26abd71758909536249"
+          "version": "1.0.1",
+          "sha256": "ce30a05964f4a16d6dd86039cd24add7428f317eda3adff1c1a5da8ec9b50673"
         },
         "core/rag_search.py": {
-          "version": "1.0.0",
-          "sha256": "7fbd0f275e62ba63a8450dd4e8ca6c15a081b80a8cc119b218d5a21c7ebecef9"
+          "version": "1.0.1",
+          "sha256": "a8135ddc1712601f1f249e7e579496a9c40bf9ba43b3215b9c8ac7eff6ec6d24"
         },
         "core/recent_assistants.py": {
           "version": "1.0.0",
@@ -204,8 +204,8 @@
           "sha256": "eb31b89c7e74fcd318863b8a3cbe3420fb002808b81bfd58c24df4bb9ca63292"
         },
         "core/version.py": {
-          "version": "1.0.2",
-          "sha256": "e25e394f97f1394b0f4fa831092f28ac18244bf14174ddce5ba1d4f0520f02f2"
+          "version": "1.0.3",
+          "sha256": "acd1bc0feab8ab937c3ee9f1fbf2bb5a0b5d51f400d043967e9bb35ae79f7673"
         },
         "dev_agent/__init__.py": {
           "version": "1.0.0",
@@ -244,8 +244,8 @@
           "sha256": "acc6d5d78515649d9e7e721686d7f75e230a41ada55376cfaa592dafb6ac2029"
         },
         "dev_agent/tool_executor.py": {
-          "version": "1.1.0",
-          "sha256": "9e21161d9cce8fa2b020e270246d82dd7c872b3a49d4fbb1729044c8053330ac"
+          "version": "1.2.0",
+          "sha256": "d5d9601ec502c742306fc6a95bf44bacffe3a4ff0428d1dd11682113caa38286"
         },
         "dev_agent/universal_agent.py": {
           "version": "1.5.0",
@@ -620,8 +620,8 @@
           "sha256": "526cee36f97ef6f49d07c6c6290927d6cd951e3473df6cbb8fc7d604455daf47"
         },
         "tests/test_usability_fixes.py": {
-          "version": "1.0.1",
-          "sha256": "9f3cdec66090789be631f6dea3801deb1a141e90ec8273a826c6f86ad718d5c3"
+          "version": "1.0.2",
+          "sha256": "53afff48ac7be3d28eb5c8e0c65ed8e77c90295bfa3584a4ab7aa8aa7bd381bd"
         },
         "tests/test_web_search_prompt.py": {
           "version": "1.0.0",
@@ -652,8 +652,8 @@
           "sha256": "580d966418fb40de67b13995294875a6552d7a81a7009b927a672c31b8a189e1"
         },
         "ui/pages/assistants.py": {
-          "version": "1.0.0",
-          "sha256": "b107b563931bcc7cd3a7c51d93197e6bacb8832da551255e8c285afe26f68901"
+          "version": "1.1.0",
+          "sha256": "d3caeac0b7d280b8259b019f48223edefa44f1ae95509c8ea363c9b57726c3d8"
         },
         "ui/pages/chat.py": {
           "version": "1.0.0",
@@ -668,8 +668,8 @@
           "sha256": "448dbf67eff496ec7d2689ef5d6f5be3640b79162e7456934ed478856b54ca74"
         },
         "ui/pages/orchestrator.py": {
-          "version": "1.6.0",
-          "sha256": "4fa42121b98352f184a9cd66ba189ef1402ea761c9a3ec33a671b2c1c1507088"
+          "version": "1.6.1",
+          "sha256": "9963a233541049c54c9ca3a306567ba3d670d849649c527f9e3c5b5883ae1b41"
         },
         "ui/pages/orchestrator_settings.py": {
           "version": "1.1.0",
@@ -834,17 +834,33 @@
         "tests/test_tool_executor_env.py": {
           "version": "1.0.0",
           "sha256": "2d4fd62d7ff7d98f8891d9afecd6b0fe082446d0c454d3be188cfe8090d2620b"
+        },
+        "tests/test_rag_hot_paths_no_stats.py": {
+          "version": "1.0.0",
+          "sha256": "171657d4cfa281e2c943407c85e7b8efd8c0ba7c32efa649a169d2fba46fc4cd"
+        },
+        "tests/test_rag_stats_cache.py": {
+          "version": "1.0.0",
+          "sha256": "433185608d19a1d48950f56f9bfd06ad555394abc0c74adf4e284d8ce7bb5972"
+        },
+        "tests/test_rag_with_stats.py": {
+          "version": "1.0.0",
+          "sha256": "e3f58840ce61365b21c8b0e88af7d3436180953c587b2feaa92b16103acdd050"
+        },
+        "tests/scenarios/test_rag_perf_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "04b1a4cbebc25141bb8196d95620b9b491faceff1f8cc634c17d2ccd52fc9646"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.5.0",
-      "sha256": "187fb6e873e1027fd29152f99125f97b8d5658f289ea66540440255a89677aa3",
+      "version": "1.6.0",
+      "sha256": "b7beddf2cdab44b686e6864074200a1c06e4bf2616c0a3b4df030a00d6ce6778",
       "note": {
-        "ru": "Описание GitHub-коннектора переписано: единственный REST-коннектор, 15 ghr_-инструментов, пакетная публикация через Git Data API, авто-ретрай fast-forward; упоминания PyGithub удалены.",
-        "en": "GitHub connector section rewritten: single REST connector, 15 ghr_ tools, batch publishing via the Git Data API, fast-forward auto-retry; PyGithub references removed."
+        "ru": "RAG-подсистема дополнена: кэшированные счётчики в meta индекс-баз, параметр with_stats у API списка баз.",
+        "en": "RAG subsystem extended: cached counters in the index meta table, with_stats parameter on base list APIs."
       }
     },
     "COMPARISON.md": {
@@ -864,27 +880,27 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.7.0",
-      "sha256": "b45e0d733994ea2a98379cece6683c4c35429e2046bedca36a92ec9afe99116d",
+      "version": "1.8.0",
+      "sha256": "3495a41bf95d86b8bfe1ec26221f72b82ba5ad9f26ccd5f367f26624f9633164",
       "note": {
-        "ru": "Карта перегенерирована: REST-коннектор (core/github_connector_rest.py, core/github_tools_rest.py и их тесты), PyGithub-модули удалены из карты.",
-        "en": "Map regenerated: REST connector (core/github_connector_rest.py, core/github_tools_rest.py and their tests), PyGithub modules removed from the map."
+        "ru": "Карта перегенерирована: актуализированы описания RAG-модулей (кэшированные счётчики, with_stats), учтены новые тесты; всего 638 файлов.",
+        "en": "Map regenerated: RAG module descriptions updated (cached counters, with_stats), new tests included; 638 files total."
       }
     },
     "README.md": {
-      "version": "1.5.0",
-      "sha256": "35fb496c6e0c6983a9931e293b4e838741fa972de6d918d52417431667a74b34",
+      "version": "1.6.0",
+      "sha256": "3b972e811ca0131f286f2a39ab30386364002acb9b5abcb0b3dcc714363b7c96",
       "note": {
-        "ru": "Разделы GitHub-интеграции обновлены: только REST-коннектор с ghr_-инструментами; версия в заголовке 0.3.0-preview.1.",
-        "en": "GitHub integration sections now reference the REST-only connector with ghr_ tools; header version 0.3.0-preview.1."
+        "ru": "Версия в заголовке поднята до 0.3.1-preview.1.",
+        "en": "Header version bumped to 0.3.1-preview.1."
       }
     },
     "SPEC.md": {
-      "version": "1.7.0",
-      "sha256": "e9a0b0821e03844f991ecb0c13722241c651c253acef52c6421c97dff9d36b0b",
+      "version": "1.8.0",
+      "sha256": "c7c364ef3e40fa70be9ecb3edb52bbebf862d187e9a981dafcba6d7f922b325c",
       "note": {
-        "ru": "FR11 переписано: единственный REST-коннектор c ghr_-инструментами и пакетной публикацией, PyGithub-коннектор удалён; обновлён список файлов Core.",
-        "en": "FR11 rewritten: single REST connector with ghr_ tools and batch publishing, PyGithub connector removed; Core file list updated."
+        "ru": "FR10 дополнено: кэшированная статистика RAG-баз и флаг with_stats (горячие пути не сканируют большие индексы).",
+        "en": "FR10 extended: cached RAG base stats and the with_stats flag (hot paths avoid scanning large indexes)."
       }
     },
     "defaults/README.md": {

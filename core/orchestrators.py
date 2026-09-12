@@ -667,7 +667,10 @@ def _extend_prompt_with_rag_bases(prompt: str, orchestrator_slug: str = DEVAGENT
             assigned = set(get_orchestrator_rag_bases(orchestrator_slug))
             if not assigned:
                 return prompt
-        bases = list_bases_with_activity()
+        # with_stats=False: the prompt block only needs metadata (name,
+        # status, active); opening every SQLite index here slows down
+        # orchestrator renders with large bases.
+        bases = list_bases_with_activity(with_stats=False)
         rows = []
         for b in bases:
             bslug = str(b.get("slug") or "")
