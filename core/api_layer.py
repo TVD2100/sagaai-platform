@@ -768,6 +768,169 @@ def _deepseek_responses_request(base_url: str, api_key: str, model: str,
     return result_text
 
 
+# Anthropic-version header value accepted by DeepSeek's Anthropic-compatible
+# Messages API (https://api.deepseek.com/anthropic/v1/messages).
+_ANTHROPIC_VERSION = "2023-06-01"
+# Anthropic-format server tool type that actually executes the search on the
+# DeepSeek side. On the OpenAI-compatible /responses route the built-in
+# web_search tool is silently ignored, so web_search for DeepSeek must go
+# through this endpoint.
+_DEEPSEEK_SERVER_WEB_SEARCH_TOOL = "web_search_20250305"
+_WEB_SEARCH_TOOL_NAME = "web_search"
+# max_uses for the server tool depending on the user-selected search depth.
+_MAX_USES_BY_CONTEXT = {"low": 1, "medium": 2, "high": 3}
+
+
+def _anthropic_web_search_used(data: dict) -> bool:
+    """True when an Anthropic Messages response shows real search activity.
+
+    The server marks an executed search with ``server_tool_use`` blocks and
+    returns the found snippets as ``web_search_tool_result`` blocks. Their
+    presence is the only reliable machine-readable trace that the provider
+    actually searched the web.
+    """
+    for block in data.get("content") or []:
+        if not isinstance(block, dict):
+            continue
+        if block.get("type") in ("server_tool_use", "web_search_tool_result"):
+            return True
+    return False
+
+
+def _extract_anthropic_text(data: dict) -> str:
+    """Extract the final answer text from an Anthropic Messages response.
+
+    ``thinking`` and server tool blocks are internal and are never returned.
+    When the response contains search-tool activity, only text blocks AFTER
+    the last tool block are considered; earlier blocks ("I'll search the
+    web...") are announcements and are dropped. The LAST non-empty text
+    block of that tail is the model's final answer.
+    """
+    blocks = [b for b in (data.get("content") or []) if isinstance(b, dict)]
+    start_index = 0
+    for i, block in enumerate(blocks):
+        if block.get("type") in ("server_tool_use", "web_search_tool_result"):
+            start_index = i + 1
+    parts = []
+    for block in blocks[start_index:]:
+        if block.get("type") != "text":
+            continue
+        txt = str(block.get("text") or "").strip()
+        if txt:
+            parts.append(txt)
+    return parts[-1] if parts else ""
+
+
+def _deepseek_anthropic_web_search(
+        base_url: str, api_key: str, model: str,
+        system_prompt: str, query: str,
+        *, allowed_domains: Optional[list] = None,
+        search_context_size: Optional[str] = None,
+        max_tokens: int = 4096, svc_name: str = "",
+        timeout: tuple = MODEL_REQUEST_TIMEOUT) -> dict:
+    """Run a server-side web search through DeepSeek's Anthropic-compatible API.
+
+    DeepSeek ignores built-in web_search tools on the OpenAI-compatible
+    /responses route (HTTP 200, no search executed), so the search must go
+    through the Anthropic-compatible Messages endpoint with the
+    ``web_search_20250305`` server tool, which the provider actually
+    executes on its side.
+
+    The request is sent WITHOUT ``tool_choice``: forcing tool selection on
+    DeepSeek's thinking models fails with HTTP 400. Instead the system prompt
+    enforces one search followed by the final answer.
+
+    *allowed_domains* are passed to the model as a prompt instruction (the
+    Anthropic server tool format has no native domain filter).
+
+    The fact of the search is verified from the response itself. When the
+    response contains no ``server_tool_use``/``web_search_tool_result``
+    blocks, the request is retried once with a reinforced instruction; if the
+    second attempt again shows no search activity, an explicit error is
+    returned instead of an answer that may come purely from model memory.
+
+    Returns:
+        {"ok": True, "text": <final answer>} - search confirmed and answer
+        present, OR {"ok": False, "error": <message>} when the provider did
+        not execute the search.
+
+    Raises ProviderHTTPError / RequestTimeoutError / NetworkError for
+    transport-level failures (same APIError contract as send_request).
+    """
+    headers = {
+        "x-api-key": api_key,
+        "anthropic-version": _ANTHROPIC_VERSION,
+        "content-type": "application/json",
+    }
+
+    ctx_key = str(search_context_size or "medium").strip().lower()
+    if ctx_key not in _MAX_USES_BY_CONTEXT:
+        ctx_key = "medium"
+    max_uses = _MAX_USES_BY_CONTEXT[ctx_key]
+
+    system_text = str(system_prompt or "").strip()
+    if allowed_domains:
+        domains = ", ".join(
+            str(d).strip() for d in allowed_domains if str(d).strip()
+        )
+        if domains:
+            system_text = (
+                f"{system_text}\n\n"
+                f"Allowed domains for the search: {domains}."
+            )
+
+    base_payload = {
+        "model": model,
+        "max_tokens": int(max_tokens),
+        "tools": [{
+            "type": _DEEPSEEK_SERVER_WEB_SEARCH_TOOL,
+            "name": _WEB_SEARCH_TOOL_NAME,
+            "max_uses": int(max_uses),
+        }],
+    }
+    if system_text:
+        base_payload["system"] = system_text
+
+    user_texts = [
+        str(query).strip(),
+        (
+            f"{str(query).strip()}\n\n"
+            "System note: you MUST use the web_search tool right now and "
+            "answer only from its results. Do not answer from memory."
+        ),
+    ]
+
+    for content in user_texts:
+        payload = dict(base_payload)
+        payload["messages"] = [{"role": "user", "content": content}]
+        try:
+            r = requests.post(
+                base_url, headers=headers, json=payload,
+                timeout=timeout, verify=_VERIFY_TLS,
+            )
+        except requests.exceptions.Timeout as e:
+            raise RequestTimeoutError(service=svc_name)
+        except requests.exceptions.RequestException as e:
+            raise NetworkError(str(e), service=svc_name)
+        if r.status_code != 200:
+            body = _extract_error_body(r)
+            raise ProviderHTTPError(r.status_code, body, service=svc_name)
+        data = r.json()
+        search_ran = _anthropic_web_search_used(data)
+        if search_ran:
+            text = _extract_anthropic_text(data)
+            return {"ok": True, "text": text}
+
+    return {
+        "ok": False,
+        "error": (
+            "DeepSeek did not execute the web search: the response contains "
+            "no search blocks. The provider may have temporarily disabled "
+            "server-side search - retry later or rephrase the query."
+        ),
+    }
+
+
 # Valid reasoning-effort values accepted by the Yandex Responses API.
 _YANDEX_REASONING_EFFORTS = {
     "none", "minimal", "low", "medium", "high", "xhigh",
@@ -1472,7 +1635,7 @@ def test_connection(svc_name: str, cfg: dict) -> tuple:
             models     = svc.get("models", [])
             test_model = (
                 (models[0]["id"] if isinstance(models[0], dict) else models[0])
-                if models else "deepseek-v4-flash"
+                if models else "deepseek-flash"
             )
             r = requests.post(
                 base_url,
