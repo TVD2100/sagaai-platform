@@ -1390,11 +1390,13 @@ class ToolExecutor:
 
         Provider-side behavior by auth type:
           - Yandex (``yandex_iam``): ``tool_choice={"type": "web_search"}``
-            is forced so the model actually performs the search.
-          - DeepSeek (``deepseek_responses``): the search is NOT forced -
-            forcing makes the model loop through many searches and finish
-            with an empty answer. Instead, the prompt enforces exactly one
-            search followed by the final answer.
+            is forced so the model actually performs the search on /responses.
+          - DeepSeek (``deepseek_responses``): the built-in web_search tool is
+            silently ignored on the OpenAI-compatible /responses route, so the
+            search runs server-side through DeepSeek's Anthropic-compatible
+            Messages endpoint (``web_search_20250305`` server tool). The fact
+            of the search is verified from the response blocks and an explicit
+            error is returned when the provider did not search.
         If a provider fails and returns an empty response anyway, the request
         is retried once (without ``tool_choice`` when it was present). When
         both attempts are empty, an explicit error is returned instead of an
@@ -1490,25 +1492,27 @@ class ToolExecutor:
         if search_effort:
             assistant["reasoning_effort"] = search_effort
 
-        # Force the provider-side web_search tool ONLY for providers whose
-        # Responses implementation handles forced search reliably (Yandex).
-        # DeepSeek, when forced with tool_choice, loops through many searches
-        # and can finish with an EMPTY final text even though it saw results
-        # internally, which surfaces as "empty search results". DeepSeek also
-        # honors neither forced tool_choice nor max_tool_calls, so for it the
-        # search is left UNFORCED and the prompt enforces exactly one search
-        # followed by the final answer (verified stable: no empty responses).
+        # Provider-side search routing:
+        #   - Yandex (``yandex_iam``): ``tool_choice={"type": "web_search"}``
+        #     is forced so the model actually performs the search on /responses.
+        #   - DeepSeek (``deepseek_responses``): the built-in web_search tool is
+        #     silently ignored on /responses, so the search runs server-side
+        #     through the Anthropic-compatible Messages endpoint with the
+        #     ``web_search_20250305`` tool and is verified from the response.
         _search_svc = (get_services().get(search_svc_name) or {})
         _auth_type = str(_search_svc.get("auth_type") or "")
+        if _auth_type == "deepseek_responses":
+            return self._run_deepseek_web_search(
+                search_svc=_search_svc,
+                search_svc_name=search_svc_name,
+                search_mdl=search_mdl,
+                base_prompt=base_prompt,
+                query=query,
+                allowed_domains=allowed_domains,
+                search_context_size=search_context_size,
+            )
         if _auth_type == "yandex_iam":
             assistant["tool_choice"] = {"type": "web_search"}
-        elif _auth_type == "deepseek_responses":
-            base_prompt = (
-                f"{base_prompt}\n\nStrict rule: perform exactly ONE web "
-                "search, then immediately write your final answer based on "
-                "its results. Never perform additional searches."
-            )
-            assistant["text"] = base_prompt
 
         try:
             response = send_request(
@@ -1518,9 +1522,9 @@ class ToolExecutor:
                 history=[],
             )
             # A provider can answer with an empty final text even when the
-            # search itself ran fine (DeepSeek flash does this occasionally).
-            # Retry once so the model produces the final answer. When the
-            # first attempt used tool_choice, the retry drops it.
+            # search itself ran fine. Retry once so the model produces the
+            # final answer. When the first attempt used tool_choice, the
+            # retry drops it.
             if not str(response or "").strip():
                 fallback_assistant = dict(assistant)
                 fallback_assistant.pop("tool_choice", None)
@@ -1549,6 +1553,90 @@ class ToolExecutor:
 
         # Sanitize untrusted web-search output before returning it to the LLM.
         safe_response = sanitize_search_result(response)
+        return {"ok": True, "text": safe_response}
+
+    def _run_deepseek_web_search(self, *, search_svc: dict,
+                                 search_svc_name: str, search_mdl: str,
+                                 base_prompt: str, query: str,
+                                 allowed_domains: Optional[List[str]] = None,
+                                 search_context_size: Optional[str] = None
+                                 ) -> Dict[str, Any]:
+        """Run the web search for DeepSeek through its Anthropic endpoint.
+
+        The built-in web_search tool of DeepSeek's OpenAI-compatible
+        /responses route is silently ignored by the provider (HTTP 200,
+        no search blocks in the response), so the search is sent to the
+        Anthropic-compatible Messages API with the ``web_search_20250305``
+        server tool, which the provider executes on its side. The presence
+        of the search blocks in the response is verified, otherwise an
+        explicit error is returned instead of an answer from model memory.
+        """
+        from core.api_layer import _deepseek_anthropic_web_search
+
+        cfg = load_config()
+        api_key = cfg.get(search_svc.get("config_key", ""), "")
+        if isinstance(api_key, str):
+            api_key = api_key.strip()
+        if not api_key:
+            return {
+                "ok": False,
+                "error": f"API key for service '{search_svc_name}' is not configured.",
+            }
+
+        ws_base_url = str(search_svc.get("web_search_base_url") or "").strip()
+        if not ws_base_url:
+            ws_base_url = (
+                str(search_svc.get("base_url") or "").rstrip("/")
+            )
+            # base_url of the service points at /responses; the search
+            # endpoint is the sibling /anthropic/v1/messages.
+            ws_base_url = ws_base_url.replace("/responses", "/anthropic/v1/messages")
+
+        strict_prompt = (
+            f"{base_prompt}\n\n"
+            "Strict rule: perform exactly ONE web search, then immediately "
+            "write your final answer based on its results. Never perform "
+            "additional searches."
+        )
+
+        try:
+            result = _deepseek_anthropic_web_search(
+                base_url=ws_base_url,
+                api_key=api_key,
+                model=search_mdl,
+                system_prompt=strict_prompt,
+                query=query,
+                allowed_domains=allowed_domains,
+                search_context_size=search_context_size,
+                svc_name=search_svc_name,
+            )
+        except APIError as e:
+            return {
+                "ok": False,
+                "error": f"Web search request failed: {api_error_message(e)}",
+            }
+        except Exception as e:
+            return {"ok": False, "error": f"Web search request failed: {e}"}
+
+        if not result.get("ok"):
+            return {
+                "ok": False,
+                "error": str(result.get("error") or "Web search failed."),
+            }
+
+        text = str(result.get("text") or "").strip()
+        if not text:
+            return {
+                "ok": False,
+                "error": (
+                    "DeepSeek executed the search but returned no answer text. "
+                    "Please retry or rephrase the query."
+                ),
+            }
+        if text.startswith("Ошибка") or text.startswith("Error"):
+            return {"ok": False, "error": text}
+
+        safe_response = sanitize_search_result(text)
         return {"ok": True, "text": safe_response}
 
     # --- RAG access control -----------------------------------------------------
