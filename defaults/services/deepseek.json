@@ -2,6 +2,7 @@
   "name": "DeepSeek",
   "config_key": "DEEPSEEK_API_KEY",
   "base_url": "https://api.deepseek.com/responses",
+  "web_search_base_url": "https://api.deepseek.com/anthropic/v1/messages",
   "auth_type": "deepseek_responses",
   "temp_min": 0.1,
   "temp_max": 2.0,
@@ -43,7 +44,7 @@
   ],
   "models": [
     {
-      "id": "deepseek-v4-flash",
+      "id": "deepseek-flash",
       "context_window": 1000000,
       "max_tokens": 384000
     },
