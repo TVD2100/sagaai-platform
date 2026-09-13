@@ -51,6 +51,7 @@ SagaAI построена по модульной архитектуре с чё
 | `bootstrap` | Первичная инициализация: встроенный оркестратор `dev_agent`, инструкции, устаревшие миграции |
 | `instructions` | CRUD для внутренних инструкций (Assistant Creator, Employee Creator) |
 | `orchestrators` | **Ядро оркестраторов**: CRUD, `build_assistant_dicts()`, `get_web_search_config()`, `get_economy_config()`, `export_orchestrator()` / `import_orchestrator()` (формат `sagaai_orchestrator/v1`), `ensure_builtin_orchestrators()` |
+| `orchestrator_tools` | Каталог инструментов оркестраторов: core + workspace + подключения + кастомные функции; англоязычный блок `## Available tools` для системного промпта (без отключённых инструментов); `disabled_tools` blacklist, разрешение legacy-алиасов, `list_system_tools()` для UI |
 | `orchestrator_folders` | Папки оркестраторов: `orchestrator.json`, функции, инструкции (front-matter), экспорт/импорт папок |
 | `defaults` / `default_imports` | Чтение `defaults/` и импорт встроенных сущностей «из коробки» (оркестраторы, инструкции, навыки, RAG-базы) |
 | `prompt_guard` | Защита от prompt-injection: data-fences и санитизация |
@@ -334,6 +335,15 @@ PROJECT_MAP.md, SPEC.md, ARCHITECTURE.md, CHANGELOG.md, снапшоты. Пер
 началом работы над проектом читается `PROJECT_MAP.md` (файлы и
 ответственность) и `SPEC.md` (требования); финальный отчёт завершается
 секцией «Documentation» с перечнем документов, требующих обновления.
+
+### Каталог инструментов и gating (`core/orchestrator_tools.py`)
+Блок `## Available tools` добавляется к промпту каждого оркестратора
+(`_extend_prompt_with_tools` -> `render_available_tools_block`) и перечисляет
+доступные инструменты (core, workspace, подключения, кастомные функции).
+Чёрный список `config['disabled_tools']` исключает инструменты из каталога,
+а диспетчер (`dev_agent/universal_agent.py`) блокирует их вызов ошибкой
+`disabled: true` (гейт до выполнения; legacy-алиасы в обе стороны). Вкладка
+Функции показывает системные функции с чекбоксами и кнопкой Сохранить.
 
 ### Экспорт/импорт оркестраторов (core API)
 Формат `sagaai_orchestrator/v1` (JSON). Slug-конфликты разрешаются

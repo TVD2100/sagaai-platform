@@ -280,6 +280,43 @@ class UniversalDevAgent:
         with wb.thread_context(self.thread_id) as _engaged:
             return self._dispatch_impl(tool_name, args)
 
+    def _current_orchestrator_slug(self) -> str:
+        """Return the orchestrator slug this dispatcher currently serves.
+
+        Falls back to 'dev_agent' when no orchestrator has been attached
+        (the core executor default).
+        """
+        slug = getattr(self.core, "_orchestrator_slug", "dev_agent")
+        return (str(slug or "dev_agent").strip()) or "dev_agent"
+
+    def _is_disabled_for_orchestrator(self, tool_name: str) -> bool:
+        """Return True when the active orchestrator has this tool disabled.
+
+        Reads the ``disabled_tools`` config of the orchestrator served by this
+        dispatcher and checks both the raw name and legacy aliases. Best
+        effort: on any read error the tool is treated as enabled so a config
+        failure can never break dispatching.
+        """
+        try:
+            from core.orchestrators import get_disabled_tools
+            from core.orchestrator_tools import is_tool_disabled
+            disabled = set(get_disabled_tools(self._current_orchestrator_slug()))
+            return is_tool_disabled(tool_name, disabled)
+        except Exception:
+            return False
+
+    def _disabled_tool_error(self, tool_name: str) -> Dict[str, Any]:
+        """Return the structured error for a call to a disabled tool."""
+        return {
+            "ok": False,
+            "error": (
+                f"Tool '{tool_name}' is disabled for orchestrator "
+                f"'{self._current_orchestrator_slug()}' via its "
+                "'disabled_tools' setting. Do not call it."
+            ),
+            "disabled": True,
+        }
+
     def _dispatch_impl(self, tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
         """Route to core ToolExecutor or an extra workspace tool.
 
@@ -291,6 +328,8 @@ class UniversalDevAgent:
         """
         if not isinstance(args, dict):
             return {"ok": False, "error": f"args must be a dict, got {type(args).__name__}"}
+        if self._is_disabled_for_orchestrator(tool_name):
+            return self._disabled_tool_error(tool_name)
         spec = WORKSPACE_TOOL_ARGS.get(tool_name)
         if spec is not None:
             allowed = spec["required"] | spec["optional"]

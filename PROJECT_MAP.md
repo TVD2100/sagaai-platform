@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-09-12T17:06:04+00:00`
-- Файлов: **655**
-- Языки: Config: 1, JSON: 22, Markdown: 428, PEM certificate: 1, Python: 207, Text: 1
+- Обновлено: `2026-09-12T22:38:24+00:00`
+- Файлов: **717**
+- Языки: Config: 1, JSON: 22, Markdown: 484, PEM certificate: 1, Python: 213, Text: 1
 
 ## Файлы и назначение
 
@@ -14,7 +14,7 @@
 | `GITHUB_FILES.md` | Markdown | _(описание не задано)_ | - |
 | `__init__.py` | Python | Package marker | - |
 | `app.py` | Python | Entry point for the platform | - |
-| `file_versions.json` | JSON | Version/sha256 manifest for the update pipeline (source of truth for published versions) | - |
+| `file_versions.json` | JSON | _(описание не задано)_ | - |
 | `pytest.ini` | Config | Pytest configuration | - |
 | `requirements.txt` | Text | Python dependencies | - |
 | `ui/__init__.py` | Python | Package marker | - |
@@ -34,7 +34,7 @@
 | `ui/pages/skills.py` | Python | DEPRECATED shim -> ui/pages/assistants.py (page_assistants) | - |
 | `ui/pages/skills_library.py` | Python | Skills library page (install ZIP/GitHub/folder, edit metadata, delete) | - |
 | `ui/pages/stats.py` | Python | _(описание не задано)_ | - |
-| `ui/pages/storage.py` | Python | RAG storage page: base management, files, chunk editor, test search | - |
+| `ui/pages/storage.py` | Python | _(описание не задано)_ | - |
 | `ui/pages/updates.py` | Python | _(описание не задано)_ | - |
 | `ui/pages/welcome.py` | Python | Welcome / about page | - |
 | `core/__init__.py` | Python | Package marker | - |
@@ -62,16 +62,17 @@
 | `core/i18n.py` | Python | Language discovery and translation helper t() | - |
 | `core/instructions.py` | Python | CRUD for internal instructions (Assistant Creator, Employee Creator) | - |
 | `core/orchestrator_folders.py` | Python | Per-orchestrator folders: bundles, functions, instructions | storage |
+| `core/orchestrator_tools.py` | Python | _(описание не задано)_ | - |
 | `core/orchestrators.py` | Python | Orchestrator API; build_assistant_dicts (legacy alias build_skill_dicts); enabled_skills for orchestrator skills | storage |
 | `core/paths.py` | Python | Base directories and thread paths | - |
 | `core/prompt_guard.py` | Python | Prompt-injection protection and sanitization | - |
 | `core/prompt_improver.py` | Python | _(описание не задано)_ | - |
-| `core/rag.py` | Python | RAG base CRUD + stats control: list_bases/get_base_slug/list_bases_with_activity accept with_stats to skip expensive index scans | - |
-| `core/rag_chunker.py` | Python | Text chunking for RAG indexing | - |
-| `core/rag_embeddings.py` | Python | Yandex Embeddings API helper (BYOK) for RAG chunks and queries | - |
-| `core/rag_index.py` | Python | Local SQLite vector index for RAG bases; cached chunk/embedding counters in the meta table, updated incrementally on every write (no full COUNT scans) | - |
-| `core/rag_indexer.py` | Python | Document indexing into the RAG index; keeps cached counters in sync | - |
-| `core/rag_search.py` | Python | Semantic search over the local RAG index; hot paths request bases without index stats | - |
+| `core/rag.py` | Python | _(описание не задано)_ | - |
+| `core/rag_chunker.py` | Python | _(описание не задано)_ | - |
+| `core/rag_embeddings.py` | Python | _(описание не задано)_ | - |
+| `core/rag_index.py` | Python | _(описание не задано)_ | - |
+| `core/rag_indexer.py` | Python | _(описание не задано)_ | - |
+| `core/rag_search.py` | Python | _(описание не задано)_ | - |
 | `core/recent_assistants.py` | Python | Tracks recently used assistant IDs in session_state | - |
 | `core/recent_workspaces.py` | Python | Recent workspaces tracking | storage |
 | `core/render.py` | Python | Markdown rendering / clipboard helpers | - |
@@ -110,12 +111,13 @@
 | `tests/test_core_files.py` | Python | File helpers tests | - |
 | `tests/test_crypto.py` | Python | Crypto tests | - |
 | `tests/test_db_concurrency.py` | Python | _(описание не задано)_ | storage |
-| `tests/test_deepseek_anthropic_web_search.py` | Python | DeepSeek Anthropic web search tests | - |
+| `tests/test_deepseek_anthropic_web_search.py` | Python | _(описание не задано)_ | - |
 | `tests/test_deepseek_responses.py` | Python | DeepSeek Responses API tests | - |
 | `tests/test_default_imports.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_default_rag_bases.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_devagent_thread_workspace.py` | Python | DevAgent thread workspace persistence tests | storage |
 | `tests/test_dispatcher_connections.py` | Python | _(описание не задано)_ | storage |
+| `tests/test_dispatcher_tool_gating.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_employee_management_ui.py` | Python | UI regression tests: employee management pages render and expose no export/import employee UI | - |
 | `tests/test_github_connector_rest.py` | Python | _(описание не задано)_ | - |
 | `tests/test_github_tools_rest.py` | Python | _(описание не задано)_ | - |
@@ -129,6 +131,8 @@
 | `tests/test_orchestrator_economy_cache.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_folders.py` | Python | Orchestrator folder tests | storage |
 | `tests/test_orchestrator_other_settings.py` | Python | _(описание не задано)_ | - |
+| `tests/test_orchestrator_system_tools_ui.py` | Python | _(описание не задано)_ | - |
+| `tests/test_orchestrator_tools.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_phase1_agent_loop.py` | Python | Agent loop tests | - |
 | `tests/test_phase1_core_pure.py` | Python | Pure core tests | - |
 | `tests/test_phase1_storage.py` | Python | Storage layer tests (assistants table + legacy aliases) | storage |
@@ -141,10 +145,10 @@
 | `tests/test_propose_file_scenarios.py` | Python | propose_file edge-case tests | - |
 | `tests/test_protect_history.py` | Python | History protection tests | - |
 | `tests/test_rag_chunks_and_preset_skills.py` | Python | _(описание не задано)_ | storage |
-| `tests/test_rag_hot_paths_no_stats.py` | Python | Tests that hot render/API paths list RAG bases without index stats | - |
-| `tests/test_rag_stats_cache.py` | Python | Tests for cached chunk/embedding counters and one-time backfill | - |
+| `tests/test_rag_hot_paths_no_stats.py` | Python | _(описание не задано)_ | - |
+| `tests/test_rag_stats_cache.py` | Python | _(описание не задано)_ | - |
 | `tests/test_rag_tools_robustness.py` | Python | _(описание не задано)_ | - |
-| `tests/test_rag_with_stats.py` | Python | Tests for the with_stats flag on RAG list/get APIs | storage |
+| `tests/test_rag_with_stats.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_recent_workspaces.py` | Python | Recent workspaces tests | storage |
 | `tests/test_render_token_line.py` | Python | Token line renderer tests | - |
 | `tests/test_safety_mode.py` | Python | Safety-mode gate tests | - |
@@ -190,13 +194,15 @@
 | `tests/scenarios/test_orchestrator_devagent_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_orchestrator_other_settings_scenario.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_orchestrator_thread_files.py` | Python | _(описание не задано)_ | storage |
+| `tests/scenarios/test_orchestrator_tool_gating.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_provider_economy_settings_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_assistant_dialog.py` | Python | _(описание не задано)_ | - |
-| `tests/scenarios/test_rag_perf_scenarios.py` | Python | RAG performance regression scenarios | - |
+| `tests/scenarios/test_rag_perf_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_search_in_files_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_skills_adaptation_scenario.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_stats_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_structured_output_scenarios.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_task_state_mega_task.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_theme_switch_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_updater_runtime_flow.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_welcome_page_scenarios.py` | Python | _(описание не задано)_ | - |
@@ -244,7 +250,7 @@
 | `defaults/skills/README.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/skills/rag_base_creator/SKILL.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/skills/rag_base_creator/scripts/build_base.py` | Python | _(описание не задано)_ | - |
-| `defaults/services/deepseek.json` | JSON | Default DeepSeek service definition (chat + Anthropic-compatible web search) | - |
+| `defaults/services/deepseek.json` | JSON | _(описание не задано)_ | - |
 | `defaults/services/gigachat.json` | JSON | _(описание не задано)_ | - |
 | `defaults/services/yandex.json` | JSON | _(описание не задано)_ | - |
 | `personal_assistant_data/calendar.json` | JSON | _(описание не задано)_ | - |
@@ -645,8 +651,80 @@
 | `dev_agent/task_states/TASK_STATE__20260912_101150_c581cf.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260912_101157_47241f.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260912_101157_fe35d8.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_104920_46c337.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_104923_89bf9f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_104923_9af997.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_104923_df248b.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_104923_e17cfe.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_104923_ffe358.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_104930_0d9afd.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_104930_4ac841.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_191703_f1eb48.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_191706_5712be.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_191706_9ad281.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_191706_b5acf6.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_191706_cb740a.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_191706_ffc218.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_191713_1ae346.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_191713_2da4f1.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_220047_a94029.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_220049_73e955.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_220050_31c126.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_220050_67b065.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_220050_8ae95d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_220050_c70e52.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_220057_032257.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_220057_f9cb66.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_220207_7b1458.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_220210_75cdd4.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_220210_aaa5b8.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_220210_cdd378.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_220210_ec7ef3.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_220210_f2c430.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_220217_17dc86.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260912_220217_509b2d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_000036_5ce06b.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_000039_3ca4e0.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_000039_581ad6.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_000039_7bc688.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_000039_9518e4.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_000039_ab08aa.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_000046_770636.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_000046_963f70.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_000702_14c565.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_000705_2958d8.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_000705_85bfe1.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_000705_b78fe3.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_000705_dd53eb.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_000705_e26cf5.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_000712_3332b9.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_000712_d04691.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_012608_6dbbbb.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_012611_298865.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_012611_354f61.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_012611_4631af.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_012611_611c55.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_012611_b9ce7f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_012618_b983ed.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_012618_bbb9e3.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_012659_e72bd6.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_012701_0802fb.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_012701_396a20.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_012701_85a7dc.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_012701_907ffe.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_012701_f5598d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_012709_0ad5f0.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_012709_f0c160.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_013432_64357e.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_013435_121ab9.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_013435_65d5e1.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_013435_ac14ff.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_013435_b42905.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_013435_ff9719.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_013443_ce2a90.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_013443_f44505.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
-| `services/deepseek.json` | JSON | DeepSeek service definition (chat + Anthropic-compatible web search) | - |
+| `services/deepseek.json` | JSON | DeepSeek service definition | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
 | `services/yandex.json` | JSON | YandexAI service definition | - |
 
@@ -706,46 +784,46 @@
 - `_last_reply` (func, строка 362)
 
 ### `ui/pages/orchestrator.py`
-- `_chat_pref_config_keys` (func, строка 72)
-- `_chat_prefs` (func, строка 79)
-- `_save_chat_pref` (func, строка 87)
-- `_make_state_keys` (func, строка 103)
-- `_init_orch_state` (func, строка 136)
-- `_sk` (func, строка 143)
-- `_ss` (func, строка 148)
-- `_set_ss` (func, строка 153)
-- `_pop_ss` (func, строка 157)
-- `_save_economy_cache` (func, строка 161)
-- `_load_economy_cache` (func, строка 180)
-- `_attachments_manifest_path` (func, строка 187)
-- `_load_attachments_manifest` (func, строка 191)
-- `_append_attachment_manifest` (func, строка 201)
-- `_save_attachment_to_workspace` (func, строка 212)
-- `_scroll_page` (func, строка 238)
-- `_make_send_adapter` (func, строка 292)
-- `_make_dispatcher` (func, строка 324)
-- `_assistant_has_api_key` (func, строка 349)
-- `_strip_html_details_tags` (func, строка 364)
-- `_strip_empty_fenced_blocks` (func, строка 380)
-- `_strip_tool_calls` (func, строка 431)
-- `_first_two_lines` (func, строка 493)
-- `_format_call_args_preview` (func, строка 506)
-- `_extract_result_body` (func, строка 524)
-- `_render_tool_result` (func, строка 538)
-- `_render_events` (func, строка 613)
-- `_render_event` (func, строка 633)
-- `_do_step` (func, строка 693)
-- `_reset_dialog` (func, строка 844)
-- `_load_thread` (func, строка 861)
-- `_chat_toolbar_widget_key` (func, строка 893)
-- `_sync_chat_pref_checkbox` (func, строка 903)
-- `_chat_toolbar_pref_changed` (func, строка 921)
-- `_render_chat_toolbar` (func, строка 931)
-- `_token_line_cache_key` (func, строка 989)
-- `_render_token_line` (func, строка 1036)
-- `_render_chat_tab` (func, строка 1120)
-- `_services_with_web_search` (func, строка 1537)
-- `_temp_slider` (func, строка 1549)
+- `_chat_pref_config_keys` (func, строка 74)
+- `_chat_prefs` (func, строка 81)
+- `_save_chat_pref` (func, строка 89)
+- `_make_state_keys` (func, строка 105)
+- `_init_orch_state` (func, строка 138)
+- `_sk` (func, строка 145)
+- `_ss` (func, строка 150)
+- `_set_ss` (func, строка 155)
+- `_pop_ss` (func, строка 159)
+- `_save_economy_cache` (func, строка 163)
+- `_load_economy_cache` (func, строка 182)
+- `_attachments_manifest_path` (func, строка 189)
+- `_load_attachments_manifest` (func, строка 193)
+- `_append_attachment_manifest` (func, строка 203)
+- `_save_attachment_to_workspace` (func, строка 214)
+- `_scroll_page` (func, строка 240)
+- `_make_send_adapter` (func, строка 294)
+- `_make_dispatcher` (func, строка 326)
+- `_assistant_has_api_key` (func, строка 351)
+- `_strip_html_details_tags` (func, строка 366)
+- `_strip_empty_fenced_blocks` (func, строка 382)
+- `_strip_tool_calls` (func, строка 433)
+- `_first_two_lines` (func, строка 495)
+- `_format_call_args_preview` (func, строка 508)
+- `_extract_result_body` (func, строка 526)
+- `_render_tool_result` (func, строка 540)
+- `_render_events` (func, строка 615)
+- `_render_event` (func, строка 635)
+- `_do_step` (func, строка 695)
+- `_reset_dialog` (func, строка 846)
+- `_load_thread` (func, строка 863)
+- `_chat_toolbar_widget_key` (func, строка 895)
+- `_sync_chat_pref_checkbox` (func, строка 905)
+- `_chat_toolbar_pref_changed` (func, строка 923)
+- `_render_chat_toolbar` (func, строка 933)
+- `_token_line_cache_key` (func, строка 991)
+- `_render_token_line` (func, строка 1038)
+- `_render_chat_tab` (func, строка 1122)
+- `_services_with_web_search` (func, строка 1539)
+- `_temp_slider` (func, строка 1551)
 
 ### `ui/pages/orchestrator_settings.py`
 - `page_orchestrator_settings` (func, строка 28)
@@ -1081,38 +1159,40 @@
 - `combine_nonempty` (func, строка 72)
 
 ### `core/github_connector_rest.py`
-- `GithubRestError` (class, строка 49)
-- `_ensure_requests` (func, строка 61)
-- `_session` (func, строка 72)
-- `_api_base` (func, строка 86)
-- `_describe_rest_error` (func, строка 93)
-- `_request` (func, строка 110)
-- `_quote_path` (func, строка 150)
-- `_quote_branch` (func, строка 158)
-- `_repo_spec` (func, строка 163)
-- `_default_branch` (func, строка 182)
-- `test_connection` (func, строка 193)
-- `get_user_info` (func, строка 218)
-- `list_repos` (func, строка 231)
-- `get_repo_info` (func, строка 263)
-- `create_repo` (func, строка 279)
-- `read_file_meta` (func, строка 305)
-- `read_file` (func, строка 331)
-- `upload_file` (func, строка 364)
-- `update_file` (func, строка 404)
-- `delete_file` (func, строка 442)
-- `list_files` (func, строка 464)
-- `get_ref` (func, строка 494)
-- `get_commit` (func, строка 514)
-- `get_tree` (func, строка 534)
-- `_git_blob_sha` (func, строка 577)
-- `_create_blob` (func, строка 584)
-- `_create_tree_chain` (func, строка 609)
-- `_resolve_target_ref` (func, строка 637)
-- `_publish_commit` (func, строка 670)
-- `_normalize_batch_files` (func, строка 753)
-- `batch_commit` (func, строка 787)
-- `batch_upsert` (func, строка 834)
+- `GithubRestError` (class, строка 51)
+- `_ensure_requests` (func, строка 63)
+- `_session` (func, строка 74)
+- `_api_base` (func, строка 88)
+- `_describe_rest_error` (func, строка 95)
+- `_request` (func, строка 112)
+- `_quote_path` (func, строка 152)
+- `_quote_branch` (func, строка 160)
+- `_repo_spec` (func, строка 165)
+- `_default_branch` (func, строка 184)
+- `test_connection` (func, строка 195)
+- `get_user_info` (func, строка 220)
+- `list_repos` (func, строка 233)
+- `get_repo_info` (func, строка 265)
+- `create_repo` (func, строка 281)
+- `read_file_meta` (func, строка 307)
+- `read_file` (func, строка 333)
+- `upload_file` (func, строка 366)
+- `update_file` (func, строка 406)
+- `delete_file` (func, строка 444)
+- `list_files` (func, строка 466)
+- `get_ref` (func, строка 496)
+- `get_commit` (func, строка 516)
+- `get_tree` (func, строка 536)
+- `_git_blob_sha` (func, строка 579)
+- `_create_blob` (func, строка 586)
+- `_create_tree_chain` (func, строка 611)
+- `_resolve_target_ref` (func, строка 639)
+- `_publish_commit` (func, строка 672)
+- `_normalize_batch_files` (func, строка 755)
+- `batch_commit` (func, строка 789)
+- `_files_from_paths` (func, строка 858)
+- `batch_commit_paths` (func, строка 912)
+- `batch_upsert` (func, строка 928)
 
 ### `core/github_tools_rest.py`
 - `_get_connector_id` (func, строка 31)
@@ -1132,8 +1212,9 @@
 - `ghr_get_commit` (func, строка 361)
 - `ghr_get_tree` (func, строка 386)
 - `ghr_batch_commit` (func, строка 413)
-- `ghr_batch_upsert` (func, строка 444)
-- `get_tools` (func, строка 583)
+- `ghr_batch_commit_paths` (func, строка 444)
+- `ghr_batch_upsert` (func, строка 494)
+- `get_tools` (func, строка 641)
 
 ### `core/i18n.py`
 - `_lang_dirs` (func, строка 28)
@@ -1195,47 +1276,60 @@
 - `export_orchestrator_folder` (func, строка 539)
 - `import_orchestrator_folder` (func, строка 562)
 
+### `core/orchestrator_tools.py`
+- `_legacy_aliases` (func, строка 25)
+- `resolve_tool_name` (func, строка 34)
+- `normalize_disabled` (func, строка 44)
+- `is_tool_disabled` (func, строка 63)
+- `_core_catalog` (func, строка 88)
+- `_workspace_catalog` (func, строка 97)
+- `_connection_catalog` (func, строка 106)
+- `_custom_function_catalog` (func, строка 124)
+- `build_tool_catalog` (func, строка 146)
+- `list_system_tools` (func, строка 184)
+- `render_available_tools_block` (func, строка 205)
+
 ### `core/orchestrators.py`
 - `_ensure_default_orchestrators` (func, строка 95)
 - `_devagent_default_config` (func, строка 110)
-- `_default_economy_tail_messages` (func, строка 175)
-- `_default_economy_cache_enabled` (func, строка 182)
-- `_default_economy_cache_multiplier` (func, строка 187)
-- `_get_known_tool_names` (func, строка 201)
-- `_invalidate_known_tool_names` (func, строка 240)
-- `list_orchestrators` (func, строка 254)
-- `get_orchestrator` (func, строка 259)
-- `get_orchestrator_by_slug` (func, строка 264)
-- `create_orchestrator` (func, строка 272)
-- `save_orchestrator` (func, строка 310)
-- `delete_orchestrator` (func, строка 327)
-- `_sync_orchestrator_folder` (func, строка 347)
-- `reload_orchestrator_from_folder` (func, строка 378)
-- `sync_all_orchestrator_folders` (func, строка 442)
-- `get_enabled_skills` (func, строка 460)
-- `set_enabled_skills` (func, строка 474)
-- `get_enabled_connections` (func, строка 500)
-- `set_enabled_connections` (func, строка 514)
-- `_extend_prompt_with_connections` (func, строка 537)
-- `get_orchestrator_rag_bases` (func, строка 610)
-- `set_orchestrator_rag_bases` (func, строка 627)
-- `_extend_prompt_with_rag_bases` (func, строка 653)
-- `_extend_prompt_with_skills` (func, строка 701)
-- `_extend_prompt_with_instructions` (func, строка 723)
-- `build_assistant_dicts` (func, строка 790)
-- `get_web_search_prompt` (func, строка 866)
-- `get_web_search_config` (func, строка 881)
-- `get_economy_tail_messages` (func, строка 909)
-- `get_economy_cache_enabled` (func, строка 927)
-- `get_economy_cache_multiplier` (func, строка 945)
-- `get_economy_config` (func, строка 964)
-- `export_orchestrator` (func, строка 978)
-- `_validate_imported_tools` (func, строка 1024)
-- `import_orchestrator` (func, строка 1050)
-- `_import_instructions` (func, строка 1169)
-- `_import_functions` (func, строка 1196)
-- `orch_list_instructions` (func, строка 1214)
-- `orch_get_instruction` (func, строка 1219)
+- `_default_economy_tail_messages` (func, строка 176)
+- `_default_economy_cache_enabled` (func, строка 183)
+- `_default_economy_cache_multiplier` (func, строка 188)
+- `_get_known_tool_names` (func, строка 202)
+- `_invalidate_known_tool_names` (func, строка 241)
+- `list_orchestrators` (func, строка 255)
+- `get_orchestrator` (func, строка 260)
+- `get_orchestrator_by_slug` (func, строка 265)
+- `create_orchestrator` (func, строка 273)
+- `save_orchestrator` (func, строка 311)
+- `delete_orchestrator` (func, строка 328)
+- `_sync_orchestrator_folder` (func, строка 348)
+- `reload_orchestrator_from_folder` (func, строка 379)
+- `sync_all_orchestrator_folders` (func, строка 443)
+- `get_enabled_skills` (func, строка 461)
+- `set_enabled_skills` (func, строка 475)
+- `get_enabled_connections` (func, строка 501)
+- `set_enabled_connections` (func, строка 515)
+- `_extend_prompt_with_connections` (func, строка 538)
+- `get_disabled_tools` (func, строка 611)
+- `set_disabled_tools` (func, строка 631)
+- `_extend_prompt_with_tools` (func, строка 655)
+- `get_orchestrator_rag_bases` (func, строка 679)
+- `set_orchestrator_rag_bases` (func, строка 696)
+- `_extend_prompt_with_rag_bases` (func, строка 722)
+- `_extend_prompt_with_skills` (func, строка 770)
+- `_extend_prompt_with_instructions` (func, строка 792)
+- `build_assistant_dicts` (func, строка 859)
+- `get_web_search_prompt` (func, строка 938)
+- `get_web_search_config` (func, строка 953)
+- `get_economy_tail_messages` (func, строка 981)
+- `get_economy_cache_enabled` (func, строка 999)
+- `get_economy_cache_multiplier` (func, строка 1017)
+- `get_economy_config` (func, строка 1036)
+- `export_orchestrator` (func, строка 1050)
+- `_validate_imported_tools` (func, строка 1096)
+- `import_orchestrator` (func, строка 1122)
+- `_import_instructions` (func, строка 1241)
 
 ### `core/paths.py`
 - `ensure_data_dirs` (func, строка 35)
@@ -1936,6 +2030,12 @@
 - `orch_slug` (func, строка 51)
 - `TestDispatcherConnectionTools` (class, строка 58)
 
+### `tests/test_dispatcher_tool_gating.py`
+- `isolated_data_dir` (func, строка 22)
+- `orch_slug` (func, строка 58)
+- `_make_agent` (func, строка 68)
+- `TestDispatchToolGating` (class, строка 75)
+
 ### `tests/test_employee_management_ui.py`
 - `isolated_data` (func, строка 25)
 - `_fresh_ui` (func, строка 46)
@@ -2006,15 +2106,15 @@
 - `test_ghr_tool_wraps_connector_error` (func, строка 188)
 - `test_ghr_tool_wraps_unexpected_error` (func, строка 197)
 - `test_get_tools_metadata` (func, строка 204)
-- `test_ghr_test_connection_ok` (func, строка 230)
-- `test_ghr_get_repo_info_ok` (func, строка 239)
-- `test_ghr_get_repo_info_missing_repo` (func, строка 247)
-- `test_ghr_read_file_meta_ok` (func, строка 254)
-- `test_ghr_read_file_meta_missing_path` (func, строка 264)
-- `test_ghr_get_ref_ok` (func, строка 271)
-- `test_ghr_get_commit_ok` (func, строка 282)
-- `test_ghr_get_commit_missing_sha` (func, строка 291)
-- `test_ghr_get_tree_ok` (func, строка 298)
+- `test_ghr_test_connection_ok` (func, строка 231)
+- `test_ghr_get_repo_info_ok` (func, строка 240)
+- `test_ghr_get_repo_info_missing_repo` (func, строка 248)
+- `test_ghr_read_file_meta_ok` (func, строка 255)
+- `test_ghr_read_file_meta_missing_path` (func, строка 265)
+- `test_ghr_get_ref_ok` (func, строка 272)
+- `test_ghr_get_commit_ok` (func, строка 283)
+- `test_ghr_get_commit_missing_sha` (func, строка 292)
+- `test_ghr_get_tree_ok` (func, строка 299)
 
 ### `tests/test_i18n_serialization.py`
 - `test_dumps_lang_preserves_insertion_order` (func, строка 20)
@@ -2114,6 +2214,37 @@
 - `test_other_tab_save_clamps_lower_bound` (func, строка 97)
 - `test_other_tab_invalid_input_falls_back_to_current` (func, строка 104)
 - `test_other_tab_save_failure_shows_error` (func, строка 111)
+
+### `tests/test_orchestrator_system_tools_ui.py`
+- `st` (func, строка 27)
+- `_invoke` (func, строка 37)
+- `_render` (func, строка 44)
+- `test_render_and_save_disabled_tools` (func, строка 49)
+- `test_render_all_enabled_saves_empty` (func, строка 71)
+- `test_list_failure_shows_info` (func, строка 85)
+- `test_save_failure_shows_error` (func, строка 96)
+
+### `tests/test_orchestrator_tools.py`
+- `isolated_data_dir` (func, строка 17)
+- `orch_slug` (func, строка 53)
+- `test_build_tool_catalog_contains_core_and_workspace` (func, строка 66)
+- `test_build_tool_catalog_excludes_disabled` (func, строка 73)
+- `test_build_tool_catalog_lists_custom_function` (func, строка 82)
+- `test_render_available_tools_block_lists_enabled_tools` (func, строка 93)
+- `test_render_block_excludes_disabled_tools` (func, строка 101)
+- `test_render_block_marks_custom_function` (func, строка 110)
+- `test_resolve_tool_name_legacy_alias` (func, строка 121)
+- `test_is_tool_disabled_alias_both_directions` (func, строка 127)
+- `test_normalize_disabled_dedup_alias_and_garbage` (func, строка 134)
+- `test_list_system_tools_excludes_custom_functions` (func, строка 143)
+- `test_get_disabled_tools_default_empty` (func, строка 153)
+- `test_set_get_disabled_tools_normalizes_aliases` (func, строка 158)
+- `test_set_disabled_tools_missing_orchestrator` (func, строка 164)
+- `test_extend_prompt_with_tools_appends_block` (func, строка 169)
+- `test_build_assistant_dicts_includes_tools_block` (func, строка 176)
+- `test_build_assistant_dicts_excludes_disabled_from_block` (func, строка 184)
+- `test_devagent_default_config_has_disabled_tools_key` (func, строка 194)
+- `test_ensure_builtin_backfills_disabled_tools` (func, строка 200)
 
 ### `tests/test_phase1_agent_loop.py`
 - `_make_skill` (func, строка 32)
@@ -2482,33 +2613,40 @@
 - `test_assistant_creator_parse_failure_returns_error` (func, строка 170)
 
 ### `tests/test_task_state.py`
-- `sandbox` (func, строка 20)
-- `test_journal_file_name_embeds_thread_id` (func, строка 43)
-- `test_build_contains_all_sections` (func, строка 50)
-- `test_split_active_sections_roundtrip` (func, строка 63)
-- `test_extract_step_ids` (func, строка 75)
-- `test_parse_step_handles_variants` (func, строка 80)
-- `test_ensure_and_read_roundtrip` (func, строка 89)
-- `test_ensure_existing_not_overwritten` (func, строка 101)
-- `test_update_section_preserves_others` (func, строка 113)
-- `test_update_section_unknown_rejected` (func, строка 125)
-- `test_mark_step_updates_status_and_progress` (func, строка 132)
-- `test_mark_step_records_context_for_next_step` (func, строка 148)
-- `test_mark_step_replaces_existing_meta` (func, строка 159)
-- `test_mark_step_unknown_fails` (func, строка 172)
-- `test_mark_step_invalid_status_fails` (func, строка 180)
-- `test_clear_archives_active_task_and_keeps_file` (func, строка 190)
-- `test_archive_and_start_task_appends_to_same_journal` (func, строка 209)
-- `test_history_survives_multiple_tasks` (func, строка 225)
-- `test_legacy_root_file_migrated_once` (func, строка 236)
-- `test_context_helper_missing_returns_none` (func, строка 257)
-- `test_context_helper_returns_block_with_meta` (func, строка 261)
-- `test_context_includes_recent_history` (func, строка 271)
-- `test_context_helper_truncates` (func, строка 285)
-- `test_tool_methods_roundtrip` (func, строка 296)
-- `test_tool_init_archives_previous_task` (func, строка 318)
-- `test_tool_catalog_lists_task_state_tools` (func, строка 331)
-- `test_agent_loop_helpers_present` (func, строка 341)
+- `sandbox` (func, строка 21)
+- `test_journal_file_name_embeds_thread_id` (func, строка 44)
+- `test_build_contains_all_sections` (func, строка 51)
+- `test_split_active_sections_roundtrip` (func, строка 64)
+- `test_extract_step_ids` (func, строка 76)
+- `test_parse_step_handles_variants` (func, строка 81)
+- `test_ensure_and_read_roundtrip` (func, строка 90)
+- `test_ensure_existing_not_overwritten` (func, строка 103)
+- `test_update_section_preserves_others` (func, строка 115)
+- `test_update_section_unknown_rejected` (func, строка 127)
+- `test_mark_step_updates_status_and_progress` (func, строка 134)
+- `test_mark_step_records_context_for_next_step` (func, строка 150)
+- `test_mark_step_replaces_existing_meta` (func, строка 161)
+- `test_mark_step_unknown_fails` (func, строка 174)
+- `test_mark_step_invalid_status_fails` (func, строка 182)
+- `test_clear_archives_active_task_and_keeps_file` (func, строка 192)
+- `test_archive_and_start_task_appends_to_same_journal` (func, строка 211)
+- `test_history_survives_multiple_tasks` (func, строка 227)
+- `test_legacy_root_file_migrated_once` (func, строка 238)
+- `test_context_helper_missing_returns_none` (func, строка 259)
+- `test_context_helper_returns_block_with_meta` (func, строка 263)
+- `test_context_includes_recent_history` (func, строка 273)
+- `test_context_helper_truncates` (func, строка 287)
+- `test_tool_methods_roundtrip` (func, строка 298)
+- `test_tool_init_archives_previous_task` (func, строка 320)
+- `test_tool_catalog_lists_task_state_tools` (func, строка 333)
+- `test_agent_loop_helpers_present` (func, строка 343)
+- `test_analysis_and_requests_sections_roundtrip` (func, строка 355)
+- `test_build_scaffolds_all_seven_sections` (func, строка 365)
+- `test_start_task_allocates_numbered_task_dir` (func, строка 372)
+- `test_next_task_gets_next_number_and_moves_current_marker` (func, строка 389)
+- `test_mark_in_progress_shows_tilde_marker` (func, строка 399)
+- `test_mark_done_then_pending_toggles_markers` (func, строка 408)
+- `test_context_section_order_matches_canon` (func, строка 419)
 
 ### `tests/test_theme_restore.py`
 - `_drop_ui_modules` (func, строка 21)
@@ -3015,6 +3153,14 @@
 - `test_scenario_agent_reads_uploads_via_public_tools` (func, строка 162)
 - `test_scenario_boundary_errors_stay_inside_sandbox` (func, строка 207)
 
+### `tests/scenarios/test_orchestrator_tool_gating.py`
+- `isolated_data_dir` (func, строка 45)
+- `orchid` (func, строка 88)
+- `test_prompt_gets_tool_catalog_excluding_disabled` (func, строка 98)
+- `test_gating_end_to_end_through_dispatcher` (func, строка 126)
+- `test_functions_tab_uncheck_and_save_persists` (func, строка 168)
+- `test_reenable_restores_checkbox_prompt_and_dispatch` (func, строка 224)
+
 ### `tests/scenarios/test_provider_economy_settings_scenario.py`
 - `_json` (func, строка 34)
 - `_extra_field_keys` (func, строка 39)
@@ -3073,6 +3219,11 @@
 - `test_structured_output_full_creation_flow` (func, строка 96)
 - `test_fenced_json_fallback_still_creates_assistant` (func, строка 137)
 - `test_prose_creator_response_reports_parse_error` (func, строка 168)
+
+### `tests/scenarios/test_task_state_mega_task.py`
+- `sandbox` (func, строка 33)
+- `test_big_task_runs_to_completion_keeps_journal` (func, строка 56)
+- `test_next_task_reuses_journal_and_continues_from_handoff` (func, строка 111)
 
 ### `tests/scenarios/test_theme_switch_scenario.py`
 - `_drop_ui_modules` (func, строка 24)
@@ -3312,35 +3463,41 @@
 - `render_diff` (func, строка 245)
 
 ### `dev_agent/task_state.py`
-- `TaskStateError` (class, строка 86)
-- `current_thread_id` (func, строка 92)
-- `task_state_path` (func, строка 105)
-- `_now_iso` (func, строка 110)
-- `_backup_if_exists` (func, строка 115)
-- `_split_top_sections` (func, строка 131)
-- `_split_active_sections` (func, строка 153)
-- `_parse_legacy` (func, строка 180)
-- `_read_active_meta` (func, строка 202)
-- `_parse_history_entries` (func, строка 214)
-- `_parse_step` (func, строка 245)
-- `extract_step_ids` (func, строка 262)
-- `render_active_task` (func, строка 275)
-- `render_task_history` (func, строка 297)
-- `build_task_state` (func, строка 321)
-- `_has_active_content` (func, строка 354)
-- `_summarize_active` (func, строка 362)
-- `_archive_active_task` (func, строка 380)
-- `_write_raw` (func, строка 400)
-- `_write_journal` (func, строка 409)
-- `_migrate_legacy_file` (func, строка 428)
-- `ensure_task_state_file` (func, строка 461)
-- `read_task_state` (func, строка 498)
-- `archive_and_start_task` (func, строка 533)
-- `update_task_state_section` (func, строка 578)
-- `_set_meta_line` (func, строка 616)
-- `update_plan_step_status` (func, строка 632)
-- `clear_task_state` (func, строка 747)
-- `task_state_for_context` (func, строка 778)
+- `TaskStateError` (class, строка 103)
+- `current_thread_id` (func, строка 109)
+- `task_state_path` (func, строка 122)
+- `thread_states_dir` (func, строка 127)
+- `_clear_current_marker` (func, строка 132)
+- `_task_folder_number` (func, строка 145)
+- `_plain_task_dir_path` (func, строка 153)
+- `_allocate_next_task_dir` (func, строка 166)
+- `current_task_dir` (func, строка 190)
+- `_now_iso` (func, строка 218)
+- `_backup_if_exists` (func, строка 223)
+- `_split_top_sections` (func, строка 239)
+- `_split_active_sections` (func, строка 261)
+- `_parse_legacy` (func, строка 288)
+- `_read_active_meta` (func, строка 310)
+- `_parse_history_entries` (func, строка 322)
+- `_parse_step` (func, строка 353)
+- `extract_step_ids` (func, строка 370)
+- `render_active_task` (func, строка 383)
+- `render_task_history` (func, строка 411)
+- `build_task_state` (func, строка 435)
+- `_has_active_content` (func, строка 472)
+- `_summarize_active` (func, строка 480)
+- `_archive_active_task` (func, строка 498)
+- `_write_raw` (func, строка 518)
+- `_write_journal` (func, строка 527)
+- `_migrate_legacy_file` (func, строка 556)
+- `ensure_task_state_file` (func, строка 589)
+- `read_task_state` (func, строка 626)
+- `archive_and_start_task` (func, строка 664)
+- `update_task_state_section` (func, строка 713)
+- `_set_meta_line` (func, строка 758)
+- `update_plan_step_status` (func, строка 774)
+- `clear_task_state` (func, строка 899)
+- `task_state_for_context` (func, строка 930)
 
 ### `dev_agent/tool_executor.py`
 - `_strip_line_numbers` (func, строка 79)

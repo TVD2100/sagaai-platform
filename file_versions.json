@@ -3,8 +3,8 @@
   "app_version": "0.3.2-preview.1",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Пакет обновлений агента: таймауты тестов 3 мин и произвольного кода 5 мин; промпты DevAgent v3.9 и YaAgent v2.6 - обновление документации стандартный пункт плана; расширенный журнал задач task_state: секции Requests/Analysis, папки задач task_NN, маркеры прогресса, дисциплина памяти при длинных задачах.",
-    "en": "Agent update pack: 3-min test and 5-min run_code timeouts; DevAgent v3.9 / YaAgent v2.6 prompts treat documentation updates as a standard plan step; extended task_state journal with Requests/Analysis sections, task_NN folders, progress markers and memory discipline for long tasks."
+    "ru": "Каталог доступных инструментов в промпте каждого оркестратора (блок Available tools); управление системными функциями чекбоксами в настройках; отключённые инструменты исключаются из промпта и реально блокируются диспетчером.",
+    "en": "An available-tools catalog (## Available tools block) in every orchestrator prompt; checkbox management of system functions in settings; disabled tools are removed from the prompt and actually blocked by the dispatcher."
   },
   "updated": "2026-09-12T13:05:00Z",
   "units": {
@@ -124,8 +124,8 @@
           "sha256": "e457904340ea8475ec98e6ececad8be98ee09fcd3959607fca1d5a16e678a915"
         },
         "core/orchestrators.py": {
-          "version": "1.4.2",
-          "sha256": "665ae406ba1c3c5e846c5f39c09093c56d7eaa409c6a78f8c157dafce4f8d6e9"
+          "version": "1.5.0",
+          "sha256": "ba298cf804d975e185c2a2ebcd3527385d657ae06c24c5c3058ec49241f27631"
         },
         "core/paths.py": {
           "version": "1.0.0",
@@ -248,8 +248,8 @@
           "sha256": "f8563be64bfabbfcfa0d990382deb317c1549ab1b1213230c595a8f3e984bd9d"
         },
         "dev_agent/universal_agent.py": {
-          "version": "1.5.1",
-          "sha256": "b7b7244ccd7e7b0cbe9a4cfb09be0d65025501695babc9f4ef9238294cbebe65"
+          "version": "1.6.0",
+          "sha256": "7003b896c5e132cc1a5e033570596a22dcf176fb0508153d9084c07afaa2ffe8"
         },
         "dev_agent/workspace_tools.py": {
           "version": "1.1.0",
@@ -560,8 +560,8 @@
           "sha256": "2a4b7bf502fd50e35d9168fc5baa2eaacb7a655af0be8628197274f13e982b62"
         },
         "tests/test_skills_library.py": {
-          "version": "1.0.0",
-          "sha256": "82d60e2eb3680a916ed2edddb9adc056a584dde9bee40bb54c7e39dd83a93be8"
+          "version": "1.1.0",
+          "sha256": "7a958090000b0dfd1f6b116c6a46a570031687d1e22c70c85d6cb4397100002c"
         },
         "tests/test_st_mock.py": {
           "version": "1.0.0",
@@ -668,8 +668,8 @@
           "sha256": "448dbf67eff496ec7d2689ef5d6f5be3640b79162e7456934ed478856b54ca74"
         },
         "ui/pages/orchestrator.py": {
-          "version": "1.6.1",
-          "sha256": "9963a233541049c54c9ca3a306567ba3d670d849649c527f9e3c5b5883ae1b41"
+          "version": "1.7.0",
+          "sha256": "2168ba38427e61f4276e026273e5376e3d824e1b181982807cbe859f4f62e934"
         },
         "ui/pages/orchestrator_settings.py": {
           "version": "1.1.0",
@@ -858,17 +858,37 @@
         "tests/scenarios/test_task_state_mega_task.py": {
           "version": "1.0.0",
           "sha256": "c560aa021452f34873de3554179fb669bb5b384c6e945e6b464a21e7de37f439"
+        },
+        "core/orchestrator_tools.py": {
+          "version": "1.0.0",
+          "sha256": "e8b7d2814f1e9b02b86cc9aadc2c4c9025862f9b01d5a87b7e19c25e66b42bf4"
+        },
+        "tests/test_orchestrator_tools.py": {
+          "version": "1.0.0",
+          "sha256": "507c1866b419bb3e9bce6f394f5c683919cf6d0c7a7618f2b7f328076aae5b8a"
+        },
+        "tests/test_dispatcher_tool_gating.py": {
+          "version": "1.0.0",
+          "sha256": "5e8189d4e8a99a10afb6992f28bbadd3ff9fc684464938bc00c191a76a32a12b"
+        },
+        "tests/test_orchestrator_system_tools_ui.py": {
+          "version": "1.0.0",
+          "sha256": "dc2ba69051496ace83567e2112f5f5570accdd1f63af4900c4e549113fa5f61b"
+        },
+        "tests/scenarios/test_orchestrator_tool_gating.py": {
+          "version": "1.0.0",
+          "sha256": "d6f1952f234809c8835a6c5f749610480e9aa07661c3ff003dc9eb75fe14e74a"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.7.0",
-      "sha256": "2cbb57af42d812abc18a731f3285fb5db04fafc77df6b565a5e2b7609e5a058d",
+      "version": "1.8.0",
+      "sha256": "d0ccc2e562dedccd8f54ea1b89ae4dacc97c14eea29237879f12186ceaf03b75",
       "note": {
-        "ru": "Секция Web-search модель дополнена: веб-поиск DeepSeek через Anthropic-совместимый endpoint (web_search_base_url, модель deepseek-flash).",
-        "en": "Web-search model section extended: DeepSeek web search uses the Anthropic-compatible endpoint (web_search_base_url, deepseek-flash model)."
+        "ru": "Добавлен модуль core/orchestrator_tools и раздел про каталог инструментов/gating disabled_tools.",
+        "en": "Added the core/orchestrator_tools module and a section on the tool catalog / disabled_tools gating."
       }
     },
     "COMPARISON.md": {
@@ -888,27 +908,27 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.9.0",
-      "sha256": "008b77e48964d230e03f686b1bc4244b4606ea49daad4fa01ed9bde1b69237bb",
+      "version": "1.10.0",
+      "sha256": "40632ee64be4758487c72f3a7fe4c08d5c7e888d3d389ef82fef2f9ebe947f91",
       "note": {
-        "ru": "Карта синхронизирована с кодом: функции веб-поиска DeepSeek через Anthropic-совместимый endpoint (api_layer), новый тест test_deepseek_anthropic_web_search.py, обновлённые описания профилей deepseek; всего 655 файлов.",
-        "en": "Map synced with code: DeepSeek web search via the Anthropic-compatible endpoint (api_layer), new test test_deepseek_anthropic_web_search.py, updated DeepSeek service descriptions; 655 files total."
+        "ru": "Карта синхронизирована: новые файлы (core/orchestrator_tools.py, тесты gating) и обновлённые описания модулей.",
+        "en": "Map synced: new files (core/orchestrator_tools.py, gating tests) and updated module descriptions."
       }
     },
     "README.md": {
-      "version": "1.7.1",
-      "sha256": "a2a87cafa433cbc451b14d24f6bf669789d992f093563a087a789cd92aef947a",
+      "version": "1.7.2",
+      "sha256": "f80380703c5c5ddb7af99bafa26a8c96e0837d608b4c7ebd09b6764a082a3d46",
       "note": {
-        "ru": "Строка статуса версии обновлена до v0.3.2-preview.1.",
-        "en": "Version status line updated to v0.3.2-preview.1."
+        "ru": "Добавлено описание управления системными функциями сотрудников и блока Available tools.",
+        "en": "Documented the system-functions checkboxes and the Available tools prompt block."
       }
     },
     "SPEC.md": {
-      "version": "1.8.0",
-      "sha256": "c7c364ef3e40fa70be9ecb3edb52bbebf862d187e9a981dafcba6d7f922b325c",
+      "version": "1.9.0",
+      "sha256": "b8220eee2d9324134daacc355de8a986000d8c2be6d73c79f41870136132a45f",
       "note": {
-        "ru": "FR10 дополнено: кэшированная статистика RAG-баз и флаг with_stats (горячие пути не сканируют большие индексы).",
-        "en": "FR10 extended: cached RAG base stats and the with_stats flag (hot paths avoid scanning large indexes)."
+        "ru": "FR6 дополнено: блок Available tools, настройка disabled_tools чекбоксами, реальный gating.",
+        "en": "FR6 extended: Available tools block, disabled_tools checkbox settings, real dispatch gating."
       }
     },
     "defaults/README.md": {
@@ -968,11 +988,11 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.3.5",
-      "sha256": "4ed373cb88ddd6ae339bb412130681e6cd8830d9d5bf80e98b03bfcf6cfaa704",
+      "version": "1.4.0",
+      "sha256": "800b7d120eef1482e228f584301911c0aea12ba6d5be64ba07f073519cdf1b61",
       "note": {
-        "ru": "Удалён ключ connectors_service_github legacy-сервиса (PyGithub); остался только github_rest.",
-        "en": "Removed the legacy github service key (connectors_service_github); only github_rest remains."
+        "ru": "Добавлены ключи orch_sysfunc_*: блок системных функций в настройках оркестратора (чекбоксы, Сохранить).",
+        "en": "Added orch_sysfunc_* keys: the system-functions block in orchestrator settings (checkboxes, Save button)."
       }
     },
     "defaults/langs/en_guide.md": {
@@ -984,11 +1004,11 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.3.5",
-      "sha256": "e6b136069dcd5077892f2afaff49330f90cdb4e72676554c336e370646485298",
+      "version": "1.4.0",
+      "sha256": "fe63bf818bb6dc19a7cb4d99f0a4305fece9537e85be236858dbc524857f5c80",
       "note": {
-        "ru": "Удалён ключ connectors_service_github legacy-сервиса (PyGithub); остался только github_rest.",
-        "en": "Removed the legacy github service key (connectors_service_github); only github_rest remains."
+        "ru": "Добавлены ключи orch_sysfunc_*: блок системных функций в настройках оркестратора (чекбоксы, Сохранить).",
+        "en": "Added orch_sysfunc_* keys: the system-functions block in orchestrator settings (checkboxes, Save button)."
       }
     },
     "defaults/langs/ru_guide.md": {
@@ -1000,11 +1020,11 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.3.5",
-      "sha256": "4c57a2b3ec974edc3fd338e16c94dd68c5192cae14ce9d0e055de73463c8975f",
+      "version": "1.4.0",
+      "sha256": "aef020aab69c3dd320eb237426299d03b144a73cfbe51e9de4ff1e868c417169",
       "note": {
-        "ru": "Удалён ключ connectors_service_github legacy-сервиса (PyGithub); остался только github_rest.",
-        "en": "Removed the legacy github service key (connectors_service_github); only github_rest remains."
+        "ru": "Добавлены ключи orch_sysfunc_*: блок системных функций в настройках оркестратора (чекбоксы, Сохранить).",
+        "en": "Added orch_sysfunc_* keys: the system-functions block in orchestrator settings (checkboxes, Save button)."
       }
     },
     "defaults/langs/zh_CN_guide.md": {
@@ -1224,11 +1244,11 @@
       }
     },
     "langs/en.json": {
-      "version": "1.3.5",
-      "sha256": "4ed373cb88ddd6ae339bb412130681e6cd8830d9d5bf80e98b03bfcf6cfaa704",
+      "version": "1.4.0",
+      "sha256": "800b7d120eef1482e228f584301911c0aea12ba6d5be64ba07f073519cdf1b61",
       "note": {
-        "ru": "Удалён ключ connectors_service_github legacy-сервиса (PyGithub); остался только github_rest.",
-        "en": "Removed the legacy github service key (connectors_service_github); only github_rest remains."
+        "ru": "Добавлены ключи orch_sysfunc_*: блок системных функций в настройках оркестратора (чекбоксы, Сохранить).",
+        "en": "Added orch_sysfunc_* keys: the system-functions block in orchestrator settings (checkboxes, Save button)."
       }
     },
     "langs/en_guide.md": {
@@ -1240,11 +1260,11 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.3.5",
-      "sha256": "320a71707b265ae5928350906548afc1ccc07cbaf3552b6ee70c2426328cbf96",
+      "version": "1.4.0",
+      "sha256": "f4de19d3173dc4b6d56e8b0a06e6677082ee3304584fd3b4fe8e3ac126545f09",
       "note": {
-        "ru": "Удалён ключ connectors_service_github legacy-сервиса (PyGithub); остался только github_rest.",
-        "en": "Removed the legacy github service key (connectors_service_github); only github_rest remains."
+        "ru": "Добавлены ключи orch_sysfunc_*: блок системных функций в настройках оркестратора (чекбоксы, Сохранить).",
+        "en": "Added orch_sysfunc_* keys: the system-functions block in orchestrator settings (checkboxes, Save button)."
       }
     },
     "langs/ru_guide.md": {
@@ -1256,11 +1276,11 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.3.5",
-      "sha256": "4c57a2b3ec974edc3fd338e16c94dd68c5192cae14ce9d0e055de73463c8975f",
+      "version": "1.4.0",
+      "sha256": "aef020aab69c3dd320eb237426299d03b144a73cfbe51e9de4ff1e868c417169",
       "note": {
-        "ru": "Удалён ключ connectors_service_github legacy-сервиса (PyGithub); остался только github_rest.",
-        "en": "Removed the legacy github service key (connectors_service_github); only github_rest remains."
+        "ru": "Добавлены ключи orch_sysfunc_*: блок системных функций в настройках оркестратора (чекбоксы, Сохранить).",
+        "en": "Added orch_sysfunc_* keys: the system-functions block in orchestrator settings (checkboxes, Save button)."
       }
     },
     "langs/zh_CN_guide.md": {

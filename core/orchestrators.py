@@ -165,6 +165,7 @@ def _devagent_default_config() -> Dict[str, Any]:
         "economy_cache_multiplier": get_default_economy_cache_multiplier(),
         "enabled_skills": _lst("enabled_skills"),
         "enabled_connections": _lst("enabled_connections"),
+        "disabled_tools": _lst("disabled_tools"),
     }
 
 
@@ -604,6 +605,74 @@ def _extend_prompt_with_connections(prompt: str, orchestrator_slug: str = DEVAGE
     return block
 
 
+# ─── Disabled tools (blacklist) ─────────────────────────────────────────
+
+
+def get_disabled_tools(orchestrator_slug: str = DEVAGENT_SLUG) -> List[str]:
+    """Return the list of disabled tool names for an orchestrator.
+
+    The info is stored in the orchestrator's config under "disabled_tools".
+    An empty list means "all tools enabled". Names are stored as canonical
+    tool names (legacy aliases resolved); missing/invalid values are treated
+    as an empty list.
+    """
+    orch = get_orchestrator(orchestrator_slug)
+    cfg = orch.get("config", {}) if orch else {}
+    tools = cfg.get("disabled_tools") or []
+    if not isinstance(tools, list):
+        return []
+    out = []
+    for t in tools:
+        if isinstance(t, str) and t.strip() and t.strip() not in out:
+            out.append(t.strip())
+    return out
+
+
+def set_disabled_tools(orchestrator_slug: str, tool_names: List[str]) -> bool:
+    """Store the list of disabled tool names for an orchestrator.
+
+    Entries are normalized to canonical tool names via
+    ``core.orchestrator_tools.normalize_disabled`` (legacy aliases are
+    resolved, so disabling ``list_skills`` disables ``list_assistants``) and
+    the orchestrator bundle on disk is synced. Returns True on success.
+    """
+    from core.orchestrator_tools import normalize_disabled
+    normalized = normalize_disabled(tool_names)
+    orch = get_orchestrator(orchestrator_slug)
+    if orch is None:
+        return False
+    cfg = orch.get("config", {})
+    if not isinstance(cfg, dict):
+        cfg = {}
+    cfg = dict(cfg)
+    cfg["disabled_tools"] = normalized
+    ok = repo_update_orchestrator(orch["id"], config=cfg)
+    if ok:
+        _sync_orchestrator_folder(orchestrator_slug)
+    return ok
+
+
+def _extend_prompt_with_tools(prompt: str, orchestrator_slug: str = DEVAGENT_SLUG) -> str:
+    """Append the '## Available tools' block to an orchestrator prompt.
+
+    Lists every tool the orchestrator may call (system tools, enabled
+    connection tools and custom functions), excluding the tools disabled via
+    the ``disabled_tools`` config key. Returns the original prompt when the
+    catalog is empty or unreadable (best effort).
+    """
+    try:
+        from core.orchestrator_tools import render_available_tools_block
+        disabled = set(get_disabled_tools(orchestrator_slug))
+        block = render_available_tools_block(orchestrator_slug, disabled=disabled)
+        if not block:
+            return prompt
+        if prompt.strip():
+            return f"{prompt}\n\n{block}"
+        return block
+    except Exception:
+        return prompt
+
+
 # ─── Assigned RAG knowledge bases ──────────────────────────────────────
 
 
@@ -814,6 +883,9 @@ def build_assistant_dicts(orchestrator_slug: str = DEVAGENT_SLUG) -> Tuple[dict,
     prompt = _extend_prompt_with_connections(prompt, orchestrator_slug)
     # Append assigned RAG knowledge bases (DevAgent: all; others: assigned).
     prompt = _extend_prompt_with_rag_bases(prompt, orchestrator_slug)
+    # Append the available-tools catalog (system + custom functions),
+    # excluding disabled tools.
+    prompt = _extend_prompt_with_tools(prompt, orchestrator_slug)
 
     strong_svc = cfg.get("strong_service", "") or cfg.get("service", "DeepSeek")
     strong_mdl = cfg.get("strong_model", "") or cfg.get("model", "deepseek-v4-pro")
@@ -1321,6 +1393,8 @@ def ensure_builtin_orchestrators() -> Dict[str, str]:
             "economy_cache_enabled": _default_economy_cache_enabled(),
             "economy_cache_multiplier": _default_economy_cache_multiplier(),
             "enabled_skills": [],
+            "enabled_connections": [],
+            "disabled_tools": [],
         }
 
         # Build tools list from the tool executor catalog.
@@ -1392,6 +1466,11 @@ def ensure_builtin_orchestrators() -> Dict[str, str]:
     # Add enabled_connections if missing (old configs created before the feature).
     if "enabled_connections" not in config:
         config["enabled_connections"] = []
+        backfilled = True
+
+    # Add disabled_tools if missing (old configs created before the feature).
+    if "disabled_tools" not in config:
+        config["disabled_tools"] = []
         backfilled = True
 
     # Legacy configs (created before cache-friendly economy mode) stored

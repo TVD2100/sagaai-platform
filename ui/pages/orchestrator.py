@@ -55,11 +55,13 @@ from core.orchestrators import (
     get_enabled_skills, set_enabled_skills,
     get_enabled_connections, set_enabled_connections,
     get_orchestrator_rag_bases, set_orchestrator_rag_bases,
+    get_disabled_tools, set_disabled_tools,
     DEVAGENT_SLUG,
 )
 from core.skills_library import list_skills as list_library_skills
 from core.rag import list_bases_with_activity
 from core.connectors import list_connections
+from core.orchestrator_tools import list_system_tools
 
 
 # Pagination window for the chat feed: render at most this many messages
@@ -1902,10 +1904,52 @@ def _render_economy_settings(slug: str, lang: str) -> None:
         st.success(t("orch_economy_saved", lang=lang, tail=sel_tail))
 
 
+def _render_orch_system_tools(slug: str, lang: str) -> None:
+    """Manage enabled/disabled system tools (blacklist via disabled_tools)."""
+    st.markdown(t("orch_sysfunc_section_title", lang=lang))
+    st.markdown(t("orch_sysfunc_section_desc", lang=lang))
+
+    try:
+        system_tools = list_system_tools(slug)
+    except Exception:
+        system_tools = []
+
+    if not system_tools:
+        st.info(t("orch_sysfunc_empty", lang=lang))
+        return
+
+    disabled = set(get_disabled_tools(slug))
+    disabled_selected = []
+    for tool in system_tools:
+        name = str(tool.get("name") or "").strip()
+        if not name:
+            continue
+        desc = str(tool.get("desc") or "").strip()
+        checked = st.checkbox(
+            f"**{name}**",
+            value=(name not in disabled),
+            key=f"orch_sysfunc_{slug}_{name}",
+        )
+        if desc:
+            st.caption(f"\U0001f4dd {desc}")
+        if not checked:
+            disabled_selected.append(name)
+
+    st.markdown("---")
+    if st.button(t("orch_sysfunc_save_btn", lang=lang), key=f"orch_save_sysfunc_{slug}",
+                 type="primary"):
+        if set_disabled_tools(slug, disabled_selected):
+            st.success(t("orch_sysfunc_saved", lang=lang))
+        else:
+            st.error(t("orch_sysfunc_save_error", lang=lang))
+
+
 def _render_orchestrator_functions_settings(slug: str, lang: str) -> None:
     """Manage custom Python functions of this orchestrator (stored in folder)."""
     st.markdown(t("orch_func_section_title", lang=lang))
     st.markdown(t("orch_func_section_desc", lang=lang))
+
+    _render_orch_system_tools(slug, lang)
 
     show_form = _ss(slug, "show_func_form") or False
     edit_name = _ss(slug, "edit_func") or None

@@ -294,8 +294,9 @@ class TestOrchestratorIntegration:
         slug = "no_skills_orch"
         assert create_orchestrator(slug, "NoSkills", prompt_text="Plain")
         strong, _ = build_skill_dicts(slug)
-        assert strong["text"].strip() == "Plain"
+        assert strong["text"].startswith("Plain")
         assert "Available skills" not in strong["text"]
+        assert "## Available tools" in strong["text"]
         delete_orchestrator(slug)
 
 
