@@ -2,13 +2,15 @@
 """tests/test_theme_restore.py - unit tests for the theme-switch UI-restore
 mechanism in ui.app.
 
-Covers the three building blocks added for the theme-switch fix:
+Covers the building blocks of the theme-switch fix:
 - _build_ui_restore_payload serialises the active page/dialog snapshot,
 - _apply_theme emits location.replace with the _sagaai_ui_restore marker
   via st.html(unsafe_allow_javascript=True), so the script runs in the main
   document instead of Streamlit's sandboxed component iframe,
 - _restore_ui_reload_state reapplies the snapshot exactly once and clears
-  the marker from the URL, without resurrecting state on later reloads.
+  the marker from the URL, without resurrecting state on later reloads,
+- _sync_saved_theme emits the one-time localStorage sync script that
+  repaints the UI from the saved theme on a cold start.
 """
 
 import json
@@ -99,6 +101,56 @@ def test_apply_theme_uses_replace_with_restore_marker(app_under_mock):
 
 
 # ---- restore ──────────────────────────────────────────────────────────
+
+# ---- saved-theme sync -------------------------------------------------
+
+def test_sync_saved_theme_emits_localstorage_sync(app_under_mock):
+    """The sync script carries the localStorage key, the saved mode and the
+    restore marker; it never uses location.reload()."""
+    app_mod, st_mock = app_under_mock
+    st_mock.session_state.update({"current_page": "run"})
+    payload = app_mod._build_ui_restore_payload()
+    app_mod._sync_saved_theme("Dark", payload)
+    html_calls = [c for c in st_mock.calls if c[0] == "html"]
+    assert html_calls
+    js = html_calls[0][1][0] if html_calls[0][1] else ""
+    assert "stActiveTheme-" in js
+    assert "-v2" in js
+    assert "localStorage.getItem" in js
+    assert "localStorage.setItem" in js
+    assert 'JSON.stringify("Dark")' in js
+    assert "_sagaai_ui_restore" in js
+    assert "location.replace" in js
+    assert "location.reload()" not in js
+
+
+def test_sync_saved_theme_embeds_saved_mode_and_payload(app_under_mock):
+    """Different modes are baked into the script and the restore payload is
+    passed through as a JS string."""
+    app_mod, st_mock = app_under_mock
+    app_mod._sync_saved_theme("Light", json.dumps({"page": "conf"}))
+    html_calls = [c for c in st_mock.calls if c[0] == "html"]
+    assert html_calls
+    js = html_calls[0][1][0] if html_calls[0][1] else ""
+    assert 'JSON.stringify("Light")' in js
+    expected = json.dumps(json.dumps({"page": "conf"}))[1:-1]
+    assert expected in js
+
+
+def test_sync_saved_theme_skips_reload_for_invisible_system_default(
+        app_under_mock):
+    """When nothing is stored and the saved mode is System, the script still
+    writes the key but returns before location.replace (no visible change,
+    no additional reload)."""
+    app_mod, st_mock = app_under_mock
+    app_mod._sync_saved_theme("System", "")
+    html_calls = [c for c in st_mock.calls if c[0] == "html"]
+    assert html_calls
+    js = html_calls[0][1][0] if html_calls[0][1] else ""
+    assert "localStorage.setItem" in js
+    assert "stored === null" in js
+    assert "location.replace" in js
+
 
 def test_restore_reapplies_assistant_snapshot_once(app_under_mock):
     """The first run applies the snapshot and clears the URL marker."""

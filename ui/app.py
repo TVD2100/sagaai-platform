@@ -55,6 +55,7 @@ _ORCH_ICON = "\U0001f916"          # custom orchestrators: robot
 _DEVAGENT_ICON = "\U0001f6e0\ufe0f"      # built-in DevAgent: wrench + hammer
 _ASSISTANT_ICON = "\U0001f9e9"      # assistants
 _SLIB_ICON = "\U0001f9e0"          # skills library: puzzle piece
+_THEME_MODES = ["System", "Light", "Dark"]
 
 
 def _build_orch_nav():
@@ -147,6 +148,59 @@ def _apply_theme(mode: str, restore_payload: str = "") -> None:
     )
 
 
+
+
+def _sync_saved_theme(mode: str, restore_payload: str = "") -> None:
+    """One-time sync of localStorage with the saved theme on initial page load.
+
+    Streamlit paints the interface from localStorage whenever the parent page
+    loads; the sidebar selectbox value only mirrors the server-side config.
+    Manual switches persist the theme via _apply_theme, so after those the
+    stored value usually matches. On a cold start (server restart, a new
+    browser session, another port/origin) the stored value may be missing or
+    stale while the config still says 'Dark': the sidebar then shows 'Dark'
+    but the interface is painted light, and it only fixes itself when the
+    user re-selects the theme by hand. This script compares both sides and,
+    only when they differ, writes the saved value and does the single
+    browser reload Streamlit needs; the restore query param carries the
+    page/dialog snapshot so the user stays where they were (see _apply_theme
+    and _restore_ui_reload_state).
+    """
+    script = (
+        "(function () {"
+        "  var w = window.parent === window ? window : window.parent;"
+        "  var path = '/';"
+        "  try { path = w.location.pathname || '/'; } catch (e) {}"
+        "  var key = 'stActiveTheme-' + path + '-v2';"
+        "  var stored = null;"
+        "  try { stored = w.localStorage.getItem(key); } catch (e) { return; }"
+        "  if (stored === JSON.stringify({mode})) { return; }"
+        "  try { w.localStorage.setItem(key, JSON.stringify({mode})); } catch (e) {}"
+        "  if (stored === null && JSON.stringify({mode}) === JSON.stringify('System')) { return; }"
+        "  var url = new URL(w.location.href);"
+        "  url.searchParams.set('_sagaai_ui_restore', {restore});"
+        "  w.location.replace(url.toString());"
+        "})();"
+    ).replace("{mode}", json.dumps(mode))
+    script = script.replace("{restore}", json.dumps(restore_payload))
+    st.html(
+        '<!doctype html><html><body><script>{script}</script></body></html>'.replace("{script}", script),
+        unsafe_allow_javascript=True,
+    )
+
+
+def _sync_saved_theme_once(cfg: dict) -> None:
+    """Run the cold-start localStorage sync of the saved theme exactly once.
+
+    The flag survives the browser reload the sync triggers (the reload lands
+    in the same server session), so the page is not reloaded in a loop.
+    """
+    if st.session_state.get('_ui_theme_synced'):
+        return
+    st.session_state['_ui_theme_synced'] = True
+    saved_theme = cfg.get('ui_theme', '')
+    if saved_theme in _THEME_MODES:
+        _sync_saved_theme(saved_theme, _build_ui_restore_payload())
 
 
 def _build_ui_restore_payload() -> str:
@@ -357,6 +411,11 @@ def main():
 
     lang = st.session_state.get("ui_lang")
     page = st.session_state["current_page"]
+
+    # One-time localStorage sync for the saved theme: after a cold start the
+    # sidebar shows the saved theme, but the page is painted from the
+    # browser-local storage which is only written on manual switches.
+    _sync_saved_theme_once(cfg)
 
     # ── Sidebar CSS ─────────────────────────────────────────────────────────
     st.markdown("""<style>
@@ -828,7 +887,7 @@ def main():
             save_config(new_cfg)
             st.rerun()
 
-        theme_modes = ["System", "Light", "Dark"]
+        theme_modes = _THEME_MODES
         current_theme = cfg.get("ui_theme", "System")
         if current_theme not in theme_modes:
             current_theme = "System"

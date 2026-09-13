@@ -2,7 +2,7 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-09-12T22:38:24+00:00`
+- Обновлено: `2026-09-13T06:00:00+00:00`
 - Файлов: **717**
 - Языки: Config: 1, JSON: 22, Markdown: 484, PEM certificate: 1, Python: 213, Text: 1
 
@@ -18,7 +18,7 @@
 | `pytest.ini` | Config | Pytest configuration | - |
 | `requirements.txt` | Text | Python dependencies | - |
 | `ui/__init__.py` | Python | Package marker | - |
-| `ui/app.py` | Python | Main Streamlit app: sidebar navigation and page dispatch; assistants use assistant terminology | - |
+| `ui/app.py` | Python | Main Streamlit app: sidebar navigation and page dispatch; theme switching and one-time cold-start localStorage theme sync; assistants use assistant terminology | - |
 | `ui/components/__init__.py` | Python | Package marker | - |
 | `ui/components/workspace_picker.py` | Python | Workspace picker component | - |
 | `ui/pages/__init__.py` | Python | Package marker | - |
@@ -162,7 +162,7 @@
 | `tests/test_storage_page_ui.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_structured_output_consumers.py` | Python | _(описание не задано)_ | - |
 | `tests/test_task_state.py` | Python | _(описание не задано)_ | - |
-| `tests/test_theme_restore.py` | Python | _(описание не задано)_ | - |
+| `tests/test_theme_restore.py` | Python | Unit tests for the theme-switch UI-restore mechanism and the saved-theme cold-start sync | - |
 | `tests/test_thread_deeplink.py` | Python | _(описание не задано)_ | - |
 | `tests/test_thread_file_save.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_threads_devagent_files.py` | Python | _(описание не задано)_ | storage |
@@ -203,7 +203,7 @@
 | `tests/scenarios/test_stats_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_structured_output_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_task_state_mega_task.py` | Python | _(описание не задано)_ | - |
-| `tests/scenarios/test_theme_switch_scenario.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_theme_switch_scenario.py` | Python | Theme-switch user scenarios, including the cold-start saved-theme sync | - |
 | `tests/scenarios/test_updater_runtime_flow.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_welcome_page_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_workspace_binding_scenario.py` | Python | _(описание не задано)_ | storage |
@@ -731,13 +731,15 @@
 ## Структура Python-модулей
 
 ### `ui/app.py`
-- `_build_orch_nav` (func, строка 60)
-- `_build_assistants_nav` (func, строка 86)
-- `_apply_theme` (func, строка 116)
-- `_build_ui_restore_payload` (func, строка 152)
-- `_restore_ui_reload_state` (func, строка 187)
-- `_handle_thread_deeplink` (func, строка 236)
-- `main` (func, строка 275)
+- `_build_orch_nav` (func, строка 61)
+- `_build_assistants_nav` (func, строка 87)
+- `_apply_theme` (func, строка 117)
+- `_sync_saved_theme` (func, строка 153)
+- `_sync_saved_theme_once` (func, строка 192)
+- `_build_ui_restore_payload` (func, строка 206)
+- `_restore_ui_reload_state` (func, строка 241)
+- `_handle_thread_deeplink` (func, строка 290)
+- `main` (func, строка 329)
 
 ### `ui/components/workspace_picker.py`
 - `_picker_state_keys` (func, строка 26)

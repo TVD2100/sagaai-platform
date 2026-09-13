@@ -352,8 +352,8 @@
           "sha256": "0b2ceed95c3a066743232ac8da2bb1f88054cf53f20dec316be6265b022d4111"
         },
         "tests/scenarios/test_theme_switch_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "4767182fe6c78b90876946c7d559289f142e366b114ddbf41af5f03eca2385e3"
+          "version": "1.1.0",
+          "sha256": "8adda92b95734aa376f0805d256fb0ad10a62959d57ed6315f3068c47d2108f5"
         },
         "tests/scenarios/test_welcome_page_scenarios.py": {
           "version": "1.0.1",
@@ -588,8 +588,8 @@
           "sha256": "dac38db379aabf24dc29c75c192c409663f4e413f5ee3f3c078ff2d1ba002a32"
         },
         "tests/test_theme_restore.py": {
-          "version": "1.0.0",
-          "sha256": "3fdfde65b9958fc62e3e666ee050d3fb502948ec88c28d2d8d70ee798454cd48"
+          "version": "1.1.0",
+          "sha256": "7412546c4129e0b42bae86c6879dce8a975acf2bc164a01da37a82d99cd02ce5"
         },
         "tests/test_thread_deeplink.py": {
           "version": "1.0.0",
@@ -604,8 +604,8 @@
           "sha256": "9111bc0ae615e2c66be59ca96b4e451ee967264669bcbc88b058d9c4196beb18"
         },
         "tests/test_ui_pages.py": {
-          "version": "1.0.2",
-          "sha256": "4cd5fad3ec0f22ba067ae2a7f07f74df28ee018eef4653c2233a41686d9b19eb"
+          "version": "1.0.3",
+          "sha256": "9c033c57a2ad38b6dba5bea776b2139eb5981eecaa2d768529e732fe3e67ae03"
         },
         "tests/test_ui_tooltips.py": {
           "version": "1.0.1",
@@ -636,8 +636,8 @@
           "sha256": "364164080192ca393405d235f1fc7ae64d45f48fd0e7a6bf27b064ea439e7a1f"
         },
         "ui/app.py": {
-          "version": "1.2.0",
-          "sha256": "8886b7149941209f40441e030eeec53830a06ae69198949f50cdbf0b7d7e9572"
+          "version": "1.3.0",
+          "sha256": "a72a83757d0d4df41af23a8ed2bfd0178382b8664b163374da7c66c35dc5c111"
         },
         "ui/components/__init__.py": {
           "version": "1.0.0",
@@ -908,11 +908,11 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.10.0",
-      "sha256": "40632ee64be4758487c72f3a7fe4c08d5c7e888d3d389ef82fef2f9ebe947f91",
+      "version": "1.11.0",
+      "sha256": "2ad4cc68cc7984d8de99c84bb3dcae0cbac4e0a2c6f7595c1b0e4c8270ea6998",
       "note": {
-        "ru": "Карта синхронизирована: новые файлы (core/orchestrator_tools.py, тесты gating) и обновлённые описания модулей.",
-        "en": "Map synced: new files (core/orchestrator_tools.py, gating tests) and updated module descriptions."
+        "ru": "Карта синхронизирована: синхронизация темы при холодном старте в ui/app.py, обновлены описания тестов темы.",
+        "en": "Map synced: cold-start theme sync in ui/app.py, updated theme test descriptions."
       }
     },
     "README.md": {

@@ -189,6 +189,10 @@ def test_theme_system_and_light_select_emit_correct_mode(mock_env):
     from unittest.mock import patch
     from ui.app import main
 
+    # Skip the cold-start theme sync so the first emitted script belongs
+    # to the theme-select handler under test.
+    mock_env.session_state["_ui_theme_synced"] = True
+
     for mode in ("System", "Light"):
         mock_env.reset_clicks()
         mock_env.calls.clear()

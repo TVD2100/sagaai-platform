@@ -11,6 +11,8 @@ points of the fix:
                same orchestrator dialog.
   Scenario 3 - a stale _sagaai_ui_restore marker in the URL does not
                resurrect a dialog on a later manual reload.
+  Scenario 4 - a cold start (server restart, empty localStorage) applies the
+               saved theme exactly once and carries the restore snapshot.
 """
 import json
 import sys
@@ -142,3 +144,53 @@ def test_stale_restore_marker_does_not_resurrect_dialog():
     assert st_mock.session_state["active_thread_id"] == "t-1"
     assert st_mock.session_state["selected_assistant_id"] == "a-1"
 
+
+# ─── Scenario 4: cold start applies the saved theme once ─────────────────
+
+def test_cold_start_syncs_saved_theme_once():
+    """
+    Given a cold start with ui_theme='Dark' saved in the server config
+          (browser localStorage empty/not matching),
+    when  the app boots,
+    then  exactly one theme-sync script is emitted: it writes the saved
+          theme into localStorage and reloads via location.replace carrying
+          the _sagaai_ui_restore snapshot, so the user stays on the page;
+          a second boot in the same server session emits nothing.
+    """
+    app_mod, st_mock = _fresh_app({
+        "current_page": "run",
+        "active_thread_id": "t-1",
+        "selected_assistant_id": "a-1",
+        "selected_skill_id": "a-1",
+    })
+
+    app_mod._sync_saved_theme_once({"ui_theme": "Dark"})
+
+    html_calls = [c for c in st_mock.calls if c[0] == "html"]
+    assert html_calls, "cold start must emit the theme sync script"
+    js = html_calls[0][1][0] if html_calls[0][1] else ""
+    assert "stActiveTheme-" in js
+    assert 'JSON.stringify("Dark")' in js
+    assert "localStorage.setItem" in js
+    assert "_sagaai_ui_restore" in js
+    assert "location.replace" in js
+    assert st_mock.session_state["_ui_theme_synced"] is True
+
+    # One-shot guard: the reload lands in the same server session and must
+    # not re-trigger the sync (no endless reload loop).
+    st_mock.calls.clear()
+    app_mod._sync_saved_theme_once({"ui_theme": "Dark"})
+    assert not [c for c in st_mock.calls if c[0] == "html"]
+
+
+def test_cold_start_skips_when_no_saved_theme():
+    """
+    Given no ui_theme in the server config,
+    when  the app boots,
+    then  no theme-sync script is emitted (the interface keeps its
+          browser/system default), but the one-shot flag is still set.
+    """
+    app_mod, st_mock = _fresh_app({})
+    app_mod._sync_saved_theme_once({})
+    assert not [c for c in st_mock.calls if c[0] == "html"]
+    assert st_mock.session_state["_ui_theme_synced"] is True
