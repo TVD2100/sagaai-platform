@@ -892,11 +892,11 @@
       }
     },
     "COMPARISON.md": {
-      "version": "1.1.0",
-      "sha256": "a6cd75a729375d25eb217b9604a2ae3d9464d004870225651e95106e4a3cdfd5",
+      "version": "1.2.0",
+      "sha256": "5383cb66e0ed922f850398d56e41dae539eb3d90115899af28e39f1e0237b823",
       "note": {
-        "ru": "Список инструментов GitHub заменён на ghr_-инструменты REST-коннектора.",
-        "en": "GitHub tool list replaced with the REST connector ghr_ tools."
+        "ru": "Лицензия SagaAI указана как MIT во всех таблицах и разделах; позиционирование актуализировано.",
+        "en": "SagaAI license stated as MIT in all tables and sections; positioning refreshed."
       }
     },
     "LICENSE": {
@@ -916,11 +916,11 @@
       }
     },
     "README.md": {
-      "version": "1.7.2",
-      "sha256": "f80380703c5c5ddb7af99bafa26a8c96e0837d608b4c7ebd09b6764a082a3d46",
+      "version": "1.8.0",
+      "sha256": "7a99335dea0b494b0a37467620854ffa63dcea10cab23a2b4ff296aaa286ee6d",
       "note": {
-        "ru": "Добавлено описание управления системными функциями сотрудников и блока Available tools.",
-        "en": "Documented the system-functions checkboxes and the Available tools prompt block."
+        "ru": "Полная переработка: явное позиционирование платформы для команды ИИ-сотрудников в начале, разделы для бизнес-пользователей и разработчиков, отражены свежие доработки.",
+        "en": "Full rework: explicit positioning of the AI-employee-team platform up front, sections for business users and developers, recent enhancements reflected."
       }
     },
     "SPEC.md": {
