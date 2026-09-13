@@ -893,7 +893,7 @@
     },
     "COMPARISON.md": {
       "version": "1.2.0",
-      "sha256": "5383cb66e0ed922f850398d56e41dae539eb3d90115899af28e39f1e0237b823",
+      "sha256": "16d6f5e3a1a834dc82acfa347d5a1d095dd76d1f248cb2f28a22b22b57fe2518",
       "note": {
         "ru": "Лицензия SagaAI указана как MIT во всех таблицах и разделах; позиционирование актуализировано.",
         "en": "SagaAI license stated as MIT in all tables and sections; positioning refreshed."
