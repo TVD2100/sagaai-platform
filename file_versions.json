@@ -20,8 +20,8 @@
           "sha256": "c0c32fcbd798455f713c21ff241ef34333daf9ca5eaa132b1379377a5c09e12e"
         },
         "app.py": {
-          "version": "1.0.2",
-          "sha256": "c6448f4b0ed4682d9706c2a1d9da9171b1ab63b5506bba6b9616df2d1489ad9b"
+          "version": "1.0.3",
+          "sha256": "f9e275ea6142beef475fb3f9f6fa8cf288ef0b395e39d5ef5586187053e55886"
         },
         "assets/favicon.svg": {
           "version": "1.0.0",
