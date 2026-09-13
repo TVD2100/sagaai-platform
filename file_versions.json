@@ -876,19 +876,19 @@
           "sha256": "dc2ba69051496ace83567e2112f5f5570accdd1f63af4900c4e549113fa5f61b"
         },
         "tests/scenarios/test_orchestrator_tool_gating.py": {
-          "version": "1.0.0",
-          "sha256": "d6f1952f234809c8835a6c5f749610480e9aa07661c3ff003dc9eb75fe14e74a"
+          "version": "1.1.0",
+          "sha256": "7a7c6b4ae97396f569ac0a5db24ffd8de16917a683e267712fcdd2b25ca4f4da"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.8.0",
-      "sha256": "d0ccc2e562dedccd8f54ea1b89ae4dacc97c14eea29237879f12186ceaf03b75",
+      "version": "1.9.0",
+      "sha256": "c720783ed1d272b799c48a961c089517ea0e269fdf8149456a0ccb79ed934cd3",
       "note": {
-        "ru": "Добавлен модуль core/orchestrator_tools и раздел про каталог инструментов/gating disabled_tools.",
-        "en": "Added the core/orchestrator_tools module and a section on the tool catalog / disabled_tools gating."
+        "ru": "Раздел каталога инструментов уточнён: каноничные промпты не дублируют справочник, список поставляет блок Available tools.",
+        "en": "Tool-catalog section clarified: canonical prompts no longer duplicate the catalog, the Available tools block supplies the list."
       }
     },
     "COMPARISON.md": {
@@ -908,11 +908,11 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.11.0",
-      "sha256": "2ad4cc68cc7984d8de99c84bb3dcae0cbac4e0a2c6f7595c1b0e4c8270ea6998",
+      "version": "1.12.0",
+      "sha256": "e14a3a4defc79671cc1e3509dfa75e7825796a9cf922bca0a98cfcc8197f9f8d",
       "note": {
-        "ru": "Карта синхронизирована: синхронизация темы при холодном старте в ui/app.py, обновлены описания тестов темы.",
-        "en": "Map synced: cold-start theme sync in ui/app.py, updated theme test descriptions."
+        "ru": "Обновлены описания системных промптов DevAgent и YaAgent: справочник инструментов вынесен в автоматический блок Available tools.",
+        "en": "Updated DevAgent and YaAgent system-prompt descriptions: the tool catalog moved to the auto-added Available tools block."
       }
     },
     "README.md": {
@@ -924,11 +924,11 @@
       }
     },
     "SPEC.md": {
-      "version": "1.9.0",
-      "sha256": "b8220eee2d9324134daacc355de8a986000d8c2be6d73c79f41870136132a45f",
+      "version": "1.10.0",
+      "sha256": "e10f6bb71ea59b6b355214c10a5d36399fefd304b69badfe05946d989f40767e",
       "note": {
-        "ru": "FR6 дополнено: блок Available tools, настройка disabled_tools чекбоксами, реальный gating.",
-        "en": "FR6 extended: Available tools block, disabled_tools checkbox settings, real dispatch gating."
+        "ru": "Уточнено: каноничные промпты встроенных оркестраторов не дублируют справочник инструментов (блок Available tools).",
+        "en": "Clarified: built-in orchestrator canonical prompts do not duplicate the tool catalog (Available tools block)."
       }
     },
     "defaults/README.md": {
@@ -1156,11 +1156,11 @@
       }
     },
     "defaults/orchestrators/ya_agent/system_prompt.md": {
-      "version": "2.6",
-      "sha256": "394306499cd6c624ca6118cd7b6ea26a18b4ac5822c78f61a3f1d281a28c0f8d",
+      "version": "2.7",
+      "sha256": "21ecb70816bdb5155a9aaf08214acde2ac156c48136371ffce8db284b5dd763d",
       "note": {
-        "ru": "Промпт YaAgent v2.6: обновление документации - стандартный пункт плана; журнал задач с Requests/Analysis и папкой задачи.",
-        "en": "YaAgent prompt v2.6: documentation updates as a standard plan step; task journal with Requests/Analysis and a per-task folder."
+        "ru": "Промпт YaAgent v2.7: справочник инструментов удалён из §6 - сигнатуры передаёт авто-блок '## Available tools'; правила RAG и инструментов истории сохранены.",
+        "en": "YaAgent prompt v2.7: tool catalogue removed from §6 - signatures come from the auto-added '## Available tools' block; RAG and history-tool rules kept."
       }
     },
     "defaults/rag_bases/yaagentai_2020/index.db": {
@@ -1236,11 +1236,11 @@
       }
     },
     "dev_agent/system_prompt.md": {
-      "version": "3.9",
-      "sha256": "35f1daaef5c3bc15a4da52f14cdb3fbf9553884a3ef46aadbb1b35bc377c607e",
+      "version": "3.10",
+      "sha256": "5d123a1d552d26e0134c8e7acdf80988967f3ebd0035d06224558665f27b4f50",
       "note": {
-        "ru": "Промпт DevAgent v3.9: обновление документации - стандартный пункт плана (легковесный список изменений вместо явного запроса); новая дисциплина памяти: разделы Analysis/Requests, папка задачи task_NN через propose_file/read_file в .dev_agent/.",
-        "en": "DevAgent prompt v3.9: documentation updates are a standard plan step (a lightweight change-list instead of a separate request); new memory discipline: Analysis/Requests sections, per-task task_NN folders via propose_file/read_file under .dev_agent/."
+        "ru": "Промпт DevAgent v3.10: справочник инструментов удалён из §6 - сигнатуры передаёт авто-блок '## Available tools'; правила использования инструментов и выбора инструмента сохранены.",
+        "en": "DevAgent prompt v3.10: tool catalogue removed from §6 - signatures come from the auto-added '## Available tools' block; tool-usage and tool-selection rules kept."
       }
     },
     "langs/en.json": {

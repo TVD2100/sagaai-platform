@@ -224,7 +224,7 @@
 | `defaults/assistants/korrektor/manifest.json` | JSON | _(описание не задано)_ | - |
 | `defaults/assistants/korrektor/prompt.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/ya_agent/orchestrator.json` | JSON | _(описание не задано)_ | - |
-| `defaults/orchestrators/ya_agent/system_prompt.md` | Markdown | _(описание не задано)_ | - |
+| `defaults/orchestrators/ya_agent/system_prompt.md` | Markdown | YaAgent system prompt v2.7; tool catalog delegated to the auto-added `## Available tools` block | - |
 | `defaults/orchestrators/ya_agent/instructions/agent_atelier_agents.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/ya_agent/instructions/agent_security_guardrails.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/ya_agent/instructions/agent_tools_mcp.md` | Markdown | _(описание не задано)_ | - |
@@ -274,7 +274,7 @@
 | `dev_agent/config.py` | Python | DevAgent runtime config and protected path policy | - |
 | `dev_agent/llm_utils.py` | Python | Unified LLM-call helper (assistant dict contract, legacy skill alias) | - |
 | `dev_agent/safe_writer.py` | Python | Safe full-file rewrite with diff/verification | backup_manager |
-| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools) | - |
+| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt v3.10; tool catalog delegated to the auto-added `## Available tools` block; usage rules kept inline | - |
 | `dev_agent/task_state.py` | Python | _(описание не задано)_ | backup_manager |
 | `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools + legacy skill tool aliases + skills-library tools | assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
 | `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace tools + orchestrator tools) | storage, tool_executor |

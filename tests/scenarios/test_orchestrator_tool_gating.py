@@ -24,6 +24,11 @@ the platform and the UI use:
   Scenario 4 - an employee realises the mistake, re-enables the tool via
                set_disabled_tools and reloads the page: the checkbox shows
                checked, the prompt lists the tool again and dispatch works.
+
+  Scenario 5 - the canonical dev_agent and ya_agent prompts don't duplicate
+               the tool catalog: they delegate the full list to the
+               auto-added '## Available tools' block, keep their in-line
+               usage rules, and contain no tool-catalog table.
 """
 from __future__ import annotations
 
@@ -264,3 +269,44 @@ def test_reenable_restores_checkbox_prompt_and_dispatch(isolated_data_dir, orchi
     agent.attach_orchestrator(orchid)
     result = agent.dispatch("read_file", {"path": "tests/scenarios/test_orchestrator_tool_gating.py"})
     assert result["ok"] is True, result
+
+# ─── Scenario 5: canonical prompts delegate the catalog -----------------------
+
+CANONICAL_PROMPT_FILES = {
+    "dev_agent": (
+        Path(__file__).resolve().parent.parent.parent
+        / "dev_agent" / "system_prompt.md"
+    ),
+    "ya_agent": (
+        Path(__file__).resolve().parent.parent.parent
+        / "defaults" / "orchestrators" / "ya_agent" / "system_prompt.md"
+    ),
+}
+
+
+def test_canonical_prompts_do_not_duplicate_the_tool_catalog():
+    """Given the canonical prompt files shipped with the repository,
+    when  they are inspected,
+    then  each prompt delegates the full tool list to the auto-added
+          '## Available tools' block, keeps its tool-usage rules in-line
+          and contains no duplicated tool-catalog table; dev_agent is v3.10
+          and ya_agent is v2.7.
+    """
+    dev = CANONICAL_PROMPT_FILES["dev_agent"].read_text(encoding="utf-8")
+    ya = CANONICAL_PROMPT_FILES["ya_agent"].read_text(encoding="utf-8")
+
+    # Version headers carry the bumped versions.
+    assert dev.splitlines()[0].endswith("(v3.10)"), dev.splitlines()[0]
+    assert ya.splitlines()[0].endswith("(v2.7)"), ya.splitlines()[0]
+
+    # Both prompts delegate the catalog to the auto-added block.
+    assert "## Available tools" in dev
+    assert "## Available tools" in ya
+
+    # The in-line usage rules survived the table removal.
+    assert "Call only the tools listed in that block" in dev
+    assert "Вызывайте только перечисленные в нём инструменты" in ya
+
+    # No duplicated tool-catalog table remains in either prompt.
+    assert "| Tool | Purpose |" not in dev
+    assert "| Инструмент | Назначение |" not in ya
