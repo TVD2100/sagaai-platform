@@ -105,19 +105,23 @@ def test_clipboard_button_with_quotes_and_html_label():
 
 
 def test_clipboard_button_uses_theme_css_variables():
-    """The button must style itself with Streamlit theme variables, not
-    fixed colours, so the label stays visible in dark mode too."""
+    """The button must render with a theme-neutral base style and a runtime
+    dark-theme detector (the old var(--text-color) approach broke because
+    Streamlit does not expose those CSS variables to custom HTML)."""
     from core.render import clipboard_button
 
     with install_streamlit_mock() as st_mock:
         clipboard_button(text="hello", key="k3", label="Copy MD")
 
     payload = _call_payload(st_mock)
-    assert "var(--text-color" in payload
+    assert "var(--text-color" not in payload
+    assert "var(--border-color" not in payload
+    assert "color: inherit" in payload
     assert "background: transparent" in payload
-    assert "var(--border-color" in payload
-    assert "color: inherit" not in payload
-
+    assert "color: #fafafa" in payload
+    assert ".cb-dark" in payload
+    assert "applyTheme" in payload
+    assert "prefers-color-scheme: dark" in payload
 
 def test_clipboard_button_copy_url_params_mode():
     """copy_url_params must be JSON-embedded as data-params for the URL mode."""

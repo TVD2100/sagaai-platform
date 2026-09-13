@@ -172,8 +172,8 @@
           "sha256": "bb2dafaa7d161d21f7354f2a1a5185cf596e17a5481cce7f2d26249062a233eb"
         },
         "core/render.py": {
-          "version": "1.0.0",
-          "sha256": "ce69f022557b04e41c35e007e108f2cecf109128e01232779c98ab1d935c817d"
+          "version": "1.0.1",
+          "sha256": "6f19ef3ea5719b8c52bcd1bf278fb1b76ceea8f5e96d887462af08aa7437e58a"
         },
         "core/services.py": {
           "version": "1.0.0",
@@ -540,8 +540,8 @@
           "sha256": "9876dda70149ee980d60b8c8e9fcf3073baea5f9a397f0742c18a89df9897e30"
         },
         "tests/test_render_token_line.py": {
-          "version": "1.0.0",
-          "sha256": "e9ccd5e48cf07b79c87ee7cdccaf51c4e382783d351a776133ad2031596ad7e9"
+          "version": "1.0.1",
+          "sha256": "453c3704fc0295778de3129b0c40116315b3bc4f02f8f392e97f19695ed75b4b"
         },
         "tests/test_safety_mode.py": {
           "version": "1.0.0",

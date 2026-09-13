@@ -14,14 +14,14 @@ def clipboard_button(text: str, key: str, label: str = "📋 MD",
                      copy_url_params: Optional[Dict[str, str]] = None):
     """Render a compact theme-aware clipboard-copy button via ``st.html``.
 
-    The previous implementation used ``streamlit.components.v1.html``, which
-    renders inside an isolated iframe that does NOT inherit the Streamlit
-    theme. The button therefore relied on ``color: inherit`` inside an iframe
-    without a text colour, making the label invisible in dark mode.
-    ``st.html(unsafe_allow_javascript=True)`` renders the same markup in the
-    main document, so the styles below use Streamlit's theme CSS variables
-    (``--background-color``, ``--secondary-background-color``,
-    ``--text-color``, ``--border-color``) and stay legible in every theme.
+    ``st.html(unsafe_allow_javascript=True)`` renders the markup in the main
+    document next to the regular Streamlit buttons. The base style is theme-
+    neutral (``color: inherit`` and a translucent grey border), and a small
+    script detects the ACTUAL dark theme at runtime: it reads the rendered
+    background colour of the button / app container (``stApp`` testid) and, as
+    a fallback, the ``prefers-color-scheme`` media query. When dark mode is
+    detected the button gets the ``.cb-dark`` class with light text and a
+    light border, matching its neighbouring Streamlit buttons.
 
     Two modes:
 
@@ -48,22 +48,27 @@ def clipboard_button(text: str, key: str, label: str = "📋 MD",
     unique_id = "cb_" + re.sub(r"[^A-Za-z0-9_-]", "_", key)
 
     st.html(
-        f"""
+        rf"""
         <style>
           .cb-btn {{
             background: transparent;
-            border: 1px solid var(--border-color, rgba(49,51,63,0.2));
+            border: 1px solid rgba(128,128,128,0.4);
             border-radius: 8px;
             padding: 4px 10px;
             font-size: 0.78rem;
             font-family: var(--font, inherit);
             cursor: pointer;
-            color: var(--text-color, #262730);
+            color: inherit;
             width: 100%;
-            transition: background 0.15s;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
           }}
           .cb-btn:hover {{ background: rgba(128,128,128,0.15); }}
-          .cb-btn.copied {{ color: #22c55e; border-color: #22c55e; }}
+          .cb-btn.cb-dark {{
+            color: #fafafa;
+            border-color: rgba(250,250,250,0.45);
+          }}
+          .cb-btn.cb-dark:hover {{ background: rgba(250,250,250,0.12); }}
+          .cb-btn.copied {{ color: #22c55e !important; border-color: #22c55e !important; }}
         </style>
         <button class="cb-btn" id="{unique_id}" data-clip="{data_clip}"
                 data-params="{data_params}" data-label="{data_label}">{label_html}</button>
@@ -75,6 +80,39 @@ def clipboard_button(text: str, key: str, label: str = "📋 MD",
             var paramsAttr = btn.getAttribute('data-params');
             var params = paramsAttr ? JSON.parse(paramsAttr) : null;
             var label = btn.getAttribute('data-label');
+            function themeLuma(elm) {{
+                if (!elm) {{ return -1; }}
+                var bg = (window.getComputedStyle(elm).backgroundColor || '');
+                var m = bg.match(/rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?/);
+                if (!m) {{ return -1; }}
+                if (m[4] !== undefined && parseFloat(m[4]) === 0) {{ return -1; }}
+                return (0.2126 * +m[1] + 0.7152 * +m[2] + 0.0722 * +m[3]);
+            }}
+            function applyTheme() {{
+                var luma = themeLuma(btn);
+                var app = document.querySelector('[data-testid="stApp"]');
+                if (luma < 0) {{ luma = themeLuma(app); }}
+                if (luma < 0) {{ luma = themeLuma(document.body); }}
+                var dark;
+                if (luma >= 0) {{ dark = luma < 0.5; }}
+                else if (typeof window.matchMedia === 'function') {{
+                    dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                }} else {{ dark = false; }}
+                if (dark) {{ btn.classList.add('cb-dark'); }}
+                else {{ btn.classList.remove('cb-dark'); }}
+            }}
+            try {{
+                applyTheme();
+                if (typeof window.matchMedia === 'function') {{
+                    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+                    if (mq.addEventListener) {{ mq.addEventListener('change', applyTheme); }}
+                }}
+                var watch = function(t) {{ if (t) {{ new MutationObserver(applyTheme).observe(t, {{ attributes: true }}); }} }};
+                var appEl = document.querySelector('[data-testid="stApp"]');
+                watch(appEl);
+                watch(document.body);
+                watch(document.documentElement);
+            }} catch (e) {{}}
             function restore() {{
                 btn.textContent = label;
                 btn.classList.remove('copied');
