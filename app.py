@@ -35,7 +35,7 @@ if not same_process_marker(_project_root):
 import streamlit as st
 
 st.set_page_config(
-    page_title="SagaAI Assistant",
+    page_title="SagaAI Platform",
     page_icon=os.path.join(_project_root, "assets", "favicon.svg"),
     layout="wide",
     initial_sidebar_state="expanded",
