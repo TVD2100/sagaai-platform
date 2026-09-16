@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-09-15T23:16:00+00:00`
-- Файлов: **723**
-- Языки: Config: 1, JSON: 22, Markdown: 484, PEM certificate: 1, Python: 219, Text: 1
+- Обновлено: `2026-09-16T13:30:33+00:00`
+- Файлов: **860**
+- Языки: Config: 1, JSON: 22, Markdown: 620, PEM certificate: 1, Python: 220, Text: 1
 
 ## Файлы и назначение
 
@@ -18,7 +18,7 @@
 | `pytest.ini` | Config | Pytest configuration | - |
 | `requirements.txt` | Text | Python dependencies | - |
 | `ui/__init__.py` | Python | Package marker | - |
-| `ui/app.py` | Python | Main Streamlit app: sidebar navigation and page dispatch; theme switching and one-time cold-start localStorage theme sync; assistants use assistant terminology | - |
+| `ui/app.py` | Python | Main Streamlit app: sidebar navigation and page dispatch; assistants use assistant terminology | - |
 | `ui/components/__init__.py` | Python | Package marker | - |
 | `ui/components/workspace_picker.py` | Python | Workspace picker component | - |
 | `ui/pages/__init__.py` | Python | Package marker | - |
@@ -48,8 +48,8 @@
 | `core/auth.py` | Python | Optional password authentication gate | - |
 | `core/bootstrap.py` | Python | First-run provisioning: Assistant/Employee Creator instructions, DevAgent settings, legacy skill_creator migration | - |
 | `core/config.py` | Python | Configuration load/save with secret encryption and env overlay | storage |
-| `core/context_guard.py` | Python | Pre-flight context-window guard for api_layer: soft trim, hard threshold, ContextWindowError | - |
 | `core/connectors.py` | Python | _(описание не задано)_ | - |
+| `core/context_guard.py` | Python | _(описание не задано)_ | - |
 | `core/crypto.py` | Python | Encryption key handling and Fernet helpers | - |
 | `core/dangerous.py` | Python | Dangerous-code assessment for run_code/run_test | - |
 | `core/default_imports.py` | Python | _(описание не задано)_ | storage |
@@ -165,14 +165,14 @@
 | `tests/test_storage_page_ui.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_structured_output_consumers.py` | Python | _(описание не задано)_ | - |
 | `tests/test_task_state.py` | Python | _(описание не задано)_ | - |
-| `tests/test_theme_restore.py` | Python | Unit tests for the theme-switch UI-restore mechanism and the saved-theme cold-start sync | - |
+| `tests/test_theme_restore.py` | Python | _(описание не задано)_ | - |
 | `tests/test_thread_deeplink.py` | Python | _(описание не задано)_ | - |
 | `tests/test_thread_file_save.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_threads_devagent_files.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_token_line_cache.py` | Python | _(описание не задано)_ | - |
 | `tests/test_tool_executor_env.py` | Python | _(описание не задано)_ | - |
 | `tests/test_tool_result_size_cap.py` | Python | _(описание не задано)_ | - |
-| `tests/test_tool_result_storage_summary.py` | Python | _(описание не задано)_ | - |
+| `tests/test_tool_result_storage_summary.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_tools_utils.py` | Python | _(описание не задано)_ | - |
 | `tests/test_ui_pages.py` | Python | UI page tests | - |
 | `tests/test_ui_tooltips.py` | Python | _(описание не задано)_ | - |
@@ -191,11 +191,12 @@
 | `tests/scenarios/test_access_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_assistant_sidebar_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_connection_retry_scenarios.py` | Python | _(описание не задано)_ | - |
-| `tests/scenarios/test_context_overflow_protection.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_connectors_scenarios.py` | Python | _(описание не задано)_ | storage |
+| `tests/scenarios/test_context_overflow_protection.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_first_run_flow.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_github_rest_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_json_repair_scenarios.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_loop_stuck_protection_scenarios.py` | Python | Loop-stuck protection scenarios: per-tool failure counter hints, duplicate-call flood compaction, prose loop_status continue | - |
 | `tests/scenarios/test_orchestrator_chat_prefs_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_orchestrator_devagent_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_orchestrator_other_settings_scenario.py` | Python | _(описание не задано)_ | storage |
@@ -209,7 +210,7 @@
 | `tests/scenarios/test_stats_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_structured_output_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_task_state_mega_task.py` | Python | _(описание не задано)_ | - |
-| `tests/scenarios/test_theme_switch_scenario.py` | Python | Theme-switch user scenarios, including the cold-start saved-theme sync | - |
+| `tests/scenarios/test_theme_switch_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_updater_runtime_flow.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_welcome_page_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_workspace_binding_scenario.py` | Python | _(описание не задано)_ | storage |
@@ -230,7 +231,7 @@
 | `defaults/assistants/korrektor/manifest.json` | JSON | _(описание не задано)_ | - |
 | `defaults/assistants/korrektor/prompt.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/ya_agent/orchestrator.json` | JSON | _(описание не задано)_ | - |
-| `defaults/orchestrators/ya_agent/system_prompt.md` | Markdown | YaAgent system prompt v2.7; tool catalog delegated to the auto-added `## Available tools` block | - |
+| `defaults/orchestrators/ya_agent/system_prompt.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/ya_agent/instructions/agent_atelier_agents.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/ya_agent/instructions/agent_security_guardrails.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/ya_agent/instructions/agent_tools_mcp.md` | Markdown | _(описание не задано)_ | - |
@@ -273,16 +274,16 @@
 | `scripts/regenerate_project_map.py` | Python | Regenerates PROJECT_MAP.md with assistant terminology | - |
 | `scripts/verify_manifest.py` | Python | _(описание не задано)_ | - |
 | `dev_agent/__init__.py` | Python | Package marker | agent_loop, backup_manager, safe_writer, tool_executor, universal_agent, workspace_tools |
-| `dev_agent/agent_loop.py` | Python | Provider-independent agent loop (strong/weak assistant routing, economy mode, skills-library tools classified as weak) | storage |
+| `dev_agent/agent_loop.py` | Python | Provider-independent agent loop (strong/weak assistant routing, economy mode, skills-library tools classified as weak; per-tool failure counter, duplicate-call flood compaction, cascading JSON repair) | storage |
 | `dev_agent/assistant_detector.py` | Python | Assistant detection/creation helpers (renamed from skill_detector) | storage |
 | `dev_agent/assistant_model_resolver.py` | Python | Auto model resolution for assistant creation | llm_utils |
 | `dev_agent/backup_manager.py` | Python | Per-file backup/restore manager | - |
 | `dev_agent/config.py` | Python | DevAgent runtime config and protected path policy | - |
 | `dev_agent/llm_utils.py` | Python | Unified LLM-call helper (assistant dict contract, legacy skill alias) | - |
 | `dev_agent/safe_writer.py` | Python | Safe full-file rewrite with diff/verification | backup_manager |
-| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt v3.10; tool catalog delegated to the auto-added `## Available tools` block; usage rules kept inline | - |
+| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.11 loop-protection rules) | - |
 | `dev_agent/task_state.py` | Python | _(описание не задано)_ | backup_manager |
-| `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools + legacy skill tool aliases + skills-library tools | assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
+| `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools + legacy skill tool aliases + skills-library tools | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
 | `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace tools + orchestrator tools) | storage, tool_executor |
 | `dev_agent/workspace_binding.py` | Python | _(описание не задано)_ | - |
 | `dev_agent/workspace_tools.py` | Python | Workspace layer: folders, project map, docs, snapshots | backup_manager |
@@ -729,6 +730,142 @@
 | `dev_agent/task_states/TASK_STATE__20260913_013435_ff9719.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260913_013443_ce2a90.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260913_013443_f44505.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_015000_d21dfb.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_015003_18d7b1.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_015003_8cc0a7.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_015003_b4212b.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_015003_d562f8.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_015003_db73b8.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_015011_5eff63.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_015011_944bc1.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_071231_c7d0ab.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_071234_266f28.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_071234_30eaf3.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_071234_5a034e.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_071234_a1acd3.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_071234_e815af.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_071242_2e835f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_071242_e5f0d5.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_071450_31a66b.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_071453_04d5db.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_071453_94ba34.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_071453_99e047.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_071453_b10bc8.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_071453_f16027.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_071501_45e5fc.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_071501_5aee64.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_084924_b77a4f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_084927_5986e7.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_084927_8e5689.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_084927_98e3e5.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_084927_d27dcc.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_084927_ed37f6.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_084934_1b15a8.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_084934_a7aeb2.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_085045_7376fb.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_085048_2d8e0c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_085048_84a090.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_085048_a25c1c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_085048_bf7148.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_085048_e1fbcf.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_085055_25e43c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_085055_78c21d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_095803_d37159.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_095806_4846b8.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_095806_4dca48.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_095806_5b4811.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_095806_6f4d0a.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_095806_d50a9d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_095814_cfdaab.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_095814_faca80.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_095933_f595b4.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_095936_1db7fe.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_095936_3086b3.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_095936_5b7886.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_095936_8ee508.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_095936_e43326.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_095943_41c2f5.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_095943_dd3e70.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_102140_8f6056.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_102143_128dfa.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_102143_5b8cb0.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_102143_90b95e.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_102143_b72784.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_102143_d1273d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_102151_80b2fe.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_102151_9ae528.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_105534_85380f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_105537_4512df.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_105537_8dafe9.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_105537_979923.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_105537_cafb0f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_105537_cea9c5.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_105544_012073.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_105544_7d5a55.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_105604_44e1bb.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_105606_2765f3.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_105606_392f5c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_105606_474b09.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_105606_581ae0.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_105606_bf4e5d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_105614_eba032.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260913_105614_ff2afa.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012643_23e46d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012647_08fb23.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012647_374460.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012647_4f5b13.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012647_905769.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012647_e9fbed.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012654_359065.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012654_ef7c10.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012745_563d20.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012748_44fa23.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012748_8c7ef2.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012748_c7441f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012748_d50ce4.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012748_d5f8ab.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012755_257e52.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012755_5700ba.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012835_8c4293.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012838_0f39b7.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012838_2d9a75.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012838_586313.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012838_a9cf2c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012838_f011e6.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012846_042054.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_012846_28393c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_022158_1cd7da.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_022158_218561.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_022158_35c3d2.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_022158_363b45.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_022158_678e53.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_022205_45c92c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_022205_85b46e.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_022222_d6ec98.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_125722_f70ac2.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_125725_1b2f7a.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_125725_2cb357.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_125725_5e5ef2.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_125725_74af3f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_125725_f5651c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_125733_98ee20.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_125733_bb7d7e.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_155114_09d866.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_155117_33713d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_155117_363ccb.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_155117_36c5d1.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_155117_927c7d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_155117_ce88eb.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_155124_340468.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_155124_d72289.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_155151_816a77.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_155153_35a4d1.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_155153_5ad7f7.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_155153_5fd1b2.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_155153_6a09f0.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_155153_ac5e9c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_155201_390de8.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_155201_e1c2c7.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
 | `services/deepseek.json` | JSON | DeepSeek service definition | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
@@ -887,52 +1024,53 @@
 - `page_welcome` (func, строка 29)
 
 ### `core/api_errors.py`
-- `APIError` (class, строка 27)
-- `ServiceNotFoundError` (class, строка 54)
-- `ApiKeyMissingError` (class, строка 67)
-- `AuthTypeUnknownError` (class, строка 81)
-- `ProviderHTTPError` (class, строка 95)
-- `RequestTimeoutError` (class, строка 116)
-- `NetworkError` (class, строка 125)
-- `api_error_message` (func, строка 137)
+- `APIError` (class, строка 28)
+- `ServiceNotFoundError` (class, строка 55)
+- `ApiKeyMissingError` (class, строка 68)
+- `AuthTypeUnknownError` (class, строка 82)
+- `ProviderHTTPError` (class, строка 96)
+- `RequestTimeoutError` (class, строка 117)
+- `NetworkError` (class, строка 126)
+- `ContextWindowError` (class, строка 135)
+- `api_error_message` (func, строка 172)
 
 ### `core/api_layer.py`
-- `_gigachat_verify` (func, строка 70)
-- `_retry_params` (func, строка 99)
-- `retry_call` (func, строка 124)
-- `_parse_sanitized_info` (func, строка 174)
-- `_get_model_max_tokens` (func, строка 200)
-- `_prepare_response_content` (func, строка 221)
-- `_format_function_call_item` (func, строка 256)
-- `_normalise_json_schema` (func, строка 284)
-- `_responses_json_format` (func, строка 303)
-- `_openai_response_format` (func, строка 316)
-- `_gigachat_response_format` (func, строка 330)
-- `_unwrap_json_text` (func, строка 347)
-- `_is_schema_rejection` (func, строка 375)
-- `_extract_responses_text` (func, строка 397)
-- `_extract_deepseek_responses_text` (func, строка 455)
-- `_normalise_tools` (func, строка 467)
-- `_has_native_function_tools` (func, строка 485)
-- `_protect_history` (func, строка 500)
-- `_estimate_tokens_in` (func, строка 573)
-- `_bearer_request` (func, строка 584)
-- `_deepseek_reasoning_effort` (func, строка 659)
-- `_deepseek_responses_request` (func, строка 675)
-- `_anthropic_web_search_used` (func, строка 784)
-- `_extract_anthropic_text` (func, строка 800)
-- `_deepseek_anthropic_web_search` (func, строка 824)
-- `_yandex_reasoning_effort` (func, строка 940)
-- `_yandex_web_search_config` (func, строка 967)
-- `_assistant_web_search_config` (func, строка 997)
-- `_yandex_responses_request` (func, строка 1026)
-- `_gigachat_token` (func, строка 1143)
-- `_assistant_rag_context` (func, строка 1162)
-- `send_request` (func, строка 1213)
-- `_do_request` (func, строка 1396)
-- `_extract_error_body` (func, строка 1557)
-- `_extract_gigachat_error` (func, строка 1578)
-- `test_connection` (func, строка 1593)
+- `_gigachat_verify` (func, строка 71)
+- `_retry_params` (func, строка 100)
+- `retry_call` (func, строка 125)
+- `_parse_sanitized_info` (func, строка 175)
+- `_get_model_max_tokens` (func, строка 201)
+- `_prepare_response_content` (func, строка 222)
+- `_format_function_call_item` (func, строка 257)
+- `_normalise_json_schema` (func, строка 285)
+- `_responses_json_format` (func, строка 304)
+- `_openai_response_format` (func, строка 317)
+- `_gigachat_response_format` (func, строка 331)
+- `_unwrap_json_text` (func, строка 348)
+- `_is_schema_rejection` (func, строка 376)
+- `_extract_responses_text` (func, строка 398)
+- `_extract_deepseek_responses_text` (func, строка 456)
+- `_normalise_tools` (func, строка 468)
+- `_has_native_function_tools` (func, строка 486)
+- `_protect_history` (func, строка 501)
+- `_estimate_tokens_in` (func, строка 574)
+- `_bearer_request` (func, строка 585)
+- `_deepseek_reasoning_effort` (func, строка 660)
+- `_deepseek_responses_request` (func, строка 676)
+- `_anthropic_web_search_used` (func, строка 785)
+- `_extract_anthropic_text` (func, строка 801)
+- `_deepseek_anthropic_web_search` (func, строка 825)
+- `_yandex_reasoning_effort` (func, строка 941)
+- `_yandex_web_search_config` (func, строка 968)
+- `_assistant_web_search_config` (func, строка 998)
+- `_yandex_responses_request` (func, строка 1027)
+- `_gigachat_token` (func, строка 1144)
+- `_assistant_rag_context` (func, строка 1163)
+- `send_request` (func, строка 1214)
+- `_do_request` (func, строка 1399)
+- `_extract_error_body` (func, строка 1560)
+- `_extract_gigachat_error` (func, строка 1581)
+- `test_connection` (func, строка 1596)
 
 ### `core/assistant_creator.py`
 - `_section_headers` (func, строка 23)
@@ -1452,11 +1590,11 @@
 
 ### `core/render.py`
 - `clipboard_button` (func, строка 13)
-- `_md_to_html` (func, строка 122)
-- `_md_to_txt` (func, строка 154)
-- `format_token_line` (func, строка 177)
-- `_iter_md_blocks` (func, строка 218)
-- `format_ts_label` (func, строка 298)
+- `_md_to_html` (func, строка 160)
+- `_md_to_txt` (func, строка 192)
+- `format_token_line` (func, строка 215)
+- `_iter_md_blocks` (func, строка 256)
+- `format_ts_label` (func, строка 336)
 
 ### `core/services.py`
 - `_scan_dir` (func, строка 15)
@@ -1551,21 +1689,21 @@
 - `load_thread_messages` (func, строка 110)
 - `_restore_events` (func, строка 116)
 - `save_thread_messages` (func, строка 149)
-- `append_thread_message` (func, строка 180)
-- `sum_thread_tokens` (func, строка 203)
-- `load_thread_meta` (func, строка 221)
-- `delete_thread` (func, строка 225)
-- `list_devagent_threads` (func, строка 233)
-- `list_orchestrator_threads` (func, строка 242)
-- `delete_all_devagent_threads` (func, строка 247)
-- `_thread_files_dir` (func, строка 259)
-- `_safe_thread_file_name` (func, строка 264)
-- `_thread_file_path` (func, строка 282)
-- `save_thread_file_data` (func, строка 288)
-- `_looks_binary` (func, строка 313)
-- `_try_decode_text` (func, строка 336)
-- `list_thread_files` (func, строка 352)
-- `read_thread_file` (func, строка 387)
+- `append_thread_message` (func, строка 190)
+- `sum_thread_tokens` (func, строка 221)
+- `load_thread_meta` (func, строка 239)
+- `delete_thread` (func, строка 243)
+- `list_devagent_threads` (func, строка 251)
+- `list_orchestrator_threads` (func, строка 260)
+- `delete_all_devagent_threads` (func, строка 265)
+- `_thread_files_dir` (func, строка 277)
+- `_safe_thread_file_name` (func, строка 282)
+- `_thread_file_path` (func, строка 300)
+- `save_thread_file_data` (func, строка 306)
+- `_looks_binary` (func, строка 331)
+- `_try_decode_text` (func, строка 354)
+- `list_thread_files` (func, строка 370)
+- `read_thread_file` (func, строка 405)
 
 ### `core/tools_utils.py`
 - `list_tool_definitions` (func, строка 12)
@@ -1661,6 +1799,17 @@
 - `TestRepairUnclosedBracesUnit` (class, строка 26)
 - `TestParseToolCallsRepair` (class, строка 48)
 - `TestSystemPromptDocumentsJsonSelfCheck` (class, строка 117)
+- `test_valid_json_untouched_by_cascade` (func, строка 132)
+- `test_stray_closing_bracket_removed` (func, строка 137)
+- `test_structural_quotes_escaped_one_level` (func, строка 147)
+- `test_json_string_wrapped_call_decoded` (func, строка 157)
+- `test_collapse_value_escapes_unit` (func, строка 165)
+- `_lp_skill` (func, строка 172)
+- `_lp_send` (func, строка 175)
+- `_RecDispatcher` (class, строка 186)
+- `_broken_call` (func, строка 197)
+- `test_varied_broken_calls_never_hard_stop` (func, строка 200)
+- `test_identical_broken_call_stops_the_loop` (func, строка 209)
 
 ### `tests/test_agent_loop_thread_context.py`
 - `isolated_data` (func, строка 22)
@@ -2294,6 +2443,10 @@
 - `test_live_loop_history_entries_get_ts` (func, строка 1256)
 - `TestDsmlValidation` (class, строка 1276)
 - `TestDsmlStepLoop` (class, строка 1307)
+- `TestToolFailCounts` (class, строка 1356)
+- `_spiral_text` (func, строка 1434)
+- `TestDiagnosticsDedup` (class, строка 1441)
+- `test_spiral_never_grows_context` (func, строка 1486)
 
 ### `tests/test_phase1_core_pure.py`
 - `test_py_compile` (func, строка 51)
@@ -2514,7 +2667,7 @@
 - `test_clipboard_button_with_html_and_newlines` (func, строка 74)
 - `test_clipboard_button_with_quotes_and_html_label` (func, строка 91)
 - `test_clipboard_button_uses_theme_css_variables` (func, строка 107)
-- `test_clipboard_button_copy_url_params_mode` (func, строка 122)
+- `test_clipboard_button_copy_url_params_mode` (func, строка 126)
 
 ### `tests/test_safety_mode.py`
 - `test_safety_enabled_is_true_by_default` (func, строка 25)
@@ -2681,15 +2834,18 @@
 - `test_context_section_order_matches_canon` (func, строка 419)
 
 ### `tests/test_theme_restore.py`
-- `_drop_ui_modules` (func, строка 21)
-- `app_under_mock` (func, строка 28)
-- `test_payload_for_assistant_page` (func, строка 43)
-- `test_payload_for_orchestrator_page` (func, строка 64)
-- `test_payload_skips_settings_pages` (func, строка 76)
-- `test_apply_theme_uses_replace_with_restore_marker` (func, строка 86)
-- `test_restore_reapplies_assistant_snapshot_once` (func, строка 103)
-- `test_restore_without_marker_leaves_state_untouched` (func, строка 125)
-- `test_restore_orchestrator_reloads_thread` (func, строка 133)
+- `_drop_ui_modules` (func, строка 23)
+- `app_under_mock` (func, строка 30)
+- `test_payload_for_assistant_page` (func, строка 45)
+- `test_payload_for_orchestrator_page` (func, строка 66)
+- `test_payload_skips_settings_pages` (func, строка 78)
+- `test_apply_theme_uses_replace_with_restore_marker` (func, строка 88)
+- `test_sync_saved_theme_emits_localstorage_sync` (func, строка 107)
+- `test_sync_saved_theme_embeds_saved_mode_and_payload` (func, строка 127)
+- `test_sync_saved_theme_skips_reload_for_invisible_system_default` (func, строка 140)
+- `test_restore_reapplies_assistant_snapshot_once` (func, строка 155)
+- `test_restore_without_marker_leaves_state_untouched` (func, строка 177)
+- `test_restore_orchestrator_reloads_thread` (func, строка 185)
 
 ### `tests/test_thread_deeplink.py`
 - `_drop_ui_modules` (func, строка 28)
@@ -2781,33 +2937,33 @@
 - `_render_theme_select` (func, строка 160)
 - `test_theme_dark_select_writes_native_streamlit_theme_key` (func, строка 168)
 - `test_theme_system_and_light_select_emit_correct_mode` (func, строка 187)
-- `test_skills_page_when_empty` (func, строка 213)
-- `test_skills_page_with_skills_list` (func, строка 218)
-- `test_settings_api_keys_tab_renders` (func, строка 233)
-- `test_devagent_settings_tab_renders` (func, строка 241)
-- `test_instructions_tab_renders` (func, строка 256)
-- `test_settings_provider_save_shows_success` (func, строка 262)
-- `test_settings_global_save_button_absent` (func, строка 283)
-- `test_workspace_picker_initial_state` (func, строка 306)
-- `test_orchestrator_favicon_is_static_only` (func, строка 312)
-- `test_orchestrator_models_settings_renders_search_prompt_area` (func, строка 332)
-- `test_orchestrator_models_settings_saves_reasoning_effort` (func, строка 388)
-- `test_assistants_improve_prompt_does_not_mutate_existing_widget` (func, строка 433)
-- `_open_assistant_create_form` (func, строка 491)
-- `test_assistant_form_field_order` (func, строка 500)
-- `test_assistant_form_max_tool_calls_default_three` (func, строка 535)
-- `test_assistant_form_renders_reasoning_effort_select` (func, строка 555)
-- `test_assistant_create_saves_reasoning_effort` (func, строка 582)
-- `test_assistants_page_back_to_chat_returns_to_chat` (func, строка 612)
-- `test_strip_html_details_tags_removes_wrappers` (func, строка 634)
-- `test_strip_tool_calls_removes_details_tags` (func, строка 652)
-- `test_render_tool_result_shows_call_and_first_two_lines` (func, строка 669)
-- `test_render_tool_result_short_result_no_nested_expander` (func, строка 709)
-- `test_render_events_pairs_tool_call_with_tool_result` (func, строка 731)
-- `test_render_events_standalone_tool_call_falls_back` (func, строка 759)
-- `test_chat_page_has_settings_and_new_dialog_buttons` (func, строка 775)
-- `test_chat_page_keeps_selected_assistant_across_reruns` (func, строка 820)
-- `test_render_event_retrying_llm_warns_with_i18n` (func, строка 893)
+- `test_skills_page_when_empty` (func, строка 217)
+- `test_skills_page_with_skills_list` (func, строка 222)
+- `test_settings_api_keys_tab_renders` (func, строка 237)
+- `test_devagent_settings_tab_renders` (func, строка 245)
+- `test_instructions_tab_renders` (func, строка 260)
+- `test_settings_provider_save_shows_success` (func, строка 266)
+- `test_settings_global_save_button_absent` (func, строка 287)
+- `test_workspace_picker_initial_state` (func, строка 310)
+- `test_orchestrator_favicon_is_static_only` (func, строка 316)
+- `test_orchestrator_models_settings_renders_search_prompt_area` (func, строка 336)
+- `test_orchestrator_models_settings_saves_reasoning_effort` (func, строка 392)
+- `test_assistants_improve_prompt_does_not_mutate_existing_widget` (func, строка 437)
+- `_open_assistant_create_form` (func, строка 495)
+- `test_assistant_form_field_order` (func, строка 504)
+- `test_assistant_form_max_tool_calls_default_three` (func, строка 539)
+- `test_assistant_form_renders_reasoning_effort_select` (func, строка 559)
+- `test_assistant_create_saves_reasoning_effort` (func, строка 586)
+- `test_assistants_page_back_to_chat_returns_to_chat` (func, строка 616)
+- `test_strip_html_details_tags_removes_wrappers` (func, строка 638)
+- `test_strip_tool_calls_removes_details_tags` (func, строка 656)
+- `test_render_tool_result_shows_call_and_first_two_lines` (func, строка 673)
+- `test_render_tool_result_short_result_no_nested_expander` (func, строка 713)
+- `test_render_events_pairs_tool_call_with_tool_result` (func, строка 735)
+- `test_render_events_standalone_tool_call_falls_back` (func, строка 763)
+- `test_chat_page_has_settings_and_new_dialog_buttons` (func, строка 779)
+- `test_chat_page_keeps_selected_assistant_across_reruns` (func, строка 824)
+- `test_render_event_retrying_llm_warns_with_i18n` (func, строка 897)
 
 ### `tests/test_ui_tooltips.py`
 - `_lang_files` (func, строка 49)
@@ -3135,12 +3291,6 @@
 - `test_scenario_permanent_outage_preserves_user_message` (func, строка 137)
 - `test_scenario_provider_http_error_fails_fast` (func, строка 161)
 
-### `tests/scenarios/test_context_overflow_protection.py`
-- `sandbox` (func, строка 28)
-- `test_scenario_giant_tool_result_is_capped_before_context` (func, строка 41)
-- `test_scenario_long_history_is_trimmed_before_request` (func, строка 68)
-- `test_scenario_impossible_payload_raises_clear_error` (func, строка 108)
-
 ### `tests/scenarios/test_connectors_scenarios.py`
 - `isolated_data_dir` (func, строка 29)
 - `_github_connection` (func, строка 61)
@@ -3150,6 +3300,12 @@
 - `test_scenario_orchestrator_binding` (func, строка 137)
 - `test_scenario_github_tools_return_clean_dicts` (func, строка 169)
 - `test_scenario_github_tool_available_through_dispatcher` (func, строка 203)
+
+### `tests/scenarios/test_context_overflow_protection.py`
+- `sandbox` (func, строка 28)
+- `test_scenario_giant_tool_result_is_capped_before_context` (func, строка 41)
+- `test_scenario_long_history_is_trimmed_before_request` (func, строка 68)
+- `test_scenario_impossible_payload_raises_clear_error` (func, строка 108)
 
 ### `tests/scenarios/test_first_run_flow.py`
 - `isolated_data` (func, строка 64)
@@ -3178,6 +3334,15 @@
 - `test_scenario_happy_path_truncated_call_is_repaired_and_executed` (func, строка 59)
 - `test_scenario_edge_case_truncation_inside_closed_fence` (func, строка 81)
 - `test_scenario_error_state_unrepairable_truncation_stops_loop` (func, строка 103)
+
+### `tests/scenarios/test_loop_stuck_protection_scenarios.py`
+- `_make_skill` (func, строка 24)
+- `_scripted_send` (func, строка 33)
+- `RecordingDispatcher` (class, строка 46)
+- `_tool_results` (func, строка 67)
+- `test_scenario_three_consecutive_failures_add_guidance_and_end_cleanly` (func, строка 77)
+- `test_scenario_duplicate_call_flood_yields_one_compact_error` (func, строка 114)
+- `test_scenario_prose_with_continue_keeps_loop_alive` (func, строка 150)
 
 ### `tests/scenarios/test_orchestrator_chat_prefs_scenario.py`
 - `page_env` (func, строка 31)
@@ -3216,12 +3381,13 @@
 - `test_scenario_boundary_errors_stay_inside_sandbox` (func, строка 207)
 
 ### `tests/scenarios/test_orchestrator_tool_gating.py`
-- `isolated_data_dir` (func, строка 45)
-- `orchid` (func, строка 88)
-- `test_prompt_gets_tool_catalog_excluding_disabled` (func, строка 98)
-- `test_gating_end_to_end_through_dispatcher` (func, строка 126)
-- `test_functions_tab_uncheck_and_save_persists` (func, строка 168)
-- `test_reenable_restores_checkbox_prompt_and_dispatch` (func, строка 224)
+- `isolated_data_dir` (func, строка 50)
+- `orchid` (func, строка 93)
+- `test_prompt_gets_tool_catalog_excluding_disabled` (func, строка 103)
+- `test_gating_end_to_end_through_dispatcher` (func, строка 131)
+- `test_functions_tab_uncheck_and_save_persists` (func, строка 173)
+- `test_reenable_restores_checkbox_prompt_and_dispatch` (func, строка 229)
+- `test_canonical_prompts_do_not_duplicate_the_tool_catalog` (func, строка 287)
 
 ### `tests/scenarios/test_provider_economy_settings_scenario.py`
 - `_json` (func, строка 34)
@@ -3288,11 +3454,13 @@
 - `test_next_task_reuses_journal_and_continues_from_handoff` (func, строка 111)
 
 ### `tests/scenarios/test_theme_switch_scenario.py`
-- `_drop_ui_modules` (func, строка 24)
-- `_fresh_app` (func, строка 30)
-- `test_theme_switch_returns_to_assistant_chat` (func, строка 44)
-- `test_theme_switch_returns_to_orchestrator_dialog` (func, строка 81)
-- `test_stale_restore_marker_does_not_resurrect_dialog` (func, строка 112)
+- `_drop_ui_modules` (func, строка 26)
+- `_fresh_app` (func, строка 32)
+- `test_theme_switch_returns_to_assistant_chat` (func, строка 46)
+- `test_theme_switch_returns_to_orchestrator_dialog` (func, строка 83)
+- `test_stale_restore_marker_does_not_resurrect_dialog` (func, строка 114)
+- `test_cold_start_syncs_saved_theme_once` (func, строка 150)
+- `test_cold_start_skips_when_no_saved_theme` (func, строка 186)
 
 ### `tests/scenarios/test_updater_runtime_flow.py`
 - `_fresh_page` (func, строка 52)
@@ -3438,45 +3606,45 @@
 
 ### `dev_agent/agent_loop.py`
 - `_now_ts` (func, строка 153)
-- `_parse_loop_status` (func, строка 184)
-- `_parse_requires_user_response` (func, строка 193)
-- `_prose_contains_progress` (func, строка 211)
-- `_prose_looks_like_question` (func, строка 219)
-- `_looks_like_confirmation_request` (func, строка 238)
-- `_prose_looks_weak` (func, строка 246)
-- `_looks_like_plan` (func, строка 265)
-- `normalize_hyphens` (func, строка 303)
-- `classify_step_strength` (func, строка 307)
-- `_summarise_result` (func, строка 327)
-- `_extract_balanced_json_objects` (func, строка 362)
-- `_unbalanced_json_details` (func, строка 392)
-- `_unclosed_summary` (func, строка 433)
-- `_repair_unclosed_braces` (func, строка 448)
-- `_escape_raw_newlines_in_strings` (func, строка 472)
-- `_json_loads_lenient` (func, строка 507)
-- `_truncated_tool_json_segments` (func, строка 521)
-- `_unparsed_tool_json_blocks` (func, строка 546)
-- `_json_parse_cause` (func, строка 569)
-- `_unparsed_tool_json_diagnostics` (func, строка 592)
-- `_unparsed_block_signature` (func, строка 642)
-- `_normalize_call` (func, строка 659)
-- `_call_signature` (func, строка 701)
-- `_coerce_dsml_param` (func, строка 710)
-- `_extract_dsml_calls` (func, строка 752)
-- `_dsml_required_args` (func, строка 795)
-- `_dsml_json_hint` (func, строка 838)
-- `_dsml_validation_error` (func, строка 848)
-- `_fallback_parse_propose_file` (func, строка 872)
-- `_repair_unclosed_tool_json` (func, строка 906)
-- `parse_tool_calls` (func, строка 944)
-- `AgentResult` (class, строка 971)
-- `_maybe_task_state_context` (func, строка 990)
-- `_with_task_state` (func, строка 999)
-- `_maybe_thread_context` (func, строка 1014)
-- `_with_thread_context` (func, строка 1054)
-- `_make_short_summary` (func, строка 1076)
-- `_classify_message` (func, строка 1104)
-- `_index_message` (func, строка 1129)
+- `_apply_tool_result_cap` (func, строка 170)
+- `summarize_tool_result_for_storage` (func, строка 220)
+- `_parse_loop_status` (func, строка 299)
+- `_parse_requires_user_response` (func, строка 308)
+- `_prose_contains_progress` (func, строка 326)
+- `_prose_looks_like_question` (func, строка 334)
+- `_looks_like_confirmation_request` (func, строка 353)
+- `_prose_looks_weak` (func, строка 361)
+- `_looks_like_plan` (func, строка 380)
+- `normalize_hyphens` (func, строка 418)
+- `classify_step_strength` (func, строка 422)
+- `_summarise_result` (func, строка 442)
+- `_extract_balanced_json_objects` (func, строка 477)
+- `_unbalanced_json_details` (func, строка 507)
+- `_unclosed_summary` (func, строка 548)
+- `_repair_unclosed_braces` (func, строка 563)
+- `_escape_raw_newlines_in_strings` (func, строка 587)
+- `_repair_stray_bracket` (func, строка 622)
+- `_collapse_value_escapes` (func, строка 651)
+- `_unescape_json_string_body` (func, строка 677)
+- `_try_layer_parse_chain` (func, строка 712)
+- `_json_repair_cascade` (func, строка 734)
+- `_json_loads_lenient` (func, строка 788)
+- `_truncated_tool_json_segments` (func, строка 808)
+- `_unparsed_tool_json_blocks` (func, строка 833)
+- `_json_parse_cause` (func, строка 856)
+- `_unparsed_tool_json_diagnostics` (func, строка 879)
+- `_unparsed_block_signature` (func, строка 929)
+- `_normalize_call` (func, строка 946)
+- `_call_signature` (func, строка 988)
+- `_coerce_dsml_param` (func, строка 997)
+- `_extract_dsml_calls` (func, строка 1039)
+- `_dsml_required_args` (func, строка 1082)
+- `_dsml_json_hint` (func, строка 1125)
+- `_dsml_validation_error` (func, строка 1135)
+- `_fallback_parse_propose_file` (func, строка 1159)
+- `_repair_unclosed_tool_json` (func, строка 1193)
+- `_cascade_recover_tool_calls` (func, строка 1231)
+- `parse_tool_calls` (func, строка 1258)
 
 ### `dev_agent/assistant_detector.py`
 - `list_all_assistants_for_detection` (func, строка 49)

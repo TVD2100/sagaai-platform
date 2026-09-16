@@ -1764,6 +1764,12 @@ class AgentLoopState:
 
     consecutive_errors: int = 0
 
+    # Consecutive failures of the SAME tool, regardless of call arguments.
+    # Distinct failed variants still accumulate here (a stuck tool is a stuck
+    # tool); after _MAX_CONSECUTIVE_ERRORS failures an explicit "switch tool"
+    # recommendation is appended to the error feedback. Reset on success.
+    tool_fail_counts: Dict[str, int] = field(default_factory=dict)
+
     # Consecutive IDENTICAL unparsed tool-call JSON signatures. Varied
     # broken attempts never accumulate here; only literal repeats count.
     unparsed_repeat_count: int = 0
@@ -1813,6 +1819,154 @@ class AgentLoopState:
 
 
 _MAX_CONSECUTIVE_ERRORS = 3
+_MAX_DUPLICATE_BLOCKS = 8
+_MAX_DIAGNOSTIC_ENTRIES = 5
+
+
+def _identical_block_count(text: str) -> int:
+    """Count the LARGEST group of whitespace-identical tool-call JSON blocks
+    in one message - closed fenced blocks plus one possible unclosed tail.
+
+    A degraded model in an over-committed context repeatedly emits the same
+    broken call dozens/hundreds of times. One compact 'N identical blocks'
+    error gets it unstuck far better than a per-block diagnostic dump that
+    re-floods the context.
+    """
+    groups: Dict[str, int] = {}
+    for body in re.findall(r"```[a-zA-Z0-9_-]*\s*(.*?)```", text, re.DOTALL):
+        if '"tool"' not in body or "{" not in body:
+            continue
+        key = re.sub(r"\s+", "", body)
+        groups[key] = groups.get(key, 0) + 1
+    # Unclosed tail (truncated message): everything after the last closing fence.
+    tail_start = 0
+    for m in re.finditer(r"```[a-zA-Z0-9_-]*\s*(.*?)```", text, re.DOTALL):
+        tail_start = m.end()
+    tail = text[tail_start:]
+    if tail.count("```") % 2 == 1:
+        fence_start = tail.find("```")
+        body = tail[fence_start + 3:]
+        if '"tool"' in body and "{" in body:
+            key = re.sub(r"\s+", "", body)
+            groups[key] = groups.get(key, 0) + 1
+    return max(groups.values()) if groups else 0
+
+
+def _dedupe_diagnostics(diagnostics: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    """Collapse repeated diagnostic entries into a single counter record.
+
+    Keeps at most _MAX_DIAGNOSTIC_ENTRIES entries TOTAL (unique per-block
+    entries plus one final omission counter), so a flood of identical broken
+    blocks can never flood the model's context back.
+    """
+    if len(diagnostics) <= _MAX_DIAGNOSTIC_ENTRIES:
+        return diagnostics
+    import hashlib
+    seen_sigs = set()
+    unique: List[Dict[str, str]] = []
+    skipped = 0
+    unique_limit = max(1, _MAX_DIAGNOSTIC_ENTRIES - 1)
+    for d in diagnostics:
+        key = (d.get("snippet") or "") + "\x00" + (d.get("cause") or "")
+        sig = hashlib.sha256(key.encode("utf-8", "replace")).hexdigest()[:32]
+        if sig in seen_sigs:
+            skipped += 1
+            continue
+        if len(unique) < unique_limit:
+            unique.append(d)
+            seen_sigs.add(sig)
+        else:
+            skipped += 1
+    if skipped:
+        unique.append({
+            "snippet": "",
+            "cause": f"+{skipped} more identical/unparsed block diagnostics omitted",
+        })
+    return unique
+
+
+def _dominant_duplicate_call(parsed_calls: List[Dict[str, Any]]) -> Optional[Dict[str, int]]:
+    """Detect a flood of IDENTICAL parsed calls (tool+args) in one message.
+
+    A degraded model repeats the same call hundreds of times; dispatching
+    them all would re-execute the same action over and over. Returns
+    {'count': N, 'total': M} when N > _MAX_DUPLICATE_BLOCKS, else None.
+    """
+    if not parsed_calls:
+        return None
+    counts: Dict[str, int] = {}
+    for c in parsed_calls:
+        if not isinstance(c, dict):
+            continue
+        tool = c.get("tool")
+        if tool is None:
+            continue
+        key = str(tool) + "\x00" + json.dumps(c.get("args") or {}, sort_keys=True)
+        counts[key] = counts.get(key, 0) + 1
+    if not counts:
+        return None
+    top = max(counts.values())
+    if top > _MAX_DUPLICATE_BLOCKS:
+        return {"count": top, "total": len(parsed_calls)}
+    return None
+
+def _record_tool_failure(state: AgentLoopState, tool: str) -> None:
+    """Count one consecutive failure of *tool* (arguments ignored).
+
+    The counter is per tool name; any failure of a different tool resets the
+    others, and any success resets the tool's own counter.  Reaching
+    _MAX_CONSECUTIVE_ERRORS does NOT hard-stop the loop; the hint is appended
+    to the next error message instead.
+    """
+    counts = getattr(state, "tool_fail_counts", None)
+    if counts is None:
+        counts = {}
+        state.tool_fail_counts = counts
+    counts[tool] = counts.get(tool, 0) + 1
+    for other in list(counts.keys()):
+        if other != tool:
+            counts[other] = 0
+
+
+def _tool_fail_guidance(state: AgentLoopState, tool: str) -> str:
+    """Return switch-tool guidance once the tool hit the failure threshold.
+
+    The guidance acknowledges that arguments were changed (so the model does
+    not feel blamed for repeating a call) and recommends the next fallback
+    step, explicitly including run_code as an escape hatch.
+    """
+    counts = getattr(state, "tool_fail_counts", None) or {}
+    if counts.get(tool, 0) < _MAX_CONSECUTIVE_ERRORS:
+        return ""
+    return (
+        f" Tool '{tool}' has now failed {counts[tool]} times in a row "
+        f"(even with different arguments). Stop trying to fix it with small "
+        f"variations: switch to the next tool in the fallback chain or use "
+        f"run_code for the operation, whichever is appropriate."
+    )
+
+
+def _mark_tool_failure(state: AgentLoopState, tool: str, result: Dict[str, Any]) -> Dict[str, Any]:
+    """Record a failed tool call and fold switch-tool guidance into the result.
+
+    Updates the per-tool consecutive-failure counter (call arguments are
+    deliberately ignored) and, once the threshold is reached, appends an
+    explicit fallback-chain / run_code recommendation to the error text the
+    model will see. Returns the (possibly copied) result dict.
+    """
+    _record_tool_failure(state, tool)
+    guidance = _tool_fail_guidance(state, tool)
+    if guidance:
+        result = dict(result)
+        result["error"] = (str(result.get("error") or "The tool call failed.")) + guidance
+    return result
+
+
+def _reset_tool_failures(state: AgentLoopState) -> None:
+    """Clear all per-tool failure counters after any successful tool call."""
+    counts = getattr(state, "tool_fail_counts", None)
+    if counts:
+        counts.clear()
 
 # step_agent_loop
 
@@ -2117,6 +2271,28 @@ def _step_agent_loop_impl(
         emit({"type": "phase", "phase": "parsing", "step": state.steps})
         state.parsed_calls = parse_tool_calls(state.assistant_text)
 
+        duplicate = _dominant_duplicate_call(state.parsed_calls)
+        if duplicate is not None:
+            # Repaired-parse duplicate flood: one identical call repeated
+            # > _MAX_DUPLICATE_BLOCKS times. Re-executing every copy would
+            # waste the step and re-flood the context; stop with ONE compact
+            # error instead.
+            compact = {
+                "ok": False,
+                "error": (
+                    f"Detected {duplicate['count']} IDENTICAL tool calls out of "
+                    f"{duplicate['total']} in one message. Send exactly ONE "
+                    "copy of the call, then process the response before the "
+                    "next step - do not repeat the same call in bulk."
+                ),
+                "identical_calls": duplicate["count"],
+            }
+            emit({"type": "tool_result", "tool": "parse_tool_calls",
+                  "result": compact, "step": state.steps})
+            state.user_message = json.dumps({"tool_result": compact}, ensure_ascii=False)
+            state.phase = "calling_llm"
+            return state
+
         if not state.parsed_calls:
             fallback = _fallback_parse_propose_file(state.assistant_text)
             if fallback is not None:
@@ -2130,7 +2306,27 @@ def _step_agent_loop_impl(
         if not state.parsed_calls and _unparsed_tool_json_blocks(state.assistant_text) > 0:
             # The model emitted tool-call JSON that failed to parse even after
             # repair. Feed the error back instead of silently spinning.
-            diagnostics = _unparsed_tool_json_diagnostics(state.assistant_text)
+            identical = _identical_block_count(state.assistant_text)
+            if identical > _MAX_DUPLICATE_BLOCKS:
+                # Context-degradation spiral: one broken call repeated dozens
+                # of times. One compact message, no per-block dump (the dump
+                # itself would re-flood the context and feed the loop).
+                compact = {
+                    "ok": False,
+                    "error": (
+                        f"Detected {identical} IDENTICAL malformed tool-call "
+                        "JSON blocks in one message. Stop repeating the broken "
+                        "call; emit exactly ONE correct fenced tool call, or "
+                        "switch to a different tool."
+                    ),
+                    "identical_blocks": identical,
+                }
+                emit({"type": "tool_result", "tool": "parse_tool_calls",
+                      "result": compact, "step": state.steps})
+                state.user_message = json.dumps({"tool_result": compact}, ensure_ascii=False)
+                state.phase = "calling_llm"
+                return state
+            diagnostics = _dedupe_diagnostics(_unparsed_tool_json_diagnostics(state.assistant_text))
             sig = _unparsed_block_signature(diagnostics)
             repeated = bool(sig and sig == state.last_unparsed_signature)
             state.unparsed_repeat_count = state.unparsed_repeat_count + 1 if repeated else 1
@@ -2285,6 +2481,7 @@ def _step_agent_loop_impl(
                 if not result.get("ok"):
                     all_ok = False
                     state.last_failed_signature = _call_signature(tool, call.get("args"))
+                    result = _mark_tool_failure(state, tool, result)
                     tool_results_parts.append(
                         json.dumps({"tool_result": result}, ensure_ascii=False)
                     )
@@ -2293,6 +2490,7 @@ def _step_agent_loop_impl(
                     applied = result.get("applied", False)
                     if applied:
                         state.last_failed_signature = ""
+                        _reset_tool_failures(state)
                         emit({"type": "applied", "tool": tool, "result": result, "path": result.get("path", ""), "step": state.steps})
                         tool_results_parts.append(
                             json.dumps({"tool_result": result}, ensure_ascii=False)
@@ -2339,6 +2537,7 @@ def _step_agent_loop_impl(
                 if not result.get("ok"):
                     all_ok = False
                     state.last_failed_signature = _call_signature(tool, call.get("args"))
+                    result = _mark_tool_failure(state, tool, result)
                     tool_results_parts.append(
                         json.dumps({"tool_result": result}, ensure_ascii=False)
                     )
@@ -2347,6 +2546,7 @@ def _step_agent_loop_impl(
                     applied = result.get("applied", False)
                     if applied:
                         state.last_failed_signature = ""
+                        _reset_tool_failures(state)
                         emit({"type": "applied", "tool": tool, "result": result, "path": result.get("path", ""), "step": state.steps})
                         tool_results_parts.append(
                             json.dumps({"tool_result": result}, ensure_ascii=False)
@@ -2456,6 +2656,7 @@ def _step_agent_loop_impl(
                     all_ok = False
                     if tool in _DUPLICATE_GUARD_TOOLS:
                         state.last_failed_signature = call_sig
+                    result = _mark_tool_failure(state, tool, result)
                     result["next_action"] = (
                         "Fix this ONCE, then switch to the next fallback tool. Never "
                         "resend the same problematic call more than twice. Hard "
@@ -2464,6 +2665,7 @@ def _step_agent_loop_impl(
                     )
                 else:
                     state.last_failed_signature = ""
+                    _reset_tool_failures(state)
                 if tool in _WORKSPACE_TOOLS:
                     _update_workspace_info(state, result)
                 if tool in _READ_TOOLS:

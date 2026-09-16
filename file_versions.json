@@ -3,16 +3,16 @@
   "app_version": "0.4.1-preview.1",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Каскадный ремонт tool-call JSON: лишние закрывающие скобки, переэкранированные кавычки и вызовы, завёрнутые в JSON-строку, восстанавливаются автоматически; аварийный стоп цикла срабатывает только при повторе одного и того же битого вызова.",
-    "en": "Cascading tool-call JSON repair: stray closing brackets, over-escaped quotes and JSON-string-wrapped calls are recovered automatically; the loop hard-stops only when the same broken call repeats unchanged."
+    "ru": "Пакет защиты агента: каскадный ремонт tool-call JSON (лишние закрывающие скобки, переэкранированные кавычки, вызовы в JSON-строке) и защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов, промпт DevAgent v3.11 (правило закрытого шага, кап 3 попыток на функцию, loop_status continue в прозе).",
+    "en": "Agent-protection pack: cascading tool-call JSON repair (stray closing brackets, over-escaped quotes, JSON-string-wrapped calls) and loop-stuck protection - a per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods, DevAgent prompt v3.11 (closed-step rule, 3-tries-per-tool cap, prose loop_status continue)."
   },
-  "updated": "2026-09-16T10:00:00Z",
+  "updated": "2026-09-16T13:17:41Z",
   "units": {
     "core": {
-      "version": "1.6.1",
+      "version": "1.7.0",
       "note": {
-        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop).",
-        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop)."
+        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop).",
+        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop)."
       },
       "files": {
         "__init__.py": {
@@ -212,8 +212,8 @@
           "sha256": "d87092665bbf50e5270ad17b3c2c7eb8230b22ae968f52113672025267ead063"
         },
         "dev_agent/agent_loop.py": {
-          "version": "1.6.0",
-          "sha256": "8edc8b9bb89ea4193045680f15de89f9c18961fb68a8ec8342374f2ea7f895c1"
+          "version": "1.7.0",
+          "sha256": "4d49e4d28ac11ad404cd55a8cd4f48d63b3b9c9b9efb3362fad8142bc9f99b84"
         },
         "dev_agent/assistant_detector.py": {
           "version": "1.0.0",
@@ -264,8 +264,8 @@
           "sha256": "d30b1003cd4c0769a111e2e09fe27302915a6fbca1c614b95bb7a7a9f95cec97"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.0.0",
-          "sha256": "12991aadc1114cbfcdf67face789b63745f29b07b14e961eeb9db369e00a7ae9"
+          "version": "1.1.0",
+          "sha256": "f39b031b210cd72695699dc6441ee81a586c5d9848352324dcc3a8980ae77e98"
         },
         "scripts/verify_manifest.py": {
           "version": "1.0.3",
@@ -484,8 +484,8 @@
           "sha256": "2a7a48ea3687236d0fc265385d31ae35a2cd781f44dec495b20ca6028570570c"
         },
         "tests/test_phase1_agent_loop.py": {
-          "version": "1.0.0",
-          "sha256": "394fe24763fa8b382e917d190ec12db381a1d61c8bbbe153155d0c2f1852b423"
+          "version": "1.1.0",
+          "sha256": "ced4a46e8948a9d0956a37c3351ffab016adc6417a08b7815d35cbecbd3fadb2"
         },
         "tests/test_phase1_core_pure.py": {
           "version": "1.0.0",
@@ -876,8 +876,8 @@
           "sha256": "dc2ba69051496ace83567e2112f5f5570accdd1f63af4900c4e549113fa5f61b"
         },
         "tests/scenarios/test_orchestrator_tool_gating.py": {
-          "version": "1.1.0",
-          "sha256": "7a7c6b4ae97396f569ac0a5db24ffd8de16917a683e267712fcdd2b25ca4f4da"
+          "version": "1.1.1",
+          "sha256": "8dd4925bbf5d1b24989588656af2ba7c4f0c17d353b739728d60d1227e2584f8"
         },
         "core/context_guard.py": {
           "version": "1.0.0",
@@ -902,17 +902,21 @@
         "tests/scenarios/test_context_overflow_protection.py": {
           "version": "1.0.0",
           "sha256": "1c19840064d12d89dd7f8425622c1711c2cdc890720809a616cd0cbc7f5fe0cb"
+        },
+        "tests/scenarios/test_loop_stuck_protection_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "b1d500f175b3ddedc8b9dd0376988f90af5e2ff18f72496a3a0e3f89111d9dcb"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.10.0",
-      "sha256": "e12c614001c7e43f8925a084b83fa48a709a62ce9245f8b7f1086c897aa564a6",
+      "version": "1.11.0",
+      "sha256": "d86a3e173e3c082d858b730c94757f545a9fee92708573cee93ba951a438b127",
       "note": {
-        "ru": "Добавлен раздел «Защита от переполнения контекста LLM (M1-M5)» с описанием пяти уровней защиты.",
-        "en": "Added the \"LLM context-overflow protection (M1-M5)\" section describing the five protection layers."
+        "ru": "Добавлен раздел «Защита от переполнения контекста LLM (M1-M5)» с описанием пяти уровней защиты; раздел Решения дополнен подразделом «Защиты цикла агента от зацикливания» (счётчик отказов по инструменту, детекторы флуда одинаковых вызовов, промпт v3.11).",
+        "en": "Added the \"LLM context-overflow protection (M1-M5)\" section describing the five protection layers; the Decisions section gained an \"Agent-loop stuck protections\" subsection (per-tool failure counter, identical-call flood detectors, prompt v3.11)."
       }
     },
     "COMPARISON.md": {
@@ -932,11 +936,11 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.13.0",
-      "sha256": "44bb9e1de489fd70b70b79570ae18adc783c3300ae2c47f6cd637adafe295d8e",
+      "version": "1.14.0",
+      "sha256": "50dd1f11d45d7a142687ce9224201eb09accc242164feffe18580169661fc6a7",
       "note": {
-        "ru": "Добавлены новые файлы защиты контекстного окна: core/context_guard.py и тесты M1-M5 (unit + сценарии).",
-        "en": "Added the new context-window-protection files: core/context_guard.py and the M1-M5 tests (unit + scenarios)."
+        "ru": "Добавлены новые файлы защиты контекстного окна: core/context_guard.py и тесты M1-M5 (unit + сценарии); для пакета защиты от зацикливания добавлены сценарии tests/scenarios/test_loop_stuck_protection_scenarios.py и актуализированы роли agent_loop.py, system_prompt.md и регенератора карты.",
+        "en": "Added the new context-window-protection files: core/context_guard.py and the M1-M5 tests (unit + scenarios); for the loop-stuck protection pack added the tests/scenarios/test_loop_stuck_protection_scenarios.py scenarios and refreshed the agent_loop.py, system_prompt.md and map-regenerator roles."
       }
     },
     "README.md": {
@@ -948,11 +952,11 @@
       }
     },
     "SPEC.md": {
-      "version": "1.11.0",
-      "sha256": "d6f6c8a6e197728af43e395e6e21ec0fd43c76f864400cc5f8d91e8fe9faf605",
+      "version": "1.12.0",
+      "sha256": "3e35be7fddf18b8078125cdbfe5a5732198ce2c3960ada03ae4da9eaad49b0c2",
       "note": {
-        "ru": "Добавлен FR15 - защита от переполнения контекста LLM: кап результатов инструментов, компактный персист скрытых tool_result, бюджет истории эконом-режима, pre-flight guard и обрезка контекста в api_layer.",
-        "en": "Added FR15 - LLM context-overflow protection: tool-result cap, compact persistence of hidden tool results, economy-mode history budget, pre-flight guard and context trimming in api_layer."
+        "ru": "FR7 дополнен требованием защиты цикла агента от зацикливания: счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток и компактные ошибки для флуда одинаковых вызовов.",
+        "en": "FR7 extended with the agent-loop stuck-protection requirement: per-tool failure counter with a switch-tool hint after 3 tries and compact errors for identical call floods."
       }
     },
     "defaults/README.md": {
@@ -1260,11 +1264,11 @@
       }
     },
     "dev_agent/system_prompt.md": {
-      "version": "3.10",
-      "sha256": "5d123a1d552d26e0134c8e7acdf80988967f3ebd0035d06224558665f27b4f50",
+      "version": "3.11",
+      "sha256": "070e1fcec41b3afe188be3ca064da9f66f835cd514c0eeb38d3fba3128d57c0c",
       "note": {
-        "ru": "Промпт DevAgent v3.10: справочник инструментов удалён из §6 - сигнатуры передаёт авто-блок '## Available tools'; правила использования инструментов и выбора инструмента сохранены.",
-        "en": "DevAgent prompt v3.10: tool catalogue removed from §6 - signatures come from the auto-added '## Available tools' block; tool-usage and tool-selection rules kept."
+        "ru": "Промпт DevAgent v3.11: правило закрытого шага (не пересказывать выполненное), максимум 3 попытки на функцию с переходом по fallback-цепочке, loop_status continue в прозе продолжает цикл; справочник инструментов передаёт авто-блок '## Available tools'.",
+        "en": "DevAgent prompt v3.11: closed-step rule (do not re-tell finished work), at most 3 tries per function then move down the fallback chain, a prose loop_status continue keeps the loop alive; the tool catalogue comes from the auto-added '## Available tools' block."
       }
     },
     "langs/en.json": {

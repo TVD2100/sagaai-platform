@@ -289,14 +289,14 @@ def test_canonical_prompts_do_not_duplicate_the_tool_catalog():
     when  they are inspected,
     then  each prompt delegates the full tool list to the auto-added
           '## Available tools' block, keeps its tool-usage rules in-line
-          and contains no duplicated tool-catalog table; dev_agent is v3.10
+          and contains no duplicated tool-catalog table; dev_agent is v3.11
           and ya_agent is v2.7.
     """
     dev = CANONICAL_PROMPT_FILES["dev_agent"].read_text(encoding="utf-8")
     ya = CANONICAL_PROMPT_FILES["ya_agent"].read_text(encoding="utf-8")
 
     # Version headers carry the bumped versions.
-    assert dev.splitlines()[0].endswith("(v3.10)"), dev.splitlines()[0]
+    assert dev.splitlines()[0].endswith("(v3.11)"), dev.splitlines()[0]
     assert ya.splitlines()[0].endswith("(v2.7)"), ya.splitlines()[0]
 
     # Both prompts delegate the catalog to the auto-added block.

@@ -1349,3 +1349,151 @@ class TestDsmlStepLoop:
             assert first["tool"] == "read_file" and first["args"]["path"] == "x.py"
         else:
             assert first[0] == "read_file" and first[1]["path"] == "x.py"
+
+
+# ── Per-tool consecutive-failure counter (loop-stuck protection) ─────────────
+
+class TestToolFailCounts:
+    """Per-tool failure counter: arguments are ignored, a 3rd consecutive
+    failure adds fallback-chain guidance, any success resets the counters."""
+
+    @staticmethod
+    def _run_failing_patch(disp, edits, state=None):
+        if state is None:
+            state = AgentLoopState()
+        state.phase = "executing"
+        state.auto_apply = True
+        state.parsed_calls = [{"tool": "apply_patch", "args": {"path": "x.py", "edits": edits}}]
+        step_agent_loop(state, dispatcher=disp)
+        return state
+
+    @staticmethod
+    def _last_result(state):
+        payload = json.loads(state.user_message)
+        return payload["tool_result"]
+
+    def test_two_failures_no_switch_hint(self):
+        disp = FakeDispatcher({"apply_patch": {"ok": False, "error": "anchor not found"}})
+        state = self._run_failing_patch(disp, [{"old": "a", "new": "b"}])
+        state = self._run_failing_patch(disp, [{"old": "c", "new": "d"}], state)
+        result = self._last_result(state)
+        assert state.tool_fail_counts.get("apply_patch") == 2
+        assert "switch to the next tool" not in result["error"]
+
+    def test_third_failure_adds_switch_hint(self):
+        disp = FakeDispatcher({"apply_patch": {"ok": False, "error": "anchor not found"}})
+        # Each attempt uses DIFFERENT arguments: the counter ignores args.
+        state = None
+        for edits in {"a": "b", "c": "d", "e": "f"}.items():
+            state = self._run_failing_patch(disp, [dict(zip(("old", "new"), edits))], state)
+        result = self._last_result(state)
+        assert state.tool_fail_counts.get("apply_patch") == 3
+        assert "switch to the next tool" in result["error"]
+        assert "run_code" in result["error"]
+        assert result.get("ok") is False
+
+    def test_success_resets_counter(self):
+        disp = FakeDispatcher({"apply_patch": {"ok": True, "applied": True}})
+        state = AgentLoopState()
+        state.tool_fail_counts = {"apply_patch": 2}
+        state.phase = "executing"
+        state.auto_apply = True
+        state.parsed_calls = [{"tool": "apply_patch", "args": {"path": "x.py", "edits": [{"old": "a", "new": "b"}]}}]
+        step_agent_loop(state, dispatcher=disp)
+        assert state.tool_fail_counts == {}
+
+    def test_other_tool_success_resets(self):
+        disp = FakeDispatcher({"apply_patch": {"ok": False, "error": "nope"},
+                              "read_file": {"ok": True, "content": "x"}})
+        state = self._run_failing_patch(disp, [{"old": "a", "new": "b"}])
+        state.phase = "executing"
+        state.auto_apply = True
+        state.parsed_calls = [{"tool": "read_file", "args": {"path": "x.py"}}]
+        step_agent_loop(state, dispatcher=disp)
+        assert state.tool_fail_counts == {}
+
+    def test_helper_functions_directly(self):
+        from dev_agent.agent_loop import _record_tool_failure, _tool_fail_guidance, _mark_tool_failure, _reset_tool_failures
+        state = AgentLoopState()
+        assert _tool_fail_guidance(state, "apply_patch") == ""
+        for _ in range(3):
+            _record_tool_failure(state, "apply_patch")
+        assert "run_code" in _tool_fail_guidance(state, "apply_patch")
+        marked = _mark_tool_failure(state, "apply_patch", {"ok": False, "error": "bad"})
+        assert "switch to the next tool" in marked["error"]
+        assert state.tool_fail_counts["apply_patch"] == 4
+        _reset_tool_failures(state)
+        assert state.tool_fail_counts == {}
+
+
+# ── Parser-diagnostics dedup: identical/duplicate malformed JSON ──────────────
+
+TICK = chr(96)
+
+
+def _spiral_text(count: int) -> str:
+    """A message with *count* IDENTICAL malformed tool-call blocks."""
+    fence = TICK * 3
+    one = fence + "json\n" + "{\"tool\": \"read_file\", \"args\": {\"path\": \"x.py\"}\n"
+    return one * count
+
+
+class TestDiagnosticsDedup:
+    """Giant floods of identical broken blocks must produce a single compact
+    error, not a per-block diagnostic dump. Step 2 of loop-stuck protection."""
+
+    def test_identical_block_count_same_blocks(self):
+        from dev_agent.agent_loop import _identical_block_count
+        # Closed blocks: each is a complete fenced block, all identical.
+        fence = TICK * 3
+        block = fence + "json\n" + "{\"tool\": \"read_file\", \"args\": {}}" + fence
+        text = block * 20
+        assert _identical_block_count(text) == 20
+
+    def test_identical_block_count_unclosed_tail(self):
+        from dev_agent.agent_loop import _identical_block_count
+        # No closing braces anywhere: all 1000 merge into one unclosed tail
+        # (the regex treats the whole text as one open block).
+        text = _spiral_text(1000)
+        assert _identical_block_count(text) >= 1
+
+    def test_compact_response_on_spiral(self):
+        """1000 identical broken blocks -> compact error, no giant diagnostics."""
+        from dev_agent.agent_loop import step_agent_loop
+        text = _spiral_text(1000)
+        state = AgentLoopState()
+        state.phase = "parsing"
+        state.assistant_text = text
+        step_agent_loop(state, dispatcher=FakeDispatcher())
+        assert state.phase == "calling_llm"
+        payload = json.loads(state.user_message)
+        result = payload["tool_result"]
+        # The reply must be compact: way smaller than the source flood.
+        assert len(state.user_message) < len(text) // 10
+        assert result["identical_calls"] >= 1
+        assert "IDENTICAL tool calls" in result["error"]
+
+    def test_dedupe_into_max_five(self):
+        from dev_agent.agent_loop import _dedupe_diagnostics, _MAX_DIAGNOSTIC_ENTRIES
+        many = [{"snippet": f"block-{i}", "cause": "bad json"} for i in range(1000)]
+        deduped = _dedupe_diagnostics(many)
+        assert len(deduped) <= _MAX_DIAGNOSTIC_ENTRIES
+        for d in deduped:
+            assert isinstance(d.get("snippet"), str)
+            assert isinstance(d.get("cause"), str)
+
+
+def test_spiral_never_grows_context(monkeypatch):
+    """Regression: flooding with identical malformed blocks must never
+    re-feed a huge payload back into the model. History/growth sanity."""
+    from dev_agent.agent_loop import step_agent_loop
+    import dev_agent.agent_loop as al
+    text = _spiral_text(2000)
+    state = AgentLoopState()
+    state.phase = "parsing"
+    state.assistant_text = text
+    step_agent_loop(state, dispatcher=FakeDispatcher())
+    # The next LLM input is a compact error, not the source text.
+    assert state.phase == "calling_llm"
+    assert text not in state.user_message
+    assert len(state.user_message) < 2000
