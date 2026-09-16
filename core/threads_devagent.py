@@ -157,6 +157,16 @@ def save_thread_messages(tid: str, messages: List[Dict[str, Any]]) -> None:
     clean = []
     for m in messages:
         clean_msg = {k: v for k, v in m.items() if k in allowed_keys}
+        # M2: compact hidden tool_results before persisting (context-overflow
+        # protection): a giant tool_result payload must never be stored raw.
+        if clean_msg.get("role") == "user":
+            try:
+                from dev_agent.agent_loop import summarize_tool_result_for_storage
+                clean_msg["content"] = summarize_tool_result_for_storage(
+                    clean_msg.get("content", "") or ""
+                )
+            except Exception:
+                pass
         events = m.get("_events")
         event_start = m.get("_event_start")
         event_end = m.get("_event_end")
@@ -188,6 +198,14 @@ def append_thread_message(tid: str, role: str, content: str,
     If ``tokens`` is provided (dict with 'in'/'out'/'cache' keys), it is embedded too.
     """
     final_content = content
+    # M2: compact hidden tool_results before persisting (context-overflow
+    # protection): a giant tool_result payload must never be stored raw.
+    if role == "user":
+        try:
+            from dev_agent.agent_loop import summarize_tool_result_for_storage
+            final_content = summarize_tool_result_for_storage(final_content)
+        except Exception:
+            pass
     event_data: Dict[str, Any] = {}
     if events:
         event_data["_events"] = events

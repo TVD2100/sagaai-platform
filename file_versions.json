@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "0.3.2-preview.1",
+  "app_version": "0.4.0-preview.1",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Каталог доступных инструментов в промпте каждого оркестратора (блок Available tools); управление системными функциями чекбоксами в настройках; отключённые инструменты исключаются из промпта и реально блокируются диспетчером.",
-    "en": "An available-tools catalog (## Available tools block) in every orchestrator prompt; checkbox management of system functions in settings; disabled tools are removed from the prompt and actually blocked by the dispatcher."
+    "ru": "Защита от переполнения контекста LLM: результаты инструментов свыше 200 тыс. символов не попадают в контекст; скрытые результаты сохраняются в БД компактной сводкой; история эконом-режима ограничивается бюджетом окна; контекст оценивается и обрезается до запроса к провайдеру (понятная ошибка вместо HTTP 400).",
+    "en": "LLM context-overflow protection: tool results over 200k characters never reach the context; hidden tool results are stored in the DB as compact summaries; economy-mode history is budgeted to the context window; outgoing context is estimated and trimmed before provider requests (a clear error instead of HTTP 400)."
   },
-  "updated": "2026-09-12T13:05:00Z",
+  "updated": "2026-09-15T23:18:04Z",
   "units": {
     "core": {
-      "version": "1.5.0",
+      "version": "1.6.0",
       "note": {
-        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса.",
-        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers."
+        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer.",
+        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer."
       },
       "files": {
         "__init__.py": {
@@ -36,12 +36,12 @@
           "sha256": "7b623930ac29db86b2939a3ea163e4c42dd602ea35a2a1151690393e4169ae71"
         },
         "core/api_errors.py": {
-          "version": "1.0.0",
-          "sha256": "a832c536eb48c93c03de698b3e2a153e0989ada2c83f5b8e1f68b33bce3801a6"
+          "version": "1.1.0",
+          "sha256": "9815e2a3bf0ed797efeeefd41414e1579dde9f7ceb86675611fc3bd624fa6f33"
         },
         "core/api_layer.py": {
-          "version": "1.2.0",
-          "sha256": "ee916fff17de6d857988501d0115be51e65dcfc18b6506fe1746f00f50faba9c"
+          "version": "1.3.0",
+          "sha256": "9e46294a02e116b7cc7283487eddf1a37cf62bf353578acd59c96426879790ea"
         },
         "core/assistant_creator.py": {
           "version": "1.0.0",
@@ -196,24 +196,24 @@
           "sha256": "fd2a5e55710b34a6c6b573bdc50a380c7276db80b1b4f061a11f443441588cee"
         },
         "core/threads_devagent.py": {
-          "version": "1.1.0",
-          "sha256": "de2fc7e2ef39d1ca1c73335e0efb10cc22100f15266f703bd2ef3942bcb3f01b"
+          "version": "1.2.0",
+          "sha256": "e382a3c9af7236ef04cf31afe13a2f28d815a2ece02c819c12586cb0d8e43738"
         },
         "core/tools_utils.py": {
           "version": "1.0.0",
           "sha256": "eb31b89c7e74fcd318863b8a3cbe3420fb002808b81bfd58c24df4bb9ca63292"
         },
         "core/version.py": {
-          "version": "1.0.4",
-          "sha256": "2fbebbdd6b273bcc20a14f6809bd452cbe99d7b0a08cfad0bfae42777c2edd12"
+          "version": "1.0.5",
+          "sha256": "65091875bbac8328aa4893bd760cb7fb10b96447bbfb84016a89550cb14e5967"
         },
         "dev_agent/__init__.py": {
           "version": "1.0.0",
           "sha256": "d87092665bbf50e5270ad17b3c2c7eb8230b22ae968f52113672025267ead063"
         },
         "dev_agent/agent_loop.py": {
-          "version": "1.4.0",
-          "sha256": "1556c1e0bf917abd4af48289d94d7330e9558d92fab5bb88eaf3dafdb9d1b76e"
+          "version": "1.5.0",
+          "sha256": "5d8dcd1251282764a8d3428cd2cd8c57440c207ddc844a8884a98c36ddf4c9af"
         },
         "dev_agent/assistant_detector.py": {
           "version": "1.0.0",
@@ -244,12 +244,12 @@
           "sha256": "84584ba39290d90309102d920358bf96b15c56aee17ca247b38310b1101ae6b6"
         },
         "dev_agent/tool_executor.py": {
-          "version": "1.4.0",
-          "sha256": "f8563be64bfabbfcfa0d990382deb317c1549ab1b1213230c595a8f3e984bd9d"
+          "version": "1.5.0",
+          "sha256": "2b3fb93e1eb44c095e0ce69e62f27a61059115d45eba54096e9e5700a4a155c0"
         },
         "dev_agent/universal_agent.py": {
-          "version": "1.6.0",
-          "sha256": "7003b896c5e132cc1a5e033570596a22dcf176fb0508153d9084c07afaa2ffe8"
+          "version": "1.7.0",
+          "sha256": "28f3bbe3b80621605ee5bbf5f4010a67ff932b6c9092d554fe9b749bc27f511a"
         },
         "dev_agent/workspace_tools.py": {
           "version": "1.1.0",
@@ -878,17 +878,41 @@
         "tests/scenarios/test_orchestrator_tool_gating.py": {
           "version": "1.1.0",
           "sha256": "7a7c6b4ae97396f569ac0a5db24ffd8de16917a683e267712fcdd2b25ca4f4da"
+        },
+        "core/context_guard.py": {
+          "version": "1.0.0",
+          "sha256": "ec2f4d1ce2b4c158b27b25ca7a520b71abf0270677efaf809ce437c2a0b015e0"
+        },
+        "tests/test_tool_result_size_cap.py": {
+          "version": "1.0.0",
+          "sha256": "3fbaf04207e5200a2b6456547a62430176a6b2047ce88f0bad3a48a007a365f3"
+        },
+        "tests/test_tool_result_storage_summary.py": {
+          "version": "1.0.0",
+          "sha256": "58bcde692ea1729b7bb547349a33f371609b14198bfb3a72ba6205c8c7c6ce69"
+        },
+        "tests/test_economy_history_budget.py": {
+          "version": "1.0.0",
+          "sha256": "46dc58a26f6529cb68a0d4f431b3500b287b6581c8d986671a780771438de133"
+        },
+        "tests/test_context_window_guard.py": {
+          "version": "1.0.0",
+          "sha256": "eb996009e0105034561ea663985a001bb0a06a26622cc3396f17bba0cc09f236"
+        },
+        "tests/scenarios/test_context_overflow_protection.py": {
+          "version": "1.0.0",
+          "sha256": "1c19840064d12d89dd7f8425622c1711c2cdc890720809a616cd0cbc7f5fe0cb"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.9.0",
-      "sha256": "c720783ed1d272b799c48a961c089517ea0e269fdf8149456a0ccb79ed934cd3",
+      "version": "1.10.0",
+      "sha256": "e12c614001c7e43f8925a084b83fa48a709a62ce9245f8b7f1086c897aa564a6",
       "note": {
-        "ru": "Раздел каталога инструментов уточнён: каноничные промпты не дублируют справочник, список поставляет блок Available tools.",
-        "en": "Tool-catalog section clarified: canonical prompts no longer duplicate the catalog, the Available tools block supplies the list."
+        "ru": "Добавлен раздел «Защита от переполнения контекста LLM (M1-M5)» с описанием пяти уровней защиты.",
+        "en": "Added the \"LLM context-overflow protection (M1-M5)\" section describing the five protection layers."
       }
     },
     "COMPARISON.md": {
@@ -908,27 +932,27 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.12.0",
-      "sha256": "e14a3a4defc79671cc1e3509dfa75e7825796a9cf922bca0a98cfcc8197f9f8d",
+      "version": "1.13.0",
+      "sha256": "44bb9e1de489fd70b70b79570ae18adc783c3300ae2c47f6cd637adafe295d8e",
       "note": {
-        "ru": "Обновлены описания системных промптов DevAgent и YaAgent: справочник инструментов вынесен в автоматический блок Available tools.",
-        "en": "Updated DevAgent and YaAgent system-prompt descriptions: the tool catalog moved to the auto-added Available tools block."
+        "ru": "Добавлены новые файлы защиты контекстного окна: core/context_guard.py и тесты M1-M5 (unit + сценарии).",
+        "en": "Added the new context-window-protection files: core/context_guard.py and the M1-M5 tests (unit + scenarios)."
       }
     },
     "README.md": {
-      "version": "1.8.0",
-      "sha256": "7a99335dea0b494b0a37467620854ffa63dcea10cab23a2b4ff296aaa286ee6d",
+      "version": "1.8.1",
+      "sha256": "ffc6c9055f06d0c6efa0d5b313febc61292b993cf8c6ff5b789d1ab035bb8030",
       "note": {
-        "ru": "Полная переработка: явное позиционирование платформы для команды ИИ-сотрудников в начале, разделы для бизнес-пользователей и разработчиков, отражены свежие доработки.",
-        "en": "Full rework: explicit positioning of the AI-employee-team platform up front, sections for business users and developers, recent enhancements reflected."
+        "ru": "Строка версии в статусе preview обновлена до v0.4.0-preview.1.",
+        "en": "The preview status version string updated to v0.4.0-preview.1."
       }
     },
     "SPEC.md": {
-      "version": "1.10.0",
-      "sha256": "e10f6bb71ea59b6b355214c10a5d36399fefd304b69badfe05946d989f40767e",
+      "version": "1.11.0",
+      "sha256": "d6f6c8a6e197728af43e395e6e21ec0fd43c76f864400cc5f8d91e8fe9faf605",
       "note": {
-        "ru": "Уточнено: каноничные промпты встроенных оркестраторов не дублируют справочник инструментов (блок Available tools).",
-        "en": "Clarified: built-in orchestrator canonical prompts do not duplicate the tool catalog (Available tools block)."
+        "ru": "Добавлен FR15 - защита от переполнения контекста LLM: кап результатов инструментов, компактный персист скрытых tool_result, бюджет истории эконом-режима, pre-flight guard и обрезка контекста в api_layer.",
+        "en": "Added FR15 - LLM context-overflow protection: tool-result cap, compact persistence of hidden tool results, economy-mode history budget, pre-flight guard and context trimming in api_layer."
       }
     },
     "defaults/README.md": {

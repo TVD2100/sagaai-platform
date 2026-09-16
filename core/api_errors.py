@@ -16,7 +16,8 @@ Hierarchy:
     ├── AuthTypeUnknownError   (service has an unknown auth_type)
     ├── ProviderHTTPError      (provider returned a non-200 status)
     ├── RequestTimeoutError    (requests.exceptions.Timeout)
-    └── NetworkError           (requests.exceptions.RequestException)
+    ├── NetworkError           (requests.exceptions.RequestException)
+    └── ContextWindowError     (payload exceeds the context window limit)
 """
 
 from __future__ import annotations
@@ -129,6 +130,40 @@ class NetworkError(APIError):
 
     def __init__(self, message: str = "Network error", *, service: Optional[str] = None, **kwargs) -> None:
         super().__init__(message, service=service, **kwargs)
+
+
+class ContextWindowError(APIError):
+    """Raised when the outgoing payload still exceeds the context window's
+    hard limit after the oldest history messages were dropped.
+
+    Attributes:
+        window: the model's context window size in tokens.
+        tokens: the estimated input-token total of the failing payload.
+        max_output: the configured max output tokens (informational only).
+    """
+
+    code = "context_window_exceeded"
+
+    def __init__(
+        self,
+        window: int,
+        tokens: int,
+        *,
+        max_output: int = 0,
+        service: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        self.window = window
+        self.tokens = tokens
+        self.max_output = max_output
+        super().__init__(
+            f"Context window exceeded: the request needs ~{tokens} tokens, "
+            f"which is above the safe limit for the {window}-token model "
+            f"window, even after the oldest messages were discarded. "
+            f"Reduce the size of the message and try again.",
+            service=service,
+            **kwargs,
+        )
 
 
 # ─── Localised rendering helpers ──────────────────────────────────────────────

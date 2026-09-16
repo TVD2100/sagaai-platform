@@ -345,7 +345,15 @@ class UniversalDevAgent:
                 }
         if tool_name in self._extra:
             args = _coerce_numeric_args(self._extra[tool_name], args)
-            return self._extra[tool_name](**args)
+            result = self._extra[tool_name](**args)
+            # Tool-result size cap (context-overflow protection): custom
+            # functions and connection tools go through the same cap so no
+            # single payload can blow up the model context.
+            try:
+                from dev_agent.agent_loop import _apply_tool_result_cap
+                return _apply_tool_result_cap(result)
+            except Exception:
+                return result
         return self.core.dispatch(tool_name, args)
 
     # ─── custom orchestrator function attachment ────────────────────────────

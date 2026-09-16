@@ -36,6 +36,7 @@ from core.api_errors import (
     ProviderHTTPError,
     RequestTimeoutError,
     NetworkError,
+    ContextWindowError,
 )
 
 # Timeout for a model COMPLETION request, split into (connect, read):
@@ -1315,6 +1316,8 @@ def send_request(user_message: str, assistant: Optional[dict] = None,
         sanitized_callback=sanitized_callback,
         approved_paths=sanitized_approved_paths,
     )
+    from core.context_guard import apply_context_guard
+    hist_msgs = apply_context_guard(hist_msgs, user_content, assistant=assistant, max_tokens=max_tokens, svc_name=svc_name, services=services)
     # Extract tools from assistant (list of strings or dicts, e.g. ["web_search"]).
     tools_list = assistant.get("tools", [])
     max_tool_calls = assistant.get("max_tool_calls", None)

@@ -158,6 +158,121 @@ def _now_ts() -> str:
 _TOOL_RESULT_PREFIX = '{"tool_result"'
 _AUTO_CONTINUE_PREFIX = "AUTO_CONTINUE:"
 
+# ── Tool-result size cap (context-overflow protection) ──────────────────────
+# A single tool_result must never blow up the model context window
+# (incident: a 1.65M-character tool_result caused HTTP 400 context
+# overflow). Results up to this many serialized characters are passed to
+# the model unchanged; larger results are NOT forwarded at all - the model
+# receives an explicit ok=False error stating the size instead.
+MAX_TOOL_RESULT_CHARS: int = 200_000
+
+
+def _apply_tool_result_cap(result: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a context-safe copy/version of a tool result.
+
+    Results up to MAX_TOOL_RESULT_CHARS serialized characters are returned
+    unchanged. Larger results are replaced by an explicit error dict
+    (``result_too_large=True`` + ``result_size``) so the payload never
+    reaches the model context.
+    """
+    try:
+        size = len(json.dumps(result, ensure_ascii=False))
+    except Exception:
+        size = len(str(result))
+    if size <= MAX_TOOL_RESULT_CHARS:
+        return result
+    return {
+        "ok": False,
+        "error": (
+            "Tool result is too large for the model context "
+            f"({size} characters; limit {MAX_TOOL_RESULT_CHARS}). "
+            "The payload was NOT passed to the model. Re-run the tool with "
+            "narrower arguments (offset/limit, max_depth, max_results, "
+            "subdir filters) instead of repeating the same call."
+        ),
+        "result_too_large": True,
+        "result_size": size,
+    }
+
+# ── Compact tool_result persistence (M2) ────────────────────────────────────
+# Hidden tool_results are stored into the thread DB. Storing the raw JSON of
+# a giant payload (e.g. a 1.6M-character list_files) bloats the database and
+# can later blow up the model context when the thread is reloaded. Results up
+# to _TOOL_RESULT_STORAGE_KEEP_LIMIT characters are kept verbatim; larger
+# ones are reduced to their scalar fields, with bulk fields replaced by their
+# serialized size. Unparseable JSON is kept best-effort up to the fallback
+# limit.
+_TOOL_RESULT_STORAGE_KEEP_LIMIT: int = 50_000
+_TOOL_RESULT_STORAGE_FIELD_LIMIT: int = 400
+_TOOL_RESULT_STORAGE_FALLBACK_LIMIT: int = 10_000
+
+_ECONOMY_INPUT_BUDGET_RATIO: float = 0.8
+
+
+# Keys that typically carry large payloads and must not be persisted in full.
+_TOOL_RESULT_BULK_KEYS = frozenset({
+    "content", "entries", "files", "dirs", "results", "blocks", "messages",
+    "new_text", "verified_text", "diff", "edits", "details", "suggestions",
+    "occurrences", "events", "data", "chunks", "documents", "items",
+})
+
+
+def summarize_tool_result_for_storage(content: str) -> str:
+    """Return a compact, DB-safe form of a hidden tool_result payload.
+
+    Small results (up to ``_TOOL_RESULT_STORAGE_KEEP_LIMIT`` serialized
+    characters) are returned unchanged. Larger results are reduced to their
+    scalar fields (*ok*, *path*, *error*, *applied*, counts, ...); list-like
+    values and known bulk fields are replaced by their size in a
+    ``bulk_sizes`` map, and oversized scalar strings are truncated with their
+    full length recorded. Unparseable JSON (and non-tool_result text) is
+    returned best-effort up to ``_TOOL_RESULT_STORAGE_FALLBACK_LIMIT``
+    characters.
+
+    Parameters
+    ----------
+    content : str
+        The raw persisted message content (possibly a
+        ``{"tool_result": ...}`` JSON payload).
+
+    Returns
+    -------
+    str
+        Either the original content (small / not a tool_result) or the
+        compact summary JSON.
+    """
+    if not isinstance(content, str) or not content.startswith(_TOOL_RESULT_PREFIX):
+        return content
+    if len(content) <= _TOOL_RESULT_STORAGE_KEEP_LIMIT:
+        return content
+    try:
+        data = json.loads(content)
+    except Exception:
+        return content[:_TOOL_RESULT_STORAGE_FALLBACK_LIMIT]
+    tr = data.get("tool_result")
+    if not isinstance(tr, dict):
+        return content[:_TOOL_RESULT_STORAGE_FALLBACK_LIMIT]
+    compact: Dict[str, Any] = {}
+    sizes: Dict[str, Any] = {}
+    for key, value in tr.items():
+        if isinstance(value, (list, tuple)):
+            sizes[key] = len(value)
+            continue
+        if isinstance(value, dict) or key in _TOOL_RESULT_BULK_KEYS:
+            try:
+                sizes[key] = len(json.dumps(value, ensure_ascii=False))
+            except Exception:
+                sizes[key] = len(str(value))
+            continue
+        if isinstance(value, str) and len(value) > _TOOL_RESULT_STORAGE_FIELD_LIMIT:
+            compact[key] = value[:_TOOL_RESULT_STORAGE_FIELD_LIMIT]
+            compact[key + "_full_len"] = len(value)
+            continue
+        compact[key] = value
+    if sizes:
+        compact["bulk_sizes"] = sizes
+    return json.dumps({"tool_result": compact}, ensure_ascii=False)
+
 _CONFIRMATION_REQUEST_PATTERNS = [
     re.compile(p, re.IGNORECASE)
     for p in (
@@ -1183,7 +1298,77 @@ def _make_meta_msg(state: "AgentLoopState") -> Dict[str, Any]:
     }
 
 
-def build_economy_context(state: "AgentLoopState") -> List[Dict[str, Any]]:
+def _estimate_messages_tokens(messages: List[Dict[str, Any]]) -> int:
+    """Estimate the token size of a list of API-style messages (M3 helper).
+
+    Counts string contents; list contents (multi-part) are counted per
+    text part; non-string contents fall back to repr length.
+    """
+    try:
+        from core.files import estimate_tokens
+    except Exception:
+        return 0
+    total = 0
+    for msg in messages:
+        content = msg.get("content", "")
+        if isinstance(content, str):
+            if content:
+                total += estimate_tokens(content)
+        elif isinstance(content, list):
+            for part in content:
+                if isinstance(part, dict):
+                    text = part.get("text", "")
+                    if isinstance(text, str) and text:
+                        total += estimate_tokens(text)
+        elif content:
+            total += estimate_tokens(str(content))
+    return max(1, total)
+
+
+def _enforce_history_token_budget(messages: List[Dict[str, Any]],
+                                  assistant: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    """Trim the oldest messages so the context fits the token budget (M3).
+
+    Resolves the model's context window and configured output limit for
+    *assistant*; the budget is ``window * _ECONOMY_INPUT_BUDGET_RATIO``
+    minus the output limit. The head element (the compact metadata system
+    message) is always preserved and trimming happens strictly from the
+    front, so the most recent turns survive. Returns the list unchanged
+    when the window cannot be resolved (unknown service/model) or when
+    nothing can be trimmed.
+    """
+    if not assistant or not isinstance(assistant, dict) or len(messages) <= 2:
+        return messages
+    svc_name = str(assistant.get("service", "") or "").strip()
+    if not svc_name:
+        return messages
+    try:
+        from core.files import get_model_context_window
+        from core.services import get_services
+        from core.api_layer import _get_model_max_tokens
+
+        services = get_services()
+        window = int(get_model_context_window(assistant, services))
+        model_id = str(assistant.get("model", "") or "").strip()
+        svc = services.get(svc_name, {})
+        max_out = int(_get_model_max_tokens(svc, model_id) or 0)
+        budget = int(window * _ECONOMY_INPUT_BUDGET_RATIO)
+        if max_out:
+            budget = max(0, budget - max_out)
+    except Exception:
+        return messages
+    keep_head = messages[:1]
+    body = list(messages[1:])
+    while len(body) > 1:
+        used = _estimate_messages_tokens(keep_head) + _estimate_messages_tokens(body)
+        if used <= budget:
+            break
+        body.pop(0)
+    return keep_head + body
+
+
+def build_economy_context(state: "AgentLoopState",
+                          assistant: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """Build a reduced history for economy mode.
 
     Two strategies are supported:
@@ -1207,6 +1392,13 @@ def build_economy_context(state: "AgentLoopState") -> List[Dict[str, Any]]:
     Both modes prepend a compact metadata system message. In cache-friendly
     mode that message contains only static fields so it does not break the
     prefix cache.
+
+    Token budget (M3, active when *assistant* is given): before returning,
+    the oldest sent messages are additionally trimmed by
+    ``_enforce_history_token_budget`` so the estimated input plus the
+    model configured max_tokens stays within
+    ``window * _ECONOMY_INPUT_BUDGET_RATIO``. The metadata message is
+    always preserved. Without *assistant* the budget step is skipped.
     """
     history = state.history
     if state.economy_tail_messages is not None and int(state.economy_tail_messages) > 0:
@@ -1223,7 +1415,7 @@ def build_economy_context(state: "AgentLoopState") -> List[Dict[str, Any]]:
             result.extend(history)
         else:
             result.extend(history[-tail:])
-        return result
+        return _enforce_history_token_budget(result, assistant)
 
     # Cache-friendly mode.
     multiplier = max(1, state.economy_cache_multiplier)
@@ -1252,7 +1444,7 @@ def build_economy_context(state: "AgentLoopState") -> List[Dict[str, Any]]:
             state.economy_anchor = max(0, total - tail)
 
     result.extend(history[state.economy_anchor:])
-    return result
+    return _enforce_history_token_budget(result, assistant)
 
 
 def carry_over_economy_cache(source: Optional["AgentLoopState"],
@@ -1608,7 +1800,7 @@ def _step_agent_loop_impl(
                   "strength": strength, "model": assistant.get("model")})
 
             if state.economy_mode:
-                effective_history = build_economy_context(state)
+                effective_history = build_economy_context(state, assistant)
             else:
                 effective_history = state.history
 

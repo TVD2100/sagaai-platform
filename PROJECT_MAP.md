@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-09-13T06:00:00+00:00`
-- Файлов: **717**
-- Языки: Config: 1, JSON: 22, Markdown: 484, PEM certificate: 1, Python: 213, Text: 1
+- Обновлено: `2026-09-15T23:16:00+00:00`
+- Файлов: **723**
+- Языки: Config: 1, JSON: 22, Markdown: 484, PEM certificate: 1, Python: 219, Text: 1
 
 ## Файлы и назначение
 
@@ -48,6 +48,7 @@
 | `core/auth.py` | Python | Optional password authentication gate | - |
 | `core/bootstrap.py` | Python | First-run provisioning: Assistant/Employee Creator instructions, DevAgent settings, legacy skill_creator migration | - |
 | `core/config.py` | Python | Configuration load/save with secret encryption and env overlay | storage |
+| `core/context_guard.py` | Python | Pre-flight context-window guard for api_layer: soft trim, hard threshold, ContextWindowError | - |
 | `core/connectors.py` | Python | _(описание не задано)_ | - |
 | `core/crypto.py` | Python | Encryption key handling and Fernet helpers | - |
 | `core/dangerous.py` | Python | Dangerous-code assessment for run_code/run_test | - |
@@ -105,6 +106,7 @@
 | `tests/test_backup_and_safewriter.py` | Python | Backup/safe-writer tests | - |
 | `tests/test_chat_pagination.py` | Python | _(описание не задано)_ | - |
 | `tests/test_connectors.py` | Python | _(описание не задано)_ | - |
+| `tests/test_context_window_guard.py` | Python | _(описание не задано)_ | - |
 | `tests/test_core_api_json_schema.py` | Python | _(описание не задано)_ | - |
 | `tests/test_core_api_layer.py` | Python | Pure api_layer unit tests | - |
 | `tests/test_core_api_send.py` | Python | send_request integration tests (mocked HTTP) | - |
@@ -118,6 +120,7 @@
 | `tests/test_devagent_thread_workspace.py` | Python | DevAgent thread workspace persistence tests | storage |
 | `tests/test_dispatcher_connections.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_dispatcher_tool_gating.py` | Python | _(описание не задано)_ | storage |
+| `tests/test_economy_history_budget.py` | Python | _(описание не задано)_ | - |
 | `tests/test_employee_management_ui.py` | Python | UI regression tests: employee management pages render and expose no export/import employee UI | - |
 | `tests/test_github_connector_rest.py` | Python | _(описание не задано)_ | - |
 | `tests/test_github_tools_rest.py` | Python | _(описание не задано)_ | - |
@@ -168,6 +171,8 @@
 | `tests/test_threads_devagent_files.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_token_line_cache.py` | Python | _(описание не задано)_ | - |
 | `tests/test_tool_executor_env.py` | Python | _(описание не задано)_ | - |
+| `tests/test_tool_result_size_cap.py` | Python | _(описание не задано)_ | - |
+| `tests/test_tool_result_storage_summary.py` | Python | _(описание не задано)_ | - |
 | `tests/test_tools_utils.py` | Python | _(описание не задано)_ | - |
 | `tests/test_ui_pages.py` | Python | UI page tests | - |
 | `tests/test_ui_tooltips.py` | Python | _(описание не задано)_ | - |
@@ -186,6 +191,7 @@
 | `tests/scenarios/test_access_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_assistant_sidebar_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_connection_retry_scenarios.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_context_overflow_protection.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_connectors_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_first_run_flow.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_github_rest_scenario.py` | Python | _(описание не задано)_ | - |
@@ -1072,6 +1078,10 @@
 - `list_services` (func, строка 262)
 - `get_service` (func, строка 272)
 
+### `core/context_guard.py`
+- `apply_context_guard` (func, строка 15)
+- `_estimate_messages` (func, строка 49)
+
 ### `core/crypto.py`
 - `_legacy_key_file_path` (func, строка 29)
 - `get_key_file_path` (func, строка 38)
@@ -1847,6 +1857,16 @@
 - `test_create_github_rest_connection_encrypted_token` (func, строка 116)
 - `test_public_manifest_never_leaks_token` (func, строка 132)
 
+### `tests/test_context_window_guard.py`
+- `_calls` (func, строка 13)
+- `test_trim_from_front_under_soft_threshold` (func, строка 22)
+- `test_hard_threshold_raises_context_window_error` (func, строка 41)
+- `test_output_reserve_is_clamped_to_half_window` (func, строка 53)
+- `test_passthrough_when_window_unknown` (func, строка 72)
+- `test_passthrough_when_lookup_errors` (func, строка 80)
+- `test_integration_send_request_guards_before_do_request` (func, строка 89)
+- `test_integration_hard_fail_raises_before_do_request` (func, строка 120)
+
 ### `tests/test_core_api_json_schema.py`
 - `_svc` (func, строка 23)
 - `_cfg` (func, строка 34)
@@ -2037,6 +2057,16 @@
 - `orch_slug` (func, строка 58)
 - `_make_agent` (func, строка 68)
 - `TestDispatchToolGating` (class, строка 75)
+
+### `tests/test_economy_history_budget.py`
+- `services_window` (func, строка 19)
+- `assistant` (func, строка 32)
+- `_make_state` (func, строка 36)
+- `_msg` (func, строка 45)
+- `test_budget_trims_oldest_messages_from_front` (func, строка 49)
+- `test_budget_keeps_everything_when_it_fits` (func, строка 85)
+- `test_no_assistant_skips_budget_passthrough` (func, строка 100)
+- `test_unknown_window_falls_back_to_passthrough` (func, строка 117)
 
 ### `tests/test_employee_management_ui.py`
 - `isolated_data` (func, строка 25)
@@ -2707,6 +2737,30 @@
 - `test_run_code_propagates_sagaai_data_dir` (func, строка 25)
 - `test_run_test_propagates_sagaai_data_dir` (func, строка 37)
 
+### `tests/test_tool_result_size_cap.py`
+- `sandbox` (func, строка 22)
+- `test_cap_passes_small_results_unchanged` (func, строка 38)
+- `test_cap_keeps_small_error_results` (func, строка 43)
+- `test_cap_blocks_oversized_result` (func, строка 48)
+- `test_cap_reports_exact_size` (func, строка 59)
+- `test_read_file_oversized_result_is_error` (func, строка 69)
+- `test_read_file_small_file_passes` (func, строка 81)
+- `test_dispatch_applies_cap_to_custom_tool_result` (func, строка 89)
+
+### `tests/test_tool_result_storage_summary.py`
+- `_tool_result_payload` (func, строка 27)
+- `test_small_tool_result_returned_unchanged` (func, строка 45)
+- `test_large_tool_result_compacted_bulk_fields_to_sizes` (func, строка 52)
+- `test_large_scalar_string_truncated_with_full_len` (func, строка 71)
+- `test_broken_json_kept_raw_up_to_fallback_limit` (func, строка 90)
+- `test_non_tool_result_text_unchanged` (func, строка 98)
+- `test_tool_result_list_values_counted` (func, строка 104)
+- `isolated_data` (func, строка 120)
+- `test_append_thread_message_compacts_giant_tool_result` (func, строка 138)
+- `test_save_thread_messages_compacts_giant_tool_result` (func, строка 159)
+- `test_small_tool_result_saved_verbatim` (func, строка 183)
+- `test_events_survive_compaction` (func, строка 198)
+
 ### `tests/test_tools_utils.py`
 - `test_no_service_def_returns_empty` (func, строка 13)
 - `test_missing_tools_options_returns_empty` (func, строка 18)
@@ -3080,6 +3134,12 @@
 - `test_scenario_flaky_network_recovers_transparently` (func, строка 106)
 - `test_scenario_permanent_outage_preserves_user_message` (func, строка 137)
 - `test_scenario_provider_http_error_fails_fast` (func, строка 161)
+
+### `tests/scenarios/test_context_overflow_protection.py`
+- `sandbox` (func, строка 28)
+- `test_scenario_giant_tool_result_is_capped_before_context` (func, строка 41)
+- `test_scenario_long_history_is_trimmed_before_request` (func, строка 68)
+- `test_scenario_impossible_payload_raises_clear_error` (func, строка 108)
 
 ### `tests/scenarios/test_connectors_scenarios.py`
 - `isolated_data_dir` (func, строка 29)

@@ -349,6 +349,27 @@ PROJECT_MAP.md, SPEC.md, ARCHITECTURE.md, CHANGELOG.md, снапшоты. Пер
 `disabled: true` (гейт до выполнения; legacy-алиасы в обе стороны). Вкладка
 Функции показывает системные функции с чекбоксами и кнопкой Сохранить.
 
+### Защита от переполнения контекста LLM (M1-M5)
+Пятиуровневая защита от HTTP 400 «context length exceeded» (инцидент
+1 053 249 > 1 048 576 токенов из-за tool_result на 1,65 млн символов):
+
+- **M1 - кап результатов инструментов.** `dev_agent/tool_executor.py` и
+  `dev_agent/universal_agent.py` пропускают результат через
+  `_apply_tool_result_cap` (лимит `MAX_TOOL_RESULT_CHARS` = 200 000):
+  превышение возвращает `ok=False` со структурированной ошибкой
+  (`result_too_large`, `result_size`) без payload.
+- **M2 - компактный персист скрытых tool_result.**
+  `summarize_tool_result_for_storage` в `dev_agent/agent_loop.py` + оба
+  пути записи `core/threads_devagent.py` сохраняют в БД сводку (status,
+  path, applied, размеры bulk-полей), а не сырой JSON.
+- **M3 - бюджет истории эконом-режима.** `build_economy_context`
+  (`dev_agent/agent_loop.py`) + `_enforce_history_token_budget`: вес
+  истории ограничен долей окна 0.8, лишние сообщения срезаются с фронта.
+- **M4/M5 - pre-flight guard в api_layer.** `core/context_guard.py`
+  (apply_context_guard) + `ContextWindowError` в `core/api_errors.py`;
+  вызов из `send_request` до отправки. Мягкий трим на 0.5 окна, жёсткий
+  предел 0.8 окна, понятная ошибка без нового диалога.
+
 ### Экспорт/импорт оркестраторов (core API)
 Формат `sagaai_orchestrator/v1` (JSON). Slug-конфликты разрешаются
 генерацией нового (`slug_2`, ...). Инструкции импортируются без
