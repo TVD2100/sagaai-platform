@@ -118,3 +118,100 @@ class TestSystemPromptDocumentsJsonSelfCheck:
     def test_canonical_prompt_documents_self_check(self):
         prompt = config.SYSTEM_PROMPT_FILE.read_text(encoding="utf-8")
         assert "Self-check each tool-call JSON" in prompt
+
+# --- layered repair cascade and parse-error policy (DevAgent) ---
+import json
+
+from dev_agent import agent_loop as al
+
+_Q = chr(34)
+_BS = chr(92)
+_NL = chr(10)
+_FENCE = chr(96) * 3
+
+def test_valid_json_untouched_by_cascade():
+    raw = json.dumps({'tool': 'list_files', 'args': {}})
+    assert al._json_loads_lenient(raw) == {'tool': 'list_files', 'args': {}}
+    assert al.parse_tool_calls(raw) == [{'tool': 'list_files', 'args': {}}]
+
+def test_stray_closing_bracket_removed():
+    good = json.dumps({'tool': 'apply_patch', 'args': {'edits': [{'new': 'a', 'old': 'b'}], 'path': 'x.py'}})
+    pos = good.find('}]') + 1
+    broken = good[:pos] + ']' + good[pos:]
+    calls = al.parse_tool_calls(broken)
+    assert len(calls) == 1
+    assert calls[0]['tool'] == 'apply_patch'
+    assert calls[0]['args']['edits'] == [{'new': 'a', 'old': 'b'}]
+    assert calls[0]['args']['path'] == 'x.py'
+
+def test_structural_quotes_escaped_one_level():
+    inner = json.dumps({'tool': 'apply_patch', 'args': {'edits': [{'new': 'x = 1', 'old': 'y = 2'}]}})
+    raw = _BS + 'n' + inner.replace(_Q, _BS + _Q)
+    text = _FENCE + 'json' + _NL + raw + _NL + _FENCE
+    calls = al.parse_tool_calls(text)
+    assert len(calls) == 1
+    assert calls[0]['args']['edits'][0]['new'] == 'x = 1'
+    assert calls[0]['args']['edits'][0]['old'] == 'y = 2'
+    assert calls[0].get('_json_repaired') == 1
+
+def test_json_string_wrapped_call_decoded():
+    wrapped = json.dumps(json.dumps({'tool': 'list_files', 'args': {}}))
+    text = _FENCE + 'json' + _NL + wrapped + _NL + _FENCE
+    calls = al.parse_tool_calls(text)
+    assert len(calls) == 1
+    assert calls[0]['tool'] == 'list_files'
+    assert calls[0].get('_json_repaired') == 1
+
+def test_collapse_value_escapes_unit():
+    v = 's = ' + _BS + _Q + 'x' + _BS + _Q
+    out = al._collapse_value_escapes({'k': v})
+    assert out == {'k': 's = ' + _Q + 'x' + _Q}
+
+# --- loop-level: parse-error hard-stop policy ---
+
+def _lp_skill():
+    return {'text': 'p', 'service': 'mock', 'model': 'm', 'temperature': 0.1}
+
+def _lp_send(responses):
+    it = iter(responses)
+
+    def _send(*args, **kwargs):
+        try:
+            return next(it)
+        except StopIteration:
+            return ''
+
+    return _send
+
+class _RecDispatcher:
+    def __init__(self):
+        self.calls = []
+
+    def dispatch_json(self, call):
+        self.calls.append(call)
+        return {'ok': True, 'tool': call['tool'], 'message': 'ok'}
+
+    def dispatch(self, tool, args):
+        return {'ok': True}
+
+def _broken_call(p):
+    return '{' + _Q + 'tool' + _Q + ': ' + _Q + 'list_files' + _Q + ', ' + _Q + 'args' + _Q + ': {' + _Q + 'path' + _Q + ': ' + _Q + p + _Q + ',}}'
+
+def test_varied_broken_calls_never_hard_stop(monkeypatch):
+    broken = [_broken_call('f' + str(i) + '.py') for i in range(6)]
+    sent = [_FENCE + 'json' + _NL + b + _NL + _FENCE for b in broken] + ['ok']
+    monkeypatch.setattr(al, 'send_request', _lp_send(sent))
+    disp = _RecDispatcher()
+    result = al.run_agent_loop('task', _lp_skill(), disp, auto_apply=True, max_steps=200)
+    assert result.status != 'error'
+    assert disp.calls == []
+
+def test_identical_broken_call_stops_the_loop(monkeypatch):
+    text = _FENCE + 'json' + _NL + _broken_call('f.py') + _NL + _FENCE
+    monkeypatch.setattr(al, 'send_request', _lp_send([text] * 5))
+    disp = _RecDispatcher()
+    result = al.run_agent_loop('task', _lp_skill(), disp, auto_apply=True, max_steps=40)
+    assert result.status == 'error'
+    assert 'SAME broken tool-call JSON' in result.text
+    assert disp.calls == []
+

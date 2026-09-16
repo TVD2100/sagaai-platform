@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "0.4.0-preview.1",
+  "app_version": "0.4.1-preview.1",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Защита от переполнения контекста LLM: результаты инструментов свыше 200 тыс. символов не попадают в контекст; скрытые результаты сохраняются в БД компактной сводкой; история эконом-режима ограничивается бюджетом окна; контекст оценивается и обрезается до запроса к провайдеру (понятная ошибка вместо HTTP 400).",
-    "en": "LLM context-overflow protection: tool results over 200k characters never reach the context; hidden tool results are stored in the DB as compact summaries; economy-mode history is budgeted to the context window; outgoing context is estimated and trimmed before provider requests (a clear error instead of HTTP 400)."
+    "ru": "Каскадный ремонт tool-call JSON: лишние закрывающие скобки, переэкранированные кавычки и вызовы, завёрнутые в JSON-строку, восстанавливаются автоматически; аварийный стоп цикла срабатывает только при повторе одного и того же битого вызова.",
+    "en": "Cascading tool-call JSON repair: stray closing brackets, over-escaped quotes and JSON-string-wrapped calls are recovered automatically; the loop hard-stops only when the same broken call repeats unchanged."
   },
-  "updated": "2026-09-15T23:18:04Z",
+  "updated": "2026-09-16T10:00:00Z",
   "units": {
     "core": {
-      "version": "1.6.0",
+      "version": "1.6.1",
       "note": {
-        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer.",
-        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer."
+        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop).",
+        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop)."
       },
       "files": {
         "__init__.py": {
@@ -204,16 +204,16 @@
           "sha256": "eb31b89c7e74fcd318863b8a3cbe3420fb002808b81bfd58c24df4bb9ca63292"
         },
         "core/version.py": {
-          "version": "1.0.5",
-          "sha256": "65091875bbac8328aa4893bd760cb7fb10b96447bbfb84016a89550cb14e5967"
+          "version": "1.0.6",
+          "sha256": "c07d2e2ea0ae62755731e0bc362d3c86bd8ad1bd95aac6d69e4c3217aad87572"
         },
         "dev_agent/__init__.py": {
           "version": "1.0.0",
           "sha256": "d87092665bbf50e5270ad17b3c2c7eb8230b22ae968f52113672025267ead063"
         },
         "dev_agent/agent_loop.py": {
-          "version": "1.5.0",
-          "sha256": "5d8dcd1251282764a8d3428cd2cd8c57440c207ddc844a8884a98c36ddf4c9af"
+          "version": "1.6.0",
+          "sha256": "8edc8b9bb89ea4193045680f15de89f9c18961fb68a8ec8342374f2ea7f895c1"
         },
         "dev_agent/assistant_detector.py": {
           "version": "1.0.0",
@@ -364,8 +364,8 @@
           "sha256": "df3fd59d22fdebfacdfc1920ccd37194c8498b9ce53b1cd3149a6edddb982e49"
         },
         "tests/test_agent_loop_json_repair.py": {
-          "version": "1.0.0",
-          "sha256": "7c4e3eb46880df89de41ff0400b5545bd62e970da62f7aab31736f4a099d3989"
+          "version": "1.1.0",
+          "sha256": "15b15e67c447cc18633be1a434a7fbaeafe5118fcfefacd509f189d8b9442da7"
         },
         "tests/test_app_imports.py": {
           "version": "1.0.0",
@@ -940,11 +940,11 @@
       }
     },
     "README.md": {
-      "version": "1.8.1",
-      "sha256": "ffc6c9055f06d0c6efa0d5b313febc61292b993cf8c6ff5b789d1ab035bb8030",
+      "version": "1.8.2",
+      "sha256": "f30dc571b78b9a82bd8e39283cdde7b25906a7a4560443daaa1618ad85135850",
       "note": {
-        "ru": "Строка версии в статусе preview обновлена до v0.4.0-preview.1.",
-        "en": "The preview status version string updated to v0.4.0-preview.1."
+        "ru": "Строка версии в статусе preview обновлена до v0.4.1-preview.1.",
+        "en": "The preview status version string updated to v0.4.1-preview.1."
       }
     },
     "SPEC.md": {

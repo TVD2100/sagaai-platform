@@ -619,8 +619,180 @@ def _escape_raw_newlines_in_strings(text: str) -> str:
     return "".join(out)
 
 
+def _repair_stray_bracket(raw: str) -> Optional[str]:
+    """Remove ONE stray closing bracket near the JSON error position.
+
+    LLMs frequently emit an extra ``]``/``}`` right after a fully closed
+    nested construct. json.loads then fails with "Expecting ',' delimiter"
+    exactly at the extra bracket. We delete the bracket at (or adjacent to)
+    the reported error position and require the result to parse STRICTLY
+    into a valid tool call, so accidental damage is rejected.
+    """
+    if '"tool"' not in raw or "{" not in raw:
+        return None
+    try:
+        json.loads(raw)
+        return None  # already valid; nothing to repair
+    except json.JSONDecodeError as exc:
+        err_pos = exc.pos
+    for shift in (0, -1, 1, -2):
+        pos = err_pos - 1 + shift
+        if 0 <= pos < len(raw) and raw[pos] in "]}":
+            trial = raw[:pos] + raw[pos + 1:]
+            try:
+                obj = json.loads(trial)
+            except json.JSONDecodeError:
+                continue
+            if _normalize_call(obj) is not None:
+                return trial
+    return None
+
+
+def _collapse_value_escapes(obj: Any) -> Any:
+    """Collapse double-escaped sequences inside the STRING VALUES of *obj*.
+
+    After repairing over-escaped JSON the parsed values may still contain
+    backslash-quote and backslash-n/t/r artifacts (the second escaping
+    level). This recursive walk restores the intended plain characters.
+    Only repaired calls reach this helper - valid JSON is never touched.
+    """
+    if isinstance(obj, dict):
+        return {k: _collapse_value_escapes(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_collapse_value_escapes(v) for v in obj]
+    if isinstance(obj, str):
+        out = obj
+        for _ in range(3):  # tolerate up to triple over-escaping
+            nxt = (out.replace('\\"', '"')
+                      .replace('\\n', '\n')
+                      .replace('\\t', '\t')
+                      .replace('\\r', '\r'))
+            if nxt == out:
+                break
+            out = nxt
+        return out
+    return obj
+
+
+def _unescape_json_string_body(raw: str) -> str:
+    """Decode backslash escapes the way a JSON string interior does.
+
+    Handles \\" \\n \\t \\r \\b \\f \\/ \\\\ and \\uXXXX pairs WITHOUT touching
+    non-ASCII characters (codecs' unicode_escape would corrupt Cyrillic).
+    Unknown escapes are kept literally. Used to recover tool-call bodies
+    the model emitted one escaping level too deep.
+    """
+    simple = {'"': '"', '\\': '\\', 'n': '\n', 't': '\t',
+              'r': '\r', 'b': '\b', 'f': '\f', '/': '/'}
+    out: List[str] = []
+    i, n = 0, len(raw)
+    while i < n:
+        ch = raw[i]
+        if ch == '\\' and i + 1 < n:
+            nxt = raw[i + 1]
+            if nxt in simple:
+                out.append(simple[nxt])
+                i += 2
+                continue
+            if nxt == 'u':
+                hex4 = raw[i + 2:i + 6]
+                if len(hex4) == 4 and all(h in '0123456789abcdefABCDEF' for h in hex4):
+                    out.append(chr(int(hex4, 16)))
+                    i += 6
+                    continue
+            out.append(ch)
+            out.append(nxt)
+            i += 2
+            continue
+        out.append(ch)
+        i += 1
+    return ''.join(out)
+
+
+def _try_layer_parse_chain(text: str) -> Optional[Any]:
+    """Strict-parse helper for the cascade layers.
+
+    Parses *text* directly; on failure removes one stray bracket near the
+    error position and retries. The result is verified as a tool call and
+    string values get the double-escape collapse."""
+    try:
+        obj = json.loads(text)
+    except json.JSONDecodeError:
+        fixed = _repair_stray_bracket(text)
+        if fixed is None:
+            return None
+        try:
+            obj = json.loads(fixed)
+        except json.JSONDecodeError:
+            return None
+    obj = _collapse_value_escapes(obj)
+    if _normalize_call(obj) is not None:
+        return obj
+    return None
+
+
+def _json_repair_cascade(raw: str) -> Optional[Any]:
+    """Layered repair for tool-call JSON emitted with systematic damage.
+
+    Tries, in order: strict parse (idempotence for recursive calls),
+    stray-bracket deletion at the reported error position, whole-body
+    JSON-string-interior unescape (quotes/newlines escaped one level too
+    deep), and JSON-string wrap decoding. Every candidate must parse
+    STRICTLY into a valid tool call and gets its string values collapsed.
+    Valid JSON passes through untouched."""
+    if "{" not in raw or "tool" not in raw:
+        return None
+
+    # Layer 0: already-valid tool calls return as-is (recursive calls).
+    try:
+        obj = json.loads(raw)
+    except json.JSONDecodeError:
+        obj = None
+    if isinstance(obj, dict) and _normalize_call(obj) is not None:
+        return obj
+
+    # Layer 1: one stray closing bracket at/near the reported position.
+    fixed = _repair_stray_bracket(raw)
+    if fixed is not None:
+        obj = _collapse_value_escapes(json.loads(fixed))
+        if _normalize_call(obj) is not None:
+            return obj
+
+    # Layer 2: whole-body JSON-string-interior unescape (escaped quotes,
+    # escaped newlines, escaped tabs). Real emissions can be TWO escaping
+    # levels deep (a backslash before every structural quote): try one and
+    # two unescape passes, each followed by raw-newline repair and a strict
+    # parse gated by a valid-tool-call shape.
+    body = raw
+    for _pass in (1, 2, 3):
+        body = _unescape_json_string_body(body)
+        if body == raw:
+            break
+        nl_fixed = _escape_raw_newlines_in_strings(body)
+        obj = _try_layer_parse_chain(nl_fixed)
+        if obj is not None:
+            return obj
+
+    # Layer 3: the block is a JSON string encoding the whole call.
+    stripped = raw.strip()
+    try:
+        decoded = json.loads(stripped)
+    except (json.JSONDecodeError, ValueError):
+        decoded = None
+    if isinstance(decoded, str) and decoded.strip() and decoded != raw:
+        return _json_repair_cascade(decoded)
+
+    return None
+
+
 def _json_loads_lenient(raw: str) -> Optional[Any]:
-    """json.loads with a repair fallback for raw newlines in strings."""
+    """json.loads with layered repair for LLM-emitted tool-call JSON.
+
+    Order: strict parse (valid JSON passes through untouched), raw-newline
+    repair (existing behaviour), then the _json_repair_cascade layers
+    (stray bracket removal, whole-text escape collapse, JSON-string wrap
+    decode). Recovered calls already have value-level double escapes
+    collapsed."""
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
@@ -629,8 +801,8 @@ def _json_loads_lenient(raw: str) -> Optional[Any]:
             try:
                 return json.loads(repaired)
             except json.JSONDecodeError:
-                return None
-    return None
+                pass
+    return _json_repair_cascade(raw)
 
 
 def _truncated_tool_json_segments(text: str) -> List[str]:
@@ -1056,6 +1228,33 @@ def _repair_unclosed_tool_json(text: str) -> List[Dict[str, Any]]:
     return repaired_calls
 
 
+def _cascade_recover_tool_calls(text: str) -> List[Dict[str, Any]]:
+    """Last-resort recovery via the JSON repair cascade.
+
+    Runs only after balanced-object extraction, DSML parsing and
+    unclosed-brace repair all failed. Targets blocks whose structural
+    quotes are over-escaped (a backslash before every quote) or whose
+    body was wrapped as a JSON string - shapes the balanced-object
+    scanner cannot even see. Each recovered call is verified as a valid
+    tool call and carries the ``_json_repaired`` marker.
+    """
+    _fence = chr(96) * 3
+    blocks = re.findall(_fence + r"[a-zA-Z0-9_-]*\s*(.*?)" + _fence, text, re.DOTALL)
+    if not blocks:
+        blocks = [text]
+    recovered: List[Dict[str, Any]] = []
+    for block in blocks:
+        obj = _json_repair_cascade(block.strip())
+        if obj is None:
+            continue
+        call = _normalize_call(obj)
+        if call is None:
+            continue
+        call["_json_repaired"] = 1
+        recovered.append(call)
+    return recovered
+
+
 def parse_tool_calls(text: str) -> List[Dict[str, Any]]:
     if not text:
         return []
@@ -1077,6 +1276,8 @@ def parse_tool_calls(text: str) -> List[Dict[str, Any]]:
         results.extend(_extract_dsml_calls(text))
     if not results:
         results = _repair_unclosed_tool_json(text)
+    if not results:
+        results = _cascade_recover_tool_calls(text)
     return results
 
 # AgentResult
@@ -1563,8 +1764,13 @@ class AgentLoopState:
 
     consecutive_errors: int = 0
 
+    # Consecutive IDENTICAL unparsed tool-call JSON signatures. Varied
+    # broken attempts never accumulate here; only literal repeats count.
+    unparsed_repeat_count: int = 0
+
     # Fingerprint of the last unparsed tool-call JSON block; an IDENTICAL
-    # repeat only yields a stronger warning, never a hard stop.
+    # repeat yields a stronger warning and, after _MAX_CONSECUTIVE_ERRORS
+    # repeats, a hard stop (manual intervention).
     last_unparsed_signature: str = ""
     # Last dispatched (tool, stripped args-JSON). Used to detect the model
     # re-sending the SAME tool call after a failure; identical repeats are
@@ -1926,10 +2132,13 @@ def _step_agent_loop_impl(
             # repair. Feed the error back instead of silently spinning.
             diagnostics = _unparsed_tool_json_diagnostics(state.assistant_text)
             sig = _unparsed_block_signature(diagnostics)
-            state.consecutive_errors += 1
-            if state.consecutive_errors > _MAX_CONSECUTIVE_ERRORS:
+            repeated = bool(sig and sig == state.last_unparsed_signature)
+            state.unparsed_repeat_count = state.unparsed_repeat_count + 1 if repeated else 1
+            if not sig:
+                state.unparsed_repeat_count = 0
+            if state.unparsed_repeat_count > _MAX_CONSECUTIVE_ERRORS:
                 hard_msg = (
-                    "Tool-call JSON could not be parsed "
+                    "The SAME broken tool-call JSON was sent "
                     + str(_MAX_CONSECUTIVE_ERRORS)
                     + " times in a row. Manual intervention is needed."
                 )
@@ -1937,7 +2146,6 @@ def _step_agent_loop_impl(
                 state.phase = "error"
                 state.error_message = hard_msg
                 return state
-            repeated = bool(sig and sig == state.last_unparsed_signature)
             if sig:
                 state.last_unparsed_signature = sig
             warn_prefix = (
