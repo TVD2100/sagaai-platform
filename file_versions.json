@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "0.4.2-preview.1",
+  "app_version": "0.4.3-preview.1",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Модели GigaChat-3 (Ultra/Pro/Lightning) и новый API-endpoint api.giga.chat: устаревший хост gigachat.devices.sberbank.ru удалён, каталог моделей для теста соединения выводится из base_url сервиса.",
-    "en": "GigaChat-3 models (Ultra/Pro/Lightning) and the new api.giga.chat endpoint: the legacy gigachat.devices.sberbank.ru host is gone and the model catalog for connection tests is derived from the service base_url."
+    "ru": "Секция «Сотрудники» в сайдбаре в формате секции «Помощники»: 5 видимых кнопок, остальные в блоке «Все (N)», поиск только при >5; сортировка сотрудников по времени последнего диалога (новый модуль core/orchestrator_nav.py).",
+    "en": "The Employees sidebar section now matches the Assistants section: 5 visible buttons, the rest under the All (N) expander, search only when >5; employees sorted by the latest dialogue time (new core/orchestrator_nav.py module)."
   },
-  "updated": "2026-09-17T14:24:23Z",
+  "updated": "2026-09-17T15:41:57Z",
   "units": {
     "core": {
-      "version": "1.8.0",
+      "version": "1.9.0",
       "note": {
-        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3.",
-        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support."
+        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py).",
+        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py)."
       },
       "files": {
         "__init__.py": {
@@ -204,8 +204,8 @@
           "sha256": "eb31b89c7e74fcd318863b8a3cbe3420fb002808b81bfd58c24df4bb9ca63292"
         },
         "core/version.py": {
-          "version": "1.0.7",
-          "sha256": "d40f99920ca7e0fce1f667cd74a73e8bff77da2dbf312dd2354d55b6e4cb2773"
+          "version": "1.0.8",
+          "sha256": "cf324bf96cd6302a1df451d1416e5d641fa5ecd26bc61a1d1a0b8c7b157f3ba4"
         },
         "dev_agent/__init__.py": {
           "version": "1.0.0",
@@ -636,8 +636,8 @@
           "sha256": "364164080192ca393405d235f1fc7ae64d45f48fd0e7a6bf27b064ea439e7a1f"
         },
         "ui/app.py": {
-          "version": "1.3.0",
-          "sha256": "a72a83757d0d4df41af23a8ed2bfd0178382b8664b163374da7c66c35dc5c111"
+          "version": "1.4.0",
+          "sha256": "e64e3b1da2220c94f5fd834de5ae977ec7d3d1a63b5554b3c44d143cc45a3d28"
         },
         "ui/components/__init__.py": {
           "version": "1.0.0",
@@ -910,17 +910,33 @@
         "tests/scenarios/test_gigachat_models_scenario.py": {
           "version": "1.0.0",
           "sha256": "e45fa82cd6f2f5fa5d6ebd9e1bb02ca2429a80b726c9d013a6c604433a216be5"
+        },
+        "core/orchestrator_nav.py": {
+          "version": "1.0.0",
+          "sha256": "a47b5e932c65fe6b5462ff95016bd55f8ba2ee7cdfd3c1930caf7ef90ea71845"
+        },
+        "tests/test_orchestrator_nav.py": {
+          "version": "1.0.0",
+          "sha256": "10f75e8ac600bb38961f71873cd6efcc50155851e29b31075981852b949d9efd"
+        },
+        "tests/test_sidebar_employees_nav.py": {
+          "version": "1.0.0",
+          "sha256": "cd44dcb5661ad3e4ed465a8c9c0ba322335b90510c3f962c9bc9304e7494eaae"
+        },
+        "tests/scenarios/test_employees_sidebar_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "85021f57840f6d1d13b6a81339b10f7d7f5538e2a47408ab08f18121bc4cec05"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.11.0",
-      "sha256": "d86a3e173e3c082d858b730c94757f545a9fee92708573cee93ba951a438b127",
+      "version": "1.12.0",
+      "sha256": "7fd4ca23fae0f5cbd91b09141d26d4916511641a5638c22b1ba426d03013f20b",
       "note": {
-        "ru": "Добавлен раздел «Защита от переполнения контекста LLM (M1-M5)» с описанием пяти уровней защиты; раздел Решения дополнен подразделом «Защиты цикла агента от зацикливания» (счётчик отказов по инструменту, детекторы флуда одинаковых вызовов, промпт v3.11).",
-        "en": "Added the \"LLM context-overflow protection (M1-M5)\" section describing the five protection layers; the Decisions section gained an \"Agent-loop stuck protections\" subsection (per-tool failure counter, identical-call flood detectors, prompt v3.11)."
+        "ru": "Раздел «Навигация оркестраторов» описывает сортировку по активности и формат секции (5 + «Все (N)», поиск при >5); в таблице модулей добавлена строка assistant_nav/orchestrator_nav.",
+        "en": "The Orchestrator navigation section describes activity-based sorting and the section format (5 + All (N), search when >5); the module table gained an assistant_nav/orchestrator_nav row."
       }
     },
     "COMPARISON.md": {
@@ -940,27 +956,27 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.15.0",
-      "sha256": "539444af09d53f14f04eb258b8ae07a163c672f10365d232604ca8575fe4d953",
+      "version": "1.16.0",
+      "sha256": "77de73ea5b54f63a97f6a6daf657808017908be7891c849181a3c66e959c62c3",
       "note": {
-        "ru": "Карта перегенерирована: добавлены tests/scenarios/test_gigachat_models_scenario.py, helper _gigachat_models_url и новые тесты GigaChat.",
-        "en": "Map regenerated: added tests/scenarios/test_gigachat_models_scenario.py, the _gigachat_models_url helper and the new GigaChat tests."
+        "ru": "Карта перегенерирована: добавлены core/orchestrator_nav.py и тесты сайдбара сотрудников.",
+        "en": "Map regenerated: added core/orchestrator_nav.py and the employee-sidebar tests."
       }
     },
     "README.md": {
-      "version": "1.8.3",
-      "sha256": "57d1618336a5c8b637e2b60c70f9d7520018c950cf0109591c4ce26390c16a51",
+      "version": "1.9.0",
+      "sha256": "3207bf191c2f1f721bad820b7be2769537f6ce238faee3d1d95e75563fb5a776",
       "note": {
-        "ru": "Строка версии в статусе preview обновлена до v0.4.2-preview.1.",
-        "en": "The preview status version string updated to v0.4.2-preview.1."
+        "ru": "Добавлены пункты о формате секций сайдбара (сотрудники и помощники); строка preview-версии обновлена до v0.4.3-preview.1.",
+        "en": "Added bullets about the sidebar-section format (employees and assistants); the preview version string updated to v0.4.3-preview.1."
       }
     },
     "SPEC.md": {
-      "version": "1.12.0",
-      "sha256": "3e35be7fddf18b8078125cdbfe5a5732198ce2c3960ada03ae4da9eaad49b0c2",
+      "version": "1.13.0",
+      "sha256": "bd55967ccb370586c9a4b6f2506d1e16965629bc138c4247f75b99e8a2a16137",
       "note": {
-        "ru": "FR7 дополнен требованием защиты цикла агента от зацикливания: счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток и компактные ошибки для флуда одинаковых вызовов.",
-        "en": "FR7 extended with the agent-loop stuck-protection requirement: per-tool failure counter with a switch-tool hint after 3 tries and compact errors for identical call floods."
+        "ru": "FR2 и FR6 дополнены форматом секций сайдбара (5 видимых + «Все (N)», поиск при >5) и сортировкой сотрудников по последнему диалогу; core/orchestrator_nav.py в списке базовых файлов.",
+        "en": "FR2 and FR6 extended with the sidebar-section format (5 visible + All (N), search when >5) and employee sorting by the latest dialogue; core/orchestrator_nav.py added to the base-file list."
       }
     },
     "defaults/README.md": {
@@ -1020,11 +1036,11 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.4.0",
-      "sha256": "800b7d120eef1482e228f584301911c0aea12ba6d5be64ba07f073519cdf1b61",
+      "version": "1.5.0",
+      "sha256": "280af6d0904c64c32d4f06836d74fa6e7689bbcdfa3cb735b18dc33541f52a9c",
       "note": {
-        "ru": "Добавлены ключи orch_sysfunc_*: блок системных функций в настройках оркестратора (чекбоксы, Сохранить).",
-        "en": "Added orch_sysfunc_* keys: the system-functions block in orchestrator settings (checkboxes, Save button)."
+        "ru": "Добавлены ключи sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found: секция сотрудников в сайдбаре.",
+        "en": "Added sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found keys: the employees sidebar section."
       }
     },
     "defaults/langs/en_guide.md": {
@@ -1036,11 +1052,11 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.4.0",
-      "sha256": "fe63bf818bb6dc19a7cb4d99f0a4305fece9537e85be236858dbc524857f5c80",
+      "version": "1.5.0",
+      "sha256": "436bb878a1ae053124aff2c9e8529350af6b17b53c31f5409a19f5407ba87ff1",
       "note": {
-        "ru": "Добавлены ключи orch_sysfunc_*: блок системных функций в настройках оркестратора (чекбоксы, Сохранить).",
-        "en": "Added orch_sysfunc_* keys: the system-functions block in orchestrator settings (checkboxes, Save button)."
+        "ru": "Добавлены ключи sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found: секция сотрудников в сайдбаре.",
+        "en": "Added sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found keys: the employees sidebar section."
       }
     },
     "defaults/langs/ru_guide.md": {
@@ -1052,11 +1068,11 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.4.0",
-      "sha256": "aef020aab69c3dd320eb237426299d03b144a73cfbe51e9de4ff1e868c417169",
+      "version": "1.5.0",
+      "sha256": "f3ca8938009564fd9ca637fd1f92e9cb3d1b126e67ad1ca578a308e24b21def3",
       "note": {
-        "ru": "Добавлены ключи orch_sysfunc_*: блок системных функций в настройках оркестратора (чекбоксы, Сохранить).",
-        "en": "Added orch_sysfunc_* keys: the system-functions block in orchestrator settings (checkboxes, Save button)."
+        "ru": "Добавлены ключи sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found: секция сотрудников в сайдбаре.",
+        "en": "Added sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found keys: the employees sidebar section."
       }
     },
     "defaults/langs/zh_CN_guide.md": {
@@ -1276,11 +1292,11 @@
       }
     },
     "langs/en.json": {
-      "version": "1.4.0",
-      "sha256": "800b7d120eef1482e228f584301911c0aea12ba6d5be64ba07f073519cdf1b61",
+      "version": "1.5.0",
+      "sha256": "280af6d0904c64c32d4f06836d74fa6e7689bbcdfa3cb735b18dc33541f52a9c",
       "note": {
-        "ru": "Добавлены ключи orch_sysfunc_*: блок системных функций в настройках оркестратора (чекбоксы, Сохранить).",
-        "en": "Added orch_sysfunc_* keys: the system-functions block in orchestrator settings (checkboxes, Save button)."
+        "ru": "Добавлены ключи sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found: секция сотрудников в сайдбаре.",
+        "en": "Added sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found keys: the employees sidebar section."
       }
     },
     "langs/en_guide.md": {
@@ -1292,11 +1308,11 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.4.0",
-      "sha256": "f4de19d3173dc4b6d56e8b0a06e6677082ee3304584fd3b4fe8e3ac126545f09",
+      "version": "1.5.0",
+      "sha256": "6fafcf3ea10e079119c75d8d94f3ed6daa7db864114bfde74000ec0a0518f8dd",
       "note": {
-        "ru": "Добавлены ключи orch_sysfunc_*: блок системных функций в настройках оркестратора (чекбоксы, Сохранить).",
-        "en": "Added orch_sysfunc_* keys: the system-functions block in orchestrator settings (checkboxes, Save button)."
+        "ru": "Добавлены ключи sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found: секция сотрудников в сайдбаре.",
+        "en": "Added sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found keys: the employees sidebar section."
       }
     },
     "langs/ru_guide.md": {
@@ -1308,11 +1324,11 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.4.0",
-      "sha256": "aef020aab69c3dd320eb237426299d03b144a73cfbe51e9de4ff1e868c417169",
+      "version": "1.5.0",
+      "sha256": "f3ca8938009564fd9ca637fd1f92e9cb3d1b126e67ad1ca578a308e24b21def3",
       "note": {
-        "ru": "Добавлены ключи orch_sysfunc_*: блок системных функций в настройках оркестратора (чекбоксы, Сохранить).",
-        "en": "Added orch_sysfunc_* keys: the system-functions block in orchestrator settings (checkboxes, Save button)."
+        "ru": "Добавлены ключи sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found: секция сотрудников в сайдбаре.",
+        "en": "Added sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found keys: the employees sidebar section."
       }
     },
     "langs/zh_CN_guide.md": {
