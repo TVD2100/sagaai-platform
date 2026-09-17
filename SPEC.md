@@ -48,6 +48,9 @@ SagaAI - универсальный AI-ассистент с веб-интерф
 - Файлы помощника хранятся на диске и прикрепляются к контексту при вызове.
 - Помощники сортируются по времени последнего использования в связанных
   тредах.
+- Секция «Помощники» в сайдбаре: первые 5 позиций всегда видимы,
+  остальные - в свёрнутом блоке «Все (N)»; поле поиска отображается
+  только при количестве помощников > 5.
 - При создании помощника автоматически подбирается подходящий сервис и
   модель (модуль `assistant_model_resolver`): классификация сложности
   (strong/weak) и необходимости web_search, выбор из настроек оркестратора
@@ -98,6 +101,13 @@ SagaAI - универсальный AI-ассистент с веб-интерф
 - Каждый оркестратор отображается **отдельной страницей в общем меню**
   (сайдбаре). DevAgent - встроенный оркестратор (slug `dev_agent`,
   `is_builtin=True`), всегда доступен и не может быть удалён.
+- Секция «Сотрудники» в сайдбаре: первые 5 позиций всегда видимы,
+  остальные - в свёрнутом блоке «Все (N)»; поле поиска отображается
+  только при количестве сотрудников > 5.
+- Порядок сотрудников стабилен между перезапусками и определяется
+  активностью: по времени последнего диалога (последний тред в
+  `devagent.db`), а при его отсутствии - по времени создания; новый
+  сотрудник появляется вверху списка.
 - Страница оркестратора содержит вкладки: **Чат**, **История** и
   **Навыки**; ссылка на отдельную страницу **Настройки**.
 - Настройки сильной/слабой/поисковой модели - сервис + модель +
@@ -438,10 +448,10 @@ SagaAI - универсальный AI-ассистент с веб-интерф
     # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
     # SPDX-License-Identifier: MIT
 
-- Список базовых файлов (87):
+- Список базовых файлов (88):
   - Корень (2): __init__.py, app.py
   - UI (18): ui/__init__.py, ui/app.py, ui/components/__init__.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/assistants.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/orchestrator.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrators.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/welcome.py
-  - Core (48): core/__init__.py, core/api_errors.py, core/api_layer.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/config.py, core/connectors.py, core/contracts.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/entity_sync.py, core/env_loader.py, core/files.py, core/fs.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/orchestrator_folders.py, core/orchestrators.py, core/paths.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_skills.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skill_creator.py, core/skills.py, core/skills_library.py, core/statistics.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py
+  - Core (49): core/__init__.py, core/api_errors.py, core/api_layer.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/config.py, core/connectors.py, core/contracts.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/entity_sync.py, core/env_loader.py, core/files.py, core/fs.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrators.py, core/paths.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_skills.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skill_creator.py, core/skills.py, core/skills_library.py, core/statistics.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py
   - Storage (5): storage/__init__.py, storage/db.py, storage/models.py, storage/repository.py, storage/repository_devagent.py
   - DevAgent (14): dev_agent/__init__.py, dev_agent/agent_loop.py, dev_agent/assistant_detector.py, dev_agent/assistant_model_resolver.py, dev_agent/backup_manager.py, dev_agent/config.py, dev_agent/llm_utils.py, dev_agent/safe_writer.py, dev_agent/skill_detector.py, dev_agent/skill_model_resolver.py, dev_agent/task_state.py, dev_agent/tool_executor.py, dev_agent/universal_agent.py, dev_agent/workspace_tools.py
 

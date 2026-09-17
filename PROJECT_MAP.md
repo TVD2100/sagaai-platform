@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-09-17T14:04:08+00:00`
-- Файлов: **877**
-- Языки: Config: 1, JSON: 22, Markdown: 636, PEM certificate: 1, Python: 221, Text: 1
+- Обновлено: `2026-09-17T15:35:36+00:00`
+- Файлов: **890**
+- Языки: Config: 1, JSON: 22, Markdown: 645, PEM certificate: 1, Python: 225, Text: 1
 
 ## Файлы и назначение
 
@@ -18,7 +18,7 @@
 | `pytest.ini` | Config | Pytest configuration | - |
 | `requirements.txt` | Text | Python dependencies | - |
 | `ui/__init__.py` | Python | Package marker | - |
-| `ui/app.py` | Python | Main Streamlit app: sidebar navigation and page dispatch; assistants use assistant terminology | - |
+| `ui/app.py` | Python | Main Streamlit app: sidebar navigation and page dispatch; employees/assistants blocks show 5 visible + collapsed All, search only when >5 | - |
 | `ui/components/__init__.py` | Python | Package marker | - |
 | `ui/components/workspace_picker.py` | Python | Workspace picker component | - |
 | `ui/pages/__init__.py` | Python | Package marker | - |
@@ -42,7 +42,7 @@
 | `core/api_layer.py` | Python | HTTP requests to AI providers; send_request(assistant=...) with legacy skill= alias | - |
 | `core/assistant_creator.py` | Python | Validation and linting helpers for assistant prompts | - |
 | `core/assistant_folders.py` | Python | _(описание не задано)_ | - |
-| `core/assistant_nav.py` | Python | _(описание не задано)_ | - |
+| `core/assistant_nav.py` | Python | Sidebar ordering helpers for assistants; shared nav utilities (_parse_ts, _num, last_dialogue_at, split_nav_lists) | - |
 | `core/assistant_tools.py` | Python | _(описание не задано)_ | - |
 | `core/assistants.py` | Python | CRUD for AI assistant profiles and their attachment files | storage |
 | `core/auth.py` | Python | Optional password authentication gate | - |
@@ -63,6 +63,7 @@
 | `core/i18n.py` | Python | Language discovery and translation helper t() | - |
 | `core/instructions.py` | Python | CRUD for internal instructions (Assistant Creator, Employee Creator) | - |
 | `core/orchestrator_folders.py` | Python | Per-orchestrator folders: bundles, functions, instructions | storage |
+| `core/orchestrator_nav.py` | Python | Employee sidebar ordering: latest dialogue time when present, otherwise creation time (newest first) | - |
 | `core/orchestrator_tools.py` | Python | _(описание не задано)_ | - |
 | `core/orchestrators.py` | Python | Orchestrator API; build_assistant_dicts (legacy alias build_skill_dicts); enabled_skills for orchestrator skills | storage |
 | `core/paths.py` | Python | Base directories and thread paths | - |
@@ -133,6 +134,7 @@
 | `tests/test_orchestrator_connections.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_orchestrator_economy_cache.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_folders.py` | Python | Orchestrator folder tests | storage |
+| `tests/test_orchestrator_nav.py` | Python | Unit tests for employee sidebar ordering rules | - |
 | `tests/test_orchestrator_other_settings.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_system_tools_ui.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_tools.py` | Python | _(описание не задано)_ | storage |
@@ -157,6 +159,7 @@
 | `tests/test_safety_mode.py` | Python | Safety-mode gate tests | - |
 | `tests/test_sanitized_approval_flow.py` | Python | Sanitized-content approval flow tests | - |
 | `tests/test_search_in_files.py` | Python | _(описание не задано)_ | - |
+| `tests/test_sidebar_employees_nav.py` | Python | UI tests: employee sidebar - 5 visible, All expander, search field only when >5 employees | - |
 | `tests/test_skills_adaptation.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_skills_library.py` | Python | Skills library tests | storage |
 | `tests/test_st_mock.py` | Python | _(описание не задано)_ | _st_mock |
@@ -193,6 +196,7 @@
 | `tests/scenarios/test_connection_retry_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_connectors_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_context_overflow_protection.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_employees_sidebar_scenarios.py` | Python | Scenario tests: employee sidebar layout and order across restarts and activity changes | storage |
 | `tests/scenarios/test_first_run_flow.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_gigachat_models_scenario.py` | Python | Tier-3 GigaChat scenarios: api.giga.chat endpoint + GigaChat-3 models (mocked HTTP) | - |
 | `tests/scenarios/test_github_rest_scenario.py` | Python | _(описание не задано)_ | - |
@@ -883,6 +887,15 @@
 | `dev_agent/task_states/TASK_STATE__20260917_170153_ff3161.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260917_170200_2d4dd8.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260917_170200_761204.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_172619_13d595.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_172622_4b41f9.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_172622_71b1e6.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_172622_97dab7.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_172622_decf7e.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_172622_fd2592.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_172630_4018d2.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_172630_71760d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_183209_8bb4bf.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
 | `services/deepseek.json` | JSON | DeepSeek service definition | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
@@ -891,15 +904,15 @@
 ## Структура Python-модулей
 
 ### `ui/app.py`
-- `_build_orch_nav` (func, строка 61)
-- `_build_assistants_nav` (func, строка 87)
-- `_apply_theme` (func, строка 117)
-- `_sync_saved_theme` (func, строка 153)
-- `_sync_saved_theme_once` (func, строка 192)
-- `_build_ui_restore_payload` (func, строка 206)
-- `_restore_ui_reload_state` (func, строка 241)
-- `_handle_thread_deeplink` (func, строка 290)
-- `main` (func, строка 329)
+- `_build_orch_nav` (func, строка 63)
+- `_build_assistants_nav` (func, строка 94)
+- `_apply_theme` (func, строка 124)
+- `_sync_saved_theme` (func, строка 160)
+- `_sync_saved_theme_once` (func, строка 199)
+- `_build_ui_restore_payload` (func, строка 213)
+- `_restore_ui_reload_state` (func, строка 248)
+- `_handle_thread_deeplink` (func, строка 297)
+- `main` (func, строка 336)
 
 ### `ui/components/workspace_picker.py`
 - `_picker_state_keys` (func, строка 26)
@@ -1443,6 +1456,10 @@
 - `delete_orchestrator_instruction` (func, строка 518)
 - `export_orchestrator_folder` (func, строка 539)
 - `import_orchestrator_folder` (func, строка 562)
+
+### `core/orchestrator_nav.py`
+- `last_used_at` (func, строка 31)
+- `sort_orchestrators` (func, строка 42)
 
 ### `core/orchestrator_tools.py`
 - `_legacy_aliases` (func, строка 25)
@@ -2405,6 +2422,18 @@
 - `TestSlugSafety` (class, строка 340)
 - `TestOrchestratorLifecycleGuards` (class, строка 363)
 
+### `tests/test_orchestrator_nav.py`
+- `_o` (func, строка 21)
+- `_t` (func, строка 25)
+- `test_last_used_at_picks_newest_thread` (func, строка 38)
+- `test_last_used_at_empty_inputs` (func, строка 48)
+- `test_new_orchestrator_lands_at_very_top` (func, строка 56)
+- `test_all_orchestrators_without_dialogues_sorted_by_creation_desc` (func, строка 68)
+- `test_orchestrators_with_dialogues_sorted_by_dialogue_desc` (func, строка 78)
+- `test_tie_without_dates_falls_back_to_name_and_input_is_not_mutated` (func, строка 93)
+- `test_created_at_fallbacks_to_updated_at` (func, строка 104)
+- `test_visible_block_defaults_to_five` (func, строка 115)
+
 ### `tests/test_orchestrator_other_settings.py`
 - `_render_other` (func, строка 36)
 - `_number_input_kwargs` (func, строка 50)
@@ -2739,6 +2768,21 @@
 - `test_files_empty_list_rejected` (func, строка 299)
 - `test_files_non_string_entry_rejected` (func, строка 305)
 - `test_files_duplicates_do_not_crash` (func, строка 311)
+
+### `tests/test_sidebar_employees_nav.py`
+- `isolated_data` (func, строка 25)
+- `_fresh_ui` (func, строка 33)
+- `_ensure_seeds` (func, строка 41)
+- `_render` (func, строка 49)
+- `_make_employees` (func, строка 60)
+- `_make_assistants` (func, строка 73)
+- `_text_input_keys` (func, строка 88)
+- `_button_keys` (func, строка 93)
+- `_expander_labels` (func, строка 98)
+- `test_employee_search_hidden_with_five_or_fewer` (func, строка 105)
+- `test_employee_search_shown_above_five` (func, строка 126)
+- `test_assistant_search_hidden_with_five_or_fewer` (func, строка 147)
+- `test_assistant_search_shown_above_five` (func, строка 164)
 
 ### `tests/test_skills_adaptation.py`
 - `isolated_data_dir` (func, строка 39)
@@ -3326,6 +3370,21 @@
 - `test_scenario_giant_tool_result_is_capped_before_context` (func, строка 41)
 - `test_scenario_long_history_is_trimmed_before_request` (func, строка 68)
 - `test_scenario_impossible_payload_raises_clear_error` (func, строка 108)
+
+### `tests/scenarios/test_employees_sidebar_scenarios.py`
+- `isolated_data` (func, строка 30)
+- `_set_orch_column` (func, строка 38)
+- `_set_thread_column` (func, строка 49)
+- `_make_employee` (func, строка 60)
+- `_make_dialogue` (func, строка 70)
+- `_nav` (func, строка 80)
+- `_slugs` (func, строка 84)
+- `_fresh_app_mod` (func, строка 88)
+- `test_scenario_restart_keeps_visible_block` (func, строка 101)
+- `test_scenario_fresh_employee_appears_first` (func, строка 140)
+- `test_scenario_dialogue_activity_drives_order` (func, строка 166)
+- `test_scenario_more_than_five_employees` (func, строка 189)
+- `test_scenario_five_or_fewer_no_collapsed_block` (func, строка 220)
 
 ### `tests/scenarios/test_first_run_flow.py`
 - `isolated_data` (func, строка 64)

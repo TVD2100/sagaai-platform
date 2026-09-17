@@ -30,6 +30,8 @@ from core.env_loader import load_env_from_shell_profiles
 from core.auth import require_auth
 from core.recent_assistants import record_assistant_use
 from core.assistant_nav import sort_assistants, split_nav_lists, DEFAULT_VISIBLE_ASSISTANTS
+from core.orchestrator_nav import sort_orchestrators, DEFAULT_VISIBLE_ORCHESTRATORS
+from core.threads_devagent import list_devagent_threads
 
 from ui.pages.welcome  import page_welcome
 from ui.pages.chat     import page_run_query
@@ -59,29 +61,34 @@ _THEME_MODES = ["System", "Light", "Dark"]
 
 
 def _build_orch_nav():
-    """Return a list of (page_id, label, slug) for employee navigation.
+    """Return (visible, collapsed) employee navigation entries.
 
-    Custom orchestrators first (by sort_order), DevAgent first among all.
+    Each entry is a tuple (page_id, label, slug).
+
+    The first DEFAULT_VISIBLE_ORCHESTRATORS (5) entries are always shown as
+    a plain block; the rest stay inside the collapsed "All" expander next
+    to a search field. The global order is stable across app restarts and
+    follows the employees' activity: the newest dialogue time when the
+    orchestrator has dialogues (threads from the DevAgent database), and
+    the orchestrator creation time otherwise - a freshly created employee
+    lands at the very top.
     """
-    orch_list = list_orchestrators()
-    custom = []
-    devagent_entry = None
-    for orch in orch_list:
+    try:
+        orch_list = list_orchestrators()
+        devagent_threads = list_devagent_threads()
+    except Exception:
+        # Keep the rest of the navigation usable if the DB is stale.
+        return [], []
+
+    entries = []
+    for orch in sort_orchestrators(orch_list, devagent_threads):
         slug = orch.get("slug", "")
         if not slug:
             continue
         name = orch.get("name", slug)
-        page_id = f"orchestrator:{slug}"
-        if slug == DEVAGENT_SLUG:
-            devagent_entry = (page_id, f"{_DEVAGENT_ICON} {name}", slug)
-        else:
-            custom.append((page_id, f"{_ORCH_ICON} {name}", slug))
-    # DevAgent first, then custom
-    result = []
-    if devagent_entry:
-        result.append(devagent_entry)
-    result.extend(custom)
-    return result
+        icon = _DEVAGENT_ICON if slug == DEVAGENT_SLUG else _ORCH_ICON
+        entries.append((f"orchestrator:{slug}", f"{icon} {name}", slug))
+    return split_nav_lists(entries, DEFAULT_VISIBLE_ORCHESTRATORS)
 
 
 def _build_assistants_nav(lang: str):
@@ -582,7 +589,11 @@ def main():
             unsafe_allow_html=True,
         )
 
-        for page_id, label, slug in _build_orch_nav():
+        visible_orchs, collapsed_orchs = _build_orch_nav()
+        total_orchs = len(visible_orchs) + len(collapsed_orchs)
+
+        def _render_orch_button(page_id, label, slug):
+            """Render one employee button together with its click handler."""
             is_active = (page == page_id)
             if is_active:
                 st.markdown('<div class="nav-active">', unsafe_allow_html=True)
@@ -590,12 +601,51 @@ def main():
                 st.session_state["last_active_entity_type"] = "orchestrator"
                 st.session_state["last_active_entity_id"]   = slug
                 st.session_state["current_page"] = page_id
+                # Reset the employee search so the sidebar returns to the
+                # grouped layout on the next render (same as assistants).
+                st.session_state["orch_search_query"] = ""
+                st.session_state["orch_search_reset"] = int(st.session_state.get("orch_search_reset", 0)) + 1
                 # Reset orchestrator state for fresh entry
                 import ui.pages.orchestrator as _orch_page
                 _orch_page._reset_dialog(slug)
                 st.rerun()
             if is_active:
                 st.markdown("</div>", unsafe_allow_html=True)
+
+        if total_orchs:
+            # The search field appears only when there are more than five
+            # employees (fixed block + collapsed remainder).
+            orch_search_query = ""
+            if total_orchs > DEFAULT_VISIBLE_ORCHESTRATORS:
+                orch_search_query = st.text_input(
+                    t("sidebar_search_employees", lang=lang),
+                    value=st.session_state.get("orch_search_query", ""),
+                    key=f"orch_search_input_{st.session_state.get('orch_search_reset', 0)}",
+                    placeholder=t("sidebar_search_employees_placeholder", lang=lang),
+                    label_visibility="collapsed",
+                )
+                st.session_state["orch_search_query"] = orch_search_query
+
+            if orch_search_query:
+                # Search mode: show every matching employee, no groups.
+                all_matching = [
+                    (page_id, label, slug)
+                    for page_id, label, slug in (visible_orchs + collapsed_orchs)
+                    if orch_search_query.lower() in label.lower()
+                ]
+                for page_id, label, slug in all_matching:
+                    _render_orch_button(page_id, label, slug)
+                if not all_matching:
+                    st.caption(t("sidebar_no_employees_found", lang=lang))
+            else:
+                # Normal mode: fixed visible block, then collapsed "All".
+                for page_id, label, slug in visible_orchs:
+                    _render_orch_button(page_id, label, slug)
+                if collapsed_orchs:
+                    all_label = t("sidebar_all_employees", lang=lang, count=len(collapsed_orchs))
+                    with st.expander(all_label, expanded=False):
+                        for page_id, label, slug in collapsed_orchs:
+                            _render_orch_button(page_id, label, slug)
 
         # ═══════════════════════════════════════════════════════════════════
         #  ASSISTANTS
@@ -609,16 +659,21 @@ def main():
         has_skills = bool(visible_assistants or collapsed_assistants)
 
         if has_skills:
-            # Search field
-            search_query = st.text_input(
-                t("sidebar_search_skills", lang=lang),
-                value=st.session_state.get("assistant_search_query") or st.session_state.get("skill_search_query", ""),
-                key=f"assistant_search_input_{st.session_state.get('assistant_search_reset', 0)}",
-                placeholder=t("sidebar_search_placeholder", lang=lang),
-                label_visibility="collapsed",
-            )
-            st.session_state["assistant_search_query"] = search_query
-            st.session_state["skill_search_query"] = search_query
+            # Search field: shown only when there are more than five
+            # assistants (fixed block + collapsed remainder) - the same
+            # rule as for the employees section above.
+            search_query = ""
+            total_assistants = len(visible_assistants) + len(collapsed_assistants)
+            if total_assistants > DEFAULT_VISIBLE_ASSISTANTS:
+                search_query = st.text_input(
+                    t("sidebar_search_skills", lang=lang),
+                    value=st.session_state.get("assistant_search_query") or st.session_state.get("skill_search_query", ""),
+                    key=f"assistant_search_input_{st.session_state.get('assistant_search_reset', 0)}",
+                    placeholder=t("sidebar_search_placeholder", lang=lang),
+                    label_visibility="collapsed",
+                )
+                st.session_state["assistant_search_query"] = search_query
+                st.session_state["skill_search_query"] = search_query
 
             # Filter by search query
             def _matches_search(name: str) -> bool:
