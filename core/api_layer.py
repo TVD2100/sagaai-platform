@@ -1593,6 +1593,25 @@ def _extract_gigachat_error(r) -> str:
 # ─── test_connection ──────────────────────────────────────────────────────────
 
 
+def _gigachat_models_url(base_url: str) -> str:
+    """Derive the GigaChat models URL from a chat-completions base URL.
+
+    Service definitions store the chat-completions endpoint in ``base_url``
+    (e.g. ``https://api.giga.chat/v1/chat/completions``); the models
+    catalogue lives at the sibling ``/models`` path. Falls back to the
+    current public endpoint when *base_url* is empty or unrecognized.
+    """
+    default = "https://api.giga.chat/v1/models"
+    url = (base_url or "").strip().rstrip("/")
+    if not url:
+        return default
+    if url.endswith("/chat/completions"):
+        return url[: -len("/chat/completions")] + "/models"
+    if url.endswith("/models"):
+        return url
+    return default
+
+
 def test_connection(svc_name: str, cfg: dict) -> tuple:
     """Test connectivity to *svc_name*. Returns (ok: bool, message: str).
 
@@ -1712,7 +1731,7 @@ def test_connection(svc_name: str, cfg: dict) -> tuple:
                 "Accept":        "application/json",
             })
             r2 = session.get(
-                "https://gigachat.devices.sberbank.ru/api/v1/models",
+                _gigachat_models_url(base_url),
                 timeout=15, verify=_gigachat_verify(),
             )
             if r2.status_code == 200:

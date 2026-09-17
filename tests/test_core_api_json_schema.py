@@ -155,7 +155,7 @@ def test_send_request_gigachat_payload_contains_response_format():
         mock_cfg.return_value = _cfg()
         mock_svc.return_value = _svc(
             "GigaChat", "gigachat_oauth",
-            "https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
+            "https://api.giga.chat/v1/chat/completions",
             "gigachat_creds",
         )
         mock_session = MagicMock()

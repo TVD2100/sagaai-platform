@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-09-16T13:30:33+00:00`
-- Файлов: **860**
-- Языки: Config: 1, JSON: 22, Markdown: 620, PEM certificate: 1, Python: 220, Text: 1
+- Обновлено: `2026-09-17T14:04:08+00:00`
+- Файлов: **877**
+- Языки: Config: 1, JSON: 22, Markdown: 636, PEM certificate: 1, Python: 221, Text: 1
 
 ## Файлы и назначение
 
@@ -194,6 +194,7 @@
 | `tests/scenarios/test_connectors_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_context_overflow_protection.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_first_run_flow.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_gigachat_models_scenario.py` | Python | Tier-3 GigaChat scenarios: api.giga.chat endpoint + GigaChat-3 models (mocked HTTP) | - |
 | `tests/scenarios/test_github_rest_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_json_repair_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_loop_stuck_protection_scenarios.py` | Python | Loop-stuck protection scenarios: per-tool failure counter hints, duplicate-call flood compaction, prose loop_status continue | - |
@@ -866,6 +867,22 @@
 | `dev_agent/task_states/TASK_STATE__20260916_155153_ac5e9c.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260916_155201_390de8.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260916_155201_e1c2c7.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_174131_726a09.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_174134_538ff8.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_174134_757153.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_174134_8d57d9.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_174134_e28bf2.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_174134_efed91.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_174142_4e9a2f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260916_174142_56bebc.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_170150_be5575.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_170153_5dafd9.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_170153_894809.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_170153_94a40c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_170153_c4d495.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_170153_ff3161.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_170200_2d4dd8.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_170200_761204.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
 | `services/deepseek.json` | JSON | DeepSeek service definition | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
@@ -1070,7 +1087,8 @@
 - `_do_request` (func, строка 1399)
 - `_extract_error_body` (func, строка 1560)
 - `_extract_gigachat_error` (func, строка 1581)
-- `test_connection` (func, строка 1596)
+- `_gigachat_models_url` (func, строка 1596)
+- `test_connection` (func, строка 1615)
 
 ### `core/assistant_creator.py`
 - `_section_headers` (func, строка 23)
@@ -2085,6 +2103,8 @@
 - `test_test_connection_missing_service` (func, строка 589)
 - `test_test_connection_exception` (func, строка 598)
 - `test_test_connection_truly_unknown_auth` (func, строка 611)
+- `test_gigachat_models_url_derivation` (func, строка 627)
+- `test_test_connection_gigachat_uses_derived_models_url` (func, строка 641)
 
 ### `tests/test_core_files.py`
 - `test_max_upload_tokens_constant` (func, строка 13)
@@ -3316,6 +3336,15 @@
 - `test_settings_explain_keys_and_save_them` (func, строка 140)
 - `test_create_first_assistant_with_real_storage` (func, строка 203)
 - `test_skills_library_install_forms_and_neutral_placeholder` (func, строка 272)
+
+### `tests/scenarios/test_gigachat_models_scenario.py`
+- `_json` (func, строка 35)
+- `_cfg` (func, строка 40)
+- `test_service_copies_offer_gigachat3_models_on_new_endpoint` (func, строка 48)
+- `test_api_layer_has_no_legacy_host` (func, строка 67)
+- `test_rag_models_recommend_gigachat3_pro` (func, строка 77)
+- `test_sending_with_gigachat3_model_uses_new_endpoint` (func, строка 91)
+- `test_connection_test_derives_models_url_from_base_url` (func, строка 126)
 
 ### `tests/scenarios/test_github_rest_scenario.py`
 - `isolated_data_dir` (func, строка 30)

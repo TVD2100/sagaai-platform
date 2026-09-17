@@ -315,7 +315,7 @@ def test_send_request_gigachat_success():
         svc = _make_svc(
             name="GigaChat",
             auth_type="gigachat_oauth",
-            base_url="https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
+            base_url="https://api.giga.chat/v1/chat/completions",
             config_key="gigachat_creds",
         )
         svc["GigaChat"]["config_key2"] = "gigachat_scope"
@@ -345,7 +345,7 @@ def test_send_request_gigachat_http_error():
         svc = _make_svc(
             name="GigaChat",
             auth_type="gigachat_oauth",
-            base_url="https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
+            base_url="https://api.giga.chat/v1/chat/completions",
             config_key="gigachat_creds",
         )
         svc["GigaChat"]["config_key2"] = "gigachat_scope"
@@ -540,7 +540,7 @@ def test_test_connection_gigachat_success():
         svc = _make_svc(
             name="GigaChat",
             auth_type="gigachat_oauth",
-            base_url="https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
+            base_url="https://api.giga.chat/v1/chat/completions",
             config_key="gigachat_creds",
         )
         svc["GigaChat"]["config_key2"] = "gigachat_scope"
@@ -567,7 +567,7 @@ def test_test_connection_gigachat_models_failure():
         svc = _make_svc(
             name="GigaChat",
             auth_type="gigachat_oauth",
-            base_url="https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
+            base_url="https://api.giga.chat/v1/chat/completions",
             config_key="gigachat_creds",
         )
         svc["GigaChat"]["config_key2"] = "gigachat_scope"
@@ -622,3 +622,45 @@ def test_test_connection_truly_unknown_auth():
         ok, msg = test_connection("TestSvc", {"k": "v"})
         assert ok is False
         assert "Unknown auth_type" in msg
+
+
+def test_gigachat_models_url_derivation():
+    """_gigachat_models_url derives /models from the chat-completions URL."""
+    from core.api_layer import _gigachat_models_url
+    assert _gigachat_models_url("https://api.giga.chat/v1/chat/completions") == \
+        "https://api.giga.chat/v1/models"
+    assert _gigachat_models_url("https://api.giga.chat/v1/chat/completions/") == \
+        "https://api.giga.chat/v1/models"
+    assert _gigachat_models_url("https://api.giga.chat/v1/models") == \
+        "https://api.giga.chat/v1/models"
+    assert _gigachat_models_url("") == "https://api.giga.chat/v1/models"
+    assert _gigachat_models_url("https://example.com/custom") == \
+        "https://api.giga.chat/v1/models"
+
+
+def test_test_connection_gigachat_uses_derived_models_url():
+    """test_connection hits the /models URL derived from the service base_url."""
+    from core.api_layer import test_connection
+    with patch("core.api_layer.get_services") as mock_svc, \
+         patch("core.api_layer._gigachat_token", return_value="giga-token"), \
+         patch("core.api_layer.requests.Session") as mock_session_cls:
+        svc = _make_svc(
+            name="GigaChat",
+            auth_type="gigachat_oauth",
+            base_url="https://api.giga.chat/v1/chat/completions",
+            config_key="gigachat_creds",
+        )
+        svc["GigaChat"]["config_key2"] = "gigachat_scope"
+        mock_svc.return_value = svc
+
+        mock_session = MagicMock()
+        mock_get_resp = MagicMock()
+        mock_get_resp.status_code = 200
+        mock_session.get.return_value = mock_get_resp
+        mock_session.headers = {}
+        mock_session.verify = True
+        mock_session_cls.return_value = mock_session
+
+        ok, msg = test_connection("GigaChat", _make_cfg())
+        assert ok is True
+        assert mock_session.get.call_args[0][0] == "https://api.giga.chat/v1/models"

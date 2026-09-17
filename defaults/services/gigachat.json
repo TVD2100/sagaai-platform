@@ -3,7 +3,7 @@
   "config_key": "GIGACHAT_API_KEY",
   "config_key2": "GIGACHAT_SCOPE",
   "env_key_fields": ["config_key"],
-  "base_url": "https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
+  "base_url": "https://api.giga.chat/v1/chat/completions",
   "auth_type": "gigachat_oauth",
   "oauth_url": "https://ngw.devices.sberbank.ru:9443/api/v2/oauth",
   "temp_min": 0.1,
@@ -14,12 +14,17 @@
   "max_tokens_default": 32768,
   "models": [
     {
-      "id": "GigaChat-2",
+      "id": "GigaChat-3-Ultra",
       "context_window": 128000,
       "max_tokens": 32768
     },
     {
-      "id": "GigaChat-2-Pro",
+      "id": "GigaChat-3-Pro",
+      "context_window": 128000,
+      "max_tokens": 32768
+    },
+    {
+      "id": "GigaChat-3-Lightning",
       "context_window": 128000,
       "max_tokens": 32768
     },
@@ -27,14 +32,45 @@
       "id": "GigaChat-2-Max",
       "context_window": 128000,
       "max_tokens": 32768
+    },
+    {
+      "id": "GigaChat-2-Pro",
+      "context_window": 128000,
+      "max_tokens": 32768
+    },
+    {
+      "id": "GigaChat-2",
+      "context_window": 128000,
+      "max_tokens": 32768
     }
   ],
   "rag_models": [
     {
+      "id": "GigaChat-3-Pro",
+      "label": {
+        "ru": "GigaChat 3 Pro (рекомендуется для RAG-генерации)",
+        "en": "GigaChat 3 Pro (recommended for RAG generation)"
+      }
+    },
+    {
+      "id": "GigaChat-3-Ultra",
+      "label": {
+        "ru": "GigaChat 3 Ultra",
+        "en": "GigaChat 3 Ultra"
+      }
+    },
+    {
+      "id": "GigaChat-3-Lightning",
+      "label": {
+        "ru": "GigaChat 3 Lightning",
+        "en": "GigaChat 3 Lightning"
+      }
+    },
+    {
       "id": "GigaChat-2-Pro",
       "label": {
-        "ru": "GigaChat 2 Pro (рекомендуется для RAG-генерации)",
-        "en": "GigaChat 2 Pro (recommended for RAG generation)"
+        "ru": "GigaChat 2 Pro",
+        "en": "GigaChat 2 Pro"
       }
     },
     {
@@ -42,13 +78,6 @@
       "label": {
         "ru": "GigaChat 2 Max",
         "en": "GigaChat 2 Max"
-      }
-    },
-    {
-      "id": "GigaChat-2",
-      "label": {
-        "ru": "GigaChat 2",
-        "en": "GigaChat 2"
       }
     }
   ],
