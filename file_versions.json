@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "0.4.3-preview.1",
+  "app_version": "0.4.4-preview.1",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Секция «Сотрудники» в сайдбаре в формате секции «Помощники»: 5 видимых кнопок, остальные в блоке «Все (N)», поиск только при >5; сортировка сотрудников по времени последнего диалога (новый модуль core/orchestrator_nav.py).",
-    "en": "The Employees sidebar section now matches the Assistants section: 5 visible buttons, the rest under the All (N) expander, search only when >5; employees sorted by the latest dialogue time (new core/orchestrator_nav.py module)."
+    "ru": "Промпт DevAgent v3.12 - режим pre-approved autonomous mode: при подробном ТЗ агент спрашивает, действовать ли полностью автономно или согласовать итоговый план; при явном выборе «без согласования» план составляется, но фаза утверждения пропускается. Обновлены документация и тесты.",
+    "en": "DevAgent prompt v3.12 with the pre-approved autonomous mode: for a detailed spec the agent asks whether to act fully autonomously or to approve the final plan; when autonomous is chosen the plan is still composed but the approval gate is skipped. Docs and tests updated."
   },
-  "updated": "2026-09-17T15:41:57Z",
+  "updated": "2026-09-18T07:35:22Z",
   "units": {
     "core": {
-      "version": "1.9.0",
+      "version": "1.10.0",
       "note": {
-        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py).",
-        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py)."
+        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1.",
+        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1."
       },
       "files": {
         "__init__.py": {
@@ -204,8 +204,8 @@
           "sha256": "eb31b89c7e74fcd318863b8a3cbe3420fb002808b81bfd58c24df4bb9ca63292"
         },
         "core/version.py": {
-          "version": "1.0.8",
-          "sha256": "cf324bf96cd6302a1df451d1416e5d641fa5ecd26bc61a1d1a0b8c7b157f3ba4"
+          "version": "1.0.9",
+          "sha256": "da6c3e063d4dc00d959f56faa76d5a9734ec205291cae1f4a8dea047c4eb9919"
         },
         "dev_agent/__init__.py": {
           "version": "1.0.0",
@@ -616,8 +616,8 @@
           "sha256": "57889faffd9c10737cba1883d5e40d08e4a67fcf1640f616ac05427e728f4295"
         },
         "tests/test_universal_developer.py": {
-          "version": "1.0.0",
-          "sha256": "526cee36f97ef6f49d07c6c6290927d6cd951e3473df6cbb8fc7d604455daf47"
+          "version": "1.0.1",
+          "sha256": "24f9939cb5c5ce834dab3537efaf74a099f39a413cb91bfc70ad37def470efdd"
         },
         "tests/test_usability_fixes.py": {
           "version": "1.0.2",
@@ -876,8 +876,8 @@
           "sha256": "dc2ba69051496ace83567e2112f5f5570accdd1f63af4900c4e549113fa5f61b"
         },
         "tests/scenarios/test_orchestrator_tool_gating.py": {
-          "version": "1.1.1",
-          "sha256": "8dd4925bbf5d1b24989588656af2ba7c4f0c17d353b739728d60d1227e2584f8"
+          "version": "1.1.2",
+          "sha256": "7ab816227ccc64702af24d681d17355e29bfe9ce6c19750390000213c36373d1"
         },
         "core/context_guard.py": {
           "version": "1.0.0",
@@ -932,11 +932,11 @@
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.12.0",
-      "sha256": "7fd4ca23fae0f5cbd91b09141d26d4916511641a5638c22b1ba426d03013f20b",
+      "version": "1.13.0",
+      "sha256": "006e128215be1622130975a14f1ce80c0b2f8d83550cd08abd06b5964091d7b0",
       "note": {
-        "ru": "Раздел «Навигация оркестраторов» описывает сортировку по активности и формат секции (5 + «Все (N)», поиск при >5); в таблице модулей добавлена строка assistant_nav/orchestrator_nav.",
-        "en": "The Orchestrator navigation section describes activity-based sorting and the section format (5 + All (N), search when >5); the module table gained an assistant_nav/orchestrator_nav row."
+        "ru": "Раздел об approval-гейтах DevAgent и версия канонического промпта обновлены до v3.12: режим pre-approved autonomous mode - при подробном ТЗ агент спрашивает, действовать ли полностью автономно; план составляется, гейт утверждения пропускается.",
+        "en": "The DevAgent approval-gate section and the canonical prompt version updated to v3.12: pre-approved autonomous mode - for a detailed spec the agent asks whether to act fully autonomously; the plan is still composed and the approval gate is skipped."
       }
     },
     "COMPARISON.md": {
@@ -956,27 +956,27 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.16.0",
-      "sha256": "77de73ea5b54f63a97f6a6daf657808017908be7891c849181a3c66e959c62c3",
+      "version": "1.17.0",
+      "sha256": "498de43efefef2972a5c97c27ac0bd8fd729b441346d0d156db396b0b7c11d7a",
       "note": {
-        "ru": "Карта перегенерирована: добавлены core/orchestrator_nav.py и тесты сайдбара сотрудников.",
-        "en": "Map regenerated: added core/orchestrator_nav.py and the employee-sidebar tests."
+        "ru": "Карта перегенерирована после правок документации релиза 0.4.4-preview.1 (промпт DevAgent v3.12, pre-approved autonomous mode).",
+        "en": "Map regenerated after the 0.4.4-preview.1 documentation edits (DevAgent prompt v3.12, pre-approved autonomous mode)."
       }
     },
     "README.md": {
-      "version": "1.9.0",
-      "sha256": "3207bf191c2f1f721bad820b7be2769537f6ce238faee3d1d95e75563fb5a776",
+      "version": "1.10.0",
+      "sha256": "9af7e0e45995a9711f04af33a8bcc14216611a5009852bd7e0cbb241b6aceb9c",
       "note": {
-        "ru": "Добавлены пункты о формате секций сайдбара (сотрудники и помощники); строка preview-версии обновлена до v0.4.3-preview.1.",
-        "en": "Added bullets about the sidebar-section format (employees and assistants); the preview version string updated to v0.4.3-preview.1."
+        "ru": "Строка возможностей DevAgent дополнена полностью автономным режимом (pre-approved autonomous mode); строка preview-версии обновлена до v0.4.4-preview.1.",
+        "en": "The DevAgent capability row extended with the fully autonomous mode (pre-approved autonomous mode); the preview version string updated to v0.4.4-preview.1."
       }
     },
     "SPEC.md": {
-      "version": "1.13.0",
-      "sha256": "bd55967ccb370586c9a4b6f2506d1e16965629bc138c4247f75b99e8a2a16137",
+      "version": "1.14.0",
+      "sha256": "5e978fb803bda7f8d17ae1ecb8a0d3e29cc4fdcb20a32afb270dc361e1a47f7a",
       "note": {
-        "ru": "FR2 и FR6 дополнены форматом секций сайдбара (5 видимых + «Все (N)», поиск при >5) и сортировкой сотрудников по последнему диалогу; core/orchestrator_nav.py в списке базовых файлов.",
-        "en": "FR2 and FR6 extended with the sidebar-section format (5 visible + All (N), search when >5) and employee sorting by the latest dialogue; core/orchestrator_nav.py added to the base-file list."
+        "ru": "Вводный обзор, FR7 и NFR3 дополнены режимом pre-approved autonomous mode: при подробном ТЗ DevAgent спрашивает, действовать ли полностью автономно или согласовать итоговый план; при выборе «без согласования» план составляется, гейт утверждения пропускается.",
+        "en": "The overview, FR7 and NFR3 extended with the pre-approved autonomous mode: for a detailed spec DevAgent asks whether to act fully autonomously or to approve the final plan; when autonomous is chosen the plan is still composed and the approval gate is skipped."
       }
     },
     "defaults/README.md": {
@@ -1284,11 +1284,11 @@
       }
     },
     "dev_agent/system_prompt.md": {
-      "version": "3.11",
-      "sha256": "070e1fcec41b3afe188be3ca064da9f66f835cd514c0eeb38d3fba3128d57c0c",
+      "version": "3.12",
+      "sha256": "90b0aeb14399cd57f18fedafd46ca2bb2c2bcf96deaa80c942fa184f951f0e42",
       "note": {
-        "ru": "Промпт DevAgent v3.11: правило закрытого шага (не пересказывать выполненное), максимум 3 попытки на функцию с переходом по fallback-цепочке, loop_status continue в прозе продолжает цикл; справочник инструментов передаёт авто-блок '## Available tools'.",
-        "en": "DevAgent prompt v3.11: closed-step rule (do not re-tell finished work), at most 3 tries per function then move down the fallback chain, a prose loop_status continue keeps the loop alive; the tool catalogue comes from the auto-added '## Available tools' block."
+        "ru": "Промпт DevAgent v3.12: режим pre-approved autonomous mode - при подробном ТЗ агент спрашивает, действовать ли полностью автономно или согласовать итоговый план; при выборе «без согласования» план составляется, но гейт утверждения пропускается. Ранее: правило закрытого шага, максимум 3 попытки на функцию, loop_status continue в прозе; справочник инструментов передаёт авто-блок '## Available tools'.",
+        "en": "DevAgent prompt v3.12: pre-approved autonomous mode - for a detailed spec the agent asks whether to act fully autonomously or to approve the final plan; when autonomous is chosen the plan is still composed but the approval gate is skipped. Earlier: closed-step rule, at most 3 tries per function, a prose loop_status continue keeps the loop alive; the tool catalogue comes from the auto-added '## Available tools' block."
       }
     },
     "langs/en.json": {
