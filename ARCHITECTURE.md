@@ -105,7 +105,8 @@ SagaAI построена по модульной архитектуре с чё
 ### 5. DevAgent (`dev_agent/`)
 - `agent_loop.py` - парсинг вызовов инструментов, цикл с dual-model routing,
   эконом-режим, approval-гейты (план, применение, подтверждение опасных
-  операций).
+  операций); в режиме pre-approved autonomous mode фаза утверждения плана
+  пропускается по явному выбору пользователя.
 - `assistant_detector.py` - `detect_and_select_assistant()` **всегда
   возвращает пустой результат** (assistant detection отключён).
 - `assistant_model_resolver.py` - автоматический подбор сервиса/модели для
@@ -131,9 +132,12 @@ SagaAI построена по модульной архитектуре с чё
 - `universal_agent.py` - `load_system_prompt()` (единый файл
   `dev_agent/system_prompt.md`), `build_assistant_dict_from_config()`,
   `UniversalDevAgent` (core + workspace + orchestrator tools).
-- `system_prompt.md` - канонический системный промпт DevAgent (v3.6):
+- `system_prompt.md` - канонический системный промпт DevAgent (v3.12):
   docs-first workflow (перед началом работы читать `PROJECT_MAP.md` И
-  `SPEC.md`), обязательная секция «Documentation» в финальном отчёте.
+  `SPEC.md`), обязательная секция «Documentation» в финальном отчёте,
+  режим pre-approved autonomous mode (при подробном ТЗ агент явно
+  спрашивает «автономно или с согласованием плана»; при выборе «без
+  согласования» план составляется, но фаза утверждения пропускается).
 - `config.py` - разрешение путей, защищённые файлы, runtime-директории.
 - `llm_utils.py` - унифицированный вызов LLM (контракт assistant-словаря).
 
@@ -255,7 +259,7 @@ system_prompt.md), переводов, сервисов, помощников, �
 - Детекторы `_identical_block_count` / `_dominant_duplicate_call` определяют
   флуд одинаковых вызовов в одном ответе LLM; такой поток схлопывается в одну
   компактную ошибку `identical_blocks`/`identical_calls` без диспатча.
-- Системный промпт DevAgent v3.11 дополняет механизм правилами: закрытый шаг
+- Системный промпт DevAgent v3.12 дополняет механизм правилами: закрытый шаг
   не пересказывается, не более 3 попыток на функцию, прозовый
   `loop_status: continue` продолжает цикл.
 
@@ -359,7 +363,7 @@ PROJECT_MAP.md, SPEC.md, ARCHITECTURE.md, CHANGELOG.md, снапшоты. Пер
 Блок `## Available tools` добавляется к промпту каждого оркестратора
 (`_extend_prompt_with_tools` -> `render_available_tools_block`) и перечисляет
 доступные инструменты (core, workspace, подключения, кастомные функции).
-Каноничные промпты (`dev_agent/system_prompt.md` v3.11, YaAgent v2.7) не
+Каноничные промпты (`dev_agent/system_prompt.md` v3.12, YaAgent v2.7) не
 дублируют этот справочник: их раздел справочника ссылается на
 автоматический блок, оставляя в промпте только собственные правила
 использования инструментов (форматы вызова, fallback-цепочки).

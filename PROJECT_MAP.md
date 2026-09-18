@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-09-17T15:35:36+00:00`
-- Файлов: **890**
-- Языки: Config: 1, JSON: 22, Markdown: 645, PEM certificate: 1, Python: 225, Text: 1
+- Обновлено: `2026-09-18T07:30:28+00:00`
+- Файлов: **898**
+- Языки: Config: 1, JSON: 22, Markdown: 653, PEM certificate: 1, Python: 225, Text: 1
 
 ## Файлы и назначение
 
@@ -18,7 +18,7 @@
 | `pytest.ini` | Config | Pytest configuration | - |
 | `requirements.txt` | Text | Python dependencies | - |
 | `ui/__init__.py` | Python | Package marker | - |
-| `ui/app.py` | Python | Main Streamlit app: sidebar navigation and page dispatch; employees/assistants blocks show 5 visible + collapsed All, search only when >5 | - |
+| `ui/app.py` | Python | Main Streamlit app: sidebar navigation and page dispatch; assistants use assistant terminology | - |
 | `ui/components/__init__.py` | Python | Package marker | - |
 | `ui/components/workspace_picker.py` | Python | Workspace picker component | - |
 | `ui/pages/__init__.py` | Python | Package marker | - |
@@ -42,7 +42,7 @@
 | `core/api_layer.py` | Python | HTTP requests to AI providers; send_request(assistant=...) with legacy skill= alias | - |
 | `core/assistant_creator.py` | Python | Validation and linting helpers for assistant prompts | - |
 | `core/assistant_folders.py` | Python | _(описание не задано)_ | - |
-| `core/assistant_nav.py` | Python | Sidebar ordering helpers for assistants; shared nav utilities (_parse_ts, _num, last_dialogue_at, split_nav_lists) | - |
+| `core/assistant_nav.py` | Python | _(описание не задано)_ | - |
 | `core/assistant_tools.py` | Python | _(описание не задано)_ | - |
 | `core/assistants.py` | Python | CRUD for AI assistant profiles and their attachment files | storage |
 | `core/auth.py` | Python | Optional password authentication gate | - |
@@ -63,7 +63,7 @@
 | `core/i18n.py` | Python | Language discovery and translation helper t() | - |
 | `core/instructions.py` | Python | CRUD for internal instructions (Assistant Creator, Employee Creator) | - |
 | `core/orchestrator_folders.py` | Python | Per-orchestrator folders: bundles, functions, instructions | storage |
-| `core/orchestrator_nav.py` | Python | Employee sidebar ordering: latest dialogue time when present, otherwise creation time (newest first) | - |
+| `core/orchestrator_nav.py` | Python | _(описание не задано)_ | - |
 | `core/orchestrator_tools.py` | Python | _(описание не задано)_ | - |
 | `core/orchestrators.py` | Python | Orchestrator API; build_assistant_dicts (legacy alias build_skill_dicts); enabled_skills for orchestrator skills | storage |
 | `core/paths.py` | Python | Base directories and thread paths | - |
@@ -134,7 +134,7 @@
 | `tests/test_orchestrator_connections.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_orchestrator_economy_cache.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_folders.py` | Python | Orchestrator folder tests | storage |
-| `tests/test_orchestrator_nav.py` | Python | Unit tests for employee sidebar ordering rules | - |
+| `tests/test_orchestrator_nav.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_other_settings.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_system_tools_ui.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_tools.py` | Python | _(описание не задано)_ | storage |
@@ -159,7 +159,7 @@
 | `tests/test_safety_mode.py` | Python | Safety-mode gate tests | - |
 | `tests/test_sanitized_approval_flow.py` | Python | Sanitized-content approval flow tests | - |
 | `tests/test_search_in_files.py` | Python | _(описание не задано)_ | - |
-| `tests/test_sidebar_employees_nav.py` | Python | UI tests: employee sidebar - 5 visible, All expander, search field only when >5 employees | - |
+| `tests/test_sidebar_employees_nav.py` | Python | _(описание не задано)_ | - |
 | `tests/test_skills_adaptation.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_skills_library.py` | Python | Skills library tests | storage |
 | `tests/test_st_mock.py` | Python | _(описание не задано)_ | _st_mock |
@@ -196,9 +196,9 @@
 | `tests/scenarios/test_connection_retry_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_connectors_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_context_overflow_protection.py` | Python | _(описание не задано)_ | - |
-| `tests/scenarios/test_employees_sidebar_scenarios.py` | Python | Scenario tests: employee sidebar layout and order across restarts and activity changes | storage |
+| `tests/scenarios/test_employees_sidebar_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_first_run_flow.py` | Python | _(описание не задано)_ | - |
-| `tests/scenarios/test_gigachat_models_scenario.py` | Python | Tier-3 GigaChat scenarios: api.giga.chat endpoint + GigaChat-3 models (mocked HTTP) | - |
+| `tests/scenarios/test_gigachat_models_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_github_rest_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_json_repair_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_loop_stuck_protection_scenarios.py` | Python | Loop-stuck protection scenarios: per-tool failure counter hints, duplicate-call flood compaction, prose loop_status continue | - |
@@ -896,6 +896,14 @@
 | `dev_agent/task_states/TASK_STATE__20260917_172630_4018d2.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260917_172630_71760d.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260917_183209_8bb4bf.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_184222_fb5337.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_184225_26f9d4.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_184225_71f119.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_184225_b3d472.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_184225_be6b77.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_184225_f6ea07.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_184233_1cc437.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260917_184233_fdeb1c.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
 | `services/deepseek.json` | JSON | DeepSeek service definition | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
@@ -3098,10 +3106,10 @@
 - `test_system_prompt_combines_core_and_universal` (func, строка 380)
 - `test_system_prompt_documents_list_files_max_depth` (func, строка 391)
 - `test_system_prompt_documents_listing_scenarios` (func, строка 399)
-- `test_catalog_docs_list_files_max_depth` (func, строка 409)
-- `test_run_code_missing_path_returns_structured_error` (func, строка 418)
-- `test_run_test_missing_path_returns_structured_error` (func, строка 426)
-- `test_read_file_window_reports_remaining_and_hint` (func, строка 434)
+- `test_system_prompt_documents_preapproved_autonomous_mode` (func, строка 409)
+- `test_catalog_docs_list_files_max_depth` (func, строка 426)
+- `test_run_code_missing_path_returns_structured_error` (func, строка 435)
+- `test_run_test_missing_path_returns_structured_error` (func, строка 443)
 
 ### `tests/test_updater.py`
 - `_sha` (func, строка 25)

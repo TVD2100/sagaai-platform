@@ -406,6 +406,23 @@ def test_system_prompt_documents_listing_scenarios():
     assert "search_in_files(path=" in sp
 
 
+def test_system_prompt_documents_preapproved_autonomous_mode():
+    """Stage 1 must document pre-approved autonomous mode: the explicit
+    autonomous-vs-approval question, both answer branches, and the
+    continue-into-execution rule for the opt-out branch."""
+    agent = UniversalDevAgent()
+    sp = agent.system_prompt
+    assert "Pre-approved autonomous mode" in sp
+    assert "Действовать дальше полностью автономно или согласовать" in sp
+    assert "Preference already stated" in sp
+    assert "do NOT request approval" in sp
+    # The opt-out branch keeps the loop alive right after the plan note.
+    assert "plan was emitted as a note without a stop" in sp
+    # Other gates stay in force; the decision is journaled.
+    assert "manual-mode staging stop" in sp
+    assert "task_state_init" in sp
+
+
 def test_catalog_docs_list_files_max_depth():
     """The LLM-facing catalog must mention max_depth for list_files."""
     agent = UniversalDevAgent()
