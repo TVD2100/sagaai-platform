@@ -43,3 +43,10 @@ dist/
 /personal_assistant_data/
 /GITHUB_FILES.md
 /CHANGELOG.md
+
+# Internal repo-maintenance instructions for DevAgent (local-only, never published)
+/defaults/orchestrators/dev_agent/instructions/local_repo_guide.md
+/defaults/orchestrators/dev_agent/instructions/repo_sync.md
+
+# DevAgent per-file backups (runtime)
+/dev_agent/backups/
