@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "0.4.4-preview.1",
+  "app_version": "1.0.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Промпт DevAgent v3.12 - режим pre-approved autonomous mode: при подробном ТЗ агент спрашивает, действовать ли полностью автономно или согласовать итоговый план; при явном выборе «без согласования» план составляется, но фаза утверждения пропускается. Обновлены документация и тесты.",
-    "en": "DevAgent prompt v3.12 with the pre-approved autonomous mode: for a detailed spec the agent asks whether to act fully autonomously or to approve the final plan; when autonomous is chosen the plan is still composed but the approval gate is skipped. Docs and tests updated."
+    "ru": "Стабильный релиз 1.0.0: платформа переведена из preview в стабильную линию. Публичные API, интерфейс и форматы данных линии 1.0 остаются обратно совместимыми; ломающие изменения выйдут только в новом мажорном релизе. Исполняемый код обновляется единым пакетом, документация - выборочно.",
+    "en": "Stable release 1.0.0: the platform has moved from preview to the stable line. Public APIs, UI and data formats of the 1.0 line remain backward compatible; breaking changes will arrive only in a new major release. Platform code updates as a single package, documentation - selectively."
   },
-  "updated": "2026-09-18T07:35:22Z",
+  "updated": "2026-09-20T20:38:26Z",
   "units": {
     "core": {
-      "version": "1.10.0",
+      "version": "1.11.0",
       "note": {
-        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1.",
-        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1."
+        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable.",
+        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status."
       },
       "files": {
         "__init__.py": {
@@ -204,8 +204,8 @@
           "sha256": "eb31b89c7e74fcd318863b8a3cbe3420fb002808b81bfd58c24df4bb9ca63292"
         },
         "core/version.py": {
-          "version": "1.0.9",
-          "sha256": "da6c3e063d4dc00d959f56faa76d5a9734ec205291cae1f4a8dea047c4eb9919"
+          "version": "1.0.10",
+          "sha256": "63c409b804e523077c75fdeb250c96585310f83482e878d416bd32e96bb5a4d5"
         },
         "dev_agent/__init__.py": {
           "version": "1.0.0",
@@ -964,11 +964,11 @@
       }
     },
     "README.md": {
-      "version": "1.10.0",
-      "sha256": "9af7e0e45995a9711f04af33a8bcc14216611a5009852bd7e0cbb241b6aceb9c",
+      "version": "1.11.0",
+      "sha256": "854dbefd9739a748230815c9474fa0f13b97aef401831d5428ae9ed7f648cd53",
       "note": {
-        "ru": "Строка возможностей DevAgent дополнена полностью автономным режимом (pre-approved autonomous mode); строка preview-версии обновлена до v0.4.4-preview.1.",
-        "en": "The DevAgent capability row extended with the fully autonomous mode (pre-approved autonomous mode); the preview version string updated to v0.4.4-preview.1."
+        "ru": "Статус-блок обновлён: preview-предупреждение заменено статусом стабильного релиза v1.0.0; линия 1.0 сохраняет публичные API, интерфейс и форматы данных обратно совместимыми.",
+        "en": "Status block updated: the preview warning replaced with the stable release status v1.0.0; the 1.0 line keeps its public APIs, UI and data formats backward compatible."
       }
     },
     "SPEC.md": {
