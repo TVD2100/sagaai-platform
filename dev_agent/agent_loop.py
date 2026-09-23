@@ -883,23 +883,16 @@ def _unparsed_tool_json_diagnostics(text: str) -> List[Dict[str, str]]:
     "cause": parse-failure reason}. This gives the model actionable details
     (the exact JSONDecodeError position/message) instead of the generic
     "could not be parsed" text, so it can decide between fixing one field
-    and switching tools.
+    and switching tools. Called both when NO block parsed and when only
+    PART of a batch parsed - the failed blocks are then reported next to
+    the successful calls they were batched with.
     """
     diagnostics: List[Dict[str, str]] = []
     blocks = re.findall(r"```[a-zA-Z0-9_-]*\s*(.*?)```", text, re.DOTALL)
+    # Batches are allowed: every fenced block is validated on its own and the
+    # per-block diagnostics below name exactly WHICH blocks failed to parse,
+    # whether the message was a single call or a (partially parsed) batch.
     tool_blocks = [b for b in blocks if '"tool"' in b and "{" in b]
-    if len(tool_blocks) > 1:
-        # The runtime accepts exactly one tool call per message. Multiple
-        # fenced tool-call blocks in one message can never all be executed;
-        # say so explicitly instead of reporting only the parse state.
-        diagnostics.append({
-            "snippet": tool_blocks[0][:220],
-            "cause": (
-                f"the message contains {len(tool_blocks)} fenced tool-call blocks; "
-                "the runtime accepts exactly ONE tool call per message - "
-                "send each tool call in its own message and wait for the result"
-            ),
-        })
     for seg in _truncated_tool_json_segments(text):
         seg_details = _unbalanced_json_details(seg)
         diagnostics.append({
@@ -1751,6 +1744,11 @@ class AgentLoopState:
     assistant_text: str = ""
     parsed_calls: List[Dict[str, Any]] = field(default_factory=list)
 
+    # Partial-batch warning: fenced tool-call blocks that failed to parse
+    # while OTHER blocks of the same message parsed and were executed.
+    # Appended to the executing phase's tool results, then cleared.
+    partial_parse_warning: Optional[Dict[str, Any]] = None
+
     final_status: str = ""
     final_text: str = ""
     final_staged_path: Optional[str] = None
@@ -2270,6 +2268,7 @@ def _step_agent_loop_impl(
     if state.phase == "parsing":
         emit({"type": "phase", "phase": "parsing", "step": state.steps})
         state.parsed_calls = parse_tool_calls(state.assistant_text)
+        state.partial_parse_warning = None
 
         duplicate = _dominant_duplicate_call(state.parsed_calls)
         if duplicate is not None:
@@ -2281,8 +2280,8 @@ def _step_agent_loop_impl(
                 "ok": False,
                 "error": (
                     f"Detected {duplicate['count']} IDENTICAL tool calls out of "
-                    f"{duplicate['total']} in one message. Send exactly ONE "
-                    "copy of the call, then process the response before the "
+                    f"{duplicate['total']} in one message. Send ONE copy "
+                    "of the call, then process the response before the "
                     "next step - do not repeat the same call in bulk."
                 ),
                 "identical_calls": duplicate["count"],
@@ -2316,7 +2315,7 @@ def _step_agent_loop_impl(
                     "error": (
                         f"Detected {identical} IDENTICAL malformed tool-call "
                         "JSON blocks in one message. Stop repeating the broken "
-                        "call; emit exactly ONE correct fenced tool call, or "
+                        "call; emit ONE correct fenced tool call, or "
                         "switch to a different tool."
                     ),
                     "identical_blocks": identical,
@@ -2365,6 +2364,33 @@ def _step_agent_loop_impl(
             state.user_message = json.dumps({"tool_result": err_result}, ensure_ascii=False)
             state.phase = "calling_llm"
             return state
+
+        # ── Partial batch: some blocks parsed (and will execute), others did not ──
+        # The whole-message failure returned above. Here the parsed calls stay
+        # valid, but the failed blocks must not be silently dropped: warn the
+        # model so it re-emits ONLY the failed call(s) of the batch.
+        if state.parsed_calls and not any(c.get("_json_repaired") for c in state.parsed_calls):
+            batch_diag_raw = _unparsed_tool_json_diagnostics(state.assistant_text)
+            if batch_diag_raw:
+                batch_diag = _dedupe_diagnostics(batch_diag_raw)
+                warn_text = (
+                    "Fenced tool-call block(s) in this message failed to parse "
+                    f"({len(batch_diag_raw)} failing construct(s) diagnosed) and "
+                    "were NOT executed; the other "
+                    + str(len(state.parsed_calls))
+                    + " call(s) of the batch were executed (results above). "
+                    "Re-emit ONLY the failed call(s) with correct JSON syntax - "
+                    "batching the retry together with the remaining independent "
+                    "calls is still fine."
+                )
+                state.partial_parse_warning = {
+                    "ok": False,
+                    "error": warn_text,
+                    "partial_batch": True,
+                    "failed_constructs": len(batch_diag_raw),
+                    "executed_calls": len(state.parsed_calls),
+                    "diagnostics": batch_diag,
+                }
 
         if not state.parsed_calls:
             # No tool calls found -- determine final status from prose.
@@ -2679,6 +2705,17 @@ def _step_agent_loop_impl(
 
         if all_ok:
             state.consecutive_errors = 0
+
+        # Report blocks of this batch that failed to parse next to the
+        # results of the calls that DID execute (one-shot, then cleared).
+        if state.partial_parse_warning is not None:
+            warn_result = state.partial_parse_warning
+            state.partial_parse_warning = None
+            emit({"type": "tool_result", "tool": "parse_tool_calls",
+                  "result": warn_result, "step": state.steps})
+            tool_results_parts.append(
+                json.dumps({"tool_result": warn_result}, ensure_ascii=False)
+            )
 
         state.user_message = "\n".join(tool_results_parts)
         state.phase = "calling_llm"

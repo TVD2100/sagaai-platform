@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "1.0.0",
+  "app_version": "1.1.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Стабильный релиз 1.0.0: платформа переведена из preview в стабильную линию. Публичные API, интерфейс и форматы данных линии 1.0 остаются обратно совместимыми; ломающие изменения выйдут только в новом мажорном релизе. Исполняемый код обновляется единым пакетом, документация - выборочно.",
-    "en": "Stable release 1.0.0: the platform has moved from preview to the stable line. Public APIs, UI and data formats of the 1.0 line remain backward compatible; breaking changes will arrive only in a new major release. Platform code updates as a single package, documentation - selectively."
+    "ru": "Релиз 1.1.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении (предупреждение partial_batch для нераспарсенных блоков); ветка «готовый план пользователя» с дословным принятием плана; обновлённые промпты DevAgent v3.13 и YaAgent v2.8.",
+    "en": "Release 1.1.0: batched tool calls - several independent calls in one message (partial_batch warning for unparsable blocks); the user-supplied-plan branch with verbatim plan acceptance; updated DevAgent v3.13 and YaAgent v2.8 prompts."
   },
-  "updated": "2026-09-20T20:38:26Z",
+  "updated": "2026-09-23T17:58:22Z",
   "units": {
     "core": {
-      "version": "1.11.0",
+      "version": "1.12.0",
       "note": {
-        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable.",
-        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status."
+        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0.",
+        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0."
       },
       "files": {
         "__init__.py": {
@@ -204,16 +204,16 @@
           "sha256": "eb31b89c7e74fcd318863b8a3cbe3420fb002808b81bfd58c24df4bb9ca63292"
         },
         "core/version.py": {
-          "version": "1.0.10",
-          "sha256": "63c409b804e523077c75fdeb250c96585310f83482e878d416bd32e96bb5a4d5"
+          "version": "1.0.11",
+          "sha256": "f8a7a900915efd79f4afeff1c39029671313ed453047d10324b7f7038fe9d097"
         },
         "dev_agent/__init__.py": {
           "version": "1.0.0",
           "sha256": "d87092665bbf50e5270ad17b3c2c7eb8230b22ae968f52113672025267ead063"
         },
         "dev_agent/agent_loop.py": {
-          "version": "1.7.0",
-          "sha256": "4d49e4d28ac11ad404cd55a8cd4f48d63b3b9c9b9efb3362fad8142bc9f99b84"
+          "version": "1.8.0",
+          "sha256": "33e8db4134a112c9e12fefa08ce1af4c82a1d97b5e90e7318551c70654a658e8"
         },
         "dev_agent/assistant_detector.py": {
           "version": "1.0.0",
@@ -484,8 +484,8 @@
           "sha256": "2a7a48ea3687236d0fc265385d31ae35a2cd781f44dec495b20ca6028570570c"
         },
         "tests/test_phase1_agent_loop.py": {
-          "version": "1.1.0",
-          "sha256": "ced4a46e8948a9d0956a37c3351ffab016adc6417a08b7815d35cbecbd3fadb2"
+          "version": "1.2.0",
+          "sha256": "43a67e68e05eabcc7eb2aeaa2d5a8cb36f6ea6431c8640cf0b9f8560525fcdd0"
         },
         "tests/test_phase1_core_pure.py": {
           "version": "1.0.0",
@@ -876,8 +876,8 @@
           "sha256": "dc2ba69051496ace83567e2112f5f5570accdd1f63af4900c4e549113fa5f61b"
         },
         "tests/scenarios/test_orchestrator_tool_gating.py": {
-          "version": "1.1.2",
-          "sha256": "7ab816227ccc64702af24d681d17355e29bfe9ce6c19750390000213c36373d1"
+          "version": "1.2.0",
+          "sha256": "1c3c4293d6c9907157b515ebec72ce82b89e4c58b06907e32415b0e13e83d8db"
         },
         "core/context_guard.py": {
           "version": "1.0.0",
@@ -926,17 +926,21 @@
         "tests/scenarios/test_employees_sidebar_scenarios.py": {
           "version": "1.0.0",
           "sha256": "85021f57840f6d1d13b6a81339b10f7d7f5538e2a47408ab08f18121bc4cec05"
+        },
+        "tests/scenarios/test_batch_tool_calls_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "02b161a495404f72cadef406561c065e27030420d275940bc09b855cd4e0e07a"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.13.0",
-      "sha256": "006e128215be1622130975a14f1ce80c0b2f8d83550cd08abd06b5964091d7b0",
+      "version": "1.14.0",
+      "sha256": "7135bd1507909750d885bed3a9a16478fe1c4f29e8612b75d79c9c900984ed5e",
       "note": {
-        "ru": "Раздел об approval-гейтах DevAgent и версия канонического промпта обновлены до v3.12: режим pre-approved autonomous mode - при подробном ТЗ агент спрашивает, действовать ли полностью автономно; план составляется, гейт утверждения пропускается.",
-        "en": "The DevAgent approval-gate section and the canonical prompt version updated to v3.12: pre-approved autonomous mode - for a detailed spec the agent asks whether to act fully autonomously; the plan is still composed and the approval gate is skipped."
+        "ru": "Секция защит цикла агента дополнена батч-протоколом вызовов (разбор каждого блока, partial_parse_warning, диагностика нераспарсенных блоков); версия промпта - v3.13.",
+        "en": "The agent-loop protection section extended with the batch-call protocol (per-block parsing, partial_parse_warning, unparsable-block diagnostics); prompt version v3.13."
       }
     },
     "COMPARISON.md": {
@@ -956,27 +960,27 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.17.0",
-      "sha256": "498de43efefef2972a5c97c27ac0bd8fd729b441346d0d156db396b0b7c11d7a",
+      "version": "1.18.0",
+      "sha256": "14b752561305dffcf4f250a23ad7dd9ab50df9bd619f34925df7d0205f18c2bf",
       "note": {
-        "ru": "Карта перегенерирована после правок документации релиза 0.4.4-preview.1 (промпт DevAgent v3.12, pre-approved autonomous mode).",
-        "en": "Map regenerated after the 0.4.4-preview.1 documentation edits (DevAgent prompt v3.12, pre-approved autonomous mode)."
+        "ru": "Карта перегенерирована после правок релиза 1.1.0 (батч-протокол, ветка готового плана, промпты v3.13/v2.8).",
+        "en": "Map regenerated after the 1.1.0 release edits (batch protocol, user-supplied plan branch, prompts v3.13/v2.8)."
       }
     },
     "README.md": {
-      "version": "1.11.0",
-      "sha256": "854dbefd9739a748230815c9474fa0f13b97aef401831d5428ae9ed7f648cd53",
+      "version": "1.12.0",
+      "sha256": "7395f28ac5fb2f58a809157e148ada916cd0e1e46feea30bbd1d15476925baf9",
       "note": {
-        "ru": "Статус-блок обновлён: preview-предупреждение заменено статусом стабильного релиза v1.0.0; линия 1.0 сохраняет публичные API, интерфейс и форматы данных обратно совместимыми.",
-        "en": "Status block updated: the preview warning replaced with the stable release status v1.0.0; the 1.0 line keeps its public APIs, UI and data formats backward compatible."
+        "ru": "Разделы про сотрудников и DevAgent обновлены: батч независимых вызовов, автономные режимы (готовый план/ТЗ); строка статуса - стабильный релиз v1.1.0.",
+        "en": "The employees and DevAgent sections updated: batched independent calls, autonomous modes (user plan/spec); status line - stable release v1.1.0."
       }
     },
     "SPEC.md": {
-      "version": "1.14.0",
-      "sha256": "5e978fb803bda7f8d17ae1ecb8a0d3e29cc4fdcb20a32afb270dc361e1a47f7a",
+      "version": "1.15.0",
+      "sha256": "33ffc59645b44c729d93c5906d154d0cafe428caec197b10d68546b113847d17",
       "note": {
-        "ru": "Вводный обзор, FR7 и NFR3 дополнены режимом pre-approved autonomous mode: при подробном ТЗ DevAgent спрашивает, действовать ли полностью автономно или согласовать итоговый план; при выборе «без согласования» план составляется, гейт утверждения пропускается.",
-        "en": "The overview, FR7 and NFR3 extended with the pre-approved autonomous mode: for a detailed spec DevAgent asks whether to act fully autonomously or to approve the final plan; when autonomous is chosen the plan is still composed and the approval gate is skipped."
+        "ru": "FR7 дополнен батч-протоколом вызовов (условия независимости, partial_batch) и веткой «готовый план пользователя» с дословным принятием.",
+        "en": "FR7 extended with the batch-call protocol (independence conditions, partial_batch) and the user-supplied-plan branch with verbatim acceptance."
       }
     },
     "defaults/README.md": {
@@ -1204,11 +1208,11 @@
       }
     },
     "defaults/orchestrators/ya_agent/system_prompt.md": {
-      "version": "2.7",
-      "sha256": "21ecb70816bdb5155a9aaf08214acde2ac156c48136371ffce8db284b5dd763d",
+      "version": "2.8",
+      "sha256": "bc356769c517676f1c8b787cd81b8d0d15ba88c0e289321dabab063861f1670c",
       "note": {
-        "ru": "Промпт YaAgent v2.7: справочник инструментов удалён из §6 - сигнатуры передаёт авто-блок '## Available tools'; правила RAG и инструментов истории сохранены.",
-        "en": "YaAgent prompt v2.7: tool catalogue removed from §6 - signatures come from the auto-added '## Available tools' block; RAG and history-tool rules kept."
+        "ru": "Промпт YaAgent v2.8: батч-протокол - независимые вызовы в одном сообщении; ветка «готовый план пользователя» с дословным принятием плана.",
+        "en": "YaAgent prompt v2.8: the batch protocol - independent calls in one message; the user-supplied-plan branch with verbatim plan acceptance."
       }
     },
     "defaults/rag_bases/yaagentai_2020/index.db": {
@@ -1284,11 +1288,11 @@
       }
     },
     "dev_agent/system_prompt.md": {
-      "version": "3.12",
-      "sha256": "90b0aeb14399cd57f18fedafd46ca2bb2c2bcf96deaa80c942fa184f951f0e42",
+      "version": "3.13",
+      "sha256": "7a7249f859000b5e9f7704c104fbb6255edc1f7a1baaf907cf0a8a910ced441b",
       "note": {
-        "ru": "Промпт DevAgent v3.12: режим pre-approved autonomous mode - при подробном ТЗ агент спрашивает, действовать ли полностью автономно или согласовать итоговый план; при выборе «без согласования» план составляется, но гейт утверждения пропускается. Ранее: правило закрытого шага, максимум 3 попытки на функцию, loop_status continue в прозе; справочник инструментов передаёт авто-блок '## Available tools'.",
-        "en": "DevAgent prompt v3.12: pre-approved autonomous mode - for a detailed spec the agent asks whether to act fully autonomously or to approve the final plan; when autonomous is chosen the plan is still composed but the approval gate is skipped. Earlier: closed-step rule, at most 3 tries per function, a prose loop_status continue keeps the loop alive; the tool catalogue comes from the auto-added '## Available tools' block."
+        "ru": "Промпт DevAgent v3.13: несколько независимых вызовов инструментов в одном сообщении (условия независимости, пример с web_search/rag_search) и ветка «готовый план пользователя» - дословное принятие плана без фазы утверждения.",
+        "en": "DevAgent prompt v3.13: several independent tool calls in one message (independence conditions, web_search/rag_search example) and the user-supplied-plan branch - verbatim plan acceptance without the approval round-trip."
       }
     },
     "langs/en.json": {

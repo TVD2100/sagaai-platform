@@ -1238,19 +1238,34 @@ class TestUnparsedDiagnostics:
         assert 'TRUNCATED' in joined
         assert 'unclosed brace depth' in joined
 
-    def test_multiple_tool_call_blocks_get_explicit_diagnostic(self):
-        """Two fenced tool-call blocks in ONE message produce the explicit
-        'one tool call per message' cause, so the model is told the real
-        problem instead of a generic parse error."""
+    def test_multiple_valid_tool_call_blocks_are_legal_batch(self):
+        """Batches are allowed: two VALID fenced tool-call blocks in one
+        message parse into two separate calls and produce NO diagnostics."""
         import dev_agent.agent_loop as al
         multi = (
             '```json\n{"tool": "list_files", "args": {"subdir": "."}}\n```\n'
             '```json\n{"tool": "read_file", "args": {"path": "main.py"}}\n```'
         )
+        calls = al.parse_tool_calls(multi)
+        assert [c["tool"] for c in calls] == ["list_files", "read_file"]
+        assert al._unparsed_tool_json_diagnostics(multi) == []
+
+    def test_partially_parsed_batch_diagnoses_only_broken_block(self):
+        """One valid + one malformed block in a batch: the valid call
+        parses, diagnostics name ONLY the broken block, and the stale
+        'exactly ONE tool call per message' claim never appears."""
+        import dev_agent.agent_loop as al
+        multi = (
+            '```json\n{"tool": "list_files", "args": {"subdir": "."}}\n```\n'
+            '```json\n{"tool": "read_file", "args": {"path": "main.py",}}\n```'
+        )
+        calls = al.parse_tool_calls(multi)
+        assert [c["tool"] for c in calls] == ["list_files"]
         diags = al._unparsed_tool_json_diagnostics(multi)
-        assert diags, "expected at least one diagnostic for a multi-call message"
+        assert diags, "the malformed block must be diagnosed"
         joined = " | ".join(d.get("cause", "") for d in diags)
-        assert "exactly ONE tool call per message" in joined
+        assert "exactly ONE" not in joined
+        assert "read_file" in diags[0].get("snippet", "")
 
 
 def test_live_loop_history_entries_get_ts(monkeypatch):

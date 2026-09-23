@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-09-18T07:30:28+00:00`
-- Файлов: **898**
-- Языки: Config: 1, JSON: 22, Markdown: 653, PEM certificate: 1, Python: 225, Text: 1
+- Обновлено: `2026-09-23T17:40:39+00:00`
+- Файлов: **931**
+- Языки: Config: 1, JSON: 22, Markdown: 685, PEM certificate: 1, Python: 226, Text: 1
 
 ## Файлы и назначение
 
@@ -193,6 +193,7 @@
 | `tests/smoke/test_app_smoke.py` | Python | App smoke tests | - |
 | `tests/scenarios/test_access_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_assistant_sidebar_scenarios.py` | Python | _(описание не задано)_ | storage |
+| `tests/scenarios/test_batch_tool_calls_scenarios.py` | Python | Scenario tests for the batched tool-call protocol: execution order of independent calls, partial_batch warning, truncated/unparsable block diagnostics | - |
 | `tests/scenarios/test_connection_retry_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_connectors_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_context_overflow_protection.py` | Python | _(описание не задано)_ | - |
@@ -236,7 +237,7 @@
 | `defaults/assistants/korrektor/manifest.json` | JSON | _(описание не задано)_ | - |
 | `defaults/assistants/korrektor/prompt.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/ya_agent/orchestrator.json` | JSON | _(описание не задано)_ | - |
-| `defaults/orchestrators/ya_agent/system_prompt.md` | Markdown | _(описание не задано)_ | - |
+| `defaults/orchestrators/ya_agent/system_prompt.md` | Markdown | YaAgent orchestrator system prompt v2.8 (verbatim user-plan acceptance, batched tool calls) | - |
 | `defaults/orchestrators/ya_agent/instructions/agent_atelier_agents.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/ya_agent/instructions/agent_security_guardrails.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/ya_agent/instructions/agent_tools_mcp.md` | Markdown | _(описание не задано)_ | - |
@@ -279,14 +280,14 @@
 | `scripts/regenerate_project_map.py` | Python | Regenerates PROJECT_MAP.md with assistant terminology | - |
 | `scripts/verify_manifest.py` | Python | _(описание не задано)_ | - |
 | `dev_agent/__init__.py` | Python | Package marker | agent_loop, backup_manager, safe_writer, tool_executor, universal_agent, workspace_tools |
-| `dev_agent/agent_loop.py` | Python | Provider-independent agent loop (strong/weak assistant routing, economy mode, skills-library tools classified as weak; per-tool failure counter, duplicate-call flood compaction, cascading JSON repair) | storage |
+| `dev_agent/agent_loop.py` | Python | Provider-independent agent loop (strong/weak assistant routing, economy mode, skills-library tools; per-tool failure counter, duplicate-call flood compaction, cascading JSON repair, batched tool calls with partial_batch diagnostics) | storage |
 | `dev_agent/assistant_detector.py` | Python | Assistant detection/creation helpers (renamed from skill_detector) | storage |
 | `dev_agent/assistant_model_resolver.py` | Python | Auto model resolution for assistant creation | llm_utils |
 | `dev_agent/backup_manager.py` | Python | Per-file backup/restore manager | - |
 | `dev_agent/config.py` | Python | DevAgent runtime config and protected path policy | - |
 | `dev_agent/llm_utils.py` | Python | Unified LLM-call helper (assistant dict contract, legacy skill alias) | - |
 | `dev_agent/safe_writer.py` | Python | Safe full-file rewrite with diff/verification | backup_manager |
-| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.11 loop-protection rules) | - |
+| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt v3.13 (batched independent tool calls, verbatim user-plan acceptance, loop-protection rules) | - |
 | `dev_agent/task_state.py` | Python | _(описание не задано)_ | backup_manager |
 | `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools + legacy skill tool aliases + skills-library tools | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
 | `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace tools + orchestrator tools) | storage, tool_executor |
@@ -904,6 +905,38 @@
 | `dev_agent/task_states/TASK_STATE__20260917_184225_f6ea07.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260917_184233_1cc437.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260917_184233_fdeb1c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260918_103916_76fb95.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260918_103920_0cf395.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260918_103920_544b44.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260918_103920_5ef0e5.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260918_103920_61787e.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260918_103920_b21383.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260918_103928_1d6bff.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260918_103928_351218.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260920_222459_989fcc.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260920_222505_4d9676.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260920_222505_5ca9bc.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260920_222505_7376a0.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260920_222505_ce5b4f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260920_222505_d1d265.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260920_222517_3aa7de.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260920_222517_b1e55f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260920_233925_83eecd.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260920_233929_038a3e.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260920_233929_672ad6.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260920_233929_72fdc0.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260920_233929_b35b25.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260920_233929_bdc3f2.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260920_233940_5fe90b.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260920_233940_9a6d43.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260923_203613_755eee.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260923_203618_7bd8c8.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260923_203618_7ca351.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260923_203618_96e8e8.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260923_203618_affc05.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260923_203618_bccd36.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260923_203630_3b8c84.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260923_203630_b07f1e.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
 | `services/deepseek.json` | JSON | DeepSeek service definition | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
@@ -2497,13 +2530,13 @@
 - `TestEconomyCacheMode` (class, строка 708)
 - `TestPlanConfirmationStops` (class, строка 1015)
 - `TestUnparsedDiagnostics` (class, строка 1119)
-- `test_live_loop_history_entries_get_ts` (func, строка 1256)
-- `TestDsmlValidation` (class, строка 1276)
-- `TestDsmlStepLoop` (class, строка 1307)
-- `TestToolFailCounts` (class, строка 1356)
-- `_spiral_text` (func, строка 1434)
-- `TestDiagnosticsDedup` (class, строка 1441)
-- `test_spiral_never_grows_context` (func, строка 1486)
+- `test_live_loop_history_entries_get_ts` (func, строка 1271)
+- `TestDsmlValidation` (class, строка 1291)
+- `TestDsmlStepLoop` (class, строка 1322)
+- `TestToolFailCounts` (class, строка 1371)
+- `_spiral_text` (func, строка 1449)
+- `TestDiagnosticsDedup` (class, строка 1456)
+- `test_spiral_never_grows_context` (func, строка 1501)
 
 ### `tests/test_phase1_core_pure.py`
 - `test_py_compile` (func, строка 51)
@@ -3352,6 +3385,16 @@
 - `test_scenario_more_than_five_assistants` (func, строка 158)
 - `test_scenario_order_without_dialogues` (func, строка 186)
 
+### `tests/scenarios/test_batch_tool_calls_scenarios.py`
+- `_make_skill` (func, строка 24)
+- `_scripted_send` (func, строка 33)
+- `RecordingDispatcher` (class, строка 46)
+- `_result_lines_per_message` (func, строка 67)
+- `test_scenario_batch_of_independent_reads_executes_all_in_order` (func, строка 88)
+- `test_scenario_partially_parsed_batch_warns_next_to_results` (func, строка 129)
+- `test_scenario_truncated_tail_block_is_warned_after_valid_calls` (func, строка 171)
+- `test_scenario_unparseable_single_block_gets_diagnostics_without_exactly_one` (func, строка 206)
+
 ### `tests/scenarios/test_connection_retry_scenarios.py`
 - `fast_retries` (func, строка 28)
 - `_FakeCore` (class, строка 34)
@@ -3729,18 +3772,18 @@
 - `_unparsed_tool_json_blocks` (func, строка 833)
 - `_json_parse_cause` (func, строка 856)
 - `_unparsed_tool_json_diagnostics` (func, строка 879)
-- `_unparsed_block_signature` (func, строка 929)
-- `_normalize_call` (func, строка 946)
-- `_call_signature` (func, строка 988)
-- `_coerce_dsml_param` (func, строка 997)
-- `_extract_dsml_calls` (func, строка 1039)
-- `_dsml_required_args` (func, строка 1082)
-- `_dsml_json_hint` (func, строка 1125)
-- `_dsml_validation_error` (func, строка 1135)
-- `_fallback_parse_propose_file` (func, строка 1159)
-- `_repair_unclosed_tool_json` (func, строка 1193)
-- `_cascade_recover_tool_calls` (func, строка 1231)
-- `parse_tool_calls` (func, строка 1258)
+- `_unparsed_block_signature` (func, строка 922)
+- `_normalize_call` (func, строка 939)
+- `_call_signature` (func, строка 981)
+- `_coerce_dsml_param` (func, строка 990)
+- `_extract_dsml_calls` (func, строка 1032)
+- `_dsml_required_args` (func, строка 1075)
+- `_dsml_json_hint` (func, строка 1118)
+- `_dsml_validation_error` (func, строка 1128)
+- `_fallback_parse_propose_file` (func, строка 1152)
+- `_repair_unclosed_tool_json` (func, строка 1186)
+- `_cascade_recover_tool_calls` (func, строка 1224)
+- `parse_tool_calls` (func, строка 1251)
 
 ### `dev_agent/assistant_detector.py`
 - `list_all_assistants_for_detection` (func, строка 49)

@@ -289,15 +289,32 @@ def test_canonical_prompts_do_not_duplicate_the_tool_catalog():
     when  they are inspected,
     then  each prompt delegates the full tool list to the auto-added
           '## Available tools' block, keeps its tool-usage rules in-line
-          and contains no duplicated tool-catalog table; dev_agent is v3.12
-          and ya_agent is v2.7.
+          and contains no duplicated tool-catalog table; dev_agent is v3.13
+          and ya_agent is v2.8. The batch-calls rule and the verbatim
+          user-supplied-plan branch are pinned here as invariants.
     """
     dev = CANONICAL_PROMPT_FILES["dev_agent"].read_text(encoding="utf-8")
     ya = CANONICAL_PROMPT_FILES["ya_agent"].read_text(encoding="utf-8")
 
     # Version headers carry the bumped versions.
-    assert dev.splitlines()[0].endswith("(v3.12)"), dev.splitlines()[0]
-    assert ya.splitlines()[0].endswith("(v2.7)"), ya.splitlines()[0]
+    assert dev.splitlines()[0].endswith("(v3.13)"), dev.splitlines()[0]
+    assert ya.splitlines()[0].endswith("(v2.8)"), ya.splitlines()[0]
+
+    # Batch-calls rule invariants (v3.13 / v2.8).
+    assert "Several calls per message (batch)" in dev
+    assert "No shared target." in dev
+    assert "No dependency on results." in dev
+    assert "No confirmation stops." in dev
+    assert "Tests: independent only." in dev
+    assert "Несколько вызовов за сообщение (батч)" in ya
+
+    # Verbatim user-supplied-plan branch invariants.
+    assert "User-supplied plan (verbatim acceptance)" in dev
+    assert "Готовый план пользователя (принятие дословно)" in ya
+
+    # Stale single-call wording is gone from both prompts.
+    assert "One tool call per message" not in dev
+    assert "Один вызов инструмента на сообщение" not in ya
 
     # Both prompts delegate the catalog to the auto-added block.
     assert "## Available tools" in dev
