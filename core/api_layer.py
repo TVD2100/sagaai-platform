@@ -219,6 +219,34 @@ def _get_model_max_tokens(svc: dict, model_id: str) -> int:
     return _DEFAULT_MAX_TOKENS
 
 
+def _clamp_max_tokens(max_tokens, svc: dict, model_id: str):
+    """Clamp *max_tokens* to the model's EXPLICIT output limit.
+
+    A value saved in the orchestrator config for one model (e.g. 384000 for
+    a DeepSeek model) must not be forwarded verbatim after the service or
+    model was switched: providers with a lower cap reject such requests
+    (GigaChat allows at most 32768 output tokens).
+
+    Only limits declared explicitly in the service definition are enforced
+    (the model entry's "max_tokens" or the service-level
+    "max_tokens_default"); services without a declared limit keep the
+    requested value unchanged. Returns the value unchanged when it is
+    falsy.
+    """
+    if not max_tokens:
+        return max_tokens
+    for m in svc.get("models", []):
+        if isinstance(m, dict) and m.get("id") == model_id:
+            mt = m.get("max_tokens")
+            if mt:
+                return min(int(max_tokens), int(mt))
+            break
+    svc_default = svc.get("max_tokens_default")
+    if svc_default:
+        return min(int(max_tokens), int(svc_default))
+    return max_tokens
+
+
 def _prepare_response_content(message: dict) -> str:
     """Extract readable text from a chat completion response message.
 
@@ -1141,6 +1169,62 @@ def _yandex_responses_request(base_url: str, api_key: str, folder_id: str,
     return result_text
 
 
+def _gigachat_messages(sys_text: str, hist_msgs: list, user_content: str) -> list:
+    """Build the ``messages`` payload for a GigaChat chat completion.
+
+    GigaChat accepts AT MOST ONE system message and it MUST be the first
+    element of ``messages``; any system message inside the conversation
+    makes the provider reject the whole payload (HTTP 422, "system message
+    must be the first message"). The agent loop, however, injects system
+    blocks (economy-mode metadata, external task state, thread context)
+    into the middle of the history for every provider.
+
+    This helper folds the assistant prompt and every in-history system
+    block into a single leading system message (the prompt first, then the
+    blocks in their original order), keeps only user/assistant roles in
+    the body, and merges consecutive same-role messages (joining their
+    texts with a blank line) so the provider's strict role validation
+    passes. Only ``role`` and ``content`` keys are emitted.
+    """
+    system_parts: list = []
+    if sys_text and str(sys_text).strip():
+        system_parts.append(str(sys_text))
+
+    body: list = []
+    for m in hist_msgs or []:
+        if not isinstance(m, dict):
+            continue
+        content = m.get("content", "")
+        if content is None:
+            continue
+        text = str(content)
+        if not text.strip():
+            continue
+        role = m.get("role", "user")
+        if role in ("system", "developer"):
+            system_parts.append(text)
+            continue
+        if role not in ("user", "assistant"):
+            role = "user"
+        if body and body[-1]["role"] == role:
+            body[-1]["content"] = body[-1]["content"] + "\n\n" + text
+        else:
+            body.append({"role": role, "content": text})
+
+    if user_content and str(user_content).strip():
+        text = str(user_content)
+        if body and body[-1]["role"] == "user":
+            body[-1]["content"] = body[-1]["content"] + "\n\n" + text
+        else:
+            body.append({"role": "user", "content": text})
+
+    messages: list = []
+    if system_parts:
+        messages.append({"role": "system", "content": "\n\n".join(system_parts)})
+    messages.extend(body)
+    return messages
+
+
 def _gigachat_token(credentials: str, scope: str = "GIGACHAT_API_PERS") -> str:
     """Obtain an OAuth token for GigaChat. Raises ProviderHTTPError on failure."""
     r = requests.post(
@@ -1254,7 +1338,12 @@ def send_request(user_message: str, assistant: Optional[dict] = None,
     model    = assistant["model"]
     temp     = float(assistant.get("temperature", svc.get("temp_default", 0.7)))
     sys_text = assistant.get("text", "")
-    max_tokens = assistant.get("max_tokens") or _get_model_max_tokens(svc, model)
+    # Clamp to the model's explicit output limit (e.g. GigaChat <= 32768)
+    # so a value saved for another model is not rejected by the provider.
+    max_tokens = _clamp_max_tokens(
+        assistant.get("max_tokens") or _get_model_max_tokens(svc, model),
+        svc, model,
+    )
 
     assistant_file_ctx = load_assistant_files_context(assistant.get("id", ""))
     combined_file_ctx = combine_nonempty([
@@ -1508,11 +1597,7 @@ def _do_request(auth_type: str, svc_name: str, svc: dict, cfg: dict,
             "Content-Type":  "application/json",
             "Accept":        "application/json",
         })
-        messages = (
-            [{"role": "system", "content": sys_text}]
-            + hist_msgs
-            + [{"role": "user", "content": user_content}]
-        )
+        messages = _gigachat_messages(sys_text, hist_msgs, user_content)
         payload = {
             "model":    model,
             "messages": messages,

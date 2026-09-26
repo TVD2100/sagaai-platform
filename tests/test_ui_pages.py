@@ -921,3 +921,123 @@ def test_render_event_retrying_llm_warns_with_i18n(mock_env):
     assert t_calls[0][1]["attempt"] == 2
     assert t_calls[0][1]["attempts"] == 3
     assert t_calls[0][1]["delay"] == 30
+
+
+# ─── _attach_events / first-step failure visibility ───────────────────────────
+
+def test_attach_events_targets_last_assistant_of_current_turn(mock_env):
+    """Events of a step go to the last assistant reply after the last
+    VISIBLE user message; earlier turns keep their own events."""
+    from ui.pages import orchestrator as orch_mod
+
+    hist = [
+        {"role": "user", "content": "u1",
+         "_events": [{"type": "error", "error": "old"}]},
+        {"role": "assistant", "content": "a1", "_events": [{"type": "phase"}]},
+        {"role": "user", "content": "u2"},
+        {"role": "assistant", "content": "a2"},
+    ]
+    evs = [{"type": "tool_call", "tool": "read_file", "args": {}}]
+    orch_mod._attach_events(hist, evs)
+
+    assert hist[3]["_events"] is evs
+    # The previous turn's events are not overwritten.
+    assert hist[1]["_events"] == [{"type": "phase"}]
+
+
+def test_attach_events_falls_back_to_visible_user_without_assistant(mock_env):
+    """A first-step failure (no assistant reply yet) attaches its error
+    events to the user request so the chat feed can render them."""
+    from ui.pages import orchestrator as orch_mod
+
+    hist = [{"role": "user", "content": "hi"}]
+    evs = [{"type": "error", "error": "402 Payment Required"}]
+    orch_mod._attach_events(hist, evs)
+
+    assert hist[0]["_events"] is evs
+
+
+def test_attach_events_skips_hidden_messages_and_empty_inputs(mock_env):
+    from ui.pages import orchestrator as orch_mod
+
+    # Hidden user messages (tool results / auto-continue) are not anchors.
+    hist = [
+        {"role": "user", "content": "u1"},
+        {"role": "assistant", "content": "a1"},
+        {"role": "user", "content": "tool_result hidden", "hidden": True},
+    ]
+    evs = [{"type": "error", "error": "x"}]
+    orch_mod._attach_events(hist, evs)
+    assert hist[1]["_events"] is evs
+    assert "_events" not in hist[2]
+
+    # No visible user at all -> no-op.
+    hist2 = [{"role": "assistant", "content": "a"}]
+    orch_mod._attach_events(hist2, [{"type": "error"}])
+    assert "_events" not in hist2[0]
+
+    # Empty events or history -> no-op.
+    hist3 = [{"role": "user", "content": "u"}]
+    orch_mod._attach_events(hist3, [])
+    orch_mod._attach_events([], evs)
+    assert "_events" not in hist3[0]
+
+
+def test_do_step_first_step_failure_is_visible_on_user_message(mock_env, monkeypatch):
+    """When the first LLM call of a turn fails (e.g. the provider rejects
+    the request), the error events are attached to the user message and the
+    loop state is cleared, so the feed still shows what went wrong."""
+    from ui.pages import orchestrator as orch_mod
+    import dev_agent.agent_loop as al
+
+    class _Core:
+        _safety_enabled = True
+
+        def set_history(self, *a, **k):
+            pass
+
+        def set_send_request(self, *a, **k):
+            pass
+
+    class _Dispatcher:
+        def __init__(self):
+            self.core = _Core()
+
+        def dispatch(self, tool, args):
+            return {"ok": True}
+
+    monkeypatch.setattr(orch_mod, "_make_dispatcher", lambda s: _Dispatcher())
+    monkeypatch.setattr(orch_mod, "_make_send_adapter",
+                        lambda lang, s: (lambda *a, **k: ""))
+    monkeypatch.setattr(orch_mod, "get_orchestrator", lambda s: {"max_steps": 10})
+    monkeypatch.setattr(orch_mod, "build_assistant_dicts",
+                        lambda s: ({"service": "Svc", "model": "m",
+                                    "temperature": 0.1, "text": "p"}, {}))
+    monkeypatch.setattr(orch_mod, "get_economy_config", lambda s: {})
+
+    def _boom(*a, **k):
+        raise RuntimeError("402 Payment Required: token limit exceeded")
+
+    monkeypatch.setattr(al, "send_request", _boom)
+
+    slug = "o1"
+    orch_mod._init_orch_state(slug)
+    mock_env.session_state[f"orch_{slug}_history"] = []
+    mock_env.session_state[f"orch_{slug}_user_message"] = "hello"
+    mock_env.session_state[f"orch_{slug}_thread_id"] = None
+
+    # step_agent_loop advances one phase per call (the real UI reruns the
+    # page after each phase); drive it until the terminal error clears the
+    # loop state, exactly like the UI would.
+    for _ in range(15):
+        orch_mod._do_step(slug, "English")
+        if mock_env.session_state.get(f"orch_{slug}_loop_state") is None:
+            break
+
+    hist = mock_env.session_state[f"orch_{slug}_history"]
+    assert [m["role"] for m in hist] == ["user"]
+    events = hist[0].get("_events") or []
+    assert any(e.get("type") == "error" and "402" in str(e.get("error", ""))
+               for e in events), events
+    # Terminal error status clears the loop state (no stuck spinner).
+    assert mock_env.session_state.get(f"orch_{slug}_loop_state") is None

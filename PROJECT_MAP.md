@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-09-23T17:40:39+00:00`
-- Файлов: **931**
-- Языки: Config: 1, JSON: 22, Markdown: 685, PEM certificate: 1, Python: 226, Text: 1
+- Обновлено: `2026-09-26T20:04:24+00:00`
+- Файлов: **933**
+- Языки: Config: 1, JSON: 22, Markdown: 685, PEM certificate: 1, Python: 228, Text: 1
 
 ## Файлы и назначение
 
@@ -27,7 +27,7 @@
 | `ui/pages/chat.py` | Python | Chat page for AI assistants: selector, history, send form | - |
 | `ui/pages/connectors.py` | Python | _(описание не задано)_ | - |
 | `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | - |
-| `ui/pages/orchestrator.py` | Python | Reusable orchestrator page (chat/history/settings incl. skills tab; no employee export/import UI) | storage |
+| `ui/pages/orchestrator.py` | Python | Reusable orchestrator page (chat/history/settings incl. skills tab; no employee export/import UI; step events attach to the user message when the first LLM call fails) | storage |
 | `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings entry page | - |
 | `ui/pages/orchestrators.py` | Python | Employees (orchestrators) management page (create/open/settings/delete; export/import deferred) | - |
 | `ui/pages/settings.py` | Python | LLM provider settings page | - |
@@ -39,7 +39,7 @@
 | `ui/pages/welcome.py` | Python | Welcome / about page | - |
 | `core/__init__.py` | Python | Package marker | - |
 | `core/api_errors.py` | Python | API error hierarchy and user messages | - |
-| `core/api_layer.py` | Python | HTTP requests to AI providers; send_request(assistant=...) with legacy skill= alias | - |
+| `core/api_layer.py` | Python | HTTP requests to AI providers; send_request(assistant=...) with legacy skill= alias; GigaChat payload normalization (_gigachat_messages) and max_tokens clamp (_clamp_max_tokens) | - |
 | `core/assistant_creator.py` | Python | Validation and linting helpers for assistant prompts | - |
 | `core/assistant_folders.py` | Python | _(описание не задано)_ | - |
 | `core/assistant_nav.py` | Python | _(описание не задано)_ | - |
@@ -123,6 +123,7 @@
 | `tests/test_dispatcher_tool_gating.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_economy_history_budget.py` | Python | _(описание не задано)_ | - |
 | `tests/test_employee_management_ui.py` | Python | UI regression tests: employee management pages render and expose no export/import employee UI | - |
+| `tests/test_gigachat_messages.py` | Python | Unit tests: GigaChat payload shape (single leading system message) and max_tokens clamping | - |
 | `tests/test_github_connector_rest.py` | Python | _(описание не задано)_ | - |
 | `tests/test_github_tools_rest.py` | Python | _(описание не задано)_ | - |
 | `tests/test_i18n_serialization.py` | Python | _(описание не задано)_ | - |
@@ -200,6 +201,7 @@
 | `tests/scenarios/test_employees_sidebar_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_first_run_flow.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_gigachat_models_scenario.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_gigachat_orchestrator_scenario.py` | Python | Scenario tests: orchestrator turn on GigaChat (valid payload, 422 visibility in the chat feed, role folding) | - |
 | `tests/scenarios/test_github_rest_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_json_repair_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_loop_stuck_protection_scenarios.py` | Python | Loop-stuck protection scenarios: per-tool failure counter hints, duplicate-call flood compaction, prose loop_status continue | - |
@@ -1028,18 +1030,18 @@
 - `_render_tool_result` (func, строка 540)
 - `_render_events` (func, строка 615)
 - `_render_event` (func, строка 635)
-- `_do_step` (func, строка 695)
-- `_reset_dialog` (func, строка 846)
-- `_load_thread` (func, строка 863)
-- `_chat_toolbar_widget_key` (func, строка 895)
-- `_sync_chat_pref_checkbox` (func, строка 905)
-- `_chat_toolbar_pref_changed` (func, строка 923)
-- `_render_chat_toolbar` (func, строка 933)
-- `_token_line_cache_key` (func, строка 991)
-- `_render_token_line` (func, строка 1038)
-- `_render_chat_tab` (func, строка 1122)
-- `_services_with_web_search` (func, строка 1539)
-- `_temp_slider` (func, строка 1551)
+- `_attach_events` (func, строка 695)
+- `_do_step` (func, строка 724)
+- `_reset_dialog` (func, строка 876)
+- `_load_thread` (func, строка 893)
+- `_chat_toolbar_widget_key` (func, строка 925)
+- `_sync_chat_pref_checkbox` (func, строка 935)
+- `_chat_toolbar_pref_changed` (func, строка 953)
+- `_render_chat_toolbar` (func, строка 963)
+- `_token_line_cache_key` (func, строка 1021)
+- `_render_token_line` (func, строка 1068)
+- `_render_chat_tab` (func, строка 1152)
+- `_services_with_web_search` (func, строка 1572)
 
 ### `ui/pages/orchestrator_settings.py`
 - `page_orchestrator_settings` (func, строка 28)
@@ -1111,38 +1113,40 @@
 - `retry_call` (func, строка 125)
 - `_parse_sanitized_info` (func, строка 175)
 - `_get_model_max_tokens` (func, строка 201)
-- `_prepare_response_content` (func, строка 222)
-- `_format_function_call_item` (func, строка 257)
-- `_normalise_json_schema` (func, строка 285)
-- `_responses_json_format` (func, строка 304)
-- `_openai_response_format` (func, строка 317)
-- `_gigachat_response_format` (func, строка 331)
-- `_unwrap_json_text` (func, строка 348)
-- `_is_schema_rejection` (func, строка 376)
-- `_extract_responses_text` (func, строка 398)
-- `_extract_deepseek_responses_text` (func, строка 456)
-- `_normalise_tools` (func, строка 468)
-- `_has_native_function_tools` (func, строка 486)
-- `_protect_history` (func, строка 501)
-- `_estimate_tokens_in` (func, строка 574)
-- `_bearer_request` (func, строка 585)
-- `_deepseek_reasoning_effort` (func, строка 660)
-- `_deepseek_responses_request` (func, строка 676)
-- `_anthropic_web_search_used` (func, строка 785)
-- `_extract_anthropic_text` (func, строка 801)
-- `_deepseek_anthropic_web_search` (func, строка 825)
-- `_yandex_reasoning_effort` (func, строка 941)
-- `_yandex_web_search_config` (func, строка 968)
-- `_assistant_web_search_config` (func, строка 998)
-- `_yandex_responses_request` (func, строка 1027)
-- `_gigachat_token` (func, строка 1144)
-- `_assistant_rag_context` (func, строка 1163)
-- `send_request` (func, строка 1214)
-- `_do_request` (func, строка 1399)
-- `_extract_error_body` (func, строка 1560)
-- `_extract_gigachat_error` (func, строка 1581)
-- `_gigachat_models_url` (func, строка 1596)
-- `test_connection` (func, строка 1615)
+- `_clamp_max_tokens` (func, строка 222)
+- `_prepare_response_content` (func, строка 250)
+- `_format_function_call_item` (func, строка 285)
+- `_normalise_json_schema` (func, строка 313)
+- `_responses_json_format` (func, строка 332)
+- `_openai_response_format` (func, строка 345)
+- `_gigachat_response_format` (func, строка 359)
+- `_unwrap_json_text` (func, строка 376)
+- `_is_schema_rejection` (func, строка 404)
+- `_extract_responses_text` (func, строка 426)
+- `_extract_deepseek_responses_text` (func, строка 484)
+- `_normalise_tools` (func, строка 496)
+- `_has_native_function_tools` (func, строка 514)
+- `_protect_history` (func, строка 529)
+- `_estimate_tokens_in` (func, строка 602)
+- `_bearer_request` (func, строка 613)
+- `_deepseek_reasoning_effort` (func, строка 688)
+- `_deepseek_responses_request` (func, строка 704)
+- `_anthropic_web_search_used` (func, строка 813)
+- `_extract_anthropic_text` (func, строка 829)
+- `_deepseek_anthropic_web_search` (func, строка 853)
+- `_yandex_reasoning_effort` (func, строка 969)
+- `_yandex_web_search_config` (func, строка 996)
+- `_assistant_web_search_config` (func, строка 1026)
+- `_yandex_responses_request` (func, строка 1055)
+- `_gigachat_messages` (func, строка 1172)
+- `_gigachat_token` (func, строка 1228)
+- `_assistant_rag_context` (func, строка 1247)
+- `send_request` (func, строка 1298)
+- `_do_request` (func, строка 1488)
+- `_extract_error_body` (func, строка 1645)
+- `_extract_gigachat_error` (func, строка 1666)
+- `_gigachat_models_url` (func, строка 1681)
+- `test_connection` (func, строка 1700)
 
 ### `core/assistant_creator.py`
 - `_section_headers` (func, строка 23)
@@ -2302,6 +2306,21 @@
 - `test_orchestrator_settings_page_has_no_export_import_tab` (func, строка 74)
 - `test_no_export_import_employee_ui_in_code` (func, строка 106)
 
+### `tests/test_gigachat_messages.py`
+- `test_single_leading_system_message_folds_history_system_blocks` (func, строка 48)
+- `test_consecutive_same_roles_are_merged` (func, строка 66)
+- `test_no_system_message_when_prompt_empty` (func, строка 83)
+- `test_ui_only_keys_are_stripped` (func, строка 89)
+- `test_clamp_caps_gigachat_model_limit` (func, строка 101)
+- `test_clamp_keeps_value_below_limit` (func, строка 105)
+- `test_clamp_uses_service_default_for_unknown_model` (func, строка 109)
+- `test_clamp_passthrough_without_explicit_limit` (func, строка 114)
+- `test_clamp_deepseek_limit_unchanged` (func, строка 119)
+- `_run_send` (func, строка 125)
+- `test_send_request_clamps_gigachat_max_tokens` (func, строка 143)
+- `test_send_request_keeps_deepseek_max_tokens` (func, строка 152)
+- `test_gigachat_wire_payload_has_single_leading_system_and_clamped_tokens` (func, строка 160)
+
 ### `tests/test_github_connector_rest.py`
 - `isolated_connector` (func, строка 22)
 - `FakeResponse` (class, строка 31)
@@ -3455,6 +3474,20 @@
 - `test_rag_models_recommend_gigachat3_pro` (func, строка 77)
 - `test_sending_with_gigachat3_model_uses_new_endpoint` (func, строка 91)
 - `test_connection_test_derives_models_url_from_base_url` (func, строка 126)
+
+### `tests/scenarios/test_gigachat_orchestrator_scenario.py`
+- `_gigachat_service` (func, строка 48)
+- `_ok_response` (func, строка 53)
+- `_error_response` (func, строка 64)
+- `_make_session` (func, строка 74)
+- `ui_env` (func, строка 81)
+- `_patch_transport` (func, строка 110)
+- `_setup_page` (func, строка 125)
+- `_seed` (func, строка 166)
+- `_drive` (func, строка 176)
+- `test_scenario_orchestrator_turn_on_gigachat_sends_valid_payload` (func, строка 193)
+- `test_scenario_provider_422_is_visible_in_feed_and_next_turn_recovers` (func, строка 232)
+- `test_scenario_economy_meta_and_consecutive_user_roles_are_folded` (func, строка 280)
 
 ### `tests/scenarios/test_github_rest_scenario.py`
 - `isolated_data_dir` (func, строка 30)

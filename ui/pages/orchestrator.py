@@ -692,6 +692,35 @@ def _render_event(ev: dict, lang: str) -> None:
 
 # ─── Agent step ───────────────────────────────────────────────────────────────
 
+def _attach_events(history: list, events: list) -> None:
+    """Attach *events* to the history message that should render them.
+
+    Normal case: the events of one agent step belong to the last assistant
+    message that followed the last visible user message. When the step
+    produced no assistant reply (for example the very first LLM call failed
+    with a provider error), the events - including the error that explains
+    the failure - are attached to the last visible user message instead.
+    That keeps first-step failures visible in the chat feed and lets the
+    persistence layer carry them into the saved thread.
+    """
+    if not history or not events:
+        return
+    last_user_idx = None
+    for i, msg in enumerate(history):
+        if (isinstance(msg, dict) and msg.get("role") == "user"
+                and not msg.get("hidden")):
+            last_user_idx = i
+    if last_user_idx is None:
+        return
+    target_idx = last_user_idx
+    for i in range(len(history) - 1, last_user_idx, -1):
+        msg = history[i]
+        if isinstance(msg, dict) and msg.get("role") == "assistant":
+            target_idx = i
+            break
+    history[target_idx]["_events"] = events
+
+
 def _do_step(slug: str, lang: str) -> None:
     """Run one agent loop step and update session state.
 
@@ -791,14 +820,15 @@ def _do_step(slug: str, lang: str) -> None:
 
     _set_ss(slug, "history", state.history)
 
+    # Attach the step events to the message that renders them. A step that
+    # failed before producing an assistant reply (e.g. the very first LLM
+    # call) attaches its error to the user request instead, so the failure
+    # stays visible in the chat feed even without an active thread.
+    _attach_events(state.history, events)
+
     tid = _ss(slug, "thread_id")
     if tid and state.history:
         hist = list(state.history)
-        if hist and events:
-            for i in range(len(hist) - 1, -1, -1):
-                if hist[i].get("role") == "assistant":
-                    hist[i]["_events"] = events
-                    break
         saved_count = _ss(slug, "saved_msg_count") or 0
         new_msgs = hist[saved_count:]
         for msg in new_msgs:
@@ -1211,10 +1241,13 @@ def _render_chat_tab(slug: str, lang: str) -> None:
         ts_display = format_ts_label(msg.get("ts", ""))
 
         if role == "user":
+            user_events = msg.get("_events", [])
             with st.chat_message("user"):
                 if fname:
                     st.caption(f"📎 {fname}")
                 st.markdown(content)
+                if user_events:
+                    _render_events(user_events, lang)
                 if ts_display:
                     st.caption(f"🕐 {ts_display}")
         elif role == "assistant":
