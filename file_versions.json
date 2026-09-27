@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "1.2.0",
+  "app_version": "1.2.1",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Релиз 1.2.0: добор контекста RAG - результаты rag_search несут chunk_id, новый инструмент rag_get_chunks (по chunk_ids или source+chunk_indices) восстанавливает соседние фрагменты; доступен ассистентам и DevAgent, промпт DevAgent v3.14; новые unit- и сценарные тесты.",
-    "en": "Release 1.2.0: RAG context restore - rag_search results carry chunk ids, the new rag_get_chunks tool (by chunk_ids or source+chunk_indices) restores neighbouring chunks; available to assistants and DevAgent, DevAgent prompt v3.14; new unit and scenario tests."
+    "ru": "Релиз 1.2.1: панели выгрузки/копирования (MD/TXT и копирование) у каждого текстового ответа сотрудника в ленте чата - сообщения с вызовами инструментов панели не получают, у «живого» финального ответа она появляется после завершения цикла; новый тест tests/test_orchestrator_message_controls.py.",
+    "en": "Release 1.2.1: download/copy controls (MD/TXT and copy) on every plain-prose employee answer in the chat feed - messages carrying tool calls get none, and a live final answer shows them once the loop finishes; new test tests/test_orchestrator_message_controls.py."
   },
-  "updated": "2026-09-26T21:56:11Z",
+  "updated": "2026-09-27T11:03:46Z",
   "units": {
     "core": {
-      "version": "1.13.0",
+      "version": "1.13.1",
       "note": {
-        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0.",
-        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0."
+        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов).",
+        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files)."
       },
       "files": {
         "__init__.py": {
@@ -204,8 +204,8 @@
           "sha256": "78547e37b44458d451124b69e76ecf5bd2f69213e7164dea11137343f4e20df8"
         },
         "core/version.py": {
-          "version": "1.0.13",
-          "sha256": "33b62f932116095a82e948a49aa3706b9b1b1b3eb07af806d9158c2e53b306ba"
+          "version": "1.0.14",
+          "sha256": "f9fc9b99ff1c00408c736281fffe417cf01253aa595683acd926cc0110f6f650"
         },
         "dev_agent/__init__.py": {
           "version": "1.0.0",
@@ -264,8 +264,8 @@
           "sha256": "d30b1003cd4c0769a111e2e09fe27302915a6fbca1c614b95bb7a7a9f95cec97"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.1.0",
-          "sha256": "f39b031b210cd72695699dc6441ee81a586c5d9848352324dcc3a8980ae77e98"
+          "version": "1.1.1",
+          "sha256": "516a878be3921b5c088f10af42e73e3188bb43b74ba8861fad29fbf20956c991"
         },
         "scripts/verify_manifest.py": {
           "version": "1.0.3",
@@ -668,8 +668,8 @@
           "sha256": "448dbf67eff496ec7d2689ef5d6f5be3640b79162e7456934ed478856b54ca74"
         },
         "ui/pages/orchestrator.py": {
-          "version": "1.7.1",
-          "sha256": "83f95553a85f677ce5c67c1f1dca8a7e0ba12f08a79c9d67ba4941f5fe7fc28d"
+          "version": "1.8.0",
+          "sha256": "15cea6dd41ccc383a39efa5190bc5922663b3fdf75bb5ce8ab7c9505bbcf3925"
         },
         "ui/pages/orchestrator_settings.py": {
           "version": "1.1.0",
@@ -942,6 +942,10 @@
         "tests/scenarios/test_rag_context_restore.py": {
           "version": "1.0.0",
           "sha256": "2465407f57a36cb8fdb8c190328e5c2a6ef8e4b5a323582a026d720b0fad1ea9"
+        },
+        "tests/test_orchestrator_message_controls.py": {
+          "version": "1.0.0",
+          "sha256": "13a4a060328de1bc995cc418a961dbc582ab3002bcc78166798d6a4c605c7f66"
         }
       }
     }
@@ -972,27 +976,27 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.18.2",
-      "sha256": "deb92688d742de2d6225c9a93d553b761f067a9c1982da2d0d384a605dea2675",
+      "version": "1.18.3",
+      "sha256": "2583cc23723de8b41bbf0fd95bc4106ded00cc19d5d4601e1559fa2176108398",
       "note": {
-        "ru": "Карта обновлена после RAG context restore: строка и секция нового сценарного теста, rag_get_chunks в модулях, промпт v3.14.",
-        "en": "Map updated after RAG context restore: row and section of the new scenario test, rag_get_chunks in the modules, prompt v3.14."
+        "ru": "Карта регенерирована (977 файлов): строка и секция нового теста orchestrator_message_controls, обновлённое описание ui/pages/orchestrator.py.",
+        "en": "Map regenerated (977 files): row and section of the new orchestrator_message_controls test, updated ui/pages/orchestrator.py description."
       }
     },
     "README.md": {
-      "version": "1.12.2",
-      "sha256": "6c0d3972a2c2f53b2586624434cddf696705152fb9acc1eb76596f453ee49b1b",
+      "version": "1.12.3",
+      "sha256": "9f480c5c9a217dac3b436db73d56eee0d57c38a24bc53758536d7ab9a14ad8f9",
       "note": {
-        "ru": "Статус версии - стабильный релиз v1.2.0; RAG-раздел: добор контекста (rag_get_chunks).",
-        "en": "Version status - stable release v1.2.0; RAG section: context restore (rag_get_chunks)."
+        "ru": "Статус версии - стабильный релиз v1.2.1; раздел «Сотрудники»: панель выгрузки/копирования в ленте чата; требование Python 3.12+ (синхронизировано с GitHub c7bac82).",
+        "en": "Version status - stable release v1.2.1; Employees section: download/copy panel in the chat feed; Python 3.12+ requirement (synced with GitHub c7bac82)."
       }
     },
     "SPEC.md": {
-      "version": "1.15.2",
-      "sha256": "0bcd472e23ed6566c76c4cf8c21820bdde5fb08213cade1f5d27121d32c4b9ef",
+      "version": "1.15.3",
+      "sha256": "5351dec9eda92107ca0a90a3bdc47536794224bb004038b1e779c435dc53fdc6",
       "note": {
-        "ru": "FR10: добор контекста RAG - chunk_id в результатах rag_search, инструмент rag_get_chunks (по chunk_ids или source+chunk_indices).",
-        "en": "FR10: RAG context restore - chunk ids in rag_search results, the rag_get_chunks tool (by chunk_ids or source+chunk_indices)."
+        "ru": "FR6: панели выгрузки/копирования у каждого текстового ответа-прозы в ленте чата оркестратора.",
+        "en": "FR6: per-message download/copy controls on plain-prose answers in the orchestrator chat feed."
       }
     },
     "defaults/README.md": {

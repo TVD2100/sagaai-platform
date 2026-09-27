@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-09-26T21:50:41+00:00`
-- Файлов: **958**
-- Языки: Config: 1, JSON: 22, Markdown: 709, PEM certificate: 1, Python: 229, Text: 1
+- Обновлено: `2026-09-27T10:46:52+00:00`
+- Файлов: **977**
+- Языки: Config: 1, JSON: 22, Markdown: 727, PEM certificate: 1, Python: 230, Text: 1
 
 ## Файлы и назначение
 
@@ -27,7 +27,7 @@
 | `ui/pages/chat.py` | Python | Chat page for AI assistants: selector, history, send form | - |
 | `ui/pages/connectors.py` | Python | _(описание не задано)_ | - |
 | `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | - |
-| `ui/pages/orchestrator.py` | Python | Reusable orchestrator page (chat/history/settings incl. skills tab; no employee export/import UI; step events attach to the user message when the first LLM call fails) | storage |
+| `ui/pages/orchestrator.py` | Python | Reusable orchestrator page (chat/history/settings incl. skills tab; no employee export/import UI; step events attach to the user message when the first LLM call fails; per-message download/copy controls on plain-prose answers) | storage |
 | `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings entry page | - |
 | `ui/pages/orchestrators.py` | Python | Employees (orchestrators) management page (create/open/settings/delete; export/import deferred) | - |
 | `ui/pages/settings.py` | Python | LLM provider settings page | - |
@@ -135,6 +135,7 @@
 | `tests/test_orchestrator_connections.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_orchestrator_economy_cache.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_folders.py` | Python | Orchestrator folder tests | storage |
+| `tests/test_orchestrator_message_controls.py` | Python | Per-message download/copy controls tests (plain-prose answers) | - |
 | `tests/test_orchestrator_nav.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_other_settings.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_system_tools_ui.py` | Python | _(описание не задано)_ | - |
@@ -964,6 +965,24 @@
 | `dev_agent/task_states/TASK_STATE__20260927_004852_f2bbbc.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260927_004901_a142eb.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260927_004901_bc65df.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_005701_b59361.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_005704_09af2b.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_005704_1dfa1e.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_005704_2b3079.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_005704_302c49.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_005704_c8fb3d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_005712_09098f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_005712_83e244.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_132412_705a4c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_132412_a5be51.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_132425_1bfa2a.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_132428_0c2bed.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_132428_19475c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_132428_4a6352.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_132428_d5d541.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_132428_fd84be.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_132436_53931e.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_132436_ffe84b.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
 | `services/deepseek.json` | JSON | DeepSeek service definition | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
@@ -1027,46 +1046,46 @@
 - `_last_reply` (func, строка 362)
 
 ### `ui/pages/orchestrator.py`
-- `_chat_pref_config_keys` (func, строка 74)
-- `_chat_prefs` (func, строка 81)
-- `_save_chat_pref` (func, строка 89)
-- `_make_state_keys` (func, строка 105)
-- `_init_orch_state` (func, строка 138)
-- `_sk` (func, строка 145)
-- `_ss` (func, строка 150)
-- `_set_ss` (func, строка 155)
-- `_pop_ss` (func, строка 159)
-- `_save_economy_cache` (func, строка 163)
-- `_load_economy_cache` (func, строка 182)
-- `_attachments_manifest_path` (func, строка 189)
-- `_load_attachments_manifest` (func, строка 193)
-- `_append_attachment_manifest` (func, строка 203)
-- `_save_attachment_to_workspace` (func, строка 214)
-- `_scroll_page` (func, строка 240)
-- `_make_send_adapter` (func, строка 294)
-- `_make_dispatcher` (func, строка 326)
-- `_assistant_has_api_key` (func, строка 351)
-- `_strip_html_details_tags` (func, строка 366)
-- `_strip_empty_fenced_blocks` (func, строка 382)
-- `_strip_tool_calls` (func, строка 433)
-- `_first_two_lines` (func, строка 495)
-- `_format_call_args_preview` (func, строка 508)
-- `_extract_result_body` (func, строка 526)
-- `_render_tool_result` (func, строка 540)
-- `_render_events` (func, строка 615)
-- `_render_event` (func, строка 635)
-- `_attach_events` (func, строка 695)
-- `_do_step` (func, строка 724)
-- `_reset_dialog` (func, строка 876)
-- `_load_thread` (func, строка 893)
-- `_chat_toolbar_widget_key` (func, строка 925)
-- `_sync_chat_pref_checkbox` (func, строка 935)
-- `_chat_toolbar_pref_changed` (func, строка 953)
-- `_render_chat_toolbar` (func, строка 963)
-- `_token_line_cache_key` (func, строка 1021)
-- `_render_token_line` (func, строка 1068)
-- `_render_chat_tab` (func, строка 1152)
-- `_services_with_web_search` (func, строка 1572)
+- `_chat_pref_config_keys` (func, строка 75)
+- `_chat_prefs` (func, строка 82)
+- `_save_chat_pref` (func, строка 90)
+- `_make_state_keys` (func, строка 106)
+- `_init_orch_state` (func, строка 139)
+- `_sk` (func, строка 146)
+- `_ss` (func, строка 151)
+- `_set_ss` (func, строка 156)
+- `_pop_ss` (func, строка 160)
+- `_save_economy_cache` (func, строка 164)
+- `_load_economy_cache` (func, строка 183)
+- `_attachments_manifest_path` (func, строка 190)
+- `_load_attachments_manifest` (func, строка 194)
+- `_append_attachment_manifest` (func, строка 204)
+- `_save_attachment_to_workspace` (func, строка 215)
+- `_scroll_page` (func, строка 241)
+- `_make_send_adapter` (func, строка 295)
+- `_make_dispatcher` (func, строка 327)
+- `_assistant_has_api_key` (func, строка 352)
+- `_strip_html_details_tags` (func, строка 367)
+- `_strip_empty_fenced_blocks` (func, строка 383)
+- `_strip_tool_calls` (func, строка 434)
+- `_strip_tool_calls_for_message` (func, строка 491)
+- `_first_two_lines` (func, строка 518)
+- `_format_call_args_preview` (func, строка 531)
+- `_extract_result_body` (func, строка 549)
+- `_render_tool_result` (func, строка 563)
+- `_render_events` (func, строка 638)
+- `_render_event` (func, строка 658)
+- `_attach_events` (func, строка 718)
+- `_do_step` (func, строка 747)
+- `_reset_dialog` (func, строка 899)
+- `_load_thread` (func, строка 916)
+- `_chat_toolbar_widget_key` (func, строка 948)
+- `_sync_chat_pref_checkbox` (func, строка 958)
+- `_chat_toolbar_pref_changed` (func, строка 976)
+- `_render_chat_toolbar` (func, строка 986)
+- `_token_line_cache_key` (func, строка 1044)
+- `_render_token_line` (func, строка 1091)
+- `_render_chat_tab` (func, строка 1175)
 
 ### `ui/pages/orchestrator_settings.py`
 - `page_orchestrator_settings` (func, строка 28)
@@ -2521,6 +2540,18 @@
 - `TestOrchestratorCRUDWithFolders` (class, строка 268)
 - `TestSlugSafety` (class, строка 340)
 - `TestOrchestratorLifecycleGuards` (class, строка 363)
+
+### `tests/test_orchestrator_message_controls.py`
+- `ui_env` (func, строка 20)
+- `_rerender` (func, строка 36)
+- `_orch_dict` (func, строка 43)
+- `_prepare_page` (func, строка 55)
+- `_sample_history` (func, строка 87)
+- `_download_keys` (func, строка 100)
+- `_clipboard_payloads` (func, строка 104)
+- `test_controls_on_every_plain_answer` (func, строка 108)
+- `test_tool_call_messages_get_no_controls` (func, строка 133)
+- `test_live_final_answer_hides_controls_while_agent_active` (func, строка 161)
 
 ### `tests/test_orchestrator_nav.py`
 - `_o` (func, строка 21)

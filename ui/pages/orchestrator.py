@@ -41,6 +41,7 @@ from dev_agent.agent_loop import (
     economy_cache_to_dict, apply_economy_cache,
     approve_pending_confirmation, deny_pending_confirmation,
     approve_sanitized_content, deny_sanitized_content,
+    parse_tool_calls,
 )
 from dev_agent import workspace_tools as wt
 from dev_agent import workspace_binding as wb
@@ -485,6 +486,28 @@ def _strip_tool_calls(text: str) -> str:
     text = re.sub(r"[ \t]+\n", "\n", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
+
+
+def _strip_tool_calls_for_message(content: str) -> tuple:
+    """Return ``(display_text, has_tool_calls)`` for one chat message.
+
+    ``has_tool_calls`` drives the download/copy controls: a message that
+    carries machine tool-call payloads never gets them, even when some
+    prose remains visible around the removed calls. A cheap prefilter
+    skips the full parser for texts that cannot hold a call; the parser
+    itself is ``parse_tool_calls`` - the same one the agent loop executes
+    calls with. A parser failure counts as 'has calls', so the controls
+    never appear on an unverified message.
+    """
+    text = _strip_tool_calls(content)
+    if not content:
+        return text, False
+    if "{" not in content and "<" not in content:
+        return text, False
+    try:
+        return text, bool(parse_tool_calls(content))
+    except Exception:
+        return text, True
 
 
 # ─── Event rendering ──────────────────────────────────────────────────────────
@@ -1253,7 +1276,7 @@ def _render_chat_tab(slug: str, lang: str) -> None:
         elif role == "assistant":
             if not content:
                 continue
-            display = _strip_tool_calls(content)
+            display, has_tool_calls = _strip_tool_calls_for_message(content)
             stored_events = msg.get("_events", [])
             with st.chat_message("assistant"):
                 if display:
@@ -1262,9 +1285,13 @@ def _render_chat_tab(slug: str, lang: str) -> None:
                     st.caption(t("devagent_agent_step_compact", lang=lang))
                 if stored_events:
                     _render_events(stored_events, lang)
-                # Show download/copy controls only on the final assistant
-                # message and only after the agent loop has finished.
-                if display and idx == last_assistant_idx and not agent_is_active:
+                # Download/copy controls appear on every plain-prose LLM
+                # answer that carries no tool calls; the live step keeps
+                # them hidden until the agent loop finishes.
+                show_controls = bool(display) and not has_tool_calls
+                if show_controls and idx == last_assistant_idx and agent_is_active:
+                    show_controls = False
+                if show_controls:
                     dl_fname = f"orchestrator_message_{slug}_{idx}"
                     col1, col2, col3, col4 = st.columns(4)
                     with col1:
