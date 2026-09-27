@@ -118,7 +118,7 @@
 
 ### ✅ Требования
 
-- **Python 3.10 или новее.** Проверьте командой `python --version` (на Windows также подойдёт `py --version`). Если Python не установлен, скачайте его с [python.org](https://www.python.org/downloads/); при установке на Windows отметьте пункт **«Add Python to PATH»**.
+- **Python 3.12 или новее.** Проверьте командой `python --version` (на Windows также подойдёт `py --version`). Если Python не установлен, скачайте его с [python.org](https://www.python.org/downloads/); при установке на Windows отметьте пункт **«Add Python to PATH»**.
 
 ### 🪟 Windows (WSL не требуется)
 
