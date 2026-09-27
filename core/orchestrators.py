@@ -539,16 +539,15 @@ def _extend_prompt_with_connections(prompt: str, orchestrator_slug: str = DEVAGE
     """Append a metadata block describing enabled connections to the prompt.
 
     The block lists each enabled connection (service, name, account - never
-    the token) and the GitHub tools available to the orchestrator with their
-    signatures. Returns the original prompt when no connections are enabled
-    or on error (best effort).
+    the token) and the connection tools (GitHub REST, SSH) available to the
+    orchestrator with their signatures. Returns the original prompt when no
+    connections are enabled or on error (best effort).
     """
     enabled = get_enabled_connections(orchestrator_slug)
     if not enabled:
         return prompt
     try:
         from core.connectors import get_connection
-        from core.github_tools_rest import get_tools as get_github_rest_tools
     except Exception:
         return prompt
 
@@ -572,8 +571,9 @@ def _extend_prompt_with_connections(prompt: str, orchestrator_slug: str = DEVAGE
         "## Available service connections",
         "",
         "The following external service connections are enabled for you. "
-        "Use them via the GitHub tools listed below; tokens are handled "
-        "by the platform and are never passed to you:",
+        "Use them via the connection tools listed below; tokens and "
+        "credentials are handled by the platform and are never passed to "
+        "you:",
         "",
     ]
     lines.extend(conn_lines)
@@ -582,22 +582,33 @@ def _extend_prompt_with_connections(prompt: str, orchestrator_slug: str = DEVAGE
     lines.append("Available connection tools:")
     try:
         if "github_rest" in services:
+            from core.github_tools_rest import get_tools as get_github_rest_tools
             for tool in get_github_rest_tools():
+                lines.append(f"- `{tool['name']}` - {tool['desc']}")
+        if "ssh" in services:
+            from core.ssh_tools import get_tools as get_ssh_tools
+            for tool in get_ssh_tools():
                 lines.append(f"- `{tool['name']}` - {tool['desc']}")
     except Exception:
         pass
 
     # Compact usage notes so orchestrators can call the tools correctly even
-    # without loading the full github_connector instruction.
+    # without loading the full connector instruction.
     lines.append("")
     lines.append("Quick usage notes:")
     lines.append("- Always pass `connector_id` (from the list above) as the first argument.")
-    lines.append("- `repo` accepts `owner/repo` or a bare repo name of the authenticated user.")
-    lines.append("- New repo names must be lowercase, without spaces.")
-    lines.append("- `ghr_upload_file` creates a NEW file; use `ghr_update_file` to change an existing file.")
-    lines.append("- Prefer `ghr_batch_commit` / `ghr_batch_commit_paths` / `ghr_batch_upsert` to publish many files in ONE commit.")
-    lines.append("- Before updating a file, read it with `ghr_read_file` first.")
-    lines.append("- For the full usage guide, load the `github_connector` instruction if it is listed in `## Available instructions` of this orchestrator.")
+    if "github_rest" in services:
+        lines.append("- `repo` accepts `owner/repo` or a bare repo name of the authenticated user.")
+        lines.append("- New repo names must be lowercase, without spaces.")
+        lines.append("- `ghr_upload_file` creates a NEW file; use `ghr_update_file` to change an existing file.")
+        lines.append("- Prefer `ghr_batch_commit` / `ghr_batch_commit_paths` / `ghr_batch_upsert` to publish many files in ONE commit.")
+        lines.append("- Before updating a file, read it with `ghr_read_file` first.")
+        lines.append("- For the full usage guide, load the `github_connector` instruction if it is listed in `## Available instructions` of this orchestrator.")
+    if "ssh" in services:
+        lines.append("- `ssh_exec` runs one shell command and returns the exit status, stdout and stderr (each truncated to 100 KB).")
+        lines.append("- `ssh_write_file` overwrites the remote file (max 1 MB); pass `create_dirs=true` to create the parent chain.")
+        lines.append("- Before overwriting a file, read it with `ssh_read_file` first.")
+        lines.append("- For the full usage guide, load the `ssh_connector` instruction if it is listed in `## Available instructions` of this orchestrator.")
 
     block = "\n".join(lines)
     if prompt.strip():

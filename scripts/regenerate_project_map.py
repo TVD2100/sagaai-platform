@@ -158,6 +158,12 @@ roles = {
     "services/deepseek.json": "DeepSeek service definition",
     "services/gigachat.json": "GigaChat service definition",
     "services/yandex.json": "YandexAI service definition",
+    "core/ssh_connector.py": "SSH/SFTP service layer for the ssh connector (paramiko, lazy import)",
+    "core/ssh_tools.py": "Orchestrator ssh_* tools for the SSH connector",
+    "tests/test_ssh_connector.py": "Unit tests for core/ssh_connector (fake paramiko)",
+    "tests/test_ssh_tools.py": "Unit tests for core/ssh_tools (SSH connector tool layer)",
+    "tests/test_ui_connectors_ssh.py": "UI tests for the connectors page SSH support",
+    "tests/scenarios/test_ssh_connector_scenarios.py": "Scenario tests for the SSH connector feature",
 }
 
 res = wt.write_project_map(roles)

@@ -104,7 +104,12 @@ def _workspace_catalog() -> List[Dict[str, str]]:
 
 
 def _connection_catalog(orchestrator_slug: str) -> List[Dict[str, str]]:
-    """Return GitHub REST tools, only when a github_rest connection is enabled."""
+    """Return connection tools for the services the orchestrator enabled.
+
+    Only tools of enabled services are returned: GitHub REST tools (ghr_*)
+    for github_rest connections and SSH tools (ssh_*) for ssh connections.
+    Missing or unknown services yield no entries.
+    """
     try:
         from core.orchestrators import get_enabled_connections
         from core.connectors import get_connection
@@ -113,10 +118,14 @@ def _connection_catalog(orchestrator_slug: str) -> List[Dict[str, str]]:
             conn = get_connection(conn_id)
             if isinstance(conn, dict):
                 services.add(str(conn.get("service") or ""))
-        if "github_rest" not in services:
-            return []
-        from core.github_tools_rest import get_tools as get_github_rest_tools
-        return [dict(t) for t in get_github_rest_tools()]
+        out: List[Dict[str, str]] = []
+        if "github_rest" in services:
+            from core.github_tools_rest import get_tools as get_github_rest_tools
+            out.extend(dict(t) for t in get_github_rest_tools())
+        if "ssh" in services:
+            from core.ssh_tools import get_tools as get_ssh_tools
+            out.extend(dict(t) for t in get_ssh_tools())
+        return out
     except Exception:
         return []
 

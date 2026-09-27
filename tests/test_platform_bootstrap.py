@@ -127,6 +127,7 @@ def test_ensure_instructions_returns_expected_keys(isolated_data_dir):
     assert statuses["self_reflection"] == "created"
     assert statuses["prompt_improver"] == "created"
     assert statuses["github_connector"] == "created"
+    assert statuses["ssh_connector"] == "created"
     assert result["global_cleaned"] == []
 
 

@@ -356,6 +356,16 @@ ID и путь передаются мета-блоком системного �
   `ghr_read_file_meta`, `ghr_get_ref`, `ghr_get_commit`, `ghr_get_tree`)
   и каталог `get_tools()`; `files` для batch принимается списком dict'ов
   или JSON-строкой.
+- **`core/ssh_connector.py`** - SSH/SFTP-коннектор (paramiko + SFTP, ленивый
+  импорт): `test_connection`, `exec_command` (таймаут 60 с, максимум 300 с;
+  обрезка stdout/stderr до 100 КиБ), `list_dir`, `read_file` (UTF-8, до
+  256 КиБ), `write_file` (до 1 МиБ, `create_dirs`). Ошибки -
+  `SSHConnectorError` (наследник ValueError) с понятными сообщениями;
+  секреты расшифровываются внутри модуля и не попадают в ошибки.
+- **`core/ssh_tools.py`** - инструменты `ssh_*` для оркестраторов (5 штук:
+  `ssh_exec`, `ssh_list_dir`, `ssh_read_file`, `ssh_test_connection`,
+  `ssh_write_file`) и каталог `get_tools()`; результат - `{'ok': True,
+  'result': ...}` или `{'ok': False, 'error': ...}`.
 - **Привязка к оркестраторам**: `config['enabled_connections']` в
   `core/orchestrators.py`; `_extend_prompt_with_connections` добавляет блок
   `Available service connections` в системный промпт и каталог инструментов

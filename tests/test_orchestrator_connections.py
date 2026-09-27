@@ -131,3 +131,39 @@ def test_prompt_extended_with_github_rest_connections(orch_slug):
     assert "ghr_batch_commit" in prompt
     assert "ghr_list_repos" in prompt
     assert "github_list_repos" not in prompt
+
+
+def test_prompt_extended_with_ssh_connections(orch_slug):
+    from core.orchestrators import _extend_prompt_with_connections, set_enabled_connections
+    set_enabled_connections(orch_slug, ["conn_ssh"])
+    conn = {"service": "ssh", "name": "Prod server", "account": "deploy@203.0.113.10"}
+    ssh_tools = [
+        {"name": "ssh_exec", "desc": "Run a shell command on a remote SSH server."},
+        {"name": "ssh_read_file", "desc": "Read a UTF-8 text file (capped)."},
+    ]
+    with mock.patch("core.connectors.get_connection", return_value=conn), mock.patch(
+        "core.ssh_tools.get_tools", return_value=ssh_tools
+    ):
+        prompt = _extend_prompt_with_connections("Base prompt", orch_slug)
+
+    assert "## Available service connections" in prompt
+    assert "conn_ssh" in prompt
+    assert "deploy@203.0.113.10" in prompt
+    assert "ssh_exec" in prompt
+    assert "ssh_read_file" in prompt
+    assert "Quick usage notes" in prompt
+    assert "`ssh_write_file` overwrites" in prompt
+    # GitHub-only notes must not leak into an ssh-only prompt.
+    assert "ghr_upload_file" not in prompt
+
+
+def test_ssh_notes_absent_without_ssh_connection(orch_slug):
+    from core.orchestrators import _extend_prompt_with_connections, set_enabled_connections
+    set_enabled_connections(orch_slug, ["conn_github"])
+    with mock.patch("core.connectors.get_connection", return_value=FAKE_CONN), mock.patch(
+        "core.github_tools_rest.get_tools", return_value=FAKE_TOOLS
+    ):
+        prompt = _extend_prompt_with_connections("Base prompt", orch_slug)
+    assert "ghr_list_repos" in prompt
+    assert "ssh_exec" not in prompt
+    assert "ssh_write_file" not in prompt

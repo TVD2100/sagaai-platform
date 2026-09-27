@@ -391,20 +391,29 @@ class UniversalDevAgent:
         "ghr_batch_upsert",
     )
 
+    _CONNECTION_TOOL_NAMES_SSH = (
+        "ssh_test_connection",
+        "ssh_exec",
+        "ssh_list_dir",
+        "ssh_read_file",
+        "ssh_write_file",
+    )
+
     def _attach_connection_tools(self, slug: str) -> None:
         """Register/unregister built-in connection tools for an orchestrator.
 
-        Connection tools (currently GitHub) are only made callable when the
+        Connection tools (GitHub REST, SSH) are only made callable when the
         orchestrator has enabled connections in its config. They are removed
         when the orchestrator disables all connections so stale dispatchers
-        do not keep accepting GitHub calls.
+        do not keep accepting connection calls.
         """
         try:
             from core.orchestrators import get_enabled_connections
             from core.connectors import get_connection
             enabled = get_enabled_connections(slug)
             if not enabled:
-                for name in self._CONNECTION_TOOL_NAMES_REST:
+                for name in (self._CONNECTION_TOOL_NAMES_REST +
+                             self._CONNECTION_TOOL_NAMES_SSH):
                     self._extra.pop(name, None)
                 return
             services = set()
@@ -418,6 +427,18 @@ class UniversalDevAgent:
                     fn = getattr(github_tools_rest, name, None)
                     if callable(fn):
                         self._extra[name] = fn
+            else:
+                for name in self._CONNECTION_TOOL_NAMES_REST:
+                    self._extra.pop(name, None)
+            if "ssh" in services:
+                from core import ssh_tools
+                for name in self._CONNECTION_TOOL_NAMES_SSH:
+                    fn = getattr(ssh_tools, name, None)
+                    if callable(fn):
+                        self._extra[name] = fn
+            else:
+                for name in self._CONNECTION_TOOL_NAMES_SSH:
+                    self._extra.pop(name, None)
         except Exception:
             # Best effort: never break orchestrator attachment on library errors.
             pass

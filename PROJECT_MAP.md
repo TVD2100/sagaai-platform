@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-09-27T10:46:52+00:00`
-- Файлов: **977**
-- Языки: Config: 1, JSON: 22, Markdown: 727, PEM certificate: 1, Python: 230, Text: 1
+- Обновлено: `2026-09-27T17:24:57+00:00`
+- Файлов: **1002**
+- Языки: Config: 1, JSON: 22, Markdown: 746, PEM certificate: 1, Python: 236, Text: 1
 
 ## Файлы и назначение
 
@@ -23,7 +23,7 @@
 | `ui/components/workspace_picker.py` | Python | Workspace picker component | - |
 | `ui/pages/__init__.py` | Python | Package marker | - |
 | `ui/pages/access.py` | Python | _(описание не задано)_ | - |
-| `ui/pages/assistants.py` | Python | Assistants management page (create/edit/delete assistant profiles, files, tools); auto-attaches rag_search + rag_get_chunks when RAG bases are selected | - |
+| `ui/pages/assistants.py` | Python | Assistants management page (create/edit/delete assistant profiles, files, tools) | - |
 | `ui/pages/chat.py` | Python | Chat page for AI assistants: selector, history, send form | - |
 | `ui/pages/connectors.py` | Python | _(описание не задано)_ | - |
 | `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | - |
@@ -39,11 +39,11 @@
 | `ui/pages/welcome.py` | Python | Welcome / about page | - |
 | `core/__init__.py` | Python | Package marker | - |
 | `core/api_errors.py` | Python | API error hierarchy and user messages | - |
-| `core/api_layer.py` | Python | HTTP requests to AI providers; send_request(assistant=...) with legacy skill= alias; GigaChat payload normalization (_gigachat_messages) and max_tokens clamp (_clamp_max_tokens) | - |
+| `core/api_layer.py` | Python | HTTP requests to AI providers; send_request(assistant=...) with legacy skill= alias | - |
 | `core/assistant_creator.py` | Python | Validation and linting helpers for assistant prompts | - |
 | `core/assistant_folders.py` | Python | _(описание не задано)_ | - |
 | `core/assistant_nav.py` | Python | _(описание не задано)_ | - |
-| `core/assistant_tools.py` | Python | Assistant function-tool loop: web_search and RAG tools (rag_search, rag_get_chunks) execution | - |
+| `core/assistant_tools.py` | Python | _(описание не задано)_ | - |
 | `core/assistants.py` | Python | CRUD for AI assistant profiles and their attachment files | storage |
 | `core/auth.py` | Python | Optional password authentication gate | - |
 | `core/bootstrap.py` | Python | First-run provisioning: Assistant/Employee Creator instructions, DevAgent settings, legacy skill_creator migration | - |
@@ -72,15 +72,17 @@
 | `core/rag.py` | Python | _(описание не задано)_ | - |
 | `core/rag_chunker.py` | Python | _(описание не задано)_ | - |
 | `core/rag_embeddings.py` | Python | _(описание не задано)_ | - |
-| `core/rag_index.py` | Python | Local SQLite vector index: chunk CRUD, embeddings, cached counters, fetch_chunks (by ids or source+indices) | - |
+| `core/rag_index.py` | Python | _(описание не задано)_ | - |
 | `core/rag_indexer.py` | Python | _(описание не задано)_ | - |
-| `core/rag_search.py` | Python | Semantic search over the local index (cosine similarity, context assembly); context headers carry chunk ids | - |
+| `core/rag_search.py` | Python | _(описание не задано)_ | - |
 | `core/recent_assistants.py` | Python | Tracks recently used assistant IDs in session_state | - |
 | `core/recent_workspaces.py` | Python | Recent workspaces tracking | storage |
 | `core/render.py` | Python | Markdown rendering / clipboard helpers | - |
 | `core/services.py` | Python | Service definitions discovery (services/*.json) | - |
 | `core/skills.py` | Python | DEPRECATED shim -> core/assistants.py (legacy aliases) | - |
 | `core/skills_library.py` | Python | Standardized skills library: registry skills.json, ZIP/GitHub/folder imports, metadata for orchestrator system prompts | - |
+| `core/ssh_connector.py` | Python | SSH/SFTP service layer for the ssh connector (paramiko, lazy import) | - |
+| `core/ssh_tools.py` | Python | Orchestrator ssh_* tools for the SSH connector | - |
 | `core/statistics.py` | Python | _(описание не задано)_ | - |
 | `core/threads.py` | Python | Chat thread persistence for assistants | storage |
 | `core/threads_devagent.py` | Python | DevAgent/orchestrator thread persistence (devagent.db) | storage |
@@ -123,7 +125,7 @@
 | `tests/test_dispatcher_tool_gating.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_economy_history_budget.py` | Python | _(описание не задано)_ | - |
 | `tests/test_employee_management_ui.py` | Python | UI regression tests: employee management pages render and expose no export/import employee UI | - |
-| `tests/test_gigachat_messages.py` | Python | Unit tests: GigaChat payload shape (single leading system message) and max_tokens clamping | - |
+| `tests/test_gigachat_messages.py` | Python | _(описание не задано)_ | - |
 | `tests/test_github_connector_rest.py` | Python | _(описание не задано)_ | - |
 | `tests/test_github_tools_rest.py` | Python | _(описание не задано)_ | - |
 | `tests/test_i18n_serialization.py` | Python | _(описание не задано)_ | - |
@@ -164,6 +166,8 @@
 | `tests/test_sidebar_employees_nav.py` | Python | _(описание не задано)_ | - |
 | `tests/test_skills_adaptation.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_skills_library.py` | Python | Skills library tests | storage |
+| `tests/test_ssh_connector.py` | Python | Unit tests for core/ssh_connector (fake paramiko) | - |
+| `tests/test_ssh_tools.py` | Python | Unit tests for core/ssh_tools (SSH connector tool layer) | - |
 | `tests/test_st_mock.py` | Python | _(описание не задано)_ | _st_mock |
 | `tests/test_statistics.py` | Python | _(описание не задано)_ | - |
 | `tests/test_stats_page_ui.py` | Python | _(описание не задано)_ | - |
@@ -179,6 +183,7 @@
 | `tests/test_tool_result_size_cap.py` | Python | _(описание не задано)_ | - |
 | `tests/test_tool_result_storage_summary.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_tools_utils.py` | Python | _(описание не задано)_ | - |
+| `tests/test_ui_connectors_ssh.py` | Python | UI tests for the connectors page SSH support | - |
 | `tests/test_ui_pages.py` | Python | UI page tests | - |
 | `tests/test_ui_tooltips.py` | Python | _(описание не задано)_ | - |
 | `tests/test_ui_tooltips_orchestrator.py` | Python | _(описание не задано)_ | - |
@@ -195,14 +200,14 @@
 | `tests/smoke/test_app_smoke.py` | Python | App smoke tests | - |
 | `tests/scenarios/test_access_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_assistant_sidebar_scenarios.py` | Python | _(описание не задано)_ | storage |
-| `tests/scenarios/test_batch_tool_calls_scenarios.py` | Python | Scenario tests for the batched tool-call protocol: execution order of independent calls, partial_batch warning, truncated/unparsable block diagnostics | - |
+| `tests/scenarios/test_batch_tool_calls_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_connection_retry_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_connectors_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_context_overflow_protection.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_employees_sidebar_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_first_run_flow.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_gigachat_models_scenario.py` | Python | _(описание не задано)_ | - |
-| `tests/scenarios/test_gigachat_orchestrator_scenario.py` | Python | Scenario tests: orchestrator turn on GigaChat (valid payload, 422 visibility in the chat feed, role folding) | - |
+| `tests/scenarios/test_gigachat_orchestrator_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_github_rest_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_json_repair_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_loop_stuck_protection_scenarios.py` | Python | Loop-stuck protection scenarios: per-tool failure counter hints, duplicate-call flood compaction, prose loop_status continue | - |
@@ -213,10 +218,11 @@
 | `tests/scenarios/test_orchestrator_tool_gating.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_provider_economy_settings_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_assistant_dialog.py` | Python | _(описание не задано)_ | - |
-| `tests/scenarios/test_rag_context_restore.py` | Python | Scenario tests: RAG context restore (assistant dialog, DevAgent fetch, error states) | - |
+| `tests/scenarios/test_rag_context_restore.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_perf_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_search_in_files_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_skills_adaptation_scenario.py` | Python | _(описание не задано)_ | storage |
+| `tests/scenarios/test_ssh_connector_scenarios.py` | Python | Scenario tests for the SSH connector feature | storage |
 | `tests/scenarios/test_stats_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_structured_output_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_task_state_mega_task.py` | Python | _(описание не задано)_ | - |
@@ -233,6 +239,7 @@
 | `orchestrators/dev_agent/instructions/repo_sync.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/README.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/instructions/github_connector.md` | Markdown | _(описание не задано)_ | - |
+| `defaults/instructions/ssh_connector.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/settings/global.json` | JSON | _(описание не задано)_ | - |
 | `defaults/rag_bases/yaagentai_2020/manifest.json` | JSON | _(описание не задано)_ | - |
 | `defaults/assistants/README.md` | Markdown | _(описание не задано)_ | - |
@@ -241,7 +248,7 @@
 | `defaults/assistants/korrektor/manifest.json` | JSON | _(описание не задано)_ | - |
 | `defaults/assistants/korrektor/prompt.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/ya_agent/orchestrator.json` | JSON | _(описание не задано)_ | - |
-| `defaults/orchestrators/ya_agent/system_prompt.md` | Markdown | YaAgent orchestrator system prompt v2.8 (verbatim user-plan acceptance, batched tool calls) | - |
+| `defaults/orchestrators/ya_agent/system_prompt.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/ya_agent/instructions/agent_atelier_agents.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/ya_agent/instructions/agent_security_guardrails.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/ya_agent/instructions/agent_tools_mcp.md` | Markdown | _(описание не задано)_ | - |
@@ -258,6 +265,7 @@
 | `defaults/orchestrators/dev_agent/instructions/repo_sync.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/dev_agent/instructions/self_reflection.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/dev_agent/instructions/skill_developer.md` | Markdown | _(описание не задано)_ | - |
+| `defaults/orchestrators/dev_agent/instructions/ssh_connector.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/langs/en.json` | JSON | _(описание не задано)_ | - |
 | `defaults/langs/en_guide.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/langs/ru.json` | JSON | _(описание не задано)_ | - |
@@ -284,16 +292,16 @@
 | `scripts/regenerate_project_map.py` | Python | Regenerates PROJECT_MAP.md with assistant terminology | - |
 | `scripts/verify_manifest.py` | Python | _(описание не задано)_ | - |
 | `dev_agent/__init__.py` | Python | Package marker | agent_loop, backup_manager, safe_writer, tool_executor, universal_agent, workspace_tools |
-| `dev_agent/agent_loop.py` | Python | Provider-independent agent loop (strong/weak assistant routing, economy mode, skills-library tools; per-tool failure counter, duplicate-call flood compaction, cascading JSON repair, batched tool calls with partial_batch diagnostics) | storage |
+| `dev_agent/agent_loop.py` | Python | Provider-independent agent loop (strong/weak assistant routing, economy mode, skills-library tools classified as weak; per-tool failure counter, duplicate-call flood compaction, cascading JSON repair) | storage |
 | `dev_agent/assistant_detector.py` | Python | Assistant detection/creation helpers (renamed from skill_detector) | storage |
 | `dev_agent/assistant_model_resolver.py` | Python | Auto model resolution for assistant creation | llm_utils |
 | `dev_agent/backup_manager.py` | Python | Per-file backup/restore manager | - |
 | `dev_agent/config.py` | Python | DevAgent runtime config and protected path policy | - |
 | `dev_agent/llm_utils.py` | Python | Unified LLM-call helper (assistant dict contract, legacy skill alias) | - |
 | `dev_agent/safe_writer.py` | Python | Safe full-file rewrite with diff/verification | backup_manager |
-| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt v3.14 (batched independent tool calls, verbatim user-plan acceptance, RAG context restore via rag_get_chunks, loop-protection rules) | - |
+| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.11 loop-protection rules) | - |
 | `dev_agent/task_state.py` | Python | _(описание не задано)_ | backup_manager |
-| `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools + legacy skill tool aliases + skills-library tools; RAG context-restore tool rag_get_chunks; chunk ids in rag_search hits | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
+| `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools + legacy skill tool aliases + skills-library tools | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
 | `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace tools + orchestrator tools) | storage, tool_executor |
 | `dev_agent/workspace_binding.py` | Python | _(описание не задано)_ | - |
 | `dev_agent/workspace_tools.py` | Python | Workspace layer: folders, project map, docs, snapshots | backup_manager |
@@ -983,6 +991,23 @@
 | `dev_agent/task_states/TASK_STATE__20260927_132428_fd84be.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260927_132436_53931e.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260927_132436_ffe84b.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_135127_d897fa.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_135130_220ab6.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_135130_312e08.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_135130_34c7e0.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_135130_b3c934.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_135130_e6e98f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_135138_060519.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_135138_b57fbb.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_140350_83f602.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_140353_0dcb0e.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_140353_14f2d7.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_140353_7cd6d0.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_140353_b86f07.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_140353_c6c5bc.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_140401_006f93.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_140401_e5dae1.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_201858_996b48.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
 | `services/deepseek.json` | JSON | DeepSeek service definition | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
@@ -1029,12 +1054,14 @@
 - `page_run_query` (func, строка 67)
 
 ### `ui/pages/connectors.py`
-- `_service_options` (func, строка 32)
-- `_test_connection` (func, строка 42)
-- `_render_create_form` (func, строка 64)
-- `_render_edit_form` (func, строка 108)
-- `_render_connection_card` (func, строка 140)
-- `page_connectors` (func, строка 208)
+- `_service_options` (func, строка 30)
+- `_test_connection` (func, строка 40)
+- `_ssh_stored_fields` (func, строка 67)
+- `_render_ssh_fields` (func, строка 75)
+- `_render_create_form` (func, строка 131)
+- `_render_edit_form` (func, строка 184)
+- `_render_connection_card` (func, строка 225)
+- `page_connectors` (func, строка 307)
 
 ### `ui/pages/history.py`
 - `_active_orch_thread_id` (func, строка 29)
@@ -1318,24 +1345,32 @@
 - `save_devagent_config` (func, строка 455)
 
 ### `core/connectors.py`
-- `_now` (func, строка 55)
-- `_connectors_root` (func, строка 59)
-- `_manifest_path` (func, строка 66)
-- `_manifest_read` (func, строка 72)
-- `_manifest_write` (func, строка 87)
-- `_validate_service` (func, строка 95)
-- `_unique_conn_id` (func, строка 102)
-- `public_manifest` (func, строка 110)
-- `list_connections` (func, строка 124)
-- `get_connection` (func, строка 148)
-- `get_connection_full` (func, строка 157)
-- `create_connection` (func, строка 165)
-- `update_connection` (func, строка 200)
-- `set_connection_token` (func, строка 224)
-- `delete_connection` (func, строка 235)
-- `decrypt_token` (func, строка 246)
-- `list_services` (func, строка 262)
-- `get_service` (func, строка 272)
+- `_now` (func, строка 67)
+- `_connectors_root` (func, строка 71)
+- `_manifest_path` (func, строка 78)
+- `_manifest_read` (func, строка 84)
+- `_manifest_write` (func, строка 99)
+- `_validate_service` (func, строка 107)
+- `_unique_conn_id` (func, строка 114)
+- `_service_field_names` (func, строка 122)
+- `_secret_field_names` (func, строка 129)
+- `_normalize_config` (func, строка 134)
+- `_normalize_secrets` (func, строка 163)
+- `_validate_ssh_auth` (func, строка 185)
+- `public_manifest` (func, строка 197)
+- `list_connections` (func, строка 225)
+- `get_connection` (func, строка 249)
+- `get_connection_full` (func, строка 258)
+- `create_connection` (func, строка 266)
+- `update_connection` (func, строка 316)
+- `set_connection_token` (func, строка 362)
+- `delete_connection` (func, строка 373)
+- `decrypt_token` (func, строка 384)
+- `get_connection_secrets` (func, строка 400)
+- `decrypt_secret` (func, строка 425)
+- `set_connection_secret` (func, строка 449)
+- `list_services` (func, строка 479)
+- `get_service` (func, строка 489)
 
 ### `core/context_guard.py`
 - `apply_context_guard` (func, строка 15)
@@ -1559,10 +1594,10 @@
 - `_core_catalog` (func, строка 88)
 - `_workspace_catalog` (func, строка 97)
 - `_connection_catalog` (func, строка 106)
-- `_custom_function_catalog` (func, строка 124)
-- `build_tool_catalog` (func, строка 146)
-- `list_system_tools` (func, строка 184)
-- `render_available_tools_block` (func, строка 205)
+- `_custom_function_catalog` (func, строка 133)
+- `build_tool_catalog` (func, строка 155)
+- `list_system_tools` (func, строка 193)
+- `render_available_tools_block` (func, строка 214)
 
 ### `core/orchestrators.py`
 - `_ensure_default_orchestrators` (func, строка 95)
@@ -1586,25 +1621,25 @@
 - `get_enabled_connections` (func, строка 501)
 - `set_enabled_connections` (func, строка 515)
 - `_extend_prompt_with_connections` (func, строка 538)
-- `get_disabled_tools` (func, строка 611)
-- `set_disabled_tools` (func, строка 631)
-- `_extend_prompt_with_tools` (func, строка 655)
-- `get_orchestrator_rag_bases` (func, строка 679)
-- `set_orchestrator_rag_bases` (func, строка 696)
-- `_extend_prompt_with_rag_bases` (func, строка 722)
-- `_extend_prompt_with_skills` (func, строка 770)
-- `_extend_prompt_with_instructions` (func, строка 792)
-- `build_assistant_dicts` (func, строка 859)
-- `get_web_search_prompt` (func, строка 938)
-- `get_web_search_config` (func, строка 953)
-- `get_economy_tail_messages` (func, строка 981)
-- `get_economy_cache_enabled` (func, строка 999)
-- `get_economy_cache_multiplier` (func, строка 1017)
-- `get_economy_config` (func, строка 1036)
-- `export_orchestrator` (func, строка 1050)
-- `_validate_imported_tools` (func, строка 1096)
-- `import_orchestrator` (func, строка 1122)
-- `_import_instructions` (func, строка 1241)
+- `get_disabled_tools` (func, строка 622)
+- `set_disabled_tools` (func, строка 642)
+- `_extend_prompt_with_tools` (func, строка 666)
+- `get_orchestrator_rag_bases` (func, строка 690)
+- `set_orchestrator_rag_bases` (func, строка 707)
+- `_extend_prompt_with_rag_bases` (func, строка 733)
+- `_extend_prompt_with_skills` (func, строка 781)
+- `_extend_prompt_with_instructions` (func, строка 803)
+- `build_assistant_dicts` (func, строка 870)
+- `get_web_search_prompt` (func, строка 949)
+- `get_web_search_config` (func, строка 964)
+- `get_economy_tail_messages` (func, строка 992)
+- `get_economy_cache_enabled` (func, строка 1010)
+- `get_economy_cache_multiplier` (func, строка 1028)
+- `get_economy_config` (func, строка 1047)
+- `export_orchestrator` (func, строка 1061)
+- `_validate_imported_tools` (func, строка 1107)
+- `import_orchestrator` (func, строка 1133)
+- `_import_instructions` (func, строка 1252)
 
 ### `core/paths.py`
 - `ensure_data_dirs` (func, строка 35)
@@ -1774,6 +1809,36 @@
 - `import_skill_from_github` (func, строка 592)
 - `get_enabled_skills_metadata` (func, строка 642)
 - `build_skills_metadata_text` (func, строка 660)
+
+### `core/ssh_connector.py`
+- `SSHConnectorError` (class, строка 44)
+- `_ensure_paramiko` (func, строка 48)
+- `_load_settings` (func, строка 59)
+- `_clamp_timeout` (func, строка 84)
+- `_decode` (func, строка 97)
+- `_read_capped` (func, строка 105)
+- `_load_private_key` (func, строка 126)
+- `_is_exc` (func, строка 149)
+- `_map_connect_error` (func, строка 158)
+- `_connect` (func, строка 179)
+- `_open_sftp` (func, строка 228)
+- `_ensure_remote_dirs` (func, строка 240)
+- `_entries_from_attrs` (func, строка 268)
+- `test_connection` (func, строка 292)
+- `exec_command` (func, строка 315)
+- `list_dir` (func, строка 350)
+- `read_file` (func, строка 381)
+- `write_file` (func, строка 428)
+
+### `core/ssh_tools.py`
+- `_get_connector_id` (func, строка 30)
+- `_wrap` (func, строка 38)
+- `ssh_test_connection` (func, строка 48)
+- `ssh_exec` (func, строка 64)
+- `ssh_list_dir` (func, строка 87)
+- `ssh_read_file` (func, строка 106)
+- `ssh_write_file` (func, строка 127)
+- `get_tools` (func, строка 200)
 
 ### `core/statistics.py`
 - `_parse_ts` (func, строка 30)
@@ -2144,6 +2209,12 @@
 - `test_services_registry` (func, строка 104)
 - `test_create_github_rest_connection_encrypted_token` (func, строка 116)
 - `test_public_manifest_never_leaks_token` (func, строка 132)
+- `test_create_ssh_connection_roundtrip` (func, строка 144)
+- `test_ssh_manifest_on_disk_keeps_secrets_encrypted` (func, строка 162)
+- `test_ssh_public_view_never_leaks_secrets` (func, строка 180)
+- `test_ssh_create_validation` (func, строка 195)
+- `test_update_ssh_connection_rotates_secret_and_config` (func, строка 220)
+- `test_set_connection_secret_and_decrypt` (func, строка 239)
 
 ### `tests/test_context_window_guard.py`
 - `_calls` (func, строка 13)
@@ -2320,7 +2391,7 @@
 - `isolated_data_dir` (func, строка 30)
 - `TestDefaultsLoaders` (class, строка 82)
 - `TestBootstrapDefaults` (class, строка 133)
-- `TestLegacyFallbacks` (class, строка 256)
+- `TestLegacyFallbacks` (class, строка 257)
 
 ### `tests/test_default_rag_bases.py`
 - `isolated_data_dir` (func, строка 31)
@@ -2341,6 +2412,7 @@
 - `isolated_data_dir` (func, строка 16)
 - `orch_slug` (func, строка 51)
 - `TestDispatcherConnectionTools` (class, строка 58)
+- `TestDispatcherSshConnectionTools` (class, строка 124)
 
 ### `tests/test_dispatcher_tool_gating.py`
 - `isolated_data_dir` (func, строка 22)
@@ -2520,6 +2592,8 @@
 - `test_build_assistant_dicts_includes_connections_block` (func, строка 101)
 - `test_devagent_default_config_has_key` (func, строка 111)
 - `test_prompt_extended_with_github_rest_connections` (func, строка 115)
+- `test_prompt_extended_with_ssh_connections` (func, строка 136)
+- `test_ssh_notes_absent_without_ssh_connection` (func, строка 160)
 
 ### `tests/test_orchestrator_economy_cache.py`
 - `_FakeCore` (class, строка 25)
@@ -2606,6 +2680,8 @@
 - `test_build_assistant_dicts_excludes_disabled_from_block` (func, строка 184)
 - `test_devagent_default_config_has_disabled_tools_key` (func, строка 194)
 - `test_ensure_builtin_backfills_disabled_tools` (func, строка 200)
+- `test_build_tool_catalog_includes_ssh_tools_when_enabled` (func, строка 227)
+- `test_build_tool_catalog_merges_github_and_ssh_tools` (func, строка 250)
 
 ### `tests/test_phase1_agent_loop.py`
 - `_make_skill` (func, строка 32)
@@ -2685,17 +2761,17 @@
 - `test_employee_creator_prompt_is_long_enough` (func, строка 105)
 - `test_prompt_improver_instruction_is_long_enough` (func, строка 112)
 - `test_ensure_instructions_returns_expected_keys` (func, строка 120)
-- `test_ensure_instructions_is_idempotent` (func, строка 133)
-- `test_ensure_devagent_settings_seeds_builtin_orchestrator` (func, строка 148)
-- `test_ensure_devagent_settings_sets_prompt_from_system_prompt_md` (func, строка 161)
-- `test_ensure_devagent_settings_seeds_config_and_tools` (func, строка 172)
-- `test_ensure_devagent_settings_seeds_economy_defaults` (func, строка 189)
-- `test_ensure_devagent_settings_seeds_max_tokens_in_bundle` (func, строка 212)
-- `test_ensure_devagent_settings_is_idempotent` (func, строка 225)
-- `test_ensure_devagent_settings_preserves_user_config` (func, строка 234)
-- `test_ensure_devagent_settings_backfills_missing_config_fields` (func, строка 271)
-- `test_ensure_devagent_settings_backfills_zero_max_tokens` (func, строка 318)
-- `test_ensure_devagent_settings_keeps_user_economy_tail` (func, строка 341)
+- `test_ensure_instructions_is_idempotent` (func, строка 134)
+- `test_ensure_devagent_settings_seeds_builtin_orchestrator` (func, строка 149)
+- `test_ensure_devagent_settings_sets_prompt_from_system_prompt_md` (func, строка 162)
+- `test_ensure_devagent_settings_seeds_config_and_tools` (func, строка 173)
+- `test_ensure_devagent_settings_seeds_economy_defaults` (func, строка 190)
+- `test_ensure_devagent_settings_seeds_max_tokens_in_bundle` (func, строка 213)
+- `test_ensure_devagent_settings_is_idempotent` (func, строка 226)
+- `test_ensure_devagent_settings_preserves_user_config` (func, строка 235)
+- `test_ensure_devagent_settings_backfills_missing_config_fields` (func, строка 272)
+- `test_ensure_devagent_settings_backfills_zero_max_tokens` (func, строка 319)
+- `test_ensure_devagent_settings_keeps_user_economy_tail` (func, строка 342)
 
 ### `tests/test_platform_scenarios.py`
 - `isolated_data` (func, строка 43)
@@ -2941,6 +3017,48 @@
 - `TestHelpers` (class, строка 206)
 - `TestOrchestratorIntegration` (class, строка 256)
 
+### `tests/test_ssh_connector.py`
+- `isolated_data_dir` (func, строка 16)
+- `_make_password_conn` (func, строка 22)
+- `install_fake_paramiko` (func, строка 33)
+- `test_missing_paramiko_clean_error` (func, строка 237)
+- `test_connection_missing_id_errors` (func, строка 246)
+- `test_wrong_service_errors` (func, строка 253)
+- `test_password_auth_connects_and_refreshes_account` (func, строка 262)
+- `test_private_key_auth_uses_pkey` (func, строка 285)
+- `test_auth_failure_hides_secrets` (func, строка 303)
+- `test_bad_host_key_message` (func, строка 317)
+- `test_network_error_mapping` (func, строка 327)
+- `test_connection_without_credentials_errors` (func, строка 337)
+- `test_exec_command_returns_output` (func, строка 357)
+- `test_exec_command_truncates_and_clamps_timeout` (func, строка 373)
+- `test_exec_command_validates_arguments` (func, строка 389)
+- `test_list_dir_classifies_entries` (func, строка 402)
+- `test_read_file_truncates` (func, строка 429)
+- `test_read_file_rejects_binary` (func, строка 440)
+- `test_read_file_missing` (func, строка 450)
+- `test_write_file_creates_dirs_and_writes` (func, строка 459)
+- `test_write_file_rejects_oversize` (func, строка 474)
+
+### `tests/test_ssh_tools.py`
+- `test_catalog_lists_five_tools` (func, строка 20)
+- `test_missing_connector_id_returns_error` (func, строка 36)
+- `test_wrong_service_returns_error` (func, строка 43)
+- `test_ssh_test_connection_tool` (func, строка 55)
+- `test_ssh_exec_tool_normalizes_timeout` (func, строка 71)
+- `test_ssh_exec_requires_command` (func, строка 83)
+- `test_ssh_exec_wraps_auth_failure_without_secrets` (func, строка 92)
+- `_attr` (func, строка 106)
+- `test_ssh_list_dir_tool` (func, строка 111)
+- `test_ssh_list_dir_default_path_is_dot` (func, строка 129)
+- `test_ssh_list_dir_error_wrapped` (func, строка 138)
+- `test_ssh_read_file_tool` (func, строка 150)
+- `test_ssh_read_file_requires_path` (func, строка 162)
+- `test_ssh_read_file_binary_wrapped` (func, строка 171)
+- `test_ssh_write_file_tool` (func, строка 183)
+- `test_ssh_write_file_requires_content` (func, строка 199)
+- `test_ssh_write_file_rejects_oversize` (func, строка 208)
+
 ### `tests/test_st_mock.py`
 - `test_sidebar_children_are_logged` (func, строка 10)
 - `test_sidebar_with_context_logs_widgets_as_top_level` (func, строка 18)
@@ -3133,6 +3251,20 @@
 - `test_build_rag_chunks_tool_shape` (func, строка 53)
 - `test_build_rag_chunks_tool_hint_mentions_bound_slug` (func, строка 63)
 - `test_build_rag_search_tool_mentions_chunks_followup` (func, строка 69)
+
+### `tests/test_ui_connectors_ssh.py`
+- `st_mock` (func, строка 46)
+- `_page` (func, строка 65)
+- `_render_page` (func, строка 71)
+- `_keys` (func, строка 80)
+- `test_create_form_renders_ssh_fields_when_ssh_selected` (func, строка 87)
+- `test_create_form_keeps_github_token_by_default` (func, строка 102)
+- `test_create_ssh_connection_passes_config_and_secrets` (func, строка 114)
+- `test_create_github_connection_keeps_token_flow` (func, строка 143)
+- `test_ssh_card_shows_target_and_masked_secrets` (func, строка 167)
+- `test_edit_ssh_form_renders_fields_and_saves` (func, строка 183)
+- `test_ssh_test_button_routes_to_ssh_connector` (func, строка 217)
+- `test_ssh_test_button_reports_failure` (func, строка 239)
 
 ### `tests/test_ui_pages.py`
 - `_apply_all` (func, строка 79)
@@ -3705,6 +3837,15 @@
 - `test_external_skill_hidden_from_prompt_until_adapted` (func, строка 84)
 - `test_adapt_button_hands_off_to_devagent` (func, строка 115)
 - `test_mark_adapted_reveals_skill_in_prompt` (func, строка 170)
+
+### `tests/scenarios/test_ssh_connector_scenarios.py`
+- `isolated_data_dir` (func, строка 39)
+- `_ssh_connection` (func, строка 72)
+- `test_scenario_ssh_connection_lifecycle` (func, строка 84)
+- `test_scenario_ssh_secrets_never_leak` (func, строка 136)
+- `test_scenario_orchestrator_prompt_advertises_ssh_tools` (func, строка 175)
+- `test_scenario_ssh_tools_through_dispatcher` (func, строка 207)
+- `test_scenario_ssh_failures_are_clean_dicts` (func, строка 289)
 
 ### `tests/scenarios/test_stats_scenario.py`
 - `stats_data` (func, строка 34)

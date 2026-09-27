@@ -218,3 +218,46 @@ def test_ensure_builtin_backfills_disabled_tools(isolated_data_dir):
     orch = get_orchestrator(DEVAGENT_SLUG)
     assert orch is not None
     assert orch["config"].get("disabled_tools") == []
+
+
+
+# --- SSH connection tools ---
+
+
+def test_build_tool_catalog_includes_ssh_tools_when_enabled(orch_slug):
+    from core.connectors import create_connection
+    from core.orchestrators import set_enabled_connections
+    conn = create_connection(
+        "ssh", "SSH Conn",
+        config={"host": "203.0.113.10", "port": 2222, "username": "deploy"},
+        secrets={"password": "sup3r-pass"},
+    )
+    set_enabled_connections(orch_slug, [conn["id"]])
+    from core.orchestrator_tools import build_tool_catalog
+    catalog = build_tool_catalog(orch_slug)
+    names = [t["name"] for t in catalog]
+    for name in ("ssh_test_connection", "ssh_exec", "ssh_list_dir",
+                 "ssh_read_file", "ssh_write_file"):
+        assert name in names, name
+    # github_rest is not enabled: its tools stay out of the catalog.
+    assert "ghr_list_repos" not in names
+    # Every ssh entry carries a description for the prompt block.
+    for t in catalog:
+        if t["name"].startswith("ssh_"):
+            assert t["desc"]
+
+
+def test_build_tool_catalog_merges_github_and_ssh_tools(orch_slug):
+    from core.connectors import create_connection
+    from core.orchestrators import set_enabled_connections
+    gh = create_connection("github_rest", "GH", "tok")
+    ssh = create_connection(
+        "ssh", "SSH Conn",
+        config={"host": "203.0.113.10", "port": 2222, "username": "deploy"},
+        secrets={"password": "sup3r-pass"},
+    )
+    set_enabled_connections(orch_slug, [gh["id"], ssh["id"]])
+    from core.orchestrator_tools import build_tool_catalog
+    names = [t["name"] for t in build_tool_catalog(orch_slug)]
+    assert "ghr_list_repos" in names
+    assert "ssh_exec" in names

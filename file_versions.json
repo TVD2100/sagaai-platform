@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "1.2.1",
+  "app_version": "1.3.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Релиз 1.2.1: панели выгрузки/копирования (MD/TXT и копирование) у каждого текстового ответа сотрудника в ленте чата - сообщения с вызовами инструментов панели не получают, у «живого» финального ответа она появляется после завершения цикла; новый тест tests/test_orchestrator_message_controls.py.",
-    "en": "Release 1.2.1: download/copy controls (MD/TXT and copy) on every plain-prose employee answer in the chat feed - messages carrying tool calls get none, and a live final answer shows them once the loop finishes; new test tests/test_orchestrator_message_controls.py."
+    "ru": "Релиз 1.2.1: панели выгрузки/копирования (MD/TXT и копирование) у каждого текстового ответа сотрудника в ленте чата - сообщения с вызовами инструментов панели не получают, у «живого» финального ответа она появляется после завершения цикла; новый тест tests/test_orchestrator_message_controls.py. 1.14.0: SSH-коннектор - сервис ssh, инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; версия платформы 1.3.0.",
+    "en": "Release 1.2.1: download/copy controls (MD/TXT and copy) on every plain-prose employee answer in the chat feed - messages carrying tool calls get none, and a live final answer shows them once the loop finishes; new test tests/test_orchestrator_message_controls.py. 1.14.0: SSH connector - ssh service, ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; platform version 1.3.0."
   },
-  "updated": "2026-09-27T11:03:46Z",
+  "updated": "2026-09-27T17:31:28Z",
   "units": {
     "core": {
-      "version": "1.13.1",
+      "version": "1.14.0",
       "note": {
-        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов).",
-        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files)."
+        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py.",
+        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py."
       },
       "files": {
         "__init__.py": {
@@ -76,8 +76,8 @@
           "sha256": "202e0013583eb3bb82ba994044d4d83026512139ba7e0b5134db69b618aa907d"
         },
         "core/connectors.py": {
-          "version": "1.2.0",
-          "sha256": "cb9e2e8576c537656821ad1b7810a08f8582174fdad1a12d7ffc43569208e0af"
+          "version": "1.3.0",
+          "sha256": "7e553b189f7e092ef5f78149c648ac51c19b4703cbc4fe50f2fd50df1d93ed7d"
         },
         "core/crypto.py": {
           "version": "1.0.0",
@@ -124,8 +124,8 @@
           "sha256": "e457904340ea8475ec98e6ececad8be98ee09fcd3959607fca1d5a16e678a915"
         },
         "core/orchestrators.py": {
-          "version": "1.5.0",
-          "sha256": "ba298cf804d975e185c2a2ebcd3527385d657ae06c24c5c3058ec49241f27631"
+          "version": "1.6.0",
+          "sha256": "9d61d1d920362d38be78eaafb1035a6548afe4b518a23243e17ce5dae5537931"
         },
         "core/paths.py": {
           "version": "1.0.0",
@@ -204,8 +204,8 @@
           "sha256": "78547e37b44458d451124b69e76ecf5bd2f69213e7164dea11137343f4e20df8"
         },
         "core/version.py": {
-          "version": "1.0.14",
-          "sha256": "f9fc9b99ff1c00408c736281fffe417cf01253aa595683acd926cc0110f6f650"
+          "version": "1.0.15",
+          "sha256": "a2255bbb2fac5f1b70aa376773beef0aad39e67ddc0270022840b7885c22e0ef"
         },
         "dev_agent/__init__.py": {
           "version": "1.0.0",
@@ -248,8 +248,8 @@
           "sha256": "63bf96c2c996cf9819a9ef601c8b5aa4159ae6ccfe836cd7f1f8161f52dfba83"
         },
         "dev_agent/universal_agent.py": {
-          "version": "1.7.0",
-          "sha256": "28f3bbe3b80621605ee5bbf5f4010a67ff932b6c9092d554fe9b749bc27f511a"
+          "version": "1.8.0",
+          "sha256": "a038adb752da055bc4e8751a57df91c0cbfcc86934a303c3ef5ed1947c769308"
         },
         "dev_agent/workspace_tools.py": {
           "version": "1.1.0",
@@ -260,12 +260,12 @@
           "sha256": "208d0f9e48700f367ab579de3a91d02a259c8e0322dbfae0758d0cb90cefddb1"
         },
         "requirements.txt": {
-          "version": "1.1.0",
-          "sha256": "d30b1003cd4c0769a111e2e09fe27302915a6fbca1c614b95bb7a7a9f95cec97"
+          "version": "1.2.0",
+          "sha256": "66abb9f75f09ba1908b3b70012d9fea2aaf15a1fd80f687fa7ea13cdb857362e"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.1.1",
-          "sha256": "516a878be3921b5c088f10af42e73e3188bb43b74ba8861fad29fbf20956c991"
+          "version": "1.1.2",
+          "sha256": "4e63fd040d60a1e4806ab68c99d85652ff59951d6686033548329ced977bb192"
         },
         "scripts/verify_manifest.py": {
           "version": "1.0.3",
@@ -400,8 +400,8 @@
           "sha256": "85319600da37774906f21382167ea2370afa088816e436d86f0cff0fdd0e9818"
         },
         "tests/test_connectors.py": {
-          "version": "1.2.0",
-          "sha256": "a74fdfec88f5ace9893f8c8f8f1061caf9013348cda9f9245046ea7f60d08b62"
+          "version": "1.2.1",
+          "sha256": "37f94c01390aec6016053821fe9731624e2fc92504f45d689502161c08aebbfc"
         },
         "tests/test_core_api_json_schema.py": {
           "version": "1.0.1",
@@ -428,8 +428,8 @@
           "sha256": "95e3359cfa78eccc70772120c3950b0a1a31dac67da7913364655be7c8bb7ee2"
         },
         "tests/test_default_imports.py": {
-          "version": "1.0.0",
-          "sha256": "e97f7f1e1b7b0d8ca71c4562c1107f3cba94f494ef37cc6ff021718900b4c503"
+          "version": "1.0.1",
+          "sha256": "ad8b961e333ecd814c1b2151ffb48e604e17771853e069e93af6443a9e55aa1d"
         },
         "tests/test_default_rag_bases.py": {
           "version": "1.0.0",
@@ -440,8 +440,8 @@
           "sha256": "495200dad850b8b64fd3da5c526fdd7d05cb3a3f825f639c604688715bbed959"
         },
         "tests/test_dispatcher_connections.py": {
-          "version": "1.2.1",
-          "sha256": "eb2eb3257dd3f95e6ef6ca4434e49b27a547a20a46a116dcd87a2fc0f254ebfc"
+          "version": "1.2.2",
+          "sha256": "8106f316f5a9fcac89e04395743b865052b44c11b29f3aae6771ee5ab749a0e0"
         },
         "tests/test_employee_management_ui.py": {
           "version": "1.0.0",
@@ -472,8 +472,8 @@
           "sha256": "6d6baa60dd8e85811599feee2e0bbb63b61ecee4a6dcbfd97334d44f7bf4d63e"
         },
         "tests/test_orchestrator_connections.py": {
-          "version": "1.2.1",
-          "sha256": "5760f1748d4eb8d6d8acb972ceb667283877ecf92ad89dcea147718b6aed82c5"
+          "version": "1.2.2",
+          "sha256": "b4a696339527c73d19e358fa97064d6d5f2c30453d33e3ecc5fbc53b6b3fec82"
         },
         "tests/test_orchestrator_economy_cache.py": {
           "version": "1.0.0",
@@ -496,8 +496,8 @@
           "sha256": "6d892fecf57b015d338044eb85df114414f6923dfbb34a8afced8dc026c9b1df"
         },
         "tests/test_platform_bootstrap.py": {
-          "version": "1.1.0",
-          "sha256": "1c156382dedebb2d54d77dc0b6a293af9e230a604076e12b77227dfa37b5623a"
+          "version": "1.1.1",
+          "sha256": "06839c1f6d42b4a645197b1ed963c383242b32e7875e4f12a0c5db764e724895"
         },
         "tests/test_platform_scenarios.py": {
           "version": "1.0.1",
@@ -660,8 +660,8 @@
           "sha256": "600c9f6882a4cb34ed0b0bb045547bb75db4ea36294d715d1d982383bf5af74c"
         },
         "ui/pages/connectors.py": {
-          "version": "1.2.0",
-          "sha256": "f0585252398abcd8412f0687e5f1ddc402b61a4d8afca47f07ef3009f612fb07"
+          "version": "1.3.0",
+          "sha256": "81b93d0d8f91ca3b1551c00b1ca8a8172ca74986842c8ed0cf512052e89dd950"
         },
         "ui/pages/history.py": {
           "version": "1.0.0",
@@ -860,12 +860,12 @@
           "sha256": "c560aa021452f34873de3554179fb669bb5b384c6e945e6b464a21e7de37f439"
         },
         "core/orchestrator_tools.py": {
-          "version": "1.0.0",
-          "sha256": "e8b7d2814f1e9b02b86cc9aadc2c4c9025862f9b01d5a87b7e19c25e66b42bf4"
+          "version": "1.1.0",
+          "sha256": "ba1c1f8100040a72b695e8fbf9de74884a6a4b040ec5352dbe1db4064e116ac5"
         },
         "tests/test_orchestrator_tools.py": {
-          "version": "1.0.0",
-          "sha256": "507c1866b419bb3e9bce6f394f5c683919cf6d0c7a7618f2b7f328076aae5b8a"
+          "version": "1.0.1",
+          "sha256": "46581406db673f50cd382441b1b7dff7da6dc08be577ff6f9a0db1b290b97dd0"
         },
         "tests/test_dispatcher_tool_gating.py": {
           "version": "1.0.0",
@@ -946,17 +946,41 @@
         "tests/test_orchestrator_message_controls.py": {
           "version": "1.0.0",
           "sha256": "13a4a060328de1bc995cc418a961dbc582ab3002bcc78166798d6a4c605c7f66"
+        },
+        "core/ssh_connector.py": {
+          "version": "1.0.0",
+          "sha256": "80010dbca82f5096cd39f65860a611c38edbb72865b0418b646fb6684f840ce6"
+        },
+        "core/ssh_tools.py": {
+          "version": "1.0.0",
+          "sha256": "feb0af94b5bea37182756b3e66397ddfd181b83c9e6855811916381eca371e12"
+        },
+        "tests/scenarios/test_ssh_connector_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "f7584a945d58e23624f33b9f2c3aee1e00684ccb90548b0f2acb8f63c1e47ef2"
+        },
+        "tests/test_ssh_connector.py": {
+          "version": "1.0.0",
+          "sha256": "043b05f37fce11ed0cd0277041d7dc761507358bd609254801721f61bcec79d9"
+        },
+        "tests/test_ssh_tools.py": {
+          "version": "1.0.0",
+          "sha256": "0a12459f7429ea8c85a49e988518dc74f4570a83b120ffcdf82bdd5257747016"
+        },
+        "tests/test_ui_connectors_ssh.py": {
+          "version": "1.0.0",
+          "sha256": "bb143518c29484d478948ad57f9a0e176da28b2e2529ce50be0a7895a554515a"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.14.2",
-      "sha256": "b19458c30d64ff911019abbef6ce61221bbbea129e20f7d043bd42be0c25dbfb",
+      "version": "1.15.0",
+      "sha256": "b998fb7a4ee02555aa1529981806ec76d72894109c300f5d5dd4f095727c973c",
       "note": {
-        "ru": "Раздел RAG: добор контекста rag_get_chunks поверх fetch_chunks, chunk id в заголовках контекста; промпт DevAgent v3.14.",
-        "en": "RAG section: rag_get_chunks context restore over fetch_chunks, chunk ids in context headers; DevAgent prompt v3.14."
+        "ru": "Раздел «Коннекторы»: слои SSH - core/ssh_connector.py (paramiko/SFTP) и core/ssh_tools.py (ssh_*).",
+        "en": "Connectors section: SSH layers - core/ssh_connector.py (paramiko/SFTP) and core/ssh_tools.py (ssh_*)."
       }
     },
     "COMPARISON.md": {
@@ -976,27 +1000,27 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.18.3",
-      "sha256": "2583cc23723de8b41bbf0fd95bc4106ded00cc19d5d4601e1559fa2176108398",
+      "version": "1.19.0",
+      "sha256": "ad2cc8ec3791e304a9e2ca71d416a63c069622b4510a4aeba0388383b1739052",
       "note": {
-        "ru": "Карта регенерирована (977 файлов): строка и секция нового теста orchestrator_message_controls, обновлённое описание ui/pages/orchestrator.py.",
-        "en": "Map regenerated (977 files): row and section of the new orchestrator_message_controls test, updated ui/pages/orchestrator.py description."
+        "ru": "Карта регенерирована: файлы SSH-коннектора (core/ssh_connector.py, core/ssh_tools.py и тесты).",
+        "en": "Map regenerated: SSH connector files (core/ssh_connector.py, core/ssh_tools.py and tests)."
       }
     },
     "README.md": {
-      "version": "1.12.3",
-      "sha256": "9f480c5c9a217dac3b436db73d56eee0d57c38a24bc53758536d7ab9a14ad8f9",
+      "version": "1.13.0",
+      "sha256": "3aa26db1d6a8ce5d399ae116c6bcf8b5afffc0d313d036705a717dd8e8024de4",
       "note": {
-        "ru": "Статус версии - стабильный релиз v1.2.1; раздел «Сотрудники»: панель выгрузки/копирования в ленте чата; требование Python 3.12+ (синхронизировано с GitHub c7bac82).",
-        "en": "Version status - stable release v1.2.1; Employees section: download/copy panel in the chat feed; Python 3.12+ requirement (synced with GitHub c7bac82)."
+        "ru": "Статус версии - стабильный релиз v1.3.0; таблица возможностей и раздел «Коннекторы»: SSH.",
+        "en": "Version status - stable release v1.3.0; capabilities table and Connectors section: SSH."
       }
     },
     "SPEC.md": {
-      "version": "1.15.3",
-      "sha256": "5351dec9eda92107ca0a90a3bdc47536794224bb004038b1e779c435dc53fdc6",
+      "version": "1.16.0",
+      "sha256": "d0a34710a6fa91ba138d61e43b02ea88f66e5d4c19ea774edb84ab3a70134b8c",
       "note": {
-        "ru": "FR6: панели выгрузки/копирования у каждого текстового ответа-прозы в ленте чата оркестратора.",
-        "en": "FR6: per-message download/copy controls on plain-prose answers in the orchestrator chat feed."
+        "ru": "FR11: SSH-коннектор - сервис ssh, инструменты ssh_*, инструкция ssh_connector; NFR6 - список базовых файлов (90).",
+        "en": "FR11: SSH connector - ssh service, ssh_* tools, ssh_connector instruction; NFR6 - base-file list (90)."
       }
     },
     "defaults/README.md": {
@@ -1056,11 +1080,11 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.5.0",
-      "sha256": "280af6d0904c64c32d4f06836d74fa6e7689bbcdfa3cb735b18dc33541f52a9c",
+      "version": "1.6.0",
+      "sha256": "d6a2da082cb713cc08ec90f0a46fc6a727327a55ef6b9fadf2b5cc7c91065369",
       "note": {
-        "ru": "Добавлены ключи sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found: секция сотрудников в сайдбаре.",
-        "en": "Added sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found keys: the employees sidebar section."
+        "ru": "Добавлены ключи SSH-коннектора: сервис ssh, поля host/port/username, пароль или приватный ключ, тест соединения.",
+        "en": "Added SSH connector keys: ssh service, host/port/username fields, password or private key, connection test."
       }
     },
     "defaults/langs/en_guide.md": {
@@ -1072,11 +1096,11 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.5.0",
-      "sha256": "436bb878a1ae053124aff2c9e8529350af6b17b53c31f5409a19f5407ba87ff1",
+      "version": "1.6.0",
+      "sha256": "e3dba956405d35ec9eb77d26a55194fc0764f66104d5096f77a9bffd96c48e77",
       "note": {
-        "ru": "Добавлены ключи sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found: секция сотрудников в сайдбаре.",
-        "en": "Added sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found keys: the employees sidebar section."
+        "ru": "Добавлены ключи SSH-коннектора: сервис ssh, поля host/port/username, пароль или приватный ключ, тест соединения.",
+        "en": "Added SSH connector keys: ssh service, host/port/username fields, password or private key, connection test."
       }
     },
     "defaults/langs/ru_guide.md": {
@@ -1088,11 +1112,11 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.5.0",
-      "sha256": "f3ca8938009564fd9ca637fd1f92e9cb3d1b126e67ad1ca578a308e24b21def3",
+      "version": "1.6.0",
+      "sha256": "763bd5ddfe0facd23249c0b6a7d38736f41f414ede80e958b63921400d332e31",
       "note": {
-        "ru": "Добавлены ключи sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found: секция сотрудников в сайдбаре.",
-        "en": "Added sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found keys: the employees sidebar section."
+        "ru": "Добавлены ключи SSH-коннектора: сервис ssh, поля host/port/username, пароль или приватный ключ, тест соединения.",
+        "en": "Added SSH connector keys: ssh service, host/port/username fields, password or private key, connection test."
       }
     },
     "defaults/langs/zh_CN_guide.md": {
@@ -1312,11 +1336,11 @@
       }
     },
     "langs/en.json": {
-      "version": "1.5.0",
-      "sha256": "280af6d0904c64c32d4f06836d74fa6e7689bbcdfa3cb735b18dc33541f52a9c",
+      "version": "1.6.0",
+      "sha256": "d6a2da082cb713cc08ec90f0a46fc6a727327a55ef6b9fadf2b5cc7c91065369",
       "note": {
-        "ru": "Добавлены ключи sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found: секция сотрудников в сайдбаре.",
-        "en": "Added sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found keys: the employees sidebar section."
+        "ru": "Добавлены ключи SSH-коннектора: сервис ssh, поля host/port/username, пароль или приватный ключ, тест соединения.",
+        "en": "Added SSH connector keys: ssh service, host/port/username fields, password or private key, connection test."
       }
     },
     "langs/en_guide.md": {
@@ -1328,11 +1352,11 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.5.0",
-      "sha256": "6fafcf3ea10e079119c75d8d94f3ed6daa7db864114bfde74000ec0a0518f8dd",
+      "version": "1.6.0",
+      "sha256": "499f50423a589e1288bc68650487666ad86fe3acb69a53ba317872445f66bb96",
       "note": {
-        "ru": "Добавлены ключи sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found: секция сотрудников в сайдбаре.",
-        "en": "Added sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found keys: the employees sidebar section."
+        "ru": "Добавлены ключи SSH-коннектора: сервис ssh, поля host/port/username, пароль или приватный ключ, тест соединения.",
+        "en": "Added SSH connector keys: ssh service, host/port/username fields, password or private key, connection test."
       }
     },
     "langs/ru_guide.md": {
@@ -1344,11 +1368,11 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.5.0",
-      "sha256": "f3ca8938009564fd9ca637fd1f92e9cb3d1b126e67ad1ca578a308e24b21def3",
+      "version": "1.6.0",
+      "sha256": "763bd5ddfe0facd23249c0b6a7d38736f41f414ede80e958b63921400d332e31",
       "note": {
-        "ru": "Добавлены ключи sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found: секция сотрудников в сайдбаре.",
-        "en": "Added sidebar_search_employees, sidebar_search_employees_placeholder, sidebar_all_employees, sidebar_no_employees_found keys: the employees sidebar section."
+        "ru": "Добавлены ключи SSH-коннектора: сервис ssh, поля host/port/username, пароль или приватный ключ, тест соединения.",
+        "en": "Added SSH connector keys: ssh service, host/port/username fields, password or private key, connection test."
       }
     },
     "langs/zh_CN_guide.md": {
@@ -1381,6 +1405,22 @@
       "note": {
         "ru": "Из настроек провайдера YandexAI убраны лишние поля Web search context size / allowed domains.",
         "en": "Removed the redundant Web search context size / allowed domains fields from the YandexAI provider settings."
+      }
+    },
+    "defaults/instructions/ssh_connector.md": {
+      "version": "1.0.0",
+      "sha256": "13d0bb9a94a1e3bb5c7cb6aaa3fba33a799169d35daac309d99c80588139cd07",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/orchestrators/dev_agent/instructions/ssh_connector.md": {
+      "version": "1.0.0",
+      "sha256": "13d0bb9a94a1e3bb5c7cb6aaa3fba33a799169d35daac309d99c80588139cd07",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
       }
     }
   }

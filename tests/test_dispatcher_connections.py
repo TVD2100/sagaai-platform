@@ -119,3 +119,59 @@ class TestDispatcherConnectionTools:
         set_enabled_connections(orch_slug, [])
         agent.attach_orchestrator(orch_slug)
         assert 'ghr_list_repos' not in agent._extra
+
+
+class TestDispatcherSshConnectionTools:
+
+    def _make_ssh(self):
+        from core.connectors import create_connection
+        return create_connection(
+            'ssh', 'SSH Conn',
+            config={'host': '203.0.113.10', 'port': 2222, 'username': 'deploy'},
+            secrets={'password': 'sup3r-pass'},
+        )
+
+    def test_enabled_ssh_connection_registers_ssh_tools(self, orch_slug):
+        from dev_agent.universal_agent import UniversalDevAgent
+        from core.orchestrators import set_enabled_connections
+        conn = self._make_ssh()
+        set_enabled_connections(orch_slug, [conn['id']])
+        agent = UniversalDevAgent()
+        agent.attach_orchestrator(orch_slug)
+        names = ('ssh_test_connection', 'ssh_exec', 'ssh_list_dir',
+                 'ssh_read_file', 'ssh_write_file')
+        for name in names:
+            assert name in agent._extra, name
+        # An ssh-only orchestrator must not keep GitHub tools callable.
+        assert 'ghr_list_repos' not in agent._extra
+        # The dispatcher routes ssh_* calls to the tool layer.
+        result = agent.dispatch('ssh_exec', {})
+        assert result.get('ok') is False
+        assert 'connector_id' in result.get('error', '')
+
+    def test_switch_from_github_to_ssh_drops_github_tools(self, orch_slug):
+        from dev_agent.universal_agent import UniversalDevAgent
+        from core.connectors import create_connection
+        from core.orchestrators import set_enabled_connections
+        gh = create_connection('github_rest', 'GH', 'tok')
+        ssh = self._make_ssh()
+        set_enabled_connections(orch_slug, [gh['id']])
+        agent = UniversalDevAgent()
+        agent.attach_orchestrator(orch_slug)
+        assert 'ghr_list_repos' in agent._extra
+        set_enabled_connections(orch_slug, [ssh['id']])
+        agent.attach_orchestrator(orch_slug)
+        assert 'ghr_list_repos' not in agent._extra
+        assert 'ssh_exec' in agent._extra
+
+    def test_disable_connections_removes_ssh_tools(self, orch_slug):
+        from dev_agent.universal_agent import UniversalDevAgent
+        from core.orchestrators import set_enabled_connections
+        ssh = self._make_ssh()
+        set_enabled_connections(orch_slug, [ssh['id']])
+        agent = UniversalDevAgent()
+        agent.attach_orchestrator(orch_slug)
+        assert 'ssh_exec' in agent._extra
+        set_enabled_connections(orch_slug, [])
+        agent.attach_orchestrator(orch_slug)
+        assert 'ssh_exec' not in agent._extra

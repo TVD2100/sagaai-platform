@@ -194,6 +194,7 @@ class TestBootstrapDefaults:
         assert "assistant_creator" in ids
         assert "employee_creator" in ids
         assert "self_reflection" in ids
+        assert "ssh_connector" in ids
 
     def test_legacy_orchestrator_creator_migrates_to_employee_creator(self, isolated_data_dir):
         """A pre-existing 'orchestrator_creator' instruction (old id) is migrated

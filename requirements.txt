@@ -13,5 +13,8 @@ tiktoken>=0.5
 markdown>=3.0
 reportlab>=4.0
 
+# Optional SSH connector (external servers)
+paramiko>=3.0
+
 # Development and testing
 pytest>=7.0

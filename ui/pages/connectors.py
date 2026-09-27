@@ -2,16 +2,17 @@
 """
 ui/pages/connectors.py - external service connections page.
 
-CRUD page for service connections (e.g. GitHub API tokens):
-  - create a new connection (name, service, token, account);
-  - list existing connections with token presence indicator;
+CRUD page for service connections (GitHub API tokens, SSH servers):
+  - create a new connection (service-specific fields: token/account for
+    GitHub REST; host/port/username + password or private key for SSH);
+  - list existing connections with credential presence indicator;
   - test a connection against the service and refresh account info;
-  - edit name/account and rotate the token;
+  - edit display fields and rotate credentials;
   - delete a connection with inline confirmation.
 
 All persistence goes through core.connectors (folder-based manifests in
-DATA_DIR/connectors/<id>/). Tokens are always encrypted at rest and never
-passed to the frontend in plain text.
+DATA_DIR/connectors/<id>/). Credentials are always encrypted at rest and
+never passed to the frontend in plain text.
 """
 import streamlit as st
 
@@ -24,9 +25,6 @@ from core.connectors import (
     update_connection,
     delete_connection,
 )
-
-
-_IGNORE = (connectors,)  # keep the module reference for potential future use
 
 
 def _service_options(lang: str):
@@ -44,61 +42,139 @@ def _test_connection(conn_id: str, lang: str) -> None:
     try:
         conn = connectors.get_connection(conn_id)
         service = str((conn or {}).get("service") or "")
-        if service != "github_rest":
+        if service == "ssh":
+            from core import ssh_connector
+            result = ssh_connector.test_connection(conn_id)
+            label = f"{result.get('username')}@{result.get('host')}"
+        elif service == "github_rest":
+            from core.github_connector_rest import test_connection
+            result = test_connection(conn_id)
+            label = str(result.get("login") or conn_id)
+        else:
             st.error(t("connectors_test_error", lang=lang,
                        error=f"Unsupported service: {service}"))
             return
-        from core.github_connector_rest import test_connection
-        result = test_connection(conn_id)
     except Exception as e:
         st.error(t("connectors_test_error", lang=lang, error=str(e)))
         return
     if result.get("ok"):
-        login = str(result.get("login") or conn_id)
-        st.success(t("connectors_test_ok", lang=lang, login=login))
+        st.success(t("connectors_test_ok", lang=lang, login=label))
     else:
         st.error(t("connectors_test_error", lang=lang,
                    error=str(result.get("error") or "")))
 
 
+def _ssh_stored_fields(conn: dict) -> set:
+    """Return secret field names already stored on a connection (masked view)."""
+    masked = (conn or {}).get("secrets_masked")
+    if isinstance(masked, dict):
+        return {str(k) for k in masked}
+    return set()
+
+
+def _render_ssh_fields(lang: str, prefix: str, existing: dict = None):
+    """Render SSH config + secret widgets; return (config, secrets).
+
+    ``config`` collects host/port/username. ``secrets`` collects only the
+    non-empty password / private_key / key_passphrase inputs, so empty fields
+    keep the stored secrets on edit.
+    """
+    cfg = (existing or {}).get("config")
+    cfg = cfg if isinstance(cfg, dict) else {}
+    host = st.text_input(
+        t("connectors_host", lang=lang),
+        value=str(cfg.get("host") or ""),
+        key=f"{prefix}_host",
+    )
+    port = st.number_input(
+        t("connectors_port", lang=lang),
+        min_value=1, max_value=65535, step=1,
+        value=int(cfg.get("port") or 22),
+        key=f"{prefix}_port",
+    )
+    username = st.text_input(
+        t("connectors_username", lang=lang),
+        value=str(cfg.get("username") or ""),
+        key=f"{prefix}_username",
+    )
+    st.caption(t("connectors_ssh_auth_hint", lang=lang))
+    stored = _ssh_stored_fields(existing or {})
+    keep_help = t("connectors_secret_leave_empty", lang=lang)
+    password = st.text_input(
+        t("connectors_password", lang=lang),
+        type="password",
+        key=f"{prefix}_password",
+        help=(keep_help if "password" in stored else None),
+    )
+    private_key = st.text_area(
+        t("connectors_private_key", lang=lang),
+        key=f"{prefix}_private_key",
+        help=(keep_help if "private_key" in stored else None),
+    )
+    passphrase = st.text_input(
+        t("connectors_key_passphrase", lang=lang),
+        type="password",
+        key=f"{prefix}_key_passphrase",
+        help=(keep_help if "key_passphrase" in stored else None),
+    )
+    config = {"host": host, "port": port, "username": username}
+    secrets = {}
+    if str(password or "").strip():
+        secrets["password"] = password
+    if str(private_key or "").strip():
+        secrets["private_key"] = private_key
+    if str(passphrase or "").strip():
+        secrets["key_passphrase"] = passphrase
+    return config, secrets
+
+
 def _render_create_form(lang: str) -> None:
-    """Render the create-connection form in an expander."""
+    """Render the create-connection form in an expander.
+
+    The service selector sits outside the form so switching services
+    re-renders the service-specific fields on the next script run.
+    """
     with st.expander(t("connectors_create_title", lang=lang), expanded=False):
         options = _service_options(lang)
         svc_ids = [o[0] for o in options]
+        if not svc_ids:
+            st.warning(t("connectors_no_services", lang=lang))
+            return
+        svc_id = st.selectbox(
+            t("connectors_service", lang=lang),
+            options=svc_ids,
+            index=0,
+            format_func=lambda s: dict(options).get(s, s),
+            key="conn_new_service",
+        )
         with st.form("connector_create_form"):
             name = st.text_input(
                 t("connectors_name", lang=lang), key="conn_new_name",
             )
-            if svc_ids:
-                default_idx = svc_ids.index("github") if "github" in svc_ids else 0
-                svc_id = st.selectbox(
-                    t("connectors_service", lang=lang),
-                    options=svc_ids,
-                    index=default_idx,
-                    format_func=lambda s: dict(options).get(s, s),
-                    key="conn_new_service",
-                )
+            if svc_id == "ssh":
+                config, secrets = _render_ssh_fields(lang, prefix="conn_new")
+                token = ""
             else:
-                svc_id = ""
-                st.warning(t("connectors_no_services", lang=lang))
-            token = st.text_input(
-                t("connectors_token", lang=lang),
-                type="password",
-                key="conn_new_token",
-                help=t("connectors_token_help", lang=lang),
-            )
+                config, secrets = None, None
+                token = st.text_input(
+                    t("connectors_token", lang=lang),
+                    type="password",
+                    key="conn_new_token",
+                    help=t("connectors_token_help", lang=lang),
+                )
             account = st.text_input(
                 t("connectors_account", lang=lang),
                 key="conn_new_account",
                 help=t("connectors_account_help", lang=lang),
             )
             submitted = st.form_submit_button(
-                t("connectors_create_btn", lang=lang), type="primary"
+                t("connectors_create_btn", lang=lang), type="primary",
+                key="conn_new_submit",
             )
     if submitted:
         try:
-            create_connection(svc_id, name, token, account=account)
+            create_connection(svc_id, name, token, account=account,
+                              config=config, secrets=secrets)
             st.success(t("connectors_created", lang=lang))
             st.rerun()
         except Exception as e:
@@ -108,6 +184,7 @@ def _render_create_form(lang: str) -> None:
 def _render_edit_form(conn: dict, lang: str) -> None:
     """Render the inline edit form for one connection."""
     conn_id = str(conn.get("id") or "")
+    service = str(conn.get("service") or "")
     st.markdown(f"**{t('connectors_edit_title', lang=lang)}**")
     with st.form(f"conn_edit_form_{conn_id}"):
         name = st.text_input(
@@ -120,16 +197,24 @@ def _render_edit_form(conn: dict, lang: str) -> None:
             value=str(conn.get("account") or ""),
             key=f"conn_edit_account_{conn_id}",
         )
-        token = st.text_input(
-            t("connectors_token", lang=lang),
-            type="password",
-            key=f"conn_edit_token_{conn_id}",
-            help=t("connectors_token_leave_empty", lang=lang),
-        )
+        token = ""
+        config, secrets = None, None
+        if service == "ssh":
+            config, secrets = _render_ssh_fields(
+                lang, prefix=f"conn_edit_{conn_id}", existing=conn
+            )
+        else:
+            token = st.text_input(
+                t("connectors_token", lang=lang),
+                type="password",
+                key=f"conn_edit_token_{conn_id}",
+                help=t("connectors_token_leave_empty", lang=lang),
+            )
         save = st.form_submit_button(t("connectors_save", lang=lang), type="primary")
     if save:
         try:
-            update_connection(conn_id, name=name, account=account, token=token)
+            update_connection(conn_id, name=name, account=account, token=token,
+                              config=config, secrets=secrets)
             st.session_state[f"conn_edit_{conn_id}"] = False
             st.success(t("connectors_saved", lang=lang))
             st.rerun()
@@ -146,17 +231,31 @@ def _render_connection_card(conn: dict, lang: str) -> None:
     has_token = bool(conn.get("has_token"))
     svc_label = t(f"connectors_service_{svc_id}", lang=lang) or svc_id
 
-    token_mark = (
-        t("connectors_has_token", lang=lang)
-        if has_token else
-        t("connectors_no_token", lang=lang)
-    )
-    header = f"**{name}** · {svc_label} · {token_mark}"
+    masked = conn.get("secrets_masked")
+    if conn.get("has_secrets") and isinstance(masked, dict):
+        fields = ", ".join(sorted(str(k) for k in masked))
+        cred_mark = t("connectors_has_secrets", lang=lang, fields=fields)
+    else:
+        cred_mark = (
+            t("connectors_has_token", lang=lang)
+            if has_token else
+            t("connectors_no_token", lang=lang)
+        )
+    header = f"**{name}** · {svc_label} · {cred_mark}"
     if account:
         header += f" · `{account}`"
 
     with st.expander(header, expanded=False):
         st.caption(f"id: `{conn_id}`")
+        cfg = conn.get("config")
+        if isinstance(cfg, dict) and cfg:
+            host = str(cfg.get("host") or "")
+            user = str(cfg.get("username") or "")
+            target = f"{user}@{host}" if (user or host) else ""
+            if target and cfg.get("port"):
+                target += f":{cfg.get('port')}"
+            if target:
+                st.caption(target)
         if conn.get("created_at"):
             st.caption(t("connectors_created_at", lang=lang,
                          date=str(conn.get("created_at"))))

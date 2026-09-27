@@ -136,3 +136,122 @@ def test_public_manifest_never_leaks_token(isolated_data_dir):
     raw_json = json.dumps(items)
     assert "not-a-real-token" not in raw_json
     assert "token_encrypted" not in raw_json
+
+
+# ─── SSH connections (per-field secrets) ────────────────────────────────────
+
+
+def test_create_ssh_connection_roundtrip(isolated_data_dir):
+    import core.connectors as c
+    created = c.create_connection(
+        "ssh", "Prod SSH",
+        config={"host": "203.0.113.10", "port": 2222, "username": "deploy"},
+        secrets={"password": "s3cret-pass"},
+        account="deploy@203.0.113.10",
+    )
+    assert created["service"] == "ssh"
+    assert created["has_secrets"] is True
+    assert created["secrets_masked"] == {"password": "***"}
+    assert "secrets_encrypted" not in created
+    assert created["config"]["host"] == "203.0.113.10"
+    assert created["config"]["port"] == 2222
+    assert c.get_connection_secrets(created["id"]) == {"password": "s3cret-pass"}
+    assert c.decrypt_secret(created["id"], "password") == "s3cret-pass"
+
+
+def test_ssh_manifest_on_disk_keeps_secrets_encrypted(isolated_data_dir):
+    import core.connectors as c
+    key_body = "-----BEGIN OPENSSH PRIVATE KEY-----abc123"
+    created = c.create_connection(
+        "ssh", "Keyed SSH",
+        config={"host": "example.org", "username": "root"},
+        secrets={"private_key": key_body, "key_passphrase": "kp-pass"},
+    )
+    raw = _load_raw(created["id"])
+    dumped = json.dumps(raw)
+    assert "kp-pass" not in dumped
+    assert "abc123" not in dumped
+    assert raw["secrets_encrypted"]["private_key"]
+    from core.crypto import decrypt
+    assert decrypt(raw["secrets_encrypted"]["private_key"]) == key_body
+    assert raw["config"]["port"] == 22
+
+
+def test_ssh_public_view_never_leaks_secrets(isolated_data_dir):
+    import core.connectors as c
+    created = c.create_connection(
+        "ssh", "Safe SSH",
+        config={"host": "h.example", "username": "u"},
+        secrets={"password": "do-not-leak"},
+    )
+    dumped = json.dumps(c.list_connections())
+    assert "do-not-leak" not in dumped
+    assert "secrets_encrypted" not in dumped
+    got = c.get_connection(created["id"])
+    assert got["secrets_masked"] == {"password": "***"}
+    assert got["has_secrets"] is True
+
+
+def test_ssh_create_validation(isolated_data_dir):
+    import core.connectors as c
+    with pytest.raises(ValueError):
+        c.create_connection("ssh", "No host", config={"username": "u"},
+                            secrets={"password": "p"})
+    with pytest.raises(ValueError):
+        c.create_connection("ssh", "No user", config={"host": "h"},
+                            secrets={"password": "p"})
+    with pytest.raises(ValueError):
+        c.create_connection("ssh", "No auth",
+                            config={"host": "h", "username": "u"}, secrets={})
+    with pytest.raises(ValueError):
+        c.create_connection("ssh", "Passphrase only",
+                            config={"host": "h", "username": "u"},
+                            secrets={"key_passphrase": "kp"})
+    with pytest.raises(ValueError):
+        c.create_connection("ssh", "Bad port",
+                            config={"host": "h", "username": "u", "port": "nope"},
+                            secrets={"password": "p"})
+    with pytest.raises(ValueError):
+        c.create_connection("ssh", "Unknown field",
+                            config={"host": "h", "username": "u"},
+                            secrets={"password": "p", "api_key": "x"})
+
+
+def test_update_ssh_connection_rotates_secret_and_config(isolated_data_dir):
+    import core.connectors as c
+    created = c.create_connection(
+        "ssh", "Rotate SSH",
+        config={"host": "old.example", "username": "deploy"},
+        secrets={"password": "old-pass"},
+    )
+    conn_id = created["id"]
+    updated = c.update_connection(conn_id, name="Rotated",
+                                  config={"host": "new.example"},
+                                  secrets={"password": "new-pass"})
+    assert updated["name"] == "Rotated"
+    assert updated["config"]["host"] == "new.example"
+    assert updated["config"]["port"] == 22
+    assert c.get_connection_secrets(conn_id) == {"password": "new-pass"}
+    c.update_connection(conn_id, secrets={"password": ""})
+    assert c.get_connection_secrets(conn_id) == {"password": "new-pass"}
+
+
+def test_set_connection_secret_and_decrypt(isolated_data_dir):
+    import core.connectors as c
+    created = c.create_connection(
+        "ssh", "Key SSH",
+        config={"host": "h", "username": "u"},
+        secrets={"password": "p1"},
+    )
+    conn_id = created["id"]
+    assert c.set_connection_secret(conn_id, "private_key", "KEY-BODY") is True
+    assert c.get_connection_secrets(conn_id) == {
+        "password": "p1", "private_key": "KEY-BODY",
+    }
+    assert c.decrypt_secret(conn_id, "private_key") == "KEY-BODY"
+    with pytest.raises(ValueError):
+        c.decrypt_secret(conn_id, "nope")
+    with pytest.raises(ValueError):
+        c.set_connection_secret(conn_id, "api_key", "x")
+    with pytest.raises(ValueError):
+        c.set_connection_secret(conn_id, "password", "   ")
