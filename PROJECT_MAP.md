@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-09-26T20:04:24+00:00`
-- Файлов: **933**
-- Языки: Config: 1, JSON: 22, Markdown: 685, PEM certificate: 1, Python: 228, Text: 1
+- Обновлено: `2026-09-26T21:50:41+00:00`
+- Файлов: **958**
+- Языки: Config: 1, JSON: 22, Markdown: 709, PEM certificate: 1, Python: 229, Text: 1
 
 ## Файлы и назначение
 
@@ -23,7 +23,7 @@
 | `ui/components/workspace_picker.py` | Python | Workspace picker component | - |
 | `ui/pages/__init__.py` | Python | Package marker | - |
 | `ui/pages/access.py` | Python | _(описание не задано)_ | - |
-| `ui/pages/assistants.py` | Python | Assistants management page (create/edit/delete assistant profiles, files, tools) | - |
+| `ui/pages/assistants.py` | Python | Assistants management page (create/edit/delete assistant profiles, files, tools); auto-attaches rag_search + rag_get_chunks when RAG bases are selected | - |
 | `ui/pages/chat.py` | Python | Chat page for AI assistants: selector, history, send form | - |
 | `ui/pages/connectors.py` | Python | _(описание не задано)_ | - |
 | `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | - |
@@ -43,7 +43,7 @@
 | `core/assistant_creator.py` | Python | Validation and linting helpers for assistant prompts | - |
 | `core/assistant_folders.py` | Python | _(описание не задано)_ | - |
 | `core/assistant_nav.py` | Python | _(описание не задано)_ | - |
-| `core/assistant_tools.py` | Python | _(описание не задано)_ | - |
+| `core/assistant_tools.py` | Python | Assistant function-tool loop: web_search and RAG tools (rag_search, rag_get_chunks) execution | - |
 | `core/assistants.py` | Python | CRUD for AI assistant profiles and their attachment files | storage |
 | `core/auth.py` | Python | Optional password authentication gate | - |
 | `core/bootstrap.py` | Python | First-run provisioning: Assistant/Employee Creator instructions, DevAgent settings, legacy skill_creator migration | - |
@@ -72,9 +72,9 @@
 | `core/rag.py` | Python | _(описание не задано)_ | - |
 | `core/rag_chunker.py` | Python | _(описание не задано)_ | - |
 | `core/rag_embeddings.py` | Python | _(описание не задано)_ | - |
-| `core/rag_index.py` | Python | _(описание не задано)_ | - |
+| `core/rag_index.py` | Python | Local SQLite vector index: chunk CRUD, embeddings, cached counters, fetch_chunks (by ids or source+indices) | - |
 | `core/rag_indexer.py` | Python | _(описание не задано)_ | - |
-| `core/rag_search.py` | Python | _(описание не задано)_ | - |
+| `core/rag_search.py` | Python | Semantic search over the local index (cosine similarity, context assembly); context headers carry chunk ids | - |
 | `core/recent_assistants.py` | Python | Tracks recently used assistant IDs in session_state | - |
 | `core/recent_workspaces.py` | Python | Recent workspaces tracking | storage |
 | `core/render.py` | Python | Markdown rendering / clipboard helpers | - |
@@ -212,6 +212,7 @@
 | `tests/scenarios/test_orchestrator_tool_gating.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_provider_economy_settings_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_assistant_dialog.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_rag_context_restore.py` | Python | Scenario tests: RAG context restore (assistant dialog, DevAgent fetch, error states) | - |
 | `tests/scenarios/test_rag_perf_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_search_in_files_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_skills_adaptation_scenario.py` | Python | _(описание не задано)_ | storage |
@@ -289,9 +290,9 @@
 | `dev_agent/config.py` | Python | DevAgent runtime config and protected path policy | - |
 | `dev_agent/llm_utils.py` | Python | Unified LLM-call helper (assistant dict contract, legacy skill alias) | - |
 | `dev_agent/safe_writer.py` | Python | Safe full-file rewrite with diff/verification | backup_manager |
-| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt v3.13 (batched independent tool calls, verbatim user-plan acceptance, loop-protection rules) | - |
+| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt v3.14 (batched independent tool calls, verbatim user-plan acceptance, RAG context restore via rag_get_chunks, loop-protection rules) | - |
 | `dev_agent/task_state.py` | Python | _(описание не задано)_ | backup_manager |
-| `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools + legacy skill tool aliases + skills-library tools | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
+| `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools + legacy skill tool aliases + skills-library tools; RAG context-restore tool rag_get_chunks; chunk ids in rag_search hits | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
 | `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace tools + orchestrator tools) | storage, tool_executor |
 | `dev_agent/workspace_binding.py` | Python | _(описание не задано)_ | - |
 | `dev_agent/workspace_tools.py` | Python | Workspace layer: folders, project map, docs, snapshots | backup_manager |
@@ -939,6 +940,30 @@
 | `dev_agent/task_states/TASK_STATE__20260923_203618_bccd36.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260923_203630_3b8c84.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260923_203630_b07f1e.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260923_210010_b20269.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260923_210015_046039.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260923_210015_2dc82d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260923_210015_7829c3.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260923_210015_8eddad.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260923_210015_e89c8d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260923_210026_7dc386.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260923_210026_87ea39.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260926_231059_b2a0bc.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260926_231103_49ed41.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260926_231103_de7d16.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260926_231104_4bef20.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260926_231104_4fa534.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260926_231104_7c6469.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260926_231112_8580d4.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260926_231112_bda39e.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_004849_a3c716.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_004852_143bbd.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_004852_7601e3.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_004852_dfae7d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_004852_e4f0c5.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_004852_f2bbbc.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_004901_a142eb.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_004901_bc65df.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
 | `services/deepseek.json` | JSON | DeepSeek service definition | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
@@ -967,15 +992,15 @@
 - `page_access` (func, строка 28)
 
 ### `ui/pages/assistants.py`
-- `_get_show_form` (func, строка 36)
-- `_set_show_form` (func, строка 43)
-- `_get_edit_id` (func, строка 48)
-- `_set_edit_id` (func, строка 52)
-- `_format_tools_badge` (func, строка 57)
-- `_get_model_max_tokens_limit` (func, строка 76)
-- `_temperature_bounds` (func, строка 96)
-- `_clamp_temperature` (func, строка 110)
-- `page_assistants` (func, строка 116)
+- `_get_show_form` (func, строка 37)
+- `_set_show_form` (func, строка 44)
+- `_get_edit_id` (func, строка 49)
+- `_set_edit_id` (func, строка 53)
+- `_format_tools_badge` (func, строка 58)
+- `_get_model_max_tokens_limit` (func, строка 77)
+- `_temperature_bounds` (func, строка 97)
+- `_clamp_temperature` (func, строка 111)
+- `page_assistants` (func, строка 117)
 
 ### `ui/pages/chat.py`
 - `_get_preselected` (func, строка 38)
@@ -1189,18 +1214,19 @@
 - `split_nav_lists` (func, строка 98)
 
 ### `core/assistant_tools.py`
-- `_yandex_reasoning_effort` (func, строка 32)
-- `_normalise_tools` (func, строка 39)
-- `_yandex_web_search_config` (func, строка 45)
-- `_build_responses_input_items` (func, строка 58)
-- `_build_yandex_tool_payload` (func, строка 85)
-- `_post_yandex_responses` (func, строка 140)
-- `_extract_function_calls` (func, строка 178)
-- `_item_text` (func, строка 206)
-- `_assistant_allowed_rag_bases` (func, строка 212)
-- `execute_assistant_rag_search` (func, строка 237)
-- `_report_usage` (func, строка 288)
-- `run_yandex_responses_tool_loop` (func, строка 309)
+- `_yandex_reasoning_effort` (func, строка 33)
+- `_normalise_tools` (func, строка 40)
+- `_yandex_web_search_config` (func, строка 46)
+- `_build_responses_input_items` (func, строка 59)
+- `_build_yandex_tool_payload` (func, строка 86)
+- `_post_yandex_responses` (func, строка 141)
+- `_extract_function_calls` (func, строка 179)
+- `_item_text` (func, строка 207)
+- `_assistant_allowed_rag_bases` (func, строка 213)
+- `execute_assistant_rag_search` (func, строка 238)
+- `execute_assistant_rag_chunks` (func, строка 298)
+- `_report_usage` (func, строка 368)
+- `run_yandex_responses_tool_loop` (func, строка 389)
 
 ### `core/assistants.py`
 - `_get_user_data_dir` (func, строка 54)
@@ -1624,28 +1650,29 @@
 - `embed_many` (func, строка 132)
 
 ### `core/rag_index.py`
-- `_now` (func, строка 28)
-- `_ensure_counts` (func, строка 40)
-- `_delta_count` (func, строка 68)
-- `_connect` (func, строка 76)
-- `create_index_db` (func, строка 89)
-- `pack_vector` (func, строка 142)
-- `unpack_vector` (func, строка 147)
-- `reset_index` (func, строка 152)
-- `read_meta` (func, строка 178)
-- `add_chunk` (func, строка 193)
-- `add_embedding` (func, строка 225)
-- `count_chunks` (func, строка 250)
-- `get_chunk` (func, строка 265)
-- `list_chunks` (func, строка 299)
-- `search_chunks_text` (func, строка 340)
-- `update_chunk_text` (func, строка 394)
-- `delete_chunk` (func, строка 425)
-- `delete_embedding` (func, строка 448)
-- `_cosine` (func, строка 467)
-- `search_similar` (func, строка 481)
-- `index_stats` (func, строка 526)
-- `dump_chunks` (func, строка 582)
+- `_now` (func, строка 29)
+- `_ensure_counts` (func, строка 41)
+- `_delta_count` (func, строка 69)
+- `_connect` (func, строка 77)
+- `create_index_db` (func, строка 90)
+- `pack_vector` (func, строка 143)
+- `unpack_vector` (func, строка 148)
+- `reset_index` (func, строка 153)
+- `read_meta` (func, строка 179)
+- `add_chunk` (func, строка 194)
+- `add_embedding` (func, строка 226)
+- `count_chunks` (func, строка 251)
+- `get_chunk` (func, строка 266)
+- `list_chunks` (func, строка 300)
+- `search_chunks_text` (func, строка 341)
+- `update_chunk_text` (func, строка 395)
+- `delete_chunk` (func, строка 426)
+- `delete_embedding` (func, строка 449)
+- `_cosine` (func, строка 468)
+- `search_similar` (func, строка 482)
+- `fetch_chunks` (func, строка 527)
+- `index_stats` (func, строка 630)
+- `dump_chunks` (func, строка 686)
 
 ### `core/rag_indexer.py`
 - `IndexingError` (class, строка 34)
@@ -1654,10 +1681,12 @@
 - `index_base` (func, строка 59)
 
 ### `core/rag_search.py`
-- `RagSearchError` (class, строка 26)
-- `search_base` (func, строка 30)
-- `build_search_context` (func, строка 67)
-- `chat_context` (func, строка 95)
+- `RagSearchError` (class, строка 27)
+- `search_base` (func, строка 31)
+- `_clean_chunk_values` (func, строка 68)
+- `get_chunks` (func, строка 92)
+- `build_search_context` (func, строка 124)
+- `chat_context` (func, строка 160)
 
 ### `core/recent_assistants.py`
 - `record_assistant_use` (func, строка 9)
@@ -1788,7 +1817,8 @@
 ### `core/tools_utils.py`
 - `list_tool_definitions` (func, строка 12)
 - `build_rag_search_tool` (func, строка 26)
-- `service_supported_tools` (func, строка 73)
+- `build_rag_chunks_tool` (func, строка 76)
+- `service_supported_tools` (func, строка 141)
 
 ### `core/updater.py`
 - `default_root` (func, строка 62)
@@ -1971,28 +2001,35 @@
 - `TestEntitySync` (class, строка 317)
 
 ### `tests/test_assistant_function_tools.py`
-- `test_normalise_tools_converts_strings_and_passes_dicts` (func, строка 45)
-- `test_has_native_function_tools` (func, строка 53)
-- `test_extract_function_calls` (func, строка 61)
-- `test_execute_rag_search_missing_args` (func, строка 79)
-- `test_execute_rag_search_access_denied` (func, строка 86)
-- `test_execute_rag_search_denied_when_no_bases_assigned` (func, строка 98)
-- `test_execute_rag_search_ok` (func, строка 110)
-- `_resp` (func, строка 129)
-- `test_execute_rag_search_search_base_error` (func, строка 137)
-- `test_loop_single_rag_call_happy_path` (func, строка 151)
-- `test_loop_no_tool_call_single_request` (func, строка 196)
-- `test_loop_iteration_limit` (func, строка 216)
-- `test_loop_400_fallback_textual` (func, строка 243)
-- `test_send_request_routes_to_tool_loop_when_native_function_tools` (func, строка 290)
-- `test_send_request_preserves_legacy_yandex_path` (func, строка 339)
-- `test_yandex_web_search_config_parses_provider_values` (func, строка 379)
-- `test_yandex_web_search_config_list_values_and_defaults` (func, строка 397)
-- `test_assistant_web_search_config_prefers_manifest_overrides` (func, строка 416)
-- `test_assistant_web_search_config_falls_back_to_provider` (func, строка 439)
-- `test_loop_assistant_no_web_search_tool_has_no_web_tool` (func, строка 458)
-- `test_loop_unknown_function_tool_returns_error` (func, строка 496)
-- `test_loop_payload_uses_assistant_web_search_overrides` (func, строка 528)
+- `test_normalise_tools_converts_strings_and_passes_dicts` (func, строка 63)
+- `test_has_native_function_tools` (func, строка 71)
+- `test_extract_function_calls` (func, строка 79)
+- `test_execute_rag_search_missing_args` (func, строка 97)
+- `test_execute_rag_search_access_denied` (func, строка 104)
+- `test_execute_rag_search_denied_when_no_bases_assigned` (func, строка 116)
+- `test_execute_rag_search_ok` (func, строка 128)
+- `_resp` (func, строка 147)
+- `test_execute_rag_search_search_base_error` (func, строка 155)
+- `test_loop_single_rag_call_happy_path` (func, строка 169)
+- `test_loop_no_tool_call_single_request` (func, строка 214)
+- `test_loop_iteration_limit` (func, строка 234)
+- `test_loop_400_fallback_textual` (func, строка 261)
+- `test_send_request_routes_to_tool_loop_when_native_function_tools` (func, строка 308)
+- `test_send_request_preserves_legacy_yandex_path` (func, строка 357)
+- `test_yandex_web_search_config_parses_provider_values` (func, строка 397)
+- `test_yandex_web_search_config_list_values_and_defaults` (func, строка 415)
+- `test_assistant_web_search_config_prefers_manifest_overrides` (func, строка 434)
+- `test_assistant_web_search_config_falls_back_to_provider` (func, строка 457)
+- `test_loop_assistant_no_web_search_tool_has_no_web_tool` (func, строка 476)
+- `test_loop_unknown_function_tool_returns_error` (func, строка 514)
+- `test_loop_payload_uses_assistant_web_search_overrides` (func, строка 546)
+- `test_execute_rag_chunks_missing_slug` (func, строка 588)
+- `test_execute_rag_chunks_needs_an_address_mode` (func, строка 595)
+- `test_execute_rag_chunks_access_denied` (func, строка 605)
+- `test_execute_rag_chunks_ok_returns_context_and_metadata` (func, строка 616)
+- `test_execute_rag_chunks_error_is_json_not_raised` (func, строка 643)
+- `test_loop_routes_rag_get_chunks` (func, строка 656)
+- `test_execute_rag_search_ok_includes_hits_metadata` (func, строка 702)
 
 ### `tests/test_assistant_sidebar_sort.py`
 - `_a` (func, строка 22)
@@ -2021,12 +2058,15 @@
 - `test_clamp_temperature_fallback` (func, строка 39)
 
 ### `tests/test_assistant_tools.py`
-- `env` (func, строка 18)
-- `_invoke` (func, строка 30)
-- `_tools_multiselect_options` (func, строка 41)
-- `_caption_texts` (func, строка 50)
-- `test_assistant_form_shows_only_provider_tools` (func, строка 59)
-- `test_assistant_form_hides_tools_unsupported_provider` (func, строка 84)
+- `env` (func, строка 19)
+- `_invoke` (func, строка 31)
+- `_tools_multiselect_options` (func, строка 42)
+- `_caption_texts` (func, строка 51)
+- `test_assistant_form_shows_only_provider_tools` (func, строка 60)
+- `test_assistant_form_hides_tools_unsupported_provider` (func, строка 85)
+- `_rag_function_names` (func, строка 123)
+- `test_assistant_save_auto_attaches_both_rag_tools` (func, строка 127)
+- `test_assistant_save_without_bases_keeps_no_rag_tools` (func, строка 157)
 
 ### `tests/test_auth_access.py`
 - `_FakeLoopState` (class, строка 26)
@@ -2715,8 +2755,11 @@
 - `isolated_data_dir` (func, строка 25)
 - `_make_index_db` (func, строка 57)
 - `TestRagIndexChunkOps` (class, строка 72)
-- `TestRagChunkWrappers` (class, строка 133)
-- `TestPresetSkillAutoRegistration` (class, строка 192)
+- `TestRagFetchChunks` (class, строка 133)
+- `TestRagSearchGetChunks` (class, строка 181)
+- `TestBuildSearchContextHeaders` (class, строка 236)
+- `TestRagChunkWrappers` (class, строка 256)
+- `TestPresetSkillAutoRegistration` (class, строка 315)
 
 ### `tests/test_rag_hot_paths_no_stats.py`
 - `_invoke` (func, строка 31)
@@ -2742,6 +2785,12 @@
 - `test_rag_search_missing_slug_has_suggestion` (func, строка 41)
 - `test_rag_search_missing_query_has_suggestion` (func, строка 51)
 - `test_rag_search_valid_call_reaches_backend` (func, строка 61)
+- `test_rag_get_chunks_rejects_unknown_arg_names` (func, строка 77)
+- `test_rag_get_chunks_missing_slug_has_suggestion` (func, строка 88)
+- `test_rag_get_chunks_requires_addressing_mode` (func, строка 96)
+- `test_rag_get_chunks_valid_call_reaches_backend` (func, строка 105)
+- `test_rag_get_chunks_backend_error_is_wrapped` (func, строка 130)
+- `test_rag_search_hits_carry_chunk_id` (func, строка 146)
 
 ### `tests/test_rag_with_stats.py`
 - `isolated_data_dir` (func, строка 23)
@@ -3050,6 +3099,9 @@
 - `test_filters_by_catalog` (func, строка 38)
 - `test_empty_tools_options_returns_empty` (func, строка 44)
 - `test_malformed_entries_skipped` (func, строка 48)
+- `test_build_rag_chunks_tool_shape` (func, строка 53)
+- `test_build_rag_chunks_tool_hint_mentions_bound_slug` (func, строка 63)
+- `test_build_rag_search_tool_mentions_chunks_followup` (func, строка 69)
 
 ### `tests/test_ui_pages.py`
 - `_apply_all` (func, строка 79)
@@ -3088,6 +3140,10 @@
 - `test_chat_page_has_settings_and_new_dialog_buttons` (func, строка 779)
 - `test_chat_page_keeps_selected_assistant_across_reruns` (func, строка 824)
 - `test_render_event_retrying_llm_warns_with_i18n` (func, строка 897)
+- `test_attach_events_targets_last_assistant_of_current_turn` (func, строка 928)
+- `test_attach_events_falls_back_to_visible_user_without_assistant` (func, строка 948)
+- `test_attach_events_skips_hidden_messages_and_empty_inputs` (func, строка 960)
+- `test_do_step_first_step_failure_is_visible_on_user_message` (func, строка 986)
 
 ### `tests/test_ui_tooltips.py`
 - `_lang_files` (func, строка 49)
@@ -3583,6 +3639,17 @@
 - `test_rag_assistant_manifest_web_search_overrides_in_payload` (func, строка 188)
 - `test_rag_assistant_rejects_unassigned_base` (func, строка 241)
 
+### `tests/scenarios/test_rag_context_restore.py`
+- `scenario_data` (func, строка 43)
+- `_make_ready_base` (func, строка 51)
+- `_function_call` (func, строка 70)
+- `_final_message` (func, строка 79)
+- `_mock_responses` (func, строка 87)
+- `_send_request` (func, строка 106)
+- `test_assistant_restores_context_around_a_hit` (func, строка 127)
+- `test_devagent_fetch_follows_search_ids` (func, строка 190)
+- `test_error_states_stay_structured` (func, строка 233)
+
 ### `tests/scenarios/test_rag_perf_scenarios.py`
 - `rag_data` (func, строка 37)
 - `_invoke` (func, строка 45)
@@ -3810,13 +3877,13 @@
 - `_call_signature` (func, строка 981)
 - `_coerce_dsml_param` (func, строка 990)
 - `_extract_dsml_calls` (func, строка 1032)
-- `_dsml_required_args` (func, строка 1075)
-- `_dsml_json_hint` (func, строка 1118)
-- `_dsml_validation_error` (func, строка 1128)
-- `_fallback_parse_propose_file` (func, строка 1152)
-- `_repair_unclosed_tool_json` (func, строка 1186)
-- `_cascade_recover_tool_calls` (func, строка 1224)
-- `parse_tool_calls` (func, строка 1251)
+- `_dsml_required_args` (func, строка 1076)
+- `_dsml_json_hint` (func, строка 1119)
+- `_dsml_validation_error` (func, строка 1129)
+- `_fallback_parse_propose_file` (func, строка 1153)
+- `_repair_unclosed_tool_json` (func, строка 1187)
+- `_cascade_recover_tool_calls` (func, строка 1225)
+- `parse_tool_calls` (func, строка 1252)
 
 ### `dev_agent/assistant_detector.py`
 - `list_all_assistants_for_detection` (func, строка 49)
@@ -3910,11 +3977,11 @@
 - `_exact_spans` (func, строка 160)
 - `_line_of` (func, строка 173)
 - `_suggest_anchor_lines` (func, строка 178)
-- `_unknown_args` (func, строка 242)
-- `_usage_string` (func, строка 267)
-- `_coerce_numeric_args` (func, строка 292)
-- `_validate_python_syntax` (func, строка 346)
-- `ToolExecutor` (class, строка 369)
+- `_unknown_args` (func, строка 254)
+- `_usage_string` (func, строка 279)
+- `_coerce_numeric_args` (func, строка 304)
+- `_validate_python_syntax` (func, строка 358)
+- `ToolExecutor` (class, строка 381)
 
 ### `dev_agent/universal_agent.py`
 - `load_system_prompt` (func, строка 31)

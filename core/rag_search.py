@@ -17,10 +17,11 @@ No streamlit imports.
 """
 from core import rag
 from core.rag_embeddings import embed_query, get_yandex_embedding_credentials
-from core.rag_index import search_similar
+from core.rag_index import fetch_chunks, search_similar
 
 
 DEFAULT_TOP_K = 5
+MAX_FETCH_CHUNKS = 20
 
 
 class RagSearchError(Exception):
@@ -64,6 +65,62 @@ def search_base(slug: str, query: str, top_k: int = DEFAULT_TOP_K,
     return results
 
 
+def _clean_chunk_values(raw_values) -> list:
+    """Normalise user-supplied chunk ids/positions for get_chunks.
+
+    Accepts a scalar or an iterable, keeps only non-negative integers,
+    removes duplicates (order preserved) and truncates the result to
+    ``MAX_FETCH_CHUNKS``. Non-integer junk is dropped silently.
+    """
+    if raw_values is None:
+        return []
+    if not isinstance(raw_values, (list, tuple, set, frozenset)):
+        raw_values = [raw_values]
+    cleaned = []
+    for raw in raw_values:
+        try:
+            num = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if num >= 0 and num not in cleaned:
+            cleaned.append(num)
+        if len(cleaned) >= MAX_FETCH_CHUNKS:
+            break
+    return cleaned
+
+
+def get_chunks(slug: str, chunk_ids=None, source: str = "",
+               chunk_indices=None) -> dict:
+    """Fetch specific chunks of base *slug* (no embeddings involved).
+
+    Supports the same two addressing modes as ``core.rag_index.fetch_chunks``:
+    global chunk ids (e.g. taken from search hits) or 0-based chunk positions
+    inside one source file (useful for pulling the neighbours of a hit).
+
+    Returns ``{"chunks": [...], "missing": [...]}``; chunk dicts carry
+    ``chunk_id``, ``text``, ``source``, ``chunk_index`` and ``has_embedding``.
+
+    Raises RagSearchError when the base is missing or not indexed yet.
+
+    At most ``MAX_FETCH_CHUNKS`` (20) ids/positions are processed per call;
+    extra values are dropped. Non-integer values are ignored.
+    """
+    base = rag.get_base(slug, with_stats=False)
+    if not base:
+        raise RagSearchError("RAG base does not exist")
+    if base.get("status") not in ("ready",):
+        raise RagSearchError("RAG base is not indexed yet")
+    ids = _clean_chunk_values(chunk_ids)
+    if ids:
+        return fetch_chunks(rag.index_db_path(slug), chunk_ids=ids)
+    src = str(source or "")
+    indices = _clean_chunk_values(chunk_indices) if src else []
+    if not indices:
+        return {"chunks": [], "missing": []}
+    return fetch_chunks(rag.index_db_path(slug), source=src,
+                        chunk_indices=indices)
+
+
 def build_search_context(results: list, max_chars: int = 4000) -> str:
     """Format search hits into a context block for prompt injection.
 
@@ -75,15 +132,23 @@ def build_search_context(results: list, max_chars: int = 4000) -> str:
     parts = []
     total = 0
     for hit in results:
-        score = hit.get("score", 0.0)
-        if isinstance(score, float):
-            score_text = f"{score:.3f}"
-        else:
-            try:
-                score_text = f"{float(score):.3f}"
-            except (TypeError, ValueError):
-                score_text = "0"
-        header = f"--- [{hit.get('source') or 'file'} (chunk {hit.get('chunk_index', 0)}), score {score_text}]"
+        score = hit.get("score")
+        score_part = ""
+        if score is not None:
+            if isinstance(score, float):
+                score_text = f"{score:.3f}"
+            else:
+                try:
+                    score_text = f"{float(score):.3f}"
+                except (TypeError, ValueError):
+                    score_text = "0"
+            score_part = f", score {score_text}"
+        chunk_id = hit.get("chunk_id")
+        id_part = f", id {chunk_id}" if chunk_id is not None else ""
+        header = (
+            f"--- [{hit.get('source') or 'file'}"
+            f" (chunk {hit.get('chunk_index', 0)}{id_part}){score_part}]"
+        )
         block = header + "\n" + (hit.get("text") or "")
         if total + len(block) > max_chars:
             break

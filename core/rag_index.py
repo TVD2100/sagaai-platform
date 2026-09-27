@@ -12,8 +12,9 @@ Vectors are stored as little-endian float32 BLOBs. Cosine similarity is
 computed in pure Python (no numpy dependency); 256-dim vectors are fast
 enough for typical self-hosted bases.
 
-The module also exposes chunk-level operations (get, search, update, delete)
-used by the Storage UI and by the RAG Base Creator skill.
+The module also exposes chunk-level operations (get, fetch, search, update,
+delete) used by the Storage UI, the RAG Base Creator skill and the
+``rag_get_chunks`` context-restore tool.
 
 No streamlit imports. All functions take an explicit database path.
 """
@@ -521,6 +522,109 @@ def search_similar(db_path: str, query_vector, top_k: int = 5) -> list:
         )
     results.sort(key=lambda r: r["score"], reverse=True)
     return results[: int(top_k)]
+
+
+def fetch_chunks(db_path: str, chunk_ids=None, source: str = "",
+                 chunk_indices=None) -> dict:
+    """Fetch specific chunks (without vectors) by id or by file position.
+
+    Two mutually exclusive addressing modes:
+
+    - *chunk_ids*: global chunk ids, e.g. from ``search_similar()`` results;
+    - *source* + *chunk_indices*: 0-based chunk positions inside one source
+      file - useful for pulling the neighbours of a search hit.
+
+    Returns ``{"chunks": [...], "missing": [...]}``. Each chunk dict has the
+    same shape as :func:`get_chunk` (chunk_id, text, source, chunk_index,
+    created_at, has_embedding); chunks follow the requested order and
+    requested ids/indices that do not exist are reported in ``missing``.
+    Returns empty lists for a missing database, empty input or unreadable
+    tables.
+    """
+
+    def _normalise(raw_values) -> list:
+        """Return [(raw, int_or_None)] preserving the input order."""
+        if raw_values is None:
+            raw_values = []
+        elif not isinstance(raw_values, (list, tuple, set, frozenset)):
+            raw_values = [raw_values]
+        out = []
+        for raw in raw_values:
+            try:
+                num = int(raw)
+            except (TypeError, ValueError):
+                num = None
+            out.append((raw, num))
+        return out
+
+    if not os.path.exists(db_path):
+        return {"chunks": [], "missing": []}
+
+    requested_ids = _normalise(chunk_ids)
+    wanted_ids = []
+    for _, num in requested_ids:
+        if num is not None and num >= 0 and num not in wanted_ids:
+            wanted_ids.append(num)
+
+    src = str(source or "")
+    requested_indices = _normalise(chunk_indices) if (src and not wanted_ids) else []
+    wanted_indices = []
+    for _, num in requested_indices:
+        if num is not None and num >= 0 and num not in wanted_indices:
+            wanted_indices.append(num)
+    if not wanted_ids and not wanted_indices:
+        return {"chunks": [], "missing": []}
+
+    try:
+        conn = _connect(db_path)
+        try:
+            base_sql = (
+                "SELECT c.id, c.text, c.source, c.chunk_index, c.created_at,"
+                " (e.chunk_id IS NOT NULL) AS has_embedding"
+                " FROM chunks c LEFT JOIN embeddings e ON e.chunk_id = c.id"
+            )
+            if wanted_ids:
+                placeholders = ",".join("?" for _ in wanted_ids)
+                rows = conn.execute(
+                    base_sql + f" WHERE c.id IN ({placeholders})",
+                    tuple(wanted_ids),
+                ).fetchall()
+                found = {int(r["id"]): r for r in rows}
+                requested = requested_ids
+            else:
+                placeholders = ",".join("?" for _ in wanted_indices)
+                rows = conn.execute(
+                    base_sql + f" WHERE c.source = ?"
+                    f" AND c.chunk_index IN ({placeholders})",
+                    (src, *wanted_indices),
+                ).fetchall()
+                found = {int(r["chunk_index"] or 0): r for r in rows}
+                requested = requested_indices
+        finally:
+            conn.close()
+    except Exception:
+        return {"chunks": [], "missing": []}
+
+    chunks = []
+    missing = []
+    seen = set()
+    for raw, num in requested:
+        if num is None or num < 0 or num not in found:
+            missing.append(raw)
+            continue
+        if num in seen:
+            continue
+        seen.add(num)
+        r = found[num]
+        chunks.append({
+            "chunk_id": int(r["id"]),
+            "text": r["text"],
+            "source": r["source"] or "",
+            "chunk_index": int(r["chunk_index"] or 0),
+            "created_at": r["created_at"] or "",
+            "has_embedding": bool(r["has_embedding"]),
+        })
+    return {"chunks": chunks, "missing": missing}
 
 
 def index_stats(db_path: str) -> dict:

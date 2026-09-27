@@ -1,5 +1,6 @@
 """
-UI tests: assistant form renders tools filtered by provider capabilities.
+UI tests: assistant form renders tools filtered by provider capabilities and
+auto-attaches the RAG function tools on save.
 """
 from __future__ import annotations
 
@@ -101,3 +102,80 @@ def test_assistant_form_hides_tools_unsupported_provider(env):
 
     assert _tools_multiselect_options(env) == []
     assert any("tools_not_supported" in text for text in _caption_texts(env))
+
+
+# ─── RAG function tools: auto-attach on save ────────────────────────────────
+
+YANDEX_SERVICE_MOCK = {
+    "auth_type": "yandex_iam",
+    "base_url": "https://mock",
+    "config_key": "k",
+    "config_key2": "k2",
+    "models": [{"id": "m1"}],
+    "temp_min": 0, "temp_max": 1, "temp_step": 0.1,
+    "max_tokens_default": 32000,
+    "tools_options": [{"key": "web_search"}],
+}
+
+RAG_BASE_MOCK = [{"slug": "kb1", "name": "KB One", "status": "ready"}]
+
+
+def _rag_function_names(tools):
+    return [t.get("name") for t in tools if isinstance(t, dict)]
+
+
+def test_assistant_save_auto_attaches_both_rag_tools(env):
+    """Saving a yandex_iam assistant with bound bases attaches BOTH RAG tools."""
+    env._text_returns["assistant_name_input"] = "RAG Bot"
+    env._text_returns["assistant_prompt_text_0"] = "You are a bot."
+    with patch("core.services.get_services",
+               return_value={"YandexAI": YANDEX_SERVICE_MOCK}), \
+         patch("ui.pages.assistants.list_tool_definitions",
+               return_value=TOOL_CATALOG_MOCK), \
+         patch("ui.pages.assistants.list_rag_bases",
+               return_value=RAG_BASE_MOCK), \
+         patch("ui.pages.assistants.create_assistant",
+               return_value="newid") as mock_create, \
+         patch("ui.pages.assistants.get_assistant_by_id",
+               return_value={"slug": "kb_bot"}), \
+         patch("ui.pages.assistants.set_assistant_rag_bases") as mock_set_bases, \
+         patch("ui.pages.assistants.set_assistant_web_search_settings"):
+        from ui.pages.assistants import page_assistants
+        env.click("assistant_save_btn")
+        _invoke(page_assistants, show_assistant_form=True,
+                edit_assistant_id=None)
+
+    assert mock_create.called
+    tools = mock_create.call_args.kwargs["tools"]
+    assert _rag_function_names(tools) == ["rag_search", "rag_get_chunks"]
+    chunks_tool = next(t for t in tools
+                       if isinstance(t, dict) and t.get("name") == "rag_get_chunks")
+    assert "kb1" in chunks_tool["description"]
+    mock_set_bases.assert_called_once_with("kb_bot", ["kb1"])
+
+
+def test_assistant_save_without_bases_keeps_no_rag_tools(env):
+    """No selected bases -> no RAG function tools in the saved assistant."""
+    env._text_returns["assistant_name_input"] = "Plain Bot"
+    env._text_returns["assistant_prompt_text_0"] = "You are a bot."
+    with patch("core.services.get_services",
+               return_value={"YandexAI": YANDEX_SERVICE_MOCK}), \
+         patch("ui.pages.assistants.list_tool_definitions",
+               return_value=TOOL_CATALOG_MOCK), \
+         patch("ui.pages.assistants.list_rag_bases", return_value=[]), \
+         patch("ui.pages.assistants.create_assistant",
+               return_value="newid") as mock_create, \
+         patch("ui.pages.assistants.get_assistant_by_id",
+               return_value={"slug": "plain_bot"}), \
+         patch("ui.pages.assistants.set_assistant_rag_bases") as mock_set_bases, \
+         patch("ui.pages.assistants.set_assistant_web_search_settings"):
+        from ui.pages.assistants import page_assistants
+        env.click("assistant_save_btn")
+        _invoke(page_assistants, show_assistant_form=True,
+                edit_assistant_id=None)
+
+    assert mock_create.called
+    tools = mock_create.call_args.kwargs["tools"]
+    assert _rag_function_names(tools) == []
+    assert "web_search" in tools
+    mock_set_bases.assert_called_once_with("plain_bot", [])

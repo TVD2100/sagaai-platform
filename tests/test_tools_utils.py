@@ -48,3 +48,25 @@ def test_empty_tools_options_returns_empty():
 def test_malformed_entries_skipped():
     svc = {"tools_options": [None, 42, {"label": "no key"}, "  "]}
     assert service_supported_tools(svc) == []
+
+
+def test_build_rag_chunks_tool_shape():
+    from core.tools_utils import build_rag_chunks_tool
+    tool = build_rag_chunks_tool()
+    assert tool["type"] == "function"
+    assert tool["name"] == "rag_get_chunks"
+    assert tool["parameters"]["required"] == ["slug"]
+    props = tool["parameters"]["properties"]
+    assert set(props) == {"slug", "chunk_ids", "source", "chunk_indices"}
+
+
+def test_build_rag_chunks_tool_hint_mentions_bound_slug():
+    from core.tools_utils import build_rag_chunks_tool
+    tool = build_rag_chunks_tool(["YaAgentAI"])
+    assert "yaagentai" in tool["description"]
+
+
+def test_build_rag_search_tool_mentions_chunks_followup():
+    from core.tools_utils import build_rag_search_tool
+    tool = build_rag_search_tool(["base1"])
+    assert "rag_get_chunks" in tool["description"]

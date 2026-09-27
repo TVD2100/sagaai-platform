@@ -22,9 +22,10 @@ from typing import Any, Callable, Dict, List, Optional
 
 import requests
 
-from core.rag_search import search_base
+from core.rag_search import get_chunks, search_base
 
 RAG_SEARCH_TOOL_NAME = "rag_search"
+RAG_CHUNKS_TOOL_NAME = "rag_get_chunks"
 _DEFAULT_MAX_TOOL_ITERATIONS = 3
 _MAX_TOOL_ITERATIONS = 10
 
@@ -277,6 +278,85 @@ def execute_assistant_rag_search(args, assistant=None) -> str:
                 "slug": slug,
                 "query": query,
                 "count": len(hits),
+                "hits": [
+                    {
+                        "chunk_id": h.get("chunk_id"),
+                        "source": h.get("source"),
+                        "chunk_index": h.get("chunk_index"),
+                        "score": round(float(h.get("score") or 0.0), 3),
+                    }
+                    for h in hits
+                ],
+                "text": ctx,
+            },
+            ensure_ascii=False,
+        )
+    except Exception as e:
+        return json.dumps({"ok": False, "error": str(e)}, ensure_ascii=False)
+
+
+def execute_assistant_rag_chunks(args, assistant=None) -> str:
+    """Execute a local rag_get_chunks call and return the output as JSON.
+
+    Fetches specific chunks of a base bound to the assistant, either by
+    ``chunk_ids`` (ids visible in rag_search results) or by ``source`` +
+    ``chunk_indices`` (0-based positions inside one file). Used by the model
+    to pull the neighbouring chunks around a search hit and restore the full
+    context.
+    """
+    if not isinstance(args, dict):
+        args = {}
+    slug = str(args.get("slug") or "").strip().lower()
+    if not slug:
+        return json.dumps(
+            {"ok": False, "error": "Missing required argument 'slug'."},
+            ensure_ascii=False,
+        )
+    allowed = _assistant_allowed_rag_bases(assistant)
+    if not allowed or slug not in allowed:
+        return json.dumps(
+            {
+                "ok": False,
+                "error": f"Access denied: RAG base '{slug}' is not assigned to this assistant.",
+            },
+            ensure_ascii=False,
+        )
+    chunk_ids = args.get("chunk_ids")
+    source = str(args.get("source") or "").strip()
+    chunk_indices = args.get("chunk_indices")
+    if not chunk_ids and not (source and chunk_indices):
+        return json.dumps(
+            {
+                "ok": False,
+                "error": (
+                    "Provide 'chunk_ids' or 'source' together with "
+                    "'chunk_indices'."
+                ),
+            },
+            ensure_ascii=False,
+        )
+    try:
+        from core.rag_search import build_search_context
+        result = get_chunks(
+            slug, chunk_ids=chunk_ids, source=source,
+            chunk_indices=chunk_indices,
+        )
+        chunks = result.get("chunks") or []
+        ctx = build_search_context(chunks, max_chars=8000)
+        return json.dumps(
+            {
+                "ok": True,
+                "slug": slug,
+                "count": len(chunks),
+                "chunks": [
+                    {
+                        "chunk_id": c.get("chunk_id"),
+                        "source": c.get("source"),
+                        "chunk_index": c.get("chunk_index"),
+                    }
+                    for c in chunks
+                ],
+                "missing": result.get("missing") or [],
                 "text": ctx,
             },
             ensure_ascii=False,
@@ -319,11 +399,12 @@ def run_yandex_responses_tool_loop(
 ) -> str:
     """Run a Yandex Responses conversation with a native function-call loop.
 
-    The model decides which tools to invoke (``rag_search`` and/or
-    ``web_search``). Every ``rag_search`` call is executed locally through
-    ``core.rag_search.search_base``; the result is returned to the model as a
-    ``function_call_output`` item. The loop ends when the model produces a
-    plain message or the iteration limit is reached.
+    The model decides which tools to invoke (``rag_search``, ``rag_get_chunks``
+    and/or ``web_search``). Every ``rag_search`` call is executed locally
+    through ``core.rag_search.search_base`` and every ``rag_get_chunks`` call
+    through ``core.rag_search.get_chunks``; the result is returned to the model
+    as a ``function_call_output`` item. The loop ends when the model produces
+    a plain message or the iteration limit is reached.
 
     Returns the final assistant text.
     """
@@ -425,6 +506,10 @@ def run_yandex_responses_tool_loop(
             name = call.get("name", "")
             if name == RAG_SEARCH_TOOL_NAME:
                 output = execute_assistant_rag_search(
+                    call.get("arguments", {}), assistant=assistant
+                )
+            elif name == RAG_CHUNKS_TOOL_NAME:
+                output = execute_assistant_rag_chunks(
                     call.get("arguments", {}), assistant=assistant
                 )
             else:

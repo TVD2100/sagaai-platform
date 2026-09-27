@@ -1063,6 +1063,7 @@ _DSML_KWARGS_REQUIRED: Dict[str, set] = {
     # Tools whose signature accepts **kwargs: their true required parameters
     # are not visible via inspect.signature, so they are listed explicitly here.
     "rag_search": {"slug", "query"},
+    "rag_get_chunks": {"slug"},
 }
 
 # Tools where exactly one of the given parameters must be provided.

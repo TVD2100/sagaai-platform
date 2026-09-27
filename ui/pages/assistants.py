@@ -19,6 +19,7 @@ from core.i18n import t
 from core.services import get_services, service_supports_reasoning_effort, default_reasoning_effort, get_model_reasoning_effort_options
 from core.tools_utils import (
     list_tool_definitions, service_supported_tools, build_rag_search_tool,
+    build_rag_chunks_tool,
 )
 from core.rag import list_bases as list_rag_bases
 from core.assistant_folders import (
@@ -481,28 +482,32 @@ def page_assistants() -> None:
                         base_options[i] for i in bases_selected
                         if 0 <= i < len(base_options)
                     ]
-                    # Auto-attach the native rag_search function tool for
-                    # yandex_iam assistants with bound bases; remove it when
-                    # no bases remain selected.
+                    # Auto-attach the native rag_search / rag_get_chunks
+                    # function tools for yandex_iam assistants with bound
+                    # bases; remove both when no bases remain selected.
                     final_tools = list(tools_selected or [])
                     if svc_info.get("auth_type") == "yandex_iam":
-                        has_rag_tool = any(
-                            isinstance(t, dict)
-                            and t.get("type") == "function"
-                            and t.get("name") == "rag_search"
-                            for t in final_tools
-                        )
-                        if rag_ids and not has_rag_tool:
-                            final_tools.append(build_rag_search_tool(rag_ids))
-                        elif not rag_ids:
-                            final_tools = [
-                                t for t in final_tools
-                                if not (
-                                    isinstance(t, dict)
-                                    and t.get("type") == "function"
-                                    and t.get("name") == "rag_search"
-                                )
-                            ]
+                        for tool_name in ("rag_search", "rag_get_chunks"):
+                            has_rag_tool = any(
+                                isinstance(t, dict)
+                                and t.get("type") == "function"
+                                and t.get("name") == tool_name
+                                for t in final_tools
+                            )
+                            if rag_ids and not has_rag_tool:
+                                if tool_name == "rag_search":
+                                    final_tools.append(build_rag_search_tool(rag_ids))
+                                else:
+                                    final_tools.append(build_rag_chunks_tool(rag_ids))
+                            elif not rag_ids:
+                                final_tools = [
+                                    t for t in final_tools
+                                    if not (
+                                        isinstance(t, dict)
+                                        and t.get("type") == "function"
+                                        and t.get("name") == tool_name
+                                    )
+                                ]
                     if editing:
                         update_assistant(edit_id, name, service, model,
                                          temperature, prompt_text, desc,

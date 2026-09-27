@@ -43,7 +43,10 @@ def build_rag_search_tool(base_slugs: Optional[list] = None) -> dict:
         "name": "rag_search",
         "description": (
             "Search the assistant's local RAG knowledge base "
-            "(semantic vector search over document chunks)." + hint
+            "(semantic vector search over document chunks). Results carry "
+            "the source file, the 0-based chunk position and the chunk id; "
+            "pass them to rag_get_chunks to fetch neighbouring chunks when "
+            "a snippet lacks context." + hint
         ),
         "parameters": {
             "type": "object",
@@ -66,6 +69,71 @@ def build_rag_search_tool(base_slugs: Optional[list] = None) -> dict:
                 },
             },
             "required": ["slug", "query"],
+        },
+    }
+
+
+def build_rag_chunks_tool(base_slugs: Optional[list] = None) -> dict:
+    """Build the native ``rag_get_chunks`` function-tool definition.
+
+    Follow-up tool for ``rag_search``: lets the model restore context by
+    fetching specific chunks of a base - either by chunk ids (visible in
+    the search results) or by source file + 0-based chunk positions.
+
+    *base_slugs* is an optional list of RAG base slugs bound to the
+    assistant; when exactly one slug is given it is mentioned in the tool
+    description as the suggested value. The platform-side access control
+    (core.assistant_tools.execute_assistant_rag_chunks) remains the source
+    of truth - the description is only a hint for the model.
+    """
+    slugs = [str(s).strip().lower() for s in (base_slugs or []) if str(s).strip()]
+    hint = ""
+    if len(slugs) == 1:
+        hint = f" Use slug '{slugs[0]}'."
+    elif len(slugs) > 1:
+        hint = " Use one of: " + ", ".join(f"'{s}'" for s in slugs) + "."
+    return {
+        "type": "function",
+        "name": "rag_get_chunks",
+        "description": (
+            "Fetch specific chunks of the local RAG knowledge base by their "
+            "ids or by source file + chunk positions. Use it after "
+            "rag_search to pull the neighbouring chunks around a hit "
+            "(e.g. ids 13, 14, 16 around 15, or the next chunk_indices of "
+            "the same source) and restore the full context." + hint
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "slug": {
+                    "type": "string",
+                    "description": "Slug of the knowledge base to fetch from.",
+                },
+                "chunk_ids": {
+                    "type": "array",
+                    "items": {"type": "integer"},
+                    "description": (
+                        "Chunk ids to fetch - taken from rag_search "
+                        "results (headers or the hits list)."
+                    ),
+                },
+                "source": {
+                    "type": "string",
+                    "description": (
+                        "Source file path; use together with "
+                        "chunk_indices instead of chunk_ids."
+                    ),
+                },
+                "chunk_indices": {
+                    "type": "array",
+                    "items": {"type": "integer"},
+                    "description": (
+                        "0-based chunk positions inside source "
+                        "(alternative to chunk_ids)."
+                    ),
+                },
+            },
+            "required": ["slug"],
         },
     }
 

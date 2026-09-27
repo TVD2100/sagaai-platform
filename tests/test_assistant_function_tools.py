@@ -10,6 +10,7 @@ Covers:
   * iteration limit;
   * fallback to textual messages on provider 400;
   * access control for rag_search bases;
+- rag_search hits metadata and rag_get_chunks execution/routing;
 - payload shape (tools, function_call_output items).
 """
 
@@ -17,6 +18,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 from core.assistant_tools import (
+    execute_assistant_rag_chunks,
     execute_assistant_rag_search,
     run_yandex_responses_tool_loop,
 )
@@ -38,6 +40,22 @@ _FUNCTION_TOOL = {
 }
 
 _WEB_TOOL = {"type": "web_search"}
+
+_CHUNKS_TOOL = {
+    "type": "function",
+    "name": "rag_get_chunks",
+    "description": "Fetch specific chunks",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "slug": {"type": "string"},
+            "chunk_ids": {"type": "array", "items": {"type": "integer"}},
+            "source": {"type": "string"},
+            "chunk_indices": {"type": "array", "items": {"type": "integer"}},
+        },
+        "required": ["slug"],
+    },
+}
 
 
 # ─── function-call extraction / payload helpers in api_layer ────────────────
@@ -563,3 +581,134 @@ def test_loop_payload_uses_assistant_web_search_overrides():
     assert web_tool.get("filters", {}).get("allowed_domains") == [
         "docs.override.example"
     ]
+
+
+# ─── rag_get_chunks execution / routing ─────────────────────────────────────
+
+def test_execute_rag_chunks_missing_slug():
+    out = execute_assistant_rag_chunks({})
+    data = json.loads(out)
+    assert data["ok"] is False
+    assert "slug" in data["error"].lower()
+
+
+def test_execute_rag_chunks_needs_an_address_mode():
+    with patch("core.assistant_tools._assistant_allowed_rag_bases",
+               return_value={"b1"}):
+        out = execute_assistant_rag_chunks(
+            {"slug": "b1"}, assistant={"slug": "docs_bot"})
+    data = json.loads(out)
+    assert data["ok"] is False
+    assert "chunk_ids" in data["error"] or "chunk_indices" in data["error"]
+
+
+def test_execute_rag_chunks_access_denied():
+    with patch("core.assistant_tools._assistant_allowed_rag_bases",
+               return_value={"allowed_base"}):
+        out = execute_assistant_rag_chunks(
+            {"slug": "other", "chunk_ids": [1]},
+            assistant={"slug": "docs_bot"})
+    data = json.loads(out)
+    assert data["ok"] is False
+    assert "access denied" in data["error"].lower()
+
+
+def test_execute_rag_chunks_ok_returns_context_and_metadata():
+    fake = {
+        "chunks": [
+            {"chunk_id": 5, "text": "part five", "source": "doc.md",
+             "chunk_index": 4},
+            {"chunk_id": 7, "text": "part seven", "source": "doc.md",
+             "chunk_index": 6},
+        ],
+        "missing": [6],
+    }
+    with patch("core.assistant_tools.get_chunks", return_value=fake) as fetch_mock, \
+         patch("core.assistant_tools._assistant_allowed_rag_bases",
+               return_value={"b1"}):
+        out = execute_assistant_rag_chunks(
+            {"slug": "b1", "chunk_ids": [5, 7, 6]},
+            assistant={"slug": "docs_bot"})
+    data = json.loads(out)
+    assert data["ok"] is True
+    assert data["count"] == 2
+    assert data["missing"] == [6]
+    assert [c["chunk_id"] for c in data["chunks"]] == [5, 7]
+    assert "part five" in data["text"]
+    assert "id 5" in data["text"]
+    fetch_mock.assert_called_once_with("b1", chunk_ids=[5, 7, 6],
+                                       source="", chunk_indices=None)
+
+
+def test_execute_rag_chunks_error_is_json_not_raised():
+    with patch("core.assistant_tools.get_chunks",
+               side_effect=RuntimeError("boom")), \
+         patch("core.assistant_tools._assistant_allowed_rag_bases",
+               return_value={"b1"}):
+        out = execute_assistant_rag_chunks(
+            {"slug": "b1", "source": "doc.md", "chunk_indices": [1, 2]},
+            assistant={"slug": "docs_bot"})
+    data = json.loads(out)
+    assert data["ok"] is False
+    assert "boom" in data["error"]
+
+
+def test_loop_routes_rag_get_chunks():
+    first = _resp(
+        {"type": "function_call", "name": "rag_get_chunks",
+         "call_id": "c2",
+         "arguments": '{"slug": "b1", "chunk_ids": [5, 7]}'},
+    )
+    final = _resp({
+        "type": "message", "role": "assistant",
+        "content": [{"type": "output_text", "text": "Собрал контекст"}],
+    })
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.side_effect = [first, final]
+
+    fake = {"chunks": [{"chunk_id": 5, "text": "part five",
+                        "source": "doc.md", "chunk_index": 4}],
+            "missing": []}
+    with patch("core.assistant_tools.get_chunks",
+               return_value=fake) as fetch_mock, \
+         patch("core.assistant_tools._assistant_allowed_rag_bases",
+               return_value={"b1"}):
+        with patch("core.assistant_tools.requests.post",
+                   return_value=mock_resp) as post:
+            tool_events = []
+            result = run_yandex_responses_tool_loop(
+                "https://ai.api.cloud.yandex.net/v1", "k", "f", "m",
+                "sys", [], "q", temperature=0.3,
+                tools_list=[_CHUNKS_TOOL],
+                cfg={}, svc_name="YandexAI",
+                assistant={"slug": "docs_bot"},
+                on_tool_call=lambda e: tool_events.append(e),
+            )
+
+    assert result == "Собрал контекст"
+    assert fetch_mock.call_count == 1
+    assert fetch_mock.call_args[1]["chunk_ids"] == [5, 7]
+    second_payload = post.call_args_list[1][1]["json"]
+    outputs = [i for i in second_payload["input"]
+               if isinstance(i, dict) and i.get("type") == "function_call_output"]
+    assert outputs
+    out_data = json.loads(outputs[0]["output"])
+    assert out_data["ok"] is True
+    assert "part five" in out_data["text"]
+    assert tool_events and tool_events[0]["name"] == "rag_get_chunks"
+
+
+def test_execute_rag_search_ok_includes_hits_metadata():
+    fake_hits = [
+        {"chunk_id": 15, "source": "docs/a.md", "chunk_index": 3,
+         "score": 0.9, "text": "Фрагмент"},
+    ]
+    with patch("core.assistant_tools.search_base", return_value=fake_hits), \
+         patch("core.assistant_tools._assistant_allowed_rag_bases",
+               return_value={"b1"}):
+        out = execute_assistant_rag_search({"slug": "b1", "query": "docs"})
+    data = json.loads(out)
+    assert data["ok"] is True
+    assert data["hits"] == [{"chunk_id": 15, "source": "docs/a.md",
+                             "chunk_index": 3, "score": 0.9}]
