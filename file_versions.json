@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "1.3.0",
+  "app_version": "1.3.1",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Релиз 1.2.1: панели выгрузки/копирования (MD/TXT и копирование) у каждого текстового ответа сотрудника в ленте чата - сообщения с вызовами инструментов панели не получают, у «живого» финального ответа она появляется после завершения цикла; новый тест tests/test_orchestrator_message_controls.py. 1.14.0: SSH-коннектор - сервис ssh, инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; версия платформы 1.3.0.",
-    "en": "Release 1.2.1: download/copy controls (MD/TXT and copy) on every plain-prose employee answer in the chat feed - messages carrying tool calls get none, and a live final answer shows them once the loop finishes; new test tests/test_orchestrator_message_controls.py. 1.14.0: SSH connector - ssh service, ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; platform version 1.3.0."
+    "ru": "Релиз 1.3.1: SSH-коннектор - новый инструмент ssh_upload_file (потоковая загрузка локальных файлов на сервер с sha256-верификацией, до 50 МиБ), понятная ошибка ssh_write_file с подсказкой create_dirs и раздел публикации файлов в инструкции ssh_connector; версия платформы 1.3.1.",
+    "en": "Release 1.3.1: SSH connector - new ssh_upload_file tool (streamed upload of local files to a server with sha256 verification, up to 50 MB), a clear ssh_write_file error with a create_dirs hint, and a publishing workflow in the ssh_connector instruction; platform version 1.3.1."
   },
-  "updated": "2026-09-27T17:31:28Z",
+  "updated": "2026-09-28T19:32:24Z",
   "units": {
     "core": {
-      "version": "1.14.0",
+      "version": "1.15.0",
       "note": {
-        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py.",
-        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py."
+        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py. 1.15.0: SSH-коннектор - инструмент ssh_upload_file (потоковая публикация локальных файлов на сервер, sha256-верификация, до 50 МиБ); подсказка create_dirs в ошибке ssh_write_file.",
+        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py. 1.15.0: SSH connector - ssh_upload_file tool (streamed publishing of local files to a server, sha256 verification, up to 50 MB); create_dirs hint in the ssh_write_file error."
       },
       "files": {
         "__init__.py": {
@@ -124,8 +124,8 @@
           "sha256": "e457904340ea8475ec98e6ececad8be98ee09fcd3959607fca1d5a16e678a915"
         },
         "core/orchestrators.py": {
-          "version": "1.6.0",
-          "sha256": "9d61d1d920362d38be78eaafb1035a6548afe4b518a23243e17ce5dae5537931"
+          "version": "1.6.1",
+          "sha256": "9219258ad30df4520ae43904b7b92b2712f76db4cf1d76499686ec306f868b2a"
         },
         "core/paths.py": {
           "version": "1.0.0",
@@ -204,8 +204,8 @@
           "sha256": "78547e37b44458d451124b69e76ecf5bd2f69213e7164dea11137343f4e20df8"
         },
         "core/version.py": {
-          "version": "1.0.15",
-          "sha256": "a2255bbb2fac5f1b70aa376773beef0aad39e67ddc0270022840b7885c22e0ef"
+          "version": "1.0.16",
+          "sha256": "f26fbc75af9b12ab9d31efe389d09600c1cb024a8853cee51ca75ddc0cff6344"
         },
         "dev_agent/__init__.py": {
           "version": "1.0.0",
@@ -248,8 +248,8 @@
           "sha256": "63bf96c2c996cf9819a9ef601c8b5aa4159ae6ccfe836cd7f1f8161f52dfba83"
         },
         "dev_agent/universal_agent.py": {
-          "version": "1.8.0",
-          "sha256": "a038adb752da055bc4e8751a57df91c0cbfcc86934a303c3ef5ed1947c769308"
+          "version": "1.8.1",
+          "sha256": "f18e1a1a5f31a9a995cbe0018da61cc4316e8c0075906c4c91d16e84ade17a40"
         },
         "dev_agent/workspace_tools.py": {
           "version": "1.1.0",
@@ -440,8 +440,8 @@
           "sha256": "495200dad850b8b64fd3da5c526fdd7d05cb3a3f825f639c604688715bbed959"
         },
         "tests/test_dispatcher_connections.py": {
-          "version": "1.2.2",
-          "sha256": "8106f316f5a9fcac89e04395743b865052b44c11b29f3aae6771ee5ab749a0e0"
+          "version": "1.2.3",
+          "sha256": "432d5a606f3f33049adcf199e870e31432d01e6863e229e4cb99a047820de9ef"
         },
         "tests/test_employee_management_ui.py": {
           "version": "1.0.0",
@@ -472,8 +472,8 @@
           "sha256": "6d6baa60dd8e85811599feee2e0bbb63b61ecee4a6dcbfd97334d44f7bf4d63e"
         },
         "tests/test_orchestrator_connections.py": {
-          "version": "1.2.2",
-          "sha256": "b4a696339527c73d19e358fa97064d6d5f2c30453d33e3ecc5fbc53b6b3fec82"
+          "version": "1.2.3",
+          "sha256": "8d5bcd56733acdce11f6c2be174ad4e2411e7ce03faeb6e8c57bbe8d95594e57"
         },
         "tests/test_orchestrator_economy_cache.py": {
           "version": "1.0.0",
@@ -864,8 +864,8 @@
           "sha256": "ba1c1f8100040a72b695e8fbf9de74884a6a4b040ec5352dbe1db4064e116ac5"
         },
         "tests/test_orchestrator_tools.py": {
-          "version": "1.0.1",
-          "sha256": "46581406db673f50cd382441b1b7dff7da6dc08be577ff6f9a0db1b290b97dd0"
+          "version": "1.0.2",
+          "sha256": "79033dd1f0c8aecf91320b9098ebdadd6308fdf3ea64c5ee601c5f0290a7548c"
         },
         "tests/test_dispatcher_tool_gating.py": {
           "version": "1.0.0",
@@ -948,24 +948,24 @@
           "sha256": "13a4a060328de1bc995cc418a961dbc582ab3002bcc78166798d6a4c605c7f66"
         },
         "core/ssh_connector.py": {
-          "version": "1.0.0",
-          "sha256": "80010dbca82f5096cd39f65860a611c38edbb72865b0418b646fb6684f840ce6"
+          "version": "1.1.0",
+          "sha256": "a73e4363a0d6206d4e73f5827d81097e34c0f1832aad7485ef92a25b879ecbe6"
         },
         "core/ssh_tools.py": {
-          "version": "1.0.0",
-          "sha256": "feb0af94b5bea37182756b3e66397ddfd181b83c9e6855811916381eca371e12"
+          "version": "1.1.0",
+          "sha256": "034ed7c9dc588ae8dea5c2fb1022a5905d9b93dfaed4bfaa55badd58a7f14a7b"
         },
         "tests/scenarios/test_ssh_connector_scenarios.py": {
-          "version": "1.0.0",
-          "sha256": "f7584a945d58e23624f33b9f2c3aee1e00684ccb90548b0f2acb8f63c1e47ef2"
+          "version": "1.1.0",
+          "sha256": "9639c130e68f2c05ee768d84787dc0f9373fdb2797e0de57501df1e552c2ae5e"
         },
         "tests/test_ssh_connector.py": {
-          "version": "1.0.0",
-          "sha256": "043b05f37fce11ed0cd0277041d7dc761507358bd609254801721f61bcec79d9"
+          "version": "1.1.0",
+          "sha256": "7e81dfe27ce4078551d1f69d01acbf6b1ba2d8e2fe3ad1023632a1fec7084771"
         },
         "tests/test_ssh_tools.py": {
-          "version": "1.0.0",
-          "sha256": "0a12459f7429ea8c85a49e988518dc74f4570a83b120ffcdf82bdd5257747016"
+          "version": "1.1.0",
+          "sha256": "064d3a5db6e8e8094f6f46b17bc31cc425beb11551695e9f834e8ccb50dac1d3"
         },
         "tests/test_ui_connectors_ssh.py": {
           "version": "1.0.0",
@@ -976,11 +976,11 @@
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.15.0",
-      "sha256": "b998fb7a4ee02555aa1529981806ec76d72894109c300f5d5dd4f095727c973c",
+      "version": "1.15.1",
+      "sha256": "eb70c157903d267e5e9311bb4bf8b8cb6708c6dbf0146ff35ff46caffde4a0b3",
       "note": {
-        "ru": "Раздел «Коннекторы»: слои SSH - core/ssh_connector.py (paramiko/SFTP) и core/ssh_tools.py (ssh_*).",
-        "en": "Connectors section: SSH layers - core/ssh_connector.py (paramiko/SFTP) and core/ssh_tools.py (ssh_*)."
+        "ru": "Раздел «Коннекторы»: слои SSH - core/ssh_connector.py (paramiko/SFTP, upload_file) и core/ssh_tools.py (ssh_*).",
+        "en": "Connectors section: SSH layers - core/ssh_connector.py (paramiko/SFTP, upload_file) and core/ssh_tools.py (ssh_*)."
       }
     },
     "COMPARISON.md": {
@@ -1000,27 +1000,27 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.19.0",
-      "sha256": "ad2cc8ec3791e304a9e2ca71d416a63c069622b4510a4aeba0388383b1739052",
+      "version": "1.20.0",
+      "sha256": "a1ac092eb482885d08477dcd5b4dc152e2e20a5ed0730e9bd0c8e38ae2e95688",
       "note": {
-        "ru": "Карта регенерирована: файлы SSH-коннектора (core/ssh_connector.py, core/ssh_tools.py и тесты).",
-        "en": "Map regenerated: SSH connector files (core/ssh_connector.py, core/ssh_tools.py and tests)."
+        "ru": "Карта регенерирована: инструмент ssh_upload_file (core/ssh_connector.py, core/ssh_tools.py) и обновлённые тесты SSH-коннектора.",
+        "en": "Map regenerated: ssh_upload_file tool (core/ssh_connector.py, core/ssh_tools.py) and updated SSH connector tests."
       }
     },
     "README.md": {
-      "version": "1.13.0",
-      "sha256": "3aa26db1d6a8ce5d399ae116c6bcf8b5afffc0d313d036705a717dd8e8024de4",
+      "version": "1.13.1",
+      "sha256": "afdf3c89c2abfea494b635f444d103d097f56c6284c1d47a44860e51de3175b5",
       "note": {
-        "ru": "Статус версии - стабильный релиз v1.3.0; таблица возможностей и раздел «Коннекторы»: SSH.",
-        "en": "Version status - stable release v1.3.0; capabilities table and Connectors section: SSH."
+        "ru": "Статус версии - стабильный релиз v1.3.1; раздел «Коннекторы»: SSH.",
+        "en": "Version status - stable release v1.3.1; Connectors section: SSH."
       }
     },
     "SPEC.md": {
-      "version": "1.16.0",
-      "sha256": "d0a34710a6fa91ba138d61e43b02ea88f66e5d4c19ea774edb84ab3a70134b8c",
+      "version": "1.16.1",
+      "sha256": "623a2a7bee0dc7aa4f53ea9708be475451be0672ea5e017350199dc065038c02",
       "note": {
-        "ru": "FR11: SSH-коннектор - сервис ssh, инструменты ssh_*, инструкция ssh_connector; NFR6 - список базовых файлов (90).",
-        "en": "FR11: SSH connector - ssh service, ssh_* tools, ssh_connector instruction; NFR6 - base-file list (90)."
+        "ru": "FR11: SSH-коннектор - инструменты ssh_*, включая ssh_upload_file (публикация локальных файлов, sha256-верификация).",
+        "en": "FR11: SSH connector - ssh_* tools including ssh_upload_file (local file publishing, sha256 verification)."
       }
     },
     "defaults/README.md": {
@@ -1408,19 +1408,19 @@
       }
     },
     "defaults/instructions/ssh_connector.md": {
-      "version": "1.0.0",
-      "sha256": "13d0bb9a94a1e3bb5c7cb6aaa3fba33a799169d35daac309d99c80588139cd07",
+      "version": "1.1.0",
+      "sha256": "3a8ce662e5156e4b71a35cae2db860b19d987c7c2c515c761af7ac0fa6c2d410",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Инструкция ssh_connector: инструмент ssh_upload_file и раздел «Публикация локальных файлов на сервер».",
+        "en": "ssh_connector instruction: ssh_upload_file tool and a Publish local files to a server section."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/ssh_connector.md": {
-      "version": "1.0.0",
-      "sha256": "13d0bb9a94a1e3bb5c7cb6aaa3fba33a799169d35daac309d99c80588139cd07",
+      "version": "1.1.0",
+      "sha256": "3a8ce662e5156e4b71a35cae2db860b19d987c7c2c515c761af7ac0fa6c2d410",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Инструкция ssh_connector: инструмент ssh_upload_file и раздел «Публикация локальных файлов на сервер».",
+        "en": "ssh_connector instruction: ssh_upload_file tool and a Publish local files to a server section."
       }
     }
   }

@@ -139,7 +139,7 @@ class TestDispatcherSshConnectionTools:
         agent = UniversalDevAgent()
         agent.attach_orchestrator(orch_slug)
         names = ('ssh_test_connection', 'ssh_exec', 'ssh_list_dir',
-                 'ssh_read_file', 'ssh_write_file')
+                 'ssh_read_file', 'ssh_upload_file', 'ssh_write_file')
         for name in names:
             assert name in agent._extra, name
         # An ssh-only orchestrator must not keep GitHub tools callable.

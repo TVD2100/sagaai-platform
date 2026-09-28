@@ -1,7 +1,7 @@
 ---
 id: ssh_connector
 name: SSH Connector
-description: How to use the SSH connection tools (ssh_*): run shell commands on a remote server, list/read/write remote files over SFTP, test the connection. Load this instruction when the task involves remote servers over SSH.
+description: How to use the SSH connection tools (ssh_*): run shell commands on a remote server, list/read/write/upload files over SFTP, test the connection. Load this instruction when the task involves remote servers over SSH.
 ---
 
 # SSH Connector - Tool Usage Guide
@@ -69,7 +69,27 @@ Arguments:
 - `content` (str, required): full file content (max 1 MB).
 - `create_dirs` (bool, optional): create the remote parent chain
   (mkdir -p style) before writing.
-Returns `path`, `size`, `written`.
+Returns `path`, `size`, `written`. Prefer `ssh_upload_file` for local
+files; use `ssh_write_file` only for small inline content.
+
+### `ssh_upload_file`
+Upload a LOCAL file from the workspace to the remote server over SFTP
+(streamed in chunks; capped at 50 MB). This is the safe way to publish
+files: content does not travel through tool arguments and the transfer is
+checked with sha256.
+Arguments:
+- `connector_id` (str, required).
+- `local_path` (str, required): workspace-relative path of the local file
+  (or an absolute path inside the workspace root).
+- `remote_path` (str, required): remote file path (overwritten).
+- `base_dir` (str, optional): workspace root to read from (defaults to
+  the active DevAgent workspace).
+- `create_dirs` (bool, optional): create the remote parent chain
+  (mkdir -p style) before writing.
+- `verify` (bool, optional, default `true`): re-read the remote file and
+  compare sha256 digests.
+Returns `path`, `size`, `sha256_local`, `verified`, `sha256_remote`,
+`create_dirs`. Only report success when `verified` is `true`.
 
 ---
 
@@ -99,6 +119,11 @@ Returns `path`, `size`, `written`.
    permissions, network, or the connection on the Connectors page).
 8. **Never ask for or expose credentials.** If authentication fails, tell the
    user to check the connection on the Connectors page.
+9. **Publish local files with `ssh_upload_file`.** Do not try `scp`/`rsync`
+   from the machine running DevAgent: platform credentials live only inside
+   the connector. Stream files with `ssh_upload_file` (sha256-verified)
+   instead of passing content through tool arguments; keep `ssh_write_file`
+   for small inline edits only.
 
 ---
 
@@ -120,3 +145,15 @@ Returns `path`, `size`, `written`.
 ### Check a service
 `ssh_exec(command="systemctl status nginx --no-pager")` - read the
 `exit_status` and `stdout`.
+
+### Publish local files to a server
+1. Confirm the destination with `ssh_list_dir(path="<target dir>")`.
+2. Back up files you are about to overwrite:
+   `ssh_exec(command="cp -a <file> <file>.bak")`.
+3. Upload each changed file with `ssh_upload_file` (pass `create_dirs=true`
+   for new directories); require `"verified": true` in every result and
+   re-upload when it is false.
+4. Cross-check on the server when needed:
+   `ssh_exec(command="sha256sum <remote file>")` - the digest must equal
+   `sha256_local`.
+5. Clean up backups and temp files after the user confirms the update.

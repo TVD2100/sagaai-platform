@@ -152,6 +152,7 @@ def test_prompt_extended_with_ssh_connections(orch_slug):
     assert "ssh_exec" in prompt
     assert "ssh_read_file" in prompt
     assert "Quick usage notes" in prompt
+    assert "`ssh_upload_file` streams" in prompt
     assert "`ssh_write_file` overwrites" in prompt
     # GitHub-only notes must not leak into an ssh-only prompt.
     assert "ghr_upload_file" not in prompt

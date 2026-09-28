@@ -14,7 +14,8 @@ session. Failures are caught and returned as ``{"ok": False, "error": ...}``
 dicts so the dispatcher can feed them back to the model.
 
 Tools return the connector payload under the ``result`` key. Everything is
-read-only except ``ssh_write_file``, which overwrites the remote file.
+read-only except ``ssh_write_file`` (overwrites the remote file) and
+``ssh_upload_file`` (streams a local file into the remote file).
 
 No streamlit imports.
 """
@@ -153,6 +154,46 @@ def ssh_write_file(**kwargs: Any) -> Dict[str, Any]:
     return _wrap(run)
 
 
+def ssh_upload_file(**kwargs: Any) -> Dict[str, Any]:
+    """Upload a local workspace file to a remote SSH server over SFTP.
+
+    Arguments:
+        connector_id (str, required): connection id.
+        local_path (str, required): workspace-relative path of the local
+            file (or an absolute path inside the workspace root).
+        remote_path (str, required): remote file path (overwritten).
+        base_dir (str, optional): workspace root to read from (defaults
+            to the active DevAgent workspace).
+        create_dirs (bool, optional): create the remote parent chain
+            (mkdir -p style) before writing.
+        verify (bool, optional, default True): re-read the remote file
+            and compare sha256 digests.
+    Returns:
+        {"ok": True, "result": {"path", "size", "sha256_local",
+        "verified", "sha256_remote", "create_dirs"}}
+    """
+    from core.ssh_connector import upload_file
+
+    def run():
+        conn_id = _get_connector_id(kwargs)
+        local_path = str(kwargs.get("local_path") or "").strip()
+        if not local_path:
+            raise SSHConnectorError("Missing required argument: local_path")
+        remote_path = str(kwargs.get("remote_path") or "").strip()
+        if not remote_path:
+            raise SSHConnectorError("Missing required argument: remote_path")
+        verify_raw = kwargs.get("verify", True)
+        verify = True if verify_raw is None else bool(verify_raw)
+        return upload_file(
+            conn_id, local_path, remote_path,
+            base_dir=str(kwargs.get("base_dir") or ""),
+            create_dirs=bool(kwargs.get("create_dirs", False)),
+            verify=verify,
+        )
+
+    return _wrap(run)
+
+
 # ─── Tool catalog metadata ──────────────────────────────────────────────────
 
 TOOLS: Dict[str, Dict[str, str]] = {}
@@ -193,6 +234,16 @@ TOOLS["ssh_write_file"] = {
         "Write a UTF-8 text file to a remote SSH server, overwriting it "
         "(capped at 1 MB). Arguments: connector_id (required), path "
         "(required), content (required), create_dirs (optional bool)."
+    ),
+}
+TOOLS["ssh_upload_file"] = {
+    "name": "ssh_upload_file",
+    "desc": (
+        "Upload a local workspace file to a remote SSH server over SFTP "
+        "(streamed, capped at 50 MB); by default verifies the transfer "
+        "by sha256. Arguments: connector_id (required), local_path "
+        "(required), remote_path (required), base_dir (optional), "
+        "create_dirs (optional bool), verify (optional bool, default true)."
     ),
 }
 

@@ -158,14 +158,23 @@ def install_fake_paramiko(monkeypatch, connect_error=None, exec_outputs=None,
 
         def open(self, path, mode="rb"):
             if mode.startswith("r"):
+                if path in self.written:
+                    return FakeReadFile(self.written[path])
                 if path not in files:
                     raise IOError(f"no such file: {path}")
                 return FakeReadFile(files[path])
             if path in dirs:
                 raise IOError(f"is a directory: {path}")
-            return FakeWriteFile(
-                lambda data, p=path: self.written.__setitem__(p, data)
-            )
+            parent = os.path.dirname(path)
+            if parent and parent not in dirs:
+                raise IOError(f"no such directory: {parent}")
+            def _commit(data, p=path):
+                # Persist to this session AND the shared remote state so
+                # later sessions see the written file.
+                self.written[p] = data
+                files[p] = data
+
+            return FakeWriteFile(_commit)
 
         def stat(self, path):
             if path in files:
@@ -479,3 +488,114 @@ def test_write_file_rejects_oversize(isolated_data_dir, monkeypatch):
         sc.write_file(conn["id"], "/data/huge.txt",
                       "x" * (sc.MAX_WRITE_BYTES + 1))
     assert "too large" in str(exc.value)
+
+
+def test_write_file_suggests_create_dirs_when_parent_missing(
+        isolated_data_dir, monkeypatch):
+    import core.ssh_connector as sc
+    install_fake_paramiko(monkeypatch)
+    conn = _make_password_conn()
+    with pytest.raises(sc.SSHConnectorError) as exc:
+        sc.write_file(conn["id"], "assets/app.js", "js")
+    message = str(exc.value)
+    assert "Cannot open remote file for writing" in message
+    assert "create_dirs=true" in message
+
+
+def test_write_file_top_level_without_hint(isolated_data_dir, monkeypatch):
+    import core.ssh_connector as sc
+    env = install_fake_paramiko(monkeypatch)
+    conn = _make_password_conn()
+    result = sc.write_file(conn["id"], "top.txt", "ok")
+    assert result["written"] is True
+    assert env.instances[-1].last_sftp.written["top.txt"] == b"ok"
+
+
+# ─── SFTP: upload_file ───────────────────────────────────────────────────
+
+
+def test_upload_file_streams_and_verifies(isolated_data_dir, monkeypatch, tmp_path):
+    import hashlib
+    import core.ssh_connector as sc
+    env = install_fake_paramiko(monkeypatch)
+    conn = _make_password_conn()
+    payload = b"hello upload\n" * 1000
+    src = tmp_path / "site" / "index.html"
+    src.parent.mkdir(parents=True)
+    src.write_bytes(payload)
+    result = sc.upload_file(conn["id"], "site/index.html", "www/index.html",
+                            base_dir=str(tmp_path), create_dirs=True)
+    assert result["size"] == len(payload)
+    assert result["sha256_local"] == hashlib.sha256(payload).hexdigest()
+    assert result["sha256_remote"] == result["sha256_local"]
+    assert result["verified"] is True
+    sftp = env.instances[-1].last_sftp
+    assert sftp.written["www/index.html"] == payload
+    assert sftp.mkdirs == ["www"]
+    assert env.instances[-1].closed is True
+
+
+def test_upload_file_without_verify_skips_reread(isolated_data_dir, monkeypatch, tmp_path):
+    import hashlib
+    import core.ssh_connector as sc
+    env = install_fake_paramiko(monkeypatch)
+    conn = _make_password_conn()
+    src = tmp_path / "a.txt"
+    src.write_bytes(b"abc")
+    result = sc.upload_file(conn["id"], "a.txt", "a.txt",
+                            base_dir=str(tmp_path), verify=False)
+    assert result["sha256_local"] == hashlib.sha256(b"abc").hexdigest()
+    assert result["verified"] is False
+    assert result["sha256_remote"] == ""
+    assert env.instances[-1].last_sftp.written["a.txt"] == b"abc"
+
+
+def test_upload_file_rejects_escape_and_missing(isolated_data_dir, tmp_path):
+    import core.ssh_connector as sc
+    conn = _make_password_conn()
+    with pytest.raises(sc.SSHConnectorError) as exc:
+        sc.upload_file(conn["id"], "../outside.txt", "x.txt",
+                       base_dir=str(tmp_path))
+    assert "escapes" in str(exc.value)
+    with pytest.raises(sc.SSHConnectorError) as exc:
+        sc.upload_file(conn["id"], "missing.txt", "x.txt",
+                       base_dir=str(tmp_path))
+    assert "not found" in str(exc.value)
+
+
+def test_upload_file_enforces_size_cap(isolated_data_dir, tmp_path):
+    import core.ssh_connector as sc
+    conn = _make_password_conn()
+    src = tmp_path / "big.bin"
+    src.write_bytes(b"x" * 11)
+    with pytest.raises(sc.SSHConnectorError) as exc:
+        sc.upload_file(conn["id"], "big.bin", "big.bin",
+                       base_dir=str(tmp_path), max_bytes=10)
+    assert "too large" in str(exc.value)
+
+
+def test_upload_file_hints_create_dirs(isolated_data_dir, monkeypatch, tmp_path):
+    import core.ssh_connector as sc
+    install_fake_paramiko(monkeypatch)
+    conn = _make_password_conn()
+    src = tmp_path / "app.js"
+    src.write_bytes(b"js")
+    with pytest.raises(sc.SSHConnectorError) as exc:
+        sc.upload_file(conn["id"], "app.js", "assets/app.js",
+                       base_dir=str(tmp_path))
+    message = str(exc.value)
+    assert "Cannot open remote file for writing" in message
+    assert "create_dirs=true" in message
+
+
+def test_upload_file_uses_active_workspace_by_default(isolated_data_dir, monkeypatch, tmp_path):
+    import core.ssh_connector as sc
+    import dev_agent.config as dev_config
+    env = install_fake_paramiko(monkeypatch)
+    conn = _make_password_conn()
+    monkeypatch.setattr(dev_config, "PROJECT_ROOT", tmp_path)
+    src = tmp_path / "index.html"
+    src.write_bytes(b"<html/>")
+    result = sc.upload_file(conn["id"], "index.html", "index.html")
+    assert result["verified"] is True
+    assert env.instances[-1].last_sftp.written["index.html"] == b"<html/>"

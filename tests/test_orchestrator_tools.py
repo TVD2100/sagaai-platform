@@ -237,7 +237,7 @@ def test_build_tool_catalog_includes_ssh_tools_when_enabled(orch_slug):
     catalog = build_tool_catalog(orch_slug)
     names = [t["name"] for t in catalog]
     for name in ("ssh_test_connection", "ssh_exec", "ssh_list_dir",
-                 "ssh_read_file", "ssh_write_file"):
+                 "ssh_read_file", "ssh_upload_file", "ssh_write_file"):
         assert name in names, name
     # github_rest is not enabled: its tools stay out of the catalog.
     assert "ghr_list_repos" not in names

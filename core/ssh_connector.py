@@ -15,17 +15,25 @@ accepted on first use (``AutoAddPolicy`` - the equivalent of OpenSSH's
 one stored in known_hosts is rejected by paramiko.
 
 Limits: command timeout 60 s by default (clamped to 300 s max), command
-output truncated to 100 KB per stream, file read capped at 256 KB, file
-write capped at 1 MB, connection/banner/auth timeout 15 s.
+output truncated to 100 KB per stream, file read capped at 256 KB,
+inline file write capped at 1 MB, streamed upload capped at 50 MB,
+connection/banner/auth timeout 15 s.
+
+``upload_file`` streams a LOCAL file (resolved inside the active project
+root; path traversal is rejected) to the remote host over SFTP in 64 KB
+chunks and, by default, verifies the transfer by re-reading the remote
+file and comparing sha256 digests.
 
 ``paramiko`` is imported lazily; a missing dependency raises a clean
 ``SSHConnectorError`` with installation hints. No streamlit imports.
 """
 from __future__ import annotations
 
+import hashlib
 import posixpath
 import stat
 from io import StringIO
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from core import connectors
@@ -38,6 +46,7 @@ MAX_COMMAND_TIMEOUT: float = 300.0
 MAX_OUTPUT_BYTES: int = 100_000
 MAX_READ_BYTES: int = 256_000
 MAX_WRITE_BYTES: int = 1_000_000
+MAX_UPLOAD_BYTES: int = 50 * 1024 * 1024
 _READ_CHUNK: int = 65536
 
 
@@ -121,6 +130,53 @@ def _read_capped(handle, cap: int) -> Tuple[bytes, bool]:
     data = b"".join(chunks)
     truncated = len(data) > cap
     return data[:cap], truncated
+
+
+def _close_quietly(*handles) -> None:
+    """Close each handle, ignoring errors (None values are skipped)."""
+    for handle in handles:
+        if handle is None:
+            continue
+        try:
+            handle.close()
+        except Exception:
+            pass
+
+
+def _digest_capped(handle, cap: int) -> Tuple[str, int, bool]:
+    """Stream a handle through sha256, reading at most cap + 1 bytes.
+
+    Returns (hexdigest, bytes_read, oversized); oversized is True when the
+    handle held more than *cap* bytes (the digest then covers those cap + 1
+    bytes).
+    """
+    digest = hashlib.sha256()
+    remaining = int(cap) + 1
+    total = 0
+    while remaining > 0:
+        chunk = handle.read(min(_READ_CHUNK, remaining))
+        if not chunk:
+            break
+        if isinstance(chunk, str):
+            chunk = chunk.encode("utf-8")
+        digest.update(chunk)
+        total += len(chunk)
+        remaining -= len(chunk)
+    return digest.hexdigest(), total, total > cap
+
+
+def _remote_digest(sftp, remote: str, cap: int) -> Tuple[str, int, bool]:
+    """Re-read a remote file and return its (sha256, bytes, oversized)."""
+    handle = None
+    try:
+        handle = sftp.open(remote, "rb")
+        return _digest_capped(handle, cap)
+    except SSHConnectorError:
+        raise
+    except Exception as e:
+        raise SSHConnectorError(f"Cannot verify remote file: {remote}: {e}")
+    finally:
+        _close_quietly(handle)
 
 
 def _load_private_key(paramiko, key_text: str, passphrase: str):
@@ -263,6 +319,54 @@ def _ensure_remote_dirs(sftp, directory: str) -> None:
             raise SSHConnectorError(
                 f"Cannot create remote directory: {current}: {e}"
             )
+
+
+def _write_open_error(remote: str, err: Exception,
+                      create_dirs: bool) -> "SSHConnectorError":
+    """Build a clean open-for-writing error (with a create_dirs hint)."""
+    hint = ""
+    if not create_dirs and posixpath.dirname(remote):
+        hint = (" (the remote parent directory may be missing; "
+                "pass create_dirs=true to create it)")
+    return SSHConnectorError(
+        f"Cannot open remote file for writing: {remote}: {err}{hint}"
+    )
+
+
+def _resolve_local_file(local_path: str, base_dir: str = "") -> Path:
+    """Resolve a local upload source inside the workspace root.
+
+    Relative paths resolve against *base_dir*; when *base_dir* is empty the
+    active DevAgent workspace root (``dev_agent.config.PROJECT_ROOT``) is
+    used. Absolute paths must still live inside the workspace root. Raises
+    ``SSHConnectorError`` for empty paths and root escapes.
+    """
+    raw = str(local_path or "").strip()
+    if not raw:
+        raise SSHConnectorError("Local file path cannot be empty")
+    base = str(base_dir or "").strip()
+    if not base:
+        try:
+            from dev_agent import config as dev_config
+            base = str(getattr(dev_config, "PROJECT_ROOT", "") or "")
+        except Exception:
+            base = ""
+    candidate = Path(raw).expanduser()
+    if not candidate.is_absolute():
+        if not base:
+            raise SSHConnectorError(
+                "Relative local_path needs a workspace root: pass base_dir"
+            )
+        candidate = Path(base) / candidate
+    resolved = candidate.resolve()
+    if base:
+        try:
+            resolved.relative_to(Path(base).expanduser().resolve())
+        except ValueError as exc:
+            raise SSHConnectorError(
+                f"Local path escapes the workspace root: {raw}"
+            ) from exc
+    return resolved
 
 
 def _entries_from_attrs(remote: str, attrs) -> List[Dict[str, Any]]:
@@ -452,9 +556,7 @@ def write_file(conn_id: str, path: str, content: str,
         try:
             fh = sftp.open(remote, "wb")
         except Exception as e:
-            raise SSHConnectorError(
-                f"Cannot open remote file for writing: {remote}: {e}"
-            )
+            raise _write_open_error(remote, e, create_dirs)
         fh.write(data)
     finally:
         if fh is not None:
@@ -474,9 +576,102 @@ def write_file(conn_id: str, path: str, content: str,
     return {"path": remote, "size": len(data), "written": True}
 
 
+def upload_file(conn_id: str, local_path: str, remote_path: str,
+                base_dir: str = "", create_dirs: bool = False,
+                verify: bool = True,
+                max_bytes: int = MAX_UPLOAD_BYTES) -> Dict[str, Any]:
+    """Upload a LOCAL file to the remote host over SFTP (streamed).
+
+    The local source is resolved inside the workspace root (*base_dir*;
+    when empty, the active DevAgent workspace root is used) - paths that
+    escape that root are rejected. The file is streamed in 64 KB chunks
+    and hashed on the fly; the size cap (default ``MAX_UPLOAD_BYTES``)
+    is checked before connecting. With *verify* (default true) the
+    remote file is re-read on the same session and its sha256 digest is
+    compared with the local one. Returns {"path", "size", "sha256_local",
+    "verified", "sha256_remote", "create_dirs"}.
+    """
+    source = _resolve_local_file(local_path, base_dir)
+    if not source.is_file():
+        raise SSHConnectorError(f"Local file not found: {local_path}")
+    try:
+        limit = int(max_bytes)
+    except (TypeError, ValueError):
+        limit = MAX_UPLOAD_BYTES
+    if limit <= 0:
+        limit = MAX_UPLOAD_BYTES
+    try:
+        size = int(source.stat().st_size)
+    except OSError as e:
+        raise SSHConnectorError(
+            f"Cannot stat local file: {local_path}: {e}"
+        )
+    if size > limit:
+        raise SSHConnectorError(
+            f"Local file is too large to upload: {size} bytes "
+            f"(max {limit})"
+        )
+    remote = str(remote_path or "").strip()
+    if not remote:
+        raise SSHConnectorError("Remote file path cannot be empty")
+    digest = hashlib.sha256()
+    client = _connect(conn_id)
+    sftp = None
+    fh = None
+    local_fh = None
+    remote_sha = ""
+    remote_size = 0
+    oversized = False
+    try:
+        sftp = _open_sftp(client)
+        if create_dirs:
+            _ensure_remote_dirs(sftp, posixpath.dirname(remote))
+        try:
+            fh = sftp.open(remote, "wb")
+        except Exception as e:
+            raise _write_open_error(remote, e, create_dirs)
+        try:
+            local_fh = open(source, "rb")
+        except OSError as e:
+            raise SSHConnectorError(
+                f"Cannot read local file: {local_path}: {e}"
+            )
+        while True:
+            chunk = local_fh.read(_READ_CHUNK)
+            if not chunk:
+                break
+            digest.update(chunk)
+            fh.write(chunk)
+        _close_quietly(local_fh)
+        local_fh = None
+        _close_quietly(fh)
+        fh = None
+        if verify:
+            remote_sha, remote_size, oversized = _remote_digest(
+                sftp, remote, limit
+            )
+    finally:
+        _close_quietly(local_fh, fh, sftp, client)
+    local_sha = digest.hexdigest()
+    verified = bool(
+        verify and not oversized
+        and remote_size == size
+        and remote_sha == local_sha
+    )
+    return {
+        "path": remote,
+        "size": size,
+        "sha256_local": local_sha,
+        "verified": verified,
+        "sha256_remote": remote_sha,
+        "create_dirs": bool(create_dirs),
+    }
+
+
 __all__ = [
     "SSHConnectorError",
     "test_connection", "exec_command", "list_dir", "read_file", "write_file",
+    "upload_file",
 ]
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: MIT

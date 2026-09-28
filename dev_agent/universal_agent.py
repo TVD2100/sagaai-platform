@@ -396,6 +396,7 @@ class UniversalDevAgent:
         "ssh_exec",
         "ssh_list_dir",
         "ssh_read_file",
+        "ssh_upload_file",
         "ssh_write_file",
     )
 

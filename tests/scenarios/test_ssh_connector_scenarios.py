@@ -17,10 +17,14 @@ would use it:
      disabling the connection revokes them.
   5. Failure story: authentication failures and unknown ids produce clean
      ok=False dicts without leaking secrets.
+  6. Publishing story: a user uploads workspace files with ssh_upload_file
+     (sha256-verified), recovers from a missing remote directory via
+     create_dirs, and backs up the file being replaced.
 
 No network access: paramiko is replaced by the fake from
 ``tests/test_ssh_connector.py``, so the SSH transport never opens.
 """
+import hashlib
 import json
 import os
 import shutil
@@ -194,7 +198,7 @@ def test_scenario_orchestrator_prompt_advertises_ssh_tools(isolated_data_dir):
     assert conn["id"] in prompt
     assert "Bound SSH" in prompt
     for name in ("ssh_exec", "ssh_list_dir", "ssh_read_file",
-                 "ssh_test_connection", "ssh_write_file"):
+                 "ssh_test_connection", "ssh_upload_file", "ssh_write_file"):
         assert name in prompt, name
     # GitHub-only notes must not leak into an ssh-only prompt.
     assert "ghr_upload_file" not in prompt
@@ -204,12 +208,13 @@ def test_scenario_orchestrator_prompt_advertises_ssh_tools(isolated_data_dir):
 
 
 # 4. Dispatcher integration ---------------------------------------------------
-def test_scenario_ssh_tools_through_dispatcher(isolated_data_dir, monkeypatch):
-    """The orchestration loop calls all five ssh_* tools via UniversalDevAgent.
+def test_scenario_ssh_tools_through_dispatcher(isolated_data_dir, monkeypatch,
+                                               tmp_path):
+    """The orchestration loop calls all six ssh_* tools via UniversalDevAgent.
 
     The user story: connect an SSH server, enable the connection on an
-    orchestrator, then let the orchestrator run commands, browse, read and
-    write files and re-test the server through its dispatcher.
+    orchestrator, then let the orchestrator run commands, browse, read,
+    upload and write files and re-test the server through its dispatcher.
     """
     from core.orchestrators import create_orchestrator, set_enabled_connections
 
@@ -266,6 +271,21 @@ def test_scenario_ssh_tools_through_dispatcher(isolated_data_dir, monkeypatch):
     assert env.instances[-1].last_sftp.written["deploy/app.conf"] == b"k=v\n"
     assert env.instances[-1].last_sftp.mkdirs == ["deploy"]
 
+    # Upload a local workspace file (sha256-verified).
+    src = tmp_path / "deploy" / "app.js"
+    src.parent.mkdir(parents=True)
+    payload = b"console.log('dispatcher');\n"
+    src.write_bytes(payload)
+    result = agent.dispatch("ssh_upload_file", {
+        "connector_id": conn["id"], "local_path": "deploy/app.js",
+        "remote_path": "www/deploy/app.js", "base_dir": str(tmp_path),
+        "create_dirs": True,
+    })
+    assert result["ok"] is True
+    assert result["result"]["verified"] is True
+    assert result["result"]["sha256_local"] == hashlib.sha256(payload).hexdigest()
+    assert env.instances[-1].last_sftp.written["www/deploy/app.js"] == payload
+
     # Re-test the server from the orchestration loop.
     result = agent.dispatch("ssh_test_connection", {"connector_id": conn["id"]})
     assert result["ok"] is True
@@ -304,5 +324,76 @@ def test_scenario_ssh_failures_are_clean_dicts(isolated_data_dir, monkeypatch):
     result = ssh_tools.ssh_read_file(connector_id="nope", path="/x.txt")
     assert result["ok"] is False
     assert "not found" in result["error"]
+
+
+# 6. Publishing story ---------------------------------------------------------
+def test_scenario_publish_local_files(isolated_data_dir, monkeypatch, tmp_path):
+    """A user publishes a site build: backup, upload, verify, checksum."""
+    from core import ssh_tools
+
+    index_html = b"<html>v2</html>\n"
+    index_sha = hashlib.sha256(index_html).hexdigest()
+    env = install_fake_paramiko(
+        monkeypatch,
+        exec_outputs=(f"{index_sha}  www/index.html\n".encode(), b"", 0),
+    )
+    conn = _ssh_connection(name="Publish SSH")
+
+    files = [
+        ("index.html", index_html),
+        ("css/styles.css", b"body{margin:0}\n"),
+        ("js/app.js", b"console.log('v2');\n" * 300),
+    ]
+    for rel, data in files:
+        path = tmp_path / "site" / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+
+    # 1) Back up the file that is about to be replaced.
+    result = ssh_tools.ssh_exec(connector_id=conn["id"],
+                                command="cp -a www/index.html www/index.html.bak")
+    assert result["ok"] is True
+    assert result["result"]["exit_status"] == 0
+
+    # 2) Without create_dirs the upload into a missing directory fails with
+    #    an actionable hint.
+    result = ssh_tools.ssh_upload_file(
+        connector_id=conn["id"], local_path="site/css/styles.css",
+        remote_path="www/css/styles.css", base_dir=str(tmp_path),
+    )
+    assert result["ok"] is False
+    assert "create_dirs=true" in result["error"]
+
+    # 3) With create_dirs=true every file uploads and verifies by sha256.
+    for rel, data in files:
+        result = ssh_tools.ssh_upload_file(
+            connector_id=conn["id"], local_path=f"site/{rel}",
+            remote_path=f"www/{rel}", base_dir=str(tmp_path),
+            create_dirs=True,
+        )
+        assert result["ok"] is True, result
+        assert result["result"]["verified"] is True
+        assert result["result"]["sha256_local"] == hashlib.sha256(data).hexdigest()
+
+    written, mkdirs = {}, []
+    for inst in env.instances:
+        if inst.last_sftp is None:
+            continue
+        written.update(inst.last_sftp.written)
+        mkdirs.extend(inst.last_sftp.mkdirs)
+    for rel, data in files:
+        assert written[f"www/{rel}"] == data
+    assert set(mkdirs) == {"www", "www/css", "www/js"}
+
+    # 4) A fresh session re-reads the published file and the server-side
+    #    checksum matches the local one.
+    result = ssh_tools.ssh_read_file(connector_id=conn["id"],
+                                     path="www/index.html")
+    assert result["ok"] is True
+    assert result["result"]["content"] == index_html.decode()
+    result = ssh_tools.ssh_exec(connector_id=conn["id"],
+                                command="sha256sum www/index.html")
+    assert result["ok"] is True
+    assert result["result"]["stdout"].startswith(index_sha)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: MIT

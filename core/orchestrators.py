@@ -606,6 +606,7 @@ def _extend_prompt_with_connections(prompt: str, orchestrator_slug: str = DEVAGE
         lines.append("- For the full usage guide, load the `github_connector` instruction if it is listed in `## Available instructions` of this orchestrator.")
     if "ssh" in services:
         lines.append("- `ssh_exec` runs one shell command and returns the exit status, stdout and stderr (each truncated to 100 KB).")
+        lines.append("- `ssh_upload_file` streams a local workspace file to the server (capped at 50 MB) and verifies the transfer by sha256.")
         lines.append("- `ssh_write_file` overwrites the remote file (max 1 MB); pass `create_dirs=true` to create the parent chain.")
         lines.append("- Before overwriting a file, read it with `ssh_read_file` first.")
         lines.append("- For the full usage guide, load the `ssh_connector` instruction if it is listed in `## Available instructions` of this orchestrator.")

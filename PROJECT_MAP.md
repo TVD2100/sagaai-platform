@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-09-27T17:24:57+00:00`
-- Файлов: **1002**
-- Языки: Config: 1, JSON: 22, Markdown: 746, PEM certificate: 1, Python: 236, Text: 1
+- Обновлено: `2026-09-28T19:31:47+00:00`
+- Файлов: **1010**
+- Языки: Config: 1, JSON: 22, Markdown: 754, PEM certificate: 1, Python: 236, Text: 1
 
 ## Файлы и назначение
 
@@ -1008,6 +1008,14 @@
 | `dev_agent/task_states/TASK_STATE__20260927_140401_006f93.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260927_140401_e5dae1.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260927_201858_996b48.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_203453_6d3c33.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_203458_194686.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_203458_5edfe5.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_203458_6b0340.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_203458_c46b2b.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_203458_f30d8c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_203509_112c52.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260927_203509_3eb717.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
 | `services/deepseek.json` | JSON | DeepSeek service definition | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
@@ -1621,25 +1629,25 @@
 - `get_enabled_connections` (func, строка 501)
 - `set_enabled_connections` (func, строка 515)
 - `_extend_prompt_with_connections` (func, строка 538)
-- `get_disabled_tools` (func, строка 622)
-- `set_disabled_tools` (func, строка 642)
-- `_extend_prompt_with_tools` (func, строка 666)
-- `get_orchestrator_rag_bases` (func, строка 690)
-- `set_orchestrator_rag_bases` (func, строка 707)
-- `_extend_prompt_with_rag_bases` (func, строка 733)
-- `_extend_prompt_with_skills` (func, строка 781)
-- `_extend_prompt_with_instructions` (func, строка 803)
-- `build_assistant_dicts` (func, строка 870)
-- `get_web_search_prompt` (func, строка 949)
-- `get_web_search_config` (func, строка 964)
-- `get_economy_tail_messages` (func, строка 992)
-- `get_economy_cache_enabled` (func, строка 1010)
-- `get_economy_cache_multiplier` (func, строка 1028)
-- `get_economy_config` (func, строка 1047)
-- `export_orchestrator` (func, строка 1061)
-- `_validate_imported_tools` (func, строка 1107)
-- `import_orchestrator` (func, строка 1133)
-- `_import_instructions` (func, строка 1252)
+- `get_disabled_tools` (func, строка 623)
+- `set_disabled_tools` (func, строка 643)
+- `_extend_prompt_with_tools` (func, строка 667)
+- `get_orchestrator_rag_bases` (func, строка 691)
+- `set_orchestrator_rag_bases` (func, строка 708)
+- `_extend_prompt_with_rag_bases` (func, строка 734)
+- `_extend_prompt_with_skills` (func, строка 782)
+- `_extend_prompt_with_instructions` (func, строка 804)
+- `build_assistant_dicts` (func, строка 871)
+- `get_web_search_prompt` (func, строка 950)
+- `get_web_search_config` (func, строка 965)
+- `get_economy_tail_messages` (func, строка 993)
+- `get_economy_cache_enabled` (func, строка 1011)
+- `get_economy_cache_multiplier` (func, строка 1029)
+- `get_economy_config` (func, строка 1048)
+- `export_orchestrator` (func, строка 1062)
+- `_validate_imported_tools` (func, строка 1108)
+- `import_orchestrator` (func, строка 1134)
+- `_import_instructions` (func, строка 1253)
 
 ### `core/paths.py`
 - `ensure_data_dirs` (func, строка 35)
@@ -1811,34 +1819,41 @@
 - `build_skills_metadata_text` (func, строка 660)
 
 ### `core/ssh_connector.py`
-- `SSHConnectorError` (class, строка 44)
-- `_ensure_paramiko` (func, строка 48)
-- `_load_settings` (func, строка 59)
-- `_clamp_timeout` (func, строка 84)
-- `_decode` (func, строка 97)
-- `_read_capped` (func, строка 105)
-- `_load_private_key` (func, строка 126)
-- `_is_exc` (func, строка 149)
-- `_map_connect_error` (func, строка 158)
-- `_connect` (func, строка 179)
-- `_open_sftp` (func, строка 228)
-- `_ensure_remote_dirs` (func, строка 240)
-- `_entries_from_attrs` (func, строка 268)
-- `test_connection` (func, строка 292)
-- `exec_command` (func, строка 315)
-- `list_dir` (func, строка 350)
-- `read_file` (func, строка 381)
-- `write_file` (func, строка 428)
+- `SSHConnectorError` (class, строка 53)
+- `_ensure_paramiko` (func, строка 57)
+- `_load_settings` (func, строка 68)
+- `_clamp_timeout` (func, строка 93)
+- `_decode` (func, строка 106)
+- `_read_capped` (func, строка 114)
+- `_close_quietly` (func, строка 135)
+- `_digest_capped` (func, строка 146)
+- `_remote_digest` (func, строка 168)
+- `_load_private_key` (func, строка 182)
+- `_is_exc` (func, строка 205)
+- `_map_connect_error` (func, строка 214)
+- `_connect` (func, строка 235)
+- `_open_sftp` (func, строка 284)
+- `_ensure_remote_dirs` (func, строка 296)
+- `_write_open_error` (func, строка 324)
+- `_resolve_local_file` (func, строка 336)
+- `_entries_from_attrs` (func, строка 372)
+- `test_connection` (func, строка 396)
+- `exec_command` (func, строка 419)
+- `list_dir` (func, строка 454)
+- `read_file` (func, строка 485)
+- `write_file` (func, строка 532)
+- `upload_file` (func, строка 579)
 
 ### `core/ssh_tools.py`
-- `_get_connector_id` (func, строка 30)
-- `_wrap` (func, строка 38)
-- `ssh_test_connection` (func, строка 48)
-- `ssh_exec` (func, строка 64)
-- `ssh_list_dir` (func, строка 87)
-- `ssh_read_file` (func, строка 106)
-- `ssh_write_file` (func, строка 127)
-- `get_tools` (func, строка 200)
+- `_get_connector_id` (func, строка 31)
+- `_wrap` (func, строка 39)
+- `ssh_test_connection` (func, строка 49)
+- `ssh_exec` (func, строка 65)
+- `ssh_list_dir` (func, строка 88)
+- `ssh_read_file` (func, строка 107)
+- `ssh_write_file` (func, строка 128)
+- `ssh_upload_file` (func, строка 157)
+- `get_tools` (func, строка 251)
 
 ### `core/statistics.py`
 - `_parse_ts` (func, строка 30)
@@ -2593,7 +2608,7 @@
 - `test_devagent_default_config_has_key` (func, строка 111)
 - `test_prompt_extended_with_github_rest_connections` (func, строка 115)
 - `test_prompt_extended_with_ssh_connections` (func, строка 136)
-- `test_ssh_notes_absent_without_ssh_connection` (func, строка 160)
+- `test_ssh_notes_absent_without_ssh_connection` (func, строка 161)
 
 ### `tests/test_orchestrator_economy_cache.py`
 - `_FakeCore` (class, строка 25)
@@ -3021,27 +3036,35 @@
 - `isolated_data_dir` (func, строка 16)
 - `_make_password_conn` (func, строка 22)
 - `install_fake_paramiko` (func, строка 33)
-- `test_missing_paramiko_clean_error` (func, строка 237)
-- `test_connection_missing_id_errors` (func, строка 246)
-- `test_wrong_service_errors` (func, строка 253)
-- `test_password_auth_connects_and_refreshes_account` (func, строка 262)
-- `test_private_key_auth_uses_pkey` (func, строка 285)
-- `test_auth_failure_hides_secrets` (func, строка 303)
-- `test_bad_host_key_message` (func, строка 317)
-- `test_network_error_mapping` (func, строка 327)
-- `test_connection_without_credentials_errors` (func, строка 337)
-- `test_exec_command_returns_output` (func, строка 357)
-- `test_exec_command_truncates_and_clamps_timeout` (func, строка 373)
-- `test_exec_command_validates_arguments` (func, строка 389)
-- `test_list_dir_classifies_entries` (func, строка 402)
-- `test_read_file_truncates` (func, строка 429)
-- `test_read_file_rejects_binary` (func, строка 440)
-- `test_read_file_missing` (func, строка 450)
-- `test_write_file_creates_dirs_and_writes` (func, строка 459)
-- `test_write_file_rejects_oversize` (func, строка 474)
+- `test_missing_paramiko_clean_error` (func, строка 246)
+- `test_connection_missing_id_errors` (func, строка 255)
+- `test_wrong_service_errors` (func, строка 262)
+- `test_password_auth_connects_and_refreshes_account` (func, строка 271)
+- `test_private_key_auth_uses_pkey` (func, строка 294)
+- `test_auth_failure_hides_secrets` (func, строка 312)
+- `test_bad_host_key_message` (func, строка 326)
+- `test_network_error_mapping` (func, строка 336)
+- `test_connection_without_credentials_errors` (func, строка 346)
+- `test_exec_command_returns_output` (func, строка 366)
+- `test_exec_command_truncates_and_clamps_timeout` (func, строка 382)
+- `test_exec_command_validates_arguments` (func, строка 398)
+- `test_list_dir_classifies_entries` (func, строка 411)
+- `test_read_file_truncates` (func, строка 438)
+- `test_read_file_rejects_binary` (func, строка 449)
+- `test_read_file_missing` (func, строка 459)
+- `test_write_file_creates_dirs_and_writes` (func, строка 468)
+- `test_write_file_rejects_oversize` (func, строка 483)
+- `test_write_file_suggests_create_dirs_when_parent_missing` (func, строка 493)
+- `test_write_file_top_level_without_hint` (func, строка 505)
+- `test_upload_file_streams_and_verifies` (func, строка 517)
+- `test_upload_file_without_verify_skips_reread` (func, строка 538)
+- `test_upload_file_rejects_escape_and_missing` (func, строка 553)
+- `test_upload_file_enforces_size_cap` (func, строка 566)
+- `test_upload_file_hints_create_dirs` (func, строка 577)
+- `test_upload_file_uses_active_workspace_by_default` (func, строка 591)
 
 ### `tests/test_ssh_tools.py`
-- `test_catalog_lists_five_tools` (func, строка 20)
+- `test_catalog_lists_six_tools` (func, строка 20)
 - `test_missing_connector_id_returns_error` (func, строка 36)
 - `test_wrong_service_returns_error` (func, строка 43)
 - `test_ssh_test_connection_tool` (func, строка 55)
@@ -3058,6 +3081,10 @@
 - `test_ssh_write_file_tool` (func, строка 183)
 - `test_ssh_write_file_requires_content` (func, строка 199)
 - `test_ssh_write_file_rejects_oversize` (func, строка 208)
+- `test_ssh_upload_file_tool` (func, строка 224)
+- `test_ssh_upload_file_requires_paths` (func, строка 246)
+- `test_ssh_upload_file_verify_false` (func, строка 260)
+- `test_ssh_upload_file_escape_wrapped` (func, строка 276)
 
 ### `tests/test_st_mock.py`
 - `test_sidebar_children_are_logged` (func, строка 10)
@@ -3839,13 +3866,14 @@
 - `test_mark_adapted_reveals_skill_in_prompt` (func, строка 170)
 
 ### `tests/scenarios/test_ssh_connector_scenarios.py`
-- `isolated_data_dir` (func, строка 39)
-- `_ssh_connection` (func, строка 72)
-- `test_scenario_ssh_connection_lifecycle` (func, строка 84)
-- `test_scenario_ssh_secrets_never_leak` (func, строка 136)
-- `test_scenario_orchestrator_prompt_advertises_ssh_tools` (func, строка 175)
-- `test_scenario_ssh_tools_through_dispatcher` (func, строка 207)
-- `test_scenario_ssh_failures_are_clean_dicts` (func, строка 289)
+- `isolated_data_dir` (func, строка 43)
+- `_ssh_connection` (func, строка 76)
+- `test_scenario_ssh_connection_lifecycle` (func, строка 88)
+- `test_scenario_ssh_secrets_never_leak` (func, строка 140)
+- `test_scenario_orchestrator_prompt_advertises_ssh_tools` (func, строка 179)
+- `test_scenario_ssh_tools_through_dispatcher` (func, строка 211)
+- `test_scenario_ssh_failures_are_clean_dicts` (func, строка 309)
+- `test_scenario_publish_local_files` (func, строка 330)
 
 ### `tests/scenarios/test_stats_scenario.py`
 - `stats_data` (func, строка 34)

@@ -17,13 +17,13 @@ from tests.test_ssh_connector import (
 # ─── Catalog metadata ───────────────────────────────────────────────────────
 
 
-def test_catalog_lists_five_tools():
+def test_catalog_lists_six_tools():
     from core import ssh_tools
     tools = ssh_tools.get_tools()
     names = [t["name"] for t in tools]
     assert names == [
         "ssh_exec", "ssh_list_dir", "ssh_read_file",
-        "ssh_test_connection", "ssh_write_file",
+        "ssh_test_connection", "ssh_upload_file", "ssh_write_file",
     ]
     for t in tools:
         assert t["desc"]
@@ -216,5 +216,72 @@ def test_ssh_write_file_rejects_oversize(isolated_data_dir, monkeypatch):
     )
     assert result["ok"] is False
     assert "too large" in result["error"]
+
+
+# ─── ssh_upload_file ────────────────────────────────────────────────────────
+
+
+def test_ssh_upload_file_tool(isolated_data_dir, monkeypatch, tmp_path):
+    import hashlib
+    env = install_fake_paramiko(monkeypatch)
+    conn = _make_password_conn()
+    from core import ssh_tools
+    payload = b"console.log('hi');\n" * 50
+    src = tmp_path / "js" / "app.js"
+    src.parent.mkdir(parents=True)
+    src.write_bytes(payload)
+    result = ssh_tools.ssh_upload_file(
+        connector_id=conn["id"], local_path="js/app.js",
+        remote_path="www/js/app.js", base_dir=str(tmp_path),
+        create_dirs=True,
+    )
+    assert result["ok"] is True
+    assert result["result"]["verified"] is True
+    assert result["result"]["sha256_local"] == hashlib.sha256(payload).hexdigest()
+    sftp = env.instances[-1].last_sftp
+    assert sftp.written["www/js/app.js"] == payload
+    assert sftp.mkdirs == ["www", "www/js"]
+
+
+def test_ssh_upload_file_requires_paths(isolated_data_dir, monkeypatch):
+    install_fake_paramiko(monkeypatch)
+    conn = _make_password_conn()
+    from core import ssh_tools
+    result = ssh_tools.ssh_upload_file(connector_id=conn["id"],
+                                       remote_path="a.txt")
+    assert result["ok"] is False
+    assert "Missing required argument: local_path" in result["error"]
+    result = ssh_tools.ssh_upload_file(connector_id=conn["id"],
+                                       local_path="a.txt")
+    assert result["ok"] is False
+    assert "Missing required argument: remote_path" in result["error"]
+
+
+def test_ssh_upload_file_verify_false(isolated_data_dir, monkeypatch, tmp_path):
+    env = install_fake_paramiko(monkeypatch)
+    conn = _make_password_conn()
+    from core import ssh_tools
+    src = tmp_path / "a.txt"
+    src.write_bytes(b"abc")
+    result = ssh_tools.ssh_upload_file(
+        connector_id=conn["id"], local_path="a.txt", remote_path="a.txt",
+        base_dir=str(tmp_path), verify=False,
+    )
+    assert result["ok"] is True
+    assert result["result"]["verified"] is False
+    assert result["result"]["sha256_remote"] == ""
+    assert env.instances[-1].last_sftp.written["a.txt"] == b"abc"
+
+
+def test_ssh_upload_file_escape_wrapped(isolated_data_dir, monkeypatch, tmp_path):
+    install_fake_paramiko(monkeypatch)
+    conn = _make_password_conn()
+    from core import ssh_tools
+    result = ssh_tools.ssh_upload_file(
+        connector_id=conn["id"], local_path="../x.txt", remote_path="x.txt",
+        base_dir=str(tmp_path),
+    )
+    assert result["ok"] is False
+    assert "escapes" in result["error"]
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: MIT
