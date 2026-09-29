@@ -164,6 +164,7 @@ roles = {
     "tests/test_ssh_tools.py": "Unit tests for core/ssh_tools (SSH connector tool layer)",
     "tests/test_ui_connectors_ssh.py": "UI tests for the connectors page SSH support",
     "tests/scenarios/test_ssh_connector_scenarios.py": "Scenario tests for the SSH connector feature",
+    "tests/scenarios/test_yandex_models_catalog_scenario.py": "Scenario tests for the YandexAI model catalog update",
 }
 
 res = wt.write_project_map(roles)

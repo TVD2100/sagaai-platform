@@ -290,7 +290,7 @@ def test_canonical_prompts_do_not_duplicate_the_tool_catalog():
     then  each prompt delegates the full tool list to the auto-added
           '## Available tools' block, keeps its tool-usage rules in-line
           and contains no duplicated tool-catalog table; dev_agent is v3.14
-          and ya_agent is v2.8. The batch-calls rule and the verbatim
+          and ya_agent is v2.9. The batch-calls rule and the verbatim
           user-supplied-plan branch are pinned here as invariants.
     """
     dev = CANONICAL_PROMPT_FILES["dev_agent"].read_text(encoding="utf-8")
@@ -298,14 +298,14 @@ def test_canonical_prompts_do_not_duplicate_the_tool_catalog():
 
     # Version headers carry the bumped versions.
     assert dev.splitlines()[0].endswith("(v3.14)"), dev.splitlines()[0]
-    assert ya.splitlines()[0].endswith("(v2.8)"), ya.splitlines()[0]
+    assert ya.splitlines()[0].endswith("(v2.9)"), ya.splitlines()[0]
 
     # RAG context-restore invariant (v3.14): hits carry ids and the
     # follow-up tool is described inline.
     assert "RAG context restore" in dev
     assert "rag_get_chunks" in dev
 
-    # Batch-calls rule invariants (v3.13 / v2.8).
+    # Batch-calls rule invariants (v3.13 / v2.9).
     assert "Several calls per message (batch)" in dev
     assert "No shared target." in dev
     assert "No dependency on results." in dev

@@ -26,10 +26,8 @@ description: Справочник моделей Yandex AI Studio для выб�
 | `aliceai-llm` | Alice AI LLM | 128k (131 072) | 131 072 | Text Generation API, OpenAI |
 | `aliceai-llm-flash` | Alice AI LLM Flash | 64k (65 536) | 65 536 | OpenAI (Chat Completions, Responses) |
 | `deepseek-v4-flash` | DeepSeek V4 Flash | 1M (1 048 576) | 384 000 | OpenAI |
-| `qwen3-235b-a22b-fp8` | Qwen3 235B | 256k (262 144) | 256 000 | OpenAI |
+| `deepseek-v4.1-flash` | DeepSeek V4.1 Flash | 1M (1 048 576) | 384 000 | OpenAI |
 | `qwen3.6-35b-a3b` | Qwen3.6 35B | 256k (262 144) | 256 000 | OpenAI (мультимодальная, Base64) |
-| `gpt-oss-120b` | gpt-oss-120b | 128k | 128 000 | OpenAI |
-| `gpt-oss-20b` | gpt-oss-20b | 128k | 128 000 | OpenAI |
 
 Дообученная YandexGPT Lite: `gpt://<folder_id>/yandexgpt-lite/latest@<суффикс>` (контекст 32k).
 
@@ -42,17 +40,15 @@ description: Справочник моделей Yandex AI Studio для выб�
 | Alice AI LLM | `aliceai-llm` | 128k | Флагманская модель. Сложные задачи + диалоговые сценарии, извлечение информации из всего контекста. «Человеко-ориентированные» AI-ассистенты. |
 | Alice AI LLM Flash | `aliceai-llm-flash` | 64k | Быстрая, оптимизирована для агентских сценариев: работа с инструментами и вызов функций. Модерация, классификация обращений, диалог с клиентом, поиск по базам знаний, суммаризация. |
 
-Модели Яндекса поддерживают около 20 языков и предназначены в первую очередь для эффективной работы с русским текстом. Собственный токенизатор экономит токены (пример: 501 символ русского текста ≈ 96 токенов у YandexGPT Pro против 139 у Qwen3 235B).
+Модели Яндекса поддерживают около 20 языков и предназначены в первую очередь для эффективной работы с русским текстом. Собственный токенизатор экономит токены (пример: 501 символ русского текста ≈ 96 токенов у YandexGPT Pro).
 
 ## Сторонние и опенсорс-модели базового инстанса
 
 | Модель | Имя для вызова | Контекст | Особенности |
 | --- | --- | --- | --- |
 | DeepSeek V4 Flash | `deepseek-v4-flash` | 1M (1 048 576) | Огромный контекст. Хорош для обработки больших документов. |
-| Qwen3 235B | `qwen3-235b-a22b-fp8` | 256k | Мощная опенсорс-модель, глубокие рассуждения. |
+| DeepSeek V4.1 Flash | `deepseek-v4.1-flash` | 1M (1 048 576) | Обновление Flash-линейки: тот же огромный контекст, актуальная версия модели. |
 | Qwen3.6 35B | `qwen3.6-35b-a3b` | 256k | Работает с изображениями в кодировке Base64. |
-| gpt-oss-120b | `gpt-oss-120b` | 128k | Мощная опенсорс-модель. |
-| gpt-oss-20b | `gpt-oss-20b` | 128k | Более лёгкая версия gpt-oss. |
 
 ## Модели генерации изображений
 
@@ -88,10 +84,8 @@ description: Справочник моделей Yandex AI Studio для выб�
 | --- | --- |
 | `yandexgpt-5-lite`, `yandexgpt-5-pro`, `yandexgpt-5.1` | `none`, `minimal`, `low`, `medium`, `high`, `xhigh` |
 | `aliceai-llm`, `aliceai-llm-flash` | `none`, `minimal`, `low`, `medium`, `high` |
-| `deepseek-v4-flash` | `none`, `minimal`, `low`, `medium`, `high`, `xhigh` |
-| `qwen3-235b-a22b-fp8` | `low`, `medium`, `high` |
+| `deepseek-v4-flash`, `deepseek-v4.1-flash` | `none`, `minimal`, `low`, `medium`, `high`, `xhigh` |
 | `qwen3.6-35b-a3b` | `none`, `minimal`, `low`, `medium`, `high`, `xhigh` |
-| `gpt-oss-120b`, `gpt-oss-20b` | `low`, `medium`, `high` |
 
 ## Формат ответа JSON
 

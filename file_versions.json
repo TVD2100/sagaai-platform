@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "1.3.1",
+  "app_version": "1.3.2",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Релиз 1.3.1: SSH-коннектор - новый инструмент ssh_upload_file (потоковая загрузка локальных файлов на сервер с sha256-верификацией, до 50 МиБ), понятная ошибка ssh_write_file с подсказкой create_dirs и раздел публикации файлов в инструкции ssh_connector; версия платформы 1.3.1.",
-    "en": "Release 1.3.1: SSH connector - new ssh_upload_file tool (streamed upload of local files to a server with sha256 verification, up to 50 MB), a clear ssh_write_file error with a create_dirs hint, and a publishing workflow in the ssh_connector instruction; platform version 1.3.1."
+    "ru": "Релиз 1.3.2: каталог моделей YandexAI обновлён - удалены недоступные модели qwen3-235b-a22b-fp8, gpt-oss-120b и gpt-oss-20b; добавлена deepseek-v4.1-flash с параметрами deepseek-v4-flash (контекст 1M, 384 000 токенов, полный набор reasoning_effort); справочник моделей и промпт YaAgent v2.9 синхронизированы с каталогом; версия платформы 1.3.2.",
+    "en": "Release 1.3.2: the YandexAI model catalog updated - the unavailable qwen3-235b-a22b-fp8, gpt-oss-120b and gpt-oss-20b models removed; deepseek-v4.1-flash added with the deepseek-v4-flash settings (1M context, 384,000 max_tokens, the full reasoning_effort set); the model reference and the YaAgent v2.9 prompt synced with the catalog; platform version 1.3.2."
   },
-  "updated": "2026-09-28T19:32:24Z",
+  "updated": "2026-09-29T13:02:31Z",
   "units": {
     "core": {
-      "version": "1.15.0",
+      "version": "1.15.1",
       "note": {
-        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py. 1.15.0: SSH-коннектор - инструмент ssh_upload_file (потоковая публикация локальных файлов на сервер, sha256-верификация, до 50 МиБ); подсказка create_dirs в ошибке ssh_write_file.",
-        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py. 1.15.0: SSH connector - ssh_upload_file tool (streamed publishing of local files to a server, sha256 verification, up to 50 MB); create_dirs hint in the ssh_write_file error."
+        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py. 1.15.0: SSH-коннектор - инструмент ssh_upload_file (потоковая публикация локальных файлов на сервер, sha256-верификация, до 50 МиБ); подсказка create_dirs в ошибке ssh_write_file. 1.15.1: сценарный тест каталога моделей YandexAI (tests/scenarios), пин промпта YaAgent v2.9, регенерация PROJECT_MAP.md; версия платформы 1.3.2.",
+        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py. 1.15.0: SSH connector - ssh_upload_file tool (streamed publishing of local files to a server, sha256 verification, up to 50 MB); create_dirs hint in the ssh_write_file error. 1.15.1: YandexAI model catalog scenario test (tests/scenarios), YaAgent v2.9 prompt pin, PROJECT_MAP.md regenerated; platform version 1.3.2."
       },
       "files": {
         "__init__.py": {
@@ -40,8 +40,8 @@
           "sha256": "9815e2a3bf0ed797efeeefd41414e1579dde9f7ceb86675611fc3bd624fa6f33"
         },
         "core/api_layer.py": {
-          "version": "1.4.1",
-          "sha256": "d0c393b387c04a31b622973e6c2edd82ce5cb6e86bd34add99b20ee9271a3cdb"
+          "version": "1.4.2",
+          "sha256": "92927d784e2cf7f42ed9e294122c085a12a0923575c5f0c6073fec125d2fd31b"
         },
         "core/assistant_creator.py": {
           "version": "1.0.0",
@@ -204,8 +204,8 @@
           "sha256": "78547e37b44458d451124b69e76ecf5bd2f69213e7164dea11137343f4e20df8"
         },
         "core/version.py": {
-          "version": "1.0.16",
-          "sha256": "f26fbc75af9b12ab9d31efe389d09600c1cb024a8853cee51ca75ddc0cff6344"
+          "version": "1.0.17",
+          "sha256": "7cfe4be60816e93bc18b1547013ea872541238043f69e964036adf1e65915352"
         },
         "dev_agent/__init__.py": {
           "version": "1.0.0",
@@ -264,8 +264,8 @@
           "sha256": "66abb9f75f09ba1908b3b70012d9fea2aaf15a1fd80f687fa7ea13cdb857362e"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.1.2",
-          "sha256": "4e63fd040d60a1e4806ab68c99d85652ff59951d6686033548329ced977bb192"
+          "version": "1.1.3",
+          "sha256": "758bc2157fab50722cfbf3c486a2b057078a21e4d043283908a64880d119ae22"
         },
         "scripts/verify_manifest.py": {
           "version": "1.0.3",
@@ -876,8 +876,8 @@
           "sha256": "dc2ba69051496ace83567e2112f5f5570accdd1f63af4900c4e549113fa5f61b"
         },
         "tests/scenarios/test_orchestrator_tool_gating.py": {
-          "version": "1.2.1",
-          "sha256": "259a53317d2834d1b083935dfd40931624d1e179ed34d8dbd9146b8456eb7c4f"
+          "version": "1.2.2",
+          "sha256": "276b6ebb7675f45271d6737980309a6643c51c452c219182019e2e76edbbf4e2"
         },
         "core/context_guard.py": {
           "version": "1.0.0",
@@ -970,6 +970,10 @@
         "tests/test_ui_connectors_ssh.py": {
           "version": "1.0.0",
           "sha256": "bb143518c29484d478948ad57f9a0e176da28b2e2529ce50be0a7895a554515a"
+        },
+        "tests/scenarios/test_yandex_models_catalog_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "71b5258ef746af321c3ccc81b8bf6fb3f6c0b2dc735c9a9b896c36c709956f17"
         }
       }
     }
@@ -1000,19 +1004,19 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.20.0",
-      "sha256": "a1ac092eb482885d08477dcd5b4dc152e2e20a5ed0730e9bd0c8e38ae2e95688",
+      "version": "1.20.1",
+      "sha256": "5b42cbd22544abb2d094dce57b7d30e8c99e63bc78f62d2ad37f4bc4281d9308",
       "note": {
-        "ru": "Карта регенерирована: инструмент ssh_upload_file (core/ssh_connector.py, core/ssh_tools.py) и обновлённые тесты SSH-коннектора.",
-        "en": "Map regenerated: ssh_upload_file tool (core/ssh_connector.py, core/ssh_tools.py) and updated SSH connector tests."
+        "ru": "Карта регенерирована после обновления каталога моделей YandexAI (добавлена deepseek-v4.1-flash, удалены qwen3-235b-a22b-fp8 и gpt-oss): пин промпта YaAgent v2.9 и новый сценарный тест каталога.",
+        "en": "Map regenerated after the YandexAI model catalog update (deepseek-v4.1-flash added, qwen3-235b-a22b-fp8 and gpt-oss removed): the YaAgent v2.9 prompt pin and the new catalog scenario test."
       }
     },
     "README.md": {
-      "version": "1.13.1",
-      "sha256": "afdf3c89c2abfea494b635f444d103d097f56c6284c1d47a44860e51de3175b5",
+      "version": "1.13.2",
+      "sha256": "bf1d0fd5b5245a2441a0532af8149d53d220bb5c38e4cfd978c095118abd075f",
       "note": {
-        "ru": "Статус версии - стабильный релиз v1.3.1; раздел «Коннекторы»: SSH.",
-        "en": "Version status - stable release v1.3.1; Connectors section: SSH."
+        "ru": "Статус версии - стабильный релиз v1.3.2; раздел «Коннекторы»: SSH.",
+        "en": "Version status - stable release v1.3.2; Connectors section: SSH."
       }
     },
     "SPEC.md": {
@@ -1232,11 +1236,11 @@
       }
     },
     "defaults/orchestrators/ya_agent/instructions/yandex_models_reference.md": {
-      "version": "1.0.0",
-      "sha256": "54c010f9e910767558df54fa8a734e1e042cb291b2ae88a782287e5c9402e016",
+      "version": "1.1.0",
+      "sha256": "a374899ee9771aac9532279f6167a9c6b40d9566329c73cc5bf0a2abbed5e6f8",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Таблицы синхронизированы с каталогом YandexAI: удалены qwen3-235b-a22b-fp8, gpt-oss-120b и gpt-oss-20b, добавлена deepseek-v4.1-flash (1M контекст, 384 000 токенов); пример токенизатора обновлён.",
+        "en": "Tables synced with the YandexAI catalog: qwen3-235b-a22b-fp8, gpt-oss-120b and gpt-oss-20b removed, deepseek-v4.1-flash added (1M context, 384,000 max_tokens); the tokenizer example refreshed."
       }
     },
     "defaults/orchestrators/ya_agent/orchestrator.json": {
@@ -1248,11 +1252,11 @@
       }
     },
     "defaults/orchestrators/ya_agent/system_prompt.md": {
-      "version": "2.8",
-      "sha256": "bc356769c517676f1c8b787cd81b8d0d15ba88c0e289321dabab063861f1670c",
+      "version": "2.9",
+      "sha256": "56acb0d40370fabb8646fe5226952771f7afd7f5c6ef0f70271461a50a2c6fb6",
       "note": {
-        "ru": "Промпт YaAgent v2.8: батч-протокол - независимые вызовы в одном сообщении; ветка «готовый план пользователя» с дословным принятием плана.",
-        "en": "YaAgent prompt v2.8: the batch protocol - independent calls in one message; the user-supplied-plan branch with verbatim plan acceptance."
+        "ru": "Промпт YaAgent v2.9: перечень моделей синхронизирован с каталогом YandexAI (GPT-OSS удалён); сохранены батч-протокол и ветка «готовый план пользователя».",
+        "en": "YaAgent prompt v2.9: the model list synced with the YandexAI catalog (GPT-OSS removed); the batch protocol and the user-supplied-plan branch preserved."
       }
     },
     "defaults/rag_bases/yaagentai_2020/index.db": {
@@ -1288,11 +1292,11 @@
       }
     },
     "defaults/services/yandex.json": {
-      "version": "1.0.1",
-      "sha256": "2fcb6665ea403854f88f6def0c19673337177212b1bc5417435b8d596c721392",
+      "version": "1.1.0",
+      "sha256": "cf48414aa5a147e013c07e8bf5367a468436a2f3e8810c7dc5395bcab9ddd3dd",
       "note": {
-        "ru": "Из настроек провайдера YandexAI убраны лишние поля Web search context size / allowed domains.",
-        "en": "Removed the redundant Web search context size / allowed domains fields from the YandexAI provider settings."
+        "ru": "Каталог моделей YandexAI: удалены недоступные qwen3-235b-a22b-fp8, gpt-oss-120b и gpt-oss-20b; добавлена deepseek-v4.1-flash с параметрами deepseek-v4-flash.",
+        "en": "YandexAI model catalog: unavailable qwen3-235b-a22b-fp8, gpt-oss-120b and gpt-oss-20b removed; deepseek-v4.1-flash added with the deepseek-v4-flash settings."
       }
     },
     "defaults/settings/global.json": {
@@ -1400,11 +1404,11 @@
       }
     },
     "services/yandex.json": {
-      "version": "1.0.1",
-      "sha256": "2fcb6665ea403854f88f6def0c19673337177212b1bc5417435b8d596c721392",
+      "version": "1.1.0",
+      "sha256": "cf48414aa5a147e013c07e8bf5367a468436a2f3e8810c7dc5395bcab9ddd3dd",
       "note": {
-        "ru": "Из настроек провайдера YandexAI убраны лишние поля Web search context size / allowed domains.",
-        "en": "Removed the redundant Web search context size / allowed domains fields from the YandexAI provider settings."
+        "ru": "Каталог моделей YandexAI: удалены недоступные qwen3-235b-a22b-fp8, gpt-oss-120b и gpt-oss-20b; добавлена deepseek-v4.1-flash с параметрами deepseek-v4-flash.",
+        "en": "YandexAI model catalog: unavailable qwen3-235b-a22b-fp8, gpt-oss-120b and gpt-oss-20b removed; deepseek-v4.1-flash added with the deepseek-v4-flash settings."
       }
     },
     "defaults/instructions/ssh_connector.md": {

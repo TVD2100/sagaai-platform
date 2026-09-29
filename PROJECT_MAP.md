@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-09-28T19:31:47+00:00`
-- Файлов: **1010**
-- Языки: Config: 1, JSON: 22, Markdown: 754, PEM certificate: 1, Python: 236, Text: 1
+- Обновлено: `2026-09-29T13:13:17+00:00`
+- Файлов: **1019**
+- Языки: Config: 1, JSON: 22, Markdown: 762, PEM certificate: 1, Python: 237, Text: 1
 
 ## Файлы и назначение
 
@@ -230,6 +230,7 @@
 | `tests/scenarios/test_updater_runtime_flow.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_welcome_page_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_workspace_binding_scenario.py` | Python | _(описание не задано)_ | storage |
+| `tests/scenarios/test_yandex_models_catalog_scenario.py` | Python | Scenario tests for the YandexAI model catalog update | - |
 | `storage/__init__.py` | Python | Package marker | - |
 | `storage/db.py` | Python | SQLAlchemy engines; auto-migration skills->assistants, skill_*->assistant_* columns | storage |
 | `storage/models.py` | Python | ORM models: Assistant (assistants), Thread (assistant_id/assistant_name), Message, ConfigKV, Instruction, Orchestrator | - |
@@ -1016,6 +1017,14 @@
 | `dev_agent/task_states/TASK_STATE__20260927_203458_f30d8c.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260927_203509_112c52.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260927_203509_3eb717.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260928_223303_9a2b06.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260928_223306_1867d2.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260928_223306_2f3249.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260928_223306_758b6d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260928_223306_cf8dd3.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260928_223306_d15389.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260928_223315_415a88.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260928_223315_748e8c.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
 | `services/deepseek.json` | JSON | DeepSeek service definition | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
@@ -3926,6 +3935,13 @@
 - `test_scenario_parallel_dialogs_stay_isolated` (func, строка 73)
 - `test_scenario_switched_workspace_survives_restart` (func, строка 135)
 - `test_scenario_unbound_dispatcher_legacy_fallback` (func, строка 184)
+
+### `tests/scenarios/test_yandex_models_catalog_scenario.py`
+- `_json` (func, строка 38)
+- `_models` (func, строка 43)
+- `test_catalog_offers_deepseek_v41_flash_and_drops_retired_models` (func, строка 51)
+- `test_service_copies_are_byte_identical` (func, строка 83)
+- `test_reference_and_prompt_agree_with_catalog` (func, строка 96)
 
 ### `storage/db.py`
 - `_is_file_db` (func, строка 24)

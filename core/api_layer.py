@@ -427,7 +427,7 @@ def _extract_responses_text(data: dict) -> str:
     """Extract readable text from a Responses API response (non-streaming).
 
     Unified extractor for every AI Studio model (yandexgpt, aliceai, qwen,
-    gpt-oss, deepseek-v4-*) which all share the same Responses contract.
+    deepseek-v4-*) which all share the same Responses contract.
     Resolution order:
 
     1. Top-level ``output_text`` - the convenience property exposed by the
