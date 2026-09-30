@@ -7,8 +7,8 @@ Service JSON files may declare two optional blocks:
   * ``image_models``  - text-to-image generation models.
 
 Only services that actually ship such models declare these blocks
-(currently YandexAI: Qwen3.6 35B A3B for vision, Alice AI ART 3.0 /
-YandexART for generation). core.services exposes the read helpers
+(currently YandexAI: Qwen3.6 35B A3B for vision, Alice AI ART 3.0 for
+generation). core.services exposes the read helpers
 get_vision_models() and get_image_models(); the settings UI renders an
 empty option when a service declares no catalog.
 """
@@ -36,7 +36,8 @@ def test_yandex_declares_vision_and_image_catalogs():
     vision_ids = [m.get("id") for m in vision]
     image_ids = [m.get("id") for m in image]
     assert "qwen3.6-35b-a3b" in vision_ids
-    assert "yandex-art" in image_ids
+    # Single generation model since 1.6.0: the async yandex-art was removed.
+    assert image_ids == ["aliceai-image-art-3.0"], image_ids
     for entry in vision + image:
         label = entry.get("label") or {}
         assert label.get("ru"), entry

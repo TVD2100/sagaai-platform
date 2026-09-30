@@ -34,7 +34,7 @@ SagaAI построена по модульной архитектуре с чё
 
 | Модуль | Ключевые функции |
 |--------|------------------|
-| `api_layer` | HTTP-запросы к AI API (Bearer-токен, GigaChat OAuth, Responses API, тест соединения); нормализация GigaChat-payload (единственный ведущий system) и кламп max_tokens; транспорты изображений `send_vision_request` (multimodal chat completions) и `send_image_generation_request` (YandexART async + опрос операции) |
+| `api_layer` | HTTP-запросы к AI API (Bearer-токен, GigaChat OAuth, Responses API, тест соединения); нормализация GigaChat-payload (единственный ведущий system) и кламп max_tokens; транспорты изображений `send_vision_request` (multimodal chat completions) и `send_image_generation_request` (синхронный OpenAI-совместимый Images API YandexAI) |
 | `api_errors` | Единая иерархия ошибок API и локализованные сообщения |
 | `files` | Определение типов файлов, оценка токенов, извлечение контента |
 | `fs` | Низкоуровневые операции: чтение/запись JSON и текста, кодировки, `ensure_dir` |
@@ -262,9 +262,11 @@ system_prompt.md), переводов, сервисов, помощников, �
 «не назначена». Legacy-ключи `weak_*` читаются как алиасы основной модели.
 Назначенные модели используются системными инструментами `analyze_image`
 (файлы проекта и вложения диалога; JPEG/PNG/WebP, до 5 изображений и
-10 МБ каждое) и `generate_image` (асинхронный провайдер; результат
-сохраняется файлом - в workspace или в папку файлов диалога, base64 не
-возвращается) через `core/multimodal.py` и транспорты `core/api_layer.py`.
+10 МБ каждое) и `generate_image` (синхронный OpenAI-совместимый Images API
+YandexAI, единственная модель `aliceai-image-art-3.0`; результат сохраняется
+файлом - в workspace или в папку файлов диалога, base64 не возвращается -
+и показывается в чате с кнопкой скачивания) через `core/multimodal.py`
+и транспорты `core/api_layer.py`.
 Правила применения, сценарии «модель не назначена» / «модель не умеет» и
 согласие на установку зависимостей - в глобальной инструкции
 `multimodal_mode` (`defaults/instructions/multimodal_mode.md`).

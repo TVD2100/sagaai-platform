@@ -1248,17 +1248,11 @@ def _gigachat_token(credentials: str, scope: str = "GIGACHAT_API_PERS") -> str:
 # Image analysis goes through the OpenAI-compatible chat/completions endpoint:
 # Yandex AI Studio and any bearer service accept the standard
 # {"type": "image_url", "image_url": {"url": "data:<mime>;base64,..."}}
-# content part. Image generation uses the YandexART asynchronous API: the
-# create call returns an Operation id and the finished image is fetched from
-# the operations endpoint as a base64 payload.
-
-YANDEX_IMAGE_GENERATION_URL = (
-    "https://llm.api.cloud.yandex.net/foundationModels/v1/imageGenerationAsync"
-)
-YANDEX_OPERATIONS_URL = "https://llm.api.cloud.yandex.net/operations"
-IMAGE_GENERATION_POLL_INTERVAL = 5.0   # seconds between operation polls
-IMAGE_GENERATION_MAX_WAIT = 600.0      # give up after ~10 minutes
-_IMAGE_GENERATION_MAX_POLLS = 1000     # hard attempt cap for tiny intervals
+# content part. Image generation uses the OpenAI-compatible Images API:
+# Yandex AI Studio (Alice AI ART 3.0) receives the model URI
+# art://<folder_id>/<model>/latest plus the folder id in the
+# OpenAI-Project / x-project headers and returns the finished image as a
+# base64 payload (data[0].b64_json).
 
 
 def _extract_openai_message_text(message: dict) -> str:
@@ -1382,22 +1376,16 @@ def send_vision_request(service: str, model: str, prompt: str, images: list,
 
 
 def send_image_generation_request(service: str, model: str, prompt: str,
-                                  *, poll_interval: float = None,
-                                  max_wait: float = None,
+                                  *,
                                   timeout: tuple = MODEL_REQUEST_TIMEOUT) -> dict:
     """Generate an image from a text prompt; return {"mime", "data", ...}.
 
-    ``yandex_iam`` services (Yandex AI Studio) use the asynchronous
-    ImageGenerationAsync API: the prompt is submitted with the model URI
-    ``art://<folder_id>/<model>/latest``, the returned Operation id is
-    polled on the operations endpoint, and the finished image arrives as a
-    base64 JPEG. ``bearer`` services are expected to expose an
-    OpenAI-compatible ``/images/generations`` endpoint called with
-    ``response_format="b64_json"``.
-
-    *poll_interval* / *max_wait* override the module defaults (used by
-    tests); the poll wait is capped by ``IMAGE_GENERATION_MAX_WAIT`` and
-    the attempt count by ``_IMAGE_GENERATION_MAX_POLLS``.
+    Both auth modes use the OpenAI-compatible synchronous Images API
+    (``<base_url>/images/generations``, ``response_format="b64_json"`` and
+    the image in ``data[0].b64_json``). ``yandex_iam`` services (Yandex AI
+    Studio) receive the model URI ``art://<folder_id>/<model>/latest`` and
+    the folder id in the ``OpenAI-Project`` / ``x-project`` headers;
+    ``bearer`` services get the plain model id and no folder headers.
 
     Raises the standard APIError subclasses (ServiceNotFoundError,
     ApiKeyMissingError, AuthTypeUnknownError, ProviderHTTPError,
@@ -1425,102 +1413,50 @@ def send_image_generation_request(service: str, model: str, prompt: str,
     }
     text = str(prompt or "").strip()
 
-    if auth_type != "yandex_iam":
-        url = str(svc.get("base_url", "")).rstrip("/")
-        if not url.endswith("/images/generations"):
-            url = f"{url}/images/generations"
-        payload = {
-            "model": str(model),
-            "prompt": text,
-            "response_format": "b64_json",
-        }
-        try:
-            r = requests.post(url, headers=headers, json=payload,
-                              timeout=timeout, verify=_VERIFY_TLS)
-        except requests.exceptions.Timeout:
-            raise RequestTimeoutError(service=service)
-        except requests.exceptions.RequestException as e:
-            raise NetworkError(str(e), service=service)
-        if r.status_code != 200:
-            raise ProviderHTTPError(r.status_code, _extract_error_body(r),
-                                    service=service)
-        data = r.json() or {}
-        items = data.get("data") or []
-        first = items[0] if (items and isinstance(items[0], dict)) else {}
-        image_b64 = str(first.get("b64_json") or "")
-        if not image_b64:
-            raise ProviderHTTPError(
-                200, "image generation returned no b64_json payload",
-                service=service)
-        return {"mime": "image/jpeg", "data": image_b64,
-                "service": service, "model": str(model)}
+    if auth_type == "yandex_iam":
+        folder_id = cfg.get(svc.get("config_key2", ""), "")
+        if isinstance(folder_id, str):
+            folder_id = folder_id.strip()
+        if not folder_id:
+            raise ApiKeyMissingError(service, field="Folder ID")
+        model_name = f"art://{folder_id}/{model}/latest"
+        headers["OpenAI-Project"] = folder_id
+        headers["x-project"] = folder_id
+    else:
+        folder_id = ""
+        model_name = str(model)
 
-    folder_id = cfg.get(svc.get("config_key2", ""), "")
-    if isinstance(folder_id, str):
-        folder_id = folder_id.strip()
-    if not folder_id:
-        raise ApiKeyMissingError(service, field="Folder ID")
-
+    url = str(svc.get("base_url", "")).rstrip("/")
+    if not url.endswith("/images/generations"):
+        url = f"{url}/images/generations"
     payload = {
-        "modelUri": f"art://{folder_id}/{model}/latest",
-        "messages":  [{"text": text}],
+        "model": model_name,
+        "prompt": text,
+        "response_format": "b64_json",
     }
     try:
-        r = requests.post(YANDEX_IMAGE_GENERATION_URL, headers=headers,
-                          json=payload, timeout=timeout, verify=_VERIFY_TLS)
+        r = requests.post(url, headers=headers, json=payload,
+                          timeout=timeout, verify=_VERIFY_TLS)
     except requests.exceptions.Timeout:
         raise RequestTimeoutError(service=service)
     except requests.exceptions.RequestException as e:
         raise NetworkError(str(e), service=service)
     if r.status_code != 200:
         body = _extract_error_body(r)
-        if r.status_code == 403:
+        if r.status_code == 403 and folder_id:
             body += (". Check that the service account behind the API key/IAM "
                      f"token has the 'ai.imageGeneration.user' role on folder '{folder_id}'")
         raise ProviderHTTPError(r.status_code, body, service=service)
-    op_id = str((r.json() or {}).get("id") or "")
-    if not op_id:
+    data = r.json() or {}
+    items = data.get("data") or []
+    first = items[0] if (items and isinstance(items[0], dict)) else {}
+    image_b64 = str(first.get("b64_json") or "")
+    if not image_b64:
         raise ProviderHTTPError(
-            200, "image generation returned no operation id",
+            200, "image generation returned no b64_json payload",
             service=service)
-
-    interval = IMAGE_GENERATION_POLL_INTERVAL if poll_interval is None \
-        else max(0.1, float(poll_interval))
-    wait_limit = IMAGE_GENERATION_MAX_WAIT if max_wait is None \
-        else max(1.0, float(max_wait))
-    deadline = time.monotonic() + wait_limit
-    op_url = f"{YANDEX_OPERATIONS_URL}/{op_id}"
-    for _ in range(_IMAGE_GENERATION_MAX_POLLS):
-        try:
-            poll = requests.get(op_url, headers=headers, timeout=timeout,
-                                verify=_VERIFY_TLS)
-        except requests.exceptions.Timeout:
-            raise RequestTimeoutError(service=service)
-        except requests.exceptions.RequestException as e:
-            raise NetworkError(str(e), service=service)
-        if poll.status_code != 200:
-            raise ProviderHTTPError(poll.status_code, _extract_error_body(poll),
-                                    service=service)
-        data = poll.json() or {}
-        if data.get("done"):
-            err = data.get("error")
-            if err:
-                detail = err.get("message") if isinstance(err, dict) else str(err)
-                raise ProviderHTTPError(200, detail or "image generation failed",
-                                        service=service)
-            image_b64 = str(((data.get("response") or {}).get("image")) or "")
-            if not image_b64:
-                raise ProviderHTTPError(
-                    200, "image generation finished without an image payload",
-                    service=service)
-            return {"mime": "image/jpeg", "data": image_b64,
-                    "service": service, "model": str(model)}
-        if time.monotonic() >= deadline:
-            break
-        time.sleep(interval)
-    raise RequestTimeoutError(
-        service=service,
-        detail=f"image generation did not finish within {int(wait_limit)} s")
+    return {"mime": "image/jpeg", "data": image_b64,
+            "service": service, "model": str(model)}
 
 
 def _assistant_rag_context(assistant: dict, user_message: str) -> str:

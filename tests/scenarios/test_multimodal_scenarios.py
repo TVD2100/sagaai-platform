@@ -21,9 +21,9 @@ boundary (core.api_layer.requests):
                not declare. The tool answers model_not_declared and makes
                no provider request.
 
-  Scenario 4 - the user asks for a picture: the tool runs the asynchronous
-               YandexART flow (operation poll), the JPEG lands in the
-               dialog files folder (no base64 in the tool result); the
+  Scenario 4 - the user asks for a picture: the tool calls the synchronous
+               OpenAI-compatible Images API, the JPEG lands in the dialog
+               files folder (no base64 in the tool result); the
                output_path variant saves into the project instead.
 
   Scenario 5 - permission denied: the provider answers 403 (the service
@@ -56,7 +56,7 @@ def _services():
             "config_key2": "YANDEX_FOLDER_ID",
             "base_url": "https://ai.api.cloud.yandex.net/v1",
             "vision_models": [{"id": "qwen3.6-35b-a3b", "label": {}}],
-            "image_models": [{"id": "yandex-art", "label": {}}],
+            "image_models": [{"id": "aliceai-image-art-3.0", "label": {}}],
         },
     }
 
@@ -65,7 +65,7 @@ ASSIGNED = {
     "vision_service": "YandexAI",
     "vision_model": "qwen3.6-35b-a3b",
     "image_service": "YandexAI",
-    "image_model": "yandex-art",
+    "image_model": "aliceai-image-art-3.0",
 }
 
 YANDEX_KEYS = {"YANDEX_API_KEY": "iam-token", "YANDEX_FOLDER_ID": "folder1"}
@@ -185,22 +185,19 @@ def test_scenario_3_model_not_declared_by_provider(env):
 
 def test_scenario_4_generate_image_saves_to_dialog_then_project(env):
     """Given the image model is assigned, when the user asks for a picture,
-    then the async YandexART flow runs, the JPEG lands in the dialog files
-    folder with the exact bytes and no base64 in the result; the
+    then the synchronous Images API call runs, the JPEG lands in the dialog
+    files folder with the exact bytes and no base64 in the result; the
     output_path variant saves into the project instead."""
     from dev_agent.tool_executor import ToolExecutor
 
-    post_resp = _resp(200, {"id": "op123"})
-    poll_resp = _resp(200, {"done": True, "response": {"image": IMG_B64}})
+    images_resp = _resp(200, {"data": [{"b64_json": IMG_B64}]})
     te = ToolExecutor()
 
     with patch("core.multimodal.load_devagent_config", return_value=ASSIGNED), \
          patch("core.multimodal.get_services", return_value=_services()), \
          patch("core.api_layer.get_services", return_value=_services()), \
          patch("core.api_layer.load_config", return_value=YANDEX_KEYS), \
-         patch("core.api_layer.requests.post", return_value=post_resp) as post, \
-         patch("core.api_layer.requests.get", return_value=poll_resp) as get, \
-         patch("core.api_layer.time.sleep"):
+         patch("core.api_layer.requests.post", return_value=images_resp) as post:
         dialog = te.dispatch("generate_image", {"prompt": "A blue square"})
         project = te.dispatch("generate_image",
                               {"prompt": "A blue square",
@@ -209,7 +206,7 @@ def test_scenario_4_generate_image_saves_to_dialog_then_project(env):
     assert dialog["ok"] is True
     assert "data" not in dialog
     assert dialog["service"] == "YandexAI"
-    assert dialog["model"] == "yandex-art"
+    assert dialog["model"] == "aliceai-image-art-3.0"
     assert dialog["mime"] == "image/jpeg"
     saved = Path(dialog["path"])
     assert saved.parent == env["files_dir"]
@@ -222,10 +219,14 @@ def test_scenario_4_generate_image_saves_to_dialog_then_project(env):
     assert target.read_bytes() == JPEG_BYTES
 
     assert post.call_count == 2
-    assert get.call_count == 2
     assert post.call_args[0][0] == (
-        "https://llm.api.cloud.yandex.net/foundationModels/v1/imageGenerationAsync")
-    assert post.call_args[1]["json"]["modelUri"] == "art://folder1/yandex-art/latest"
+        "https://ai.api.cloud.yandex.net/v1/images/generations")
+    payload = post.call_args[1]["json"]
+    assert payload["model"] == "art://folder1/aliceai-image-art-3.0/latest"
+    assert payload["response_format"] == "b64_json"
+    headers = post.call_args[1]["headers"]
+    assert headers["OpenAI-Project"] == "folder1"
+    assert headers["x-project"] == "folder1"
 
 
 def test_scenario_5_generation_permission_denied_role_hint(env):
@@ -234,14 +235,15 @@ def test_scenario_5_generation_permission_denied_role_hint(env):
     hint with the folder id and saves no file."""
     from dev_agent.tool_executor import ToolExecutor
 
-    denied = _resp(403, {"error": "Access to model art://folder1/yandex-art/latest denied",
-                         "code": 7})
+    denied = _resp(
+        403, {"error": "Access to model "
+                      "art://folder1/aliceai-image-art-3.0/latest denied",
+              "code": 7})
     with patch("core.multimodal.load_devagent_config", return_value=ASSIGNED), \
          patch("core.multimodal.get_services", return_value=_services()), \
          patch("core.api_layer.get_services", return_value=_services()), \
          patch("core.api_layer.load_config", return_value=YANDEX_KEYS), \
-         patch("core.api_layer.requests.post", return_value=denied), \
-         patch("core.api_layer.time.sleep"):
+         patch("core.api_layer.requests.post", return_value=denied):
         result = ToolExecutor().dispatch("generate_image",
                                          {"prompt": "A blue square"})
 

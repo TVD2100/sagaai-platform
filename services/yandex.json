@@ -169,10 +169,10 @@
   ],
   "image_models": [
     {
-      "id": "yandex-art",
+      "id": "aliceai-image-art-3.0",
       "label": {
-        "ru": "Alice AI ART 3.0 (YandexART) - генерация изображений по текстовому описанию",
-        "en": "Alice AI ART 3.0 (YandexART) - text-to-image generation"
+        "ru": "Alice AI ART 3.0 - генерация изображений по текстовому описанию",
+        "en": "Alice AI ART 3.0 - text-to-image generation"
       }
     }
   ],

@@ -191,8 +191,7 @@ def analyze_image(images: list, prompt: str, *,
             "text": text, "images": len(loaded)}
 
 
-def generate_image(prompt: str, *, config: dict = None,
-                   poll_interval: float = None, max_wait: float = None) -> dict:
+def generate_image(prompt: str, *, config: dict = None) -> dict:
     """Generate an image from a text prompt with the assigned image model.
 
     Returns {"ok": True, "service", "model", "mime", "data"} where *data*
@@ -204,12 +203,7 @@ def generate_image(prompt: str, *, config: dict = None,
         raise MultimodalError("empty_prompt",
                               "Image generation needs a non-empty text prompt.")
     service, model = resolve_model(IMAGE, config=config)
-    kwargs = {}
-    if poll_interval is not None:
-        kwargs["poll_interval"] = poll_interval
-    if max_wait is not None:
-        kwargs["max_wait"] = max_wait
-    result = send_image_generation_request(service, model, text, **kwargs)
+    result = send_image_generation_request(service, model, text)
     return {"ok": True, "service": service, "model": model,
             "mime": str(result.get("mime") or "image/jpeg"),
             "data": str(result.get("data") or "")}

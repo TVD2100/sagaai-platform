@@ -136,7 +136,7 @@ class TestGenerateImageTool:
         monkeypatch.setattr(core_paths, "HISTORY_DIR", str(history))
         monkeypatch.setattr("dev_agent.config.ACTIVE_THREAD_ID", "tid1")
         te = ToolExecutor()
-        fake = {"service": "YandexAI", "model": "yandex-art",
+        fake = {"service": "YandexAI", "model": "aliceai-image-art-3.0",
                 "mime": "image/jpeg", "data": JPEG_B64}
         with patch("core.multimodal.generate_image", return_value=fake) as mocked:
             result = te.dispatch("generate_image", {"prompt": "A red circle"})

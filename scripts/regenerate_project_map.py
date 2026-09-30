@@ -84,6 +84,7 @@ roles = {
     "tests/test_employee_management_ui.py": "UI regression tests: employee management pages render and expose no export/import employee UI",
     "tests/test_orchestrator_folders.py": "Orchestrator folder tests",
     "tests/test_orchestrator_message_controls.py": "Per-message download/copy controls tests (plain-prose answers)",
+    "tests/test_orchestrator_image_result.py": "UI tests: generated image shown in the chat with a download button",
     "tests/test_phase1_agent_loop.py": "Agent loop tests",
     "tests/test_phase1_core_pure.py": "Pure core tests",
     "tests/test_phase1_storage.py": "Storage layer tests (assistants table + legacy aliases)",

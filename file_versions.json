@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "1.5.0",
+  "app_version": "1.6.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Релиз 1.5.0: мультимодальные инструменты сотрудников - analyze_image (распознавание изображений из вложений диалога и файлов проекта) и generate_image (генерация по промпту, результат сохраняется файлом); транспорты изображений в api_layer; глобальная инструкция multimodal_mode; документация и карта проекта обновлены; версия платформы 1.5.0.",
-    "en": "Release 1.5.0: employee multimodal tools - analyze_image (image analysis of dialog uploads and project files) and generate_image (prompt-based generation saved to a file); image transports in api_layer; the global multimodal_mode instruction; docs and the project map updated; platform version 1.5.0."
+    "ru": "Релиз 1.6.0: синхронная генерация изображений - инструмент generate_image переведён на OpenAI-совместимый Images API YandexAI с единственной моделью aliceai-image-art-3.0 (async-ветка YandexART удалена); сгенерированная картинка показывается в чате с кнопкой скачивания; документация и карта проекта обновлены; версия платформы 1.6.0.",
+    "en": "Release 1.6.0: synchronous image generation - the generate_image tool moved to the OpenAI-compatible YandexAI Images API with the single model aliceai-image-art-3.0 (the YandexART async branch removed); the generated image is shown in the chat with a download button; docs and the project map updated; platform version 1.6.0."
   },
-  "updated": "2026-09-30T18:10:35Z",
+  "updated": "2026-09-30T20:08:15Z",
   "units": {
     "core": {
-      "version": "1.17.0",
+      "version": "1.18.0",
       "note": {
-        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py. 1.15.0: SSH-коннектор - инструмент ssh_upload_file (потоковая публикация локальных файлов на сервер, sha256-верификация, до 50 МиБ); подсказка create_dirs в ошибке ssh_write_file. 1.15.1: сценарный тест каталога моделей YandexAI (tests/scenarios), пин промпта YaAgent v2.9, регенерация PROJECT_MAP.md; версия платформы 1.3.2. 1.16.0: единая модель оркестраторов - слабая модель удалена из настроек, добавлены опциональные vision/image настройки и каталоги у сервисов, рантайм на основной модели, tolerant legacy weak_*; документация и манифест обновлены; версия платформы 1.4.0. 1.17.0: мультимодальные инструменты analyze_image/generate_image (вложения диалога и файлы проекта; генерация сохраняется файлом), транспорты send_vision_request/send_image_generation_request в api_layer, глобальная инструкция multimodal_mode; версия платформы 1.5.0.",
-        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py. 1.15.0: SSH connector - ssh_upload_file tool (streamed publishing of local files to a server, sha256 verification, up to 50 MB); create_dirs hint in the ssh_write_file error. 1.15.1: YandexAI model catalog scenario test (tests/scenarios), YaAgent v2.9 prompt pin, PROJECT_MAP.md regenerated; platform version 1.3.2. 1.16.0: single-model orchestrators - the weak model removed from settings, optional vision/image settings and service catalogs added, runtime on the main model, tolerant legacy weak_*; docs and manifest updated; platform version 1.4.0. 1.17.0: multimodal tools analyze_image/generate_image (dialog uploads and project files; generation saved to a file), send_vision_request/send_image_generation_request transports in api_layer, the global multimodal_mode instruction; platform version 1.5.0."
+        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py. 1.15.0: SSH-коннектор - инструмент ssh_upload_file (потоковая публикация локальных файлов на сервер, sha256-верификация, до 50 МиБ); подсказка create_dirs в ошибке ssh_write_file. 1.15.1: сценарный тест каталога моделей YandexAI (tests/scenarios), пин промпта YaAgent v2.9, регенерация PROJECT_MAP.md; версия платформы 1.3.2. 1.16.0: единая модель оркестраторов - слабая модель удалена из настроек, добавлены опциональные vision/image настройки и каталоги у сервисов, рантайм на основной модели, tolerant legacy weak_*; документация и манифест обновлены; версия платформы 1.4.0. 1.17.0: мультимодальные инструменты analyze_image/generate_image (вложения диалога и файлы проекта; генерация сохраняется файлом), транспорты send_vision_request/send_image_generation_request в api_layer, глобальная инструкция multimodal_mode; версия платформы 1.5.0. 1.18.0: синхронный Images API для generate_image (единственная модель aliceai-image-art-3.0, удаление async-ветки YandexART), показ сгенерированного изображения в чате с кнопкой скачивания; версия платформы 1.6.0.",
+        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py. 1.15.0: SSH connector - ssh_upload_file tool (streamed publishing of local files to a server, sha256 verification, up to 50 MB); create_dirs hint in the ssh_write_file error. 1.15.1: YandexAI model catalog scenario test (tests/scenarios), YaAgent v2.9 prompt pin, PROJECT_MAP.md regenerated; platform version 1.3.2. 1.16.0: single-model orchestrators - the weak model removed from settings, optional vision/image settings and service catalogs added, runtime on the main model, tolerant legacy weak_*; docs and manifest updated; platform version 1.4.0. 1.17.0: multimodal tools analyze_image/generate_image (dialog uploads and project files; generation saved to a file), send_vision_request/send_image_generation_request transports in api_layer, the global multimodal_mode instruction; platform version 1.5.0. 1.18.0: synchronous Images API for generate_image (the single model aliceai-image-art-3.0, the YandexART async branch removed), the generated image shown in the chat with a download button; platform version 1.6.0."
       },
       "files": {
         "__init__.py": {
@@ -40,8 +40,8 @@
           "sha256": "9815e2a3bf0ed797efeeefd41414e1579dde9f7ceb86675611fc3bd624fa6f33"
         },
         "core/api_layer.py": {
-          "version": "1.5.0",
-          "sha256": "cc42a980440e8bd4d25e958f25c80a804d98e0b3a422356738ff4b1c326952de"
+          "version": "1.6.0",
+          "sha256": "3d17ef29474c12a80f630ea881acbcc7f4a585ba9b94155a7b5a69469be29622"
         },
         "core/assistant_creator.py": {
           "version": "1.0.0",
@@ -204,8 +204,8 @@
           "sha256": "78547e37b44458d451124b69e76ecf5bd2f69213e7164dea11137343f4e20df8"
         },
         "core/version.py": {
-          "version": "1.0.19",
-          "sha256": "f958a12dfe8db79b692e221eb0c2ac49efc43a01467ae7da7ddefc7232802428"
+          "version": "1.0.20",
+          "sha256": "51330d05581ec14b850342a917f0e19c821a6147387fbc693dfaa2fb929bbe6e"
         },
         "dev_agent/__init__.py": {
           "version": "1.0.0",
@@ -244,8 +244,8 @@
           "sha256": "84584ba39290d90309102d920358bf96b15c56aee17ca247b38310b1101ae6b6"
         },
         "dev_agent/tool_executor.py": {
-          "version": "1.7.0",
-          "sha256": "92f5c60ad026dfb1ef94dffba76424ddb3265812018672d8dfac962de5de50b9"
+          "version": "1.8.0",
+          "sha256": "ffe6100cff1f03027330710efd0cd3fde0421de3159e9432dc3db7ba7953e4c0"
         },
         "dev_agent/universal_agent.py": {
           "version": "1.9.0",
@@ -264,8 +264,8 @@
           "sha256": "66abb9f75f09ba1908b3b70012d9fea2aaf15a1fd80f687fa7ea13cdb857362e"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.2.0",
-          "sha256": "d6af32574cac50ee8449ae1b1224984ddd9ab08ae91109d79bcad61c5c4bd1cb"
+          "version": "1.3.0",
+          "sha256": "c194b0dec9e21443c8908e72cb7ebb29522727cde6296d0dcc22f8290388b9ac"
         },
         "scripts/verify_manifest.py": {
           "version": "1.0.3",
@@ -668,8 +668,8 @@
           "sha256": "448dbf67eff496ec7d2689ef5d6f5be3640b79162e7456934ed478856b54ca74"
         },
         "ui/pages/orchestrator.py": {
-          "version": "1.9.0",
-          "sha256": "89ac329af639fe2249a00c821426f6b8d478595975ec21b41b40c58a31b60f88"
+          "version": "1.10.0",
+          "sha256": "377c41964b46a2c7154867f761a868e7fcefd9564d65ae17097d5bfcc2b48358"
         },
         "ui/pages/orchestrator_settings.py": {
           "version": "1.1.0",
@@ -976,47 +976,51 @@
           "sha256": "71b5258ef746af321c3ccc81b8bf6fb3f6c0b2dc735c9a9b896c36c709956f17"
         },
         "tests/test_single_model_config.py": {
-          "version": "1.0.0",
-          "sha256": "7d1033797beef313318461a0c87e603836b67b08c27dbb73e09f7c37b66d801f"
+          "version": "1.1.0",
+          "sha256": "a567419354ac1bf5e1ac93eaf16a82d2748fcef95e2bd1bcc374ed50a810e183"
         },
         "tests/test_service_model_catalogs.py": {
-          "version": "1.0.0",
-          "sha256": "8fb9c25305ca85b5ace2749a095c4ff80f31d5678215ca3817f6227ed92eb6c9"
+          "version": "1.1.0",
+          "sha256": "d5c20a4166cdd2c87d700c0813557d20a433c1f8372f0dda1173bc2aaa146499"
         },
         "tests/test_orchestrator_models_settings.py": {
           "version": "1.0.0",
           "sha256": "cc5fcca3d9c34f821d04586c60abaef2e16b0d777567b380ae0eaaa5ad6ea24e"
         },
         "core/multimodal.py": {
-          "version": "1.0.0",
-          "sha256": "adf41864553293b9272e3b6f123470c84e0817ef56f560f43a2accfd45843017"
+          "version": "1.1.0",
+          "sha256": "df5f46d179033a13759485dab35f014c64d19ad0a7130a68180376df3d266131"
         },
         "tests/test_multimodal.py": {
-          "version": "1.0.0",
-          "sha256": "826d9f7cf0872dc590a73a1c098c3cc1e9c7b3b9db1aeaa167d75b61bf2a9635"
+          "version": "1.1.0",
+          "sha256": "0dccb87ab14d581f6953c278f49e39a8f909b161764b1a1115fdf094e8aee5fc"
         },
         "tests/test_multimodal_tools.py": {
-          "version": "1.0.0",
-          "sha256": "11f296552bcad53a5c5ccc8b5cd368617ca6183a94edac8721bb45c14f229879"
+          "version": "1.1.0",
+          "sha256": "6a1f6faf2e78f6808a9154f2bbe6372a9b301170e06712d26ded08403f9ccfea"
         },
         "tests/test_multimodal_instruction.py": {
           "version": "1.0.0",
           "sha256": "bea075cfa5c2d68c11e56cbdac855c5f9fc402761ac0c1bbd12e5fe4234ce33d"
         },
         "tests/scenarios/test_multimodal_scenarios.py": {
+          "version": "1.1.0",
+          "sha256": "b60f43b18b5080cae71e27e880e59756cf6591191896a009afd930a7f657759b"
+        },
+        "tests/test_orchestrator_image_result.py": {
           "version": "1.0.0",
-          "sha256": "da57dd67131d0a7f86ad82e370cca0a733c7c53baf2505f8c4243af31174ab8c"
+          "sha256": "398bb0f1a8aac35cc54cb7e2007e73df47d4f4226c4d1f1d84795b8dc3e6f8ce"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.17.0",
-      "sha256": "71b3bac9ded7a4d558539117c63f7de172ee4518aa1016e144ab63c0b5d5a547",
+      "version": "1.18.0",
+      "sha256": "5edbcc81ac0931846fbe019aace5bc365c5453f3d7be3876ac830785c307bd1d",
       "note": {
-        "ru": "Раздел «Единая модель и модели изображений»: инструменты analyze_image/generate_image, транспорты api_layer, инструкция multimodal_mode; роли api_layer/tool_executor.",
-        "en": "The main-model/image-models section: analyze_image/generate_image tools, api_layer transports, the multimodal_mode instruction; api_layer/tool_executor roles."
+        "ru": "Раздел «Единая модель и модели изображений» и роль api_layer: синхронный Images API YandexAI (aliceai-image-art-3.0), показ изображения в чате.",
+        "en": "The main-model/image-models section and the api_layer role: the synchronous YandexAI Images API (aliceai-image-art-3.0), image shown in the chat."
       }
     },
     "COMPARISON.md": {
@@ -1036,27 +1040,27 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.20.3",
-      "sha256": "bf7d209a627d35f4422b791f010a56bf27a896aa7e66c29503309c08fac377f2",
+      "version": "1.21.0",
+      "sha256": "028115aaf563ad076c5d1a5260c7dfadf35172aaebb433d3fa64ed92058d5e75",
       "note": {
-        "ru": "Карта регенерирована: core/multimodal.py, инструкция multimodal_mode, мультимодальные тесты (unit + scenarios).",
-        "en": "Map regenerated: core/multimodal.py, the multimodal_mode instruction, multimodal test suites (unit + scenarios)."
+        "ru": "Карта регенерирована: новый UI-тест показа сгенерированного изображения.",
+        "en": "Map regenerated: new UI test for showing the generated image."
       }
     },
     "README.md": {
-      "version": "1.15.0",
-      "sha256": "bc3d5ab787b0d1a9cffc09005c6843ec2d6ab3f603227109bb9a29cb12160c4f",
+      "version": "1.16.0",
+      "sha256": "793726d495cc0cb9821cea58f50d1cca0464915c40a015696006e9735f2d6169",
       "note": {
-        "ru": "Статус версии v1.5.0; модели сотрудника: единая основная модель, опциональные модели изображений и инструменты analyze_image/generate_image.",
-        "en": "Version status v1.5.0; employee models: one main model, optional image models and the analyze_image/generate_image tools."
+        "ru": "Статус версии v1.6.0; синхронная генерация изображений (aliceai-image-art-3.0) с показом и скачиванием в чате.",
+        "en": "Version status v1.6.0; synchronous image generation (aliceai-image-art-3.0) shown in the chat with download."
       }
     },
     "SPEC.md": {
-      "version": "1.18.0",
-      "sha256": "ab0861adae34bd2fe0c823676ac4abf42a88aa2f431b3533c62db34cd55ac200",
+      "version": "1.19.0",
+      "sha256": "786d463fd8755441e783eb64530e87c63d80a1001b61917360430816a19479b4",
       "note": {
-        "ru": "FR6: инструменты analyze_image/generate_image и инструкция multimodal_mode; NFR6: счётчики базовых файлов (core/multimodal.py).",
-        "en": "FR6: analyze_image/generate_image tools and the multimodal_mode instruction; NFR6: base-file counters (core/multimodal.py)."
+        "ru": "FR6: синхронная генерация изображений (aliceai-image-art-3.0) и показ результата в чате с кнопкой скачивания.",
+        "en": "FR6: synchronous image generation (aliceai-image-art-3.0) and the result shown in the chat with a download button."
       }
     },
     "defaults/README.md": {
@@ -1116,11 +1120,11 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.7.0",
-      "sha256": "6b1acf8c6aae18990cf882dc802aeb192d57f7f4f5822f98eac1446017618151",
+      "version": "1.8.0",
+      "sha256": "a9144889303c68038b62a3587e5295abc90f0c25a6754635cbfe736e9a36138e",
       "note": {
-        "ru": "Ключи моделей изображений (распознавание/генерация), заголовок «Основная модель», удалены мёртвые weak-ключи.",
-        "en": "Image model keys (vision/generation), Main model heading, dead weak keys removed."
+        "ru": "Ключи показа сгенерированного изображения в ленте чата (image / download / missing).",
+        "en": "Chat-feed keys for the generated image (image / download / missing)."
       }
     },
     "defaults/langs/en_guide.md": {
@@ -1132,11 +1136,11 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.7.0",
-      "sha256": "27ff1fc26ff68fe9fd005bb9baa46f13099a50f2d9a9572e7d9ca22fa706c8bf",
+      "version": "1.8.0",
+      "sha256": "b5c5b25f5be8ab9743ee9d0d34b5f21087fb26455bfeacafa780e10b98ff528c",
       "note": {
-        "ru": "Ключи моделей изображений (распознавание/генерация), заголовок «Основная модель», удалены мёртвые weak-ключи.",
-        "en": "Image model keys (vision/generation), Main model heading, dead weak keys removed."
+        "ru": "Ключи показа сгенерированного изображения в ленте чата (image / download / missing).",
+        "en": "Chat-feed keys for the generated image (image / download / missing)."
       }
     },
     "defaults/langs/ru_guide.md": {
@@ -1148,11 +1152,11 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.7.0",
-      "sha256": "b3eaa91a42ec3eef06ab86c6043163fba00962ad943f46e409bb9ec8caa17ced",
+      "version": "1.8.0",
+      "sha256": "464674a537bcca510b7e02c029955359f256c09a3e0bb0cff8680d280e0be944",
       "note": {
-        "ru": "Ключи моделей изображений (распознавание/генерация), заголовок «Основная модель», удалены мёртвые weak-ключи.",
-        "en": "Image model keys (vision/generation), Main model heading, dead weak keys removed."
+        "ru": "Ключи показа сгенерированного изображения в ленте чата (image / download / missing).",
+        "en": "Chat-feed keys for the generated image (image / download / missing)."
       }
     },
     "defaults/langs/zh_CN_guide.md": {
@@ -1324,11 +1328,11 @@
       }
     },
     "defaults/services/yandex.json": {
-      "version": "1.2.0",
-      "sha256": "25a48dcd73c5eac317c5866515861eb99a7c848c8f02d53fcbd31b0673b74613",
+      "version": "1.3.0",
+      "sha256": "772f50418bcc1157555b346ae5aabf96c6add70c9be7997a191ae37b7cf1ed57",
       "note": {
-        "ru": "Каталоги vision_models (qwen3.6-35b-a3b) и image_models (yandex-art / Alice AI ART 3.0) для инструментов работы с изображениями.",
-        "en": "vision_models (qwen3.6-35b-a3b) and image_models (yandex-art / Alice AI ART 3.0) catalogs for image tools."
+        "ru": "Каталог image_models: единственная модель aliceai-image-art-3.0 (yandex-art удалён).",
+        "en": "image_models catalog: the single model aliceai-image-art-3.0 (yandex-art removed)."
       }
     },
     "defaults/settings/global.json": {
@@ -1372,11 +1376,11 @@
       }
     },
     "langs/en.json": {
-      "version": "1.7.0",
-      "sha256": "6b1acf8c6aae18990cf882dc802aeb192d57f7f4f5822f98eac1446017618151",
+      "version": "1.8.0",
+      "sha256": "a9144889303c68038b62a3587e5295abc90f0c25a6754635cbfe736e9a36138e",
       "note": {
-        "ru": "Ключи моделей изображений (распознавание/генерация), заголовок «Основная модель», удалены мёртвые weak-ключи.",
-        "en": "Image model keys (vision/generation), Main model heading, dead weak keys removed."
+        "ru": "Ключи показа сгенерированного изображения в ленте чата (image / download / missing).",
+        "en": "Chat-feed keys for the generated image (image / download / missing)."
       }
     },
     "langs/en_guide.md": {
@@ -1388,11 +1392,11 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.7.0",
-      "sha256": "bf5d8101d8b6ce365d3b3e97b31e169f9faa0dc8180b947a2d685422eccbd75f",
+      "version": "1.8.0",
+      "sha256": "675349bf0867be7f414974e19d837611e9dca7cb2a8219f4a98c47125e3ebfbb",
       "note": {
-        "ru": "Ключи моделей изображений (распознавание/генерация), заголовок «Основная модель», удалены мёртвые weak-ключи.",
-        "en": "Image model keys (vision/generation), Main model heading, dead weak keys removed."
+        "ru": "Ключи показа сгенерированного изображения в ленте чата (image / download / missing).",
+        "en": "Chat-feed keys for the generated image (image / download / missing)."
       }
     },
     "langs/ru_guide.md": {
@@ -1404,11 +1408,11 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.7.0",
-      "sha256": "b3eaa91a42ec3eef06ab86c6043163fba00962ad943f46e409bb9ec8caa17ced",
+      "version": "1.8.0",
+      "sha256": "464674a537bcca510b7e02c029955359f256c09a3e0bb0cff8680d280e0be944",
       "note": {
-        "ru": "Ключи моделей изображений (распознавание/генерация), заголовок «Основная модель», удалены мёртвые weak-ключи.",
-        "en": "Image model keys (vision/generation), Main model heading, dead weak keys removed."
+        "ru": "Ключи показа сгенерированного изображения в ленте чата (image / download / missing).",
+        "en": "Chat-feed keys for the generated image (image / download / missing)."
       }
     },
     "langs/zh_CN_guide.md": {
@@ -1436,11 +1440,11 @@
       }
     },
     "services/yandex.json": {
-      "version": "1.2.0",
-      "sha256": "25a48dcd73c5eac317c5866515861eb99a7c848c8f02d53fcbd31b0673b74613",
+      "version": "1.3.0",
+      "sha256": "772f50418bcc1157555b346ae5aabf96c6add70c9be7997a191ae37b7cf1ed57",
       "note": {
-        "ru": "Каталоги vision_models (qwen3.6-35b-a3b) и image_models (yandex-art / Alice AI ART 3.0) для инструментов работы с изображениями.",
-        "en": "vision_models (qwen3.6-35b-a3b) and image_models (yandex-art / Alice AI ART 3.0) catalogs for image tools."
+        "ru": "Каталог image_models: единственная модель aliceai-image-art-3.0 (yandex-art удалён).",
+        "en": "image_models catalog: the single model aliceai-image-art-3.0 (yandex-art removed)."
       }
     },
     "defaults/instructions/ssh_connector.md": {
@@ -1460,11 +1464,11 @@
       }
     },
     "defaults/instructions/multimodal_mode.md": {
-      "version": "1.0.0",
-      "sha256": "48b7f2f4740d0829cfdfa9ae07625972d0e89968b8f93512754d76cbb5b8f8a4",
+      "version": "1.1.0",
+      "sha256": "c9692d628d4431775f9394706ca546e9361a64c93ee7f14620da20068ef23871",
       "note": {
-        "ru": "Глобальная инструкция мультимодальности: правила инструментов analyze_image/generate_image, сценарии «модель не назначена / не умеет», проверка зависимостей и согласие на установку.",
-        "en": "Global multimodal instruction: usage rules for analyze_image/generate_image, unassigned/incapable model scenarios, dependency checks and install consent."
+        "ru": "Синхронная генерация: OpenAI-совместимый Images API, единственная модель aliceai-image-art-3.0.",
+        "en": "Synchronous generation: the OpenAI-compatible Images API, the single model aliceai-image-art-3.0."
       }
     }
   }

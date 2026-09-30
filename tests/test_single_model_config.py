@@ -126,19 +126,19 @@ def test_multimodal_fields_set_and_clear(isolated_data_dir):
     assert _save(
         strong_service="DeepSeek", strong_model="deepseek-v4-pro",
         vision_service="YandexAI", vision_model="qwen3.6-35b-a3b",
-        image_service="YandexAI", image_model="yandex-art-3.0",
+        image_service="YandexAI", image_model="aliceai-image-art-3.0",
     ) is True
     cfg = get_orchestrator(DEVAGENT_SLUG)["config"]
     assert cfg["vision_service"] == "YandexAI"
     assert cfg["vision_model"] == "qwen3.6-35b-a3b"
     assert cfg["image_service"] == "YandexAI"
-    assert cfg["image_model"] == "yandex-art-3.0"
+    assert cfg["image_model"] == "aliceai-image-art-3.0"
 
     # A save without the multimodal kwargs keeps the current values.
     assert _save(strong_service="DeepSeek", strong_model="deepseek-v4-pro") is True
     cfg = get_orchestrator(DEVAGENT_SLUG)["config"]
     assert cfg["vision_model"] == "qwen3.6-35b-a3b"
-    assert cfg["image_model"] == "yandex-art-3.0"
+    assert cfg["image_model"] == "aliceai-image-art-3.0"
 
     # An explicit empty string clears the assignment.
     assert _save(
@@ -148,7 +148,7 @@ def test_multimodal_fields_set_and_clear(isolated_data_dir):
     cfg = get_orchestrator(DEVAGENT_SLUG)["config"]
     assert cfg["vision_service"] == ""
     assert cfg["vision_model"] == ""
-    assert cfg["image_model"] == "yandex-art-3.0"
+    assert cfg["image_model"] == "aliceai-image-art-3.0"
 
 
 def test_legacy_weak_config_is_tolerated_and_single_model(isolated_data_dir):
@@ -224,13 +224,13 @@ def test_export_import_roundtrip_keeps_multimodal_fields(isolated_data_dir):
     assert _save(
         strong_service="DeepSeek", strong_model="deepseek-v4-pro",
         vision_service="YandexAI", vision_model="qwen3.6-35b-a3b",
-        image_service="YandexAI", image_model="yandex-art-3.0",
+        image_service="YandexAI", image_model="aliceai-image-art-3.0",
     ) is True
 
     data = export_orchestrator(DEVAGENT_SLUG)
     assert data is not None
     assert data["config"]["vision_service"] == "YandexAI"
-    assert data["config"]["image_model"] == "yandex-art-3.0"
+    assert data["config"]["image_model"] == "aliceai-image-art-3.0"
     assert "weak_service" not in data["config"]
 
     data = dict(data)
@@ -241,7 +241,7 @@ def test_export_import_roundtrip_keeps_multimodal_fields(isolated_data_dir):
     assert imported is not None
     cfg = imported["config"]
     assert cfg["vision_model"] == "qwen3.6-35b-a3b"
-    assert cfg["image_model"] == "yandex-art-3.0"
+    assert cfg["image_model"] == "aliceai-image-art-3.0"
     assert "weak_service" not in cfg
 
 

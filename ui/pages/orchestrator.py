@@ -562,6 +562,34 @@ def _extract_result_body(result_data: dict) -> tuple:
     return full_json, True, full_json
 
 
+def _render_generated_image(result_data: dict, path: str, lang: str) -> None:
+    """Show a generated image with a download button in a tool result.
+
+    Called for successful ``generate_image`` results that carry a saved
+    file path. A missing or unreadable file renders an actionable caption
+    instead of breaking the whole feed render.
+    """
+    if not os.path.isfile(path):
+        st.caption(t("event_tool_result_image_missing", lang=lang, path=path))
+        return
+    st.caption(t("event_tool_result_image", lang=lang))
+    st.image(path)
+    try:
+        with open(path, "rb") as f:
+            image_bytes = f.read()
+    except OSError:
+        st.caption(t("event_tool_result_image_missing", lang=lang, path=path))
+        return
+    st.download_button(
+        t("event_tool_result_image_download", lang=lang),
+        data=image_bytes,
+        file_name=os.path.basename(path),
+        mime=str(result_data.get("mime") or "image/jpeg"),
+        key=f"orch_dl_img_{os.path.basename(path)}",
+        use_container_width=True,
+    )
+
+
 def _render_tool_result(ev: dict, lang: str, call_ev: Optional[dict] = None) -> None:
     """Render one tool_result event inside an expander.
 
@@ -635,6 +663,8 @@ def _render_tool_result(ev: dict, lang: str, call_ev: Optional[dict] = None) -> 
             if full != preview:
                 with st.expander(t("event_tool_result_show_more", lang=lang), expanded=False):
                     st.code(full, language="")
+        if tool == "generate_image" and ok_val and path:
+            _render_generated_image(result_data, path, lang)
 
 
 def _render_events(events: list, lang: str) -> None:

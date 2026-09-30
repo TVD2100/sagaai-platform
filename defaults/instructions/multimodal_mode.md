@@ -37,8 +37,8 @@ Args: `images` (list of paths, or a single string), `[prompt]`,
 Args: `prompt` (required, be descriptive), `[output_path]`.
 - `output_path`: workspace-relative save path (e.g. `assets/logo.jpeg`).
   Without it the JPEG is saved into the dialog's files folder.
-- The provider is asynchronous: a call can take a minute or more - this is
-  normal, do not retry on timeout at the tool level.
+- The provider call is synchronous and can take a minute or more - this
+  is normal, do not retry at the tool level.
 - Returns `{"ok": true, "path", "mime", "service", "model"}`; the image is
   saved to disk and base64 is never returned. Always report the saved path.
 
@@ -96,14 +96,14 @@ render readable text):
 Read the `error` text and act on the cause; never retry blindly (at most one
 retry after fixing a cause):
 
-- `403` / permission errors, e.g. YandexART requiring the
-  `ai.imageGeneration.user` role: explain to the user that the service
+- `403` / permission errors, e.g. the image-generation model requiring
+  the `ai.imageGeneration.user` role: explain to the user that the service
   account behind the API key needs that role for the folder, and where to
   grant it. The error text includes this hint.
 - Unsupported format / too large / too many images: convert or downscale the
   file first (with the user's consent if a library install is needed), then
   retry once.
-- Network/timeout on generation: the operation is asynchronous; retry once,
+- Network/timeout on generation: the call is synchronous; retry once,
   and if it fails again report the provider error to the user.
 
 ---

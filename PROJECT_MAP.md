@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-09-30T18:05:48+00:00`
-- Файлов: **1067**
-- Языки: Config: 1, JSON: 22, Markdown: 802, PEM certificate: 1, Python: 245, Text: 1
+- Обновлено: `2026-09-30T20:06:29+00:00`
+- Файлов: **1092**
+- Языки: Config: 1, JSON: 22, Markdown: 826, PEM certificate: 1, Python: 246, Text: 1
 
 ## Файлы и назначение
 
@@ -141,6 +141,7 @@
 | `tests/test_orchestrator_connections.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_orchestrator_economy_cache.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_folders.py` | Python | Orchestrator folder tests | storage |
+| `tests/test_orchestrator_image_result.py` | Python | UI tests: generated image shown in the chat with a download button | - |
 | `tests/test_orchestrator_message_controls.py` | Python | Per-message download/copy controls tests (plain-prose answers) | - |
 | `tests/test_orchestrator_models_settings.py` | Python | Orchestrator settings UI tests (main model + optional vision/image selectors) | - |
 | `tests/test_orchestrator_nav.py` | Python | _(описание не задано)_ | - |
@@ -1073,6 +1074,30 @@
 | `dev_agent/task_states/TASK_STATE__20260930_204022_5a10b6.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260930_204030_56ba0e.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260930_204030_a2a61f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_211040_dcf563.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_211044_66c9df.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_211044_7cf1a2.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_211044_7f033d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_211044_c3c62e.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_211044_f104eb.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_211052_8965fa.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_211052_9ca655.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_211120_b1face.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_211123_08331e.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_211123_559713.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_211123_8ebdfe.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_211123_c2ded8.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_211123_d34128.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_211132_1257a9.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_211132_870611.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_225659_e2f0c9.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_225702_56de36.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_225702_a29edb.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_225702_da1937.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_225702_f74895.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_225702_f85586.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_225711_6f97a2.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_225711_af614b.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
 | `services/deepseek.json` | JSON | DeepSeek service definition | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
@@ -1164,20 +1189,20 @@
 - `_first_two_lines` (func, строка 520)
 - `_format_call_args_preview` (func, строка 533)
 - `_extract_result_body` (func, строка 551)
-- `_render_tool_result` (func, строка 565)
-- `_render_events` (func, строка 640)
-- `_render_event` (func, строка 660)
-- `_attach_events` (func, строка 720)
-- `_do_step` (func, строка 749)
-- `_reset_dialog` (func, строка 901)
-- `_load_thread` (func, строка 918)
-- `_chat_toolbar_widget_key` (func, строка 950)
-- `_sync_chat_pref_checkbox` (func, строка 960)
-- `_chat_toolbar_pref_changed` (func, строка 978)
-- `_render_chat_toolbar` (func, строка 988)
-- `_token_line_cache_key` (func, строка 1046)
-- `_render_token_line` (func, строка 1093)
-- `_render_chat_tab` (func, строка 1177)
+- `_render_generated_image` (func, строка 565)
+- `_render_tool_result` (func, строка 593)
+- `_render_events` (func, строка 670)
+- `_render_event` (func, строка 690)
+- `_attach_events` (func, строка 750)
+- `_do_step` (func, строка 779)
+- `_reset_dialog` (func, строка 931)
+- `_load_thread` (func, строка 948)
+- `_chat_toolbar_widget_key` (func, строка 980)
+- `_sync_chat_pref_checkbox` (func, строка 990)
+- `_chat_toolbar_pref_changed` (func, строка 1008)
+- `_render_chat_toolbar` (func, строка 1018)
+- `_token_line_cache_key` (func, строка 1076)
+- `_render_token_line` (func, строка 1123)
 
 ### `ui/pages/orchestrator_settings.py`
 - `page_orchestrator_settings` (func, строка 28)
@@ -1276,14 +1301,14 @@
 - `_yandex_responses_request` (func, строка 1055)
 - `_gigachat_messages` (func, строка 1172)
 - `_gigachat_token` (func, строка 1228)
-- `_extract_openai_message_text` (func, строка 1264)
-- `send_vision_request` (func, строка 1287)
-- `send_image_generation_request` (func, строка 1384)
-- `_assistant_rag_context` (func, строка 1526)
-- `send_request` (func, строка 1577)
-- `_do_request` (func, строка 1767)
-- `_extract_error_body` (func, строка 1924)
-- `_extract_gigachat_error` (func, строка 1945)
+- `_extract_openai_message_text` (func, строка 1258)
+- `send_vision_request` (func, строка 1281)
+- `send_image_generation_request` (func, строка 1378)
+- `_assistant_rag_context` (func, строка 1462)
+- `send_request` (func, строка 1513)
+- `_do_request` (func, строка 1703)
+- `_extract_error_body` (func, строка 1860)
+- `_extract_gigachat_error` (func, строка 1881)
 
 ### `core/assistant_creator.py`
 - `_section_headers` (func, строка 23)
@@ -1624,7 +1649,7 @@
 - `load_image` (func, строка 132)
 - `analyze_image` (func, строка 166)
 - `generate_image` (func, строка 194)
-- `format_api_error` (func, строка 218)
+- `format_api_error` (func, строка 212)
 
 ### `core/orchestrator_folders.py`
 - `get_orchestrators_root` (func, строка 48)
@@ -2642,16 +2667,16 @@
 - `test_adapter_form_call_unchanged` (func, строка 51)
 
 ### `tests/test_multimodal.py`
-- `_jpeg` (func, строка 31)
-- `_services` (func, строка 37)
-- `_mock_response` (func, строка 58)
-- `TestResolveModel` (class, строка 70)
-- `TestLoadImage` (class, строка 118)
-- `TestAnalyzeImage` (class, строка 165)
-- `TestGenerateImage` (class, строка 198)
-- `TestFormatApiError` (class, строка 217)
-- `TestSendVisionRequest` (class, строка 231)
-- `TestImageGenerationTransport` (class, строка 285)
+- `_jpeg` (func, строка 32)
+- `_services` (func, строка 38)
+- `_mock_response` (func, строка 59)
+- `TestResolveModel` (class, строка 71)
+- `TestLoadImage` (class, строка 119)
+- `TestAnalyzeImage` (class, строка 166)
+- `TestGenerateImage` (class, строка 199)
+- `TestFormatApiError` (class, строка 220)
+- `TestSendVisionRequest` (class, строка 234)
+- `TestImageGenerationTransport` (class, строка 288)
 
 ### `tests/test_multimodal_instruction.py`
 - `isolated_data_dir` (func, строка 24)
@@ -2723,6 +2748,14 @@
 - `TestOrchestratorCRUDWithFolders` (class, строка 268)
 - `TestSlugSafety` (class, строка 340)
 - `TestOrchestratorLifecycleGuards` (class, строка 363)
+
+### `tests/test_orchestrator_image_result.py`
+- `ui_env` (func, строка 22)
+- `_write_image` (func, строка 34)
+- `_event` (func, строка 40)
+- `test_successful_result_shows_image_and_download` (func, строка 47)
+- `test_missing_file_renders_caption_only` (func, строка 70)
+- `test_failed_result_and_other_tools_render_no_image` (func, строка 83)
 
 ### `tests/test_orchestrator_message_controls.py`
 - `ui_env` (func, строка 20)
@@ -3892,7 +3925,7 @@
 - `test_scenario_2_fresh_install_reports_unassigned_models` (func, строка 138)
 - `test_scenario_3_model_not_declared_by_provider` (func, строка 167)
 - `test_scenario_4_generate_image_saves_to_dialog_then_project` (func, строка 186)
-- `test_scenario_5_generation_permission_denied_role_hint` (func, строка 231)
+- `test_scenario_5_generation_permission_denied_role_hint` (func, строка 232)
 
 ### `tests/scenarios/test_orchestrator_chat_prefs_scenario.py`
 - `page_env` (func, строка 31)

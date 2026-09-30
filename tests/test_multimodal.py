@@ -1,14 +1,15 @@
 """
 tests/test_multimodal.py - unit tests for core.multimodal (model
 resolution, image loading, analyze/generate wrappers) and the multimodal
-transports added to core.api_layer (vision request, YandexART async
-image generation).
+transports added to core.api_layer (vision request, synchronous
+OpenAI-compatible image generation).
 
 All provider I/O is mocked: no network access here. The live smoke check
 is run separately via scripts (see the task journal).
 """
 import base64
 import os
+import requests
 import sys
 from unittest.mock import MagicMock, patch
 
@@ -44,7 +45,7 @@ def _services():
             "config_key2": "YANDEX_FOLDER_ID",
             "base_url": "https://ai.api.cloud.yandex.net/v1",
             "vision_models": [{"id": "qwen3.6-35b-a3b", "label": {}}],
-            "image_models": [{"id": "yandex-art", "label": {}}],
+            "image_models": [{"id": "aliceai-image-art-3.0", "label": {}}],
         },
         "DeepSeek": {
             "name": "DeepSeek",
@@ -197,16 +198,18 @@ class TestAnalyzeImage:
 
 class TestGenerateImage:
     def _cfg(self):
-        return {"image_service": "YandexAI", "image_model": "yandex-art"}
+        return {"image_service": "YandexAI",
+                "image_model": "aliceai-image-art-3.0"}
 
     def test_ok(self):
         with patch("core.multimodal.get_services", return_value=_services()), \
              patch("core.multimodal.send_image_generation_request",
                    return_value={"mime": "image/jpeg", "data": "QUJD"}) as send:
             out = cm.generate_image("A cat", config=self._cfg())
-        assert out == {"ok": True, "service": "YandexAI", "model": "yandex-art",
+        assert out == {"ok": True, "service": "YandexAI",
+                       "model": "aliceai-image-art-3.0",
                        "mime": "image/jpeg", "data": "QUJD"}
-        send.assert_called_once_with("YandexAI", "yandex-art", "A cat")
+        send.assert_called_once_with("YandexAI", "aliceai-image-art-3.0", "A cat")
 
     def test_empty_prompt(self):
         with pytest.raises(cm.MultimodalError) as e:
@@ -283,50 +286,51 @@ class TestSendVisionRequest:
 
 
 class TestImageGenerationTransport:
-    def test_yandex_operation_flow(self):
+    def test_yandex_images_endpoint(self):
         svc = _services()["YandexAI"]
         cfg = {"YANDEX_API_KEY": "iam", "YANDEX_FOLDER_ID": "folder1"}
-        post_resp = _mock_response(200, {"id": "op123"})
-        poll1 = _mock_response(200, {"done": False})
-        poll2 = _mock_response(200, {"done": True, "response": {"image": "QUJD"}})
+        resp = _mock_response(200, {"data": [{"b64_json": "QUJD"}]})
         with patch("core.api_layer.get_services", return_value={"YandexAI": svc}), \
              patch("core.api_layer.load_config", return_value=cfg), \
-             patch("core.api_layer.requests.post", return_value=post_resp) as post, \
-             patch("core.api_layer.requests.get",
-                   side_effect=[poll1, poll2]) as get, \
-             patch("core.api_layer.time.sleep") as sleep:
+             patch("core.api_layer.requests.post", return_value=resp) as post:
             from core.api_layer import send_image_generation_request
-            out = send_image_generation_request("YandexAI", "yandex-art", "A cat")
+            out = send_image_generation_request(
+                "YandexAI", "aliceai-image-art-3.0", "A cat")
         assert out["mime"] == "image/jpeg"
         assert out["data"] == "QUJD"
+        assert out["model"] == "aliceai-image-art-3.0"
         assert post.call_args[0][0] == (
-            "https://llm.api.cloud.yandex.net/foundationModels/v1/imageGenerationAsync")
-        assert post.call_args[1]["json"]["modelUri"] == "art://folder1/yandex-art/latest"
-        assert get.call_args_list[0][0][0] == (
-            "https://llm.api.cloud.yandex.net/operations/op123")
-        assert sleep.call_count == 1
+            "https://ai.api.cloud.yandex.net/v1/images/generations")
+        headers = post.call_args[1]["headers"]
+        assert headers["Authorization"] == "Bearer iam"
+        assert headers["OpenAI-Project"] == "folder1"
+        assert headers["x-project"] == "folder1"
+        payload = post.call_args[1]["json"]
+        assert payload["model"] == "art://folder1/aliceai-image-art-3.0/latest"
+        assert payload["prompt"] == "A cat"
+        assert payload["response_format"] == "b64_json"
 
-    def test_operation_timeout(self):
+    def test_yandex_missing_folder(self):
+        svc = _services()["YandexAI"]
+        with patch("core.api_layer.get_services", return_value={"YandexAI": svc}), \
+             patch("core.api_layer.load_config",
+                   return_value={"YANDEX_API_KEY": "iam"}):
+            from core.api_layer import send_image_generation_request
+            with pytest.raises(ApiKeyMissingError):
+                send_image_generation_request(
+                    "YandexAI", "aliceai-image-art-3.0", "A cat")
+
+    def test_timeout(self):
         svc = _services()["YandexAI"]
         cfg = {"YANDEX_API_KEY": "iam", "YANDEX_FOLDER_ID": "folder1"}
-        post_resp = _mock_response(200, {"id": "op123"})
-        poll = _mock_response(200, {"done": False})
-        ticks = {"t": 0.0}
-
-        def fake_monotonic():
-            ticks["t"] += 1.0
-            return ticks["t"]
-
         with patch("core.api_layer.get_services", return_value={"YandexAI": svc}), \
              patch("core.api_layer.load_config", return_value=cfg), \
-             patch("core.api_layer.requests.post", return_value=post_resp), \
-             patch("core.api_layer.requests.get", return_value=poll), \
-             patch("core.api_layer.time.sleep"), \
-             patch("core.api_layer.time.monotonic", side_effect=fake_monotonic):
+             patch("core.api_layer.requests.post",
+                   side_effect=requests.exceptions.Timeout("slow")):
             from core.api_layer import send_image_generation_request
             with pytest.raises(RequestTimeoutError):
-                send_image_generation_request("YandexAI", "yandex-art", "A cat",
-                                              poll_interval=0.1, max_wait=1.0)
+                send_image_generation_request(
+                    "YandexAI", "aliceai-image-art-3.0", "A cat")
 
     def test_bearer_images_endpoint(self):
         svc = {"auth_type": "bearer", "config_key": "OPENAI_API_KEY",
@@ -341,33 +345,41 @@ class TestImageGenerationTransport:
         assert out["data"] == "QUJD"
         assert post.call_args[0][0] == "https://api.example.com/v1/images/generations"
         assert post.call_args[1]["json"]["response_format"] == "b64_json"
+        assert post.call_args[1]["json"]["model"] == "img-model"
+        headers = post.call_args[1]["headers"]
+        assert "OpenAI-Project" not in headers
+        assert "x-project" not in headers
 
-    def test_operation_error_payload(self):
+    def test_error_payload_is_surfaced(self):
         svc = _services()["YandexAI"]
         cfg = {"YANDEX_API_KEY": "iam", "YANDEX_FOLDER_ID": "folder1"}
-        post_resp = _mock_response(200, {"id": "op123"})
-        poll = _mock_response(200, {"done": True,
-                                    "error": {"message": "role revoked"}})
-        with patch("core.api_layer.get_services", return_value={"YandexAI": svc}), \
-             patch("core.api_layer.load_config", return_value=cfg), \
-             patch("core.api_layer.requests.post", return_value=post_resp), \
-             patch("core.api_layer.requests.get", return_value=poll):
-            from core.api_layer import send_image_generation_request
-            with pytest.raises(ProviderHTTPError) as e:
-                send_image_generation_request("YandexAI", "yandex-art", "A cat")
-        assert "role revoked" in str(e.value)
-
-
-    def test_permission_denied_hint(self):
-        svc = _services()["YandexAI"]
-        cfg = {"YANDEX_API_KEY": "iam", "YANDEX_FOLDER_ID": "folder1"}
-        resp = _mock_response(403, {"error": "Access to model art://folder1/yandex-art/latest denied",
-                                    "code": 7})
+        resp = _mock_response(
+            400, {"error": {"message": "Failed to parse model URI",
+                            "type": "invalid_request_error"}})
         with patch("core.api_layer.get_services", return_value={"YandexAI": svc}), \
              patch("core.api_layer.load_config", return_value=cfg), \
              patch("core.api_layer.requests.post", return_value=resp):
             from core.api_layer import send_image_generation_request
             with pytest.raises(ProviderHTTPError) as e:
-                send_image_generation_request("YandexAI", "yandex-art", "A cat")
+                send_image_generation_request(
+                    "YandexAI", "aliceai-image-art-3.0", "A cat")
+        assert "Failed to parse model URI" in str(e.value)
+        assert e.value.status_code == 400
+
+
+    def test_permission_denied_hint(self):
+        svc = _services()["YandexAI"]
+        cfg = {"YANDEX_API_KEY": "iam", "YANDEX_FOLDER_ID": "folder1"}
+        resp = _mock_response(
+            403, {"error": "Access to model "
+                           "art://folder1/aliceai-image-art-3.0/latest denied",
+                  "code": 7})
+        with patch("core.api_layer.get_services", return_value={"YandexAI": svc}), \
+             patch("core.api_layer.load_config", return_value=cfg), \
+             patch("core.api_layer.requests.post", return_value=resp):
+            from core.api_layer import send_image_generation_request
+            with pytest.raises(ProviderHTTPError) as e:
+                send_image_generation_request(
+                    "YandexAI", "aliceai-image-art-3.0", "A cat")
         assert "ai.imageGeneration.user" in str(e.value)
         assert "folder1" in str(e.value)
