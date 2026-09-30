@@ -296,7 +296,9 @@ def test_employee_orchestrator_scenario(isolated_data):
     strong, weak = build_assistant_dicts("review_bot")
     assert strong["service"] == "DeepSeek"
     assert strong["model"] == "deepseek-v4-pro"
-    assert weak["model"] == "deepseek-v4-flash"
+    # Single-model mode: the weak alias is an identical copy of the main
+    # model (legacy weak_* config keys are tolerated but ignored).
+    assert weak == strong
     assert "код-ревьюер" in strong["text"]
     assert "Style Guide" in strong["text"]
     assert base_slug in strong["text"]
@@ -685,8 +687,8 @@ def test_config_secrets_and_connection_scenario(isolated_data, monkeypatch):
 
 
 def test_prompt_improvement_scenario(isolated_data):
-    """Weak-model prompt improvement with injectable instructions + sender."""
-    from core.prompt_improver import improve_prompt_with_weak_model
+    """Main-model prompt improvement with injectable instructions + sender."""
+    from core.prompt_improver import improve_prompt_with_main_model
 
     def fake_send(user_message, assistant, file_context="", history=None,
                   lang=None, **kwargs):
@@ -696,18 +698,18 @@ def test_prompt_improvement_scenario(isolated_data):
         return "## Роль\nУлучшенный промпт."
 
     inst = "# Правила\nВозвращай только улучшенный текст."
-    improved = improve_prompt_with_weak_model(
+    improved = improve_prompt_with_main_model(
         "Ты - переводчик.", send_request_fn=fake_send, instruction_text=inst,
     )
     assert improved == "## Роль\nУлучшенный промпт."
 
     # Empty inputs are rejected before any LLM call.
     with pytest.raises(ValueError):
-        improve_prompt_with_weak_model(
+        improve_prompt_with_main_model(
             "", send_request_fn=fake_send, instruction_text=inst,
         )
     with pytest.raises(ValueError):
-        improve_prompt_with_weak_model(
+        improve_prompt_with_main_model(
             "Ты - переводчик.", send_request_fn=fake_send, instruction_text="",
         )
 

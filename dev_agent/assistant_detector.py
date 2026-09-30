@@ -7,7 +7,7 @@ Now only provides:
 - list_all_assistants_for_detection(): lists user assistants.
 
 Note: create_assistant_for_task() has been moved to tool_executor.py and now uses
-assistant_model_resolver for automatic strong/weak + web_search classification.
+assistant_model_resolver for automatic model + web_search selection.
 Assistant Creator is now an INSTRUCTION (not an assistant), identified by
 ASSISTANT_CREATOR_INSTRUCTION_ID.
 
@@ -16,11 +16,11 @@ Explicit assistant creation:
    DevAgent calls create_assistant_for_task() which invokes the Assistant Creator instruction.
    The Assistant Creator returns JSON with "name", "description", "prompt".
    The created assistant is automatically assigned a working service+model:
-   - The system classifies the task (strong/weak complexity, needs_web_search).
-   - If web_search is NOT needed: model is picked from DevAgent settings
-     (strong_service/strong_model or weak_service/weak_model).
+   - The system classifies the task (complexity tier + needs_web_search).
+   - If web_search is NOT needed: the main model from DevAgent settings
+     (strong_service/strong_model) is used.
    - If web_search IS needed: model is picked from YandexAI service
-     (yandexgpt-5-pro / yandexgpt-5.1 for strong, yandexgpt-lite / yandexgpt-5-lite for weak),
+     (yandexgpt-5-pro / yandexgpt-5.1 for high-complexity tasks, yandexgpt-lite / yandexgpt-5-lite for light tasks),
      and the web_search tool is activated for the assistant.
    - If the user explicitly specifies a service or model in the request, that is used.
 """

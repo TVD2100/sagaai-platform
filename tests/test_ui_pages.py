@@ -428,8 +428,11 @@ def test_orchestrator_models_settings_saves_reasoning_effort(mock_env):
 
     saved_cfg = mock_save.call_args.kwargs["config"]
     assert saved_cfg["strong_reasoning_effort"] == "max"
-    assert saved_cfg["weak_reasoning_effort"] == "high"
     assert saved_cfg["search_reasoning_effort"] == "high"
+    # Single-model mode: legacy weak_* keys are never re-persisted.
+    for legacy_key in ("weak_service", "weak_model", "weak_temperature",
+                       "weak_max_tokens", "weak_reasoning_effort"):
+        assert legacy_key not in saved_cfg
 
 
 # ─── assistants page: improve prompt flow ────────────────────────────────────
@@ -455,7 +458,7 @@ def test_assistants_improve_prompt_does_not_mutate_existing_widget(mock_env):
 
     with patch("ui.pages.assistants.get_services",
                return_value={"TestSvc": SAMPLE_SERVICE}), \
-         patch("ui.pages.assistants.improve_prompt_with_weak_model",
+         patch("ui.pages.assistants.improve_prompt_with_main_model",
                return_value="Improved text") as mock_improve:
         mock_env.click("assistant_improve")
         invoke_page(page_assistants)

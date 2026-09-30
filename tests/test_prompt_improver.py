@@ -3,10 +3,11 @@ tests.test_prompt_improver - tests for core.prompt_improver.
 
 Covers the "Improve prompt" flow used by the Assistants page:
   - the built-in instruction file exists and is long enough;
-  - improve_prompt_with_weak_model calls the weak DevAgent model with the
+  - improve_prompt_with_main_model calls the main DevAgent model with the
     instruction as system prompt and returns its output;
+  - the legacy improve_prompt_with_weak_model name stays a working alias;
   - validation errors are raised for empty prompt / missing instruction /
-    missing weak model / empty model output.
+    missing main model / empty model output.
 """
 import os
 import sys
@@ -68,10 +69,17 @@ def test_get_improver_instruction_missing_returns_empty(monkeypatch):
     assert prompt_improver.get_improver_instruction() == ""
 
 
-# --- improve_prompt_with_weak_model -----------------------------------------
+# --- improve_prompt_with_main_model -----------------------------------------
 
-def test_improve_uses_weak_model_and_returns_text(monkeypatch):
-    """The weak DevAgent assistant is used; its text is the instruction; the
+def test_legacy_weak_alias_points_to_main_model():
+    """Single-model mode: the historical name is a plain alias of the canon."""
+    from core import prompt_improver
+    assert (prompt_improver.improve_prompt_with_weak_model
+            is prompt_improver.improve_prompt_with_main_model)
+
+
+def test_improve_uses_main_model_and_returns_text(monkeypatch):
+    """The main DevAgent assistant is used; its text is the instruction; the
     model output is returned trimmed."""
     from core import prompt_improver
 
@@ -87,15 +95,13 @@ def test_improve_uses_weak_model_and_returns_text(monkeypatch):
         return "## Role\nImproved prompt.\n\n"
 
     def fake_build_assistant_dicts(slug):
-        return (
-            {"service": "StrongSvc", "model": "strong-model", "text": "strong"},
-            {"service": "WeakSvc", "model": "weak-model", "text": "weak", "temperature": 0.4},
-        )
+        main = {"service": "MainSvc", "model": "main-model", "text": "main"}
+        return (main, dict(main))
 
     import core.orchestrators as orch_mod
     monkeypatch.setattr(orch_mod, "build_assistant_dicts", fake_build_assistant_dicts)
 
-    result = prompt_improver.improve_prompt_with_weak_model(
+    result = prompt_improver.improve_prompt_with_main_model(
         "## Role\nOld prompt.",
         lang="Russian",
         send_request_fn=fake_send_request,
@@ -103,8 +109,8 @@ def test_improve_uses_weak_model_and_returns_text(monkeypatch):
     )
 
     assert result == "## Role\nImproved prompt."
-    assert captured["service"] == "WeakSvc"
-    assert captured["model"] == "weak-model"
+    assert captured["service"] == "MainSvc"
+    assert captured["model"] == "main-model"
     assert captured["sys_text"] == instruction
     assert captured["history"] == []
     assert "Old prompt." in captured["user_message"]
@@ -114,7 +120,7 @@ def test_improve_uses_weak_model_and_returns_text(monkeypatch):
 def test_improve_empty_prompt_raises():
     from core import prompt_improver
     with pytest.raises(ValueError):
-        prompt_improver.improve_prompt_with_weak_model(
+        prompt_improver.improve_prompt_with_main_model(
             "   ", instruction_text="## Role\nImprove."
         )
 
@@ -123,22 +129,22 @@ def test_improve_missing_instruction_raises(monkeypatch):
     from core import prompt_improver
     monkeypatch.setattr(prompt_improver, "get_improver_instruction", lambda: "")
     with pytest.raises(ValueError):
-        prompt_improver.improve_prompt_with_weak_model("## Role\nOld")
+        prompt_improver.improve_prompt_with_main_model("## Role\nOld")
 
 
-def test_improve_no_weak_model_raises(monkeypatch):
+def test_improve_no_main_model_raises(monkeypatch):
     from core import prompt_improver
     import core.orchestrators as orch_mod
 
     def fake_build_assistant_dicts(slug):
         return (
-            {"service": "StrongSvc", "model": "strong-model", "text": "strong"},
+            {"service": "", "model": "", "text": ""},
             {"service": "", "model": "", "text": ""},
         )
 
     monkeypatch.setattr(orch_mod, "build_assistant_dicts", fake_build_assistant_dicts)
     with pytest.raises(ValueError):
-        prompt_improver.improve_prompt_with_weak_model(
+        prompt_improver.improve_prompt_with_main_model(
             "## Role\nOld", instruction_text="## Role\nImprove."
         )
 
@@ -150,18 +156,18 @@ def test_improve_empty_model_output_raises(monkeypatch):
         return "   "
 
     # No need to build real assistant dicts: pass a fake send_request and
-    # an explicit instruction. The weak model check still needs a stub.
+    # an explicit instruction. The main-model check still needs a stub.
     import core.orchestrators as orch_mod
 
     def fake_build_assistant_dicts(slug):
         return (
             {"service": "S", "model": "M", "text": "s"},
-            {"service": "W", "model": "WM", "text": "w"},
+            {"service": "S", "model": "M", "text": "s"},
         )
 
     monkeypatch.setattr(orch_mod, "build_assistant_dicts", fake_build_assistant_dicts)
     with pytest.raises(ValueError):
-        prompt_improver.improve_prompt_with_weak_model(
+        prompt_improver.improve_prompt_with_main_model(
             "## Role\nOld",
             send_request_fn=fake_send_request,
             instruction_text="## Role\nImprove.",

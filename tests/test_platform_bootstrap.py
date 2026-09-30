@@ -179,11 +179,17 @@ def test_ensure_devagent_settings_seeds_config_and_tools(isolated_data_dir):
     cfg = orch["config"]
     assert cfg.get("strong_service")
     assert cfg.get("strong_model")
-    assert cfg.get("weak_service")
-    assert cfg.get("weak_model")
-    # DeepSeek strong/weak models must default to 384000 output tokens.
+    # Single-model mode: no weak_* keys are seeded; the optional multimodal
+    # models start unassigned.
+    assert "weak_service" not in cfg
+    assert "weak_model" not in cfg
+    assert cfg.get("vision_service") == ""
+    assert cfg.get("vision_model") == ""
+    assert cfg.get("image_service") == ""
+    assert cfg.get("image_model") == ""
+    # The main model defaults to 384000 output tokens.
     assert cfg.get("strong_max_tokens") == 384000
-    assert cfg.get("weak_max_tokens") == 384000
+    assert "weak_max_tokens" not in cfg
     assert len(orch["tools"]) > 0
 
 
@@ -211,7 +217,7 @@ def test_ensure_devagent_settings_seeds_economy_defaults(isolated_data_dir):
 
 
 def test_ensure_devagent_settings_seeds_max_tokens_in_bundle(isolated_data_dir):
-    """The fresh on-disk bundle also carries strong/weak max_tokens=384000."""
+    """The fresh on-disk bundle carries the main model's max_tokens=384000."""
     from core.bootstrap import ensure_devagent_settings
     from core.orchestrators import DEVAGENT_SLUG
     from core.orchestrator_folders import load_orchestrator_bundle
@@ -220,7 +226,7 @@ def test_ensure_devagent_settings_seeds_max_tokens_in_bundle(isolated_data_dir):
     bundle = load_orchestrator_bundle(DEVAGENT_SLUG)
     assert bundle is not None
     assert bundle["config"].get("strong_max_tokens") == 384000
-    assert bundle["config"].get("weak_max_tokens") == 384000
+    assert "weak_max_tokens" not in bundle["config"]
 
 
 def test_ensure_devagent_settings_is_idempotent(isolated_data_dir):
@@ -263,8 +269,10 @@ def test_ensure_devagent_settings_preserves_user_config(isolated_data_dir):
     cfg = orch["config"]
     assert cfg["strong_service"] == "CustomService"
     assert cfg["strong_model"] == "custom-strong"
-    assert cfg["weak_service"] == "CustomService"
-    assert cfg["weak_model"] == "custom-weak"
+    # Single-model mode: weak_* arguments are accepted by the API but are
+    # never persisted.
+    assert "weak_service" not in cfg
+    assert "weak_model" not in cfg
     # prompt_text is intentionally refreshed from system_prompt.md
     assert orch["prompt_text"] != "Custom prompt"
 
@@ -304,14 +312,16 @@ def test_ensure_devagent_settings_backfills_missing_config_fields(isolated_data_
     # Missing cache fields are backfilled.
     assert cfg["economy_cache_enabled"] is True
     assert cfg["economy_cache_multiplier"] == 2
-    # Missing max-token fields are backfilled.
+    # Missing max-token fields are backfilled (single-model mode: only the
+    # main model carries max tokens; weak_* keys are never added).
     assert cfg["strong_max_tokens"] == 384000
-    assert cfg["weak_max_tokens"] == 384000
-    # User-chosen values are preserved.
+    assert "weak_max_tokens" not in cfg
+    # User-chosen main-model values are preserved.
     assert cfg["strong_service"] == "MyCustomSvc"
     assert cfg["strong_model"] == "my-custom-model"
-    assert cfg["weak_service"] == "MyCustomSvc"
-    assert cfg["weak_model"] == "my-weak-model"
+    # Legacy weak_* keys are migrated away (single-model mode).
+    assert "weak_service" not in cfg
+    assert "weak_model" not in cfg
     assert cfg["strong_temperature"] == 0.7
     assert cfg["search_temperature"] == 0.25
 
@@ -336,7 +346,9 @@ def test_ensure_devagent_settings_backfills_zero_max_tokens(isolated_data_dir):
 
     cfg = get_orchestrator(DEVAGENT_SLUG)["config"]
     assert cfg["strong_max_tokens"] == 384000
-    assert cfg["weak_max_tokens"] == 384000
+    # Single-model mode: legacy weak_* keys are migrated away entirely.
+    assert "weak_max_tokens" not in cfg
+    assert "weak_service" not in cfg
 
 
 def test_ensure_devagent_settings_keeps_user_economy_tail(isolated_data_dir):

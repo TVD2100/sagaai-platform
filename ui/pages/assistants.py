@@ -14,7 +14,7 @@ from core.assistants import (
     list_assistant_files, save_assistant_file, delete_assistant_file,
     load_assistant_prompt_text,
 )
-from core.prompt_improver import improve_prompt_with_weak_model
+from core.prompt_improver import improve_prompt_with_main_model
 from core.i18n import t
 from core.services import get_services, service_supports_reasoning_effort, default_reasoning_effort, get_model_reasoning_effort_options
 from core.tools_utils import (
@@ -232,7 +232,7 @@ def page_assistants() -> None:
             else:
                 try:
                     with st.spinner(t("improve_prompt_running", lang=lang)):
-                        improved = improve_prompt_with_weak_model(
+                        improved = improve_prompt_with_main_model(
                             prompt_text, lang=lang
                         )
                 except Exception as exc:

@@ -34,7 +34,7 @@ SagaAI построена по модульной архитектуре с чё
 
 | Модуль | Ключевые функции |
 |--------|------------------|
-| `api_layer` | HTTP-запросы к AI API (Bearer-токен, GigaChat OAuth, Responses API, тест соединения); нормализация GigaChat-payload (единственный ведущий system) и кламп max_tokens |
+| `api_layer` | HTTP-запросы к AI API (Bearer-токен, GigaChat OAuth, Responses API, тест соединения); нормализация GigaChat-payload (единственный ведущий system) и кламп max_tokens; транспорты изображений `send_vision_request` (multimodal chat completions) и `send_image_generation_request` (YandexART async + опрос операции) |
 | `api_errors` | Единая иерархия ошибок API и локализованные сообщения |
 | `files` | Определение типов файлов, оценка токенов, извлечение контента |
 | `fs` | Низкоуровневые операции: чтение/запись JSON и текста, кодировки, `ensure_dir` |
@@ -45,7 +45,7 @@ SagaAI построена по модульной архитектуре с чё
 | `threads` | Управление тредами помощников: создание, чтение, сообщения, удаление |
 | `threads_devagent` | Управление тредами оркестраторов (отдельная БД `devagent.db`) |
 | `assistant_nav` / `orchestrator_nav` | Сортировка и разбиение списков помощников/сотрудников для сайдбара (5 видимых + «Все (N)»; сортировка сотрудников по последнему диалогу) |
-| `services` | Обнаружение доступных AI-сервисов из `services/` (фолбэк на `defaults/services/`); RAG-модели |
+| `services` | Обнаружение доступных AI-сервисов из `services/` (фолбэк на `defaults/services/`); RAG-модели; каталоги vision/image-моделей (`get_vision_models` / `get_image_models`) |
 | `config` | Чтение и запись конфигурации (SQLite KV); DevAgent-настройки проксируются через оркестраторы |
 | `env_loader` | Загрузка переменных окружения из shell-профилей |
 | `render` | Рендеринг сообщений: Markdown → HTML, кнопка копирования |
@@ -63,7 +63,7 @@ SagaAI построена по модульной архитектуре с чё
 | `skills_library` | Стандартизированная библиотека навыков: реестр, импорт ZIP/GitHub/папки; модель владения developer/adapted; set_skill_adapted; фильтр неадаптированных навыков |
 | `contracts` | Типизированные контракты словарей (AssistantDict, OrchestratorConfig, RAG-контракты и пр.) |
 | `tools_utils` | Список определений инструментов для страниц помощников |
-| `prompt_improver` | LLM-улучшение промптов помощников на слабой модели DevAgent |
+| `prompt_improver` | LLM-улучшение промптов помощников на основной модели DevAgent |
 | `rag` / `rag_chunker` / `rag_embeddings` / `rag_index` / `rag_indexer` / `rag_search` | RAG-подсистема: CRUD баз знаний, чанкинг, Yandex Embeddings, локальный векторный индекс, индексация, семантический поиск |
 | `updater` | Конвейер обновлений: fetch_manifest, check_updates, stage_updates, apply_updates, rollback_updates; CLI check/stage/apply/rollback (raw-канал без токена) |
 | `updater_apply` | Чистый stdlib cold-start апплаер: атомарная запись, бэкапы, откат; хранилище `.dev_agent/updates/` (pending/, state.json, health.json) |
@@ -103,22 +103,24 @@ SagaAI построена по модульной архитектуре с чё
   оркестраторов `devagent.db`), авто-миграции схем.
 
 ### 5. DevAgent (`dev_agent/`)
-- `agent_loop.py` - парсинг вызовов инструментов, цикл с dual-model routing,
-  эконом-режим, approval-гейты (план, применение, подтверждение опасных
+- `agent_loop.py` - парсинг вызовов инструментов, цикл с единой основной
+  моделью, эконом-режим, approval-гейты (план, применение, подтверждение опасных
   операций); в режиме pre-approved autonomous mode фаза утверждения плана
   пропускается по явному выбору пользователя.
 - `assistant_detector.py` - `detect_and_select_assistant()` **всегда
   возвращает пустой результат** (assistant detection отключён).
 - `assistant_model_resolver.py` - автоматический подбор сервиса/модели для
-  помощников: классификация (strong/weak, web_search), выбор из настроек
-  оркестратора или YandexAI.
+  помощников: классификация (сложность, web_search); без веб-поиска -
+  основная модель из настроек оркестратора, с веб-поиском - YandexAI
+  (pro/lite по сложности).
 - `task_state.py` - внешняя память задач: per-thread журнал
   `TASK_STATE__<thread_id>.md` (архитектура, план, прогресс, handoff,
   история завершённых задач), рендер/парсинг, бэкап перед записью.
 - `tool_executor.py` - диспетчер инструментов DevAgent: `propose_file`,
   `apply_patch`, `verify_file`, `run_code`/`run_test`, инструменты
   помощников/оркестраторов/навыков, `web_search()`, RAG-инструменты
-  (`list_rag_bases`/`rag_search`), history-инструменты.
+  (`list_rag_bases`/`rag_search`), мультимодальные инструменты
+  (`analyze_image`/`generate_image`), history-инструменты.
 - `safe_writer.py` - безопасная запись файлов (проверка защищённых файлов,
   staging, бэкап, верификация).
 - `backup_manager.py` - управление версиями файлов на основе SHA-256.
@@ -200,10 +202,10 @@ SagaAI построена по модульной архитектуре с чё
 ### Цикл оркестратора (DevAgent)
 1. Пользователь ставит задачу на странице оркестратора.
 2. `ui/pages/orchestrator.py` создаёт `AgentLoopState`, заполняет
-   `strong_assistant`/`weak_assistant` через
-   `core/orchestrators.build_assistant_dicts(slug)`.
+   `strong_assistant` (единая модель; `weak_assistant` - совместимый
+   алиас-копия) через `core/orchestrators.build_assistant_dicts(slug)`.
 3. `agent_loop.py` сохраняет сообщение пользователя в историю, переходит
-   в фазу `calling_llm` и отправляет запрос сильной/слабой моделью; при
+   в фазу `calling_llm` и отправляет запрос основной моделью; при
    обрыве связи (`RequestTimeoutError` / `NetworkError`) запрос повторяется
    прозрачно (`retry_call` в `core/api_layer.py`), в ленту чата идёт событие
    `retrying_llm`.
@@ -251,9 +253,21 @@ system_prompt.md), переводов, сервисов, помощников, �
 - Старые `load_devagent_config()` / `save_devagent_config()` - прокси на
   оркестратор `dev_agent`.
 
-### Dual-model routing
-Агент выбирает модель (strong/weak) на каждом шаге по `classify_step_strength()`.
-Модели берутся из конфигурации оркестратора (`config_json`).
+### Единая модель и модели изображений
+Агент использует единую основную модель на всех шагах; служебная
+классификация `classify_step_strength()` сохраняется для журналирования и
+модель не переключает. Дополнительно в конфигурации оркестратора могут быть
+назначены `vision_service`/`vision_model` (распознавание изображений) и
+`image_service`/`image_model` (генерация изображений); пустые значения -
+«не назначена». Legacy-ключи `weak_*` читаются как алиасы основной модели.
+Назначенные модели используются системными инструментами `analyze_image`
+(файлы проекта и вложения диалога; JPEG/PNG/WebP, до 5 изображений и
+10 МБ каждое) и `generate_image` (асинхронный провайдер; результат
+сохраняется файлом - в workspace или в папку файлов диалога, base64 не
+возвращается) через `core/multimodal.py` и транспорты `core/api_layer.py`.
+Правила применения, сценарии «модель не назначена» / «модель не умеет» и
+согласие на установку зависимостей - в глобальной инструкции
+`multimodal_mode` (`defaults/instructions/multimodal_mode.md`).
 
 ### Защиты цикла агента от зацикливания
 - `AgentLoopState.tool_fail_counts` - счётчик подряд идущих отказов по каждому
@@ -309,9 +323,10 @@ Responses (`core/assistant_tools.py`) обёрнуты тем же механи�
 при создании помощника.
 
 ### Автоматический подбор сервиса/модели для помощников (assistant_model_resolver)
-1. Классификация задачи (strong/weak, web_search).
+1. Классификация задачи (сложность - только для выбора pro/lite при
+   веб-поиске; web_search).
 2. Явное указание в запросе.
-3. Настройки оркестратора (strong/weak).
+3. Настройки оркестратора (основная модель).
 4. YandexAI (pro/lite по сложности).
 5. Fallback - первый доступный сервис.
 

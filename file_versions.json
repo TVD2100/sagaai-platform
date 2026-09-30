@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "1.3.2",
+  "app_version": "1.5.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Релиз 1.3.2: каталог моделей YandexAI обновлён - удалены недоступные модели qwen3-235b-a22b-fp8, gpt-oss-120b и gpt-oss-20b; добавлена deepseek-v4.1-flash с параметрами deepseek-v4-flash (контекст 1M, 384 000 токенов, полный набор reasoning_effort); справочник моделей и промпт YaAgent v2.9 синхронизированы с каталогом; версия платформы 1.3.2.",
-    "en": "Release 1.3.2: the YandexAI model catalog updated - the unavailable qwen3-235b-a22b-fp8, gpt-oss-120b and gpt-oss-20b models removed; deepseek-v4.1-flash added with the deepseek-v4-flash settings (1M context, 384,000 max_tokens, the full reasoning_effort set); the model reference and the YaAgent v2.9 prompt synced with the catalog; platform version 1.3.2."
+    "ru": "Релиз 1.5.0: мультимодальные инструменты сотрудников - analyze_image (распознавание изображений из вложений диалога и файлов проекта) и generate_image (генерация по промпту, результат сохраняется файлом); транспорты изображений в api_layer; глобальная инструкция multimodal_mode; документация и карта проекта обновлены; версия платформы 1.5.0.",
+    "en": "Release 1.5.0: employee multimodal tools - analyze_image (image analysis of dialog uploads and project files) and generate_image (prompt-based generation saved to a file); image transports in api_layer; the global multimodal_mode instruction; docs and the project map updated; platform version 1.5.0."
   },
-  "updated": "2026-09-29T13:02:31Z",
+  "updated": "2026-09-30T18:10:35Z",
   "units": {
     "core": {
-      "version": "1.15.1",
+      "version": "1.17.0",
       "note": {
-        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py. 1.15.0: SSH-коннектор - инструмент ssh_upload_file (потоковая публикация локальных файлов на сервер, sha256-верификация, до 50 МиБ); подсказка create_dirs в ошибке ssh_write_file. 1.15.1: сценарный тест каталога моделей YandexAI (tests/scenarios), пин промпта YaAgent v2.9, регенерация PROJECT_MAP.md; версия платформы 1.3.2.",
-        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py. 1.15.0: SSH connector - ssh_upload_file tool (streamed publishing of local files to a server, sha256 verification, up to 50 MB); create_dirs hint in the ssh_write_file error. 1.15.1: YandexAI model catalog scenario test (tests/scenarios), YaAgent v2.9 prompt pin, PROJECT_MAP.md regenerated; platform version 1.3.2."
+        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py. 1.15.0: SSH-коннектор - инструмент ssh_upload_file (потоковая публикация локальных файлов на сервер, sha256-верификация, до 50 МиБ); подсказка create_dirs в ошибке ssh_write_file. 1.15.1: сценарный тест каталога моделей YandexAI (tests/scenarios), пин промпта YaAgent v2.9, регенерация PROJECT_MAP.md; версия платформы 1.3.2. 1.16.0: единая модель оркестраторов - слабая модель удалена из настроек, добавлены опциональные vision/image настройки и каталоги у сервисов, рантайм на основной модели, tolerant legacy weak_*; документация и манифест обновлены; версия платформы 1.4.0. 1.17.0: мультимодальные инструменты analyze_image/generate_image (вложения диалога и файлы проекта; генерация сохраняется файлом), транспорты send_vision_request/send_image_generation_request в api_layer, глобальная инструкция multimodal_mode; версия платформы 1.5.0.",
+        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py. 1.15.0: SSH connector - ssh_upload_file tool (streamed publishing of local files to a server, sha256 verification, up to 50 MB); create_dirs hint in the ssh_write_file error. 1.15.1: YandexAI model catalog scenario test (tests/scenarios), YaAgent v2.9 prompt pin, PROJECT_MAP.md regenerated; platform version 1.3.2. 1.16.0: single-model orchestrators - the weak model removed from settings, optional vision/image settings and service catalogs added, runtime on the main model, tolerant legacy weak_*; docs and manifest updated; platform version 1.4.0. 1.17.0: multimodal tools analyze_image/generate_image (dialog uploads and project files; generation saved to a file), send_vision_request/send_image_generation_request transports in api_layer, the global multimodal_mode instruction; platform version 1.5.0."
       },
       "files": {
         "__init__.py": {
@@ -40,8 +40,8 @@
           "sha256": "9815e2a3bf0ed797efeeefd41414e1579dde9f7ceb86675611fc3bd624fa6f33"
         },
         "core/api_layer.py": {
-          "version": "1.4.2",
-          "sha256": "92927d784e2cf7f42ed9e294122c085a12a0923575c5f0c6073fec125d2fd31b"
+          "version": "1.5.0",
+          "sha256": "cc42a980440e8bd4d25e958f25c80a804d98e0b3a422356738ff4b1c326952de"
         },
         "core/assistant_creator.py": {
           "version": "1.0.0",
@@ -68,12 +68,12 @@
           "sha256": "19d18b24a69e946427068f2b7e875a7fe79425a0692c1fceb0ee010994505423"
         },
         "core/bootstrap.py": {
-          "version": "1.0.0",
-          "sha256": "533ca9991da71adc73e2151237c210c44dc8fae0e76d458e6ce45cdc0a7e8b24"
+          "version": "1.0.1",
+          "sha256": "48164fec6c55932c006c4dfe5c37fd7019ca22feb340895bf8c39507c56e09f9"
         },
         "core/config.py": {
-          "version": "1.2.1",
-          "sha256": "202e0013583eb3bb82ba994044d4d83026512139ba7e0b5134db69b618aa907d"
+          "version": "1.3.0",
+          "sha256": "c608331e1092c9c166a0d765fda434d38f2198e8ba3fe09db52bbfeee3af3c75"
         },
         "core/connectors.py": {
           "version": "1.3.0",
@@ -124,8 +124,8 @@
           "sha256": "e457904340ea8475ec98e6ececad8be98ee09fcd3959607fca1d5a16e678a915"
         },
         "core/orchestrators.py": {
-          "version": "1.6.1",
-          "sha256": "9219258ad30df4520ae43904b7b92b2712f76db4cf1d76499686ec306f868b2a"
+          "version": "1.7.0",
+          "sha256": "8bfffd804662c3307bd812be01ebfc8d6dc6fd31beca2d264adba594df6df2d1"
         },
         "core/paths.py": {
           "version": "1.0.0",
@@ -136,8 +136,8 @@
           "sha256": "b04f60e3673f760ab11ba4e6e91f24134516f9f4ab6f42210f5c6399dcae39de"
         },
         "core/prompt_improver.py": {
-          "version": "1.0.0",
-          "sha256": "3d61f6eee4f8c0c7ccba760cd58e683597581237247f5c35b7e8ce8c6709cda1"
+          "version": "1.1.0",
+          "sha256": "608f272dd067b50db1f781d626d4b3c026fa9d14bb206b12a298a708bd526de6"
         },
         "core/rag.py": {
           "version": "1.1.0",
@@ -176,8 +176,8 @@
           "sha256": "6f19ef3ea5719b8c52bcd1bf278fb1b76ceea8f5e96d887462af08aa7437e58a"
         },
         "core/services.py": {
-          "version": "1.0.0",
-          "sha256": "668f45fe0922724562ac4e32cc41d5acbeefc9898b80c00437445f9b57b24be9"
+          "version": "1.1.0",
+          "sha256": "100501004026987a02bee4a93392eebecadf8965a8553dbf540556bd0aefd1e2"
         },
         "core/skills.py": {
           "version": "1.0.0",
@@ -188,8 +188,8 @@
           "sha256": "c9ce262ba8e169d936910765fa837abe240929333babb07181ff20d75ef9a762"
         },
         "core/statistics.py": {
-          "version": "1.0.0",
-          "sha256": "75604227cc2621564fd6075350ad7a6a258bc60e678c11b1ef5bd7c17f3ce013"
+          "version": "1.0.1",
+          "sha256": "0772c8925814d7f97c283ff6a03a0ba8ff9a80d901000668336cc4faf0fafa4c"
         },
         "core/threads.py": {
           "version": "1.0.0",
@@ -204,24 +204,24 @@
           "sha256": "78547e37b44458d451124b69e76ecf5bd2f69213e7164dea11137343f4e20df8"
         },
         "core/version.py": {
-          "version": "1.0.17",
-          "sha256": "7cfe4be60816e93bc18b1547013ea872541238043f69e964036adf1e65915352"
+          "version": "1.0.19",
+          "sha256": "f958a12dfe8db79b692e221eb0c2ac49efc43a01467ae7da7ddefc7232802428"
         },
         "dev_agent/__init__.py": {
           "version": "1.0.0",
           "sha256": "d87092665bbf50e5270ad17b3c2c7eb8230b22ae968f52113672025267ead063"
         },
         "dev_agent/agent_loop.py": {
-          "version": "1.8.1",
-          "sha256": "1739ff9e0bd9313840e60beee1eedf47452876735fa9d35f09431be4c86baeb3"
+          "version": "1.9.0",
+          "sha256": "2c506a9744f7e595b3720083d3a7926b685108ed3717ca078b780130f4edd354"
         },
         "dev_agent/assistant_detector.py": {
-          "version": "1.0.0",
-          "sha256": "c502c61260111456f9b025924ceffd68861accdda296c8d0bc9894e246321822"
+          "version": "1.0.1",
+          "sha256": "1c9ec75c10b0dd865b895702ee66bb3645456dd55f4301130ac29d31dd3de03c"
         },
         "dev_agent/assistant_model_resolver.py": {
-          "version": "1.0.0",
-          "sha256": "113a6e4d0bb87174e07d1ee5060fcc5dfebb848d637ff7a1e6fba9d7afd91479"
+          "version": "1.1.0",
+          "sha256": "5d9ff0bb99491712bbb7b5b62b89023dad69f149222d96fef5e28e03b7487b6a"
         },
         "dev_agent/backup_manager.py": {
           "version": "1.0.0",
@@ -244,12 +244,12 @@
           "sha256": "84584ba39290d90309102d920358bf96b15c56aee17ca247b38310b1101ae6b6"
         },
         "dev_agent/tool_executor.py": {
-          "version": "1.6.0",
-          "sha256": "63bf96c2c996cf9819a9ef601c8b5aa4159ae6ccfe836cd7f1f8161f52dfba83"
+          "version": "1.7.0",
+          "sha256": "92f5c60ad026dfb1ef94dffba76424ddb3265812018672d8dfac962de5de50b9"
         },
         "dev_agent/universal_agent.py": {
-          "version": "1.8.1",
-          "sha256": "f18e1a1a5f31a9a995cbe0018da61cc4316e8c0075906c4c91d16e84ade17a40"
+          "version": "1.9.0",
+          "sha256": "17ea55d53ee4fd7ff805b1fc575e4c3d39b09d06592ce0ac0929363036ff68cf"
         },
         "dev_agent/workspace_tools.py": {
           "version": "1.1.0",
@@ -264,8 +264,8 @@
           "sha256": "66abb9f75f09ba1908b3b70012d9fea2aaf15a1fd80f687fa7ea13cdb857362e"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.1.3",
-          "sha256": "758bc2157fab50722cfbf3c486a2b057078a21e4d043283908a64880d119ae22"
+          "version": "1.2.0",
+          "sha256": "d6af32574cac50ee8449ae1b1224984ddd9ab08ae91109d79bcad61c5c4bd1cb"
         },
         "scripts/verify_manifest.py": {
           "version": "1.0.3",
@@ -280,8 +280,8 @@
           "sha256": "79bed3de48f9a6282b23d6221aa95172e559a4324619a767659c00e9778db847"
         },
         "storage/models.py": {
-          "version": "1.2.0",
-          "sha256": "94b143f9fdc1717b31b8c96bdfa9a573e5bc431234d6b8df3b884cdbf9ba55fc"
+          "version": "1.2.1",
+          "sha256": "63dbe0e257d6e3e93b004bdb60abe5e5275e1dcb9f7acb43a9eaa2346c689b19"
         },
         "storage/repository.py": {
           "version": "1.1.0",
@@ -484,8 +484,8 @@
           "sha256": "2a7a48ea3687236d0fc265385d31ae35a2cd781f44dec495b20ca6028570570c"
         },
         "tests/test_phase1_agent_loop.py": {
-          "version": "1.2.0",
-          "sha256": "43a67e68e05eabcc7eb2aeaa2d5a8cb36f6ea6431c8640cf0b9f8560525fcdd0"
+          "version": "1.3.0",
+          "sha256": "cbc119e25e281dd749c761fbfdf370b8369eeb11efae136333c098e4097a0c5d"
         },
         "tests/test_phase1_core_pure.py": {
           "version": "1.0.0",
@@ -496,24 +496,24 @@
           "sha256": "6d892fecf57b015d338044eb85df114414f6923dfbb34a8afced8dc026c9b1df"
         },
         "tests/test_platform_bootstrap.py": {
-          "version": "1.1.1",
-          "sha256": "06839c1f6d42b4a645197b1ed963c383242b32e7875e4f12a0c5db764e724895"
+          "version": "1.2.0",
+          "sha256": "d5b5b3c57fb4294434e12b7ea3f871e4792651f1b1fb66cf9406905dd1c3fa25"
         },
         "tests/test_platform_scenarios.py": {
-          "version": "1.0.1",
-          "sha256": "ee18f1af9edc87e00ff602c1a2b191477aa34e9326804608a39ac47bfe276a27"
+          "version": "1.1.0",
+          "sha256": "c03b2f0b64c6bcf8070afc5ecb3ef5aeee4de3c3b9e163bf8fcbf330d55117c0"
         },
         "tests/test_preset_orchestrators.py": {
-          "version": "1.1.0",
-          "sha256": "ee17f1b1d4f19b7e0c51b01e41da0660c33c073b3b5df88fa8700acb6c71e231"
+          "version": "1.2.0",
+          "sha256": "784284eb26733e98a3382e59bbd52ef3767abfec9ebe902a70855e256e7f5aec"
         },
         "tests/test_prompt_guard_strict.py": {
           "version": "1.0.0",
           "sha256": "0ddba14881ce1bc283fcb3418d41c8e9c982a80acf7c5467cae12e27ab74ba23"
         },
         "tests/test_prompt_improver.py": {
-          "version": "1.0.0",
-          "sha256": "0961a7fd8e2c95c963e34ce567fa252ade4367900fd58dcbf4eff5c776a2050f"
+          "version": "1.1.0",
+          "sha256": "c3107d8bbcaed8bc224f3ab266720f55b9e00ece5728ad8dafef3612426e79b1"
         },
         "tests/test_propose_file.py": {
           "version": "1.0.0",
@@ -604,16 +604,16 @@
           "sha256": "eeea08046d63ebe8d71a402ed0f9a08e8ca7e9117a3b63be0daa327dda7037cc"
         },
         "tests/test_ui_pages.py": {
-          "version": "1.0.4",
-          "sha256": "49e4e333d29d8f01c7b1fe76ca70dba681d6792fd0064a2ba1e2263b479882fe"
+          "version": "1.0.5",
+          "sha256": "f1689bd343a5ca478d3774a6693acc92904a6b8bf6af10f95775be3adb0a4334"
         },
         "tests/test_ui_tooltips.py": {
           "version": "1.0.1",
           "sha256": "fdecf179b5991868e27d1d897911e2d5e61728aaafa0f7224ed90ba79afb2adf"
         },
         "tests/test_ui_tooltips_orchestrator.py": {
-          "version": "1.0.0",
-          "sha256": "57889faffd9c10737cba1883d5e40d08e4a67fcf1640f616ac05427e728f4295"
+          "version": "1.1.0",
+          "sha256": "c637abeb770f0bcb48984bfefa23e25fa58529bd7f88029383c847b240c68393"
         },
         "tests/test_universal_developer.py": {
           "version": "1.0.1",
@@ -652,8 +652,8 @@
           "sha256": "580d966418fb40de67b13995294875a6552d7a81a7009b927a672c31b8a189e1"
         },
         "ui/pages/assistants.py": {
-          "version": "1.2.0",
-          "sha256": "e25798ebf3ce1bec43f8aceffa58fbf86c747a9df3a402e702928fcdb178de1a"
+          "version": "1.3.0",
+          "sha256": "e8bb00e74aeb18865cc563a5f4fe9cd762d5b562f4c853de98a6addca00d4b45"
         },
         "ui/pages/chat.py": {
           "version": "1.0.0",
@@ -668,8 +668,8 @@
           "sha256": "448dbf67eff496ec7d2689ef5d6f5be3640b79162e7456934ed478856b54ca74"
         },
         "ui/pages/orchestrator.py": {
-          "version": "1.8.0",
-          "sha256": "15cea6dd41ccc383a39efa5190bc5922663b3fdf75bb5ce8ab7c9505bbcf3925"
+          "version": "1.9.0",
+          "sha256": "89ac329af639fe2249a00c821426f6b8d478595975ec21b41b40c58a31b60f88"
         },
         "ui/pages/orchestrator_settings.py": {
           "version": "1.1.0",
@@ -974,17 +974,49 @@
         "tests/scenarios/test_yandex_models_catalog_scenario.py": {
           "version": "1.0.0",
           "sha256": "71b5258ef746af321c3ccc81b8bf6fb3f6c0b2dc735c9a9b896c36c709956f17"
+        },
+        "tests/test_single_model_config.py": {
+          "version": "1.0.0",
+          "sha256": "7d1033797beef313318461a0c87e603836b67b08c27dbb73e09f7c37b66d801f"
+        },
+        "tests/test_service_model_catalogs.py": {
+          "version": "1.0.0",
+          "sha256": "8fb9c25305ca85b5ace2749a095c4ff80f31d5678215ca3817f6227ed92eb6c9"
+        },
+        "tests/test_orchestrator_models_settings.py": {
+          "version": "1.0.0",
+          "sha256": "cc5fcca3d9c34f821d04586c60abaef2e16b0d777567b380ae0eaaa5ad6ea24e"
+        },
+        "core/multimodal.py": {
+          "version": "1.0.0",
+          "sha256": "adf41864553293b9272e3b6f123470c84e0817ef56f560f43a2accfd45843017"
+        },
+        "tests/test_multimodal.py": {
+          "version": "1.0.0",
+          "sha256": "826d9f7cf0872dc590a73a1c098c3cc1e9c7b3b9db1aeaa167d75b61bf2a9635"
+        },
+        "tests/test_multimodal_tools.py": {
+          "version": "1.0.0",
+          "sha256": "11f296552bcad53a5c5ccc8b5cd368617ca6183a94edac8721bb45c14f229879"
+        },
+        "tests/test_multimodal_instruction.py": {
+          "version": "1.0.0",
+          "sha256": "bea075cfa5c2d68c11e56cbdac855c5f9fc402761ac0c1bbd12e5fe4234ce33d"
+        },
+        "tests/scenarios/test_multimodal_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "da57dd67131d0a7f86ad82e370cca0a733c7c53baf2505f8c4243af31174ab8c"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.15.1",
-      "sha256": "eb70c157903d267e5e9311bb4bf8b8cb6708c6dbf0146ff35ff46caffde4a0b3",
+      "version": "1.17.0",
+      "sha256": "71b3bac9ded7a4d558539117c63f7de172ee4518aa1016e144ab63c0b5d5a547",
       "note": {
-        "ru": "Раздел «Коннекторы»: слои SSH - core/ssh_connector.py (paramiko/SFTP, upload_file) и core/ssh_tools.py (ssh_*).",
-        "en": "Connectors section: SSH layers - core/ssh_connector.py (paramiko/SFTP, upload_file) and core/ssh_tools.py (ssh_*)."
+        "ru": "Раздел «Единая модель и модели изображений»: инструменты analyze_image/generate_image, транспорты api_layer, инструкция multimodal_mode; роли api_layer/tool_executor.",
+        "en": "The main-model/image-models section: analyze_image/generate_image tools, api_layer transports, the multimodal_mode instruction; api_layer/tool_executor roles."
       }
     },
     "COMPARISON.md": {
@@ -1004,27 +1036,27 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.20.1",
-      "sha256": "5b42cbd22544abb2d094dce57b7d30e8c99e63bc78f62d2ad37f4bc4281d9308",
+      "version": "1.20.3",
+      "sha256": "bf7d209a627d35f4422b791f010a56bf27a896aa7e66c29503309c08fac377f2",
       "note": {
-        "ru": "Карта регенерирована после обновления каталога моделей YandexAI (добавлена deepseek-v4.1-flash, удалены qwen3-235b-a22b-fp8 и gpt-oss): пин промпта YaAgent v2.9 и новый сценарный тест каталога.",
-        "en": "Map regenerated after the YandexAI model catalog update (deepseek-v4.1-flash added, qwen3-235b-a22b-fp8 and gpt-oss removed): the YaAgent v2.9 prompt pin and the new catalog scenario test."
+        "ru": "Карта регенерирована: core/multimodal.py, инструкция multimodal_mode, мультимодальные тесты (unit + scenarios).",
+        "en": "Map regenerated: core/multimodal.py, the multimodal_mode instruction, multimodal test suites (unit + scenarios)."
       }
     },
     "README.md": {
-      "version": "1.13.2",
-      "sha256": "bf1d0fd5b5245a2441a0532af8149d53d220bb5c38e4cfd978c095118abd075f",
+      "version": "1.15.0",
+      "sha256": "bc3d5ab787b0d1a9cffc09005c6843ec2d6ab3f603227109bb9a29cb12160c4f",
       "note": {
-        "ru": "Статус версии - стабильный релиз v1.3.2; раздел «Коннекторы»: SSH.",
-        "en": "Version status - stable release v1.3.2; Connectors section: SSH."
+        "ru": "Статус версии v1.5.0; модели сотрудника: единая основная модель, опциональные модели изображений и инструменты analyze_image/generate_image.",
+        "en": "Version status v1.5.0; employee models: one main model, optional image models and the analyze_image/generate_image tools."
       }
     },
     "SPEC.md": {
-      "version": "1.16.1",
-      "sha256": "623a2a7bee0dc7aa4f53ea9708be475451be0672ea5e017350199dc065038c02",
+      "version": "1.18.0",
+      "sha256": "ab0861adae34bd2fe0c823676ac4abf42a88aa2f431b3533c62db34cd55ac200",
       "note": {
-        "ru": "FR11: SSH-коннектор - инструменты ssh_*, включая ssh_upload_file (публикация локальных файлов, sha256-верификация).",
-        "en": "FR11: SSH connector - ssh_* tools including ssh_upload_file (local file publishing, sha256 verification)."
+        "ru": "FR6: инструменты analyze_image/generate_image и инструкция multimodal_mode; NFR6: счётчики базовых файлов (core/multimodal.py).",
+        "en": "FR6: analyze_image/generate_image tools and the multimodal_mode instruction; NFR6: base-file counters (core/multimodal.py)."
       }
     },
     "defaults/README.md": {
@@ -1084,67 +1116,67 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.6.0",
-      "sha256": "d6a2da082cb713cc08ec90f0a46fc6a727327a55ef6b9fadf2b5cc7c91065369",
+      "version": "1.7.0",
+      "sha256": "6b1acf8c6aae18990cf882dc802aeb192d57f7f4f5822f98eac1446017618151",
       "note": {
-        "ru": "Добавлены ключи SSH-коннектора: сервис ssh, поля host/port/username, пароль или приватный ключ, тест соединения.",
-        "en": "Added SSH connector keys: ssh service, host/port/username fields, password or private key, connection test."
+        "ru": "Ключи моделей изображений (распознавание/генерация), заголовок «Основная модель», удалены мёртвые weak-ключи.",
+        "en": "Image model keys (vision/generation), Main model heading, dead weak keys removed."
       }
     },
     "defaults/langs/en_guide.md": {
-      "version": "1.0.0",
-      "sha256": "6205bd0b24800b3ec6c23a5bfbd715521cdef3ea8348e38bc54a7f39de48cc06",
+      "version": "1.1.0",
+      "sha256": "c329008d85b296e33f395f9504d7e57b660f5b7d5884df9e25d865492c00da79",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Раздел настройки DevAgent: единая основная модель и опциональные модели изображений.",
+        "en": "DevAgent setup section: one main model plus optional image models."
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.6.0",
-      "sha256": "e3dba956405d35ec9eb77d26a55194fc0764f66104d5096f77a9bffd96c48e77",
+      "version": "1.7.0",
+      "sha256": "27ff1fc26ff68fe9fd005bb9baa46f13099a50f2d9a9572e7d9ca22fa706c8bf",
       "note": {
-        "ru": "Добавлены ключи SSH-коннектора: сервис ssh, поля host/port/username, пароль или приватный ключ, тест соединения.",
-        "en": "Added SSH connector keys: ssh service, host/port/username fields, password or private key, connection test."
+        "ru": "Ключи моделей изображений (распознавание/генерация), заголовок «Основная модель», удалены мёртвые weak-ключи.",
+        "en": "Image model keys (vision/generation), Main model heading, dead weak keys removed."
       }
     },
     "defaults/langs/ru_guide.md": {
-      "version": "1.0.0",
-      "sha256": "18a18afaa9eb000110743b306f1caa6807f41ccbe9a5f041106f7365f6dbb8d5",
+      "version": "1.1.0",
+      "sha256": "10b4d7d6d86ec471e301aeaeb3b845e701ce306bf6d0d616201762ef3728e272",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Раздел настройки DevAgent: единая основная модель и опциональные модели изображений.",
+        "en": "DevAgent setup section: one main model plus optional image models."
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.6.0",
-      "sha256": "763bd5ddfe0facd23249c0b6a7d38736f41f414ede80e958b63921400d332e31",
+      "version": "1.7.0",
+      "sha256": "b3eaa91a42ec3eef06ab86c6043163fba00962ad943f46e409bb9ec8caa17ced",
       "note": {
-        "ru": "Добавлены ключи SSH-коннектора: сервис ssh, поля host/port/username, пароль или приватный ключ, тест соединения.",
-        "en": "Added SSH connector keys: ssh service, host/port/username fields, password or private key, connection test."
+        "ru": "Ключи моделей изображений (распознавание/генерация), заголовок «Основная модель», удалены мёртвые weak-ключи.",
+        "en": "Image model keys (vision/generation), Main model heading, dead weak keys removed."
       }
     },
     "defaults/langs/zh_CN_guide.md": {
-      "version": "1.0.0",
-      "sha256": "2b360ef793ed5abee89ef763f098932dfdc0c23763b9c0e535457a0c8bbdebca",
+      "version": "1.1.0",
+      "sha256": "13a2c2d0e0d7ee4ff5dda4d5235f0c22ece9ab471355cb57caaf2dba05d9da71",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Раздел настройки DevAgent: единая основная модель и опциональные модели изображений.",
+        "en": "DevAgent setup section: one main model plus optional image models."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/assistant_creator.md": {
-      "version": "1.0.0",
-      "sha256": "0ee0859573cea86488edd23848324e69c1d3bcd8a75f6f3e2c6c73c33a82ddd4",
+      "version": "1.0.1",
+      "sha256": "0e2ee3fcc27693aeb9bf9b306e036ca54bfdd9a5801bd6929cbb0f5b02faa76c",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Формулировки про модели: одна основная модель на все шаги.",
+        "en": "Model wording: one main model for every step."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/employee_creator.md": {
-      "version": "1.0.0",
-      "sha256": "6c25e2e92266469bf06d2f63097f1e0214352208751fe2110d9e3d3d34c238b5",
+      "version": "1.0.1",
+      "sha256": "cbd24564745c64dc870ba001bebfbe0b3d558797e789d6eede874853bcb7c745",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Вопрос о моделях: одна основная модель на все шаги.",
+        "en": "Model question: one main model for every step."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/github_connector.md": {
@@ -1244,11 +1276,11 @@
       }
     },
     "defaults/orchestrators/ya_agent/orchestrator.json": {
-      "version": "1.2.0",
-      "sha256": "6906bb06d41243404e8e7bd6e80d3eaadf4d315e1f338ba429575b996f6960d3",
+      "version": "1.3.0",
+      "sha256": "5f45564bb19e94441b7e01c98a0cbc6454adcb0765813995efa4978e0a9cf67a",
       "note": {
-        "ru": "Дефолт max_steps поднят до 500 (лимит шагов автономного цикла).",
-        "en": "max_steps default raised to 500 (autonomous-loop step limit)."
+        "ru": "Конфиг YaAgent: weak_* заменены пустыми vision/image (единая модель).",
+        "en": "YaAgent config: weak_* replaced with empty vision/image keys (single main model)."
       }
     },
     "defaults/orchestrators/ya_agent/system_prompt.md": {
@@ -1292,11 +1324,11 @@
       }
     },
     "defaults/services/yandex.json": {
-      "version": "1.1.0",
-      "sha256": "cf48414aa5a147e013c07e8bf5367a468436a2f3e8810c7dc5395bcab9ddd3dd",
+      "version": "1.2.0",
+      "sha256": "25a48dcd73c5eac317c5866515861eb99a7c848c8f02d53fcbd31b0673b74613",
       "note": {
-        "ru": "Каталог моделей YandexAI: удалены недоступные qwen3-235b-a22b-fp8, gpt-oss-120b и gpt-oss-20b; добавлена deepseek-v4.1-flash с параметрами deepseek-v4-flash.",
-        "en": "YandexAI model catalog: unavailable qwen3-235b-a22b-fp8, gpt-oss-120b and gpt-oss-20b removed; deepseek-v4.1-flash added with the deepseek-v4-flash settings."
+        "ru": "Каталоги vision_models (qwen3.6-35b-a3b) и image_models (yandex-art / Alice AI ART 3.0) для инструментов работы с изображениями.",
+        "en": "vision_models (qwen3.6-35b-a3b) and image_models (yandex-art / Alice AI ART 3.0) catalogs for image tools."
       }
     },
     "defaults/settings/global.json": {
@@ -1340,51 +1372,51 @@
       }
     },
     "langs/en.json": {
-      "version": "1.6.0",
-      "sha256": "d6a2da082cb713cc08ec90f0a46fc6a727327a55ef6b9fadf2b5cc7c91065369",
+      "version": "1.7.0",
+      "sha256": "6b1acf8c6aae18990cf882dc802aeb192d57f7f4f5822f98eac1446017618151",
       "note": {
-        "ru": "Добавлены ключи SSH-коннектора: сервис ssh, поля host/port/username, пароль или приватный ключ, тест соединения.",
-        "en": "Added SSH connector keys: ssh service, host/port/username fields, password or private key, connection test."
+        "ru": "Ключи моделей изображений (распознавание/генерация), заголовок «Основная модель», удалены мёртвые weak-ключи.",
+        "en": "Image model keys (vision/generation), Main model heading, dead weak keys removed."
       }
     },
     "langs/en_guide.md": {
-      "version": "1.0.0",
-      "sha256": "4a2120b4fb32395fd70ea39d9a31f01336f79d8cc95b7832bf753fb71750a4f2",
+      "version": "1.1.0",
+      "sha256": "f4160d8beb1798315bf002b90a9002f1d43a9bf31a7525de1aeaa9c2f2ce604c",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Раздел настройки DevAgent: единая основная модель и опциональные модели изображений.",
+        "en": "DevAgent setup section: one main model plus optional image models."
       }
     },
     "langs/ru.json": {
-      "version": "1.6.0",
-      "sha256": "499f50423a589e1288bc68650487666ad86fe3acb69a53ba317872445f66bb96",
+      "version": "1.7.0",
+      "sha256": "bf5d8101d8b6ce365d3b3e97b31e169f9faa0dc8180b947a2d685422eccbd75f",
       "note": {
-        "ru": "Добавлены ключи SSH-коннектора: сервис ssh, поля host/port/username, пароль или приватный ключ, тест соединения.",
-        "en": "Added SSH connector keys: ssh service, host/port/username fields, password or private key, connection test."
+        "ru": "Ключи моделей изображений (распознавание/генерация), заголовок «Основная модель», удалены мёртвые weak-ключи.",
+        "en": "Image model keys (vision/generation), Main model heading, dead weak keys removed."
       }
     },
     "langs/ru_guide.md": {
-      "version": "1.0.0",
-      "sha256": "c1a07704065dca5b265df7471a007686d40b10bbe5f93eb686653f2f2d1c59bd",
+      "version": "1.1.0",
+      "sha256": "3fa912ce432a596de6ed8c99c8ef10575e25fe00725d03245ef9a471b0904481",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Раздел настройки DevAgent: единая основная модель и опциональные модели изображений.",
+        "en": "DevAgent setup section: one main model plus optional image models."
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.6.0",
-      "sha256": "763bd5ddfe0facd23249c0b6a7d38736f41f414ede80e958b63921400d332e31",
+      "version": "1.7.0",
+      "sha256": "b3eaa91a42ec3eef06ab86c6043163fba00962ad943f46e409bb9ec8caa17ced",
       "note": {
-        "ru": "Добавлены ключи SSH-коннектора: сервис ssh, поля host/port/username, пароль или приватный ключ, тест соединения.",
-        "en": "Added SSH connector keys: ssh service, host/port/username fields, password or private key, connection test."
+        "ru": "Ключи моделей изображений (распознавание/генерация), заголовок «Основная модель», удалены мёртвые weak-ключи.",
+        "en": "Image model keys (vision/generation), Main model heading, dead weak keys removed."
       }
     },
     "langs/zh_CN_guide.md": {
-      "version": "1.0.0",
-      "sha256": "0d18e5615fa807bd9cb6b9e4c221f74bc79cd23079471711c05ec086626aef2e",
+      "version": "1.1.0",
+      "sha256": "5f896be1cde3d86dec52228de1af6919849934249a5e73a470564ab825faa780",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Раздел настройки DevAgent: единая основная модель и опциональные модели изображений.",
+        "en": "DevAgent setup section: one main model plus optional image models."
       }
     },
     "services/deepseek.json": {
@@ -1404,11 +1436,11 @@
       }
     },
     "services/yandex.json": {
-      "version": "1.1.0",
-      "sha256": "cf48414aa5a147e013c07e8bf5367a468436a2f3e8810c7dc5395bcab9ddd3dd",
+      "version": "1.2.0",
+      "sha256": "25a48dcd73c5eac317c5866515861eb99a7c848c8f02d53fcbd31b0673b74613",
       "note": {
-        "ru": "Каталог моделей YandexAI: удалены недоступные qwen3-235b-a22b-fp8, gpt-oss-120b и gpt-oss-20b; добавлена deepseek-v4.1-flash с параметрами deepseek-v4-flash.",
-        "en": "YandexAI model catalog: unavailable qwen3-235b-a22b-fp8, gpt-oss-120b and gpt-oss-20b removed; deepseek-v4.1-flash added with the deepseek-v4-flash settings."
+        "ru": "Каталоги vision_models (qwen3.6-35b-a3b) и image_models (yandex-art / Alice AI ART 3.0) для инструментов работы с изображениями.",
+        "en": "vision_models (qwen3.6-35b-a3b) and image_models (yandex-art / Alice AI ART 3.0) catalogs for image tools."
       }
     },
     "defaults/instructions/ssh_connector.md": {
@@ -1425,6 +1457,14 @@
       "note": {
         "ru": "Инструкция ssh_connector: инструмент ssh_upload_file и раздел «Публикация локальных файлов на сервер».",
         "en": "ssh_connector instruction: ssh_upload_file tool and a Publish local files to a server section."
+      }
+    },
+    "defaults/instructions/multimodal_mode.md": {
+      "version": "1.0.0",
+      "sha256": "48b7f2f4740d0829cfdfa9ae07625972d0e89968b8f93512754d76cbb5b8f8a4",
+      "note": {
+        "ru": "Глобальная инструкция мультимодальности: правила инструментов analyze_image/generate_image, сценарии «модель не назначена / не умеет», проверка зависимостей и согласие на установку.",
+        "en": "Global multimodal instruction: usage rules for analyze_image/generate_image, unassigned/incapable model scenarios, dependency checks and install consent."
       }
     }
   }

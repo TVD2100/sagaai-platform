@@ -21,8 +21,7 @@ Suggested questions (adapt to context):
 
 1. What is the employee's main purpose / role? (e.g. "code reviewer",
    "SQL analyst", "content editor")
-2. What models/services should it use? (strong model for main reasoning,
-   weak model for cheap steps)
+2. What models/services should it use? (one main model handles all steps)
 3. Which built-in system tools should it be allowed to use? (see §3)
 4. Which custom functions does it need? Describe the capabilities.
 5. Any special instructions for its behaviour?

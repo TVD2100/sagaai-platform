@@ -1512,3 +1512,60 @@ def test_spiral_never_grows_context(monkeypatch):
     assert state.phase == "calling_llm"
     assert text not in state.user_message
     assert len(state.user_message) < 2000
+
+
+# ── Single-model mode: runtime routing ────────────────────────────────────────
+
+class TestSingleModelRouting:
+    """One main model serves every step: weak-classified steps no longer
+    switch to weak_assistant (the legacy alias mirrors the main model)."""
+
+    def test_weak_step_still_calls_main_model(self, monkeypatch):
+        import dev_agent.agent_loop as al
+        captured = {}
+
+        def fake_send(user_message, assistant, **kwargs):
+            captured["service"] = assistant.get("service")
+            captured["model"] = assistant.get("model")
+            captured["text"] = assistant.get("text")
+            return "Готово."
+
+        monkeypatch.setattr(al, "send_request", fake_send)
+        main = {"text": "main prompt", "service": "MainSvc",
+                "model": "main-model", "temperature": 0.1}
+        weak = {"text": "weak prompt", "service": "WeakSvc",
+                "model": "weak-model", "temperature": 0.9}
+        state = AgentLoopState(
+            task="Ответь одним предложением",
+            strong_assistant=main,
+            weak_assistant=weak,
+        )
+        state.phase = "calling_llm"
+        state = al.step_agent_loop(state, dispatcher=FakeDispatcher())
+
+        # The step classifies as "weak" (no parsed calls, no prose yet), but
+        # the LLM call must still use the main assistant.
+        assert captured["service"] == "MainSvc"
+        assert captured["model"] == "main-model"
+        assert captured["text"] == "main prompt"
+        assert captured["model"] != "weak-model"
+        assert state.phase == "parsing"
+
+    def test_run_agent_loop_uses_main_model_only(self, monkeypatch):
+        import dev_agent.agent_loop as al
+        captured = {"services": []}
+
+        def fake_send(user_message, assistant, **kwargs):
+            captured["services"].append(assistant.get("service"))
+            return "Ответ."
+
+        monkeypatch.setattr(al, "send_request", fake_send)
+        main = {"text": "p", "service": "MainSvc",
+                "model": "main-model", "temperature": 0.1}
+        result = al.run_agent_loop(
+            "Ответь", main, FakeDispatcher(), auto_apply=True, max_steps=3,
+        )
+        # Plain prose without a loop_status marker ends the turn awaiting the
+        # user; what matters for this regression is WHICH model served the call.
+        assert result.status in ("done", "awaiting_user")
+        assert captured["services"] == ["MainSvc"]

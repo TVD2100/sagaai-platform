@@ -261,11 +261,11 @@ _DEVAGENT_FALLBACK_DEFAULTS = {
     "strong_temperature": "0.4",
     "strong_max_tokens": "384000",
     "strong_reasoning_effort": "max",
-    "weak_service": "DeepSeek",
-    "weak_model": "deepseek-v4-pro",
-    "weak_temperature": "0.4",
-    "weak_max_tokens": "384000",
-    "weak_reasoning_effort": "max",
+    # Optional multimodal models (single-model mode): "" = not assigned.
+    "vision_service": "",
+    "vision_model": "",
+    "image_service": "",
+    "image_model": "",
     "search_service": "YandexAI",
     "search_model": "aliceai-llm-flash",
     "search_temperature": "0.3",
@@ -377,19 +377,10 @@ def get_default_economy_cache_multiplier() -> int:
 
 
 def get_default_strong_max_tokens() -> int:
-    """Return the default max output tokens for the strong model."""
+    """Return the default max output tokens for the main model."""
     defaults = _get_devagent_defaults()
     try:
         return max(0, int(defaults.get("strong_max_tokens", 384000)))
-    except Exception:
-        return 384000
-
-
-def get_default_weak_max_tokens() -> int:
-    """Return the default max output tokens for the weak model."""
-    defaults = _get_devagent_defaults()
-    try:
-        return max(0, int(defaults.get("weak_max_tokens", 384000)))
     except Exception:
         return 384000
 
@@ -449,6 +440,12 @@ def load_devagent_config() -> dict:
         result: dict = {}
         for key, fallback in defaults.items():
             result[key] = cfg.get(f"{DEVAGENT_PREFIX}{key}", fallback)
+        # Single-model mode: expose the legacy weak_* READ aliases mapped
+        # onto the main model so old consumers keep working.
+        result.setdefault("weak_service", result.get("strong_service", ""))
+        result.setdefault("weak_model", result.get("strong_model", ""))
+        result.setdefault("weak_temperature", result.get("strong_temperature", ""))
+        result.setdefault("weak_max_tokens", result.get("strong_max_tokens", ""))
         return result
 
 
@@ -461,6 +458,10 @@ def save_devagent_config(service: str, model: str, temperature: float,
                          search_service: str = "", search_model: str = "",
                          search_temperature: float = 0.3,
                          search_max_tool_calls: int = 3,
+                         vision_service: Optional[str] = None,
+                         vision_model: Optional[str] = None,
+                         image_service: Optional[str] = None,
+                         image_model: Optional[str] = None,
                          economy_tail_messages: Optional[int] = None,
                          economy_cache_enabled: Optional[bool] = None,
                          economy_cache_multiplier: Optional[int] = None) -> bool:
@@ -481,6 +482,10 @@ def save_devagent_config(service: str, model: str, temperature: float,
             search_service=search_service, search_model=search_model,
             search_temperature=search_temperature,
             search_max_tool_calls=search_max_tool_calls,
+            vision_service=vision_service,
+            vision_model=vision_model,
+            image_service=image_service,
+            image_model=image_model,
             economy_tail_messages=economy_tail_messages,
             economy_cache_enabled=economy_cache_enabled,
             economy_cache_multiplier=economy_cache_multiplier,
@@ -496,10 +501,12 @@ def save_devagent_config(service: str, model: str, temperature: float,
         cfg[f"{DEVAGENT_PREFIX}strong_model"] = strong_model
         cfg[f"{DEVAGENT_PREFIX}strong_temperature"] = str(strong_temperature)
         cfg[f"{DEVAGENT_PREFIX}strong_max_tokens"] = str(get_default_strong_max_tokens())
-        cfg[f"{DEVAGENT_PREFIX}weak_service"] = weak_service
-        cfg[f"{DEVAGENT_PREFIX}weak_model"] = weak_model
-        cfg[f"{DEVAGENT_PREFIX}weak_temperature"] = str(weak_temperature)
-        cfg[f"{DEVAGENT_PREFIX}weak_max_tokens"] = str(get_default_weak_max_tokens())
+        # Single-model mode: weak_* values are never written (the legacy
+        # parameters remain in the signature for backward compatibility).
+        cfg[f"{DEVAGENT_PREFIX}vision_service"] = vision_service or ""
+        cfg[f"{DEVAGENT_PREFIX}vision_model"] = vision_model or ""
+        cfg[f"{DEVAGENT_PREFIX}image_service"] = image_service or ""
+        cfg[f"{DEVAGENT_PREFIX}image_model"] = image_model or ""
         cfg[f"{DEVAGENT_PREFIX}search_service"] = search_service
         cfg[f"{DEVAGENT_PREFIX}search_model"] = search_model
         cfg[f"{DEVAGENT_PREFIX}search_temperature"] = str(search_temperature)

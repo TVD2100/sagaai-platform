@@ -158,6 +158,24 @@
       ]
     }
   ],
+  "vision_models": [
+    {
+      "id": "qwen3.6-35b-a3b",
+      "label": {
+        "ru": "Qwen3.6 35B A3B - распознавание изображений (текст и изображения на входе)",
+        "en": "Qwen3.6 35B A3B - image analysis (text and images as input)"
+      }
+    }
+  ],
+  "image_models": [
+    {
+      "id": "yandex-art",
+      "label": {
+        "ru": "Alice AI ART 3.0 (YandexART) - генерация изображений по текстовому описанию",
+        "en": "Alice AI ART 3.0 (YandexART) - text-to-image generation"
+      }
+    }
+  ],
   "embedding_models": [
     {
       "id": "text-search-doc",

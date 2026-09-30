@@ -121,7 +121,7 @@ def default_reasoning_effort(svc: dict, strong: bool = False, model: str = None)
     """Return the default reasoning effort for a service (and model).
 
     *strong* (orchestrator's main model): ``max`` when the service supports
-    it, otherwise ``high``. For all other roles (weak/search models,
+    it, otherwise ``high``. For all other roles (search models,
     assistants): ``high`` when available, otherwise the first supported
     option. When *model* is given and the model declares its own
     ``reasoning_effort_options``, only values supported by that model are
@@ -185,5 +185,35 @@ def service_supports_embeddings(svc: dict) -> bool:
     indexing for a selected provider.
     """
     return bool(get_embedding_models(svc))
+
+
+# ─── Multimodal model catalogs (vision / image generation) ────────────────
+
+def get_vision_models(svc: dict) -> list:
+    """Return vision (image recognition) models declared by a service.
+
+    Each entry: {"id", "label"} - matching the ``vision_models`` block in
+    the service JSON file. Returns [] when the service does not declare
+    vision models (assigning a multimodal model is optional).
+    """
+    if not isinstance(svc, dict):
+        return []
+    models = svc.get("vision_models", []) or []
+    return [m for m in models if isinstance(m, dict)]
+
+
+def get_image_models(svc: dict) -> list:
+    """Return image-generation models declared by a service (if any).
+
+    Each entry: {"id", "label"} - matching the ``image_models`` block in
+    the service JSON file. Returns [] when the service does not declare
+    image-generation models.
+    """
+    if not isinstance(svc, dict):
+        return []
+    models = svc.get("image_models", []) or []
+    return [m for m in models if isinstance(m, dict)]
+
+
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: MIT

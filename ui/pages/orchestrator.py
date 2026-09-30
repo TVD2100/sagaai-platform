@@ -16,6 +16,8 @@ from typing import Any, Dict, List, Optional, Callable
 from core.i18n import t
 from core.services import (
     get_services,
+    get_vision_models,
+    get_image_models,
     service_supports_reasoning_effort,
     get_model_reasoning_effort_options,
     default_reasoning_effort,
@@ -293,7 +295,7 @@ def _scroll_page(target: str) -> None:
 # ─── Adapters & dispatcher ────────────────────────────────────────────────────
 
 def _make_send_adapter(lang: str, slug: str) -> Callable:
-    """Return a send_request wrapper using the orchestrator's strong model."""
+    """Return a send_request wrapper using the orchestrator's main model."""
     strong_assistant, _ = build_assistant_dicts(slug)
     if not strong_assistant.get("service") or not strong_assistant.get("model"):
         orch = get_orchestrator(slug)
@@ -1637,6 +1639,70 @@ def _get_max_tokens_limit(svc_def: dict, model_id: str) -> int:
     return 65536
 
 
+def _render_optional_model_section(slug: str, lang: str, cfg: dict, service_names: list,
+                                   services: dict, catalog_fn, section_key: str,
+                                   no_services_key: str, config_prefix: str,
+                                   help_key: str = "") -> tuple:
+    """Render one optional model block (image recognition or image generation).
+
+    The service selectbox carries the "not selected" option that switches the
+    optional capability off; the model selectbox appears only after a service
+    is picked and lists the catalog models declared by that service.
+
+    Parameters:
+        slug - orchestrator slug (widget keys are suffixed with it);
+        lang - UI language (display name);
+        cfg - current orchestrator config (legacy keys are tolerated);
+        service_names - ordered service names of the settings page;
+        services - {name: service_definition} mapping;
+        catalog_fn - get_vision_models / get_image_models;
+        section_key, no_services_key - i18n keys of the header / empty caption;
+        help_key - i18n key of the optional caption under the header;
+        config_prefix - "vision" or "image" (<prefix>_service / <prefix>_model).
+
+    Returns:
+        (service, model): the selected pair; ("", "") means "not assigned".
+    """
+    st.markdown(t(section_key, lang=lang))
+    if help_key:
+        st.caption(t(help_key, lang=lang))
+    catalog_services = {name: svc for name, svc in services.items() if catalog_fn(svc)}
+    if not catalog_services:
+        st.caption(t(no_services_key, lang=lang))
+        return "", ""
+    unset_label = t("orch_model_unset_option", lang=lang)
+    cur_svc = str(cfg.get(config_prefix + "_service", "") or "")
+    cur_mdl = str(cfg.get(config_prefix + "_model", "") or "")
+    if cur_svc and cur_svc not in catalog_services:
+        st.warning(t("orch_service_unavailable", lang=lang, service=cur_svc))
+        cur_svc, cur_mdl = "", ""
+    elif cur_svc:
+        cur_ids = [m["id"] if isinstance(m, dict) else m
+                   for m in catalog_fn(catalog_services[cur_svc])]
+        if cur_mdl and cur_mdl not in cur_ids:
+            st.warning(t("orch_model_unavailable", lang=lang,
+                         model=cur_mdl, service=cur_svc))
+            cur_mdl = ""
+    svc_options = [unset_label] + [n for n in service_names if n in catalog_services]
+    col_a, col_b = st.columns(2)
+    with col_a:
+        picked = st.selectbox(t("orch_service_label", lang=lang), options=svc_options,
+                              index=svc_options.index(cur_svc) if cur_svc in svc_options else 0,
+                              key=f"orch_set_{config_prefix}_svc_{slug}",
+                              help=t("orch_service_label_help", lang=lang))
+    sel_svc = "" if picked == unset_label else picked
+    sel_mdl = ""
+    if sel_svc:
+        model_ids = [m["id"] if isinstance(m, dict) else m
+                     for m in catalog_fn(catalog_services[sel_svc])]
+        with col_b:
+            sel_mdl = st.selectbox(t("orch_model_label", lang=lang), options=model_ids,
+                                   index=model_ids.index(cur_mdl) if cur_mdl in model_ids else 0,
+                                   key=f"orch_set_{config_prefix}_mdl_{slug}",
+                                   help=t("orch_model_label_help", lang=lang))
+    return sel_svc, sel_mdl
+
+
 def _render_models_settings(slug: str, lang: str) -> None:
     orch = get_orchestrator(slug)
     if orch is None:
@@ -1649,7 +1715,7 @@ def _render_models_settings(slug: str, lang: str) -> None:
         st.info(t("orch_no_services", lang=lang))
         return
 
-    # Strong model
+    # Main model (single model for all tasks)
     st.markdown(t("orch_strong_model_section", lang=lang))
     cur_strong_svc = cfg.get("strong_service", "") or service_names[0]
     if cur_strong_svc not in service_names:
@@ -1716,72 +1782,16 @@ def _render_models_settings(slug: str, lang: str) -> None:
                                              key=f"orch_set_strong_max_tokens_{slug}")
     st.caption(t("orch_max_tokens_hint", lang=lang, max=f"{strong_limit:,}"))
 
-    # Weak model
-    st.markdown(t("orch_weak_model_section", lang=lang))
-    cur_weak_svc = cfg.get("weak_service", "") or cur_strong_svc
-    if cur_weak_svc not in service_names:
-        cur_weak_svc = service_names[0]
-    cur_weak_mdl = cfg.get("weak_model", "")
-    cur_weak_temp = float(cfg.get("weak_temperature", 0.4) or 0.4)
-
-    saved_weak_svc = cfg.get("weak_service", "")
-    saved_weak_mdl = cfg.get("weak_model", "")
-    if saved_weak_svc and saved_weak_svc not in service_names:
-        st.warning(t("orch_service_unavailable", lang=lang, service=saved_weak_svc))
-    elif saved_weak_svc in service_names:
-        saved_weak_models = [
-            m["id"] if isinstance(m, dict) else m
-            for m in services.get(saved_weak_svc, {}).get("models", [])
-        ]
-        if saved_weak_mdl and saved_weak_mdl not in saved_weak_models:
-            st.warning(t("orch_model_unavailable", lang=lang,
-                         model=saved_weak_mdl, service=saved_weak_svc))
-
-    col_w1, col_w2 = st.columns(2)
-    with col_w1:
-        sel_weak_svc = st.selectbox(t("orch_service_label", lang=lang), options=service_names,
-                                     index=service_names.index(cur_weak_svc),
-                                     key=f"orch_set_weak_svc_{slug}",
-                                     help=t("orch_service_label_help", lang=lang))
-    with col_w2:
-        svc_def = services.get(sel_weak_svc, {})
-        models = svc_def.get("models", [])
-        model_ids_w = [m["id"] if isinstance(m, dict) else m for m in models]
-        if cur_weak_mdl not in model_ids_w and model_ids_w:
-            cur_weak_mdl = model_ids_w[0]
-        mdl_idx_w = model_ids_w.index(cur_weak_mdl) if cur_weak_mdl in model_ids_w else 0
-        sel_weak_mdl = st.selectbox(t("orch_model_label", lang=lang), options=model_ids_w if model_ids_w else [cur_weak_mdl],
-                                     index=mdl_idx_w, key=f"orch_set_weak_mdl_{slug}",
-                                     help=t("orch_model_label_help", lang=lang))
-
-    weak_svc_def = services.get(sel_weak_svc, {})
-    sel_weak_temp = _temp_slider(weak_svc_def, lang, t("orch_temperature_label", lang=lang), cur_weak_temp,
-                                   f"orch_set_weak_temp_{slug}")
-
-    cur_weak_re = str(cfg.get("weak_reasoning_effort", "") or "").strip()
-    sel_weak_re = ""
-    if service_supports_reasoning_effort(weak_svc_def):
-        re_opts = get_model_reasoning_effort_options(weak_svc_def, sel_weak_mdl)
-        if not cur_weak_re or cur_weak_re not in re_opts:
-            cur_weak_re = default_reasoning_effort(weak_svc_def, strong=False, model=sel_weak_mdl) or (re_opts[0] if re_opts else "")
-        if re_opts:
-            sel_weak_re = st.selectbox(
-                t("orch_reasoning_effort_label", lang=lang),
-                options=re_opts,
-                index=re_opts.index(cur_weak_re) if cur_weak_re in re_opts else 0,
-                key=f"orch_set_weak_re_{slug}",
-                help=t("orch_reasoning_effort_label_help", lang=lang),
-            )
-
-    cur_weak_max_tokens = int(cfg.get("weak_max_tokens", 0) or 0)
-    weak_limit = _get_max_tokens_limit(weak_svc_def, sel_weak_mdl)
-    if cur_weak_max_tokens > weak_limit:
-        cur_weak_max_tokens = weak_limit
-    sel_weak_max_tokens = st.number_input(t("orch_max_tokens", lang=lang), min_value=0, max_value=weak_limit,
-                                           value=cur_weak_max_tokens, step=256,
-                                           help=t("orch_max_tokens_help", lang=lang),
-                                           key=f"orch_set_weak_max_tokens_{slug}")
-    st.caption(t("orch_max_tokens_hint", lang=lang, max=f"{weak_limit:,}"))
+    # Optional image-model sections (image recognition / generation).
+    # ("", "") means the capability stays switched off.
+    sel_vision_svc, sel_vision_mdl = _render_optional_model_section(
+        slug, lang, cfg, service_names, services, get_vision_models,
+        "orch_vision_model_section", "orch_no_vision_services", "vision",
+        help_key="orch_vision_model_help")
+    sel_image_svc, sel_image_mdl = _render_optional_model_section(
+        slug, lang, cfg, service_names, services, get_image_models,
+        "orch_image_model_section", "orch_no_image_services", "image",
+        help_key="orch_image_model_help")
 
     # Web-search model
     st.markdown(t("orch_search_model_section", lang=lang))
@@ -1875,11 +1885,14 @@ def _render_models_settings(slug: str, lang: str) -> None:
         new_cfg["strong_temperature"] = sel_strong_temp
         new_cfg["strong_max_tokens"] = sel_strong_max_tokens
         new_cfg["strong_reasoning_effort"] = sel_strong_re
-        new_cfg["weak_service"] = sel_weak_svc
-        new_cfg["weak_model"] = sel_weak_mdl
-        new_cfg["weak_temperature"] = sel_weak_temp
-        new_cfg["weak_max_tokens"] = sel_weak_max_tokens
-        new_cfg["weak_reasoning_effort"] = sel_weak_re
+        new_cfg["vision_service"] = sel_vision_svc
+        new_cfg["vision_model"] = sel_vision_mdl
+        new_cfg["image_service"] = sel_image_svc
+        new_cfg["image_model"] = sel_image_mdl
+        # Single-model mode: drop legacy weak_* leftovers on save.
+        for _legacy_key in ("weak_service", "weak_model", "weak_temperature",
+                            "weak_max_tokens", "weak_reasoning_effort"):
+            new_cfg.pop(_legacy_key, None)
         new_cfg["search_service"] = sel_search_svc
         new_cfg["search_model"] = sel_search_mdl
         new_cfg["search_temperature"] = sel_search_temp

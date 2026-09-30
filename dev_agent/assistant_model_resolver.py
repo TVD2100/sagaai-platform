@@ -21,7 +21,7 @@ from .llm_utils import call_llm_with_system
 CLASSIFICATION_PROMPT = (
     "You are a task classifier. Analyse the user's assistant creation request "
     "and determine TWO things:\n\n"
-    "1. **complexity**: Does this assistant need a STRONG or WEAK model?\n"
+    "1. **complexity**: How complex is this assistant?\n"
     "   - \"strong\": complex reasoning, code generation, deep analysis, "
     "creative writing, multi-step planning, technical documentation.\n"
     "   - \"weak\": simple formatting, basic translation, spell checking, "
@@ -241,7 +241,7 @@ def resolve_service_model_for_assistant(
       1. Explicit mention in task -> use that service/model; when web_search
          is needed but the requested provider does not support it, fall back
          to a web-search-capable provider and report a warning.
-      2. No web_search -> pick from DevAgent settings (strong/weak model).
+      2. No web_search -> the main model from DevAgent settings.
       3. Web_search needed -> YandexAI pro/lite (or another web-search-capable
          provider) with the web_search tool activated.
       4. Fallback: first available service.
@@ -313,21 +313,18 @@ def resolve_service_model_for_assistant(
                 f"Using service '{svc}' (mentioned in request) with first model '{mdl}'."
             ), bool(tools), tools_effort, max_calls
 
-    # 2. No web_search -> DevAgent settings.
+    # 2. No web_search -> the main model from DevAgent settings.
     if not needs_web_search:
         dev_cfg = load_devagent_config()
-        if complexity == "strong":
-            svc = dev_cfg.get("strong_service", "")
-            mdl = dev_cfg.get("strong_model", "")
-        else:
-            svc = dev_cfg.get("weak_service", "")
-            mdl = dev_cfg.get("weak_model", "")
+        # Single-model mode: the main model serves every step.
+        svc = dev_cfg.get("strong_service", "")
+        mdl = dev_cfg.get("strong_model", "")
 
         if svc and mdl:
             svc_data = svc_map.get(svc.lower(), {})
             tools_effort = _resolve_reasoning_effort(svc_data, default_reasoning_effort, service_supports_reasoning_effort)
             return svc, mdl, [], (
-                f"Using {complexity} model from DevAgent settings: '{svc}' > '{mdl}'."
+                f"Using main model from DevAgent settings: '{svc}' > '{mdl}'."
             ), False, tools_effort, None
         if svc and not mdl:
             svc_data = svc_map.get(svc.lower(), {})
@@ -335,7 +332,7 @@ def resolve_service_model_for_assistant(
             if first_mdl:
                 tools_effort = _resolve_reasoning_effort(svc_data, default_reasoning_effort, service_supports_reasoning_effort)
                 return svc, first_mdl, [], (
-                    f"Using {complexity} service from DevAgent settings: '{svc}' > '{first_mdl}' (first available)."
+                    f"Using main service from DevAgent settings: '{svc}' > '{first_mdl}' (first available)."
                 ), False, tools_effort, None
 
     # 3. Web_search -> YandexAI (or another web-search-capable provider).

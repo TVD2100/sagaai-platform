@@ -108,7 +108,7 @@ def _orchestrator_provider_map() -> Dict[str, str]:
     """Return {slug: strong_service} for all orchestrators (may be empty).
 
     Attribution is per-thread and uses the primary ("strong") service, the
-    model that does the bulk of the work; weak/search calls are minor.
+    model that does the bulk of the work; search calls are minor.
     """
     try:
         from core.orchestrators import list_orchestrators

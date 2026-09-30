@@ -35,12 +35,13 @@ First, connect AI services - without them the platform cannot respond.
 
 DevAgent is your AI programmer. Configure it:
 
-- **Strong model** - for code writing, planning and complex tasks.
-- **Weak model** - for quick operations (file reading, backups).
+- **Main model** - for all tasks: code writing, planning, quick operations.
+- **Image recognition model** - to analyze images (optional).
+- **Image generation model** - to create images from text descriptions (optional).
 - **Web-search model** - so DevAgent can search the internet.
 - **Economy mode** - reduces token consumption on long sessions.
 
-💡 **Tip:** choose powerful models for the strong model, cheaper/faster ones for the weak model.
+💡 **Tip:** pick the most capable model you can afford for the main model; image models are optional.
 
 ### 3. 🧩 Create assistants
 
@@ -77,7 +78,7 @@ Employees are advanced orchestrator-based AI agents with custom settings, instru
 | 👥 **Employees** | Orchestrator-based AI agents with functions and skills |
 | 🔧 **DevAgent** | Agent for editing any code, auto-backups, testing |
 | 🌐 **Web search** | AI searches the internet when needed |
-| 🔢 **Multi-model** | Strong + weak + search model for different tasks |
+| 🔢 **Multi-model** | Main + image recognition + image generation + web-search model for different tasks |
 | 💡 **Economy mode** | Compact context for token savings |
 | 📜 **History** | All conversations are saved, searchable and recoverable |
 | 🌍 **Languages** | Interface in Russian, English, Chinese and more |

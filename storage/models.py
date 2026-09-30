@@ -175,9 +175,10 @@ class Orchestrator(Base):
     """Represents an autonomous orchestrator agent (e.g. DevAgent or a custom one).
 
     Each orchestrator is a self-contained unit: it has its own system prompt,
-    its own model configuration (strong / weak / search), its own tool set and
-    its own economy-mode settings. Orchestrators can be exported/imported
-    as JSON so users can share them.
+    its own model configuration (one main model + optional vision/image
+    models + a search model), its own tool set and its own economy-mode
+    settings. Orchestrators can be exported/imported as JSON so users can
+    share them.
 
     DevAgent is a built-in orchestrator with slug='dev_agent' and is_builtin=True.
     """

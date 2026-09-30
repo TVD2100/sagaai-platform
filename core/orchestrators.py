@@ -2,7 +2,7 @@
 core.orchestrators - public API for orchestrator management.
 
 Orchestrators are self-contained autonomous agents (like DevAgent).
-Each orchestrator has its own system prompt, model configuration (strong/weak/search),
+Each orchestrator has its own system prompt, model configuration (main/search + optional vision/image),
 tool set, economy settings, and instructions.  Orchestrators appear as
 separate pages in the sidebar navigation and can be exported/imported as JSON.
 
@@ -46,7 +46,6 @@ from core.config import (
     get_default_economy_cache_enabled,
     get_default_economy_cache_multiplier,
     get_default_strong_max_tokens,
-    get_default_weak_max_tokens,
     get_devagent_defaults,
 )
 from core.services import (
@@ -149,11 +148,11 @@ def _devagent_default_config() -> Dict[str, Any]:
         "strong_temperature": _num("strong_temperature", 0.4, float),
         "strong_max_tokens": _num("strong_max_tokens", 384000, int),
         "strong_reasoning_effort": _str1("strong_reasoning_effort", "max"),
-        "weak_service": _str1("weak_service", "DeepSeek"),
-        "weak_model": _str1("weak_model", "deepseek-v4-pro"),
-        "weak_temperature": _num("weak_temperature", 0.4, float),
-        "weak_max_tokens": _num("weak_max_tokens", 384000, int),
-        "weak_reasoning_effort": _str1("weak_reasoning_effort", "max"),
+        # Optional multimodal models (single-model mode): "" = not assigned.
+        "vision_service": _str1("vision_service", ""),
+        "vision_model": _str1("vision_model", ""),
+        "image_service": _str1("image_service", ""),
+        "image_model": _str1("image_model", ""),
         "search_service": _str1("search_service", "YandexAI"),
         "search_model": _str1("search_model", "aliceai-llm-flash"),
         "search_temperature": _num("search_temperature", 0.3, float),
@@ -904,14 +903,8 @@ def build_assistant_dicts(orchestrator_slug: str = DEVAGENT_SLUG) -> Tuple[dict,
     strong_temp = float(cfg.get("strong_temperature", 0.2) or 0.2)
     strong_max_tokens = int(cfg.get("strong_max_tokens", 0) or 0)
 
-    weak_svc = cfg.get("weak_service", "") or strong_svc
-    weak_mdl = cfg.get("weak_model", "") or strong_mdl
-    weak_temp = float(cfg.get("weak_temperature", 0.5) or 0.5)
-    weak_max_tokens = int(cfg.get("weak_max_tokens", 0) or 0)
-
     services = _get_services()
     strong_svc_def = services.get(strong_svc, {})
-    weak_svc_def = services.get(weak_svc, {})
 
     def _resolve_effort(cfg_key: str, svc_def: dict, strong: bool, model_id: str = "") -> str:
         raw = cfg.get(cfg_key, "")
@@ -922,7 +915,6 @@ def build_assistant_dicts(orchestrator_slug: str = DEVAGENT_SLUG) -> Tuple[dict,
         return ""
 
     strong_effort = _resolve_effort("strong_reasoning_effort", strong_svc_def, True, strong_mdl)
-    weak_effort = _resolve_effort("weak_reasoning_effort", weak_svc_def, False, weak_mdl)
 
     strong = {
         "text": prompt,
@@ -934,16 +926,9 @@ def build_assistant_dicts(orchestrator_slug: str = DEVAGENT_SLUG) -> Tuple[dict,
         strong["reasoning_effort"] = strong_effort
     if strong_max_tokens > 0:
         strong["max_tokens"] = strong_max_tokens
-    weak = {
-        "text": prompt,
-        "service": weak_svc,
-        "model": weak_mdl,
-        "temperature": weak_temp,
-    }
-    if weak_effort:
-        weak["reasoning_effort"] = weak_effort
-    if weak_max_tokens > 0:
-        weak["max_tokens"] = weak_max_tokens
+    # Single-model mode: the weak alias receives an identical copy of the
+    # main assistant so legacy consumers keep working unchanged.
+    weak = dict(strong)
     return strong, weak
 
 
@@ -1389,11 +1374,10 @@ def ensure_builtin_orchestrators() -> Dict[str, str]:
             "strong_temperature": float(legacy.get("strong_temperature", 0.4) or 0.4),
             "strong_max_tokens": int(legacy.get("strong_max_tokens") or get_default_strong_max_tokens()) or get_default_strong_max_tokens(),
             "strong_reasoning_effort": "max",
-            "weak_service": legacy.get("weak_service", "") or "DeepSeek",
-            "weak_model": legacy.get("weak_model", "") or "deepseek-v4-pro",
-            "weak_temperature": float(legacy.get("weak_temperature", 0.4) or 0.4),
-            "weak_max_tokens": int(legacy.get("weak_max_tokens") or get_default_weak_max_tokens()) or get_default_weak_max_tokens(),
-            "weak_reasoning_effort": "max",
+            "vision_service": legacy.get("vision_service", "") or "",
+            "vision_model": legacy.get("vision_model", "") or "",
+            "image_service": legacy.get("image_service", "") or "",
+            "image_model": legacy.get("image_model", "") or "",
             "search_service": legacy.get("search_service", "") or "YandexAI",
             "search_model": legacy.get("search_model", "") or "aliceai-llm-flash",
             "search_temperature": float(legacy.get("search_temperature", 0.3) or 0.3),
@@ -1452,11 +1436,10 @@ def ensure_builtin_orchestrators() -> Dict[str, str]:
         "strong_temperature": 0.4,
         "strong_max_tokens": get_default_strong_max_tokens(),
         "strong_reasoning_effort": "max",
-        "weak_service": "DeepSeek",
-        "weak_model": "deepseek-v4-pro",
-        "weak_temperature": 0.4,
-        "weak_max_tokens": get_default_weak_max_tokens(),
-        "weak_reasoning_effort": "max",
+        "vision_service": "",
+        "vision_model": "",
+        "image_service": "",
+        "image_model": "",
         "search_service": "YandexAI",
         "search_model": "aliceai-llm-flash",
         "search_temperature": 0.3,
@@ -1498,7 +1481,7 @@ def ensure_builtin_orchestrators() -> Dict[str, str]:
         if cur is None or cur == "":
             config[k] = v
             backfilled = True
-        elif k in ("strong_max_tokens", "weak_max_tokens"):
+        elif k == "strong_max_tokens":
             # A stored 0 means "use the model default", but the required
             # default for the built-in DevAgent is 384000 output tokens.
             # Treat 0 as unset here so buggy first-boot configs are fixed.
@@ -1509,6 +1492,15 @@ def ensure_builtin_orchestrators() -> Dict[str, str]:
             except (TypeError, ValueError):
                 config[k] = v
                 backfilled = True
+
+    # Single-model migration: drop legacy weak_* keys from the stored config
+    # so the canonical config carries one main model. Reads stay tolerant:
+    # the compatibility views map the weak aliases onto the main model.
+    for legacy_key in ("weak_service", "weak_model", "weak_temperature",
+                       "weak_max_tokens", "weak_reasoning_effort"):
+        if legacy_key in config:
+            config.pop(legacy_key, None)
+            backfilled = True
 
     # One-time migration of the legacy 100-step default to the current
     # default. Guarded by a config marker so user-chosen values survive.
@@ -1552,10 +1544,16 @@ def load_devagent_config(orch_slug: str = DEVAGENT_SLUG) -> Dict[str, str]:
         "strong_model": cfg.get("strong_model", "") or "deepseek-v4-pro",
         "strong_temperature": str(cfg.get("strong_temperature", 0.4) or 0.4),
         "strong_max_tokens": str(cfg.get("strong_max_tokens", 0) or 0),
-        "weak_service": cfg.get("weak_service", "") or "DeepSeek",
-        "weak_model": cfg.get("weak_model", "") or "deepseek-v4-pro",
-        "weak_temperature": str(cfg.get("weak_temperature", 0.4) or 0.4),
-        "weak_max_tokens": str(cfg.get("weak_max_tokens", 0) or 0),
+        # Single-model mode: the weak_* keys are legacy READ aliases of the
+        # main model (tolerant read; never written back).
+        "weak_service": cfg.get("strong_service", "") or "DeepSeek",
+        "weak_model": cfg.get("strong_model", "") or "deepseek-v4-pro",
+        "weak_temperature": str(cfg.get("strong_temperature", 0.4) or 0.4),
+        "weak_max_tokens": str(cfg.get("strong_max_tokens", 0) or 0),
+        "vision_service": cfg.get("vision_service", "") or "",
+        "vision_model": cfg.get("vision_model", "") or "",
+        "image_service": cfg.get("image_service", "") or "",
+        "image_model": cfg.get("image_model", "") or "",
         "search_service": cfg.get("search_service", "") or "YandexAI",
         "search_model": cfg.get("search_model", "") or "aliceai-llm-flash",
         "search_temperature": str(cfg.get("search_temperature", 0.3) or 0.3),
@@ -1580,6 +1578,10 @@ def save_devagent_config(
     search_service: str = "", search_model: str = "",
     search_temperature: float = 0.3,
     search_max_tool_calls: int = 3,
+    vision_service: Optional[str] = None,
+    vision_model: Optional[str] = None,
+    image_service: Optional[str] = None,
+    image_model: Optional[str] = None,
     web_search_prompt: Optional[str] = None,
     economy_tail_messages: Optional[int] = None,
     economy_cache_enabled: Optional[bool] = None,
@@ -1587,7 +1589,9 @@ def save_devagent_config(
 ) -> bool:
     """Save DevAgent configuration to the orchestrator store.
 
-    Kept for backward compatibility with the existing settings UI.
+    Single-model mode: the weak_* parameters are tolerated for backward
+    compatibility but are never persisted. vision_/image_* fields are
+    stored only when passed (None keeps the current value).
     """
     orch = get_orchestrator(DEVAGENT_SLUG)
     if orch is None:
@@ -1597,10 +1601,19 @@ def save_devagent_config(
     config["strong_model"] = strong_model or model
     config["strong_temperature"] = strong_temperature or temperature
     config["strong_max_tokens"] = strong_max_tokens or get_default_strong_max_tokens()
-    config["weak_service"] = weak_service or strong_service or service
-    config["weak_model"] = weak_model or strong_model or model
-    config["weak_temperature"] = weak_temperature or 0.5
-    config["weak_max_tokens"] = weak_max_tokens or get_default_weak_max_tokens()
+    # Single-model mode: weak_* values are never persisted; the legacy
+    # parameters stay in the signature for backward compatibility.
+    for _legacy_key in ("weak_service", "weak_model", "weak_temperature",
+                        "weak_max_tokens", "weak_reasoning_effort"):
+        config.pop(_legacy_key, None)
+    if vision_service is not None:
+        config["vision_service"] = vision_service
+    if vision_model is not None:
+        config["vision_model"] = vision_model
+    if image_service is not None:
+        config["image_service"] = image_service
+    if image_model is not None:
+        config["image_model"] = image_model
     config["search_service"] = search_service or ""
     config["search_model"] = search_model or ""
     config["search_temperature"] = search_temperature

@@ -67,8 +67,8 @@ When the user explicitly asks to create an assistant, DevAgent follows this flow
 2. Present the proposed name and description to the user and get explicit confirmation BEFORE calling `create_assistant_for_task`.
 3. Call `create_assistant_for_task(task)` with the user's request text.
 4. The tool automatically:
-   - Classifies the task: complexity (`strong` / `weak`) and `needs_web_search` (`true` / `false`).
-   - Resolves the service/model: explicit mention in the request wins; otherwise a strong/weak model from DevAgent settings is used; for web_search assistants a YandexAI pro/lite model is chosen and the `web_search` tool is activated.
+   - Classifies the task: complexity tier and `needs_web_search` (`true` / `false`).
+   - Resolves the service/model: explicit mention in the request wins; otherwise the main model from DevAgent settings is used; for web_search assistants a YandexAI pro/lite model is chosen and the `web_search` tool is activated.
    - Creates the assistant with its folder under `DATA_DIR/assistants/<slug>/` (manifest.json + prompt.md).
 5. Report back: assistant name, slug, service/model, enabled tools, and any warnings (e.g. web_search requested but unsupported by the chosen provider).
 

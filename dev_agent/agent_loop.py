@@ -14,11 +14,12 @@ Supports two execution modes:
   * step_agent_loop() -- single-step, returns after one iteration.
     The UI calls it repeatedly with AgentLoopState stored in session_state.
 
-Strength-based model routing:
-  Tools are classified as "strong" (requires powerful model) or "weak"
-  (lightweight operations). step_agent_loop() receives TWO assistant dicts
-  (strong_assistant, weak_assistant) and selects the appropriate one at each
-  LLM call using classify_step_strength().
+Single-model routing:
+  One main model serves every step. step_agent_loop() reads the assistant
+  dict from ``strong_assistant``; the legacy ``weak_assistant`` field is
+  kept for backward compatibility and mirrors the main assistant.
+  classify_step_strength() remains a public helper for step bookkeeping
+  (it no longer switches models).
 
 Economy mode:
   When enabled, only the last L messages are sent to the model together
@@ -1710,6 +1711,8 @@ class AgentLoopState:
     auto_apply: bool = False
 
     strong_assistant: Dict[str, Any] = field(default_factory=dict)
+    # Legacy alias kept for backward compatibility; mirrors strong_assistant
+    # (single-model mode) and is no longer used for routing.
     weak_assistant: Dict[str, Any] = field(default_factory=dict)
 
     economy_mode: bool = False
@@ -2045,10 +2048,8 @@ def _step_agent_loop_impl(
     strength = classify_step_strength(state.parsed_calls, state.assistant_text)
 
     def _effective_assistant() -> Dict[str, Any]:
-        assistant = state.strong_assistant
-        if strength == "weak" and state.weak_assistant.get("model"):
-            assistant = state.weak_assistant
-        return assistant
+        # Single-model mode: one main model serves every step.
+        return state.strong_assistant
 
     def _process_pending_action() -> AgentLoopState:
         if state.pending_action and state.pending_staged_path:

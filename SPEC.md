@@ -53,11 +53,12 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   остальные - в свёрнутом блоке «Все (N)»; поле поиска отображается
   только при количестве помощников > 5.
 - При создании помощника автоматически подбирается подходящий сервис и
-  модель (модуль `assistant_model_resolver`): классификация сложности
-  (strong/weak) и необходимости web_search, выбор из настроек оркестратора
-  или YandexAI.
+  модель (модуль `assistant_model_resolver`): классификация сложности и
+  необходимости web_search; без веб-поиска используется основная модель
+  из настроек оркестратора, с веб-поиском - модель YandexAI (pro/lite по
+  сложности).
 - Промпт помощника можно улучшить автоматически: сервис `prompt_improver`
-  использует слабую модель DevAgent и инструкцию `prompt_improver` для
+  использует основную модель DevAgent и инструкцию `prompt_improver` для
   генерации улучшенной версии промпта.
 
 ### FR3 - Многоязычность
@@ -87,8 +88,9 @@ SagaAI - универсальный AI-ассистент с веб-интерф
 - Конфигурация API-ключей: endpoint, ключ, модель, температура.
 - Возможность протестировать соединение до сохранения.
 - Настройки сохраняются в конфигурационном хранилище (SQLite KV).
-- Встроенные настройки DevAgent (сильная/слабая/поисковая модель,
-  температуры, системный промпт, эконом-режим, инструкции) живут на
+- Встроенные настройки DevAgent (основная модель, опциональные модели
+  распознавания и генерации изображений, поисковая модель, температуры,
+  системный промпт, эконом-режим, инструкции) живут на
   странице самого оркестратора - Настройки → Модели / Промпт /
   Эконом-режим / Инструкции.
 - Страница «Настройки» в общем меню содержит только API-ключи и переменные
@@ -111,8 +113,11 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   сотрудник появляется вверху списка.
 - Страница оркестратора содержит вкладки: **Чат**, **История** и
   **Навыки**; ссылка на отдельную страницу **Настройки**.
-- Настройки сильной/слабой/поисковой модели - сервис + модель +
-  температура (диапазон определяется из файла описания сервиса).
+- Настройки моделей - сервис + модель + температура: основная модель
+  используется на всех шагах; опционально назначаются модели
+  распознавания и генерации изображений (по умолчанию не назначены);
+  поисковая модель - для задач с веб-поиском (диапазон температуры
+  определяется из файла описания сервиса).
 - Системный промпт оркестратора редактируется в отдельной вкладке.
 - К системному промпту каждого оркестратора при построении добавляется
   англоязычный блок `## Available tools` - перечень доступных инструментов
@@ -127,6 +132,12 @@ SagaAI - универсальный AI-ассистент с веб-интерф
 - Отключённые инструменты исключаются из промпта и реально блокируются
   диспетчером при вызове (ошибка `disabled: true` до выполнения;
   legacy-алиасы учитываются в обе стороны).
+- Назначенные модели изображений используются системными инструментами
+  `analyze_image` (распознавание: файлы проекта и вложения диалога) и
+  `generate_image` (генерация: результат сохраняется файлом - в workspace
+  или в папке файлов диалога, base64 не возвращается); при незаданной
+  модели возвращается ошибка `not_assigned` с подсказкой, где назначить
+  модель (глобальная инструкция `multimodal_mode`).
 - Эконом-режим настраивается отдельно для каждого оркестратора (tail
   messages, кэш-режим).
 - Инструкции оркестратора хранятся в папке оркестратора
@@ -177,9 +188,9 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   Чат / История / Навыки и отдельной страницей Настройки
   (`ui/pages/orchestrator_settings.py`).
 - Настройки моделей и промпта доступны на странице DevAgent → Настройки.
-- Агент автоматически выбирает модель на каждом шаге: классифицирует силу
-  шага (`classify_step_strength`) и использует соответствующую
-  (strong/weak) модель.
+- Агент использует единую основную модель на всех шагах: служебная
+  классификация шага (`classify_step_strength`) сохраняется для
+  журналирования, но модель не переключает.
 - Агент предлагает изменения как полную перезапись файла (`propose_file`)
   либо точечные правки (`apply_patch`); в автономном режиме изменения
   применяются после утверждения плана, в ручном - после явного одобрения
@@ -247,11 +258,11 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   качества для генерации новых помощников.
 - Перед созданием помощника `assistant_model_resolver` классифицирует
   задачу:
-  - Определяет сложность (strong/weak).
+  - Определяет сложность (только для выбора pro/lite при веб-поиске).
   - Определяет необходимость web_search.
   - Подбирает подходящий сервис и модель:
     - Если явно указаны в запросе - используются они.
-    - Если web_search не нужен - из настроек оркестратора (strong/weak).
+    - Если web_search не нужен - основная модель из настроек оркестратора.
     - Если web_search нужен - из YandexAI (pro/lite модель по сложности).
     - Иначе - первый доступный сервис с ключом.
 - Новый Помощник сохраняется в БД и становится доступен для последующего
@@ -512,10 +523,10 @@ SagaAI - универсальный AI-ассистент с веб-интерф
     # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
     # SPDX-License-Identifier: MIT
 
-- Список базовых файлов (90):
+- Список базовых файлов (91):
   - Корень (2): __init__.py, app.py
   - UI (18): ui/__init__.py, ui/app.py, ui/components/__init__.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/assistants.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/orchestrator.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrators.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/welcome.py
-  - Core (51): core/__init__.py, core/api_errors.py, core/api_layer.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/config.py, core/connectors.py, core/contracts.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/entity_sync.py, core/env_loader.py, core/files.py, core/fs.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrators.py, core/paths.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_skills.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skill_creator.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py
+  - Core (52): core/__init__.py, core/api_errors.py, core/api_layer.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/config.py, core/connectors.py, core/contracts.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/entity_sync.py, core/env_loader.py, core/files.py, core/fs.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/multimodal.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrators.py, core/paths.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_skills.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skill_creator.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py
   - Storage (5): storage/__init__.py, storage/db.py, storage/models.py, storage/repository.py, storage/repository_devagent.py
   - DevAgent (14): dev_agent/__init__.py, dev_agent/agent_loop.py, dev_agent/assistant_detector.py, dev_agent/assistant_model_resolver.py, dev_agent/backup_manager.py, dev_agent/config.py, dev_agent/llm_utils.py, dev_agent/safe_writer.py, dev_agent/skill_detector.py, dev_agent/skill_model_resolver.py, dev_agent/task_state.py, dev_agent/tool_executor.py, dev_agent/universal_agent.py, dev_agent/workspace_tools.py
 

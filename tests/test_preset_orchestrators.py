@@ -93,9 +93,13 @@ def test_preset_created_on_first_boot(isolated_data_dir):
     assert cfg["strong_service"] == defaults_cfg["strong_service"]
     assert cfg["strong_model"] == defaults_cfg["strong_model"]
     assert cfg["strong_temperature"] == defaults_cfg["strong_temperature"]
-    assert cfg["weak_service"] == defaults_cfg["weak_service"]
-    assert cfg["weak_model"] == defaults_cfg["weak_model"]
-    assert cfg["weak_temperature"] == defaults_cfg["weak_temperature"]
+    # Single-model mode: no weak_* keys; vision/image are optional and empty.
+    assert "weak_service" not in cfg
+    assert "weak_model" not in cfg
+    assert cfg["vision_service"] == defaults_cfg["vision_service"] == ""
+    assert cfg["vision_model"] == defaults_cfg["vision_model"] == ""
+    assert cfg["image_service"] == defaults_cfg["image_service"] == ""
+    assert cfg["image_model"] == defaults_cfg["image_model"] == ""
     assert cfg["search_service"] == defaults_cfg["search_service"]
     assert cfg["search_model"] == defaults_cfg["search_model"]
     assert cfg["search_max_tool_calls"] == defaults_cfg["search_max_tool_calls"]

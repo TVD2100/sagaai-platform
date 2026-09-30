@@ -153,13 +153,11 @@ ORCHESTRATOR_TOOL_NAMES = {t["name"] for t in WORKSPACE_TOOL_CATALOG if t["name"
 def build_assistant_dict_from_config() -> Tuple[dict, dict]:
     """Build TWO assistant-compatible dicts from the DevAgent config KV store.
 
-    Returns ``(strong_assistant, weak_assistant)``.
-
-    *strong_skill* uses ``strong_service``/``strong_model``; if not configured,
-    falls back to the legacy ``service``/``model`` keys for backward compatibility.
-
-    *weak_skill* uses ``weak_service``/``weak_model``; if not configured,
-    falls back to *strong_skill* so every step has a valid model.
+    Returns ``(strong_assistant, weak_assistant)``. Single-model mode: the
+    main model (``strong_service``/``strong_model``, falling back to the
+    legacy ``service``/``model`` keys) serves every step, so *weak_assistant*
+    is an identical copy of *strong_assistant*. The two-tuple shape is kept
+    for backward compatibility.
     """
     from core.config import load_devagent_config
     cfg = load_devagent_config()
@@ -184,12 +182,8 @@ def build_assistant_dict_from_config() -> Tuple[dict, dict]:
         legacy_svc,
         legacy_mdl,
     )
-    weak_assistant = _make_assistant(
-        cfg.get("weak_service", ""),
-        cfg.get("weak_model", ""),
-        strong_assistant["service"],
-        strong_assistant["model"],
-    )
+    # Single-model mode: the weak alias mirrors the main assistant.
+    weak_assistant = dict(strong_assistant)
     return strong_assistant, weak_assistant
 
 
