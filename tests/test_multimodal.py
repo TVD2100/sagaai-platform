@@ -36,7 +36,12 @@ def _jpeg(tmp_path, name="image.jpeg"):
 
 
 def _services():
-    """Service catalog mimic: YandexAI has vision+image, DeepSeek has none."""
+    """Service catalog mimic: YandexAI has vision+image, DeepSeek has vision.
+
+    The DeepSeek entry mirrors the real profile: text requests go to the
+    Responses API (base_url), vision requests to the dedicated
+    chat/completions vision_base_url with the plain model id.
+    """
     return {
         "YandexAI": {
             "name": "YandexAI",
@@ -51,7 +56,9 @@ def _services():
             "name": "DeepSeek",
             "auth_type": "deepseek_responses",
             "config_key": "DEEPSEEK_API_KEY",
-            "base_url": "https://api.deepseek.com/v1",
+            "base_url": "https://api.deepseek.com/responses",
+            "vision_base_url": "https://api.deepseek.com/chat/completions",
+            "vision_models": [{"id": "deepseek-flash", "label": {}}],
         },
     }
 
@@ -89,8 +96,10 @@ class TestResolveModel:
         assert e.value.code == "service_not_found"
 
     def test_catalog_empty(self):
-        cfg = {"vision_service": "DeepSeek", "vision_model": "whatever"}
-        with patch("core.multimodal.get_services", return_value=_services()):
+        svc = {"name": "Empty", "auth_type": "bearer",
+               "config_key": "K", "base_url": "https://x.example/v1"}
+        cfg = {"vision_service": "Empty", "vision_model": "whatever"}
+        with patch("core.multimodal.get_services", return_value={"Empty": svc}):
             with pytest.raises(cm.MultimodalError) as e:
                 cm.resolve_model(cm.VISION, config=cfg)
         assert e.value.code == "catalog_empty"
@@ -107,6 +116,19 @@ class TestResolveModel:
         with patch("core.multimodal.get_services", return_value=_services()):
             assert cm.resolve_model(cm.VISION, config=cfg) == (
                 "YandexAI", "qwen3.6-35b-a3b")
+
+    def test_deepseek_vision_resolves(self):
+        cfg = {"vision_service": "DeepSeek", "vision_model": "deepseek-flash"}
+        with patch("core.multimodal.get_services", return_value=_services()):
+            assert cm.resolve_model(cm.VISION, config=cfg) == (
+                "DeepSeek", "deepseek-flash")
+
+    def test_deepseek_vision_model_not_declared(self):
+        cfg = {"vision_service": "DeepSeek", "vision_model": "deepseek-v4-pro"}
+        with patch("core.multimodal.get_services", return_value=_services()):
+            with pytest.raises(cm.MultimodalError) as e:
+                cm.resolve_model(cm.VISION, config=cfg)
+        assert e.value.code == "model_not_declared"
 
     def test_unknown_kind(self):
         with pytest.raises(ValueError):
@@ -283,6 +305,44 @@ class TestSendVisionRequest:
                 send_vision_request("YandexAI", "m", "p",
                                     [{"mime": "image/jpeg", "data": "x"}])
         assert e.value.status_code == 403
+
+    def test_deepseek_vision_payload(self):
+        """DeepSeek vision posts to vision_base_url + /chat/completions with
+        the plain model id, max_tokens and detail="original" on each image
+        (the default base_url points at the text-only Responses API)."""
+        svc = _services()["DeepSeek"]
+        cfg = {"DEEPSEEK_API_KEY": "ds-key"}
+        resp = _mock_response(200, {"choices": [{"message": {"content": "Text"}}]})
+        with patch("core.api_layer.get_services", return_value={"DeepSeek": svc}), \
+             patch("core.api_layer.load_config", return_value=cfg), \
+             patch("core.api_layer.requests.post", return_value=resp) as post:
+            from core.api_layer import send_vision_request
+            text = send_vision_request(
+                "DeepSeek", "deepseek-flash", "Extract text",
+                [{"mime": "image/jpeg", "data": "QUJD"}],
+                max_tokens=200)
+        assert text == "Text"
+        url = post.call_args[0][0]
+        payload = post.call_args[1]["json"]
+        headers = post.call_args[1]["headers"]
+        assert url == "https://api.deepseek.com/chat/completions"
+        assert payload["model"] == "deepseek-flash"
+        assert payload["max_tokens"] == 200
+        assert "max_completion_tokens" not in payload
+        parts = payload["messages"][0]["content"]
+        assert parts[0] == {"type": "text", "text": "Extract text"}
+        assert parts[1]["image_url"]["url"] == "data:image/jpeg;base64,QUJD"
+        assert parts[1]["image_url"]["detail"] == "original"
+        assert headers["Authorization"] == "Bearer ds-key"
+
+    def test_deepseek_vision_missing_key(self):
+        svc = _services()["DeepSeek"]
+        with patch("core.api_layer.get_services", return_value={"DeepSeek": svc}), \
+             patch("core.api_layer.load_config", return_value={}):
+            from core.api_layer import send_vision_request
+            with pytest.raises(ApiKeyMissingError):
+                send_vision_request("DeepSeek", "deepseek-flash", "p",
+                                    [{"mime": "image/jpeg", "data": "x"}])
 
 
 class TestImageGenerationTransport:

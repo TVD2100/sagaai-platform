@@ -165,6 +165,13 @@
         "ru": "Qwen3.6 35B A3B - распознавание изображений (текст и изображения на входе)",
         "en": "Qwen3.6 35B A3B - image analysis (text and images as input)"
       }
+    },
+    {
+      "id": "deepseek-v4.1-flash",
+      "label": {
+        "ru": "DeepSeek V4.1 Flash - распознавание изображений (текст и изображения на входе)",
+        "en": "DeepSeek V4.1 Flash - image analysis (text and images as input)"
+      }
     }
   ],
   "image_models": [

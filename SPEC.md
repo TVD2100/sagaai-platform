@@ -133,7 +133,10 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   диспетчером при вызове (ошибка `disabled: true` до выполнения;
   legacy-алиасы учитываются в обе стороны).
 - Назначенные модели изображений используются системными инструментами
-  `analyze_image` (распознавание: файлы проекта и вложения диалога) и
+  `analyze_image` (распознавание: файлы проекта и вложения диалога; сервис
+  объявляет каталог `vision_models`: YandexAI - `qwen3.6-35b-a3b` и
+  `deepseek-v4.1-flash`, DeepSeek - `deepseek-flash` через выделенный
+  chat/completions endpoint `vision_base_url` с `detail="original"`) и
   `generate_image` (генерация: синхронный OpenAI-совместимый Images API
   YandexAI, модель `aliceai-image-art-3.0`; результат сохраняется файлом -
   в workspace или в папке файлов диалога, base64 не возвращается - и

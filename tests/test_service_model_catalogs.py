@@ -6,11 +6,12 @@ Service JSON files may declare two optional blocks:
   * ``vision_models`` - models able to analyse images (image + text -> text);
   * ``image_models``  - text-to-image generation models.
 
-Only services that actually ship such models declare these blocks
-(currently YandexAI: Qwen3.6 35B A3B for vision, Alice AI ART 3.0 for
-generation). core.services exposes the read helpers
-get_vision_models() and get_image_models(); the settings UI renders an
-empty option when a service declares no catalog.
+Services that ship such models declare these blocks: YandexAI (Qwen3.6 35B
+A3B for vision, Alice AI ART 3.0 for generation) and DeepSeek (deepseek-flash
+for vision, addressed through the dedicated ``vision_base_url`` endpoint).
+core.services exposes the read helpers get_vision_models() and
+get_image_models(); the settings UI renders an empty option when a service
+declares no catalog.
 """
 import json
 import os
@@ -36,6 +37,9 @@ def test_yandex_declares_vision_and_image_catalogs():
     vision_ids = [m.get("id") for m in vision]
     image_ids = [m.get("id") for m in image]
     assert "qwen3.6-35b-a3b" in vision_ids
+    # DeepSeek V4.1 Flash also answers through the YandexAI connection
+    # (verified live): declared as a second vision model since 1.7.0.
+    assert "deepseek-v4.1-flash" in vision_ids
     # Single generation model since 1.6.0: the async yandex-art was removed.
     assert image_ids == ["aliceai-image-art-3.0"], image_ids
     for entry in vision + image:
@@ -44,13 +48,26 @@ def test_yandex_declares_vision_and_image_catalogs():
         assert label.get("en"), entry
 
 
+def test_deepseek_declares_vision_catalog_with_dedicated_endpoint():
+    """DeepSeek ships a vision catalog (deepseek-flash) and a dedicated
+    vision_base_url: the chat/completions endpoint, because the profile's
+    default base_url points at the Responses API (text-only transport)."""
+    svc = get_services().get("DeepSeek") or {}
+    vision = get_vision_models(svc)
+    assert [m.get("id") for m in vision] == ["deepseek-flash"]
+    for entry in vision:
+        label = entry.get("label") or {}
+        assert label.get("ru"), entry
+        assert label.get("en"), entry
+    assert svc.get("vision_base_url") == "https://api.deepseek.com/chat/completions"
+    assert get_image_models(svc) == []
+
+
 def test_services_without_a_catalog_return_empty_lists():
-    """DeepSeek and GigaChat do not declare vision/image catalogs."""
-    services = get_services()
-    for name in ("DeepSeek", "GigaChat"):
-        svc = services.get(name) or {}
-        assert get_vision_models(svc) == []
-        assert get_image_models(svc) == []
+    """GigaChat does not declare vision/image catalogs."""
+    svc = get_services().get("GigaChat") or {}
+    assert get_vision_models(svc) == []
+    assert get_image_models(svc) == []
 
 
 def test_catalog_helpers_are_defensive():

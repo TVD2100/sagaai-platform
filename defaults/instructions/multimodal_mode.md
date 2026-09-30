@@ -15,7 +15,7 @@ You have two platform tools for multimodal work:
 
 Both models are optional and assigned by the user in
 Settings -> DevAgent -> "Модель для распознавания изображений" (vision) and
-"Модель для генерации изображений" (image generation). Either model may be
+"Модель для генерации изображений" (image generation). Vision is provided by any service that declares a `vision_models` catalog (YandexAI, DeepSeek); image generation is provided by YandexAI. Either model may be
 unset; handle that gracefully (see "Unassigned model" below) instead of
 failing the task.
 

@@ -1289,7 +1289,10 @@ def send_vision_request(service: str, model: str, prompt: str, images: list,
     ``<base_url>/chat/completions``; ``bearer`` services post to their
     configured base_url as-is (it must already point at a
     chat/completions endpoint) and receive ``max_tokens`` instead of
-    ``max_completion_tokens``.
+    ``max_completion_tokens``. ``deepseek_responses`` services (the
+    default base_url is the text-only Responses API) post to the
+    dedicated ``vision_base_url`` with the plain model id, ``max_tokens``
+    and ``detail="original"`` on every image (better OCR of small text).
 
     Raises the standard APIError subclasses (ServiceNotFoundError,
     ApiKeyMissingError, AuthTypeUnknownError, ProviderHTTPError,
@@ -1301,7 +1304,7 @@ def send_vision_request(service: str, model: str, prompt: str, images: list,
         raise ServiceNotFoundError(service)
 
     auth_type = svc.get("auth_type", "bearer")
-    if auth_type not in ("bearer", "yandex_iam"):
+    if auth_type not in ("bearer", "yandex_iam", "deepseek_responses"):
         raise AuthTypeUnknownError(service, auth_type)
 
     cfg = load_config()
@@ -1320,6 +1323,11 @@ def send_vision_request(service: str, model: str, prompt: str, images: list,
         if not folder_id:
             raise ApiKeyMissingError(service, field="Folder ID")
         model_name = f"gpt://{folder_id}/{model}"
+    elif auth_type == "deepseek_responses":
+        # DeepSeek: the default base_url points at the Responses API, so
+        # vision requests use the dedicated chat/completions endpoint.
+        base_url = str(svc.get("vision_base_url") or base_url).rstrip("/")
+        model_name = str(model)
     else:
         model_name = str(model)
     url = base_url
@@ -1336,9 +1344,13 @@ def send_vision_request(service: str, model: str, prompt: str, images: list,
         if not data:
             continue
         mime = str(image.get("mime") or "image/jpeg")
+        image_url: dict = {"url": f"data:{mime};base64,{data}"}
+        if auth_type == "deepseek_responses":
+            # DeepSeek reads small text best at the original resolution.
+            image_url["detail"] = "original"
         content_parts.append({
             "type": "image_url",
-            "image_url": {"url": f"data:{mime};base64,{data}"},
+            "image_url": image_url,
         })
     if not content_parts:
         raise APIError("vision request carries no prompt or images",

@@ -29,6 +29,12 @@ boundary (core.api_layer.requests):
   Scenario 5 - permission denied: the provider answers 403 (the service
                account lacks the ai.imageGeneration.user role). The tool
                surfaces the role hint with the folder id and saves no file.
+
+  Scenario 6 - DeepSeek vision: the assigned model is deepseek-flash; the
+               request goes to the dedicated chat/completions endpoint (the
+               profile base_url is the text-only Responses API) with the
+               plain model id, max_tokens and detail="original", and the
+               tool reports the extracted text with the service/model pair.
 """
 from __future__ import annotations
 
@@ -47,7 +53,9 @@ IMG_B64 = base64.b64encode(JPEG_BYTES).decode("ascii")
 
 
 def _services():
-    """Provider catalog mimic: YandexAI declares vision + image models."""
+    """Provider catalog mimic: YandexAI declares vision + image models;
+    DeepSeek declares a vision model served through its dedicated
+    chat/completions endpoint (vision_base_url)."""
     return {
         "YandexAI": {
             "name": "YandexAI",
@@ -57,6 +65,14 @@ def _services():
             "base_url": "https://ai.api.cloud.yandex.net/v1",
             "vision_models": [{"id": "qwen3.6-35b-a3b", "label": {}}],
             "image_models": [{"id": "aliceai-image-art-3.0", "label": {}}],
+        },
+        "DeepSeek": {
+            "name": "DeepSeek",
+            "auth_type": "deepseek_responses",
+            "config_key": "DEEPSEEK_API_KEY",
+            "base_url": "https://api.deepseek.com/responses",
+            "vision_base_url": "https://api.deepseek.com/chat/completions",
+            "vision_models": [{"id": "deepseek-flash", "label": {}}],
         },
     }
 
@@ -69,6 +85,9 @@ ASSIGNED = {
 }
 
 YANDEX_KEYS = {"YANDEX_API_KEY": "iam-token", "YANDEX_FOLDER_ID": "folder1"}
+DEEPSEEK_KEYS = {"DEEPSEEK_API_KEY": "ds-key"}
+DEEPSEEK_ASSIGNED = {"vision_service": "DeepSeek",
+                     "vision_model": "deepseek-flash"}
 
 
 def _resp(status=200, json_data=None):
@@ -251,3 +270,46 @@ def test_scenario_5_generation_permission_denied_role_hint(env):
     assert "ai.imageGeneration.user" in result["error"]
     assert "folder1" in result["error"]
     assert list(env["files_dir"].glob("generated_image_*")) == []
+
+
+def test_scenario_6_deepseek_vision_dedicated_endpoint(env):
+    """Given DeepSeek is assigned as the vision service with deepseek-flash,
+    when the agent dispatches analyze_image for the dialog upload, then the
+    request goes to the dedicated chat/completions endpoint (vision_base_url,
+    NOT the text-only Responses API base_url) with the plain model id,
+    max_tokens and detail="original" on the image; the tool reports the
+    extracted text with the service/model pair and the resolved file path."""
+    from dev_agent.tool_executor import ToolExecutor
+
+    resp = _resp(200, {"choices": [{"message": {"content": "Extracted: 4."}}]})
+    with patch("core.multimodal.load_devagent_config",
+               return_value=DEEPSEEK_ASSIGNED), \
+         patch("core.multimodal.get_services", return_value=_services()), \
+         patch("core.api_layer.get_services", return_value=_services()), \
+         patch("core.api_layer.load_config", return_value=DEEPSEEK_KEYS), \
+         patch("core.api_layer.requests.post", return_value=resp) as post:
+        result = ToolExecutor().dispatch(
+            "analyze_image",
+            {"images": "photo.jpeg",
+             "prompt": "Extract the text",
+             "max_tokens": 150})
+
+    assert result["ok"] is True
+    assert result["text"] == "Extracted: 4."
+    assert result["service"] == "DeepSeek"
+    assert result["model"] == "deepseek-flash"
+    assert result["images"] == [str(env["upload"])]
+    assert post.call_count == 1
+    url = post.call_args[0][0]
+    payload = post.call_args[1]["json"]
+    headers = post.call_args[1]["headers"]
+    assert url == "https://api.deepseek.com/chat/completions"
+    assert payload["model"] == "deepseek-flash"
+    assert payload["max_tokens"] == 150
+    assert "max_completion_tokens" not in payload
+    assert headers["Authorization"] == "Bearer ds-key"
+    parts = payload["messages"][0]["content"]
+    assert parts[0] == {"type": "text", "text": "Extract the text"}
+    image_part = parts[1]["image_url"]
+    assert image_part["url"] == "data:image/jpeg;base64," + IMG_B64
+    assert image_part["detail"] == "original"

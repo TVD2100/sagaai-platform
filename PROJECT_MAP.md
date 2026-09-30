@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-09-30T20:06:29+00:00`
-- Файлов: **1092**
-- Языки: Config: 1, JSON: 22, Markdown: 826, PEM certificate: 1, Python: 246, Text: 1
+- Обновлено: `2026-09-30T20:57:56+00:00`
+- Файлов: **1116**
+- Языки: Config: 1, JSON: 22, Markdown: 850, PEM certificate: 1, Python: 246, Text: 1
 
 ## Файлы и назначение
 
@@ -39,7 +39,7 @@
 | `ui/pages/welcome.py` | Python | Welcome / about page | - |
 | `core/__init__.py` | Python | Package marker | - |
 | `core/api_errors.py` | Python | API error hierarchy and user messages | - |
-| `core/api_layer.py` | Python | HTTP requests to AI providers; send_request(assistant=...) with legacy skill= alias; vision/image transports (send_vision_request, send_image_generation_request) | - |
+| `core/api_layer.py` | Python | HTTP requests to AI providers; send_request(assistant=...) with legacy skill= alias; vision/image transports (send_vision_request with bearer/yandex_iam/deepseek_responses + detail=original, send_image_generation_request) | - |
 | `core/assistant_creator.py` | Python | Validation and linting helpers for assistant prompts | - |
 | `core/assistant_folders.py` | Python | _(описание не задано)_ | - |
 | `core/assistant_nav.py` | Python | _(описание не задано)_ | - |
@@ -1098,8 +1098,32 @@
 | `dev_agent/task_states/TASK_STATE__20260930_225702_f85586.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260930_225711_6f97a2.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260930_225711_af614b.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_230930_bdaa34.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_230934_119070.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_230934_3651cc.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_230934_bcedee.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_230934_e5ddd4.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_230934_f635df.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_230943_6a8e45.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_230943_de6522.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_231356_30d1f5.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_231359_2f3bb1.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_231359_68e816.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_231359_6dfe78.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_231359_ce2daf.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_231359_fde908.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_231408_25c0f3.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_231408_418556.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_235003_cb3d33.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_235007_a479ac.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_235007_ae1a51.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_235007_b0701d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_235007_cd3b63.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_235007_d9fca8.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_235015_458279.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20260930_235016_01e368.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
-| `services/deepseek.json` | JSON | DeepSeek service definition | - |
+| `services/deepseek.json` | JSON | DeepSeek service definition (vision_base_url + vision_models catalog) | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
 | `services/yandex.json` | JSON | YandexAI service definition | - |
 
@@ -1303,12 +1327,12 @@
 - `_gigachat_token` (func, строка 1228)
 - `_extract_openai_message_text` (func, строка 1258)
 - `send_vision_request` (func, строка 1281)
-- `send_image_generation_request` (func, строка 1378)
-- `_assistant_rag_context` (func, строка 1462)
-- `send_request` (func, строка 1513)
-- `_do_request` (func, строка 1703)
-- `_extract_error_body` (func, строка 1860)
-- `_extract_gigachat_error` (func, строка 1881)
+- `send_image_generation_request` (func, строка 1390)
+- `_assistant_rag_context` (func, строка 1474)
+- `send_request` (func, строка 1525)
+- `_do_request` (func, строка 1715)
+- `_extract_error_body` (func, строка 1872)
+- `_extract_gigachat_error` (func, строка 1893)
 
 ### `core/assistant_creator.py`
 - `_section_headers` (func, строка 23)
@@ -2669,14 +2693,14 @@
 ### `tests/test_multimodal.py`
 - `_jpeg` (func, строка 32)
 - `_services` (func, строка 38)
-- `_mock_response` (func, строка 59)
-- `TestResolveModel` (class, строка 71)
-- `TestLoadImage` (class, строка 119)
-- `TestAnalyzeImage` (class, строка 166)
-- `TestGenerateImage` (class, строка 199)
-- `TestFormatApiError` (class, строка 220)
-- `TestSendVisionRequest` (class, строка 234)
-- `TestImageGenerationTransport` (class, строка 288)
+- `_mock_response` (func, строка 66)
+- `TestResolveModel` (class, строка 78)
+- `TestLoadImage` (class, строка 141)
+- `TestAnalyzeImage` (class, строка 188)
+- `TestGenerateImage` (class, строка 221)
+- `TestFormatApiError` (class, строка 242)
+- `TestSendVisionRequest` (class, строка 256)
+- `TestImageGenerationTransport` (class, строка 348)
 
 ### `tests/test_multimodal_instruction.py`
 - `isolated_data_dir` (func, строка 24)
@@ -3136,11 +3160,12 @@
 - `test_files_duplicates_do_not_crash` (func, строка 311)
 
 ### `tests/test_service_model_catalogs.py`
-- `_repo_root` (func, строка 25)
-- `test_yandex_declares_vision_and_image_catalogs` (func, строка 30)
-- `test_services_without_a_catalog_return_empty_lists` (func, строка 46)
-- `test_catalog_helpers_are_defensive` (func, строка 55)
-- `test_defaults_and_legacy_service_files_stay_in_sync` (func, строка 63)
+- `_repo_root` (func, строка 26)
+- `test_yandex_declares_vision_and_image_catalogs` (func, строка 31)
+- `test_deepseek_declares_vision_catalog_with_dedicated_endpoint` (func, строка 51)
+- `test_services_without_a_catalog_return_empty_lists` (func, строка 66)
+- `test_catalog_helpers_are_defensive` (func, строка 73)
+- `test_defaults_and_legacy_service_files_stay_in_sync` (func, строка 81)
 
 ### `tests/test_sidebar_employees_nav.py`
 - `isolated_data` (func, строка 25)
@@ -3918,14 +3943,15 @@
 - `test_scenario_prose_with_continue_keeps_loop_alive` (func, строка 150)
 
 ### `tests/scenarios/test_multimodal_scenarios.py`
-- `_services` (func, строка 49)
-- `_resp` (func, строка 74)
-- `env` (func, строка 85)
-- `test_scenario_1_dialog_upload_analyzed_end_to_end` (func, строка 104)
-- `test_scenario_2_fresh_install_reports_unassigned_models` (func, строка 138)
-- `test_scenario_3_model_not_declared_by_provider` (func, строка 167)
-- `test_scenario_4_generate_image_saves_to_dialog_then_project` (func, строка 186)
-- `test_scenario_5_generation_permission_denied_role_hint` (func, строка 232)
+- `_services` (func, строка 55)
+- `_resp` (func, строка 93)
+- `env` (func, строка 104)
+- `test_scenario_1_dialog_upload_analyzed_end_to_end` (func, строка 123)
+- `test_scenario_2_fresh_install_reports_unassigned_models` (func, строка 157)
+- `test_scenario_3_model_not_declared_by_provider` (func, строка 186)
+- `test_scenario_4_generate_image_saves_to_dialog_then_project` (func, строка 205)
+- `test_scenario_5_generation_permission_denied_role_hint` (func, строка 251)
+- `test_scenario_6_deepseek_vision_dedicated_endpoint` (func, строка 275)
 
 ### `tests/scenarios/test_orchestrator_chat_prefs_scenario.py`
 - `page_env` (func, строка 31)
