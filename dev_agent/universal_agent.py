@@ -76,6 +76,9 @@ WORKSPACE_TOOL_CATALOG: List[Dict[str, str]] = [
     {"name": "get_orchestrator_instruction", "desc": "Return a full orchestrator instruction including prompt_text. Args: slug, instruction_id."},
     {"name": "save_orchestrator_instruction", "desc": "Create or update an orchestrator-specific instruction. Args: slug, [instruction_id], name, [description], [prompt_text]."},
     {"name": "delete_orchestrator_instruction", "desc": "Delete an orchestrator-specific instruction. Args: slug, instruction_id."},
+    {"name": "search_in_threads", "desc": "Search the message history of dialog threads. Args: query, [thread_id], [scope], [orchestrator], [date_from], [date_to], [date_field], [role], [regex], [include_tool_results], [max_results]. Targets: an explicit thread_id; by default the CURRENT dialog thread (no listing needed); scope='orchestrator' searches the given orchestrator slug(s) or the active orchestrator, scope='all' - every accessible dialog. date_from/date_to (YYYY-MM-DD or ISO) filter by dialog activity date (date_field='updated'|'created'). Returns hits with thread_id, title, orchestrator, message_index, role, ts and a snippet around the match."},
+    {"name": "list_threads", "desc": "List dialog threads (newest first by default) with message counts. Args: [orchestrator], [date_from], [date_to], [date_field], [limit], [offset], [order]. Use it to discover dialog ids, then read_thread to view one. Non-DevAgent orchestrators see only their own dialogs."},
+    {"name": "read_thread", "desc": "Read a window of one dialog's messages. Args: [thread_id], [offset], [limit], [include_tool_results]. Without thread_id reads the CURRENT dialog; each message carries its absolute index (pair it with search_in_threads hits to view around a match). Returns total/remaining/has_more for pagination."},
 ]
 
 
@@ -104,6 +107,21 @@ WORKSPACE_TOOL_ARGS: Dict[str, Dict[str, set]] = {
     "restore_all": {"required": {"snapshot_id"}, "optional": set()},
     "list_thread_files": {"required": set(), "optional": set()},
     "read_thread_file": {"required": {"file_name"}, "optional": {"offset", "limit"}},
+    "search_in_threads": {
+        "required": {"query"},
+        "optional": {"thread_id", "scope", "orchestrator", "date_from",
+                     "date_to", "date_field", "role", "regex",
+                     "include_tool_results", "max_results"},
+    },
+    "list_threads": {
+        "required": set(),
+        "optional": {"orchestrator", "date_from", "date_to", "date_field",
+                     "limit", "offset", "order"},
+    },
+    "read_thread": {
+        "required": set(),
+        "optional": {"thread_id", "offset", "limit", "include_tool_results"},
+    },
     "list_orchestrators": {"required": set(), "optional": set()},
     "get_orchestrator": {"required": {"slug"}, "optional": set()},
     "create_orchestrator": {
@@ -232,6 +250,9 @@ class UniversalDevAgent:
             "restore_all": lambda **kw: self._restore_all(**kw),
             "list_thread_files": lambda **kw: self._list_thread_files(**kw),
             "read_thread_file": lambda **kw: self._read_thread_file(**kw),
+            "search_in_threads": lambda **kw: self._search_in_threads(**kw),
+            "list_threads": lambda **kw: self._list_threads(**kw),
+            "read_thread": lambda **kw: self._read_thread(**kw),
             # Orchestrator management tools
             "list_orchestrators": lambda **kw: self._list_orchestrators(**kw),
             "get_orchestrator": lambda **kw: self._get_orchestrator(**kw),
@@ -593,6 +614,165 @@ class UniversalDevAgent:
         if limit is not None and not isinstance(limit, int):
             limit = int(str(limit))
         return read_thread_file(tid, str(file_name), offset=offset, limit=limit)
+
+    # ─── thread-search tool wrappers (dialog history) ──────────────────────
+
+    def _thread_access_slugs(self):
+        """Return ``allowed_slugs`` for the thread tools, or None.
+
+        DevAgent (the built-in orchestrator) sees every dialog; any other
+        orchestrator is restricted to its own dialogs. ``None`` means "no
+        restriction" for the service layer.
+        """
+        slug = self._current_orchestrator_slug()
+        try:
+            from core.orchestrators import DEVAGENT_SLUG
+            devagent_slug = str(DEVAGENT_SLUG or "dev_agent")
+        except Exception:
+            devagent_slug = "dev_agent"
+        if not slug or slug == devagent_slug:
+            return None
+        return [slug]
+
+    @staticmethod
+    def _normalize_orchestrator_arg(orchestrator):
+        """Normalize the ``orchestrator`` argument to a list of slugs.
+
+        Accepts a single slug, a comma-separated string of slugs, or a list
+        of slugs. Returns ``(slugs, error)``; slugs is None when the
+        argument is empty, error is a message for an invalid type.
+        """
+        if not orchestrator:
+            return None, None
+        if isinstance(orchestrator, str):
+            slugs = [s.strip() for s in orchestrator.split(",") if s.strip()]
+        elif isinstance(orchestrator, (list, tuple)):
+            slugs = [str(s).strip() for s in orchestrator if str(s).strip()]
+        else:
+            return None, "'orchestrator' must be a slug or a list of slugs."
+        return (slugs or None), None
+
+    @staticmethod
+    def _as_bool(value, default=False) -> bool:
+        """Coerce a stringified boolean tool argument to a real bool."""
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return default
+        low = str(value).strip().lower()
+        if low in ("true", "1", "yes", "on"):
+            return True
+        if low in ("false", "0", "no", "off", ""):
+            return False
+        return default
+
+    def _search_in_threads(self, query: str = "", thread_id: str = None,
+                           scope: str = None, orchestrator=None,
+                           date_from=None, date_to=None,
+                           date_field: str = "updated", role: str = None,
+                           regex=False, include_tool_results=False,
+                           max_results=50, **kwargs) -> Dict[str, Any]:
+        """Search dialog messages; the CURRENT dialog is the default target.
+
+        Targeting priority: an explicit ``thread_id`` (no listing needed),
+        then the current dialog, then ``scope='orchestrator'`` (the given
+        slug(s) or the active orchestrator), then ``scope='all'``.
+        """
+        from core.threads_devagent import search_thread_messages
+        q = str(query or "").strip()
+        if not q:
+            return {"ok": False, "error": "Missing required argument 'query'."}
+        orch_slugs, orch_error = self._normalize_orchestrator_arg(orchestrator)
+        if orch_error:
+            return {"ok": False, "error": orch_error}
+        scope_norm = str(scope or "").strip().lower()
+        if scope_norm in ("thread", "current", "orchestrator", "all"):
+            pass
+        elif scope_norm in ("", "auto"):
+            if thread_id:
+                scope_norm = "thread"
+            elif orch_slugs:
+                scope_norm = "orchestrator"
+            else:
+                scope_norm = "current"
+        else:
+            return {"ok": False,
+                    "error": "scope must be one of: current, orchestrator, all."}
+        if scope_norm == "thread" and not thread_id:
+            return {"ok": False, "error": "scope='thread' requires 'thread_id'."}
+        active_tid = self._active_thread_id()
+        thread_ids = None
+        slugs = orch_slugs
+        if thread_id:
+            thread_ids = [str(thread_id).strip()]
+        elif scope_norm == "current":
+            if not active_tid:
+                return {"ok": False,
+                        "error": ("No active dialog thread: pass thread_id "
+                                  "or scope='all' explicitly.")}
+            thread_ids = [active_tid]
+        elif scope_norm == "orchestrator" and not slugs:
+            slugs = [self._current_orchestrator_slug()]
+        res = search_thread_messages(
+            q,
+            thread_ids=thread_ids,
+            slugs=slugs,
+            date_from=date_from,
+            date_to=date_to,
+            date_field=str(date_field or "updated").strip().lower(),
+            role=(str(role).strip().lower() or None) if role else None,
+            regex=self._as_bool(regex, False),
+            include_tool_results=self._as_bool(include_tool_results, False),
+            max_results=max_results,
+            allowed_slugs=self._thread_access_slugs(),
+        )
+        if isinstance(res, dict) and res.get("ok"):
+            res["active_thread_id"] = active_tid or ""
+        return res
+
+    def _list_threads(self, orchestrator=None, date_from=None, date_to=None,
+                      date_field: str = "updated", limit=50, offset=0,
+                      order: str = "desc", **kwargs) -> Dict[str, Any]:
+        """List dialog threads with metadata and per-dialog message counters."""
+        from core.threads_devagent import list_threads_filtered
+        orch_slugs, orch_error = self._normalize_orchestrator_arg(orchestrator)
+        if orch_error:
+            return {"ok": False, "error": orch_error}
+        res = list_threads_filtered(
+            slugs=orch_slugs,
+            date_from=date_from,
+            date_to=date_to,
+            date_field=str(date_field or "updated").strip().lower(),
+            limit=limit,
+            offset=offset,
+            order=str(order or "desc").strip().lower(),
+            allowed_slugs=self._thread_access_slugs(),
+        )
+        if isinstance(res, dict) and res.get("ok"):
+            res["active_thread_id"] = self._active_thread_id() or ""
+        return res
+
+    def _read_thread(self, thread_id: str = None, offset=0, limit=50,
+                     include_tool_results=False, **kwargs) -> Dict[str, Any]:
+        """Read a window of one dialog; the CURRENT dialog is the default."""
+        from core.threads_devagent import read_thread_window
+        active_tid = self._active_thread_id()
+        tid = str(thread_id or "").strip()
+        if not tid:
+            if not active_tid:
+                return {"ok": False,
+                        "error": "No active dialog thread: pass thread_id."}
+            tid = active_tid
+        res = read_thread_window(
+            tid,
+            offset=offset,
+            limit=limit,
+            include_tool_results=self._as_bool(include_tool_results, False),
+            allowed_slugs=self._thread_access_slugs(),
+        )
+        if isinstance(res, dict) and res.get("ok"):
+            res["active_thread_id"] = active_tid or ""
+        return res
 
     # ─── orchestrator tool wrappers ────────────────────────────────────────
 

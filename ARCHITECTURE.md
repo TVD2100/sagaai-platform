@@ -43,7 +43,7 @@ SagaAI построена по модульной архитектуре с чё
 | `assistants` / `assistant_folders` | CRUD для помощников и их файлов, folder-based хранение, экспорт/импорт |
 | `entity_sync` | Синхронизация «папки - источник истины» → БД-кэш |
 | `threads` | Управление тредами помощников: создание, чтение, сообщения, удаление |
-| `threads_devagent` | Управление тредами оркестраторов (отдельная БД `devagent.db`) |
+| `threads_devagent` | Управление тредами оркестраторов (отдельная БД `devagent.db`); поиск по сообщениям (`search_thread_messages`), список диалогов (`list_threads_filtered`) и окно чтения (`read_thread_window`) с контролем доступа (`allowed_slugs`) |
 | `assistant_nav` / `orchestrator_nav` | Сортировка и разбиение списков помощников/сотрудников для сайдбара (5 видимых + «Все (N)»; сортировка сотрудников по последнему диалогу) |
 | `services` | Обнаружение доступных AI-сервисов из `services/` (фолбэк на `defaults/services/`); RAG-модели; каталоги vision/image-моделей (`get_vision_models` / `get_image_models`) |
 | `config` | Чтение и запись конфигурации (SQLite KV); DevAgent-настройки проксируются через оркестраторы |
@@ -134,7 +134,7 @@ SagaAI построена по модульной архитектуре с чё
 - `universal_agent.py` - `load_system_prompt()` (единый файл
   `dev_agent/system_prompt.md`), `build_assistant_dict_from_config()`,
   `UniversalDevAgent` (core + workspace + orchestrator tools).
-- `system_prompt.md` - канонический системный промпт DevAgent (v3.12):
+- `system_prompt.md` - канонический системный промпт DevAgent (v3.15):
   docs-first workflow (перед началом работы читать `PROJECT_MAP.md` И
   `SPEC.md`), обязательная секция «Documentation» в финальном отчёте,
   режим pre-approved autonomous mode (при подробном ТЗ агент явно
@@ -291,7 +291,7 @@ YandexAI, единственная модель `aliceai-image-art-3.0`; рез�
   скобки/строки, невалидный JSON). Диагностика срабатывает только когда
   есть исполненные вызовы и ни один из них не был JSON-отремонтирован,
   чтобы не дублировать авто-ремонт.
-- Системный промпт DevAgent v3.14 дополняет механизм правилами: закрытый шаг
+- Системный промпт DevAgent v3.15 дополняет механизм правилами: закрытый шаг
   не пересказывается, не более 3 попыток на функцию, прозовый
   `loop_status: continue` продолжает цикл, независимые вызовы можно
   батчить, ветка принятия готового плана пользователя дословно.
@@ -409,7 +409,7 @@ PROJECT_MAP.md, SPEC.md, ARCHITECTURE.md, CHANGELOG.md, снапшоты. Пер
 Блок `## Available tools` добавляется к промпту каждого оркестратора
 (`_extend_prompt_with_tools` -> `render_available_tools_block`) и перечисляет
 доступные инструменты (core, workspace, подключения, кастомные функции).
-Каноничные промпты (`dev_agent/system_prompt.md` v3.12, YaAgent v2.7) не
+Каноничные промпты (`dev_agent/system_prompt.md` v3.15, YaAgent v2.9) не
 дублируют этот справочник: их раздел справочника ссылается на
 автоматический блок, оставляя в промпте только собственные правила
 использования инструментов (форматы вызова, fallback-цепочки).
@@ -417,6 +417,23 @@ PROJECT_MAP.md, SPEC.md, ARCHITECTURE.md, CHANGELOG.md, снапшоты. Пер
 а диспетчер (`dev_agent/universal_agent.py`) блокирует их вызов ошибкой
 `disabled: true` (гейт до выполнения; legacy-алиасы в обе стороны). Вкладка
 Функции показывает системные функции с чекбоксами и кнопкой Сохранить.
+
+### Поиск по диалогам (thread-search tools)
+Три инструмента оркестраторов открывают историю диалогов: `search_in_threads`
+(поиск по сообщениям), `list_threads` (список диалогов с пагинацией и
+счётчиками) и `read_thread` (окно сообщений с абсолютными индексами). Без
+`thread_id` все три работают с текущим диалогом
+(`dev_agent.config.ACTIVE_THREAD_ID`) и не требуют предварительных
+листингов; `scope` расширяет охват до одного оркестратора, списка
+оркестраторов или всех диалогов. Read-side слой -
+`core/threads_devagent.py` (`search_thread_messages`, `list_threads_filtered`,
+`read_thread_window`), SQL-выборки - в `storage/repository_devagent.py`
+(`repo_devagent_list_threads_filtered`, `repo_devagent_count_messages`,
+`repo_devagent_load_threads_messages`, `repo_devagent_load_messages_window`).
+Контроль доступа задаёт параметр `allowed_slugs`: DevAgent (`dev_agent`) видит
+все диалоги, остальные оркестраторы - только свои; чужой `thread_id`
+получает `Access denied`. Скрытые служебные сообщения (`tool_result` /
+`AUTO_CONTINUE`) исключаются из поиска и чтения по умолчанию.
 
 ### Защита от переполнения контекста LLM (M1-M5)
 Пятиуровневая защита от HTTP 400 «context length exceeded» (инцидент

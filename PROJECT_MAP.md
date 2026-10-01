@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-10-01T04:41:06+00:00`
-- Файлов: **1133**
-- Языки: Config: 1, JSON: 22, Markdown: 866, PEM certificate: 1, Python: 247, Text: 1
+- Обновлено: `2026-10-01T06:50:28+00:00`
+- Файлов: **1152**
+- Языки: Config: 1, JSON: 22, Markdown: 882, PEM certificate: 1, Python: 250, Text: 1
 
 ## Файлы и назначение
 
@@ -86,7 +86,7 @@
 | `core/ssh_tools.py` | Python | Orchestrator ssh_* tools for the SSH connector | - |
 | `core/statistics.py` | Python | _(описание не задано)_ | - |
 | `core/threads.py` | Python | Chat thread persistence for assistants | storage |
-| `core/threads_devagent.py` | Python | DevAgent/orchestrator thread persistence (devagent.db) | storage |
+| `core/threads_devagent.py` | Python | DevAgent/orchestrator thread persistence (devagent.db) and the thread-search service layer (search_thread_messages, list_threads_filtered, read_thread_window) with access control | storage |
 | `core/tools_utils.py` | Python | Tool definitions list for the Skills/Assistants pages | - |
 | `core/updater.py` | Python | _(описание не задано)_ | - |
 | `core/updater_apply.py` | Python | _(описание не задано)_ | - |
@@ -186,6 +186,7 @@
 | `tests/test_thread_deeplink.py` | Python | _(описание не задано)_ | - |
 | `tests/test_thread_file_save.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_threads_devagent_files.py` | Python | _(описание не задано)_ | storage |
+| `tests/test_threads_devagent_search.py` | Python | Unit tests for the thread-search storage/service layer: filtered listing, counts, message windows, access control | storage |
 | `tests/test_token_line_cache.py` | Python | _(описание не задано)_ | - |
 | `tests/test_tool_executor_env.py` | Python | _(описание не задано)_ | - |
 | `tests/test_tool_result_size_cap.py` | Python | _(описание не задано)_ | - |
@@ -196,6 +197,7 @@
 | `tests/test_ui_tooltips.py` | Python | _(описание не задано)_ | - |
 | `tests/test_ui_tooltips_orchestrator.py` | Python | _(описание не задано)_ | - |
 | `tests/test_universal_agent_thread_files.py` | Python | _(описание не задано)_ | storage |
+| `tests/test_universal_agent_thread_search.py` | Python | Unit tests for the thread-search tools in the universal dispatcher: defaults, access control, argument coercion | storage |
 | `tests/test_universal_developer.py` | Python | UniversalDevAgent tests | storage |
 | `tests/test_updater.py` | Python | _(описание не задано)_ | - |
 | `tests/test_updater_apply.py` | Python | _(описание не задано)_ | - |
@@ -225,7 +227,7 @@
 | `tests/scenarios/test_orchestrator_devagent_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_orchestrator_other_settings_scenario.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_orchestrator_thread_files.py` | Python | _(описание не задано)_ | storage |
-| `tests/scenarios/test_orchestrator_tool_gating.py` | Python | _(описание не задано)_ | storage |
+| `tests/scenarios/test_orchestrator_tool_gating.py` | Python | Gating scenarios: system-prompt version pins (v3.15) and thread-search tool invariants | storage |
 | `tests/scenarios/test_provider_economy_settings_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_assistant_dialog.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_context_restore.py` | Python | _(описание не задано)_ | - |
@@ -237,6 +239,7 @@
 | `tests/scenarios/test_structured_output_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_task_state_mega_task.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_theme_switch_scenario.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_thread_search_scenarios.py` | Python | Scenario tests for the thread-search tools: current-dialog search without lists, explicit thread_id, orchestrator scope with period, search->read around a match, access control, list pagination | storage |
 | `tests/scenarios/test_updater_runtime_flow.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_welcome_page_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_workspace_binding_scenario.py` | Python | _(описание не задано)_ | storage |
@@ -245,7 +248,7 @@
 | `storage/db.py` | Python | SQLAlchemy engines; auto-migration skills->assistants, skill_*->assistant_* columns | storage |
 | `storage/models.py` | Python | ORM models: Assistant (assistants), Thread (assistant_id/assistant_name), Message, ConfigKV, Instruction, Orchestrator | - |
 | `storage/repository.py` | Python | High-level CRUD for assistants/threads/config/orchestrators + legacy repo_*_skill wrappers | storage |
-| `storage/repository_devagent.py` | Python | DevAgent thread CRUD (devagent.db) | storage |
+| `storage/repository_devagent.py` | Python | DevAgent thread CRUD (devagent.db) plus thread-search query helpers (filtered listing, message counts, batched/window message loads) | storage |
 | `orchestrators/dev_agent/instructions/local_repo_guide.md` | Markdown | _(описание не задано)_ | - |
 | `orchestrators/dev_agent/instructions/repo_sync.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/README.md` | Markdown | _(описание не задано)_ | - |
@@ -314,7 +317,7 @@
 | `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.11 loop-protection rules) | - |
 | `dev_agent/task_state.py` | Python | _(описание не задано)_ | backup_manager |
 | `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools, legacy skill aliases, skills-library tools, multimodal tools (analyze_image/generate_image) | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
-| `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace tools + orchestrator tools) | storage, tool_executor |
+| `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace + orchestrator tools, incl. thread search: search_in_threads / list_threads / read_thread) | storage, tool_executor |
 | `dev_agent/workspace_binding.py` | Python | _(описание не задано)_ | - |
 | `dev_agent/workspace_tools.py` | Python | Workspace layer: folders, project map, docs, snapshots | backup_manager |
 | `dev_agent/task_states/TASK_STATE__20260828_185325_0d0824.md` | Markdown | _(описание не задано)_ | - |
@@ -1139,6 +1142,22 @@
 | `dev_agent/task_states/TASK_STATE__20261001_073308_a3b0c8.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20261001_073317_bca301.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20261001_073317_d59cca.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_074340_c8fd94.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_074343_0522d3.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_074343_22a86d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_074343_56366a.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_074343_8fb9d5.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_074343_f7a307.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_074352_9f3f76.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_074352_afa699.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_094112_dc2a58.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_094115_1e625b.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_094115_29d49b.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_094115_40ccd7.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_094115_8ed048.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_094115_a1a012.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_094125_137c84.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_094125_d11a2c.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
 | `services/deepseek.json` | JSON | DeepSeek service definition (vision_base_url + vision_models catalog) | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
@@ -2027,27 +2046,36 @@
 - `messages_to_api_history` (func, строка 236)
 
 ### `core/threads_devagent.py`
-- `_sanitize_title` (func, строка 44)
-- `create_devagent_thread` (func, строка 58)
-- `save_thread_workspace` (func, строка 89)
-- `load_thread_messages` (func, строка 110)
-- `_restore_events` (func, строка 116)
-- `save_thread_messages` (func, строка 149)
-- `append_thread_message` (func, строка 190)
-- `sum_thread_tokens` (func, строка 221)
-- `load_thread_meta` (func, строка 239)
-- `delete_thread` (func, строка 243)
-- `list_devagent_threads` (func, строка 251)
-- `list_orchestrator_threads` (func, строка 260)
-- `delete_all_devagent_threads` (func, строка 265)
-- `_thread_files_dir` (func, строка 277)
-- `_safe_thread_file_name` (func, строка 282)
-- `_thread_file_path` (func, строка 300)
-- `save_thread_file_data` (func, строка 306)
-- `_looks_binary` (func, строка 331)
-- `_try_decode_text` (func, строка 354)
-- `list_thread_files` (func, строка 370)
-- `read_thread_file` (func, строка 405)
+- `_sanitize_title` (func, строка 55)
+- `create_devagent_thread` (func, строка 69)
+- `save_thread_workspace` (func, строка 100)
+- `load_thread_messages` (func, строка 121)
+- `_restore_events` (func, строка 127)
+- `save_thread_messages` (func, строка 160)
+- `append_thread_message` (func, строка 201)
+- `sum_thread_tokens` (func, строка 232)
+- `load_thread_meta` (func, строка 250)
+- `delete_thread` (func, строка 254)
+- `list_devagent_threads` (func, строка 262)
+- `list_orchestrator_threads` (func, строка 271)
+- `delete_all_devagent_threads` (func, строка 276)
+- `_thread_files_dir` (func, строка 288)
+- `_safe_thread_file_name` (func, строка 293)
+- `_thread_file_path` (func, строка 311)
+- `save_thread_file_data` (func, строка 317)
+- `_looks_binary` (func, строка 342)
+- `_try_decode_text` (func, строка 365)
+- `list_thread_files` (func, строка 381)
+- `read_thread_file` (func, строка 416)
+- `_normalize_date_bound` (func, строка 509)
+- `_strip_events_prefix` (func, строка 532)
+- `_is_hidden_message` (func, строка 542)
+- `_locate_match` (func, строка 548)
+- `_make_snippet` (func, строка 571)
+- `_message_preview` (func, строка 584)
+- `search_thread_messages` (func, строка 603)
+- `list_threads_filtered` (func, строка 774)
+- `read_thread_window` (func, строка 872)
 
 ### `core/tools_utils.py`
 - `list_tool_definitions` (func, строка 12)
@@ -3424,6 +3452,27 @@
 - `test_read_thread_file_missing_returns_error` (func, строка 173)
 - `test_read_thread_file_traversal_cannot_escape` (func, строка 182)
 
+### `tests/test_threads_devagent_search.py`
+- `isolated_data_dir` (func, строка 29)
+- `_make_thread` (func, строка 71)
+- `_add_message` (func, строка 81)
+- `_set_updated` (func, строка 87)
+- `test_search_by_explicit_thread_id_without_lists` (func, строка 96)
+- `test_search_scope_orchestrator_and_date_range` (func, строка 117)
+- `test_search_case_insensitive_cyrillic` (func, строка 142)
+- `test_search_regex_mode_and_invalid_pattern` (func, строка 153)
+- `test_search_role_filter_and_hidden_messages` (func, строка 169)
+- `test_search_max_results_truncates` (func, строка 195)
+- `test_search_access_control_denies_foreign_thread` (func, строка 208)
+- `test_search_access_control_narrows_scope` (func, строка 222)
+- `test_search_missing_query_and_unknown_thread` (func, строка 239)
+- `test_list_threads_pagination_counts_and_order` (func, строка 252)
+- `test_list_threads_date_range_and_validation` (func, строка 281)
+- `test_read_thread_window_indices_and_remaining` (func, строка 301)
+- `test_read_thread_window_skips_hidden_and_reports_totals` (func, строка 323)
+- `test_read_thread_truncates_long_messages` (func, строка 341)
+- `test_read_thread_access_and_errors` (func, строка 355)
+
 ### `tests/test_token_line_cache.py`
 - `ui_env` (func, строка 20)
 - `_rerender` (func, строка 38)
@@ -3565,6 +3614,30 @@
 - `test_dispatch_reads_text_with_offset_limit` (func, строка 113)
 - `test_dispatch_reports_binary_without_parsing` (func, строка 127)
 - `test_dispatch_missing_file_name` (func, строка 138)
+
+### `tests/test_universal_agent_thread_search.py`
+- `isolated_data_dir` (func, строка 29)
+- `_agent` (func, строка 70)
+- `_make_thread` (func, строка 75)
+- `_add_message` (func, строка 83)
+- `active_thread` (func, строка 89)
+- `test_catalog_advertises_thread_search_tools` (func, строка 99)
+- `test_thread_search_tools_inside_args_spec` (func, строка 105)
+- `test_unknown_args_rejected_with_suggestion` (func, строка 118)
+- `test_missing_query_is_rejected` (func, строка 126)
+- `test_search_defaults_to_current_dialog_no_lists` (func, строка 136)
+- `test_search_explicit_thread_id_without_lists` (func, строка 152)
+- `test_search_scope_orchestrator_and_all` (func, строка 167)
+- `test_search_accepts_comma_separated_orchestrators` (func, строка 184)
+- `test_search_without_active_dialog_returns_error` (func, строка 197)
+- `test_search_invalid_scope_and_orchestrator_type` (func, строка 206)
+- `test_list_threads_defaults_and_orchestrator_filter` (func, строка 220)
+- `test_read_thread_defaults_to_current_dialog` (func, строка 241)
+- `test_read_thread_explicit_id_and_missing_thread` (func, строка 258)
+- `test_read_thread_stringified_bool_hides_tool_results` (func, строка 273)
+- `test_devagent_sees_all_dialogs` (func, строка 289)
+- `test_non_devagent_orchestrator_is_limited` (func, строка 304)
+- `test_non_devagent_defaults_orchestrator_scope_to_itself` (func, строка 333)
 
 ### `tests/test_universal_developer.py`
 - `isolated_db` (func, строка 27)
@@ -4122,6 +4195,20 @@
 - `test_cold_start_syncs_saved_theme_once` (func, строка 150)
 - `test_cold_start_skips_when_no_saved_theme` (func, строка 186)
 
+### `tests/scenarios/test_thread_search_scenarios.py`
+- `isolated_data_dir` (func, строка 35)
+- `_agent` (func, строка 75)
+- `_make_thread` (func, строка 80)
+- `_add_message` (func, строка 88)
+- `_set_updated` (func, строка 93)
+- `active_thread` (func, строка 100)
+- `test_scenario_1_search_current_dialog_no_lists` (func, строка 110)
+- `test_scenario_2_search_explicit_thread_id_without_lists` (func, строка 139)
+- `test_scenario_3_search_orchestrator_scope_with_period` (func, строка 162)
+- `test_scenario_4_search_then_read_around_match` (func, строка 191)
+- `test_scenario_5_access_control_for_foreign_dialogs` (func, строка 223)
+- `test_scenario_6_list_threads_discovery_and_pagination` (func, строка 256)
+
 ### `tests/scenarios/test_updater_runtime_flow.py`
 - `_fresh_page` (func, строка 52)
 - `_enter_page` (func, строка 65)
@@ -4235,6 +4322,10 @@
 - `repo_devagent_list_threads` (func, строка 142)
 - `repo_devagent_delete_thread` (func, строка 159)
 - `repo_devagent_delete_all_threads` (func, строка 172)
+- `repo_devagent_list_threads_filtered` (func, строка 196)
+- `repo_devagent_count_messages` (func, строка 240)
+- `repo_devagent_load_threads_messages` (func, строка 259)
+- `repo_devagent_load_messages_window` (func, строка 284)
 
 ### `defaults/skills/rag_base_creator/scripts/build_base.py`
 - `_fallback_vector` (func, строка 91)
@@ -4413,9 +4504,9 @@
 
 ### `dev_agent/universal_agent.py`
 - `load_system_prompt` (func, строка 31)
-- `_workspace_usage` (func, строка 141)
-- `build_assistant_dict_from_config` (func, строка 153)
-- `UniversalDevAgent` (class, строка 194)
+- `_workspace_usage` (func, строка 159)
+- `build_assistant_dict_from_config` (func, строка 171)
+- `UniversalDevAgent` (class, строка 212)
 
 ### `dev_agent/workspace_binding.py`
 - `_norm_tid` (func, строка 46)

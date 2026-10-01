@@ -190,5 +190,128 @@ def repo_devagent_delete_all_threads(slug: str = None) -> bool:
         return True
     except Exception:
         return False
+# ─── Thread-search support (list / search / read dialogs) ────────────────────
+
+
+def repo_devagent_list_threads_filtered(slugs: list = None,
+                                        date_from: str = None,
+                                        date_to: str = None,
+                                        date_field: str = "updated",
+                                        limit: int = None,
+                                        offset: int = 0,
+                                        order: str = "desc") -> list:
+    """Return DevAgent thread metadata dicts matching the given filters.
+
+    Args:
+        slugs: optional list of orchestrator slugs (None/empty = all threads).
+        date_from / date_to: inclusive ISO bounds compared lexicographically
+            against ``date_field``; None means unbounded.
+        date_field: timestamp used for the range filter ("updated"/"created").
+        limit: maximum rows (None = no cap).
+        offset: rows to skip (pagination).
+        order: "desc" (newest first, default) or "asc".
+
+    Returns metadata dicts in the same shape as ``repo_devagent_list_threads``.
+    """
+    try:
+        with get_devagent_session() as s:
+            q = s.query(Thread).filter(Thread.type == "devagent")
+            if slugs:
+                q = q.filter(Thread.assistant_id.in_([str(x) for x in slugs]))
+            column = Thread.created_at if date_field == "created" else Thread.updated_at
+            if date_from:
+                q = q.filter(column >= str(date_from))
+            if date_to:
+                q = q.filter(column <= str(date_to))
+            q = q.order_by(column.asc() if order == "asc" else column.desc())
+            try:
+                skip = max(0, int(offset))
+            except (TypeError, ValueError):
+                skip = 0
+            if skip:
+                q = q.offset(skip)
+            if limit is not None:
+                q = q.limit(max(1, int(limit)))
+            return [th.to_dict() for th in q.all()]
+    except Exception:
+        return []
+
+
+def repo_devagent_count_messages(thread_ids: list) -> dict:
+    """Return ``{thread_id: message_count}`` for the given threads (one query)."""
+    ids = [str(t) for t in (thread_ids or []) if t]
+    if not ids:
+        return {}
+    try:
+        from sqlalchemy import func
+        with get_devagent_session() as s:
+            rows = (
+                s.query(Message.thread_id, func.count(Message.id))
+                .filter(Message.thread_id.in_(ids))
+                .group_by(Message.thread_id)
+                .all()
+            )
+            return {str(tid): int(cnt) for tid, cnt in rows}
+    except Exception:
+        return {}
+
+
+def repo_devagent_load_threads_messages(thread_ids: list) -> dict:
+    """Load messages of several threads in ONE query, grouped by thread_id.
+
+    Returns ``{thread_id: [message dicts ordered by id]}``; threads without
+    messages map to an empty list. Used by the thread-search service layer so
+    a multi-thread search does not issue a query per thread.
+    """
+    out = {str(t): [] for t in (thread_ids or []) if t}
+    if not out:
+        return out
+    try:
+        with get_devagent_session() as s:
+            msgs = (
+                s.query(Message)
+                .filter(Message.thread_id.in_(list(out.keys())))
+                .order_by(Message.thread_id, Message.id)
+                .all()
+            )
+            for m in msgs:
+                out.setdefault(m.thread_id, []).append(m.to_dict())
+    except Exception:
+        pass
+    return out
+
+
+def repo_devagent_load_messages_window(thread_id: str, offset: int = 0,
+                                       limit: int = None) -> dict:
+    """Return a window of one thread's messages plus the total count.
+
+    Returns ``{total: int, messages: [dicts ordered by id]}``; an unknown
+    thread yields ``{total: 0, messages: []}``.
+    """
+    try:
+        with get_devagent_session() as s:
+            total = (
+                s.query(Message)
+                .filter(Message.thread_id == thread_id)
+                .count()
+            )
+            q = (
+                s.query(Message)
+                .filter(Message.thread_id == thread_id)
+                .order_by(Message.id)
+            )
+            try:
+                skip = max(0, int(offset))
+            except (TypeError, ValueError):
+                skip = 0
+            if skip:
+                q = q.offset(skip)
+            if limit is not None:
+                q = q.limit(max(1, int(limit)))
+            return {"total": int(total),
+                    "messages": [m.to_dict() for m in q.all()]}
+    except Exception:
+        return {"total": 0, "messages": []}
+
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: MIT

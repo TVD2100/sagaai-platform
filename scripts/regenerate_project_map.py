@@ -65,7 +65,7 @@ roles = {
     "core/skills.py": "DEPRECATED shim -> core/assistants.py (legacy aliases)",
     "core/skills_library.py": "Standardized skills library: registry skills.json, ZIP/GitHub/folder imports, metadata for orchestrator system prompts",
     "core/threads.py": "Chat thread persistence for assistants",
-    "core/threads_devagent.py": "DevAgent/orchestrator thread persistence (devagent.db)",
+    "core/threads_devagent.py": "DevAgent/orchestrator thread persistence (devagent.db) and the thread-search service layer (search_thread_messages, list_threads_filtered, read_thread_window) with access control",
     "core/tools_utils.py": "Tool definitions list for the Skills/Assistants pages",
     "tests/__init__.py": "Package marker",
     "tests/_st_mock.py": "Streamlit mock for tests",
@@ -108,7 +108,7 @@ roles = {
     "storage/db.py": "SQLAlchemy engines; auto-migration skills->assistants, skill_*->assistant_* columns",
     "storage/models.py": "ORM models: Assistant (assistants), Thread (assistant_id/assistant_name), Message, ConfigKV, Instruction, Orchestrator",
     "storage/repository.py": "High-level CRUD for assistants/threads/config/orchestrators + legacy repo_*_skill wrappers",
-    "storage/repository_devagent.py": "DevAgent thread CRUD (devagent.db)",
+    "storage/repository_devagent.py": "DevAgent thread CRUD (devagent.db) plus thread-search query helpers (filtered listing, message counts, batched/window message loads)",
     "orchestrators/autoid/instructions.json": "Test orchestrator instructions",
     "orchestrators/all_test/functions/f1.py": "Test function",
     "orchestrators/all_test/functions/f2.py": "Test function",
@@ -154,7 +154,7 @@ roles = {
     "dev_agent/skill_model_resolver.py": "DEPRECATED shim -> dev_agent/assistant_model_resolver.py",
     "dev_agent/system_prompt.md": "DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.11 loop-protection rules)",
     "dev_agent/tool_executor.py": "DevAgent tool set; assistant tools, legacy skill aliases, skills-library tools, multimodal tools (analyze_image/generate_image)",
-    "dev_agent/universal_agent.py": "Universal dispatcher (core + workspace tools + orchestrator tools)",
+    "dev_agent/universal_agent.py": "Universal dispatcher (core + workspace + orchestrator tools, incl. thread search: search_in_threads / list_threads / read_thread)",
     "dev_agent/workspace_tools.py": "Workspace layer: folders, project map, docs, snapshots",
     "services/deepseek.json": "DeepSeek service definition (vision_base_url + vision_models catalog)",
     "services/gigachat.json": "GigaChat service definition",
@@ -176,6 +176,10 @@ roles = {
     "tests/test_multimodal_instruction.py": "Tests for the multimodal_mode instruction seeding and content",
     "tests/scenarios/test_multimodal_scenarios.py": "Scenario tests for the multimodal tools (vision analysis, not_assigned, generation, provider hint)",
     "tests/scenarios/test_generated_image_feed_scenario.py": "Scenario tests for the generated image shown immediately in the chat feed (outside the collapsed tool-result block)",
+    "tests/scenarios/test_orchestrator_tool_gating.py": "Gating scenarios: system-prompt version pins (v3.15) and thread-search tool invariants",
+    "tests/test_threads_devagent_search.py": "Unit tests for the thread-search storage/service layer: filtered listing, counts, message windows, access control",
+    "tests/test_universal_agent_thread_search.py": "Unit tests for the thread-search tools in the universal dispatcher: defaults, access control, argument coercion",
+    "tests/scenarios/test_thread_search_scenarios.py": "Scenario tests for the thread-search tools: current-dialog search without lists, explicit thread_id, orchestrator scope with period, search->read around a match, access control, list pagination",
 }
 
 res = wt.write_project_map(roles)

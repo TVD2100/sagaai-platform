@@ -15,6 +15,13 @@ assistant_id / assistant_name columns).
 Since the workspace-restoration feature, each thread also persists the LAST
 active workspace (``workspace`` / ``target_file``) so reopening a saved dialog
 switches DevAgent back to the correct project folder.
+
+Since the thread-search feature, this module also hosts the read side of the
+dialog tools: ``search_thread_messages`` (content search across dialogs),
+``list_threads_filtered`` (dialog listing with per-dialog message counters)
+and ``read_thread_window`` (windowed view of one dialog). Access control
+(which orchestrator may see which dialog) is enforced one layer above, in the
+tool wrappers of ``dev_agent.universal_agent``.
 """
 import os, json, re, uuid, shutil
 from datetime import datetime
@@ -30,6 +37,10 @@ from storage.repository_devagent import (
     repo_devagent_list_threads,
     repo_devagent_append_message,
     repo_devagent_delete_all_threads,
+    repo_devagent_list_threads_filtered,
+    repo_devagent_count_messages,
+    repo_devagent_load_threads_messages,
+    repo_devagent_load_messages_window,
 )
 from core.fs import ensure_dir
 from core.files import MAX_THREAD_FILE_BYTES
@@ -476,6 +487,444 @@ def read_thread_file(tid: str, file_name: str,
         "limit": limit_int,
         "total_lines": total_lines,
         "remaining": remaining,
+    }
+# ─── Thread-search service layer ─────────────────────────────────────────────
+# Read side of the dialog tools (search_in_threads / list_threads /
+# read_thread exposed by dev_agent.universal_agent). Hidden service messages
+# (tool-result envelopes, AUTO_CONTINUE prompts) are identified by their
+# content prefixes, duplicated here to keep this module free of the heavy
+# agent-loop import. Access control lives one layer above, in the wrappers.
+
+_HIDDEN_PREFIXES = ('{"tool_result"', "AUTO_CONTINUE:")
+
+MAX_SEARCH_THREADS = 200     # cap on dialogs scanned per search call
+MAX_SEARCH_MESSAGES = 5000   # cap on stored messages scanned per search call
+MAX_SEARCH_HITS = 100        # cap on returned hits
+MAX_THREADS_PER_LIST = 100   # cap on list_threads page size
+MAX_READ_LIMIT = 200         # cap on read_thread page size
+MAX_SNIPPET_CHARS = 300      # default snippet width in search hits
+MAX_MESSAGE_CHARS = 8000     # per-message content cap in read_thread
+
+
+def _normalize_date_bound(value, end_of_day: bool = False):
+    """Normalize a ``YYYY-MM-DD`` or ISO-8601 bound to a comparable ISO string.
+
+    A plain date becomes 00:00:00 (start) or 23:59:59.999999 (end of day) so
+    an inclusive lexicographic comparison against the stored ISO timestamps
+    works. Returns None for empty or unparsable input (treated as unbounded).
+    """
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    if len(raw) == 10 and raw[4] == "-" and raw[7] == "-":
+        try:
+            datetime.strptime(raw, "%Y-%m-%d")
+        except ValueError:
+            return None
+        return raw + ("T23:59:59.999999" if end_of_day else "T00:00:00")
+    try:
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return dt.isoformat()
+
+
+def _strip_events_prefix(content: str) -> str:
+    """Drop the embedded JSON events prefix from a stored message content."""
+    text = content or ""
+    if text.startswith(_PREFIX_MARKER):
+        mch = _PREFIX_PATTERN.match(text)
+        if mch:
+            return text[mch.end():]
+    return text
+
+
+def _is_hidden_message(content: str) -> bool:
+    """True for service messages users never typed (tool results, autoprompts)."""
+    text = _strip_events_prefix(content or "").lstrip()
+    return text.startswith(_HIDDEN_PREFIXES)
+
+
+def _locate_match(content: str, query: str, pattern=None):
+    """Return (start, end, match_count) of the first match, or None."""
+    if pattern is not None:
+        start = None
+        end = None
+        count = 0
+        for m in pattern.finditer(content):
+            if start is None:
+                start, end = m.start(), m.end()
+            count += 1
+        if start is None:
+            return None
+        return start, end, count
+    low = content.lower()
+    q = (query or "").lower()
+    if not q:
+        return None
+    start = low.find(q)
+    if start < 0:
+        return None
+    return start, start + len(q), low.count(q)
+
+
+def _make_snippet(content: str, start: int, end: int,
+                  width: int = MAX_SNIPPET_CHARS) -> str:
+    """Return a whitespace-collapsed fragment around the match position."""
+    width = max(40, min(int(width or MAX_SNIPPET_CHARS), 600))
+    half = max(0, (width - (end - start)) // 2)
+    left = max(0, start - half)
+    right = min(len(content), end + half)
+    text = " ".join(content[left:right].strip().split())
+    prefix = "…" if left > 0 else ""
+    suffix = "…" if right < len(content) else ""
+    return prefix + text + suffix
+
+
+def _message_preview(record: Dict[str, Any], index: int,
+                     include_tool_results: bool):
+    """Build one output message dict (or None when the message is hidden)."""
+    content = _strip_events_prefix(record.get("content", "") or "")
+    if not include_tool_results and _is_hidden_message(content):
+        return None
+    total_chars = len(content)
+    if total_chars > MAX_MESSAGE_CHARS:
+        content = content[:MAX_MESSAGE_CHARS] + (
+            f"\n…[truncated: {total_chars} chars total]"
+        )
+    return {
+        "index": index,
+        "role": record.get("role", ""),
+        "ts": record.get("ts", ""),
+        "content": content,
+        "file_name": record.get("file_name", "") or "",
+        "file_chars": int(record.get("file_chars", 0) or 0),
+    }
+def search_thread_messages(query: str,
+                           thread_ids: List[str] = None,
+                           slugs: List[str] = None,
+                           date_from=None,
+                           date_to=None,
+                           date_field: str = "updated",
+                           role: str = None,
+                           regex: bool = False,
+                           include_tool_results: bool = False,
+                           max_results: int = 50,
+                           snippet_chars: int = MAX_SNIPPET_CHARS,
+                           allowed_slugs: List[str] = None) -> Dict[str, Any]:
+    """Search the stored messages of dialog threads.
+
+    Targeting (first match wins):
+      * ``thread_ids`` - explicit dialogs (e.g. the current thread id);
+      * ``slugs`` + optional date range - every dialog of those orchestrators;
+      * nothing - every dialog (the tool wrapper narrows this for
+        non-DevAgent orchestrators via ``allowed_slugs``).
+
+    Hidden service messages (tool-result envelopes, AUTO_CONTINUE prompts)
+    are skipped unless ``include_tool_results`` is true. Matching is
+    case-insensitive; ``regex=True`` interprets the query as a regular
+    expression (compiled with re.IGNORECASE). Each hit carries thread_id,
+    title, orchestrator, message_index (absolute position inside the dialog),
+    role, ts, a snippet around the first match and match_count.
+
+    ``allowed_slugs`` enforces access control: None = no restriction
+    (DevAgent); a list = only dialogs of those orchestrators. Explicit
+    thread_ids outside the list are reported in ``denied_threads``; when
+    nothing remains searchable the call fails with an access-denied error.
+    """
+    q = str(query or "").strip()
+    if not q:
+        return {"ok": False, "error": "Missing required argument 'query'."}
+    if date_field not in ("updated", "created"):
+        return {"ok": False,
+                "error": "date_field must be 'updated' or 'created'."}
+    bound_from = _normalize_date_bound(date_from)
+    bound_to = _normalize_date_bound(date_to, end_of_day=True)
+    role_filter = str(role or "").strip().lower() or None
+    if role_filter and role_filter not in ("user", "assistant", "system"):
+        return {"ok": False,
+                "error": "role must be one of: user, assistant, system."}
+    pattern = None
+    if regex:
+        try:
+            pattern = re.compile(q, re.IGNORECASE)
+        except re.error as exc:
+            return {"ok": False, "error": f"Invalid regular expression: {exc}"}
+    try:
+        max_results = max(1, min(int(max_results or 50), MAX_SEARCH_HITS))
+    except (TypeError, ValueError):
+        max_results = 50
+
+    explicit_ids: List[str] = []
+    if thread_ids:
+        raw_ids = thread_ids if isinstance(thread_ids, (list, tuple)) else [thread_ids]
+        for item in raw_ids:
+            tid = str(item or "").strip()
+            if tid and tid not in explicit_ids:
+                explicit_ids.append(tid)
+        if len(explicit_ids) > 20:
+            return {"ok": False,
+                    "error": "Too many thread_ids (max 20 per call)."}
+
+    denied_threads: List[str] = []
+    missing_threads: List[str] = []
+    metas: List[Dict[str, Any]] = []
+    allowed_set = set(allowed_slugs) if allowed_slugs else None
+
+    if explicit_ids:
+        for tid in explicit_ids:
+            meta = repo_devagent_load_thread_meta(tid)
+            if not meta or meta.get("type") != "devagent":
+                missing_threads.append(tid)
+                continue
+            if allowed_set is not None and (meta.get("assistant_id") or "") not in allowed_set:
+                denied_threads.append(tid)
+                continue
+            metas.append(meta)
+        if not metas:
+            if denied_threads:
+                return {"ok": False,
+                        "error": ("Access denied: the requested dialog(s) belong "
+                                  "to another orchestrator."),
+                        "denied_threads": denied_threads,
+                        "missing_threads": missing_threads}
+            return {"ok": False,
+                    "error": "Thread not found: " + ", ".join(missing_threads),
+                    "missing_threads": missing_threads}
+        scope_label = "thread" if len(metas) == 1 else f"threads:{len(metas)}"
+    else:
+        effective_slugs = slugs or None
+        access_limited = False
+        if allowed_set is not None:
+            if effective_slugs:
+                filtered = [s for s in effective_slugs if s in allowed_set]
+                if not filtered:
+                    return {"ok": False,
+                            "error": ("Access denied: the requested "
+                                      "orchestrator(s) are not accessible.")}
+                effective_slugs = filtered
+            else:
+                effective_slugs = sorted(allowed_set)
+            access_limited = True
+        metas = repo_devagent_list_threads_filtered(
+            slugs=effective_slugs,
+            date_from=bound_from,
+            date_to=bound_to,
+            date_field=date_field,
+            limit=MAX_SEARCH_THREADS,
+            order="desc",
+        )
+        if effective_slugs:
+            scope_label = ("orchestrator:" + effective_slugs[0]
+                           if len(effective_slugs) == 1
+                           else "orchestrators:" + ",".join(effective_slugs))
+        else:
+            scope_label = "all"
+        if access_limited:
+            scope_label += " (access-limited)"
+
+    by_thread = repo_devagent_load_threads_messages(
+        [m.get("thread_id") for m in metas])
+    hits: List[Dict[str, Any]] = []
+    messages_scanned = 0
+    truncated = False
+    for meta in metas:
+        tid = meta.get("thread_id", "")
+        records = by_thread.get(tid) or []
+        for idx, rec in enumerate(records):
+            if messages_scanned >= MAX_SEARCH_MESSAGES or len(hits) >= max_results:
+                truncated = True
+                break
+            content = _strip_events_prefix(rec.get("content", "") or "")
+            if not include_tool_results and _is_hidden_message(content):
+                continue
+            if role_filter and (rec.get("role") or "") != role_filter:
+                continue
+            messages_scanned += 1
+            located = _locate_match(content, q, pattern)
+            if not located:
+                continue
+            start, end, match_count = located
+            hits.append({
+                "thread_id": tid,
+                "title": meta.get("title", "") or "",
+                "orchestrator": meta.get("assistant_name", "") or "",
+                "orchestrator_slug": meta.get("assistant_id", "") or "",
+                "thread_updated_at": meta.get("updated_at", ""),
+                "message_index": idx,
+                "role": rec.get("role", ""),
+                "ts": rec.get("ts", ""),
+                "snippet": _make_snippet(content, start, end, snippet_chars),
+                "match_count": match_count,
+            })
+        if truncated:
+            break
+    return {
+        "ok": True,
+        "query": q,
+        "scope": scope_label,
+        "threads_scanned": len(metas),
+        "messages_scanned": messages_scanned,
+        "count": len(hits),
+        "hits": hits,
+        "missing_threads": missing_threads,
+        "denied_threads": denied_threads,
+        "truncated": truncated,
+    }
+def list_threads_filtered(slugs: List[str] = None,
+                          date_from=None,
+                          date_to=None,
+                          date_field: str = "updated",
+                          limit: int = 50,
+                          offset: int = 0,
+                          order: str = "desc",
+                          with_counts: bool = True,
+                          allowed_slugs: List[str] = None) -> Dict[str, Any]:
+    """List dialog threads with metadata and (optionally) message counts.
+
+    Filters mirror ``search_thread_messages``: optional ``slugs`` (orchestrator
+    slugs), an inclusive date range over ``date_field``, pagination via
+    ``offset``/``limit`` (capped at MAX_THREADS_PER_LIST) and sort order.
+
+    ``allowed_slugs`` enforces access control the same way (None = no
+    restriction for DevAgent; a list = only those orchestrators' dialogs).
+    ``truncated`` is a precise page-full indicator: it is computed by
+    fetching one row beyond the page. Each thread item carries created_at /
+    updated_at / workspace and, when ``with_counts``, message_count.
+    """
+    if date_field not in ("updated", "created"):
+        return {"ok": False,
+                "error": "date_field must be 'updated' or 'created'."}
+    if order not in ("asc", "desc"):
+        return {"ok": False, "error": "order must be 'asc' or 'desc'."}
+    try:
+        limit = max(1, min(int(limit or 50), MAX_THREADS_PER_LIST))
+    except (TypeError, ValueError):
+        limit = 50
+    try:
+        offset = max(0, int(offset or 0))
+    except (TypeError, ValueError):
+        offset = 0
+    bound_from = _normalize_date_bound(date_from)
+    bound_to = _normalize_date_bound(date_to, end_of_day=True)
+
+    effective_slugs = [str(s) for s in slugs] if slugs else None
+    access_limited = False
+    allowed_set = set(allowed_slugs) if allowed_slugs else None
+    if allowed_set is not None:
+        if effective_slugs:
+            filtered = [s for s in effective_slugs if s in allowed_set]
+            if not filtered:
+                return {"ok": False,
+                        "error": ("Access denied: the requested "
+                                  "orchestrator(s) are not accessible.")}
+            effective_slugs = filtered
+        else:
+            effective_slugs = sorted(allowed_set)
+        access_limited = True
+
+    metas = repo_devagent_list_threads_filtered(
+        slugs=effective_slugs,
+        date_from=bound_from,
+        date_to=bound_to,
+        date_field=date_field,
+        limit=limit + 1,          # one extra row -> precise page-full flag
+        offset=offset,
+        order=order,
+    )
+    truncated = len(metas) > limit
+    metas = metas[:limit]
+    counts = (repo_devagent_count_messages([m.get("thread_id") for m in metas])
+              if with_counts else {})
+    items = []
+    for meta in metas:
+        item = {
+            "thread_id": meta.get("thread_id", ""),
+            "title": meta.get("title", "") or "",
+            "orchestrator": meta.get("assistant_name", "") or "",
+            "orchestrator_slug": meta.get("assistant_id", "") or "",
+            "created_at": meta.get("created_at", ""),
+            "updated_at": meta.get("updated_at", ""),
+            "workspace": meta.get("workspace", "") or "",
+        }
+        if with_counts:
+            item["message_count"] = counts.get(item["thread_id"], 0)
+        items.append(item)
+
+    scope_label = "all"
+    if effective_slugs:
+        scope_label = ("orchestrator:" + effective_slugs[0]
+                       if len(effective_slugs) == 1
+                       else "orchestrators:" + ",".join(effective_slugs))
+    if access_limited:
+        scope_label += " (access-limited)"
+    return {
+        "ok": True,
+        "scope": scope_label,
+        "offset": offset,
+        "limit": limit,
+        "count": len(items),
+        "threads": items,
+        "truncated": truncated,
+    }
+
+
+def read_thread_window(thread_id: str,
+                       offset: int = 0,
+                       limit: int = 50,
+                       include_tool_results: bool = False,
+                       allowed_slugs: List[str] = None) -> Dict[str, Any]:
+    """Return a window of one dialog's messages (for viewing a found thread).
+
+    Messages are previews built by ``_message_preview``: hidden service
+    messages are skipped unless ``include_tool_results`` is true, content is
+    capped, and each message keeps its ABSOLUTE index inside the dialog
+    (stable across filtering, works as a navigation anchor).
+
+    ``allowed_slugs`` enforces access control: None = any dialog (DevAgent);
+    a list = only dialogs of those orchestrators. Unknown thread ids and
+    dialogs of other orchestrators both produce a clean error.
+    """
+    tid = str(thread_id or "").strip()
+    if not tid:
+        return {"ok": False, "error": "Missing required argument 'thread_id'."}
+    try:
+        offset = max(0, int(offset or 0))
+    except (TypeError, ValueError):
+        offset = 0
+    try:
+        limit = max(1, min(int(limit or 50), MAX_READ_LIMIT))
+    except (TypeError, ValueError):
+        limit = 50
+    meta = repo_devagent_load_thread_meta(tid)
+    if not meta or meta.get("type") != "devagent":
+        return {"ok": False, "error": f"Thread not found: {tid}"}
+    if allowed_slugs is not None and (meta.get("assistant_id") or "") not in set(allowed_slugs):
+        return {"ok": False,
+                "error": "Access denied: this dialog belongs to another "
+                         "orchestrator."}
+    res = repo_devagent_load_messages_window(tid, offset=offset, limit=limit)
+    raw = res.get("messages") or []
+    total = int(res.get("total") or 0)
+    messages = []
+    for rel_i, rec in enumerate(raw):
+        preview = _message_preview(rec, offset + rel_i, include_tool_results)
+        if preview is not None:
+            messages.append(preview)
+    remaining = max(0, total - (offset + len(raw)))
+    return {
+        "ok": True,
+        "thread_id": tid,
+        "title": meta.get("title", "") or "",
+        "orchestrator": meta.get("assistant_name", "") or "",
+        "orchestrator_slug": meta.get("assistant_id", "") or "",
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "count": len(messages),
+        "remaining": remaining,
+        "has_more": remaining > 0,
+        "messages": messages,
     }
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: MIT
