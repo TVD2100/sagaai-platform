@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-09-30T20:57:56+00:00`
-- Файлов: **1116**
-- Языки: Config: 1, JSON: 22, Markdown: 850, PEM certificate: 1, Python: 246, Text: 1
+- Обновлено: `2026-10-01T04:41:06+00:00`
+- Файлов: **1133**
+- Языки: Config: 1, JSON: 22, Markdown: 866, PEM certificate: 1, Python: 247, Text: 1
 
 ## Файлы и назначение
 
@@ -27,7 +27,7 @@
 | `ui/pages/chat.py` | Python | Chat page for AI assistants: selector, history, send form | - |
 | `ui/pages/connectors.py` | Python | _(описание не задано)_ | - |
 | `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | - |
-| `ui/pages/orchestrator.py` | Python | Reusable orchestrator page (chat/history/settings incl. skills tab; no employee export/import UI; step events attach to the user message when the first LLM call fails; per-message download/copy controls on plain-prose answers) | storage |
+| `ui/pages/orchestrator.py` | Python | Reusable orchestrator page (chat/history/settings incl. skills tab; no employee export/import UI; step events attach to the user message when the first LLM call fails; per-message download/copy controls on plain-prose answers; generated image visible immediately in the feed, outside the collapsed tool-result block) | storage |
 | `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings entry page | - |
 | `ui/pages/orchestrators.py` | Python | Employees (orchestrators) management page (create/open/settings/delete; export/import deferred) | - |
 | `ui/pages/settings.py` | Python | LLM provider settings page | - |
@@ -214,6 +214,7 @@
 | `tests/scenarios/test_context_overflow_protection.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_employees_sidebar_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_first_run_flow.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_generated_image_feed_scenario.py` | Python | Scenario tests for the generated image shown immediately in the chat feed (outside the collapsed tool-result block) | - |
 | `tests/scenarios/test_gigachat_models_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_gigachat_orchestrator_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_github_rest_scenario.py` | Python | _(описание не задано)_ | - |
@@ -1122,6 +1123,22 @@
 | `dev_agent/task_states/TASK_STATE__20260930_235007_d9fca8.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260930_235015_458279.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260930_235016_01e368.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_000554_cdc3fb.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_000557_3a7212.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_000557_8e21da.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_000557_b3c629.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_000557_d4f1e7.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_000557_d738ef.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_000606_4ba4eb.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_000606_5ca9c2.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_073305_db3322.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_073308_109a3e.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_073308_76e2fd.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_073308_9310a1.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_073308_979a79.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_073308_a3b0c8.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_073317_bca301.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_073317_d59cca.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
 | `services/deepseek.json` | JSON | DeepSeek service definition (vision_base_url + vision_models catalog) | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
@@ -1215,18 +1232,18 @@
 - `_extract_result_body` (func, строка 551)
 - `_render_generated_image` (func, строка 565)
 - `_render_tool_result` (func, строка 593)
-- `_render_events` (func, строка 670)
-- `_render_event` (func, строка 690)
-- `_attach_events` (func, строка 750)
-- `_do_step` (func, строка 779)
-- `_reset_dialog` (func, строка 931)
-- `_load_thread` (func, строка 948)
-- `_chat_toolbar_widget_key` (func, строка 980)
-- `_sync_chat_pref_checkbox` (func, строка 990)
-- `_chat_toolbar_pref_changed` (func, строка 1008)
-- `_render_chat_toolbar` (func, строка 1018)
-- `_token_line_cache_key` (func, строка 1076)
-- `_render_token_line` (func, строка 1123)
+- `_render_events` (func, строка 675)
+- `_render_event` (func, строка 695)
+- `_attach_events` (func, строка 755)
+- `_do_step` (func, строка 784)
+- `_reset_dialog` (func, строка 936)
+- `_load_thread` (func, строка 953)
+- `_chat_toolbar_widget_key` (func, строка 985)
+- `_sync_chat_pref_checkbox` (func, строка 995)
+- `_chat_toolbar_pref_changed` (func, строка 1013)
+- `_render_chat_toolbar` (func, строка 1023)
+- `_token_line_cache_key` (func, строка 1081)
+- `_render_token_line` (func, строка 1128)
 
 ### `ui/pages/orchestrator_settings.py`
 - `page_orchestrator_settings` (func, строка 28)
@@ -2774,12 +2791,14 @@
 - `TestOrchestratorLifecycleGuards` (class, строка 363)
 
 ### `tests/test_orchestrator_image_result.py`
-- `ui_env` (func, строка 22)
-- `_write_image` (func, строка 34)
-- `_event` (func, строка 40)
-- `test_successful_result_shows_image_and_download` (func, строка 47)
-- `test_missing_file_renders_caption_only` (func, строка 70)
-- `test_failed_result_and_other_tools_render_no_image` (func, строка 83)
+- `ui_env` (func, строка 23)
+- `_write_image` (func, строка 35)
+- `_event` (func, строка 41)
+- `_track_expander_depth` (func, строка 48)
+- `test_successful_result_shows_image_and_download` (func, строка 104)
+- `test_image_and_download_render_outside_collapsed_expander` (func, строка 127)
+- `test_missing_file_renders_caption_only` (func, строка 145)
+- `test_failed_result_and_other_tools_render_no_image` (func, строка 158)
 
 ### `tests/test_orchestrator_message_controls.py`
 - `ui_env` (func, строка 20)
@@ -3891,6 +3910,17 @@
 - `test_settings_explain_keys_and_save_them` (func, строка 140)
 - `test_create_first_assistant_with_real_storage` (func, строка 203)
 - `test_skills_library_install_forms_and_neutral_placeholder` (func, строка 272)
+
+### `tests/scenarios/test_generated_image_feed_scenario.py`
+- `ui_env` (func, строка 37)
+- `_image_result` (func, строка 49)
+- `_assistant_history` (func, строка 61)
+- `_setup_feed` (func, строка 76)
+- `_render_feed` (func, строка 112)
+- `_track_depth` (func, строка 120)
+- `test_scenario_image_visible_in_feed_without_expanding` (func, строка 158)
+- `test_scenario_missing_file_keeps_feed_alive` (func, строка 191)
+- `test_scenario_failed_generation_shows_error_no_controls` (func, строка 211)
 
 ### `tests/scenarios/test_gigachat_models_scenario.py`
 - `_json` (func, строка 35)

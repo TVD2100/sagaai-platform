@@ -597,6 +597,9 @@ def _render_tool_result(ev: dict, lang: str, call_ev: Optional[dict] = None) -> 
     ``✅ tool_result: read_file → path 322 строки``). Inside, the call
     arguments and the first two lines of the result are shown; when the
     result is longer, the full content is available in a nested expander.
+    A successful ``generate_image`` result additionally renders its image
+    block in the feed itself, outside the collapsed expander, so the picture
+    and its download button are visible without an extra click.
     """
     result_data = ev.get("result", {})
     tool = ev.get("tool", "?")
@@ -663,8 +666,10 @@ def _render_tool_result(ev: dict, lang: str, call_ev: Optional[dict] = None) -> 
             if full != preview:
                 with st.expander(t("event_tool_result_show_more", lang=lang), expanded=False):
                     st.code(full, language="")
-        if tool == "generate_image" and ok_val and path:
-            _render_generated_image(result_data, path, lang)
+    # A generated image is shown in the feed itself, outside the collapsed
+    # tool-result expander: the picture must be visible without an extra click.
+    if tool == "generate_image" and ok_val and path:
+        _render_generated_image(result_data, path, lang)
 
 
 def _render_events(events: list, lang: str) -> None:

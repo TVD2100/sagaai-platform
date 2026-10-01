@@ -29,7 +29,7 @@ roles = {
     "ui/pages/assistants.py": "Assistants management page (create/edit/delete assistant profiles, files, tools)",
     "ui/pages/chat.py": "Chat page for AI assistants: selector, history, send form",
     "ui/pages/history.py": "Unified dialogue history page (assistants + employees)",
-    "ui/pages/orchestrator.py": "Reusable orchestrator page (chat/history/settings incl. skills tab; no employee export/import UI; step events attach to the user message when the first LLM call fails; per-message download/copy controls on plain-prose answers)",
+    "ui/pages/orchestrator.py": "Reusable orchestrator page (chat/history/settings incl. skills tab; no employee export/import UI; step events attach to the user message when the first LLM call fails; per-message download/copy controls on plain-prose answers; generated image visible immediately in the feed, outside the collapsed tool-result block)",
     "ui/pages/orchestrator_settings.py": "Orchestrator settings entry page",
     "ui/pages/orchestrators.py": "Employees (orchestrators) management page (create/open/settings/delete; export/import deferred)",
     "ui/pages/settings.py": "LLM provider settings page",
@@ -175,6 +175,7 @@ roles = {
     "tests/test_multimodal_tools.py": "Unit tests for the analyze_image/generate_image tools",
     "tests/test_multimodal_instruction.py": "Tests for the multimodal_mode instruction seeding and content",
     "tests/scenarios/test_multimodal_scenarios.py": "Scenario tests for the multimodal tools (vision analysis, not_assigned, generation, provider hint)",
+    "tests/scenarios/test_generated_image_feed_scenario.py": "Scenario tests for the generated image shown immediately in the chat feed (outside the collapsed tool-result block)",
 }
 
 res = wt.write_project_map(roles)
