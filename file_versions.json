@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "1.9.0",
+  "app_version": "1.9.1",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Релиз 1.9.0: изоляция рабочей папки - новый диалог начинается без папки («папка не выбрана»), файловые инструменты подсказывают выбрать папку; активная папка привязана к диалогу и восстанавливается при его открытии; меню недавних папок у каждого сотрудника своё; журналы задач и вложения диалога не пишутся в чужие проекты; промпты DevAgent v3.16 и YaAgent v2.10.",
-    "en": "Release 1.9.0: workspace isolation - a new dialog starts with no folder (no folder selected), file tools prompt to pick one; the active folder is bound to the dialog and restored when reopened; the recent-folders menu is per employee; task journals and chat uploads never touch foreign projects; DevAgent v3.16 and YaAgent v2.10 prompts."
+    "ru": "Релиз 1.9.1: устойчивое чтение GitHub - GET-запросы REST-коннектора повторяются при сетевых сбоях (write-методы и HTTP-ошибки не повторяются); быстрое восстановление состояния задачи - компактный дайджест журнала и бюджетированная инъекция CURRENT TASK STATE; DevAgent v3.17.",
+    "en": "Release 1.9.1: resilient GitHub reads - REST connector GET requests retry on network errors (write methods and HTTP errors are not retried); fast task-state recovery - a compact journal digest and budgeted CURRENT TASK STATE injection; DevAgent v3.17."
   },
-  "updated": "2026-10-01T14:46:34Z",
+  "updated": "2026-10-01T16:59:10Z",
   "units": {
     "core": {
-      "version": "1.21.0",
+      "version": "1.21.1",
       "note": {
-        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py. 1.15.0: SSH-коннектор - инструмент ssh_upload_file (потоковая публикация локальных файлов на сервер, sha256-верификация, до 50 МиБ); подсказка create_dirs в ошибке ssh_write_file. 1.15.1: сценарный тест каталога моделей YandexAI (tests/scenarios), пин промпта YaAgent v2.9, регенерация PROJECT_MAP.md; версия платформы 1.3.2. 1.16.0: единая модель оркестраторов - слабая модель удалена из настроек, добавлены опциональные vision/image настройки и каталоги у сервисов, рантайм на основной модели, tolerant legacy weak_*; документация и манифест обновлены; версия платформы 1.4.0. 1.17.0: мультимодальные инструменты analyze_image/generate_image (вложения диалога и файлы проекта; генерация сохраняется файлом), транспорты send_vision_request/send_image_generation_request в api_layer, глобальная инструкция multimodal_mode; версия платформы 1.5.0. 1.18.0: синхронный Images API для generate_image (единственная модель aliceai-image-art-3.0, удаление async-ветки YandexART), показ сгенерированного изображения в чате с кнопкой скачивания; версия платформы 1.6.0. 1.19.0: распознавание изображений на DeepSeek - vision_base_url и каталог vision_models (deepseek-flash) в профиле сервиса, ветка deepseek_responses с detail=original в send_vision_request, deepseek-v4.1-flash в vision-каталоге YandexAI; версия платформы 1.7.0. 1.19.1: сгенерированное изображение generate_image показывается сразу в ленте чата - блок с картинкой и кнопкой скачивания вынесен из свёрнутого блока результата (ui/pages/orchestrator.py); сценарные тесты ленты; версия платформы 1.7.1. 1.20.0: поиск по диалогам - инструменты search_in_threads/list_threads/read_thread (текущий диалог по умолчанию, scope/период) с контролем доступа к тредам; промпт DevAgent v3.15; версия платформы 1.8.0. 1.21.0: изоляция рабочей папки - пустое состояние и guard файловых инструментов, мета «последняя папка» треда с миграцией легаси-меты, недавние папки по оркестраторам, журналы/вложения при пустой папке; промпты DevAgent v3.16 / YaAgent v2.10; версия платформы 1.9.0.",
-        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py. 1.15.0: SSH connector - ssh_upload_file tool (streamed publishing of local files to a server, sha256 verification, up to 50 MB); create_dirs hint in the ssh_write_file error. 1.15.1: YandexAI model catalog scenario test (tests/scenarios), YaAgent v2.9 prompt pin, PROJECT_MAP.md regenerated; platform version 1.3.2. 1.16.0: single-model orchestrators - the weak model removed from settings, optional vision/image settings and service catalogs added, runtime on the main model, tolerant legacy weak_*; docs and manifest updated; platform version 1.4.0. 1.17.0: multimodal tools analyze_image/generate_image (dialog uploads and project files; generation saved to a file), send_vision_request/send_image_generation_request transports in api_layer, the global multimodal_mode instruction; platform version 1.5.0. 1.18.0: synchronous Images API for generate_image (the single model aliceai-image-art-3.0, the YandexART async branch removed), the generated image shown in the chat with a download button; platform version 1.6.0. 1.19.0: DeepSeek image analysis - vision_base_url and the vision_models catalog (deepseek-flash) in the service profile, the deepseek_responses branch with detail=original in send_vision_request, deepseek-v4.1-flash in the YandexAI vision catalog; platform version 1.7.0. 1.19.1: the generate_image picture is shown immediately in the chat feed - the image block with the download button moved out of the collapsed tool-result block (ui/pages/orchestrator.py); feed scenario tests; platform version 1.7.1. 1.20.0: dialog thread search - the search_in_threads/list_threads/read_thread tools (current dialog by default, scope/period) with thread access control; DevAgent prompt v3.15; platform version 1.8.0. 1.21.0: workspace isolation - the no-folder-selected empty state and the file-tool guard, thread last-folder meta with the legacy-meta migration, per-orchestrator recent folders, journals/uploads in the empty state; DevAgent v3.16 / YaAgent v2.10 prompts; platform version 1.9.0."
+        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py. 1.15.0: SSH-коннектор - инструмент ssh_upload_file (потоковая публикация локальных файлов на сервер, sha256-верификация, до 50 МиБ); подсказка create_dirs в ошибке ssh_write_file. 1.15.1: сценарный тест каталога моделей YandexAI (tests/scenarios), пин промпта YaAgent v2.9, регенерация PROJECT_MAP.md; версия платформы 1.3.2. 1.16.0: единая модель оркестраторов - слабая модель удалена из настроек, добавлены опциональные vision/image настройки и каталоги у сервисов, рантайм на основной модели, tolerant legacy weak_*; документация и манифест обновлены; версия платформы 1.4.0. 1.17.0: мультимодальные инструменты analyze_image/generate_image (вложения диалога и файлы проекта; генерация сохраняется файлом), транспорты send_vision_request/send_image_generation_request в api_layer, глобальная инструкция multimodal_mode; версия платформы 1.5.0. 1.18.0: синхронный Images API для generate_image (единственная модель aliceai-image-art-3.0, удаление async-ветки YandexART), показ сгенерированного изображения в чате с кнопкой скачивания; версия платформы 1.6.0. 1.19.0: распознавание изображений на DeepSeek - vision_base_url и каталог vision_models (deepseek-flash) в профиле сервиса, ветка deepseek_responses с detail=original в send_vision_request, deepseek-v4.1-flash в vision-каталоге YandexAI; версия платформы 1.7.0. 1.19.1: сгенерированное изображение generate_image показывается сразу в ленте чата - блок с картинкой и кнопкой скачивания вынесен из свёрнутого блока результата (ui/pages/orchestrator.py); сценарные тесты ленты; версия платформы 1.7.1. 1.20.0: поиск по диалогам - инструменты search_in_threads/list_threads/read_thread (текущий диалог по умолчанию, scope/период) с контролем доступа к тредам; промпт DevAgent v3.15; версия платформы 1.8.0. 1.21.0: изоляция рабочей папки - пустое состояние и guard файловых инструментов, мета «последняя папка» треда с миграцией легаси-меты, недавние папки по оркестраторам, журналы/вложения при пустой папке; промпты DevAgent v3.16 / YaAgent v2.10; версия платформы 1.9.0. 1.21.1: авторетрай GET GitHub-коннектора при сетевых сбоях; компактный дайджест журнала задач; промпт DevAgent v3.17; версия платформы 1.9.1.",
+        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py. 1.15.0: SSH connector - ssh_upload_file tool (streamed publishing of local files to a server, sha256 verification, up to 50 MB); create_dirs hint in the ssh_write_file error. 1.15.1: YandexAI model catalog scenario test (tests/scenarios), YaAgent v2.9 prompt pin, PROJECT_MAP.md regenerated; platform version 1.3.2. 1.16.0: single-model orchestrators - the weak model removed from settings, optional vision/image settings and service catalogs added, runtime on the main model, tolerant legacy weak_*; docs and manifest updated; platform version 1.4.0. 1.17.0: multimodal tools analyze_image/generate_image (dialog uploads and project files; generation saved to a file), send_vision_request/send_image_generation_request transports in api_layer, the global multimodal_mode instruction; platform version 1.5.0. 1.18.0: synchronous Images API for generate_image (the single model aliceai-image-art-3.0, the YandexART async branch removed), the generated image shown in the chat with a download button; platform version 1.6.0. 1.19.0: DeepSeek image analysis - vision_base_url and the vision_models catalog (deepseek-flash) in the service profile, the deepseek_responses branch with detail=original in send_vision_request, deepseek-v4.1-flash in the YandexAI vision catalog; platform version 1.7.0. 1.19.1: the generate_image picture is shown immediately in the chat feed - the image block with the download button moved out of the collapsed tool-result block (ui/pages/orchestrator.py); feed scenario tests; platform version 1.7.1. 1.20.0: dialog thread search - the search_in_threads/list_threads/read_thread tools (current dialog by default, scope/period) with thread access control; DevAgent prompt v3.15; platform version 1.8.0. 1.21.0: workspace isolation - the no-folder-selected empty state and the file-tool guard, thread last-folder meta with the legacy-meta migration, per-orchestrator recent folders, journals/uploads in the empty state; DevAgent v3.16 / YaAgent v2.10 prompts; platform version 1.9.0. 1.21.1: GitHub REST GET retries on network errors; compact task-state digest; DevAgent prompt v3.17; platform version 1.9.1."
       },
       "files": {
         "__init__.py": {
@@ -116,8 +116,8 @@
           "sha256": "bec53c1a8ff7ea9dc91c81586009d0d79fb1ada73f211bcb670baaf873a55118"
         },
         "core/github_connector_rest.py": {
-          "version": "1.2.0",
-          "sha256": "2b78ff668212b16c315d2700c1a54cbc33154ab428a183944b70683b5540f028"
+          "version": "1.3.0",
+          "sha256": "6e35b2f92df2ad867c6cfdc16d3db979481fa285b7607ec083a7bc1849a93bea"
         },
         "core/github_tools_rest.py": {
           "version": "1.2.0",
@@ -244,8 +244,8 @@
           "sha256": "c9e03ac37d50334f2e8ed0ab3770e16be2535b777d39ea36cde91591cc74858b"
         },
         "core/version.py": {
-          "version": "1.0.24",
-          "sha256": "856f4b3cabdd3b640a47fef665f34f6d30f5acf6ff8def57d6d7547f6f1b3ce1"
+          "version": "1.0.25",
+          "sha256": "314dc6049d315fa61ef6a521f3058451453f73209222c8d499edf9fb3967f390"
         },
         "dev_agent/__init__.py": {
           "version": "1.0.0",
@@ -280,12 +280,12 @@
           "sha256": "e3c52b184852fba028df4b24795f80ce6f752d5d8b0885aa556861ec0b7badc0"
         },
         "dev_agent/task_state.py": {
-          "version": "1.3.0",
-          "sha256": "10fbaa84491e5b671aecc6ceebb5ca04572e1e81ce545dea6d7cf3a159fe6ea7"
+          "version": "1.4.0",
+          "sha256": "a2ff6224b0860af4481896ae4aa7ae030a3d6f8d1f840a59c92dd2e2d82f1d09"
         },
         "dev_agent/tool_executor.py": {
-          "version": "1.9.0",
-          "sha256": "4f5257561ced075bf9ea99fb2984d95ffbee1b3b503000b3c611558a4846956d"
+          "version": "1.10.0",
+          "sha256": "e4a69995d0903385a016d540059ae51dae68f7b721ded3dac5f7ab2ea1e646df"
         },
         "dev_agent/universal_agent.py": {
           "version": "1.11.0",
@@ -308,8 +308,8 @@
           "sha256": "66abb9f75f09ba1908b3b70012d9fea2aaf15a1fd80f687fa7ea13cdb857362e"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.3.4",
-          "sha256": "4f7942cd00ba18250f057ac1d788175076992884d1fb01fd7144630ee83ab49d"
+          "version": "1.3.5",
+          "sha256": "09ec7ce1aa866bcc42c337f51335e3b0b97e12b8dfc2cffa8592c9cdb2e1a08c"
         },
         "scripts/verify_manifest.py": {
           "version": "1.0.3",
@@ -436,8 +436,8 @@
           "sha256": "a3884d194a0683edf530315627a7e80c5fc3fb01a0b44f7b22a67d3d974b136c"
         },
         "tests/scenarios/test_orchestrator_tool_gating.py": {
-          "version": "1.2.4",
-          "sha256": "2b05764d8c81d75000fc49391da3b971081480913accb87d2c5b4b4107d1f5dc"
+          "version": "1.2.5",
+          "sha256": "aa9cce609afc91f25d470f10799d8d4c31d799adc6ab575b0556d0f7f03bad80"
         },
         "tests/scenarios/test_provider_economy_settings_scenario.py": {
           "version": "1.0.0",
@@ -860,8 +860,8 @@
           "sha256": "6fc6dde9545fdbcfc1718950e69b991ed5c50558d86fe4374d5cfafe15447261"
         },
         "tests/test_task_state.py": {
-          "version": "1.2.0",
-          "sha256": "6296ef02e936a6a0e29b423270ea8e9fc7e846062b74f6bf0931a8c104a29390"
+          "version": "1.2.1",
+          "sha256": "893d5cdb901243034da979e76fec8235c4a9d2cef2c4e66bd7cdd47d7d1fb09f"
         },
         "tests/test_theme_restore.py": {
           "version": "1.1.0",
@@ -1050,17 +1050,29 @@
         "ui/pages/welcome.py": {
           "version": "1.0.0",
           "sha256": "ce6235fcf9d00a1981b32ea0fcdef7bb7a32c036d33a09d70cbff134cfe138ba"
+        },
+        "tests/test_github_connector_retry.py": {
+          "version": "1.0.0",
+          "sha256": "e2c4720ee78736e4a3d618f47a983b2468800421b1f4d9be5228939159eec4a5"
+        },
+        "tests/scenarios/test_state_recovery_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "bfd26d7c586a65630e18332e8340b982b58a46fdcc2d7b14d25bcb94d2bf8e06"
+        },
+        "tests/scenarios/test_github_read_retry_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "00f93d08ffe23a8219a2c5fa1c0ecfd6220b33b3a0dba6bbb729671b80f8d803"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.21.0",
-      "sha256": "fd4e173529d82e39b350ca1af03c3bf082f8f0a87be8ea1183f1410f3743eda6",
+      "version": "1.22.0",
+      "sha256": "5a0bcfd4fabafcbca59b4e23bd5f31555b806f98e56ffb3c3842bcfc198c3ad3",
       "note": {
-        "ru": "Раздел «Изоляция рабочей папки и пустое состояние»: workspace_binding, мета треда, guard workspace_not_selected, скоуп недавних папок, журналы/вложения; ссылки на промпты v3.16/v2.10.",
-        "en": "New section Workspace isolation and the empty state: workspace_binding, thread meta, the workspace_not_selected guard, the recent-folders scope, journals/uploads; v3.16/v2.10 prompt references."
+        "ru": "Раздел «Изоляция рабочей папки и пустое состояние»; дайджест журнала задач и авторетрай GET GitHub-коннектора; ссылки на промпты v3.17/v2.10.",
+        "en": "Workspace isolation and the empty state section; the task-state compact digest and GitHub GET retries; v3.17/v2.10 prompt references."
       }
     },
     "COMPARISON.md": {
@@ -1080,27 +1092,27 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.25.0",
-      "sha256": "cd0ddd96aa5d2fe77c5bb1aef24350a22138d08b4e3bcaf2ee60bc757f09c12b",
+      "version": "1.26.0",
+      "sha256": "34d3890b4b96099d8d2360352d6a0779adb0d4d75944d5ac97112e47a27949ba",
       "note": {
-        "ru": "Карта регенерирована (1199 файлов): роли слоя изоляции рабочей папки (config, workspace_binding, guard, recent_workspaces, мета тредов) и шести новых тестов изоляции.",
-        "en": "Map regenerated (1199 files): roles of the workspace-isolation layer (config, workspace_binding, guard, recent_workspaces, thread meta) and of the six new isolation tests."
+        "ru": "Карта регенерирована (1226 файлов): роли GitHub-коннектора и трёх новых тестов, упоминания промпта v3.17.",
+        "en": "Map regenerated (1226 files): roles of the GitHub connector and the three new tests, v3.17 prompt references."
       }
     },
     "README.md": {
-      "version": "1.19.0",
-      "sha256": "70e32dba2450907c3110c09008000d7ba4552bde4292978a0807470dbfb709cb",
+      "version": "1.19.1",
+      "sha256": "ae7ff92126590396c5e82aed225cb9a952b36ad0353e5769a84deab490fefce3",
       "note": {
-        "ru": "Статус версии v1.9.0; изоляция рабочей папки: новый диалог без папки, активная папка привязана к диалогу и восстанавливается, меню недавних папок у каждого сотрудника своё.",
-        "en": "Version status v1.9.0; workspace isolation: a new dialog starts with no folder, the active folder is dialog-bound and restored, each employee has its own recent-folders menu."
+        "ru": "Статус версии v1.9.1; устойчивое чтение GitHub (авторетрай GET) и быстрое восстановление журнала задач.",
+        "en": "Version status v1.9.1; resilient GitHub reads (GET auto-retry) and fast task-state recovery."
       }
     },
     "SPEC.md": {
-      "version": "1.22.0",
-      "sha256": "6f4dbe1560cb0b9bfdca2bf11b033813a800777bc4849efb03dc6df0255180bb",
+      "version": "1.23.0",
+      "sha256": "db8379f6a80e77fbe4b8e0ea75705e5bbdd05837b49c46ae6fe9eef163d5a8f2",
       "note": {
-        "ru": "Пустое состояние «папка не выбрана» и guard файловых инструментов; мета «последняя папка» треда и миграция легаси-меты; недавние папки в скоупе оркестратора; журналы задач и вложения при пустой папке в папке диалога.",
-        "en": "The no-folder-selected empty state and the file-tool guard; thread last-folder meta and the legacy-meta migration; per-orchestrator recent folders; journals and uploads in the dialog folder in the empty state."
+        "ru": "Пустое состояние и изоляция папки; дайджест журнала задач; авторетрай GET GitHub-коннектора при сетевых сбоях; недавние папки по оркестраторам; журналы и вложения при пустой папке.",
+        "en": "The empty state and folder isolation; the task-state compact digest; GitHub GET retries on network errors; per-orchestrator recent folders; journals and uploads in the empty state."
       }
     },
     "defaults/README.md": {
@@ -1432,11 +1444,11 @@
       }
     },
     "dev_agent/system_prompt.md": {
-      "version": "3.16",
-      "sha256": "e5676b7266867ca460c450cc87bf3f7b073c9dd434c73bdee5d2c273b0c96a96",
+      "version": "3.17",
+      "sha256": "bb36192ee4f5765005d12a7aa8b8fdea121034d1c5a96628d207de71fe6985b5",
       "note": {
-        "ru": "Промпт DevAgent v3.16: Этап 0 - пустое состояние «папка не выбрана» (workspace_selected: false, ошибка workspace_not_selected, run_code/run_test(code) с нейтральным cwd) и меню недавних папок в скоупе оркестратора; §16 - журнал задач при пустой папке в папке диалога; §17 - вложения только в history/<tid>/files; ранее - поиск по диалогам.",
-        "en": "DevAgent prompt v3.16: Stage 0 - the no-folder-selected empty state (workspace_selected: false, workspace_not_selected error, run_code/run_test(code) with a neutral cwd) and the per-orchestrator recent-folders menu; section 16 - the task journal lives in the dialog folder in the empty state; section 17 - uploads stay in history/<tid>/files; earlier - dialog thread search."
+        "ru": "Промпт DevAgent v3.17: §16 - восстановление состояния по компактному дайджесту (task_state_read(compact=True)) и лимиты context/result; §9 - окна read_file(offset/limit) и PRAGMA table_info перед прямым SQL; ранее - пустое состояние «папка не выбрана», журнал в папке диалога, вложения в history/<tid>/files, поиск по диалогам.",
+        "en": "DevAgent prompt v3.17: section 16 - state recovery via the compact digest (task_state_read(compact=True)) and context/result limits; section 9 - read_file(offset/limit) windows and PRAGMA table_info before direct SQL; earlier - the no-folder-selected empty state, the journal in the dialog folder, uploads in history/<tid>/files, dialog thread search."
       }
     },
     "langs/en.json": {

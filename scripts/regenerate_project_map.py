@@ -152,8 +152,8 @@ roles = {
     "dev_agent/safe_writer.py": "Safe full-file rewrite with diff/verification",
     "dev_agent/skill_detector.py": "DEPRECATED shim -> dev_agent/assistant_detector.py",
     "dev_agent/skill_model_resolver.py": "DEPRECATED shim -> dev_agent/assistant_model_resolver.py",
-    "dev_agent/system_prompt.md": "DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.16 empty-state Stage 0, task-journal and thread-files rules)",
-    "dev_agent/task_state.py": "Per-thread task-state journal (plan/progress/handoff) with the thread-files fallback folder when no workspace is selected",
+    "dev_agent/system_prompt.md": "DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.17 compact task-state digest, read_file windows, PRAGMA-first; v3.16 empty-state Stage 0, task-journal and thread-files rules)",
+    "dev_agent/task_state.py": "Per-thread task-state journal (plan/progress/handoff) with the thread-files fallback folder when no workspace is selected; compact digest (read_task_state compact=True) and budgeted injection",
     "dev_agent/tool_executor.py": "DevAgent tool set; assistant tools, legacy skill aliases, skills-library and multimodal tools; empty-state workspace guard (workspace_not_selected, neutral cwd for code=)",
     "dev_agent/universal_agent.py": "Universal dispatcher (core + workspace + orchestrator tools, incl. thread search: search_in_threads / list_threads / read_thread; empty-state guard and thread workspace-meta persistence)",
     "dev_agent/workspace_binding.py": "Per-thread workspace binding registry (RLock, thread_context, ensure_thread_active) with the empty-state neutral root",
@@ -178,7 +178,7 @@ roles = {
     "tests/test_multimodal_instruction.py": "Tests for the multimodal_mode instruction seeding and content",
     "tests/scenarios/test_multimodal_scenarios.py": "Scenario tests for the multimodal tools (vision analysis, not_assigned, generation, provider hint)",
     "tests/scenarios/test_generated_image_feed_scenario.py": "Scenario tests for the generated image shown immediately in the chat feed (outside the collapsed tool-result block)",
-    "tests/scenarios/test_orchestrator_tool_gating.py": "Gating scenarios: system-prompt version pins (v3.16/v2.10), empty-state prompt invariants and thread-search tool invariants",
+    "tests/scenarios/test_orchestrator_tool_gating.py": "Gating scenarios: system-prompt version pins (v3.17/v2.10), empty-state prompt invariants and thread-search tool invariants",
     "tests/scenarios/test_orchestrator_thread_files.py": "Scenario tests: uploads land in thread files; legacy workspace manifests still re-announced",
     "tests/scenarios/test_empty_state_artifacts_scenario.py": "Scenario tests: task journal and uploads never create files in a foreign project (empty state)",
     "tests/scenarios/test_new_dialog_empty_workspace_scenario.py": "Scenario tests: a new dialog starts with no folder and never inherits a neighbour's workspace",
@@ -191,6 +191,11 @@ roles = {
     "tests/test_threads_devagent_search.py": "Unit tests for the thread-search storage/service layer: filtered listing, counts, message windows, access control",
     "tests/test_universal_agent_thread_search.py": "Unit tests for the thread-search tools in the universal dispatcher: defaults, access control, argument coercion",
     "tests/scenarios/test_thread_search_scenarios.py": "Scenario tests for the thread-search tools: current-dialog search without lists, explicit thread_id, orchestrator scope with period, search->read around a match, access control, list pagination",
+    "core/github_connector_rest.py": "GitHub REST connector: batch commits and file ops; GET requests retry on network errors (Timeout/ConnectionError, up to 3 attempts, 0.5/1.5s backoff)",
+    "tests/test_github_connector_rest.py": "Unit tests for the GitHub REST connector (mock sessions)",
+    "tests/test_github_connector_retry.py": "Unit tests for the GitHub connector GET retry policy (network errors retried; writes not retried)",
+    "tests/scenarios/test_state_recovery_scenario.py": "Scenario tests: compact task-state digest and budgeted CURRENT TASK STATE injection for large journals",
+    "tests/scenarios/test_github_read_retry_scenario.py": "Scenario tests: GitHub read retries via the public API (get_user_info/create_repo), no token leaks",
 }
 
 res = wt.write_project_map(roles)

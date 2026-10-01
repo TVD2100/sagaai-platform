@@ -307,6 +307,10 @@ def test_tool_methods_roundtrip(sandbox):
     read = ex.task_state_read()
     assert read.get("ok") and read.get("exists")
     assert read["sections"]["task"] == "Build X"
+    compact = ex.task_state_read(compact=True)
+    assert compact.get("ok") and compact.get("compact") is True
+    assert compact["sections"] == {}
+    assert "Build X" in compact["digest"]
     mark = ex.task_state_mark_step(
         "step_1", status="done", verification="ok", context="ctx"
     )
@@ -490,3 +494,104 @@ def test_empty_state_context_injection_keeps_thread_path(empty_state_sandbox):
     assert text is not None
     assert "thread_id: test_thread_empty" in text
     assert str(empty_state_sandbox / "history" / "test_thread_empty" / "task_states") in text
+
+
+
+# --- Compact digest & budgeted injection (self-reflection item 2) ---------
+
+
+def test_compact_read_returns_digest_without_full_content(sandbox):
+    ts.archive_and_start_task(task='Goal C', plan=PLAN_TEXT)
+    ts.update_task_state_section('handoff', 'handoff-fact-C')
+    ts.update_plan_step_status('step_1', status='done', context='kept-ctx-C')
+    r = ts.read_task_state(compact=True)
+    assert r['ok'] and r['exists'] and r['compact'] is True
+    assert r['content'] == ''
+    assert r['sections'] == {}
+    digest = r['digest']
+    assert digest.startswith('COMPACT TASK STATE:')
+    assert 'Goal C' in digest
+    assert '1/2 done' in digest
+    assert 'handoff-fact-C' in digest
+    assert 'kept-ctx-C' in digest
+    assert 'task_state_read() for the full journal' in digest
+    assert r['task_dir'] and r['task_dir'] in digest
+    assert r['step_ids'] == ['step_1', 'step_2']
+    full = ts.read_task_state()
+    assert full['compact'] is False
+    assert full['sections']['task'] == 'Goal C'
+    assert full['digest'] == ''
+
+
+def test_compact_read_missing_journal_is_not_an_error(sandbox):
+    r = ts.read_task_state(compact=True)
+    assert r['ok'] and r['exists'] is False and r['compact'] is True
+    assert r['digest'] == ''
+
+
+def _big_plan_lines():
+    lines = []
+    for i in range(1, 9):
+        lines.append(f'### Step {i} - Step number {i}')
+        lines.append(f'- verification: t{i}')
+        lines.append('- result: filler ' + ('z' * 300))
+    return '\n'.join(lines)
+
+
+def test_compact_digest_keeps_newest_plan_facts(sandbox):
+    ts.archive_and_start_task(task='Big plan', plan=_big_plan_lines())
+    ts.update_plan_step_status('step_8', status='in_progress',
+                               context='LATEST-FACT-MARKER')
+    digest = ts.read_task_state(compact=True)['digest']
+    assert 'LATEST-FACT-MARKER' in digest
+    assert '### Plan (condensed, freshest facts kept)' in digest
+
+
+def test_context_injection_keeps_newest_plan_facts(sandbox):
+    ts.archive_and_start_task(task='Big plan', plan=_big_plan_lines())
+    ts.update_plan_step_status('step_8', status='in_progress',
+                               context='LATEST-INJECT-MARKER')
+    block = ts.task_state_for_context()
+    assert block is not None
+    assert 'LATEST-INJECT-MARKER' in block
+    assert '### Step 1 - Step number 1' in block
+    assert '[omitted' in block
+
+
+def test_context_injection_stays_within_hard_cap(sandbox, monkeypatch):
+    monkeypatch.setattr(ts, 'MAX_STATE_CHARS', 4000)
+    ts.archive_and_start_task(task='Budget check', plan=PLAN_TEXT)
+    ts.update_task_state_section('handoff', 'h' * 5000)
+    block = ts.task_state_for_context()
+    assert block is not None
+    assert len(block) <= 4000 + 25
+    assert 'h' * 100 in block
+
+
+# --- Duplicate task_NN folder resilience ----------------------------------
+
+
+def test_clear_current_marker_merges_duplicate_plain_folder(sandbox):
+    base = ts.thread_states_dir()
+    plain = base / 'task_1'
+    marked = base / 'task_1 (current)'
+    plain.mkdir(parents=True)
+    marked.mkdir(parents=True)
+    (plain / 'keep.txt').write_text('orig', encoding='utf-8')
+    (marked / 'keep.txt').write_text('copy', encoding='utf-8')
+    (marked / 'extra.txt').write_text('extra', encoding='utf-8')
+    ts._clear_current_marker(base)
+    assert not marked.exists()
+    assert (plain / 'keep.txt').read_text(encoding='utf-8') == 'orig'
+    assert (plain / 'extra.txt').read_text(encoding='utf-8') == 'extra'
+    assert (plain / 'keep.txt (2)').read_text(encoding='utf-8') == 'copy'
+
+
+def test_start_task_survives_duplicate_plain_folder(sandbox):
+    base = ts.thread_states_dir()
+    (base / 'task_1').mkdir(parents=True)
+    (base / 'task_1 (current)').mkdir(parents=True)
+    res = ts.archive_and_start_task(task='After duplicate', plan=PLAN_TEXT)
+    assert res.get('ok')
+    assert Path(res['task_dir']).name == 'task_2'
+    assert not (base / 'task_1 (current)').exists()

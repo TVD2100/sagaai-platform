@@ -2809,11 +2809,16 @@ class ToolExecutor:
         except Exception as e:
             return {"ok": False, "error": "task_state_init failed: " + str(e)}
 
-    def task_state_read(self) -> Dict[str, Any]:
-        """Read this thread's task-state journal, including task_dir."""
+    def task_state_read(self, compact: bool = False) -> Dict[str, Any]:
+        """Read this thread's task-state journal, including task_dir.
+
+        With *compact* True a small working-state digest is returned in the
+        ``digest`` key instead of the full content/sections - the cheap way
+        back into a task whose chat history was truncated.
+        """
         try:
             from dev_agent import task_state as ts
-            return ts.read_task_state()
+            return ts.read_task_state(compact=bool(compact))
         except Exception as e:
             return {"ok": False, "error": "task_state_read failed: " + str(e)}
 
@@ -2891,7 +2896,7 @@ TOOL_CATALOG = [
     {"name": "get_history_messages", "desc": "Return full conversation messages by their 0-based indices from the history index. Tool-result payloads are sanitized. Args: indices (list of integers, e.g. [3, 7, 12])."},
     {"name": "list_recent_workspaces", "desc": "Return up to 5 recently used workspace paths (newest first), each with an index number, absolute path, and short folder name. Non-existent paths are filtered out. Use at the start of a new task to offer the user a quick selection instead of typing the full path. Args: none."},
     {"name": "task_state_init", "desc": "Start a new task in this thread's task-state journal (TASK_STATE__<thread_id>.md). Archives the previous Active Task into the journal's Task History section, so a new task in the same thread extends the SAME file. The journal file is never deleted. Also allocates a numbered per-task working folder (task_states/<thread_id>/task_NN/) and records its plain path in the '- task_dir:' meta line. Args: task (overall goal), [architecture], [plan] (steps as '### Step 1 - title')."},
-    {"name": "task_state_read", "desc": "Read this thread's task-state journal: Active Task sections (task, architecture, plan, progress, handoff, analysis, requests), the task_dir meta line (per-task working folder), step ids, and the archived Task History. Returns exists=False when the file is missing. Args: none."},
+    {"name": "task_state_read", "desc": "Read this thread's task-state journal: Active Task sections (task, architecture, plan, progress, handoff, analysis, requests), the task_dir meta line (per-task working folder), step ids, and the archived Task History. Returns exists=False when the file is missing. With compact=True a small working-state digest (goal, progress, handoff, freshest plan facts, last completed task) is returned in the 'digest' key instead of the full content/sections. Args: [compact=False]."},
     {"name": "task_state_update", "desc": "Update one section of the journal's Active Task, preserving the others. Args: section (task|architecture|plan|progress|handoff|analysis|requests), content (section body without heading)."},
     {"name": "task_state_mark_step", "desc": "Mark one plan step in the journal (pending|in_progress|done|blocked) and refresh the Progress checklist ('[x]'=done, '[~]'=in_progress, '[ ]'=pending; the Progress counter line is not a step). Record verification (tests run), result and context (the condensed state the NEXT step needs) for each completed step BEFORE moving to the next one. Args: step_id (e.g. 'step_1'), [status=done], [verification], [result], [context]."},
     {"name": "task_state_clear", "desc": "Archive the completed Active Task (including its task_dir meta) into the journal's Task History section after a task is finished. The journal file is NEVER deleted. Idempotent: returns archived=False when there is no active task. Args: none."},

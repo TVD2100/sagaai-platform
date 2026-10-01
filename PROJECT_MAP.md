@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-10-01T14:43:44+00:00`
-- Файлов: **1199**
-- Языки: Config: 1, JSON: 22, Markdown: 923, PEM certificate: 1, Python: 256, Text: 1
+- Обновлено: `2026-10-01T16:58:07+00:00`
+- Файлов: **1226**
+- Языки: Config: 1, JSON: 22, Markdown: 947, PEM certificate: 1, Python: 259, Text: 1
 
 ## Файлы и назначение
 
@@ -58,7 +58,7 @@
 | `core/env_loader.py` | Python | Loads API keys from shell profiles | - |
 | `core/files.py` | Python | File upload helpers, token estimation, context checks | - |
 | `core/fs.py` | Python | Filesystem helpers (json/text read/write, ensure_dir, combine_nonempty) | - |
-| `core/github_connector_rest.py` | Python | _(описание не задано)_ | - |
+| `core/github_connector_rest.py` | Python | GitHub REST connector: batch commits and file ops; GET requests retry on network errors (Timeout/ConnectionError, up to 3 attempts, 0.5/1.5s backoff) | - |
 | `core/github_tools_rest.py` | Python | _(описание не задано)_ | - |
 | `core/i18n.py` | Python | Language discovery and translation helper t() | - |
 | `core/instructions.py` | Python | CRUD for internal instructions (Assistant Creator, Employee Creator) | - |
@@ -127,7 +127,8 @@
 | `tests/test_economy_history_budget.py` | Python | _(описание не задано)_ | - |
 | `tests/test_employee_management_ui.py` | Python | UI regression tests: employee management pages render and expose no export/import employee UI | - |
 | `tests/test_gigachat_messages.py` | Python | _(описание не задано)_ | - |
-| `tests/test_github_connector_rest.py` | Python | _(описание не задано)_ | - |
+| `tests/test_github_connector_rest.py` | Python | Unit tests for the GitHub REST connector (mock sessions) | - |
+| `tests/test_github_connector_retry.py` | Python | Unit tests for the GitHub connector GET retry policy (network errors retried; writes not retried) | - |
 | `tests/test_github_tools_rest.py` | Python | _(описание не задано)_ | - |
 | `tests/test_i18n_serialization.py` | Python | _(описание не задано)_ | - |
 | `tests/test_i18n_sync.py` | Python | _(описание не задано)_ | - |
@@ -222,6 +223,7 @@
 | `tests/scenarios/test_generated_image_feed_scenario.py` | Python | Scenario tests for the generated image shown immediately in the chat feed (outside the collapsed tool-result block) | - |
 | `tests/scenarios/test_gigachat_models_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_gigachat_orchestrator_scenario.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_github_read_retry_scenario.py` | Python | Scenario tests: GitHub read retries via the public API (get_user_info/create_repo), no token leaks | - |
 | `tests/scenarios/test_github_rest_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_json_repair_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_loop_stuck_protection_scenarios.py` | Python | Loop-stuck protection scenarios: per-tool failure counter hints, duplicate-call flood compaction, prose loop_status continue | - |
@@ -231,7 +233,7 @@
 | `tests/scenarios/test_orchestrator_devagent_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_orchestrator_other_settings_scenario.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_orchestrator_thread_files.py` | Python | Scenario tests: uploads land in thread files; legacy workspace manifests still re-announced | storage |
-| `tests/scenarios/test_orchestrator_tool_gating.py` | Python | Gating scenarios: system-prompt version pins (v3.16/v2.10), empty-state prompt invariants and thread-search tool invariants | storage |
+| `tests/scenarios/test_orchestrator_tool_gating.py` | Python | Gating scenarios: system-prompt version pins (v3.17/v2.10), empty-state prompt invariants and thread-search tool invariants | storage |
 | `tests/scenarios/test_provider_economy_settings_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_assistant_dialog.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_context_restore.py` | Python | _(описание не задано)_ | - |
@@ -240,6 +242,7 @@
 | `tests/scenarios/test_search_in_files_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_skills_adaptation_scenario.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_ssh_connector_scenarios.py` | Python | Scenario tests for the SSH connector feature | storage |
+| `tests/scenarios/test_state_recovery_scenario.py` | Python | Scenario tests: compact task-state digest and budgeted CURRENT TASK STATE injection for large journals | - |
 | `tests/scenarios/test_stats_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_structured_output_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_task_state_mega_task.py` | Python | _(описание не задано)_ | - |
@@ -320,8 +323,8 @@
 | `dev_agent/config.py` | Python | DevAgent runtime config and protected path policy; empty-state neutral root (NEUTRAL_ROOT / WORKSPACE_SELECTED / ensure_neutral_root, apply_paths selected flag) | - |
 | `dev_agent/llm_utils.py` | Python | Unified LLM-call helper (assistant dict contract, legacy skill alias) | - |
 | `dev_agent/safe_writer.py` | Python | Safe full-file rewrite with diff/verification | backup_manager |
-| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.16 empty-state Stage 0, task-journal and thread-files rules) | - |
-| `dev_agent/task_state.py` | Python | Per-thread task-state journal (plan/progress/handoff) with the thread-files fallback folder when no workspace is selected | backup_manager |
+| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.17 compact task-state digest, read_file windows, PRAGMA-first; v3.16 empty-state Stage 0, task-journal and thread-files rules) | - |
+| `dev_agent/task_state.py` | Python | Per-thread task-state journal (plan/progress/handoff) with the thread-files fallback folder when no workspace is selected; compact digest (read_task_state compact=True) and budgeted injection | backup_manager |
 | `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools, legacy skill aliases, skills-library and multimodal tools; empty-state workspace guard (workspace_not_selected, neutral cwd for code=) | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
 | `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace + orchestrator tools, incl. thread search: search_in_threads / list_threads / read_thread; empty-state guard and thread workspace-meta persistence) | storage, tool_executor |
 | `dev_agent/workspace_binding.py` | Python | Per-thread workspace binding registry (RLock, thread_context, ensure_thread_active) with the empty-state neutral root | - |
@@ -1205,6 +1208,30 @@
 | `dev_agent/task_states/TASK_STATE__20261001_165059_dfb434.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20261001_165108_851fc7.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20261001_165108_b31821.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_175254_1052b3.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_175257_77e227.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_175257_c61025.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_175257_dbe552.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_175257_e2b379.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_175257_f9fe3a.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_175307_7d90cd.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_175307_d70975.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_181535_86f4fb.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_181539_1e5cf4.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_181539_34abf2.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_181539_57c649.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_181539_632c01.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_181539_d52510.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_181548_bfb5a5.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_181548_e85634.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_193245_aa2497.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_193248_0d7253.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_193248_467600.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_193248_595c05.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_193248_7b1662.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_193248_9be68f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_193257_00f2b5.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_193257_727a41.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
 | `services/deepseek.json` | JSON | DeepSeek service definition (vision_base_url + vision_models catalog) | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
@@ -1662,40 +1689,40 @@
 - `combine_nonempty` (func, строка 72)
 
 ### `core/github_connector_rest.py`
-- `GithubRestError` (class, строка 51)
-- `_ensure_requests` (func, строка 63)
-- `_session` (func, строка 74)
-- `_api_base` (func, строка 88)
-- `_describe_rest_error` (func, строка 95)
-- `_request` (func, строка 112)
-- `_quote_path` (func, строка 152)
-- `_quote_branch` (func, строка 160)
-- `_repo_spec` (func, строка 165)
-- `_default_branch` (func, строка 184)
-- `test_connection` (func, строка 195)
-- `get_user_info` (func, строка 220)
-- `list_repos` (func, строка 233)
-- `get_repo_info` (func, строка 265)
-- `create_repo` (func, строка 281)
-- `read_file_meta` (func, строка 307)
-- `read_file` (func, строка 333)
-- `upload_file` (func, строка 366)
-- `update_file` (func, строка 406)
-- `delete_file` (func, строка 444)
-- `list_files` (func, строка 466)
-- `get_ref` (func, строка 496)
-- `get_commit` (func, строка 516)
-- `get_tree` (func, строка 536)
-- `_git_blob_sha` (func, строка 579)
-- `_create_blob` (func, строка 586)
-- `_create_tree_chain` (func, строка 611)
-- `_resolve_target_ref` (func, строка 639)
-- `_publish_commit` (func, строка 672)
-- `_normalize_batch_files` (func, строка 755)
-- `batch_commit` (func, строка 789)
-- `_files_from_paths` (func, строка 858)
-- `batch_commit_paths` (func, строка 912)
-- `batch_upsert` (func, строка 928)
+- `GithubRestError` (class, строка 60)
+- `_ensure_requests` (func, строка 72)
+- `_session` (func, строка 83)
+- `_api_base` (func, строка 97)
+- `_describe_rest_error` (func, строка 104)
+- `_request` (func, строка 121)
+- `_quote_path` (func, строка 173)
+- `_quote_branch` (func, строка 181)
+- `_repo_spec` (func, строка 186)
+- `_default_branch` (func, строка 205)
+- `test_connection` (func, строка 216)
+- `get_user_info` (func, строка 241)
+- `list_repos` (func, строка 254)
+- `get_repo_info` (func, строка 286)
+- `create_repo` (func, строка 302)
+- `read_file_meta` (func, строка 328)
+- `read_file` (func, строка 354)
+- `upload_file` (func, строка 387)
+- `update_file` (func, строка 427)
+- `delete_file` (func, строка 465)
+- `list_files` (func, строка 487)
+- `get_ref` (func, строка 517)
+- `get_commit` (func, строка 537)
+- `get_tree` (func, строка 557)
+- `_git_blob_sha` (func, строка 600)
+- `_create_blob` (func, строка 607)
+- `_create_tree_chain` (func, строка 632)
+- `_resolve_target_ref` (func, строка 660)
+- `_publish_commit` (func, строка 693)
+- `_normalize_batch_files` (func, строка 776)
+- `batch_commit` (func, строка 810)
+- `_files_from_paths` (func, строка 879)
+- `batch_commit_paths` (func, строка 933)
+- `batch_upsert` (func, строка 949)
 
 ### `core/github_tools_rest.py`
 - `_get_connector_id` (func, строка 31)
@@ -2730,6 +2757,20 @@
 - `test_get_ref_empty_branch_uses_default` (func, строка 465)
 - `test_get_commit_maps_fields` (func, строка 475)
 
+### `tests/test_github_connector_retry.py`
+- `isolated_connector` (func, строка 25)
+- `FakeResponse` (class, строка 34)
+- `FakeSession` (class, строка 48)
+- `_patched_request` (func, строка 65)
+- `_sleeps` (func, строка 72)
+- `test_get_retries_timeout_then_succeeds` (func, строка 76)
+- `test_get_retries_connection_error_then_succeeds` (func, строка 90)
+- `test_get_retry_exhausted_raises_and_does_not_leak_token` (func, строка 102)
+- `test_post_timeout_is_not_retried` (func, строка 115)
+- `test_http_500_is_not_retried` (func, строка 126)
+- `test_http_404_is_not_retried` (func, строка 137)
+- `test_other_network_errors_are_not_retried` (func, строка 147)
+
 ### `tests/test_github_tools_rest.py`
 - `test_ghr_list_repos_ok` (func, строка 17)
 - `test_ghr_list_repos_missing_connector_id` (func, строка 25)
@@ -3460,20 +3501,22 @@
 - `test_context_includes_recent_history` (func, строка 273)
 - `test_context_helper_truncates` (func, строка 287)
 - `test_tool_methods_roundtrip` (func, строка 298)
-- `test_tool_init_archives_previous_task` (func, строка 320)
-- `test_tool_catalog_lists_task_state_tools` (func, строка 333)
-- `test_agent_loop_helpers_present` (func, строка 343)
-- `test_analysis_and_requests_sections_roundtrip` (func, строка 355)
-- `test_build_scaffolds_all_seven_sections` (func, строка 365)
-- `test_start_task_allocates_numbered_task_dir` (func, строка 372)
-- `test_next_task_gets_next_number_and_moves_current_marker` (func, строка 389)
-- `test_mark_in_progress_shows_tilde_marker` (func, строка 399)
-- `test_mark_done_then_pending_toggles_markers` (func, строка 408)
-- `test_context_section_order_matches_canon` (func, строка 419)
-- `empty_state_sandbox` (func, строка 444)
-- `test_empty_state_journal_lives_in_thread_dir` (func, строка 459)
-- `test_empty_state_task_folders_live_in_thread_dir` (func, строка 475)
-- `test_empty_state_context_injection_keeps_thread_path` (func, строка 486)
+- `test_tool_init_archives_previous_task` (func, строка 324)
+- `test_tool_catalog_lists_task_state_tools` (func, строка 337)
+- `test_agent_loop_helpers_present` (func, строка 347)
+- `test_analysis_and_requests_sections_roundtrip` (func, строка 359)
+- `test_build_scaffolds_all_seven_sections` (func, строка 369)
+- `test_start_task_allocates_numbered_task_dir` (func, строка 376)
+- `test_next_task_gets_next_number_and_moves_current_marker` (func, строка 393)
+- `test_mark_in_progress_shows_tilde_marker` (func, строка 403)
+- `test_mark_done_then_pending_toggles_markers` (func, строка 412)
+- `test_context_section_order_matches_canon` (func, строка 423)
+- `empty_state_sandbox` (func, строка 448)
+- `test_empty_state_journal_lives_in_thread_dir` (func, строка 463)
+- `test_empty_state_task_folders_live_in_thread_dir` (func, строка 479)
+- `test_empty_state_context_injection_keeps_thread_path` (func, строка 490)
+- `test_compact_read_returns_digest_without_full_content` (func, строка 503)
+- `test_compact_read_missing_journal_is_not_an_error` (func, строка 526)
 
 ### `tests/test_theme_restore.py`
 - `_drop_ui_modules` (func, строка 23)
@@ -4122,6 +4165,14 @@
 - `test_scenario_provider_422_is_visible_in_feed_and_next_turn_recovers` (func, строка 232)
 - `test_scenario_economy_meta_and_consecutive_user_roles_are_folded` (func, строка 280)
 
+### `tests/scenarios/test_github_read_retry_scenario.py`
+- `isolated_connector` (func, строка 28)
+- `_FakeResponse` (class, строка 37)
+- `_FakeSession` (class, строка 50)
+- `test_public_read_survives_transient_network_errors` (func, строка 66)
+- `test_public_read_unreachable_fails_cleanly_without_token_leak` (func, строка 88)
+- `test_public_write_is_not_retried_on_timeout` (func, строка 106)
+
 ### `tests/scenarios/test_github_rest_scenario.py`
 - `isolated_data_dir` (func, строка 30)
 - `_github_rest_connection` (func, строка 36)
@@ -4290,6 +4341,12 @@
 - `test_scenario_ssh_tools_through_dispatcher` (func, строка 211)
 - `test_scenario_ssh_failures_are_clean_dicts` (func, строка 309)
 - `test_scenario_publish_local_files` (func, строка 330)
+
+### `tests/scenarios/test_state_recovery_scenario.py`
+- `sandbox` (func, строка 26)
+- `_grow_journal` (func, строка 45)
+- `test_compact_read_restores_state_cheaply_from_oversized_journal` (func, строка 63)
+- `test_injected_block_stays_bounded_and_keeps_newest_facts` (func, строка 95)
 
 ### `tests/scenarios/test_stats_scenario.py`
 - `stats_data` (func, строка 34)
@@ -4587,43 +4644,46 @@
 - `render_diff` (func, строка 245)
 
 ### `dev_agent/task_state.py`
-- `TaskStateError` (class, строка 103)
-- `current_thread_id` (func, строка 109)
-- `_empty_state_states_dir` (func, строка 122)
-- `_ensure_state_dir` (func, строка 143)
-- `task_state_path` (func, строка 152)
-- `thread_states_dir` (func, строка 158)
-- `_clear_current_marker` (func, строка 166)
-- `_task_folder_number` (func, строка 179)
-- `_plain_task_dir_path` (func, строка 187)
-- `_allocate_next_task_dir` (func, строка 200)
-- `current_task_dir` (func, строка 224)
-- `_now_iso` (func, строка 252)
-- `_backup_if_exists` (func, строка 257)
-- `_split_top_sections` (func, строка 273)
-- `_split_active_sections` (func, строка 295)
-- `_parse_legacy` (func, строка 322)
-- `_read_active_meta` (func, строка 344)
-- `_parse_history_entries` (func, строка 356)
-- `_parse_step` (func, строка 387)
-- `extract_step_ids` (func, строка 404)
-- `render_active_task` (func, строка 417)
-- `render_task_history` (func, строка 445)
-- `build_task_state` (func, строка 469)
-- `_has_active_content` (func, строка 506)
-- `_summarize_active` (func, строка 514)
-- `_archive_active_task` (func, строка 532)
-- `_write_raw` (func, строка 552)
-- `_write_journal` (func, строка 561)
-- `_migrate_legacy_file` (func, строка 590)
-- `ensure_task_state_file` (func, строка 623)
-- `read_task_state` (func, строка 660)
-- `archive_and_start_task` (func, строка 698)
-- `update_task_state_section` (func, строка 747)
-- `_set_meta_line` (func, строка 792)
-- `update_plan_step_status` (func, строка 808)
-- `clear_task_state` (func, строка 933)
-- `task_state_for_context` (func, строка 964)
+- `TaskStateError` (class, строка 116)
+- `current_thread_id` (func, строка 122)
+- `_empty_state_states_dir` (func, строка 135)
+- `_ensure_state_dir` (func, строка 156)
+- `task_state_path` (func, строка 165)
+- `thread_states_dir` (func, строка 171)
+- `_clear_current_marker` (func, строка 179)
+- `_task_folder_number` (func, строка 213)
+- `_plain_task_dir_path` (func, строка 221)
+- `_allocate_next_task_dir` (func, строка 234)
+- `current_task_dir` (func, строка 258)
+- `_now_iso` (func, строка 286)
+- `_backup_if_exists` (func, строка 291)
+- `_split_top_sections` (func, строка 307)
+- `_split_active_sections` (func, строка 329)
+- `_parse_legacy` (func, строка 356)
+- `_read_active_meta` (func, строка 378)
+- `_parse_history_entries` (func, строка 390)
+- `_parse_step` (func, строка 421)
+- `extract_step_ids` (func, строка 438)
+- `render_active_task` (func, строка 451)
+- `render_task_history` (func, строка 479)
+- `build_task_state` (func, строка 503)
+- `_has_active_content` (func, строка 540)
+- `_summarize_active` (func, строка 548)
+- `_archive_active_task` (func, строка 566)
+- `_write_raw` (func, строка 586)
+- `_write_journal` (func, строка 595)
+- `_migrate_legacy_file` (func, строка 624)
+- `ensure_task_state_file` (func, строка 657)
+- `read_task_state` (func, строка 694)
+- `archive_and_start_task` (func, строка 758)
+- `update_task_state_section` (func, строка 807)
+- `_set_meta_line` (func, строка 852)
+- `update_plan_step_status` (func, строка 868)
+- `clear_task_state` (func, строка 993)
+- `_clamp_text` (func, строка 1024)
+- `_plan_facts_text` (func, строка 1032)
+- `_compact_digest` (func, строка 1064)
+- `task_state_for_context` (func, строка 1117)
 
 ### `dev_agent/tool_executor.py`
 - `_strip_line_numbers` (func, строка 79)

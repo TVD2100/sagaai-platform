@@ -117,7 +117,9 @@ SagaAI построена по модульной архитектуре с чё
   `TASK_STATE__<thread_id>.md` (архитектура, план, прогресс, handoff,
   история завершённых задач), рендер/парсинг, бэкап перед записью. При
   пустом состоянии «папка не выбрана» журнал живёт в папке диалога
-  (`history/<tid>/task_states/`).
+  (`history/<tid>/task_states/`). Компактный дайджест
+  (`read_task_state(compact=True)`) и бюджеты секций ограничивают
+  инъекцию `CURRENT TASK STATE`; полное чтение - по требованию.
 - `tool_executor.py` - диспетчер инструментов DevAgent: `propose_file`,
   `apply_patch`, `verify_file`, `run_code`/`run_test`, инструменты
   помощников/оркестраторов/навыков, `web_search()`, RAG-инструменты
@@ -136,7 +138,7 @@ SagaAI построена по модульной архитектуре с чё
 - `universal_agent.py` - `load_system_prompt()` (единый файл
   `dev_agent/system_prompt.md`), `build_assistant_dict_from_config()`,
   `UniversalDevAgent` (core + workspace + orchestrator tools).
-- `system_prompt.md` - канонический системный промпт DevAgent (v3.16):
+- `system_prompt.md` - канонический системный промпт DevAgent (v3.17):
   docs-first workflow (перед началом работы читать `PROJECT_MAP.md` И
   `SPEC.md`), обязательная секция «Documentation» в финальном отчёте,
   режим pre-approved autonomous mode (при подробном ТЗ агент явно
@@ -293,10 +295,13 @@ YandexAI, единственная модель `aliceai-image-art-3.0`; рез�
   скобки/строки, невалидный JSON). Диагностика срабатывает только когда
   есть исполненные вызовы и ни один из них не был JSON-отремонтирован,
   чтобы не дублировать авто-ремонт.
-- Системный промпт DevAgent v3.16 дополняет механизм правилами: закрытый шаг
+- Системный промпт DevAgent v3.17 дополняет механизм правилами: закрытый шаг
   не пересказывается, не более 3 попыток на функцию, прозовый
   `loop_status: continue` продолжает цикл, независимые вызовы можно
-  батчить, ветка принятия готового плана пользователя дословно.
+  батчить, ветка принятия готового плана пользователя дословно;
+  восстановление состояния - по компактному дайджесту
+  (`task_state_read(compact=True)`), дисциплина микровызовов - окна
+  `read_file(offset/limit)` и `PRAGMA table_info` перед прямым SQL.
 
 ### Прозрачные ретраи при обрывах связи
 LLM-запросы обёрнуты в `retry_call` (`core/api_layer.py`): повторяются
@@ -426,7 +431,7 @@ PROJECT_MAP.md, SPEC.md, ARCHITECTURE.md, CHANGELOG.md, снапшоты. Пер
 Блок `## Available tools` добавляется к промпту каждого оркестратора
 (`_extend_prompt_with_tools` -> `render_available_tools_block`) и перечисляет
 доступные инструменты (core, workspace, подключения, кастомные функции).
-Каноничные промпты (`dev_agent/system_prompt.md` v3.16, YaAgent v2.10) не
+Каноничные промпты (`dev_agent/system_prompt.md` v3.17, YaAgent v2.10) не
 дублируют этот справочник: их раздел справочника ссылается на
 автоматический блок, оставляя в промпте только собственные правила
 использования инструментов (форматы вызова, fallback-цепочки).

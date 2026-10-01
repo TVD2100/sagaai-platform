@@ -94,6 +94,19 @@ _SECTION_TITLES = {
 # block (Task -> Progress -> Handoff -> Plan -> Analysis -> Requests).
 _CONTEXT_ORDER = ("task", "progress", "handoff", "plan", "analysis", "requests")
 
+# Per-section character budgets for the injected context block (compact view).
+# The full journal always stays on disk; the injection shows only the freshest
+# facts of every section, so a grown journal never pushes the newest state out.
+_CONTEXT_BUDGETS = {
+    "task": 600,
+    "progress": 400,
+    "handoff": 1500,
+    "plan": 2500,
+    "analysis": 1000,
+    "requests": 500,
+    "architecture": 800,
+}
+
 # Top-level journal sections.
 _TOP_TITLES = {"active_task": "Active Task", "task_history": "Task History"}
 
@@ -164,16 +177,37 @@ def thread_states_dir() -> Path:
 
 
 def _clear_current_marker(base: Path) -> None:
-    """Rename any ``task_NN (current)`` folder back to plain ``task_NN``."""
+    """Rename any ``task_NN (current)`` folder back to plain ``task_NN``.
+
+    When a plain ``task_NN`` folder already exists next to the marker (for
+    example a copy created out of band), the marker folder's content is
+    merged into it instead of a failing rename; an emptied marker folder
+    is removed. Name collisions inside the merge get a numeric suffix.
+    """
     if not base.exists():
         return
     for child in base.iterdir():
         if not child.is_dir():
             continue
         m = re.match(r"^task_(\d+) \(current\)$", child.name)
-        if m:
-            plain = base / f"task_{m.group(1)}"
+        if not m:
+            continue
+        plain = base / f"task_{m.group(1)}"
+        if not plain.exists():
             child.rename(plain)
+            continue
+        for item in list(child.iterdir()):
+            target = plain / item.name
+            if target.exists():
+                n = 2
+                while (plain / f"{item.name} ({n})").exists():
+                    n += 1
+                target = plain / f"{item.name} ({n})"
+            item.rename(target)
+        try:
+            child.rmdir()
+        except OSError:
+            pass
 
 
 def _task_folder_number(name: str) -> Optional[int]:
@@ -657,7 +691,7 @@ def ensure_task_state_file(force: bool = False) -> Dict[str, Any]:
     }
 
 
-def read_task_state() -> Dict[str, Any]:
+def read_task_state(compact: bool = False) -> Dict[str, Any]:
     """Read and parse this thread's journal.
 
     Returns {"ok", "path", "exists", "thread_id", "content", "sections"
@@ -665,6 +699,12 @@ def read_task_state() -> Dict[str, Any]:
     "task_dir" (the per-task working folder), "step_ids", "history"
     (completed tasks), "size_bytes"}. When the file is missing,
     returns exists=False (the feature must never be an error).
+
+    With *compact* True a small working-state digest is returned instead of
+    the full content/sections ("digest" key): the goal, the progress
+    counter, the handoff facts, the freshest plan facts and the last
+    completed task - the cheap way back into a task whose chat history was
+    truncated.
     """
     _migrate_legacy_file()
     path = task_state_path()
@@ -673,6 +713,7 @@ def read_task_state() -> Dict[str, Any]:
             "ok": True, "path": str(path), "thread_id": current_thread_id(),
             "exists": False, "content": "", "sections": {}, "step_ids": [],
             "task_dir": "", "history": [], "size_bytes": 0,
+            "compact": bool(compact), "digest": "",
         }
     try:
         content = path.read_text(encoding=config.DEFAULT_ENCODING)
@@ -681,17 +722,36 @@ def read_task_state() -> Dict[str, Any]:
     top = _split_top_sections(content)
     active = _split_active_sections(top.get("active_task", ""))
     meta = _read_active_meta(top.get("active_task", ""))
+    entries = _parse_history_entries(top.get("task_history", ""))
+    size_bytes = len(content.encode(config.DEFAULT_ENCODING))
+    if compact:
+        return {
+            "ok": True,
+            "path": str(path),
+            "thread_id": current_thread_id(),
+            "exists": True,
+            "compact": True,
+            "content": "",
+            "digest": _compact_digest(path, meta, active, entries),
+            "sections": {},
+            "task_dir": (meta.get("task_dir") or "").strip(),
+            "step_ids": extract_step_ids(active.get("plan", "")),
+            "history": entries,
+            "size_bytes": size_bytes,
+        }
     return {
         "ok": True,
         "path": str(path),
         "thread_id": current_thread_id(),
         "exists": True,
+        "compact": False,
         "content": content,
+        "digest": "",
         "sections": active,
         "task_dir": (meta.get("task_dir") or "").strip(),
         "step_ids": extract_step_ids(active.get("plan", "")),
-        "history": _parse_history_entries(top.get("task_history", "")),
-        "size_bytes": len(content.encode(config.DEFAULT_ENCODING)),
+        "history": entries,
+        "size_bytes": size_bytes,
     }
 
 
@@ -961,6 +1021,99 @@ def clear_task_state() -> Dict[str, Any]:
             "archived": True, "history_entries": len(history)}
 
 
+def _clamp_text(text: str, limit: int) -> str:
+    """Return *text* capped to *limit* characters with a truncation marker."""
+    text = (text or "").strip()
+    if limit <= 0 or len(text) <= limit:
+        return text
+    return text[:max(0, limit - 20)].rstrip() + "\n... [truncated]"
+
+
+def _plan_facts_text(plan: str, limit: int) -> str:
+    """Return step headings plus the freshest context/result facts of a plan.
+
+    All ``### Step`` headings are always kept so the progress stays
+    readable; the step meta facts are emitted newest-first within *limit*
+    (older ones are replaced by an omitted marker), so a grown plan never
+    hides the most recent facts from the model.
+    """
+    budget = max(400, int(limit or 0))
+    lines = (plan or "").split("\n")
+    headings = [ln.rstrip() for ln in lines if ln.strip().startswith("### Step ")]
+    facts = [ln.strip() for ln in lines
+             if ln.strip().startswith("- context:") or ln.strip().startswith("- result:")]
+    reserve = sum(len(h) + 1 for h in headings) + 80
+    kept: List[str] = []
+    used = 0
+    for ln in reversed(facts):
+        if used + len(ln) + 1 > max(0, budget - reserve):
+            break
+        kept.append(ln)
+        used += len(ln) + 1
+    parts: List[str] = list(headings)
+    if len(kept) < len(facts):
+        parts.append(f"... [omitted {len(facts) - len(kept)} older step facts]")
+    parts.extend(reversed(kept))
+    text = "\n".join(parts)
+    if len(text) > budget:
+        # Safety net: keep the TAIL - the freshest facts live at the end.
+        text = "... [truncated]\n" + text[-max(0, budget - 20):]
+    return text
+
+
+def _compact_digest(path: Path, meta: Dict[str, str], active: Dict[str, str],
+                    entries: List[Dict[str, str]]) -> str:
+    """Return a compact working-state digest for task_state_read(compact=True).
+
+    Holds the goal, the progress counter, the handoff facts, the freshest
+    plan facts and the last completed task, each capped by a small budget.
+    Meant for cheap state restoration after context truncation; the full
+    journal always stays on disk.
+    """
+    parts: List[str] = ["COMPACT TASK STATE:"]
+    parts.append(f"thread_id: {current_thread_id()}")
+    parts.append(f"task_state_file: {path}")
+    task_dir = (meta.get("task_dir") or "").strip()
+    if task_dir:
+        parts.append(f"task_dir: {task_dir}")
+    plan = active.get("plan", "") or ""
+    step_ids = extract_step_ids(plan)
+    if step_ids:
+        done = len(re.findall(r"\(status:\s*done\)", plan))
+        parts.append(f"steps: {done}/{len(step_ids)} done ({', '.join(step_ids)})")
+    goal = _clamp_text(active.get("task", ""), 500)
+    if goal:
+        parts.append("")
+        parts.append("### Goal")
+        parts.append(goal)
+    progress = _clamp_text(active.get("progress", ""), 300)
+    if progress:
+        parts.append("")
+        parts.append("### Progress")
+        parts.append(progress)
+    handoff = _clamp_text(active.get("handoff", ""), 1200)
+    if handoff:
+        parts.append("")
+        parts.append("### Handoff")
+        parts.append(handoff)
+    if plan:
+        fits = len(plan) <= 1500
+        facts = plan if fits else _plan_facts_text(plan, 1500)
+        parts.append("")
+        parts.append("### Plan" if fits else "### Plan (condensed, freshest facts kept)")
+        parts.append(facts)
+    if entries:
+        last = entries[-1]
+        parts.append("")
+        parts.append("### Last completed")
+        parts.append(f"- task: {(last.get('task') or '')[:160]}")
+        if last.get("finished"):
+            parts.append(f"- finished: {last['finished']}")
+    parts.append("")
+    parts.append("- note: compact digest; call task_state_read() for the full journal")
+    return "\n".join(parts)
+
+
 def task_state_for_context(max_history: int = 3) -> Optional[str]:
     """Return a compact block for injection into the LLM context.
 
@@ -970,7 +1123,9 @@ def task_state_for_context(max_history: int = 3) -> Optional[str]:
     Task -> Progress -> Handoff -> Plan -> Analysis -> Requests (Architecture
     last), then the most recent Task History entries. Returns None when the
     journal is missing (the feature must never break the agent loop).
-    Content is truncated to MAX_STATE_CHARS.
+    Every section is capped by its own budget (see _CONTEXT_BUDGETS), so the
+    freshest facts survive even for a grown journal; MAX_STATE_CHARS stays
+    as the outer hard cap.
     """
     _migrate_legacy_file()
     path = task_state_path()
@@ -987,6 +1142,7 @@ def task_state_for_context(max_history: int = 3) -> Optional[str]:
         "CURRENT TASK STATE:\n"
         f"thread_id: {current_thread_id()}\n"
         f"task_state_file: {path}\n"
+        "note: sections below are budgeted; task_state_read() returns the full journal\n"
     )
     meta = _read_active_meta(top.get("active_task", ""))
     active = _split_active_sections(top.get("active_task", ""))
@@ -1000,6 +1156,21 @@ def task_state_for_context(max_history: int = 3) -> Optional[str]:
         (active.get(k) or "").strip() not in ("", _NOT_SET_MARKER)
         for k in _SECTION_KEYS
     )
+    def _render_section_body(key: str, value: str) -> str:
+        """Budgeted section body: small values verbatim, grown ones clamped.
+
+        The Plan section keeps every step heading and the freshest
+        context/result facts (see _plan_facts_text) so the newest state is
+        never pushed out of the injection by a grown journal.
+        """
+        value = (value or "").strip()
+        if not value:
+            return _NOT_SET_MARKER
+        budget = _CONTEXT_BUDGETS.get(key, 1200)
+        if key == "plan" and len(value) > budget:
+            return _plan_facts_text(value, budget)
+        return _clamp_text(value, budget)
+
     if meta_lines or has_real:
         parts.append("## Active Task")
         parts.append("")
@@ -1007,16 +1178,14 @@ def task_state_for_context(max_history: int = 3) -> Optional[str]:
         if meta_lines:
             parts.append("")
         for key in _CONTEXT_ORDER:
-            value = (active.get(key) or "").strip()
             parts.append(f"### {_SECTION_TITLES[key]}")
             parts.append("")
-            parts.append(value if value else _NOT_SET_MARKER)
+            parts.append(_render_section_body(key, active.get(key, "")))
             parts.append("")
         for key in sorted(set(_SECTION_KEYS) - set(_CONTEXT_ORDER)):
-            value = (active.get(key) or "").strip()
             parts.append(f"### {_SECTION_TITLES[key]}")
             parts.append("")
-            parts.append(value if value else _NOT_SET_MARKER)
+            parts.append(_render_section_body(key, active.get(key, "")))
             parts.append("")
     entries = _parse_history_entries(top.get("task_history", ""))
     if entries:
@@ -1029,7 +1198,7 @@ def task_state_for_context(max_history: int = 3) -> Optional[str]:
             if entry.get("completed_steps"):
                 parts.append(f"- completed_steps: {entry['completed_steps']}")
             if entry.get("summary"):
-                parts.append(f"- summary: {entry['summary'][:1500]}")
+                parts.append(f"- summary: {entry['summary'][:800]}")
             parts.append("")
     body = "\n".join(parts)
     limit = max(200, MAX_STATE_CHARS - len(header))

@@ -16,7 +16,10 @@ or error messages.
 
 No streamlit imports. Errors raise ``GithubRestError`` (a ValueError
 subclass) with a user-facing message. ``requests`` is imported lazily; a
-missing dependency raises a clean error with installation hints.
+missing dependency raises a clean error with installation hints. Read-only
+GET requests are retried on transient network errors (timeout / connection
+error) with short backoffs; write methods are never retried, so a retry
+cannot duplicate a commit, file or ref update.
 
 Batch pipeline (batch_commit / batch_upsert):
     1. POST /repos/{owner}/{repo}/git/blobs        (one call per new blob)
@@ -30,6 +33,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import os
+import time
 from pathlib import Path
 import urllib.parse
 from typing import Any, Dict, List, Optional, Tuple
@@ -42,6 +46,11 @@ API_BASE: str = "https://api.github.com"
 API_VERSION_HEADER: str = "2022-11-28"
 _DEFAULT_TIMEOUT: float = 30.0
 _BATCH_TIMEOUT: float = 120.0
+# Backoff delays (seconds) between retries of a transient network failure.
+# Applied to read-only GET requests only; len(_RETRY_BACKOFFS) is the max
+# number of retries (2 retries = 3 attempts total). Write methods are never
+# retried, so a retry can never duplicate a commit, file or ref update.
+_RETRY_BACKOFFS: Tuple[float, ...] = (0.5, 1.5)
 _TREE_CREATE_CHUNK: int = 9000  # GitHub: max 10000 entries per tree creation
 _LIST_PER_PAGE: int = 100
 
@@ -116,23 +125,35 @@ def _request(conn_id: str, method: str, url_path: str,
     """Perform one authenticated GitHub REST call and return parsed JSON.
 
     204 responses return None. Non-2xx raise ``GithubRestError`` with a
-    mapped message; the token is never included in errors.
+    mapped message; the token is never included in errors. Read-only GET
+    calls retry transient network errors (timeout / connection error) with
+    short backoffs; write methods are never retried, so a retry cannot
+    duplicate a commit, file or ref update.
     """
-    _ensure_requests()
+    requests = _ensure_requests()
     api = _api_base(conn_id)
     token = connectors.decrypt_token(conn_id)
     headers = {"Authorization": f"Bearer {token}"}
-    try:
-        resp = _session(api).request(
-            method,
-            f"{api}{url_path}",
-            json=body,
-            params=params,
-            headers=headers,
-            timeout=timeout,
-        )
-    except Exception as e:  # requests.RequestException and friends
-        raise GithubRestError(f"GitHub network error: {e}")
+    # Read-only calls tolerate transient network errors; writes never retry.
+    retries = len(_RETRY_BACKOFFS) if method.upper() == "GET" else 0
+    resp = None
+    for attempt in range(retries + 1):
+        try:
+            resp = _session(api).request(
+                method,
+                f"{api}{url_path}",
+                json=body,
+                params=params,
+                headers=headers,
+                timeout=timeout,
+            )
+            break
+        except (requests.Timeout, requests.ConnectionError) as e:
+            if attempt >= retries:
+                raise GithubRestError(f"GitHub network error: {e}")
+            time.sleep(_RETRY_BACKOFFS[attempt])
+        except Exception as e:  # other requests.RequestException and friends
+            raise GithubRestError(f"GitHub network error: {e}")
     if resp.status_code == 204:
         return None
     if resp.status_code >= 400:
