@@ -202,15 +202,17 @@ def test_ensure_thread_active_empty_id_returns_false():
     assert wb.ensure_thread_active("") is False
 
 
-def test_ensure_thread_active_workspaceless_pins_thread_id(tmp_path):
-    """A bound, workspace-less state keeps the current root but pins the
-    thread id so journals still target the right thread."""
+def test_ensure_thread_active_workspaceless_applies_neutral(tmp_path):
+    """A bound, workspace-less state applies the NEUTRAL empty state - it
+    must never inherit the root of a neighbouring dialog (v2 semantics) -
+    and pins the thread id so journals still target the right thread."""
     ws = _make_ws(tmp_path, "A")
     config.set_target_root(ws)
     wb.register_thread("tid-less", workspace=None, target_file=None)
 
     assert wb.ensure_thread_active("tid-less") is True
-    assert str(config.PROJECT_ROOT) == ws
+    assert str(config.PROJECT_ROOT) == str(config.NEUTRAL_ROOT)
+    assert config.WORKSPACE_SELECTED is False
     assert config.ACTIVE_THREAD_ID == "tid-less"
 
 

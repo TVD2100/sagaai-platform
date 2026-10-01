@@ -70,19 +70,20 @@ def detect_language(path: str) -> str:
 
 
 # ─── Workspace selection ──────────────────────────────────────────────────────
-def set_workspace(path: str) -> Dict[str, Any]:
+def set_workspace(path: str, slug: Optional[str] = None) -> Dict[str, Any]:
     """Point DevAgent at a target work folder. Creates it if missing.
 
     Returns the resolved absolute root and whether it is the SagaAI install.
     Clears any single-file mode. The chosen folder is recorded in the
-    recent-workspaces history. The switch is serialized by the
+    recent-workspaces history of the *slug* orchestrator scope (None maps
+    to the dev_agent scope). The switch is serialized by the
     workspace-binding RLock (see _set_workspace_impl).
     """
     with wb.sync_lock():
-        return _set_workspace_impl(path)
+        return _set_workspace_impl(path, slug=slug)
 
 
-def _set_workspace_impl(path: str) -> Dict[str, Any]:
+def _set_workspace_impl(path: str, slug: Optional[str] = None) -> Dict[str, Any]:
     """Internal: perform the actual switch (sync_lock held)."""
     config.TARGET_FILE = None   # switching workspace clears single-file mode
 
@@ -97,11 +98,11 @@ def _set_workspace_impl(path: str) -> Dict[str, Any]:
 
     resolved = config.set_target_root(root)
 
-    # Persist the chosen folder in the recent-workspaces history.
-    # Failures here must never break workspace switching.
+    # Persist the chosen folder in the recent-workspaces history of the
+    # caller's orchestrator scope. Failures must never break the switch.
     try:
         from core.recent_workspaces import add_recent_workspace
-        add_recent_workspace(str(resolved))
+        add_recent_workspace(str(resolved), slug=slug)
     except Exception:
         pass
 
@@ -113,7 +114,7 @@ def _set_workspace_impl(path: str) -> Dict[str, Any]:
     }
 
 
-def set_target_file(file_path: str) -> Dict[str, Any]:
+def set_target_file(file_path: str, slug: Optional[str] = None) -> Dict[str, Any]:
     """Activate single-file mode.
 
     The workspace is set to the parent directory of the file.
@@ -121,10 +122,10 @@ def set_target_file(file_path: str) -> Dict[str, Any]:
     The switch is serialized by the workspace-binding RLock.
     """
     with wb.sync_lock():
-        return _set_target_file_impl(file_path)
+        return _set_target_file_impl(file_path, slug=slug)
 
 
-def _set_target_file_impl(file_path: str) -> Dict[str, Any]:
+def _set_target_file_impl(file_path: str, slug: Optional[str] = None) -> Dict[str, Any]:
     """Internal: perform the actual switch (sync_lock held)."""
     raw = str(file_path or "").strip()
     if not raw:
@@ -139,7 +140,7 @@ def _set_target_file_impl(file_path: str) -> Dict[str, Any]:
 
     # Workspace = parent of the target file
     parent = str(resolved.parent)
-    result = set_workspace(parent)
+    result = set_workspace(parent, slug=slug)
     if not result.get("ok"):
         return result
 
@@ -152,12 +153,24 @@ def _set_target_file_impl(file_path: str) -> Dict[str, Any]:
 
 
 def current_workspace() -> Dict[str, Any]:
-    """Report the currently active workspace root and single-file mode status."""
+    """Report the active workspace root and single-file mode status.
+
+    ``workspace_selected`` is False in the empty state (a fresh dialog with
+    no folder chosen): the agent must ask the user which project to work in
+    before using any file tool.
+    """
+    selected = bool(getattr(config, "WORKSPACE_SELECTED", True))
     result: Dict[str, Any] = {
         "ok": True,
         "root": str(config.PROJECT_ROOT),
         "working_on_install": config.WORKING_ON_INSTALL,
+        "workspace_selected": selected,
     }
+    if not selected:
+        result["hint"] = ("No workspace selected yet. This dialog has no "
+                          "chosen folder: ask the user which project to "
+                          "work in (show list_recent_workspaces) before "
+                          "any file operations.")
     if config.TARGET_FILE:
         result["target_file"] = config.TARGET_FILE
         result["single_file_mode"] = True
@@ -181,16 +194,19 @@ def current_install() -> Dict[str, Any]:
     }
 
 
-def list_recent_workspaces() -> Dict[str, Any]:
+def list_recent_workspaces(slug: Optional[str] = None) -> Dict[str, Any]:
     """Return up to 5 recently used workspace paths (newest first).
 
     Each entry contains a 1-based index (for the user to pick by number),
     the absolute path, and a short display name (folder basename).
     Paths that no longer exist are filtered out.
+
+    The history is scoped to the *slug* orchestrator (None maps to the
+    dev_agent scope), so other employees' folders never appear in this menu.
     """
     try:
         from core.recent_workspaces import get_recent_workspaces
-        recent = get_recent_workspaces()
+        recent = get_recent_workspaces(slug)
     except Exception:
         recent = []
 

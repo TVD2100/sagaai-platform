@@ -289,16 +289,16 @@ def test_canonical_prompts_do_not_duplicate_the_tool_catalog():
     when  they are inspected,
     then  each prompt delegates the full tool list to the auto-added
           '## Available tools' block, keeps its tool-usage rules in-line
-          and contains no duplicated tool-catalog table; dev_agent is v3.15
-          and ya_agent is v2.9. The batch-calls rule and the verbatim
+          and contains no duplicated tool-catalog table; dev_agent is v3.16
+          and ya_agent is v2.10. The batch-calls rule and the verbatim
           user-supplied-plan branch are pinned here as invariants.
     """
     dev = CANONICAL_PROMPT_FILES["dev_agent"].read_text(encoding="utf-8")
     ya = CANONICAL_PROMPT_FILES["ya_agent"].read_text(encoding="utf-8")
 
     # Version headers carry the bumped versions.
-    assert dev.splitlines()[0].endswith("(v3.15)"), dev.splitlines()[0]
-    assert ya.splitlines()[0].endswith("(v2.9)"), ya.splitlines()[0]
+    assert dev.splitlines()[0].endswith("(v3.16)"), dev.splitlines()[0]
+    assert ya.splitlines()[0].endswith("(v2.10)"), ya.splitlines()[0]
 
     # RAG context-restore invariant (v3.14): hits carry ids and the
     # follow-up tool is described inline.
@@ -318,6 +318,16 @@ def test_canonical_prompts_do_not_duplicate_the_tool_catalog():
     assert "No confirmation stops." in dev
     assert "Tests: independent only." in dev
     assert "Несколько вызовов за сообщение (батч)" in ya
+
+    # Empty-state isolation invariants (v3.16 / v2.10): both prompts describe
+    # the workspace guard, the neutral code-mode escape hatch and the
+    # dialog-scoped journal; DevAgent additionally pins the upload rule.
+    for text in (dev, ya):
+        assert "workspace_not_selected" in text
+        assert "workspace_selected: false" in text
+        assert "<history>/<thread_id>/task_states/" in text
+    assert "ONLY storage location" in dev
+    assert "Вложения диалога хранятся только в history/<tid>/files" in ya
 
     # Verbatim user-supplied-plan branch invariants.
     assert "User-supplied plan (verbatim acceptance)" in dev

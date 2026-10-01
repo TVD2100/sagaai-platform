@@ -436,3 +436,57 @@ def test_context_section_order_matches_canon(sandbox):
     ]
     assert positions == sorted(positions)
     assert "- task_dir:" in block
+
+
+# --- Empty workspace state (workspace isolation v2) ----------------------
+
+@pytest.fixture
+def empty_state_sandbox(tmp_path):
+    """Empty workspace state with the journal expected in the dialog folder."""
+    import core.paths as paths_mod
+    old_state = config.snapshot_state()
+    old_history = paths_mod.HISTORY_DIR
+    try:
+        config.apply_paths(config.NEUTRAL_ROOT, create_dirs=False, selected=False)
+        config.ACTIVE_THREAD_ID = "test_thread_empty"
+        paths_mod.HISTORY_DIR = str(tmp_path / "history")
+        yield tmp_path
+    finally:
+        config.restore_state(old_state)
+        paths_mod.HISTORY_DIR = old_history
+
+
+def test_empty_state_journal_lives_in_thread_dir(empty_state_sandbox):
+    """With no workspace selected the journal is stored in the dialog folder."""
+    res = ts.ensure_task_state_file()
+    assert res.get("ok") and res.get("wrote")
+    expected_dir = empty_state_sandbox / "history" / "test_thread_empty" / "task_states"
+    path = Path(res["path"])
+    assert path.parent == expected_dir
+    assert path.name == "TASK_STATE__test_thread_empty.md"
+    assert path.exists()
+
+    ts.update_task_state_section("task", "Goal E")
+    r = ts.read_task_state()
+    assert r["exists"] and Path(r["path"]) == path
+    assert r["sections"]["task"] == "Goal E"
+
+
+def test_empty_state_task_folders_live_in_thread_dir(empty_state_sandbox):
+    """Per-task working folders follow the journal into the dialog folder."""
+    ts.archive_and_start_task("Empty-state task", plan=PLAN_TEXT)
+    r = ts.read_task_state()
+    base = empty_state_sandbox / "history" / "test_thread_empty" / "task_states"
+    assert Path(r["task_dir"]).parent == base
+    resolved = ts.current_task_dir()
+    assert resolved is not None and resolved.parent == base
+    assert r["step_ids"] == ["step_1", "step_2"]
+
+
+def test_empty_state_context_injection_keeps_thread_path(empty_state_sandbox):
+    """The injected context block still points the model at the journal."""
+    ts.archive_and_start_task("Ctx task", plan=PLAN_TEXT)
+    text = ts.task_state_for_context()
+    assert text is not None
+    assert "thread_id: test_thread_empty" in text
+    assert str(empty_state_sandbox / "history" / "test_thread_empty" / "task_states") in text

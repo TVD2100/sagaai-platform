@@ -355,6 +355,78 @@ def _coerce_numeric_args(method: Any, args: Dict[str, Any]) -> Dict[str, Any]:
     return args
 
 
+# --- Workspace-selection guard (empty state) ---------------------------------
+# A fresh/reset dialog starts with NO folder selected (WORKSPACE_SELECTED is
+# False and PROJECT_ROOT is the neutral root). File tools then refuse to run
+# instead of touching an arbitrary or neutral folder: the caller gets a
+# structured "workspace_not_selected" error telling it to ask the user and
+# call set_workspace/set_target_file. run_test / run_code stay available in
+# "code" mode (neutral cwd via _subprocess_cwd); their "path" mode is blocked.
+WORKSPACE_REQUIRED_TOOLS: set = {
+    # core file tools
+    "read_file", "list_files", "propose_file", "apply_patch", "verify_file",
+    "create_backup", "restore_backup", "show_history",
+    # workspace-layer file tools (dispatched by UniversalDevAgent)
+    "search_in_files", "scan_folder", "assess_workspace",
+    "build_project_map", "write_project_map", "write_doc", "read_doc",
+    "snapshot_all", "restore_all", "list_snapshots",
+}
+
+_PATH_MODE_TOOLS: set = {"run_test", "run_code"}
+
+_WORKSPACE_GUARD_SUGGESTION = (
+    "Ask the user which project to work in first (show "
+    "list_recent_workspaces as a numbered menu), then call "
+    "set_workspace('<path>') - or set_target_file('<path>') for a single "
+    "file - and retry the tool."
+)
+
+
+def workspace_guard_error(tool_name: str, args: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+    """Return a ``workspace_not_selected`` error when the tool needs a workspace.
+
+    Returns None when the empty state is not active, when the tool does not
+    operate on project files, or for run_test/run_code in ``code`` mode
+    (allowed: the child process runs with a neutral cwd - see
+    ``_subprocess_cwd``). ``path`` mode of those two tools IS blocked: a
+    script must live in a real project.
+    """
+    if not isinstance(tool_name, str):
+        return None
+    needs_ws = tool_name in WORKSPACE_REQUIRED_TOOLS
+    if tool_name in _PATH_MODE_TOOLS:
+        needs_ws = bool((args or {}).get("path"))
+    if not needs_ws:
+        return None
+    if bool(getattr(config, "WORKSPACE_SELECTED", True)):
+        return None
+    return {
+        "ok": False,
+        "workspace_not_selected": True,
+        "error": (
+            f"Tool '{tool_name}' is blocked: this dialog has no workspace "
+            "folder selected yet (empty state). File tools never run "
+            "against an arbitrary or neutral folder."
+        ),
+        "suggestion": _WORKSPACE_GUARD_SUGGESTION,
+    }
+
+
+def _subprocess_cwd() -> str:
+    """Return the cwd for child processes spawned by run_test / run_code.
+
+    In the empty state the neutral folder (created on demand) is used, so a
+    child process can never inherit a neighbouring dialog's real project.
+    Otherwise the active project root.
+    """
+    if not bool(getattr(config, "WORKSPACE_SELECTED", True)):
+        try:
+            return str(config.ensure_neutral_root())
+        except OSError:
+            pass
+    return str(config.PROJECT_ROOT)
+
+
 def _validate_python_syntax(content: str) -> Optional[str]:
     """Return an error message if `content` is invalid Python, else None.
 
@@ -428,6 +500,9 @@ class ToolExecutor:
             return {"ok": False, "error": f"args must be a dict, got {type(args).__name__}"}
         if tool_name in _LEGACY_TOOL_ALIASES:
             tool_name = _LEGACY_TOOL_ALIASES[tool_name]
+        guard = workspace_guard_error(tool_name, args)
+        if guard is not None:
+            return guard
         method = getattr(self, tool_name, None)
         if method is None:
             return {"ok": False, "error": f"Unknown tool: {tool_name}"}
@@ -1268,7 +1343,7 @@ class ToolExecutor:
             proc = subprocess.run(
                 cmd, capture_output=True, text=True,
                 timeout=config.MAX_TEST_TIMEOUT_SEC, env=env,
-                cwd=str(config.PROJECT_ROOT),
+                cwd=_subprocess_cwd(),
             )
             return {
                 "ok": proc.returncode == 0,
@@ -1375,7 +1450,7 @@ class ToolExecutor:
             proc = subprocess.run(
                 cmd, capture_output=True, text=True,
                 timeout=config.MAX_RUN_CODE_TIMEOUT_SEC, env=env,
-                cwd=str(config.PROJECT_ROOT),
+                cwd=_subprocess_cwd(),
             )
             return {
                 "ok": proc.returncode == 0,
@@ -2702,10 +2777,15 @@ class ToolExecutor:
 
         Call this tool at the start of a new task to offer the user a quick
         selection of their most recent projects instead of typing the full path.
+
+        The history is scoped to THIS orchestrator: other employees' folders
+        never appear here, and the workspaces of this orchestrator's own
+        saved dialogs are included automatically.
         """
         try:
             from dev_agent.workspace_tools import list_recent_workspaces as _ws_recent
-            return _ws_recent()
+            slug = getattr(self, "_orchestrator_slug", "dev_agent") or "dev_agent"
+            return _ws_recent(slug)
         except Exception as e:
             return {"ok": False, "error": str(e)}
 

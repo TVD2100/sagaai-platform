@@ -119,13 +119,47 @@ def current_thread_id() -> str:
     return safe or "nothread"
 
 
+def _empty_state_states_dir() -> Optional[Path]:
+    """Journal directory of a dialog without a selected workspace.
+
+    With no folder selected (workspace isolation v2) the journal belongs
+    to the dialog itself: it is stored next to the dialog's uploads in
+    ``<DATA_DIR>/history/<tid>/task_states`` instead of the shared neutral
+    placeholder root. Returns None when a workspace IS selected (the
+    project runtime dir is used) or when no dialog thread is attached.
+    """
+    if getattr(config, "WORKSPACE_SELECTED", True):
+        return None
+    tid = current_thread_id()
+    if not tid or tid == "nothread":
+        return None
+    try:
+        from core.paths import get_thread_dir
+        return Path(get_thread_dir(tid)) / "task_states"
+    except Exception:
+        return None
+
+
+def _ensure_state_dir() -> Path:
+    """Create (if needed) and return the directory holding this journal."""
+    base = _empty_state_states_dir()
+    if base is None:
+        base = config.TASK_STATES_DIR
+    base.mkdir(parents=True, exist_ok=True)
+    return base
+
+
 def task_state_path() -> Path:
     """Absolute path of THIS thread's journal file."""
-    return config.TASK_STATES_DIR / f"{TASK_STATE_PREFIX}{current_thread_id()}{TASK_STATE_SUFFIX}"
+    base = _empty_state_states_dir() or config.TASK_STATES_DIR
+    return base / f"{TASK_STATE_PREFIX}{current_thread_id()}{TASK_STATE_SUFFIX}"
 
 
 def thread_states_dir() -> Path:
     """Absolute path of THIS thread's per-task folders directory."""
+    base = _empty_state_states_dir()
+    if base is not None:
+        return base
     return config.TASK_STATES_DIR / current_thread_id()
 
 
@@ -517,7 +551,7 @@ def _archive_active_task(
 
 def _write_raw(text: str) -> Path:
     """Backup + write *text* to the journal file. Returns the path."""
-    config.ensure_runtime_dirs()
+    _ensure_state_dir()
     path = task_state_path()
     _backup_if_exists(path)
     path.write_text(text, encoding=config.DEFAULT_ENCODING)
@@ -593,7 +627,7 @@ def ensure_task_state_file(force: bool = False) -> Dict[str, Any]:
     one-time migration of a legacy root TASK_STATE.md. Returns the
     tool-style result dict.
     """
-    config.ensure_runtime_dirs()
+    _ensure_state_dir()
     migrated = _migrate_legacy_file()
     path = task_state_path()
     if path.exists() and not force:

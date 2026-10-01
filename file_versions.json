@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "1.8.0",
+  "app_version": "1.9.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Релиз 1.8.0: поиск по диалогам у оркестраторов - инструменты search_in_threads (текущий диалог по умолчанию, явный thread_id, охват по оркестратору или всем диалогам, период, regex), list_threads и read_thread; контроль доступа - только свои диалоги (DevAgent видит все); промпт DevAgent v3.15.",
-    "en": "Release 1.8.0: dialog search for orchestrators - the search_in_threads tool (current dialog by default, explicit thread_id, scope over one orchestrator or all dialogs, date period, regex), plus list_threads and read_thread; access control - own dialogs only (DevAgent sees all); DevAgent prompt v3.15."
+    "ru": "Релиз 1.9.0: изоляция рабочей папки - новый диалог начинается без папки («папка не выбрана»), файловые инструменты подсказывают выбрать папку; активная папка привязана к диалогу и восстанавливается при его открытии; меню недавних папок у каждого сотрудника своё; журналы задач и вложения диалога не пишутся в чужие проекты; промпты DevAgent v3.16 и YaAgent v2.10.",
+    "en": "Release 1.9.0: workspace isolation - a new dialog starts with no folder (no folder selected), file tools prompt to pick one; the active folder is bound to the dialog and restored when reopened; the recent-folders menu is per employee; task journals and chat uploads never touch foreign projects; DevAgent v3.16 and YaAgent v2.10 prompts."
   },
-  "updated": "2026-10-01T07:10:46Z",
+  "updated": "2026-10-01T14:46:34Z",
   "units": {
     "core": {
-      "version": "1.20.0",
+      "version": "1.21.0",
       "note": {
-        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py. 1.15.0: SSH-коннектор - инструмент ssh_upload_file (потоковая публикация локальных файлов на сервер, sha256-верификация, до 50 МиБ); подсказка create_dirs в ошибке ssh_write_file. 1.15.1: сценарный тест каталога моделей YandexAI (tests/scenarios), пин промпта YaAgent v2.9, регенерация PROJECT_MAP.md; версия платформы 1.3.2. 1.16.0: единая модель оркестраторов - слабая модель удалена из настроек, добавлены опциональные vision/image настройки и каталоги у сервисов, рантайм на основной модели, tolerant legacy weak_*; документация и манифест обновлены; версия платформы 1.4.0. 1.17.0: мультимодальные инструменты analyze_image/generate_image (вложения диалога и файлы проекта; генерация сохраняется файлом), транспорты send_vision_request/send_image_generation_request в api_layer, глобальная инструкция multimodal_mode; версия платформы 1.5.0. 1.18.0: синхронный Images API для generate_image (единственная модель aliceai-image-art-3.0, удаление async-ветки YandexART), показ сгенерированного изображения в чате с кнопкой скачивания; версия платформы 1.6.0. 1.19.0: распознавание изображений на DeepSeek - vision_base_url и каталог vision_models (deepseek-flash) в профиле сервиса, ветка deepseek_responses с detail=original в send_vision_request, deepseek-v4.1-flash в vision-каталоге YandexAI; версия платформы 1.7.0. 1.19.1: сгенерированное изображение generate_image показывается сразу в ленте чата - блок с картинкой и кнопкой скачивания вынесен из свёрнутого блока результата (ui/pages/orchestrator.py); сценарные тесты ленты; версия платформы 1.7.1. 1.20.0: поиск по диалогам - инструменты search_in_threads/list_threads/read_thread (текущий диалог по умолчанию, scope/период) с контролем доступа к тредам; промпт DevAgent v3.15; версия платформы 1.8.0.",
-        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py. 1.15.0: SSH connector - ssh_upload_file tool (streamed publishing of local files to a server, sha256 verification, up to 50 MB); create_dirs hint in the ssh_write_file error. 1.15.1: YandexAI model catalog scenario test (tests/scenarios), YaAgent v2.9 prompt pin, PROJECT_MAP.md regenerated; platform version 1.3.2. 1.16.0: single-model orchestrators - the weak model removed from settings, optional vision/image settings and service catalogs added, runtime on the main model, tolerant legacy weak_*; docs and manifest updated; platform version 1.4.0. 1.17.0: multimodal tools analyze_image/generate_image (dialog uploads and project files; generation saved to a file), send_vision_request/send_image_generation_request transports in api_layer, the global multimodal_mode instruction; platform version 1.5.0. 1.18.0: synchronous Images API for generate_image (the single model aliceai-image-art-3.0, the YandexART async branch removed), the generated image shown in the chat with a download button; platform version 1.6.0. 1.19.0: DeepSeek image analysis - vision_base_url and the vision_models catalog (deepseek-flash) in the service profile, the deepseek_responses branch with detail=original in send_vision_request, deepseek-v4.1-flash in the YandexAI vision catalog; platform version 1.7.0. 1.19.1: the generate_image picture is shown immediately in the chat feed - the image block with the download button moved out of the collapsed tool-result block (ui/pages/orchestrator.py); feed scenario tests; platform version 1.7.1. 1.20.0: dialog thread search - the search_in_threads/list_threads/read_thread tools (current dialog by default, scope/period) with thread access control; DevAgent prompt v3.15; platform version 1.8.0."
+        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py. 1.15.0: SSH-коннектор - инструмент ssh_upload_file (потоковая публикация локальных файлов на сервер, sha256-верификация, до 50 МиБ); подсказка create_dirs в ошибке ssh_write_file. 1.15.1: сценарный тест каталога моделей YandexAI (tests/scenarios), пин промпта YaAgent v2.9, регенерация PROJECT_MAP.md; версия платформы 1.3.2. 1.16.0: единая модель оркестраторов - слабая модель удалена из настроек, добавлены опциональные vision/image настройки и каталоги у сервисов, рантайм на основной модели, tolerant legacy weak_*; документация и манифест обновлены; версия платформы 1.4.0. 1.17.0: мультимодальные инструменты analyze_image/generate_image (вложения диалога и файлы проекта; генерация сохраняется файлом), транспорты send_vision_request/send_image_generation_request в api_layer, глобальная инструкция multimodal_mode; версия платформы 1.5.0. 1.18.0: синхронный Images API для generate_image (единственная модель aliceai-image-art-3.0, удаление async-ветки YandexART), показ сгенерированного изображения в чате с кнопкой скачивания; версия платформы 1.6.0. 1.19.0: распознавание изображений на DeepSeek - vision_base_url и каталог vision_models (deepseek-flash) в профиле сервиса, ветка deepseek_responses с detail=original в send_vision_request, deepseek-v4.1-flash в vision-каталоге YandexAI; версия платформы 1.7.0. 1.19.1: сгенерированное изображение generate_image показывается сразу в ленте чата - блок с картинкой и кнопкой скачивания вынесен из свёрнутого блока результата (ui/pages/orchestrator.py); сценарные тесты ленты; версия платформы 1.7.1. 1.20.0: поиск по диалогам - инструменты search_in_threads/list_threads/read_thread (текущий диалог по умолчанию, scope/период) с контролем доступа к тредам; промпт DevAgent v3.15; версия платформы 1.8.0. 1.21.0: изоляция рабочей папки - пустое состояние и guard файловых инструментов, мета «последняя папка» треда с миграцией легаси-меты, недавние папки по оркестраторам, журналы/вложения при пустой папке; промпты DevAgent v3.16 / YaAgent v2.10; версия платформы 1.9.0.",
+        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py. 1.15.0: SSH connector - ssh_upload_file tool (streamed publishing of local files to a server, sha256 verification, up to 50 MB); create_dirs hint in the ssh_write_file error. 1.15.1: YandexAI model catalog scenario test (tests/scenarios), YaAgent v2.9 prompt pin, PROJECT_MAP.md regenerated; platform version 1.3.2. 1.16.0: single-model orchestrators - the weak model removed from settings, optional vision/image settings and service catalogs added, runtime on the main model, tolerant legacy weak_*; docs and manifest updated; platform version 1.4.0. 1.17.0: multimodal tools analyze_image/generate_image (dialog uploads and project files; generation saved to a file), send_vision_request/send_image_generation_request transports in api_layer, the global multimodal_mode instruction; platform version 1.5.0. 1.18.0: synchronous Images API for generate_image (the single model aliceai-image-art-3.0, the YandexART async branch removed), the generated image shown in the chat with a download button; platform version 1.6.0. 1.19.0: DeepSeek image analysis - vision_base_url and the vision_models catalog (deepseek-flash) in the service profile, the deepseek_responses branch with detail=original in send_vision_request, deepseek-v4.1-flash in the YandexAI vision catalog; platform version 1.7.0. 1.19.1: the generate_image picture is shown immediately in the chat feed - the image block with the download button moved out of the collapsed tool-result block (ui/pages/orchestrator.py); feed scenario tests; platform version 1.7.1. 1.20.0: dialog thread search - the search_in_threads/list_threads/read_thread tools (current dialog by default, scope/period) with thread access control; DevAgent prompt v3.15; platform version 1.8.0. 1.21.0: workspace isolation - the no-folder-selected empty state and the file-tool guard, thread last-folder meta with the legacy-meta migration, per-orchestrator recent folders, journals/uploads in the empty state; DevAgent v3.16 / YaAgent v2.10 prompts; platform version 1.9.0."
       },
       "files": {
         "__init__.py": {
@@ -79,6 +79,10 @@
           "version": "1.3.0",
           "sha256": "7e553b189f7e092ef5f78149c648ac51c19b4703cbc4fe50f2fd50df1d93ed7d"
         },
+        "core/context_guard.py": {
+          "version": "1.0.0",
+          "sha256": "ec2f4d1ce2b4c158b27b25ca7a520b71abf0270677efaf809ce437c2a0b015e0"
+        },
         "core/crypto.py": {
           "version": "1.0.0",
           "sha256": "830aad9563569b310ed1afd9c9359a632fb7aba461b196a870e50de14977bcd6"
@@ -111,6 +115,14 @@
           "version": "1.0.0",
           "sha256": "bec53c1a8ff7ea9dc91c81586009d0d79fb1ada73f211bcb670baaf873a55118"
         },
+        "core/github_connector_rest.py": {
+          "version": "1.2.0",
+          "sha256": "2b78ff668212b16c315d2700c1a54cbc33154ab428a183944b70683b5540f028"
+        },
+        "core/github_tools_rest.py": {
+          "version": "1.2.0",
+          "sha256": "d519edf51bdd47916b7fe4617da1dfc34fd110b3a66447338899219e84691b0d"
+        },
         "core/i18n.py": {
           "version": "1.0.0",
           "sha256": "cbd8764a168ac1a05f8eb63cedd8b02a9d78c705d51773132251de1e24336ef4"
@@ -119,9 +131,21 @@
           "version": "1.1.0",
           "sha256": "5d0f70ead7bab40cbb091b011f314d3de88420189f7937ff5819066c697f471b"
         },
+        "core/multimodal.py": {
+          "version": "1.1.0",
+          "sha256": "df5f46d179033a13759485dab35f014c64d19ad0a7130a68180376df3d266131"
+        },
         "core/orchestrator_folders.py": {
           "version": "1.1.0",
           "sha256": "e457904340ea8475ec98e6ececad8be98ee09fcd3959607fca1d5a16e678a915"
+        },
+        "core/orchestrator_nav.py": {
+          "version": "1.0.0",
+          "sha256": "a47b5e932c65fe6b5462ff95016bd55f8ba2ee7cdfd3c1930caf7ef90ea71845"
+        },
+        "core/orchestrator_tools.py": {
+          "version": "1.1.0",
+          "sha256": "ba1c1f8100040a72b695e8fbf9de74884a6a4b040ec5352dbe1db4064e116ac5"
         },
         "core/orchestrators.py": {
           "version": "1.7.0",
@@ -168,8 +192,8 @@
           "sha256": "9838aba3f1a7ff6ab4790a18eaac400e8331a4336fce22638c0c45631ad479f3"
         },
         "core/recent_workspaces.py": {
-          "version": "1.0.0",
-          "sha256": "bb2dafaa7d161d21f7354f2a1a5185cf596e17a5481cce7f2d26249062a233eb"
+          "version": "1.1.0",
+          "sha256": "8ed5a77e8b2769604759eb874b040248e0fd63e05ccc69b0649df4c2d3ede3ce"
         },
         "core/render.py": {
           "version": "1.0.1",
@@ -187,6 +211,14 @@
           "version": "1.0.0",
           "sha256": "c9ce262ba8e169d936910765fa837abe240929333babb07181ff20d75ef9a762"
         },
+        "core/ssh_connector.py": {
+          "version": "1.1.0",
+          "sha256": "a73e4363a0d6206d4e73f5827d81097e34c0f1832aad7485ef92a25b879ecbe6"
+        },
+        "core/ssh_tools.py": {
+          "version": "1.1.0",
+          "sha256": "034ed7c9dc588ae8dea5c2fb1022a5905d9b93dfaed4bfaa55badd58a7f14a7b"
+        },
         "core/statistics.py": {
           "version": "1.0.1",
           "sha256": "0772c8925814d7f97c283ff6a03a0ba8ff9a80d901000668336cc4faf0fafa4c"
@@ -196,16 +228,24 @@
           "sha256": "fd2a5e55710b34a6c6b573bdc50a380c7276db80b1b4f061a11f443441588cee"
         },
         "core/threads_devagent.py": {
-          "version": "1.3.0",
-          "sha256": "b672d326cb81a599279b8aa3d4de0bb1e06b426e5deb56bfde8d340bb5c8ea81"
+          "version": "1.4.0",
+          "sha256": "cc00e592be53398c30ca90b2b287081bbc3366be62321e69c1ef1375409c3bf3"
         },
         "core/tools_utils.py": {
           "version": "1.1.0",
           "sha256": "78547e37b44458d451124b69e76ecf5bd2f69213e7164dea11137343f4e20df8"
         },
+        "core/updater.py": {
+          "version": "1.0.2",
+          "sha256": "0f5791a46ff9bdf86f60741ca2394b58878f8dce4fd9c6ae3e5417639880ce2a"
+        },
+        "core/updater_apply.py": {
+          "version": "1.1.0",
+          "sha256": "c9e03ac37d50334f2e8ed0ab3770e16be2535b777d39ea36cde91591cc74858b"
+        },
         "core/version.py": {
-          "version": "1.0.23",
-          "sha256": "1a551d1ad45989c48a57dd9b429a768d1a3bd9b2502eca39e15539fe19df200b"
+          "version": "1.0.24",
+          "sha256": "856f4b3cabdd3b640a47fef665f34f6d30f5acf6ff8def57d6d7547f6f1b3ce1"
         },
         "dev_agent/__init__.py": {
           "version": "1.0.0",
@@ -228,8 +268,8 @@
           "sha256": "80e46a3e75620994b82995dc70cebee0e1a8971767fd15b1dbc95200c2dc1183"
         },
         "dev_agent/config.py": {
-          "version": "1.2.0",
-          "sha256": "d9bfe8ceeb63192f135d11296c048febb7ad96cac4f244a6393bf79b671c4a15"
+          "version": "1.3.0",
+          "sha256": "12acdf7d28e87f9be4b345d91ce0ea5f2069d4f026526fc8270d9f77cd311c0d"
         },
         "dev_agent/llm_utils.py": {
           "version": "1.0.0",
@@ -240,20 +280,24 @@
           "sha256": "e3c52b184852fba028df4b24795f80ce6f752d5d8b0885aa556861ec0b7badc0"
         },
         "dev_agent/task_state.py": {
-          "version": "1.2.0",
-          "sha256": "84584ba39290d90309102d920358bf96b15c56aee17ca247b38310b1101ae6b6"
+          "version": "1.3.0",
+          "sha256": "10fbaa84491e5b671aecc6ceebb5ca04572e1e81ce545dea6d7cf3a159fe6ea7"
         },
         "dev_agent/tool_executor.py": {
-          "version": "1.8.0",
-          "sha256": "ffe6100cff1f03027330710efd0cd3fde0421de3159e9432dc3db7ba7953e4c0"
+          "version": "1.9.0",
+          "sha256": "4f5257561ced075bf9ea99fb2984d95ffbee1b3b503000b3c611558a4846956d"
         },
         "dev_agent/universal_agent.py": {
-          "version": "1.10.0",
-          "sha256": "83cb57d8a9addcfe559a25dfd6f4a5b7944269aea152e4e26525fdb39f71d94e"
+          "version": "1.11.0",
+          "sha256": "799eb9357d074e281a3f22478d5dcae96e8454a29853430babd2a92d483b4920"
+        },
+        "dev_agent/workspace_binding.py": {
+          "version": "1.1.0",
+          "sha256": "c4212c17c135d0c18be7b46c2f67f9010a5d1f81dd2d9db169b0c1455b74c36b"
         },
         "dev_agent/workspace_tools.py": {
-          "version": "1.1.0",
-          "sha256": "75e1094ec790a9dd29ad427db5be4a6a28e18895eb467b0b318fa41a7b952c6b"
+          "version": "1.2.0",
+          "sha256": "13f7d8e767431eaef8481287b686ac284a8ad8d6ffef1f81b11b06143696dc07"
         },
         "pytest.ini": {
           "version": "1.0.0",
@@ -264,8 +308,8 @@
           "sha256": "66abb9f75f09ba1908b3b70012d9fea2aaf15a1fd80f687fa7ea13cdb857362e"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.3.3",
-          "sha256": "a3f46f570adeebdb99b8e85107f718f62bddfc0743c76de0e199237352340198"
+          "version": "1.3.4",
+          "sha256": "4f7942cd00ba18250f057ac1d788175076992884d1fb01fd7144630ee83ab49d"
         },
         "scripts/verify_manifest.py": {
           "version": "1.0.3",
@@ -288,8 +332,8 @@
           "sha256": "df0e72fa52d5e32f6301d1a3228a9f300277ada2acc78a4bd889b84f5731728a"
         },
         "storage/repository_devagent.py": {
-          "version": "1.1.0",
-          "sha256": "225b9addc4b225197c7ee12e48e0d9a1c59076b8d4ff294a9d995cd468489460"
+          "version": "1.2.0",
+          "sha256": "d097845a9ee4691d361c5f7d788d4fd3e22c9106088cf6935b841dbf1d4d533d"
         },
         "tests/__init__.py": {
           "version": "1.0.0",
@@ -304,24 +348,76 @@
           "sha256": "1e1a09515968618332b718678c72d495c8965d91eacd89da356cd4d6ececba13"
         },
         "tests/conftest.py": {
+          "version": "1.1.0",
+          "sha256": "9434ffd54c0e9b032d1d68e17e9722c5627a170a5bc8dd8176f223c04f9156b6"
+        },
+        "tests/scenarios/test_access_scenarios.py": {
           "version": "1.0.0",
-          "sha256": "867574ec8e699ddcc15cf9172d18978d34f30180ffbc73d3ed027fe9d71bc2f3"
+          "sha256": "e5e7389b55b2a21eda9f04c56246191561e647c30b3a5e45ed9b60b21768185e"
         },
         "tests/scenarios/test_assistant_sidebar_scenarios.py": {
           "version": "1.0.0",
           "sha256": "ad35123859af21af8bcb0e13bc92f7a4d2cec650b7e0e2a946db8b5f771853b0"
         },
+        "tests/scenarios/test_batch_tool_calls_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "02b161a495404f72cadef406561c065e27030420d275940bc09b855cd4e0e07a"
+        },
+        "tests/scenarios/test_connection_retry_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "add50b4f60af1d4dffff8ecf884693e50a4c7991a9b7dceef4a6e5dc47299d52"
+        },
         "tests/scenarios/test_connectors_scenarios.py": {
           "version": "1.1.0",
           "sha256": "b74bbc13dd321ba565ea70879dee275e065ce0df66d00b1f91add0810fe70e82"
+        },
+        "tests/scenarios/test_context_overflow_protection.py": {
+          "version": "1.0.0",
+          "sha256": "1c19840064d12d89dd7f8425622c1711c2cdc890720809a616cd0cbc7f5fe0cb"
+        },
+        "tests/scenarios/test_employees_sidebar_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "85021f57840f6d1d13b6a81339b10f7d7f5538e2a47408ab08f18121bc4cec05"
+        },
+        "tests/scenarios/test_empty_state_artifacts_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "50df7bfde93d91398b495538233bb92860d43bdd9883497f2d794983c33583a4"
         },
         "tests/scenarios/test_first_run_flow.py": {
           "version": "1.0.1",
           "sha256": "34c1bb562d013313c2b97ab84337d91d3ddcbffc2d1cca07c4f46eab5e04bd7c"
         },
+        "tests/scenarios/test_generated_image_feed_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "c6c495a04fe4c7b5f089b0f63ccabfdff5a0de2405cf543bb8b067d24d828e6e"
+        },
+        "tests/scenarios/test_gigachat_models_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "e45fa82cd6f2f5fa5d6ebd9e1bb02ca2429a80b726c9d013a6c604433a216be5"
+        },
+        "tests/scenarios/test_gigachat_orchestrator_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "7d4a9adb6aaa475baac995c3f869dfe231ea2699293861c05c3ac139202504de"
+        },
+        "tests/scenarios/test_github_rest_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "743c93400ab05d08982356d3df83ffccc00298dcb9fdbe1a045c5232c144666b"
+        },
         "tests/scenarios/test_json_repair_scenarios.py": {
           "version": "1.0.0",
           "sha256": "0eda442021938db69707e231cb2fd772b40152fdf18f09ed3a537173484ac8fe"
+        },
+        "tests/scenarios/test_loop_stuck_protection_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "b1d500f175b3ddedc8b9dd0376988f90af5e2ff18f72496a3a0e3f89111d9dcb"
+        },
+        "tests/scenarios/test_multimodal_scenarios.py": {
+          "version": "1.2.0",
+          "sha256": "08772731711c2eb631fcf075ce7ce41d3fbc0231e0830d45ebb300812669f896"
+        },
+        "tests/scenarios/test_new_dialog_empty_workspace_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "3b82905f5d190029f1b771c9122df3ab75ae99de1fc2e860d6f9d7f2f9805709"
         },
         "tests/scenarios/test_orchestrator_chat_prefs_scenario.py": {
           "version": "1.0.0",
@@ -331,9 +427,37 @@
           "version": "1.0.0",
           "sha256": "fe4d92c9d293b0ea9071b44f17ed75d0b0486194fe7f8efb2d87f16171e29b6b"
         },
+        "tests/scenarios/test_orchestrator_other_settings_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "db88cbd471cad26fcf08db86ca8472c612117ce6a83e9ff4674284a71bb10dc0"
+        },
+        "tests/scenarios/test_orchestrator_thread_files.py": {
+          "version": "1.0.1",
+          "sha256": "a3884d194a0683edf530315627a7e80c5fc3fb01a0b44f7b22a67d3d974b136c"
+        },
+        "tests/scenarios/test_orchestrator_tool_gating.py": {
+          "version": "1.2.4",
+          "sha256": "2b05764d8c81d75000fc49391da3b971081480913accb87d2c5b4b4107d1f5dc"
+        },
+        "tests/scenarios/test_provider_economy_settings_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "309f31735f1c97a3ed1706bbc770dabd14b593d507bf562e5f08d6b50ac7f6b9"
+        },
         "tests/scenarios/test_rag_assistant_dialog.py": {
           "version": "1.0.0",
           "sha256": "cc5cf32cfc7e8dca2d524dff64349711d8a39657670ec49734335f09d89c47e5"
+        },
+        "tests/scenarios/test_rag_context_restore.py": {
+          "version": "1.0.0",
+          "sha256": "2465407f57a36cb8fdb8c190328e5c2a6ef8e4b5a323582a026d720b0fad1ea9"
+        },
+        "tests/scenarios/test_rag_perf_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "04b1a4cbebc25141bb8196d95620b9b491faceff1f8cc634c17d2ccd52fc9646"
+        },
+        "tests/scenarios/test_recent_workspace_scopes_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "42a4b32f10b8249d2cabcfb4c3c32505d78d95b6881182e1d3606d8048889cd7"
         },
         "tests/scenarios/test_search_in_files_scenarios.py": {
           "version": "1.0.0",
@@ -343,6 +467,10 @@
           "version": "1.0.0",
           "sha256": "3735539b16021245531e3029d531042cd2a58888506e3638a08c955d8fc54070"
         },
+        "tests/scenarios/test_ssh_connector_scenarios.py": {
+          "version": "1.1.0",
+          "sha256": "9639c130e68f2c05ee768d84787dc0f9373fdb2797e0de57501df1e552c2ae5e"
+        },
         "tests/scenarios/test_stats_scenario.py": {
           "version": "1.0.0",
           "sha256": "2047e492668ef2730da50aab0bb55548061c6456b6b6acfe2ce9993d6fdf75e3"
@@ -351,21 +479,57 @@
           "version": "1.0.0",
           "sha256": "0b2ceed95c3a066743232ac8da2bb1f88054cf53f20dec316be6265b022d4111"
         },
+        "tests/scenarios/test_task_state_mega_task.py": {
+          "version": "1.0.0",
+          "sha256": "c560aa021452f34873de3554179fb669bb5b384c6e945e6b464a21e7de37f439"
+        },
         "tests/scenarios/test_theme_switch_scenario.py": {
           "version": "1.1.0",
           "sha256": "8adda92b95734aa376f0805d256fb0ad10a62959d57ed6315f3068c47d2108f5"
+        },
+        "tests/scenarios/test_thread_search_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "d550a6220ec28ad1d8ec108a99c7c377bd53057298a3deeb14739919817ff6a1"
+        },
+        "tests/scenarios/test_thread_workspace_meta_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "4497a82f6fc5da85c503f9cae73c1c465f753168331868ba894bbd214ccdecb1"
+        },
+        "tests/scenarios/test_updater_runtime_flow.py": {
+          "version": "1.0.0",
+          "sha256": "0dcc3462b29426b5c1e1a490935f93627d3335931bb74189af14daef9617d120"
         },
         "tests/scenarios/test_welcome_page_scenarios.py": {
           "version": "1.0.1",
           "sha256": "1179530a0dfe38859e6a0123453d46414be5cd52f7f75799342597ddacdebdfb"
         },
+        "tests/scenarios/test_workspace_binding_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "89c2d62dcf37482dfd7dcf3b5f3b8c62e0eff19d8bff51a2dc3303f6e818d701"
+        },
+        "tests/scenarios/test_yandex_models_catalog_scenario.py": {
+          "version": "1.0.1",
+          "sha256": "f849372b71e27066cf5077d12e30ed44461ca600461256a5aac38c71a0e48cd2"
+        },
         "tests/smoke/test_app_smoke.py": {
           "version": "1.0.1",
           "sha256": "df3fd59d22fdebfacdfc1920ccd37194c8498b9ce53b1cd3149a6edddb982e49"
         },
+        "tests/test_agent_loop_connection_retry.py": {
+          "version": "1.0.0",
+          "sha256": "57c3fed99e3e7c07576de79542052dc8fdcc5e3f2f0b5168203b9fef0dcb2a3b"
+        },
         "tests/test_agent_loop_json_repair.py": {
           "version": "1.1.0",
           "sha256": "15b15e67c447cc18633be1a434a7fbaeafe5118fcfefacd509f189d8b9442da7"
+        },
+        "tests/test_agent_loop_thread_context.py": {
+          "version": "1.0.0",
+          "sha256": "0059ab9058cbd45a753543dc965887a1c76103e29b89c3e5b4bee193d20b5982"
+        },
+        "tests/test_api_retry.py": {
+          "version": "1.0.0",
+          "sha256": "349cd19dea37f6e15bc07cafe816a3246299b2b3c3816d1cae5ab62f50f65243"
         },
         "tests/test_app_imports.py": {
           "version": "1.0.0",
@@ -395,13 +559,25 @@
           "version": "1.0.1",
           "sha256": "d7251673075056c1b9b68343b2cfc5bb85165fbc2153eeffcb2f21eac0d95dd6"
         },
+        "tests/test_auth_access.py": {
+          "version": "1.0.0",
+          "sha256": "dafd3ae4ab539252cbf65780864393afd618905e1525be0dd0706164b929cc7b"
+        },
         "tests/test_backup_and_safewriter.py": {
           "version": "1.0.0",
           "sha256": "85319600da37774906f21382167ea2370afa088816e436d86f0cff0fdd0e9818"
         },
+        "tests/test_chat_pagination.py": {
+          "version": "1.0.1",
+          "sha256": "243eb56ca99bb472d0295c11db04e8cbb4c365eb2c6381971fc6395083b2fac8"
+        },
         "tests/test_connectors.py": {
           "version": "1.2.1",
           "sha256": "37f94c01390aec6016053821fe9731624e2fc92504f45d689502161c08aebbfc"
+        },
+        "tests/test_context_window_guard.py": {
+          "version": "1.0.0",
+          "sha256": "eb996009e0105034561ea663985a001bb0a06a26622cc3396f17bba0cc09f236"
         },
         "tests/test_core_api_json_schema.py": {
           "version": "1.0.1",
@@ -423,6 +599,14 @@
           "version": "1.0.0",
           "sha256": "ae81d11d36948e0a60b58777cdd1199071e9b44f54e24018e4baee4c1bf91913"
         },
+        "tests/test_db_concurrency.py": {
+          "version": "1.1.0",
+          "sha256": "d0baae4fb21fbf3d96f1043879ca157cbe3136150db2b89ef988904c0e221b0a"
+        },
+        "tests/test_deepseek_anthropic_web_search.py": {
+          "version": "1.0.0",
+          "sha256": "5d538ad9a5686e354ae34438adfbbd1331a272cd600365dfffadfd3615b08946"
+        },
         "tests/test_deepseek_responses.py": {
           "version": "1.0.1",
           "sha256": "95e3359cfa78eccc70772120c3950b0a1a31dac67da7913364655be7c8bb7ee2"
@@ -436,16 +620,36 @@
           "sha256": "6e3ff5c8ba9afa25cdc1bf688c7547825be9a171416e9e8e655c43a245527d8b"
         },
         "tests/test_devagent_thread_workspace.py": {
-          "version": "1.0.0",
-          "sha256": "495200dad850b8b64fd3da5c526fdd7d05cb3a3f825f639c604688715bbed959"
+          "version": "1.1.0",
+          "sha256": "d105bf14d757c3327f13d7fe1d0e348c383331bf7aa76b862cc67959db301ed8"
         },
         "tests/test_dispatcher_connections.py": {
           "version": "1.2.3",
           "sha256": "432d5a606f3f33049adcf199e870e31432d01e6863e229e4cb99a047820de9ef"
         },
+        "tests/test_dispatcher_tool_gating.py": {
+          "version": "1.0.0",
+          "sha256": "5e8189d4e8a99a10afb6992f28bbadd3ff9fc684464938bc00c191a76a32a12b"
+        },
+        "tests/test_economy_history_budget.py": {
+          "version": "1.0.0",
+          "sha256": "46dc58a26f6529cb68a0d4f431b3500b287b6581c8d986671a780771438de133"
+        },
         "tests/test_employee_management_ui.py": {
           "version": "1.0.0",
           "sha256": "3245598541418855fb1c15de5f7140213250c61f937fd70969a10c71fd8c3295"
+        },
+        "tests/test_gigachat_messages.py": {
+          "version": "1.0.0",
+          "sha256": "e9181ad677c3f19d509eed9ef13ef8e437ba1445223c2aba6eeb78221629d6f5"
+        },
+        "tests/test_github_connector_rest.py": {
+          "version": "1.2.0",
+          "sha256": "db09ae4f1ef8ad86c258ba5379b1c555f5653801cccfebbd5afd6836440a29d3"
+        },
+        "tests/test_github_tools_rest.py": {
+          "version": "1.1.1",
+          "sha256": "785104e7f5dd4f4cdbf6ba0c921be2309ec6607b609dc615c706df38b5d5bc4e"
         },
         "tests/test_i18n_serialization.py": {
           "version": "1.0.0",
@@ -462,6 +666,18 @@
         "tests/test_llm_utils_json_schema.py": {
           "version": "1.0.0",
           "sha256": "58f49f284caf86676ef26b004a978d1d53a2f44bd60a1df24e623e033bebfdbb"
+        },
+        "tests/test_multimodal.py": {
+          "version": "1.2.0",
+          "sha256": "00a629350b370ae857358d8d16c494228809a2cb550564a1df8eb60af2ee8c16"
+        },
+        "tests/test_multimodal_instruction.py": {
+          "version": "1.0.0",
+          "sha256": "bea075cfa5c2d68c11e56cbdac855c5f9fc402761ac0c1bbd12e5fe4234ce33d"
+        },
+        "tests/test_multimodal_tools.py": {
+          "version": "1.1.0",
+          "sha256": "6a1f6faf2e78f6808a9154f2bbe6372a9b301170e06712d26ded08403f9ccfea"
         },
         "tests/test_numeric_arg_coercion.py": {
           "version": "1.0.0",
@@ -482,6 +698,34 @@
         "tests/test_orchestrator_folders.py": {
           "version": "1.0.0",
           "sha256": "2a7a48ea3687236d0fc265385d31ae35a2cd781f44dec495b20ca6028570570c"
+        },
+        "tests/test_orchestrator_image_result.py": {
+          "version": "1.1.0",
+          "sha256": "9f8e339d95951e6a93320acc77821f6bfef1b366c6ebc62c9b9a5a7f49b6c248"
+        },
+        "tests/test_orchestrator_message_controls.py": {
+          "version": "1.0.0",
+          "sha256": "13a4a060328de1bc995cc418a961dbc582ab3002bcc78166798d6a4c605c7f66"
+        },
+        "tests/test_orchestrator_models_settings.py": {
+          "version": "1.0.0",
+          "sha256": "cc5fcca3d9c34f821d04586c60abaef2e16b0d777567b380ae0eaaa5ad6ea24e"
+        },
+        "tests/test_orchestrator_nav.py": {
+          "version": "1.0.0",
+          "sha256": "10f75e8ac600bb38961f71873cd6efcc50155851e29b31075981852b949d9efd"
+        },
+        "tests/test_orchestrator_other_settings.py": {
+          "version": "1.0.0",
+          "sha256": "d01f597f047716bd896af56291bdc5b2479584f86d0e70403c666ce793444c3b"
+        },
+        "tests/test_orchestrator_system_tools_ui.py": {
+          "version": "1.0.0",
+          "sha256": "dc2ba69051496ace83567e2112f5f5570accdd1f63af4900c4e549113fa5f61b"
+        },
+        "tests/test_orchestrator_tools.py": {
+          "version": "1.0.2",
+          "sha256": "79033dd1f0c8aecf91320b9098ebdadd6308fdf3ea64c5ee601c5f0290a7548c"
         },
         "tests/test_phase1_agent_loop.py": {
           "version": "1.3.0",
@@ -531,13 +775,25 @@
           "version": "1.0.1",
           "sha256": "1557be3c0e9d2ef87e28fb9d367490934149a1a9cd65d024bc7177c514f1c3a1"
         },
+        "tests/test_rag_hot_paths_no_stats.py": {
+          "version": "1.0.0",
+          "sha256": "171657d4cfa281e2c943407c85e7b8efd8c0ba7c32efa649a169d2fba46fc4cd"
+        },
+        "tests/test_rag_stats_cache.py": {
+          "version": "1.0.0",
+          "sha256": "433185608d19a1d48950f56f9bfd06ad555394abc0c74adf4e284d8ce7bb5972"
+        },
         "tests/test_rag_tools_robustness.py": {
           "version": "1.0.1",
           "sha256": "502b0e98df0501af70795c7cdfa469620a0b284c3d421cd973da49f183474580"
         },
-        "tests/test_recent_workspaces.py": {
+        "tests/test_rag_with_stats.py": {
           "version": "1.0.0",
-          "sha256": "9876dda70149ee980d60b8c8e9fcf3073baea5f9a397f0742c18a89df9897e30"
+          "sha256": "e3f58840ce61365b21c8b0e88af7d3436180953c587b2feaa92b16103acdd050"
+        },
+        "tests/test_recent_workspaces.py": {
+          "version": "1.1.0",
+          "sha256": "6c419df79d4228091f20d52d951821c9b9f79e8b71fa27d50e11d72206ff0517"
         },
         "tests/test_render_token_line.py": {
           "version": "1.0.1",
@@ -555,6 +811,18 @@
           "version": "1.0.0",
           "sha256": "e9b886c37c68823bd3fe2b34a4153a9a72ea1a0cfa6c2614e1f4de76d2225ce8"
         },
+        "tests/test_service_model_catalogs.py": {
+          "version": "1.2.0",
+          "sha256": "52196c13e459e0cca3ff26b2111282b3255efd7be256fee0741d705b2827b89d"
+        },
+        "tests/test_sidebar_employees_nav.py": {
+          "version": "1.0.0",
+          "sha256": "cd44dcb5661ad3e4ed465a8c9c0ba322335b90510c3f962c9bc9304e7494eaae"
+        },
+        "tests/test_single_model_config.py": {
+          "version": "1.1.0",
+          "sha256": "a567419354ac1bf5e1ac93eaf16a82d2748fcef95e2bd1bcc374ed50a810e183"
+        },
         "tests/test_skills_adaptation.py": {
           "version": "1.0.0",
           "sha256": "2a4b7bf502fd50e35d9168fc5baa2eaacb7a655af0be8628197274f13e982b62"
@@ -562,6 +830,14 @@
         "tests/test_skills_library.py": {
           "version": "1.1.0",
           "sha256": "7a958090000b0dfd1f6b116c6a46a570031687d1e22c70c85d6cb4397100002c"
+        },
+        "tests/test_ssh_connector.py": {
+          "version": "1.1.0",
+          "sha256": "7e81dfe27ce4078551d1f69d01acbf6b1ba2d8e2fe3ad1023632a1fec7084771"
+        },
+        "tests/test_ssh_tools.py": {
+          "version": "1.1.0",
+          "sha256": "064d3a5db6e8e8094f6f46b17bc31cc425beb11551695e9f834e8ccb50dac1d3"
         },
         "tests/test_st_mock.py": {
           "version": "1.0.0",
@@ -584,8 +860,8 @@
           "sha256": "6fc6dde9545fdbcfc1718950e69b991ed5c50558d86fe4374d5cfafe15447261"
         },
         "tests/test_task_state.py": {
-          "version": "1.1.0",
-          "sha256": "dac38db379aabf24dc29c75c192c409663f4e413f5ee3f3c078ff2d1ba002a32"
+          "version": "1.2.0",
+          "sha256": "6296ef02e936a6a0e29b423270ea8e9fc7e846062b74f6bf0931a8c104a29390"
         },
         "tests/test_theme_restore.py": {
           "version": "1.1.0",
@@ -599,9 +875,37 @@
           "version": "1.0.0",
           "sha256": "71df05e2bc9ed2fc43a6174a678a4c69fafaa9ff227fca8344f867c9132adfcb"
         },
+        "tests/test_threads_devagent_files.py": {
+          "version": "1.0.0",
+          "sha256": "e61b826d4bbab935e1f91c2419b1ac7c59760c041ee761610c61d4821c957a33"
+        },
+        "tests/test_threads_devagent_search.py": {
+          "version": "1.0.0",
+          "sha256": "23659eeab98de0376ecaae6766fd076cf88aec9181918d1395d5a72b56fe5603"
+        },
+        "tests/test_token_line_cache.py": {
+          "version": "1.0.0",
+          "sha256": "be21ba628aa487b8f80f34796a1a18a376bd737c741c83c167232fc81479787c"
+        },
+        "tests/test_tool_executor_env.py": {
+          "version": "1.0.0",
+          "sha256": "2d4fd62d7ff7d98f8891d9afecd6b0fe082446d0c454d3be188cfe8090d2620b"
+        },
+        "tests/test_tool_result_size_cap.py": {
+          "version": "1.0.0",
+          "sha256": "3fbaf04207e5200a2b6456547a62430176a6b2047ce88f0bad3a48a007a365f3"
+        },
+        "tests/test_tool_result_storage_summary.py": {
+          "version": "1.0.0",
+          "sha256": "58bcde692ea1729b7bb547349a33f371609b14198bfb3a72ba6205c8c7c6ce69"
+        },
         "tests/test_tools_utils.py": {
           "version": "1.0.1",
           "sha256": "eeea08046d63ebe8d71a402ed0f9a08e8ca7e9117a3b63be0daa327dda7037cc"
+        },
+        "tests/test_ui_connectors_ssh.py": {
+          "version": "1.0.0",
+          "sha256": "bb143518c29484d478948ad57f9a0e176da28b2e2529ce50be0a7895a554515a"
         },
         "tests/test_ui_pages.py": {
           "version": "1.0.5",
@@ -615,17 +919,53 @@
           "version": "1.1.0",
           "sha256": "c637abeb770f0bcb48984bfefa23e25fa58529bd7f88029383c847b240c68393"
         },
+        "tests/test_universal_agent_thread_files.py": {
+          "version": "1.0.0",
+          "sha256": "4b3c78afb382a816bc0d9e1f4518543a6cee44c926e12fe5b607993ef23d429d"
+        },
+        "tests/test_universal_agent_thread_search.py": {
+          "version": "1.0.0",
+          "sha256": "01d6081efb378b6d3b3d2d155da81510f86bdf45d9adb058d01d021260489ee6"
+        },
         "tests/test_universal_developer.py": {
           "version": "1.0.1",
           "sha256": "24f9939cb5c5ce834dab3537efaf74a099f39a413cb91bfc70ad37def470efdd"
+        },
+        "tests/test_updater.py": {
+          "version": "1.0.2",
+          "sha256": "322d5a33239df2192da08e1947bfc11b2a50555f794caa6f63824835064f76d0"
+        },
+        "tests/test_updater_apply.py": {
+          "version": "1.0.0",
+          "sha256": "69f158e7c02e8511a8dc5506352813ccdaeb847009c741eca62e1f6d84f404c9"
+        },
+        "tests/test_updater_ui.py": {
+          "version": "1.0.2",
+          "sha256": "77d177d6a37304d118aa36b263637e74900b759423c0111a91da541eecf50795"
         },
         "tests/test_usability_fixes.py": {
           "version": "1.0.2",
           "sha256": "53afff48ac7be3d28eb5c8e0c65ed8e77c90295bfa3584a4ab7aa8aa7bd381bd"
         },
+        "tests/test_verify_manifest.py": {
+          "version": "1.0.1",
+          "sha256": "413d6f1cd86e63345f0c6b80eddeeb91cab5b5cbbf953c0529efdb0260bd6e07"
+        },
         "tests/test_web_search_prompt.py": {
           "version": "1.0.1",
           "sha256": "0e6269995794640d527c6454b3c20b4a043932e0daefd51a6f5227fa0f142e79"
+        },
+        "tests/test_workspace_binding.py": {
+          "version": "1.0.1",
+          "sha256": "7fe9184cfac6c5f73032569b14142172dbc7f6e9bdc750a0df5af67cf484eeb9"
+        },
+        "tests/test_workspace_empty_state.py": {
+          "version": "1.0.0",
+          "sha256": "97de2cb19d870edd8671d64b2e9c40c2be9b8211bcdacb2cb4ca532915418660"
+        },
+        "tests/test_workspace_guard.py": {
+          "version": "1.0.0",
+          "sha256": "bc0f345590c90c88f3564f00ac9e6bae49a565b8685f67865f387ce564425fe4"
         },
         "tests/test_yandex_responses.py": {
           "version": "1.0.0",
@@ -636,8 +976,8 @@
           "sha256": "364164080192ca393405d235f1fc7ae64d45f48fd0e7a6bf27b064ea439e7a1f"
         },
         "ui/app.py": {
-          "version": "1.4.0",
-          "sha256": "e64e3b1da2220c94f5fd834de5ae977ec7d3d1a63b5554b3c44d143cc45a3d28"
+          "version": "1.5.0",
+          "sha256": "8e3c60bb1b39312f47b1be6948f2b89c0c58e88776156296c3a27b6ac23f8221"
         },
         "ui/components/__init__.py": {
           "version": "1.0.0",
@@ -650,6 +990,10 @@
         "ui/pages/__init__.py": {
           "version": "1.0.0",
           "sha256": "580d966418fb40de67b13995294875a6552d7a81a7009b927a672c31b8a189e1"
+        },
+        "ui/pages/access.py": {
+          "version": "1.0.0",
+          "sha256": "ffb75aa7f6bf9b60c1a7a0649a98f57f92557fed70b37f89724a94e744577c42"
         },
         "ui/pages/assistants.py": {
           "version": "1.3.0",
@@ -668,8 +1012,8 @@
           "sha256": "448dbf67eff496ec7d2689ef5d6f5be3640b79162e7456934ed478856b54ca74"
         },
         "ui/pages/orchestrator.py": {
-          "version": "1.10.1",
-          "sha256": "0ac5c24ab31938d4f4da30a814a3c14cf40bd08a58e2f2a28df5fa36bf91cafb"
+          "version": "1.11.0",
+          "sha256": "0020658120cfdde967cb5cc09542930fdcfce7416550ecab75f7e0dcae6175ff"
         },
         "ui/pages/orchestrator_settings.py": {
           "version": "1.1.0",
@@ -699,344 +1043,24 @@
           "version": "1.0.0",
           "sha256": "96322eb8e7b2a314fdfba34843372167d7d1bfc8d65c9118683f7c0f5ea88368"
         },
-        "ui/pages/welcome.py": {
-          "version": "1.0.0",
-          "sha256": "ce6235fcf9d00a1981b32ea0fcdef7bb7a32c036d33a09d70cbff134cfe138ba"
-        },
-        "tests/test_verify_manifest.py": {
-          "version": "1.0.1",
-          "sha256": "413d6f1cd86e63345f0c6b80eddeeb91cab5b5cbbf953c0529efdb0260bd6e07"
-        },
-        "core/updater_apply.py": {
-          "version": "1.1.0",
-          "sha256": "c9e03ac37d50334f2e8ed0ab3770e16be2535b777d39ea36cde91591cc74858b"
-        },
-        "tests/test_updater_apply.py": {
-          "version": "1.0.0",
-          "sha256": "69f158e7c02e8511a8dc5506352813ccdaeb847009c741eca62e1f6d84f404c9"
-        },
-        "core/updater.py": {
-          "version": "1.0.2",
-          "sha256": "0f5791a46ff9bdf86f60741ca2394b58878f8dce4fd9c6ae3e5417639880ce2a"
-        },
-        "tests/test_updater.py": {
-          "version": "1.0.2",
-          "sha256": "322d5a33239df2192da08e1947bfc11b2a50555f794caa6f63824835064f76d0"
-        },
         "ui/pages/updates.py": {
           "version": "1.1.0",
           "sha256": "9544562c9c6dfe928bf8535442564143153a41852e5b9a0454a556c7b7d81aa3"
         },
-        "tests/test_updater_ui.py": {
-          "version": "1.0.2",
-          "sha256": "77d177d6a37304d118aa36b263637e74900b759423c0111a91da541eecf50795"
-        },
-        "tests/scenarios/test_updater_runtime_flow.py": {
+        "ui/pages/welcome.py": {
           "version": "1.0.0",
-          "sha256": "0dcc3462b29426b5c1e1a490935f93627d3335931bb74189af14daef9617d120"
-        },
-        "core/github_connector_rest.py": {
-          "version": "1.2.0",
-          "sha256": "2b78ff668212b16c315d2700c1a54cbc33154ab428a183944b70683b5540f028"
-        },
-        "core/github_tools_rest.py": {
-          "version": "1.2.0",
-          "sha256": "d519edf51bdd47916b7fe4617da1dfc34fd110b3a66447338899219e84691b0d"
-        },
-        "tests/test_github_connector_rest.py": {
-          "version": "1.2.0",
-          "sha256": "db09ae4f1ef8ad86c258ba5379b1c555f5653801cccfebbd5afd6836440a29d3"
-        },
-        "tests/test_github_tools_rest.py": {
-          "version": "1.1.1",
-          "sha256": "785104e7f5dd4f4cdbf6ba0c921be2309ec6607b609dc615c706df38b5d5bc4e"
-        },
-        "tests/scenarios/test_github_rest_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "743c93400ab05d08982356d3df83ffccc00298dcb9fdbe1a045c5232c144666b"
-        },
-        "tests/scenarios/test_provider_economy_settings_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "309f31735f1c97a3ed1706bbc770dabd14b593d507bf562e5f08d6b50ac7f6b9"
-        },
-        "tests/test_orchestrator_other_settings.py": {
-          "version": "1.0.0",
-          "sha256": "d01f597f047716bd896af56291bdc5b2479584f86d0e70403c666ce793444c3b"
-        },
-        "tests/scenarios/test_orchestrator_other_settings_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "db88cbd471cad26fcf08db86ca8472c612117ce6a83e9ff4674284a71bb10dc0"
-        },
-        "tests/test_auth_access.py": {
-          "version": "1.0.0",
-          "sha256": "dafd3ae4ab539252cbf65780864393afd618905e1525be0dd0706164b929cc7b"
-        },
-        "ui/pages/access.py": {
-          "version": "1.0.0",
-          "sha256": "ffb75aa7f6bf9b60c1a7a0649a98f57f92557fed70b37f89724a94e744577c42"
-        },
-        "tests/scenarios/test_access_scenarios.py": {
-          "version": "1.0.0",
-          "sha256": "e5e7389b55b2a21eda9f04c56246191561e647c30b3a5e45ed9b60b21768185e"
-        },
-        "tests/test_agent_loop_thread_context.py": {
-          "version": "1.0.0",
-          "sha256": "0059ab9058cbd45a753543dc965887a1c76103e29b89c3e5b4bee193d20b5982"
-        },
-        "tests/test_threads_devagent_files.py": {
-          "version": "1.0.0",
-          "sha256": "e61b826d4bbab935e1f91c2419b1ac7c59760c041ee761610c61d4821c957a33"
-        },
-        "tests/test_universal_agent_thread_files.py": {
-          "version": "1.0.0",
-          "sha256": "4b3c78afb382a816bc0d9e1f4518543a6cee44c926e12fe5b607993ef23d429d"
-        },
-        "tests/scenarios/test_orchestrator_thread_files.py": {
-          "version": "1.0.0",
-          "sha256": "e498ab8b7c76d451c5ae176a508668011855d73774820a68899eba8a9d16388e"
-        },
-        "dev_agent/workspace_binding.py": {
-          "version": "1.0.0",
-          "sha256": "151d760d10dd0eccb1e81935108773989f32dc98348dd6760c57f7a17f39bb2c"
-        },
-        "tests/test_workspace_binding.py": {
-          "version": "1.0.0",
-          "sha256": "e003ccec480f981e93f25b9569f0237cce17e4e3176155d211f96410d9195dea"
-        },
-        "tests/scenarios/test_workspace_binding_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "89c2d62dcf37482dfd7dcf3b5f3b8c62e0eff19d8bff51a2dc3303f6e818d701"
-        },
-        "tests/test_db_concurrency.py": {
-          "version": "1.1.0",
-          "sha256": "d0baae4fb21fbf3d96f1043879ca157cbe3136150db2b89ef988904c0e221b0a"
-        },
-        "tests/test_token_line_cache.py": {
-          "version": "1.0.0",
-          "sha256": "be21ba628aa487b8f80f34796a1a18a376bd737c741c83c167232fc81479787c"
-        },
-        "tests/test_chat_pagination.py": {
-          "version": "1.0.1",
-          "sha256": "243eb56ca99bb472d0295c11db04e8cbb4c365eb2c6381971fc6395083b2fac8"
-        },
-        "tests/test_api_retry.py": {
-          "version": "1.0.0",
-          "sha256": "349cd19dea37f6e15bc07cafe816a3246299b2b3c3816d1cae5ab62f50f65243"
-        },
-        "tests/test_agent_loop_connection_retry.py": {
-          "version": "1.0.0",
-          "sha256": "57c3fed99e3e7c07576de79542052dc8fdcc5e3f2f0b5168203b9fef0dcb2a3b"
-        },
-        "tests/scenarios/test_connection_retry_scenarios.py": {
-          "version": "1.0.0",
-          "sha256": "add50b4f60af1d4dffff8ecf884693e50a4c7991a9b7dceef4a6e5dc47299d52"
-        },
-        "tests/test_tool_executor_env.py": {
-          "version": "1.0.0",
-          "sha256": "2d4fd62d7ff7d98f8891d9afecd6b0fe082446d0c454d3be188cfe8090d2620b"
-        },
-        "tests/test_rag_hot_paths_no_stats.py": {
-          "version": "1.0.0",
-          "sha256": "171657d4cfa281e2c943407c85e7b8efd8c0ba7c32efa649a169d2fba46fc4cd"
-        },
-        "tests/test_rag_stats_cache.py": {
-          "version": "1.0.0",
-          "sha256": "433185608d19a1d48950f56f9bfd06ad555394abc0c74adf4e284d8ce7bb5972"
-        },
-        "tests/test_rag_with_stats.py": {
-          "version": "1.0.0",
-          "sha256": "e3f58840ce61365b21c8b0e88af7d3436180953c587b2feaa92b16103acdd050"
-        },
-        "tests/scenarios/test_rag_perf_scenarios.py": {
-          "version": "1.0.0",
-          "sha256": "04b1a4cbebc25141bb8196d95620b9b491faceff1f8cc634c17d2ccd52fc9646"
-        },
-        "tests/test_deepseek_anthropic_web_search.py": {
-          "version": "1.0.0",
-          "sha256": "5d538ad9a5686e354ae34438adfbbd1331a272cd600365dfffadfd3615b08946"
-        },
-        "tests/scenarios/test_task_state_mega_task.py": {
-          "version": "1.0.0",
-          "sha256": "c560aa021452f34873de3554179fb669bb5b384c6e945e6b464a21e7de37f439"
-        },
-        "core/orchestrator_tools.py": {
-          "version": "1.1.0",
-          "sha256": "ba1c1f8100040a72b695e8fbf9de74884a6a4b040ec5352dbe1db4064e116ac5"
-        },
-        "tests/test_orchestrator_tools.py": {
-          "version": "1.0.2",
-          "sha256": "79033dd1f0c8aecf91320b9098ebdadd6308fdf3ea64c5ee601c5f0290a7548c"
-        },
-        "tests/test_dispatcher_tool_gating.py": {
-          "version": "1.0.0",
-          "sha256": "5e8189d4e8a99a10afb6992f28bbadd3ff9fc684464938bc00c191a76a32a12b"
-        },
-        "tests/test_orchestrator_system_tools_ui.py": {
-          "version": "1.0.0",
-          "sha256": "dc2ba69051496ace83567e2112f5f5570accdd1f63af4900c4e549113fa5f61b"
-        },
-        "tests/scenarios/test_orchestrator_tool_gating.py": {
-          "version": "1.2.3",
-          "sha256": "09d0bfc33c1b51acbfa1f0569df863b30459d865d8974d04d3647032a4dd756a"
-        },
-        "core/context_guard.py": {
-          "version": "1.0.0",
-          "sha256": "ec2f4d1ce2b4c158b27b25ca7a520b71abf0270677efaf809ce437c2a0b015e0"
-        },
-        "tests/test_tool_result_size_cap.py": {
-          "version": "1.0.0",
-          "sha256": "3fbaf04207e5200a2b6456547a62430176a6b2047ce88f0bad3a48a007a365f3"
-        },
-        "tests/test_tool_result_storage_summary.py": {
-          "version": "1.0.0",
-          "sha256": "58bcde692ea1729b7bb547349a33f371609b14198bfb3a72ba6205c8c7c6ce69"
-        },
-        "tests/test_economy_history_budget.py": {
-          "version": "1.0.0",
-          "sha256": "46dc58a26f6529cb68a0d4f431b3500b287b6581c8d986671a780771438de133"
-        },
-        "tests/test_context_window_guard.py": {
-          "version": "1.0.0",
-          "sha256": "eb996009e0105034561ea663985a001bb0a06a26622cc3396f17bba0cc09f236"
-        },
-        "tests/scenarios/test_context_overflow_protection.py": {
-          "version": "1.0.0",
-          "sha256": "1c19840064d12d89dd7f8425622c1711c2cdc890720809a616cd0cbc7f5fe0cb"
-        },
-        "tests/scenarios/test_loop_stuck_protection_scenarios.py": {
-          "version": "1.0.0",
-          "sha256": "b1d500f175b3ddedc8b9dd0376988f90af5e2ff18f72496a3a0e3f89111d9dcb"
-        },
-        "tests/scenarios/test_gigachat_models_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "e45fa82cd6f2f5fa5d6ebd9e1bb02ca2429a80b726c9d013a6c604433a216be5"
-        },
-        "core/orchestrator_nav.py": {
-          "version": "1.0.0",
-          "sha256": "a47b5e932c65fe6b5462ff95016bd55f8ba2ee7cdfd3c1930caf7ef90ea71845"
-        },
-        "tests/test_orchestrator_nav.py": {
-          "version": "1.0.0",
-          "sha256": "10f75e8ac600bb38961f71873cd6efcc50155851e29b31075981852b949d9efd"
-        },
-        "tests/test_sidebar_employees_nav.py": {
-          "version": "1.0.0",
-          "sha256": "cd44dcb5661ad3e4ed465a8c9c0ba322335b90510c3f962c9bc9304e7494eaae"
-        },
-        "tests/scenarios/test_employees_sidebar_scenarios.py": {
-          "version": "1.0.0",
-          "sha256": "85021f57840f6d1d13b6a81339b10f7d7f5538e2a47408ab08f18121bc4cec05"
-        },
-        "tests/scenarios/test_batch_tool_calls_scenarios.py": {
-          "version": "1.0.0",
-          "sha256": "02b161a495404f72cadef406561c065e27030420d275940bc09b855cd4e0e07a"
-        },
-        "tests/test_gigachat_messages.py": {
-          "version": "1.0.0",
-          "sha256": "e9181ad677c3f19d509eed9ef13ef8e437ba1445223c2aba6eeb78221629d6f5"
-        },
-        "tests/scenarios/test_gigachat_orchestrator_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "7d4a9adb6aaa475baac995c3f869dfe231ea2699293861c05c3ac139202504de"
-        },
-        "tests/scenarios/test_rag_context_restore.py": {
-          "version": "1.0.0",
-          "sha256": "2465407f57a36cb8fdb8c190328e5c2a6ef8e4b5a323582a026d720b0fad1ea9"
-        },
-        "tests/test_orchestrator_message_controls.py": {
-          "version": "1.0.0",
-          "sha256": "13a4a060328de1bc995cc418a961dbc582ab3002bcc78166798d6a4c605c7f66"
-        },
-        "core/ssh_connector.py": {
-          "version": "1.1.0",
-          "sha256": "a73e4363a0d6206d4e73f5827d81097e34c0f1832aad7485ef92a25b879ecbe6"
-        },
-        "core/ssh_tools.py": {
-          "version": "1.1.0",
-          "sha256": "034ed7c9dc588ae8dea5c2fb1022a5905d9b93dfaed4bfaa55badd58a7f14a7b"
-        },
-        "tests/scenarios/test_ssh_connector_scenarios.py": {
-          "version": "1.1.0",
-          "sha256": "9639c130e68f2c05ee768d84787dc0f9373fdb2797e0de57501df1e552c2ae5e"
-        },
-        "tests/test_ssh_connector.py": {
-          "version": "1.1.0",
-          "sha256": "7e81dfe27ce4078551d1f69d01acbf6b1ba2d8e2fe3ad1023632a1fec7084771"
-        },
-        "tests/test_ssh_tools.py": {
-          "version": "1.1.0",
-          "sha256": "064d3a5db6e8e8094f6f46b17bc31cc425beb11551695e9f834e8ccb50dac1d3"
-        },
-        "tests/test_ui_connectors_ssh.py": {
-          "version": "1.0.0",
-          "sha256": "bb143518c29484d478948ad57f9a0e176da28b2e2529ce50be0a7895a554515a"
-        },
-        "tests/scenarios/test_yandex_models_catalog_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "71b5258ef746af321c3ccc81b8bf6fb3f6c0b2dc735c9a9b896c36c709956f17"
-        },
-        "tests/test_single_model_config.py": {
-          "version": "1.1.0",
-          "sha256": "a567419354ac1bf5e1ac93eaf16a82d2748fcef95e2bd1bcc374ed50a810e183"
-        },
-        "tests/test_service_model_catalogs.py": {
-          "version": "1.2.0",
-          "sha256": "52196c13e459e0cca3ff26b2111282b3255efd7be256fee0741d705b2827b89d"
-        },
-        "tests/test_orchestrator_models_settings.py": {
-          "version": "1.0.0",
-          "sha256": "cc5fcca3d9c34f821d04586c60abaef2e16b0d777567b380ae0eaaa5ad6ea24e"
-        },
-        "core/multimodal.py": {
-          "version": "1.1.0",
-          "sha256": "df5f46d179033a13759485dab35f014c64d19ad0a7130a68180376df3d266131"
-        },
-        "tests/test_multimodal.py": {
-          "version": "1.2.0",
-          "sha256": "00a629350b370ae857358d8d16c494228809a2cb550564a1df8eb60af2ee8c16"
-        },
-        "tests/test_multimodal_tools.py": {
-          "version": "1.1.0",
-          "sha256": "6a1f6faf2e78f6808a9154f2bbe6372a9b301170e06712d26ded08403f9ccfea"
-        },
-        "tests/test_multimodal_instruction.py": {
-          "version": "1.0.0",
-          "sha256": "bea075cfa5c2d68c11e56cbdac855c5f9fc402761ac0c1bbd12e5fe4234ce33d"
-        },
-        "tests/scenarios/test_multimodal_scenarios.py": {
-          "version": "1.2.0",
-          "sha256": "08772731711c2eb631fcf075ce7ce41d3fbc0231e0830d45ebb300812669f896"
-        },
-        "tests/test_orchestrator_image_result.py": {
-          "version": "1.1.0",
-          "sha256": "9f8e339d95951e6a93320acc77821f6bfef1b366c6ebc62c9b9a5a7f49b6c248"
-        },
-        "tests/scenarios/test_generated_image_feed_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "c6c495a04fe4c7b5f089b0f63ccabfdff5a0de2405cf543bb8b067d24d828e6e"
-        },
-        "tests/test_threads_devagent_search.py": {
-          "version": "1.0.0",
-          "sha256": "23659eeab98de0376ecaae6766fd076cf88aec9181918d1395d5a72b56fe5603"
-        },
-        "tests/test_universal_agent_thread_search.py": {
-          "version": "1.0.0",
-          "sha256": "01d6081efb378b6d3b3d2d155da81510f86bdf45d9adb058d01d021260489ee6"
-        },
-        "tests/scenarios/test_thread_search_scenarios.py": {
-          "version": "1.0.0",
-          "sha256": "d550a6220ec28ad1d8ec108a99c7c377bd53057298a3deeb14739919817ff6a1"
+          "sha256": "ce6235fcf9d00a1981b32ea0fcdef7bb7a32c036d33a09d70cbff134cfe138ba"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.20.0",
-      "sha256": "58416ec17e869eaeb5fa13a92fb23727967d95f82c9d32026e886f520108404b",
+      "version": "1.21.0",
+      "sha256": "fd4e173529d82e39b350ca1af03c3bf082f8f0a87be8ea1183f1410f3743eda6",
       "note": {
-        "ru": "Раздел «Поиск по диалогам»: сервисный слой core/threads_devagent.py, SQL-выборки repository_devagent, контроль доступа allowed_slugs; ссылки на промпт v3.15.",
-        "en": "Dialog-search section: the core/threads_devagent.py service layer, repository_devagent SQL queries, allowed_slugs access control; prompt v3.15 references."
+        "ru": "Раздел «Изоляция рабочей папки и пустое состояние»: workspace_binding, мета треда, guard workspace_not_selected, скоуп недавних папок, журналы/вложения; ссылки на промпты v3.16/v2.10.",
+        "en": "New section Workspace isolation and the empty state: workspace_binding, thread meta, the workspace_not_selected guard, the recent-folders scope, journals/uploads; v3.16/v2.10 prompt references."
       }
     },
     "COMPARISON.md": {
@@ -1056,27 +1080,27 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.24.0",
-      "sha256": "f76d22d16e82bc03be42b38a4760f12b838a24a12a307815de212bfa3c07de6b",
+      "version": "1.25.0",
+      "sha256": "cd0ddd96aa5d2fe77c5bb1aef24350a22138d08b4e3bcaf2ee60bc757f09c12b",
       "note": {
-        "ru": "Карта регенерирована (1152 файла): роли thread-search слоя и диспетчера, трёх новых тестов поиска по диалогам.",
-        "en": "Map regenerated (1152 files): roles of the thread-search layer and dispatcher, and of the three new dialog-search tests."
+        "ru": "Карта регенерирована (1199 файлов): роли слоя изоляции рабочей папки (config, workspace_binding, guard, recent_workspaces, мета тредов) и шести новых тестов изоляции.",
+        "en": "Map regenerated (1199 files): roles of the workspace-isolation layer (config, workspace_binding, guard, recent_workspaces, thread meta) and of the six new isolation tests."
       }
     },
     "README.md": {
-      "version": "1.18.0",
-      "sha256": "fea864d7e0bd6b6c18cdca54e8d24a59fd531487f465e7b8585771e6d290b4f1",
+      "version": "1.19.0",
+      "sha256": "70e32dba2450907c3110c09008000d7ba4552bde4292978a0807470dbfb709cb",
       "note": {
-        "ru": "Возможности сотрудников: поиск по диалогам (search_in_threads/list_threads/read_thread). Статус версии v1.8.0.",
-        "en": "Employee capabilities: dialog search (search_in_threads/list_threads/read_thread). Version status v1.8.0."
+        "ru": "Статус версии v1.9.0; изоляция рабочей папки: новый диалог без папки, активная папка привязана к диалогу и восстанавливается, меню недавних папок у каждого сотрудника своё.",
+        "en": "Version status v1.9.0; workspace isolation: a new dialog starts with no folder, the active folder is dialog-bound and restored, each employee has its own recent-folders menu."
       }
     },
     "SPEC.md": {
-      "version": "1.21.0",
-      "sha256": "26840cdd57beec404b9e739abf316156c7377eb14e8f5a3fbc79362d3635074a",
+      "version": "1.22.0",
+      "sha256": "6f4dbe1560cb0b9bfdca2bf11b033813a800777bc4849efb03dc6df0255180bb",
       "note": {
-        "ru": "FR6: инструменты поиска по диалогам у оркестраторов (search_in_threads/list_threads/read_thread) и контроль доступа к тредам; изображение generate_image в ленте чата; каталоги vision-моделей.",
-        "en": "FR6: dialog thread-search tools for orchestrators (search_in_threads/list_threads/read_thread) and thread access control; the generate_image picture in the chat feed; vision model catalogs."
+        "ru": "Пустое состояние «папка не выбрана» и guard файловых инструментов; мета «последняя папка» треда и миграция легаси-меты; недавние папки в скоупе оркестратора; журналы задач и вложения при пустой папке в папке диалога.",
+        "en": "The no-folder-selected empty state and the file-tool guard; thread last-folder meta and the legacy-meta migration; per-orchestrator recent folders; journals and uploads in the dialog folder in the empty state."
       }
     },
     "defaults/README.md": {
@@ -1133,6 +1157,22 @@
       "note": {
         "ru": "Инструкция дополнена: REST-only правило (запрет git push / gh / curl), инструмент ghr_batch_commit_paths для публикации файлов с диска, честные счётчики created/updated/unchanged в batch_commit, правило верификации после записи.",
         "en": "Instruction extended: REST-only rule (no git push/gh/curl), ghr_batch_commit_paths tool for publishing files from disk, honest created/updated/unchanged counters in batch_commit, verify-after-write rule."
+      }
+    },
+    "defaults/instructions/multimodal_mode.md": {
+      "version": "1.2.0",
+      "sha256": "135430c28da2b5bf37a776a602d8a1bb77e8d4fb79a847f0ad7c28faf83a7e18",
+      "note": {
+        "ru": "Vision-сервисы с каталогом vision_models (YandexAI, DeepSeek).",
+        "en": "Vision services declaring a vision_models catalog (YandexAI, DeepSeek)."
+      }
+    },
+    "defaults/instructions/ssh_connector.md": {
+      "version": "1.1.0",
+      "sha256": "3a8ce662e5156e4b71a35cae2db860b19d987c7c2c515c761af7ac0fa6c2d410",
+      "note": {
+        "ru": "Инструкция ssh_connector: инструмент ssh_upload_file и раздел «Публикация локальных файлов на сервер».",
+        "en": "ssh_connector instruction: ssh_upload_file tool and a Publish local files to a server section."
       }
     },
     "defaults/langs/en.json": {
@@ -1231,6 +1271,14 @@
         "en": "Optional content file (non-code). Can be updated individually."
       }
     },
+    "defaults/orchestrators/dev_agent/instructions/ssh_connector.md": {
+      "version": "1.1.0",
+      "sha256": "3a8ce662e5156e4b71a35cae2db860b19d987c7c2c515c761af7ac0fa6c2d410",
+      "note": {
+        "ru": "Инструкция ssh_connector: инструмент ssh_upload_file и раздел «Публикация локальных файлов на сервер».",
+        "en": "ssh_connector instruction: ssh_upload_file tool and a Publish local files to a server section."
+      }
+    },
     "defaults/orchestrators/ya_agent/instructions/agent_atelier_agents.md": {
       "version": "1.0.0",
       "sha256": "d678e30a49e537b8a0b6186b790228157e031d35cff8bbeb2470d64d83cf0d6d",
@@ -1304,11 +1352,11 @@
       }
     },
     "defaults/orchestrators/ya_agent/system_prompt.md": {
-      "version": "2.9",
-      "sha256": "56acb0d40370fabb8646fe5226952771f7afd7f5c6ef0f70271461a50a2c6fb6",
+      "version": "2.10",
+      "sha256": "e7db903399cfb408a3894043f04070c3711d4110db9ce1403b6c64d0a8577462",
       "note": {
-        "ru": "Промпт YaAgent v2.9: перечень моделей синхронизирован с каталогом YandexAI (GPT-OSS удалён); сохранены батч-протокол и ветка «готовый план пользователя».",
-        "en": "YaAgent prompt v2.9: the model list synced with the YandexAI catalog (GPT-OSS removed); the batch protocol and the user-supplied-plan branch preserved."
+        "ru": "Промпт YaAgent v2.10: Этап 0 - пустое состояние и меню недавних папок в скоупе оркестратора; журнал задач и вложения диалога при пустой папке не пишутся в проект; ранее - каталог моделей YandexAI.",
+        "en": "YaAgent prompt v2.10: Stage 0 - the empty state and the per-orchestrator recent-folders menu; the task journal and dialog uploads never write into a project in the empty state; earlier - the YandexAI model catalog."
       }
     },
     "defaults/rag_bases/yaagentai_2020/index.db": {
@@ -1384,11 +1432,11 @@
       }
     },
     "dev_agent/system_prompt.md": {
-      "version": "3.15",
-      "sha256": "43de553f4528b633f20f8004b206e90f232efa601489219b334fa21d0aa752ed",
+      "version": "3.16",
+      "sha256": "e5676b7266867ca460c450cc87bf3f7b073c9dd434c73bdee5d2c273b0c96a96",
       "note": {
-        "ru": "Промпт DevAgent v3.15: инструменты поиска по диалогам (search_in_threads/list_threads/read_thread) в §6 - текущий диалог по умолчанию, scope и период, доступ только к своим диалогам; ранее - добор контекста RAG (rag_get_chunks) и батч-протокол вызовов.",
-        "en": "DevAgent prompt v3.15: the dialog thread-search tools (search_in_threads/list_threads/read_thread) in §6 - current dialog by default, scope and period, access to own dialogs only; earlier - RAG context restore (rag_get_chunks) and batched tool calls."
+        "ru": "Промпт DevAgent v3.16: Этап 0 - пустое состояние «папка не выбрана» (workspace_selected: false, ошибка workspace_not_selected, run_code/run_test(code) с нейтральным cwd) и меню недавних папок в скоупе оркестратора; §16 - журнал задач при пустой папке в папке диалога; §17 - вложения только в history/<tid>/files; ранее - поиск по диалогам.",
+        "en": "DevAgent prompt v3.16: Stage 0 - the no-folder-selected empty state (workspace_selected: false, workspace_not_selected error, run_code/run_test(code) with a neutral cwd) and the per-orchestrator recent-folders menu; section 16 - the task journal lives in the dialog folder in the empty state; section 17 - uploads stay in history/<tid>/files; earlier - dialog thread search."
       }
     },
     "langs/en.json": {
@@ -1461,30 +1509,6 @@
       "note": {
         "ru": "Каталог vision_models пополнен deepseek-v4.1-flash.",
         "en": "vision_models catalog extended with deepseek-v4.1-flash."
-      }
-    },
-    "defaults/instructions/ssh_connector.md": {
-      "version": "1.1.0",
-      "sha256": "3a8ce662e5156e4b71a35cae2db860b19d987c7c2c515c761af7ac0fa6c2d410",
-      "note": {
-        "ru": "Инструкция ssh_connector: инструмент ssh_upload_file и раздел «Публикация локальных файлов на сервер».",
-        "en": "ssh_connector instruction: ssh_upload_file tool and a Publish local files to a server section."
-      }
-    },
-    "defaults/orchestrators/dev_agent/instructions/ssh_connector.md": {
-      "version": "1.1.0",
-      "sha256": "3a8ce662e5156e4b71a35cae2db860b19d987c7c2c515c761af7ac0fa6c2d410",
-      "note": {
-        "ru": "Инструкция ssh_connector: инструмент ssh_upload_file и раздел «Публикация локальных файлов на сервер».",
-        "en": "ssh_connector instruction: ssh_upload_file tool and a Publish local files to a server section."
-      }
-    },
-    "defaults/instructions/multimodal_mode.md": {
-      "version": "1.2.0",
-      "sha256": "135430c28da2b5bf37a776a602d8a1bb77e8d4fb79a847f0ad7c28faf83a7e18",
-      "note": {
-        "ru": "Vision-сервисы с каталогом vision_models (YandexAI, DeepSeek).",
-        "en": "Vision services declaring a vision_models catalog (YandexAI, DeepSeek)."
       }
     }
   }

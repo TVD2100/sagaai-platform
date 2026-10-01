@@ -116,7 +116,7 @@ def test_scenario_any_format_upload_lands_in_thread_files(isolated_data_dir):
     from core.files import build_thread_files_notice
     from core.paths import get_thread_dir
     from ui.pages.orchestrator import (
-        _load_attachments_manifest, _append_attachment_manifest,
+        _attachments_manifest_path, _load_attachments_manifest,
     )
 
     zip_blob = _make_zip_bytes({"inner.txt": "hello from zip\n"})
@@ -141,11 +141,18 @@ def test_scenario_any_format_upload_lands_in_thread_files(isolated_data_dir):
     assert by_name["photo.jpg"]["is_text"] is False
 
     # when: the UI builds the per-message notice and merges the legacy
-    # workspace manifest (a file saved by the legacy flow).
+    # workspace manifest. Workspace isolation v2 removed the workspace-side
+    # WRITER (uploads now live only in history/<tid>/files), but manifests
+    # written by older builds must still be re-announced - so the test
+    # writes such a manifest by hand and reads it through the legacy reader.
     ws_root = isolated_data_dir
-    _append_attachment_manifest(ws_root, TID, {
-        "name": "legacy.csv", "path": "/tmp/old/legacy.csv", "chars": 12, "tokens": 3,
-    })
+    manifest_path = _attachments_manifest_path(ws_root, TID)
+    os.makedirs(os.path.dirname(manifest_path), exist_ok=True)
+    with open(manifest_path, "w", encoding="utf-8") as fh:
+        json.dump([{"name": "legacy.csv", "path": "/tmp/old/legacy.csv",
+                    "chars": 12, "tokens": 3}], fh, ensure_ascii=False)
+    legacy_manifest = _load_attachments_manifest(ws_root, TID)
+    assert [e["name"] for e in legacy_manifest] == ["legacy.csv"]
     notice = build_thread_files_notice(list_thread_files(TID))
     registry = "Сохранённые файлы диалога:\n- legacy.csv (/tmp/old/legacy.csv, 12 chars, ~3 tokens)"
     merged = f"{notice}\n\n{registry}"

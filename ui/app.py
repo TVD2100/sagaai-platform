@@ -31,7 +31,7 @@ from core.auth import require_auth
 from core.recent_assistants import record_assistant_use
 from core.assistant_nav import sort_assistants, split_nav_lists, DEFAULT_VISIBLE_ASSISTANTS
 from core.orchestrator_nav import sort_orchestrators, DEFAULT_VISIBLE_ORCHESTRATORS
-from core.threads_devagent import list_devagent_threads
+from core.threads_devagent import list_devagent_threads, migrate_platform_workspace_meta
 
 from ui.pages.welcome  import page_welcome
 from ui.pages.chat     import page_run_query
@@ -341,6 +341,13 @@ def main():
     # Seed built-in instructions and DevAgent settings.
     if not st.session_state.get("_defaults_seeded"):
         default_imports.ensure_all_defaults()
+        # One-time cleanup of leaked platform folders in foreign dialogs'
+        # saved workspace (workspace isolation v2, see core.threads_devagent).
+        # Idempotent; a failure here must never block the app start.
+        try:
+            migrate_platform_workspace_meta()
+        except Exception:
+            pass
         st.session_state["_defaults_seeded"] = True
 
     # Load env vars from shell profiles.

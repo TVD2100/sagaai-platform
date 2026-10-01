@@ -47,6 +47,7 @@ from dev_agent.agent_loop import (
 )
 from dev_agent import workspace_tools as wt
 from dev_agent import workspace_binding as wb
+from dev_agent import config as dagent_config
 from storage.models import DEFAULT_MAX_STEPS
 
 from core.orchestrators import (
@@ -203,39 +204,10 @@ def _load_attachments_manifest(ws_root: str, tid: str) -> list:
         return []
 
 
-def _append_attachment_manifest(ws_root: str, tid: str, entry: dict) -> None:
-    """Register one saved file in the dialog manifest (name is unique)."""
-    manifest = _load_attachments_manifest(ws_root, tid)
-    manifest = [e for e in manifest if e.get("name") != entry.get("name")]
-    manifest.append(entry)
-    dest = _attachments_manifest_path(ws_root, tid)
-    os.makedirs(os.path.dirname(dest), exist_ok=True)
-    with open(dest, "w", encoding="utf-8") as fh:
-        json.dump(manifest, fh, ensure_ascii=False, indent=2)
-
-
-def _save_attachment_to_workspace(root: str, tid: str, att: dict) -> str:
-    """Persist an uploaded file inside the current workspace.
-
-    Returns a RELATIVE path inside .dev_agent/attachments/<tid>/ so the
-    agent can open it with the normal read_file tool from any message of
-    the dialog. The file is registered in a sidecar manifest.
-    """
-    attach_dir = os.path.join(root, ".dev_agent", "attachments", str(tid))
-    os.makedirs(attach_dir, exist_ok=True)
-    safe_name = os.path.basename(att.get("name", "attachment.txt")) or "attachment.txt"
-    dest = os.path.join(attach_dir, safe_name)
-    content = att.get("content", "")
-    with open(dest, "w", encoding="utf-8") as fh:
-        fh.write(content)
-    rel = os.path.join(".dev_agent", "attachments", str(tid), safe_name)
-    _append_attachment_manifest(root, tid, {
-        "name": safe_name,
-        "path": rel,
-        "chars": len(content),
-        "tokens": att.get("tokens", 0),
-    })
-    return rel
+# NOTE (workspace isolation v2): the workspace-side attachment writer was
+# removed - uploads are stored ONLY in history/<tid>/files, so a dialog can
+# never create files inside a foreign project folder. The reader above is
+# kept to re-announce manifests written by older builds.
 
 
 # ─── Scroll helpers ───────────────────────────────────────────────────────────
@@ -905,15 +877,7 @@ def _do_step(slug: str, lang: str) -> None:
 
         # Persist the LAST active workspace / target_file so reopening the
         # thread from history restores the correct project folder.
-        try:
-            ws_info = wt.current_workspace()
-            save_thread_workspace(
-                tid,
-                workspace=ws_info.get("root", ""),
-                target_file=ws_info.get("target_file", "") if ws_info.get("single_file_mode") else None,
-            )
-        except Exception:
-            pass
+        _persist_thread_workspace_meta(tid)
 
     # Keep the loop state when the agent is waiting for the user to act
     # (plan approval, dangerous-operation confirmation, sanitation approval)
@@ -948,6 +912,15 @@ def _reset_dialog(slug: str) -> None:
     _set_ss(slug, "scroll_to", None)
     if _sk(slug, "dispatcher") in st.session_state:
         del st.session_state[_sk(slug, "dispatcher")]
+    # A fresh dialog starts in the EMPTY workspace state: repoint the live
+    # config at the neutral root so the new dialog never inherits the folder
+    # of a parallel dialog. Threads with a chosen folder re-apply their own
+    # state per dispatch (workspace_binding.thread_context).
+    try:
+        dagent_config.apply_paths(dagent_config.NEUTRAL_ROOT,
+                                  create_dirs=False, selected=False)
+    except Exception:
+        pass
 
 
 def _load_thread(slug: str, tid: str) -> None:
@@ -960,22 +933,58 @@ def _load_thread(slug: str, tid: str) -> None:
     workspace = meta.get("workspace") or ""
     target_file = meta.get("target_file") or ""
 
+    restored = False
     try:
         if target_file and os.path.isfile(target_file):
-            wt.set_target_file(target_file)
+            wt.set_target_file(target_file, slug=slug)
+            restored = True
         elif workspace and os.path.isdir(workspace):
-            wt.set_workspace(workspace)
+            wt.set_workspace(workspace, slug=slug)
+            restored = True
     except Exception:
-        pass  # If the saved workspace is missing, keep the current one.
+        restored = False
+
+    # A thread without a saved folder - or whose folder no longer exists -
+    # opens in the EMPTY state applied by _reset_dialog; it must never
+    # inherit the folder of a neighbouring dialog.
 
     msgs = load_thread_messages(tid)
     _set_ss(slug, "history", msgs)
     _set_ss(slug, "thread_id", tid)
     _set_ss(slug, "saved_msg_count", len(msgs))
-    # The workspace was restored above into the live config; mirror it into
-    # the thread binding so the next dispatch applies exactly this state.
+    # Mirror the ACTUAL restored state into the thread binding: a
+    # folder-less thread is bound as workspace-less so its dispatches keep
+    # running in the empty state.
     try:
-        wb.sync_registry_from_config(tid)
+        if restored:
+            wb.sync_registry_from_config(tid)
+        else:
+            wb.register_thread(tid, workspace=None, target_file=None)
+    except Exception:
+        pass
+
+
+def _persist_thread_workspace_meta(tid: str) -> None:
+    """Persist the thread's BOUND workspace state into its DB meta.
+
+    The binding registry is the per-thread source of truth: at render time
+    the live config may belong to a neighbouring dialog, so it is used only
+    as a fallback for a thread without a binding yet. The empty state is
+    persisted as cleared fields ('' -> NULL) - the neutral root must never
+    be recorded as a chosen folder.
+    """
+    if not tid:
+        return
+    try:
+        state = wb.get_thread_state(tid)
+        if state is not None:
+            workspace = state.get("workspace") or ""
+            target_file = state.get("target_file") or ""
+        else:
+            selected = bool(getattr(dagent_config, "WORKSPACE_SELECTED", True))
+            workspace = str(dagent_config.PROJECT_ROOT) if selected else ""
+            target_file = (dagent_config.TARGET_FILE or "") if selected else ""
+        save_thread_workspace(tid, workspace=workspace, target_file=target_file)
     except Exception:
         pass
 
@@ -1568,12 +1577,17 @@ def _render_chat_tab(slug: str, lang: str) -> None:
                 # Create thread associated with this orchestrator
                 orch_obj = orch or {}
                 ws_info = wt.current_workspace()
+                # The empty state ("no folder selected") is persisted as NO
+                # folder: the neutral root must never be recorded as if the
+                # user had chosen it.
+                ws_selected = bool(ws_info.get("workspace_selected", True))
                 tid = create_devagent_thread(
                     title=user_input.strip(),
                     orchestrator_slug=slug,
                     orchestrator_name=orch_obj.get("name", slug),
-                    workspace=ws_info.get("root", ""),
-                    target_file=ws_info.get("target_file", "") if ws_info.get("single_file_mode") else None,
+                    workspace=(ws_info.get("root", "") or None) if ws_selected else None,
+                    target_file=((ws_info.get("target_file", "") or None)
+                                 if (ws_selected and ws_info.get("single_file_mode")) else None),
                 )
                 _set_ss(slug, "thread_id", tid)
                 _set_ss(slug, "saved_msg_count", 0)

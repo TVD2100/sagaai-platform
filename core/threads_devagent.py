@@ -30,6 +30,7 @@ from typing import Any, Dict, List, Optional
 from storage.repository_devagent import (
     repo_devagent_create_thread,
     repo_devagent_save_thread_meta,
+    repo_devagent_clear_thread_workspace,
     repo_devagent_load_thread_meta,
     repo_devagent_save_thread_messages,
     repo_devagent_load_thread_messages,
@@ -116,6 +117,65 @@ def save_thread_workspace(tid: str, workspace: str, target_file: str = None) -> 
     if not meta:
         return False
     return repo_devagent_save_thread_meta(tid, meta)
+
+
+# Orchestrator slug of the built-in developer: the only employee allowed to
+# keep platform folders (the SagaAI install root) in its dialogs' meta.
+_DEVAGENT_SLUG = "dev_agent"
+
+
+def _is_platform_path(raw, install_root: str) -> bool:
+    """True when *raw* points at the platform root or a folder inside it."""
+    text = str(raw or "").strip()
+    if not text:
+        return False
+    try:
+        resolved = os.path.realpath(os.path.expanduser(text))
+    except Exception:
+        return False
+    return resolved == install_root or resolved.startswith(install_root + os.sep)
+
+
+def migrate_platform_workspace_meta() -> int:
+    """One-time cleanup of leaked platform folders in foreign thread meta.
+
+    Workspace isolation v2: dialogs of employees other than the built-in
+    DevAgent must never keep the SagaAI install root (or a path inside it)
+    as their saved workspace - reopening such a dialog would silently
+    switch the agent back to the platform folder (the historical leak).
+    Matching threads lose ``workspace`` / ``target_file`` and reopen in
+    the empty state, where the user explicitly picks a folder.
+
+    dev_agent threads are skipped (DevAgent legitimately develops the
+    platform itself), as are threads without an orchestrator slug
+    (pre-orchestrator legacy rows - most likely old DevAgent dialogs).
+    ``updated_at`` is kept intact, so a maintenance pass never reorders
+    the dialog list.
+
+    Idempotent and best effort: returns the number of cleaned threads, 0
+    when the database is clean or unavailable; never raises.
+    """
+    try:
+        from dev_agent import config as dagent_config
+        install_root = os.path.realpath(str(dagent_config.INSTALL_ROOT))
+    except Exception:
+        return 0
+    try:
+        metas = repo_devagent_list_threads(None)
+    except Exception:
+        return 0
+    cleaned = 0
+    for meta in metas:
+        slug = str(meta.get("assistant_id") or "").strip()
+        if slug in ("", _DEVAGENT_SLUG):
+            continue  # dev_agent or pre-orchestrator legacy dialog
+        leaked = any(
+            _is_platform_path(meta.get(field), install_root)
+            for field in ("workspace", "target_file")
+        )
+        if leaked and repo_devagent_clear_thread_workspace(meta.get("thread_id", "")):
+            cleaned += 1
+    return cleaned
 
 
 def load_thread_messages(tid: str) -> List[Dict[str, Any]]:
@@ -257,6 +317,13 @@ def delete_thread(tid: str) -> None:
     tdir = get_thread_dir(tid)
     if os.path.isdir(tdir):
         shutil.rmtree(tdir)
+    # Forget the in-memory workspace binding as well: a deleted dialog must
+    # never keep handing its folder to other or future dialogs.
+    try:
+        from dev_agent.workspace_binding import clear_thread
+        clear_thread(tid)
+    except Exception:
+        pass
 
 
 def list_devagent_threads(slug: str = None) -> List[Dict[str, Any]]:

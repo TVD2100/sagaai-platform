@@ -19,6 +19,7 @@ def isolated_db(tmp_path, monkeypatch):
     # Reset cached engine so it picks up the new env var
     import storage.db as db_mod
     db_mod.reset_engine()
+    db_mod.reset_devagent_engine()
     # Reload core.paths so DB_PATH reflects the new env
     import core.paths as paths_mod
     importlib.reload(paths_mod)
@@ -26,6 +27,7 @@ def isolated_db(tmp_path, monkeypatch):
     importlib.reload(db_mod)
     yield
     db_mod.reset_engine()
+    db_mod.reset_devagent_engine()
 
 
 @pytest.fixture
@@ -150,3 +152,117 @@ def test_list_recent_workspaces_tool(two_dirs):
     assert projects[0]["path"] == b
     assert projects[0]["name"] == Path(b).name
     assert projects[1]["path"] == a
+
+
+# ─── Per-orchestrator scopes (workspace isolation v2) ─────────────────────────
+
+def test_scopes_are_independent(tmp_path):
+    """Each orchestrator owns its own shelf: folders never mix."""
+    from core.recent_workspaces import add_recent_workspace, get_recent_workspaces
+
+    dev_proj = tmp_path / "scope_dev"
+    dev_proj.mkdir()
+    te_proj = tmp_path / "scope_teacher"
+    te_proj.mkdir()
+
+    add_recent_workspace(str(dev_proj), slug="dev_agent")
+    add_recent_workspace(str(te_proj), slug="teacher_assistant")
+
+    assert get_recent_workspaces("dev_agent") == [str(dev_proj.resolve())]
+    assert get_recent_workspaces("teacher_assistant") == [str(te_proj.resolve())]
+    # Bare calls keep the legacy dev_agent default.
+    assert get_recent_workspaces() == [str(dev_proj.resolve())]
+
+
+def test_legacy_flat_list_read_as_dev_agent_scope(tmp_path):
+    """The old flat-list ConfigKV format still feeds the dev_agent shelf."""
+    from storage.repository import repo_load_config, repo_save_config
+    from core.recent_workspaces import get_recent_workspaces, RECENT_WORKSPACES_KEY
+
+    proj = tmp_path / "legacy_flat"
+    proj.mkdir()
+    cfg = repo_load_config()
+    cfg[RECENT_WORKSPACES_KEY] = [str(proj)]  # legacy format
+    repo_save_config(cfg)
+
+    assert get_recent_workspaces("dev_agent") == [str(proj.resolve())]
+    assert get_recent_workspaces("teacher_assistant") == []
+
+
+def test_neutral_root_is_never_suggested(monkeypatch, tmp_path):
+    """The empty-state placeholder is refused on write and filtered on read."""
+    from storage.repository import repo_load_config, repo_save_config
+    from dev_agent import config
+    from core.recent_workspaces import (
+        add_recent_workspace, get_recent_workspaces, RECENT_WORKSPACES_KEY,
+    )
+
+    neutral = tmp_path / "neutral_root"
+    neutral.mkdir()
+    monkeypatch.setattr(config, "NEUTRAL_ROOT", neutral)
+
+    # Write-side guard: the placeholder is not worth remembering.
+    add_recent_workspace(str(neutral), slug="dev_agent")
+    assert get_recent_workspaces("dev_agent") == []
+
+    # Read-side guard: a hand-edited / legacy entry is filtered out.
+    cfg = repo_load_config()
+    cfg[RECENT_WORKSPACES_KEY] = {"dev_agent": [str(neutral)]}
+    repo_save_config(cfg)
+    assert get_recent_workspaces("dev_agent") == []
+
+
+def test_platform_root_hidden_from_foreign_scopes(tmp_path):
+    """The SagaAI install root is hidden everywhere except dev_agent."""
+    from storage.repository import repo_load_config, repo_save_config
+    from dev_agent import config
+    from core.recent_workspaces import get_recent_workspaces, RECENT_WORKSPACES_KEY
+
+    install = str(config.INSTALL_ROOT.resolve())
+    cfg = repo_load_config()
+    cfg[RECENT_WORKSPACES_KEY] = {
+        "dev_agent": [install],
+        "teacher_assistant": [install],
+    }
+    repo_save_config(cfg)
+
+    assert install in get_recent_workspaces("dev_agent")
+    assert get_recent_workspaces("teacher_assistant") == []
+
+
+def test_seed_from_own_threads_only(tmp_path):
+    """Dialogs seed their OWN scope's menu and never a neighbour's."""
+    from core.threads_devagent import create_devagent_thread
+    from core.recent_workspaces import get_recent_workspaces
+
+    dev_proj = tmp_path / "seed_dev"
+    dev_proj.mkdir()
+    te_proj = tmp_path / "seed_teacher"
+    te_proj.mkdir()
+
+    create_devagent_thread("dev dialog", orchestrator_slug="dev_agent",
+                           orchestrator_name="DevAgent", workspace=str(dev_proj))
+    create_devagent_thread("teacher dialog", orchestrator_slug="teacher_assistant",
+                           orchestrator_name="Teacher", workspace=str(te_proj))
+
+    assert get_recent_workspaces("dev_agent") == [str(dev_proj.resolve())]
+    assert get_recent_workspaces("teacher_assistant") == [str(te_proj.resolve())]
+
+
+def test_clear_one_scope_keeps_others(tmp_path):
+    """Clearing one shelf leaves the other orchestrators' history intact."""
+    from core.recent_workspaces import (
+        add_recent_workspace, get_recent_workspaces, clear_recent_workspaces,
+    )
+
+    dev_proj = tmp_path / "clear_dev"
+    dev_proj.mkdir()
+    te_proj = tmp_path / "clear_teacher"
+    te_proj.mkdir()
+    add_recent_workspace(str(dev_proj), slug="dev_agent")
+    add_recent_workspace(str(te_proj), slug="teacher_assistant")
+
+    clear_recent_workspaces("dev_agent")
+
+    assert get_recent_workspaces("dev_agent") == []
+    assert get_recent_workspaces("teacher_assistant") == [str(te_proj.resolve())]

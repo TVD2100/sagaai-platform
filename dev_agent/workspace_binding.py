@@ -32,6 +32,7 @@
 from __future__ import annotations
 
 import threading
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 from . import config
@@ -71,7 +72,17 @@ def register_thread(thread_id: str,
     if not tid:
         return {"workspace": None, "target_file": None}
     with _BINDING_LOCK:
-        state = _state_from_meta({"workspace": workspace, "target_file": target_file})
+        ws = workspace
+        if ws:
+            try:
+                # The neutral empty-state root is NOT a real chosen folder:
+                # store the binding as workspace-less so the thread keeps
+                # running in the empty state instead of "selecting" it.
+                if Path(ws).expanduser().resolve() == config.NEUTRAL_ROOT:
+                    ws = None
+            except (OSError, RuntimeError):
+                pass
+        state = _state_from_meta({"workspace": ws, "target_file": target_file})
         _REGISTRY[tid] = state
         return dict(state)
 
@@ -124,8 +135,9 @@ def sync_registry_from_config(thread_id: str) -> Dict[str, Optional[str]]:
     if not tid:
         return {"workspace": None, "target_file": None}
     with _BINDING_LOCK:
+        selected = bool(getattr(config, "WORKSPACE_SELECTED", True))
         state = {
-            "workspace": str(config.PROJECT_ROOT),
+            "workspace": str(config.PROJECT_ROOT) if selected else None,
             "target_file": config.TARGET_FILE or None,
         }
         _REGISTRY[tid] = state
@@ -155,9 +167,12 @@ def _apply_state_unlocked(tid: str, state: Dict[str, Optional[str]]) -> None:
         config.apply_paths(root, target_file=state.get("target_file"),
                            thread_id=tid, create_dirs=False)
     else:
-        # Bound but workspace-less: keep the current root yet pin the
-        # thread id so per-thread journals still go to the right file.
-        config.ACTIVE_THREAD_ID = tid
+        # Bound but workspace-less: the dialog has no chosen folder yet.
+        # Apply the NEUTRAL empty state instead of inheriting whatever root
+        # another dialog happens to use (historical leak), keeping the
+        # thread id pinned so per-thread journals go to the right file.
+        config.apply_paths(config.NEUTRAL_ROOT, thread_id=tid,
+                           create_dirs=False, selected=False)
 
 
 def ensure_thread_active(thread_id: str) -> bool:

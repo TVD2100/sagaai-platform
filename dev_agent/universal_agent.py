@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional, Callable, Tuple
 from . import config
 from . import workspace_tools as wt
 from . import workspace_binding as wb
-from .tool_executor import _coerce_numeric_args
+from .tool_executor import _coerce_numeric_args, workspace_guard_error
 from storage.models import DEFAULT_MAX_STEPS
 
 
@@ -358,6 +358,9 @@ class UniversalDevAgent:
                     "unknown_args": unknown,
                     "suggestion": _workspace_usage(tool_name, spec),
                 }
+        guard = workspace_guard_error(tool_name, args)
+        if guard is not None:
+            return guard
         if tool_name in self._extra:
             args = _coerce_numeric_args(self._extra[tool_name], args)
             result = self._extra[tool_name](**args)
@@ -522,24 +525,35 @@ class UniversalDevAgent:
         tid = (thread_id or "").strip() or None
         self.thread_id = tid
         if tid:
-            wb.register_thread(tid,
-                               workspace=str(config.PROJECT_ROOT),
-                               target_file=config.TARGET_FILE or None)
+            # Never overwrite an existing binding from the live config: the
+            # process-global root may momentarily belong to a neighbouring
+            # dialog, and rebinding from it would leak that folder into this
+            # thread. A binding is created only for a thread that has none
+            # yet (the fresh dispatcher of a brand-new thread) - for a new
+            # dialog that live state is the neutral empty state.
+            if not wb.has_thread(tid):
+                wb.register_thread(tid,
+                                   workspace=str(config.PROJECT_ROOT),
+                                   target_file=config.TARGET_FILE or None)
             config.ACTIVE_THREAD_ID = tid
 
     def _persist_thread_workspace(self) -> None:
         """Save the current workspace/target_file into the thread's DB meta.
 
-        Best-effort: a persistence failure must never break the switch.
+        Best-effort: a persistence failure must never break the switch. The
+        empty state is persisted as CLEARED fields (empty workspace) so the
+        neutral root is never recorded as a chosen folder, and switching a
+        thread back to folder mode drops any stale single-file target.
         """
         if not self.thread_id:
             return
         try:
             from core.threads_devagent import save_thread_workspace
+            selected = bool(getattr(config, "WORKSPACE_SELECTED", True))
             save_thread_workspace(
                 self.thread_id,
-                workspace=str(config.PROJECT_ROOT),
-                target_file=config.TARGET_FILE or None,
+                workspace=str(config.PROJECT_ROOT) if selected else "",
+                target_file=((config.TARGET_FILE or "") if selected else ""),
             )
         except Exception:
             pass
@@ -551,7 +565,7 @@ class UniversalDevAgent:
         config.ACTIVE_THREAD_ID = self.thread_id or ""
 
     def _set_workspace(self, path: str, **kwargs) -> Dict[str, Any]:
-        result = wt.set_workspace(path)
+        result = wt.set_workspace(path, slug=self._current_orchestrator_slug())
         if result.get("ok"):
             self.target_file = None
             self._sync_binding_after_switch()
@@ -560,7 +574,7 @@ class UniversalDevAgent:
         return result
 
     def _set_target_file(self, file_path: str, **kwargs) -> Dict[str, Any]:
-        result = wt.set_target_file(file_path)
+        result = wt.set_target_file(file_path, slug=self._current_orchestrator_slug())
         if result.get("ok"):
             self.target_file = result.get("target_file")
             self._sync_binding_after_switch()

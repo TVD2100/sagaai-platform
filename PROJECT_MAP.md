@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-10-01T06:50:28+00:00`
-- Файлов: **1152**
-- Языки: Config: 1, JSON: 22, Markdown: 882, PEM certificate: 1, Python: 250, Text: 1
+- Обновлено: `2026-10-01T14:43:44+00:00`
+- Файлов: **1199**
+- Языки: Config: 1, JSON: 22, Markdown: 923, PEM certificate: 1, Python: 256, Text: 1
 
 ## Файлы и назначение
 
@@ -18,7 +18,7 @@
 | `pytest.ini` | Config | Pytest configuration | - |
 | `requirements.txt` | Text | Python dependencies | - |
 | `ui/__init__.py` | Python | Package marker | - |
-| `ui/app.py` | Python | Main Streamlit app: sidebar navigation and page dispatch; assistants use assistant terminology | - |
+| `ui/app.py` | Python | Main Streamlit app: sidebar navigation and page dispatch; assistants use assistant terminology; one-time workspace-meta migration on startup | - |
 | `ui/components/__init__.py` | Python | Package marker | - |
 | `ui/components/workspace_picker.py` | Python | Workspace picker component | - |
 | `ui/pages/__init__.py` | Python | Package marker | - |
@@ -27,7 +27,7 @@
 | `ui/pages/chat.py` | Python | Chat page for AI assistants: selector, history, send form | - |
 | `ui/pages/connectors.py` | Python | _(описание не задано)_ | - |
 | `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | - |
-| `ui/pages/orchestrator.py` | Python | Reusable orchestrator page (chat/history/settings incl. skills tab; no employee export/import UI; step events attach to the user message when the first LLM call fails; per-message download/copy controls on plain-prose answers; generated image visible immediately in the feed, outside the collapsed tool-result block) | storage |
+| `ui/pages/orchestrator.py` | Python | Reusable orchestrator page (chat/history/settings incl. skills tab; no employee export/import UI; step events attach to the user message when the first LLM call fails; per-message download/copy controls on plain-prose answers; generated image visible immediately in the feed, outside the collapsed tool-result block; empty-state reset on new/reset dialog; thread workspace meta persistence; workspace-side attachment writer removed - uploads live only in history/<tid>/files) | storage |
 | `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings entry page | - |
 | `ui/pages/orchestrators.py` | Python | Employees (orchestrators) management page (create/open/settings/delete; export/import deferred) | - |
 | `ui/pages/settings.py` | Python | LLM provider settings page | - |
@@ -77,7 +77,7 @@
 | `core/rag_indexer.py` | Python | _(описание не задано)_ | - |
 | `core/rag_search.py` | Python | _(описание не задано)_ | - |
 | `core/recent_assistants.py` | Python | Tracks recently used assistant IDs in session_state | - |
-| `core/recent_workspaces.py` | Python | Recent workspaces tracking | storage |
+| `core/recent_workspaces.py` | Python | Recent workspaces tracking, scoped per orchestrator (slug-keyed dict seeded from own threads; platform paths hidden; legacy flat list read as dev_agent) | storage |
 | `core/render.py` | Python | Markdown rendering / clipboard helpers | - |
 | `core/services.py` | Python | Service definitions discovery (services/*.json) | - |
 | `core/skills.py` | Python | DEPRECATED shim -> core/assistants.py (legacy aliases) | - |
@@ -86,7 +86,7 @@
 | `core/ssh_tools.py` | Python | Orchestrator ssh_* tools for the SSH connector | - |
 | `core/statistics.py` | Python | _(описание не задано)_ | - |
 | `core/threads.py` | Python | Chat thread persistence for assistants | storage |
-| `core/threads_devagent.py` | Python | DevAgent/orchestrator thread persistence (devagent.db) and the thread-search service layer (search_thread_messages, list_threads_filtered, read_thread_window) with access control | storage |
+| `core/threads_devagent.py` | Python | DevAgent/orchestrator thread persistence (devagent.db) and the thread-search service layer (search_thread_messages, list_threads_filtered, read_thread_window) with access control; thread workspace meta (last folder) and the legacy-meta cleanup migration | storage |
 | `core/tools_utils.py` | Python | Tool definitions list for the Skills/Assistants pages | - |
 | `core/updater.py` | Python | _(описание не задано)_ | - |
 | `core/updater_apply.py` | Python | _(описание не задано)_ | - |
@@ -181,7 +181,7 @@
 | `tests/test_stats_page_ui.py` | Python | _(описание не задано)_ | - |
 | `tests/test_storage_page_ui.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_structured_output_consumers.py` | Python | _(описание не задано)_ | - |
-| `tests/test_task_state.py` | Python | _(описание не задано)_ | - |
+| `tests/test_task_state.py` | Python | Task-state journal tests (dialog-folder fallback in the empty state) | - |
 | `tests/test_theme_restore.py` | Python | _(описание не задано)_ | - |
 | `tests/test_thread_deeplink.py` | Python | _(описание не задано)_ | - |
 | `tests/test_thread_file_save.py` | Python | _(описание не задано)_ | storage |
@@ -205,7 +205,9 @@
 | `tests/test_usability_fixes.py` | Python | _(описание не задано)_ | - |
 | `tests/test_verify_manifest.py` | Python | _(описание не задано)_ | - |
 | `tests/test_web_search_prompt.py` | Python | _(описание не задано)_ | - |
-| `tests/test_workspace_binding.py` | Python | _(описание не задано)_ | storage |
+| `tests/test_workspace_binding.py` | Python | Workspace-binding registry tests (empty state, per-thread isolation) | storage |
+| `tests/test_workspace_empty_state.py` | Python | Empty-state tests: neutral root, WORKSPACE_SELECTED flag, snapshot/restore round-trip | - |
+| `tests/test_workspace_guard.py` | Python | Workspace-guard tests: file tools blocked with workspace_not_selected; neutral cwd for code= runs | storage |
 | `tests/test_yandex_responses.py` | Python | Yandex Responses API tests | - |
 | `tests/smoke/test_app_smoke.py` | Python | App smoke tests | - |
 | `tests/scenarios/test_access_scenarios.py` | Python | _(описание не задано)_ | - |
@@ -215,6 +217,7 @@
 | `tests/scenarios/test_connectors_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_context_overflow_protection.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_employees_sidebar_scenarios.py` | Python | _(описание не задано)_ | storage |
+| `tests/scenarios/test_empty_state_artifacts_scenario.py` | Python | Scenario tests: task journal and uploads never create files in a foreign project (empty state) | storage |
 | `tests/scenarios/test_first_run_flow.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_generated_image_feed_scenario.py` | Python | Scenario tests for the generated image shown immediately in the chat feed (outside the collapsed tool-result block) | - |
 | `tests/scenarios/test_gigachat_models_scenario.py` | Python | _(описание не задано)_ | - |
@@ -223,15 +226,17 @@
 | `tests/scenarios/test_json_repair_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_loop_stuck_protection_scenarios.py` | Python | Loop-stuck protection scenarios: per-tool failure counter hints, duplicate-call flood compaction, prose loop_status continue | - |
 | `tests/scenarios/test_multimodal_scenarios.py` | Python | Scenario tests for the multimodal tools (vision analysis, not_assigned, generation, provider hint) | - |
+| `tests/scenarios/test_new_dialog_empty_workspace_scenario.py` | Python | Scenario tests: a new dialog starts with no folder and never inherits a neighbour's workspace | storage |
 | `tests/scenarios/test_orchestrator_chat_prefs_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_orchestrator_devagent_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_orchestrator_other_settings_scenario.py` | Python | _(описание не задано)_ | storage |
-| `tests/scenarios/test_orchestrator_thread_files.py` | Python | _(описание не задано)_ | storage |
-| `tests/scenarios/test_orchestrator_tool_gating.py` | Python | Gating scenarios: system-prompt version pins (v3.15) and thread-search tool invariants | storage |
+| `tests/scenarios/test_orchestrator_thread_files.py` | Python | Scenario tests: uploads land in thread files; legacy workspace manifests still re-announced | storage |
+| `tests/scenarios/test_orchestrator_tool_gating.py` | Python | Gating scenarios: system-prompt version pins (v3.16/v2.10), empty-state prompt invariants and thread-search tool invariants | storage |
 | `tests/scenarios/test_provider_economy_settings_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_assistant_dialog.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_context_restore.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_perf_scenarios.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_recent_workspace_scopes_scenario.py` | Python | Scenario tests: per-orchestrator recent-folder menu (isolation, platform paths hidden, scoped writes) | storage |
 | `tests/scenarios/test_search_in_files_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_skills_adaptation_scenario.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_ssh_connector_scenarios.py` | Python | Scenario tests for the SSH connector feature | storage |
@@ -240,6 +245,7 @@
 | `tests/scenarios/test_task_state_mega_task.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_theme_switch_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_thread_search_scenarios.py` | Python | Scenario tests for the thread-search tools: current-dialog search without lists, explicit thread_id, orchestrator scope with period, search->read around a match, access control, list pagination | storage |
+| `tests/scenarios/test_thread_workspace_meta_scenario.py` | Python | Scenario tests: thread 'last folder' meta (restore, missing folder opens empty, neighbour isolation) | storage |
 | `tests/scenarios/test_updater_runtime_flow.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_welcome_page_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_workspace_binding_scenario.py` | Python | _(описание не задано)_ | storage |
@@ -248,7 +254,7 @@
 | `storage/db.py` | Python | SQLAlchemy engines; auto-migration skills->assistants, skill_*->assistant_* columns | storage |
 | `storage/models.py` | Python | ORM models: Assistant (assistants), Thread (assistant_id/assistant_name), Message, ConfigKV, Instruction, Orchestrator | - |
 | `storage/repository.py` | Python | High-level CRUD for assistants/threads/config/orchestrators + legacy repo_*_skill wrappers | storage |
-| `storage/repository_devagent.py` | Python | DevAgent thread CRUD (devagent.db) plus thread-search query helpers (filtered listing, message counts, batched/window message loads) | storage |
+| `storage/repository_devagent.py` | Python | DevAgent thread CRUD (devagent.db) plus thread-search query helpers (filtered listing, message counts, batched/window message loads); thread workspace-meta clearing for the legacy-meta cleanup migration | storage |
 | `orchestrators/dev_agent/instructions/local_repo_guide.md` | Markdown | _(описание не задано)_ | - |
 | `orchestrators/dev_agent/instructions/repo_sync.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/README.md` | Markdown | _(описание не задано)_ | - |
@@ -311,15 +317,15 @@
 | `dev_agent/assistant_detector.py` | Python | Assistant detection/creation helpers (renamed from skill_detector) | storage |
 | `dev_agent/assistant_model_resolver.py` | Python | Auto model resolution for assistant creation | llm_utils |
 | `dev_agent/backup_manager.py` | Python | Per-file backup/restore manager | - |
-| `dev_agent/config.py` | Python | DevAgent runtime config and protected path policy | - |
+| `dev_agent/config.py` | Python | DevAgent runtime config and protected path policy; empty-state neutral root (NEUTRAL_ROOT / WORKSPACE_SELECTED / ensure_neutral_root, apply_paths selected flag) | - |
 | `dev_agent/llm_utils.py` | Python | Unified LLM-call helper (assistant dict contract, legacy skill alias) | - |
 | `dev_agent/safe_writer.py` | Python | Safe full-file rewrite with diff/verification | backup_manager |
-| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.11 loop-protection rules) | - |
-| `dev_agent/task_state.py` | Python | _(описание не задано)_ | backup_manager |
-| `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools, legacy skill aliases, skills-library tools, multimodal tools (analyze_image/generate_image) | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
-| `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace + orchestrator tools, incl. thread search: search_in_threads / list_threads / read_thread) | storage, tool_executor |
-| `dev_agent/workspace_binding.py` | Python | _(описание не задано)_ | - |
-| `dev_agent/workspace_tools.py` | Python | Workspace layer: folders, project map, docs, snapshots | backup_manager |
+| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.16 empty-state Stage 0, task-journal and thread-files rules) | - |
+| `dev_agent/task_state.py` | Python | Per-thread task-state journal (plan/progress/handoff) with the thread-files fallback folder when no workspace is selected | backup_manager |
+| `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools, legacy skill aliases, skills-library and multimodal tools; empty-state workspace guard (workspace_not_selected, neutral cwd for code=) | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
+| `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace + orchestrator tools, incl. thread search: search_in_threads / list_threads / read_thread; empty-state guard and thread workspace-meta persistence) | storage, tool_executor |
+| `dev_agent/workspace_binding.py` | Python | Per-thread workspace binding registry (RLock, thread_context, ensure_thread_active) with the empty-state neutral root | - |
+| `dev_agent/workspace_tools.py` | Python | Workspace layer: folders, project map, docs, snapshots; workspace_selected reporting and per-orchestrator recent workspaces | backup_manager |
 | `dev_agent/task_states/TASK_STATE__20260828_185325_0d0824.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260828_185325_3ea18d.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20260828_185325_82be18.md` | Markdown | _(описание не задано)_ | - |
@@ -1158,6 +1164,47 @@
 | `dev_agent/task_states/TASK_STATE__20261001_094115_a1a012.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20261001_094125_137c84.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20261001_094125_d11a2c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_101132_06fa4b.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_101136_69a5e5.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_101136_768d1d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_101136_952699.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_101136_de0e34.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_101136_f70f16.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_101145_078cfe.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_101145_9f7c4e.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_134547_8123cd.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_134547_c775d8.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164057_23e5df.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164057_6c3f82.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164057_dafceb.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164057_f59b19.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164057_fd4d1f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164107_4cc83c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164107_d6db9a.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164506_15d883.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164634_1a0f0f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164634_25e12a.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164634_67715c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164634_8ed64c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164634_ed981f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164644_2ddd6e.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164644_ea30ce.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164857_41debb.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164900_0ab8a6.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164900_377aa6.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164900_7b31cd.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164900_812053.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164900_b877b2.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164909_76c4d5.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_164909_8cc021.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_165055_fe7243.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_165059_229015.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_165059_351e53.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_165059_38280d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_165059_41717f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_165059_dfb434.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_165108_851fc7.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_165108_b31821.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
 | `services/deepseek.json` | JSON | DeepSeek service definition (vision_base_url + vision_models catalog) | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
@@ -1223,46 +1270,46 @@
 - `_last_reply` (func, строка 362)
 
 ### `ui/pages/orchestrator.py`
-- `_chat_pref_config_keys` (func, строка 77)
-- `_chat_prefs` (func, строка 84)
-- `_save_chat_pref` (func, строка 92)
-- `_make_state_keys` (func, строка 108)
-- `_init_orch_state` (func, строка 141)
-- `_sk` (func, строка 148)
-- `_ss` (func, строка 153)
-- `_set_ss` (func, строка 158)
-- `_pop_ss` (func, строка 162)
-- `_save_economy_cache` (func, строка 166)
-- `_load_economy_cache` (func, строка 185)
-- `_attachments_manifest_path` (func, строка 192)
-- `_load_attachments_manifest` (func, строка 196)
-- `_append_attachment_manifest` (func, строка 206)
-- `_save_attachment_to_workspace` (func, строка 217)
-- `_scroll_page` (func, строка 243)
-- `_make_send_adapter` (func, строка 297)
-- `_make_dispatcher` (func, строка 329)
-- `_assistant_has_api_key` (func, строка 354)
-- `_strip_html_details_tags` (func, строка 369)
-- `_strip_empty_fenced_blocks` (func, строка 385)
-- `_strip_tool_calls` (func, строка 436)
-- `_strip_tool_calls_for_message` (func, строка 493)
-- `_first_two_lines` (func, строка 520)
-- `_format_call_args_preview` (func, строка 533)
-- `_extract_result_body` (func, строка 551)
-- `_render_generated_image` (func, строка 565)
-- `_render_tool_result` (func, строка 593)
-- `_render_events` (func, строка 675)
-- `_render_event` (func, строка 695)
-- `_attach_events` (func, строка 755)
-- `_do_step` (func, строка 784)
-- `_reset_dialog` (func, строка 936)
-- `_load_thread` (func, строка 953)
-- `_chat_toolbar_widget_key` (func, строка 985)
-- `_sync_chat_pref_checkbox` (func, строка 995)
-- `_chat_toolbar_pref_changed` (func, строка 1013)
-- `_render_chat_toolbar` (func, строка 1023)
-- `_token_line_cache_key` (func, строка 1081)
-- `_render_token_line` (func, строка 1128)
+- `_chat_pref_config_keys` (func, строка 78)
+- `_chat_prefs` (func, строка 85)
+- `_save_chat_pref` (func, строка 93)
+- `_make_state_keys` (func, строка 109)
+- `_init_orch_state` (func, строка 142)
+- `_sk` (func, строка 149)
+- `_ss` (func, строка 154)
+- `_set_ss` (func, строка 159)
+- `_pop_ss` (func, строка 163)
+- `_save_economy_cache` (func, строка 167)
+- `_load_economy_cache` (func, строка 186)
+- `_attachments_manifest_path` (func, строка 193)
+- `_load_attachments_manifest` (func, строка 197)
+- `_scroll_page` (func, строка 215)
+- `_make_send_adapter` (func, строка 269)
+- `_make_dispatcher` (func, строка 301)
+- `_assistant_has_api_key` (func, строка 326)
+- `_strip_html_details_tags` (func, строка 341)
+- `_strip_empty_fenced_blocks` (func, строка 357)
+- `_strip_tool_calls` (func, строка 408)
+- `_strip_tool_calls_for_message` (func, строка 465)
+- `_first_two_lines` (func, строка 492)
+- `_format_call_args_preview` (func, строка 505)
+- `_extract_result_body` (func, строка 523)
+- `_render_generated_image` (func, строка 537)
+- `_render_tool_result` (func, строка 565)
+- `_render_events` (func, строка 647)
+- `_render_event` (func, строка 667)
+- `_attach_events` (func, строка 727)
+- `_do_step` (func, строка 756)
+- `_reset_dialog` (func, строка 900)
+- `_load_thread` (func, строка 926)
+- `_persist_thread_workspace_meta` (func, строка 967)
+- `_chat_toolbar_widget_key` (func, строка 994)
+- `_sync_chat_pref_checkbox` (func, строка 1004)
+- `_chat_toolbar_pref_changed` (func, строка 1022)
+- `_render_chat_toolbar` (func, строка 1032)
+- `_token_line_cache_key` (func, строка 1090)
+- `_render_token_line` (func, строка 1137)
+- `_render_chat_tab` (func, строка 1221)
 
 ### `ui/pages/orchestrator_settings.py`
 - `page_orchestrator_settings` (func, строка 28)
@@ -1907,10 +1954,15 @@
 - `record_assistant_use` (func, строка 9)
 
 ### `core/recent_workspaces.py`
-- `_normalise_path` (func, строка 32)
-- `get_recent_workspaces` (func, строка 44)
-- `add_recent_workspace` (func, строка 80)
-- `clear_recent_workspaces` (func, строка 105)
+- `_norm_scope` (func, строка 54)
+- `_normalise_path` (func, строка 59)
+- `_load_scopes` (func, строка 71)
+- `_save_scopes` (func, строка 99)
+- `_is_hidden` (func, строка 110)
+- `_seed_from_threads` (func, строка 139)
+- `get_recent_workspaces` (func, строка 159)
+- `add_recent_workspace` (func, строка 189)
+- `clear_recent_workspaces` (func, строка 214)
 
 ### `core/render.py`
 - `clipboard_button` (func, строка 13)
@@ -2046,36 +2098,38 @@
 - `messages_to_api_history` (func, строка 236)
 
 ### `core/threads_devagent.py`
-- `_sanitize_title` (func, строка 55)
-- `create_devagent_thread` (func, строка 69)
-- `save_thread_workspace` (func, строка 100)
-- `load_thread_messages` (func, строка 121)
-- `_restore_events` (func, строка 127)
-- `save_thread_messages` (func, строка 160)
-- `append_thread_message` (func, строка 201)
-- `sum_thread_tokens` (func, строка 232)
-- `load_thread_meta` (func, строка 250)
-- `delete_thread` (func, строка 254)
-- `list_devagent_threads` (func, строка 262)
-- `list_orchestrator_threads` (func, строка 271)
-- `delete_all_devagent_threads` (func, строка 276)
-- `_thread_files_dir` (func, строка 288)
-- `_safe_thread_file_name` (func, строка 293)
-- `_thread_file_path` (func, строка 311)
-- `save_thread_file_data` (func, строка 317)
-- `_looks_binary` (func, строка 342)
-- `_try_decode_text` (func, строка 365)
-- `list_thread_files` (func, строка 381)
-- `read_thread_file` (func, строка 416)
-- `_normalize_date_bound` (func, строка 509)
-- `_strip_events_prefix` (func, строка 532)
-- `_is_hidden_message` (func, строка 542)
-- `_locate_match` (func, строка 548)
-- `_make_snippet` (func, строка 571)
-- `_message_preview` (func, строка 584)
-- `search_thread_messages` (func, строка 603)
-- `list_threads_filtered` (func, строка 774)
-- `read_thread_window` (func, строка 872)
+- `_sanitize_title` (func, строка 56)
+- `create_devagent_thread` (func, строка 70)
+- `save_thread_workspace` (func, строка 101)
+- `_is_platform_path` (func, строка 127)
+- `migrate_platform_workspace_meta` (func, строка 139)
+- `load_thread_messages` (func, строка 181)
+- `_restore_events` (func, строка 187)
+- `save_thread_messages` (func, строка 220)
+- `append_thread_message` (func, строка 261)
+- `sum_thread_tokens` (func, строка 292)
+- `load_thread_meta` (func, строка 310)
+- `delete_thread` (func, строка 314)
+- `list_devagent_threads` (func, строка 329)
+- `list_orchestrator_threads` (func, строка 338)
+- `delete_all_devagent_threads` (func, строка 343)
+- `_thread_files_dir` (func, строка 355)
+- `_safe_thread_file_name` (func, строка 360)
+- `_thread_file_path` (func, строка 378)
+- `save_thread_file_data` (func, строка 384)
+- `_looks_binary` (func, строка 409)
+- `_try_decode_text` (func, строка 432)
+- `list_thread_files` (func, строка 448)
+- `read_thread_file` (func, строка 483)
+- `_normalize_date_bound` (func, строка 576)
+- `_strip_events_prefix` (func, строка 599)
+- `_is_hidden_message` (func, строка 609)
+- `_locate_match` (func, строка 615)
+- `_make_snippet` (func, строка 638)
+- `_message_preview` (func, строка 651)
+- `search_thread_messages` (func, строка 670)
+- `list_threads_filtered` (func, строка 841)
+- `read_thread_window` (func, строка 939)
 
 ### `core/tools_utils.py`
 - `list_tool_definitions` (func, строка 12)
@@ -2155,7 +2209,8 @@
 - `isolated_app_modules` (func, строка 56)
 
 ### `tests/conftest.py`
-- `isolated_app_modules` (func, строка 8)
+- `_restore_dev_agent_state` (func, строка 8)
+- `isolated_app_modules` (func, строка 34)
 
 ### `tests/test_agent_loop_connection_retry.py`
 - `_FakeCore` (class, строка 9)
@@ -2586,6 +2641,8 @@
 - `test_repo_devagent_create_thread_persists_columns` (func, строка 109)
 - `test_thread_columns_are_migrated` (func, строка 126)
 - `test_to_dict_contains_new_columns` (func, строка 169)
+- `test_migration_clears_platform_folders_for_foreign_threads` (func, строка 185)
+- `test_migration_clears_platform_target_file` (func, строка 233)
 
 ### `tests/test_dispatcher_connections.py`
 - `isolated_data_dir` (func, строка 16)
@@ -3128,15 +3185,21 @@
 
 ### `tests/test_recent_workspaces.py`
 - `isolated_db` (func, строка 16)
-- `two_dirs` (func, строка 32)
-- `test_add_and_get` (func, строка 43)
-- `test_get_empty_returns_list` (func, строка 57)
-- `test_duplicates_are_deduplicated` (func, строка 63)
-- `test_max_limit_is_five` (func, строка 77)
-- `test_nonexistent_folders_are_filtered` (func, строка 97)
-- `test_clear_removes_all` (func, строка 112)
-- `test_add_idempotent_on_failure` (func, строка 124)
-- `test_list_recent_workspaces_tool` (func, строка 137)
+- `two_dirs` (func, строка 34)
+- `test_add_and_get` (func, строка 45)
+- `test_get_empty_returns_list` (func, строка 59)
+- `test_duplicates_are_deduplicated` (func, строка 65)
+- `test_max_limit_is_five` (func, строка 79)
+- `test_nonexistent_folders_are_filtered` (func, строка 99)
+- `test_clear_removes_all` (func, строка 114)
+- `test_add_idempotent_on_failure` (func, строка 126)
+- `test_list_recent_workspaces_tool` (func, строка 139)
+- `test_scopes_are_independent` (func, строка 159)
+- `test_legacy_flat_list_read_as_dev_agent_scope` (func, строка 177)
+- `test_neutral_root_is_never_suggested` (func, строка 192)
+- `test_platform_root_hidden_from_foreign_scopes` (func, строка 215)
+- `test_seed_from_own_threads_only` (func, строка 233)
+- `test_clear_one_scope_keeps_others` (func, строка 252)
 
 ### `tests/test_render_token_line.py`
 - `test_format_token_line_basic` (func, строка 10)
@@ -3407,6 +3470,10 @@
 - `test_mark_in_progress_shows_tilde_marker` (func, строка 399)
 - `test_mark_done_then_pending_toggles_markers` (func, строка 408)
 - `test_context_section_order_matches_canon` (func, строка 419)
+- `empty_state_sandbox` (func, строка 444)
+- `test_empty_state_journal_lives_in_thread_dir` (func, строка 459)
+- `test_empty_state_task_folders_live_in_thread_dir` (func, строка 475)
+- `test_empty_state_context_injection_keeps_thread_path` (func, строка 486)
 
 ### `tests/test_theme_restore.py`
 - `_drop_ui_modules` (func, строка 23)
@@ -3850,9 +3917,37 @@
 - `test_ensure_thread_active_applies_without_restore` (func, строка 180)
 - `test_ensure_thread_active_unknown_returns_false` (func, строка 192)
 - `test_ensure_thread_active_empty_id_returns_false` (func, строка 201)
-- `test_ensure_thread_active_workspaceless_pins_thread_id` (func, строка 205)
-- `test_set_target_root_does_not_mutate_os_environ` (func, строка 219)
-- `test_thread_context_parallel_isolation` (func, строка 234)
+- `test_ensure_thread_active_workspaceless_applies_neutral` (func, строка 205)
+- `test_set_target_root_does_not_mutate_os_environ` (func, строка 221)
+- `test_thread_context_parallel_isolation` (func, строка 236)
+
+### `tests/test_workspace_empty_state.py`
+- `clean_config_state` (func, строка 32)
+- `_make_ws` (func, строка 46)
+- `test_apply_paths_selected_false_switches_to_neutral` (func, строка 54)
+- `test_apply_paths_derives_selected_flag_from_root` (func, строка 64)
+- `test_snapshot_restore_round_trips_selected_flag` (func, строка 72)
+- `test_register_neutral_root_stores_workspaceless_binding` (func, строка 84)
+- `test_workspaceless_thread_context_applies_neutral_and_restores` (func, строка 94)
+- `test_ensure_thread_active_workspaceless_no_inheritance` (func, строка 109)
+- `test_current_workspace_reports_empty_state` (func, строка 122)
+- `test_current_workspace_reports_selected_root` (func, строка 130)
+
+### `tests/test_workspace_guard.py`
+- `isolated_db` (func, строка 74)
+- `clean_config_state` (func, строка 87)
+- `empty_state` (func, строка 101)
+- `test_guard_blocks_every_file_tool` (func, строка 110)
+- `test_guard_allows_non_file_tools` (func, строка 120)
+- `test_guard_run_code_run_test_modes` (func, строка 126)
+- `test_guard_inactive_when_workspace_selected` (func, строка 135)
+- `test_core_dispatch_blocks_file_tools` (func, строка 147)
+- `test_universal_dispatch_blocks_core_file_tools` (func, строка 158)
+- `test_universal_dispatch_blocks_workspace_file_tools` (func, строка 165)
+- `test_universal_dispatch_path_mode_blocked` (func, строка 173)
+- `test_run_code_code_mode_uses_neutral_cwd` (func, строка 183)
+- `test_run_test_code_mode_uses_neutral_cwd` (func, строка 191)
+- `test_tools_work_after_set_workspace` (func, строка 201)
 
 ### `tests/test_yandex_responses.py`
 - `_yandex_cfg` (func, строка 30)
@@ -3974,6 +4069,15 @@
 - `test_scenario_more_than_five_employees` (func, строка 189)
 - `test_scenario_five_or_fewer_no_collapsed_block` (func, строка 220)
 
+### `tests/scenarios/test_empty_state_artifacts_scenario.py`
+- `isolated_data_dir` (func, строка 36)
+- `clean_config_state` (func, строка 74)
+- `st_mock` (func, строка 91)
+- `_make_neighbour_project` (func, строка 100)
+- `_render_page` (func, строка 108)
+- `test_scenario_empty_state_journal_stays_in_dialog_folder` (func, строка 134)
+- `test_scenario_empty_state_attachment_never_touches_foreign_project` (func, строка 178)
+
 ### `tests/scenarios/test_first_run_flow.py`
 - `isolated_data` (func, строка 64)
 - `_render` (func, строка 72)
@@ -4056,6 +4160,16 @@
 - `test_scenario_5_generation_permission_denied_role_hint` (func, строка 251)
 - `test_scenario_6_deepseek_vision_dedicated_endpoint` (func, строка 275)
 
+### `tests/scenarios/test_new_dialog_empty_workspace_scenario.py`
+- `isolated_data_dir` (func, строка 40)
+- `clean_config_state` (func, строка 78)
+- `st_mock` (func, строка 95)
+- `_make_neighbour_project` (func, строка 104)
+- `_render_page` (func, строка 112)
+- `test_scenario_new_dialog_switches_to_empty_state` (func, строка 138)
+- `test_scenario_first_message_creates_workspaceless_thread` (func, строка 170)
+- `test_scenario_new_dialog_agent_guarded_neighbour_reads_own_project` (func, строка 214)
+
 ### `tests/scenarios/test_orchestrator_chat_prefs_scenario.py`
 - `page_env` (func, строка 31)
 - `_render` (func, строка 43)
@@ -4089,8 +4203,8 @@
 - `active_thread` (func, строка 85)
 - `_make_zip_bytes` (func, строка 91)
 - `test_scenario_any_format_upload_lands_in_thread_files` (func, строка 100)
-- `test_scenario_agent_reads_uploads_via_public_tools` (func, строка 162)
-- `test_scenario_boundary_errors_stay_inside_sandbox` (func, строка 207)
+- `test_scenario_agent_reads_uploads_via_public_tools` (func, строка 169)
+- `test_scenario_boundary_errors_stay_inside_sandbox` (func, строка 214)
 
 ### `tests/scenarios/test_orchestrator_tool_gating.py`
 - `isolated_data_dir` (func, строка 50)
@@ -4144,6 +4258,14 @@
 - `test_hot_paths_do_not_open_index` (func, строка 136)
 - `test_legacy_index_backfilled_once` (func, строка 211)
 - `test_chunk_maintenance_keeps_counters_in_sync` (func, строка 262)
+
+### `tests/scenarios/test_recent_workspace_scopes_scenario.py`
+- `isolated_data_dir` (func, строка 31)
+- `clean_config_state` (func, строка 69)
+- `_menu_paths` (func, строка 85)
+- `test_scenario_teacher_menu_excludes_devagent_folders` (func, строка 92)
+- `test_scenario_platform_folder_hidden_from_teacher` (func, строка 126)
+- `test_scenario_switch_records_into_own_scope` (func, строка 156)
 
 ### `tests/scenarios/test_search_in_files_scenarios.py`
 - `project` (func, строка 23)
@@ -4208,6 +4330,18 @@
 - `test_scenario_4_search_then_read_around_match` (func, строка 191)
 - `test_scenario_5_access_control_for_foreign_dialogs` (func, строка 223)
 - `test_scenario_6_list_threads_discovery_and_pagination` (func, строка 256)
+
+### `tests/scenarios/test_thread_workspace_meta_scenario.py`
+- `isolated_data_dir` (func, строка 43)
+- `clean_config_state` (func, строка 81)
+- `st_mock` (func, строка 98)
+- `_make_project` (func, строка 107)
+- `test_scenario_reopen_restores_saved_folder` (func, строка 114)
+- `test_scenario_missing_folder_opens_empty_state` (func, строка 142)
+- `test_scenario_workspaceless_meta_not_polluted_by_neighbour` (func, строка 175)
+- `test_scenario_delete_thread_drops_binding` (func, строка 210)
+- `test_scenario_dispatcher_switch_and_empty_state_persist` (func, строка 231)
+- `test_scenario_legacy_platform_folder_migrated_before_reopen` (func, строка 267)
 
 ### `tests/scenarios/test_updater_runtime_flow.py`
 - `_fresh_page` (func, строка 52)
@@ -4316,16 +4450,17 @@
 - `repo_devagent_create_thread` (func, строка 23)
 - `repo_devagent_load_thread_meta` (func, строка 56)
 - `repo_devagent_save_thread_meta` (func, строка 63)
-- `repo_devagent_load_thread_messages` (func, строка 85)
-- `repo_devagent_save_thread_messages` (func, строка 97)
-- `repo_devagent_append_message` (func, строка 118)
-- `repo_devagent_list_threads` (func, строка 142)
-- `repo_devagent_delete_thread` (func, строка 159)
-- `repo_devagent_delete_all_threads` (func, строка 172)
-- `repo_devagent_list_threads_filtered` (func, строка 196)
-- `repo_devagent_count_messages` (func, строка 240)
-- `repo_devagent_load_threads_messages` (func, строка 259)
-- `repo_devagent_load_messages_window` (func, строка 284)
+- `repo_devagent_clear_thread_workspace` (func, строка 85)
+- `repo_devagent_load_thread_messages` (func, строка 106)
+- `repo_devagent_save_thread_messages` (func, строка 118)
+- `repo_devagent_append_message` (func, строка 139)
+- `repo_devagent_list_threads` (func, строка 163)
+- `repo_devagent_delete_thread` (func, строка 180)
+- `repo_devagent_delete_all_threads` (func, строка 193)
+- `repo_devagent_list_threads_filtered` (func, строка 217)
+- `repo_devagent_count_messages` (func, строка 261)
+- `repo_devagent_load_threads_messages` (func, строка 280)
+- `repo_devagent_load_messages_window` (func, строка 305)
 
 ### `defaults/skills/rag_base_creator/scripts/build_base.py`
 - `_fallback_vector` (func, строка 91)
@@ -4428,14 +4563,15 @@
 
 ### `dev_agent/config.py`
 - `_resolve_project_root` (func, строка 43)
-- `set_target_root` (func, строка 133)
-- `apply_paths` (func, строка 153)
-- `snapshot_state` (func, строка 191)
-- `restore_state` (func, строка 211)
-- `ensure_runtime_dirs` (func, строка 235)
-- `to_project_relative` (func, строка 241)
-- `is_protected` (func, строка 260)
-- `resolve_in_project` (func, строка 270)
+- `ensure_neutral_root` (func, строка 75)
+- `set_target_root` (func, строка 152)
+- `apply_paths` (func, строка 172)
+- `snapshot_state` (func, строка 223)
+- `restore_state` (func, строка 244)
+- `ensure_runtime_dirs` (func, строка 270)
+- `to_project_relative` (func, строка 276)
+- `is_protected` (func, строка 295)
+- `resolve_in_project` (func, строка 305)
 
 ### `dev_agent/llm_utils.py`
 - `_prefers_assistant_dict` (func, строка 32)
@@ -4453,39 +4589,41 @@
 ### `dev_agent/task_state.py`
 - `TaskStateError` (class, строка 103)
 - `current_thread_id` (func, строка 109)
-- `task_state_path` (func, строка 122)
-- `thread_states_dir` (func, строка 127)
-- `_clear_current_marker` (func, строка 132)
-- `_task_folder_number` (func, строка 145)
-- `_plain_task_dir_path` (func, строка 153)
-- `_allocate_next_task_dir` (func, строка 166)
-- `current_task_dir` (func, строка 190)
-- `_now_iso` (func, строка 218)
-- `_backup_if_exists` (func, строка 223)
-- `_split_top_sections` (func, строка 239)
-- `_split_active_sections` (func, строка 261)
-- `_parse_legacy` (func, строка 288)
-- `_read_active_meta` (func, строка 310)
-- `_parse_history_entries` (func, строка 322)
-- `_parse_step` (func, строка 353)
-- `extract_step_ids` (func, строка 370)
-- `render_active_task` (func, строка 383)
-- `render_task_history` (func, строка 411)
-- `build_task_state` (func, строка 435)
-- `_has_active_content` (func, строка 472)
-- `_summarize_active` (func, строка 480)
-- `_archive_active_task` (func, строка 498)
-- `_write_raw` (func, строка 518)
-- `_write_journal` (func, строка 527)
-- `_migrate_legacy_file` (func, строка 556)
-- `ensure_task_state_file` (func, строка 589)
-- `read_task_state` (func, строка 626)
-- `archive_and_start_task` (func, строка 664)
-- `update_task_state_section` (func, строка 713)
-- `_set_meta_line` (func, строка 758)
-- `update_plan_step_status` (func, строка 774)
-- `clear_task_state` (func, строка 899)
-- `task_state_for_context` (func, строка 930)
+- `_empty_state_states_dir` (func, строка 122)
+- `_ensure_state_dir` (func, строка 143)
+- `task_state_path` (func, строка 152)
+- `thread_states_dir` (func, строка 158)
+- `_clear_current_marker` (func, строка 166)
+- `_task_folder_number` (func, строка 179)
+- `_plain_task_dir_path` (func, строка 187)
+- `_allocate_next_task_dir` (func, строка 200)
+- `current_task_dir` (func, строка 224)
+- `_now_iso` (func, строка 252)
+- `_backup_if_exists` (func, строка 257)
+- `_split_top_sections` (func, строка 273)
+- `_split_active_sections` (func, строка 295)
+- `_parse_legacy` (func, строка 322)
+- `_read_active_meta` (func, строка 344)
+- `_parse_history_entries` (func, строка 356)
+- `_parse_step` (func, строка 387)
+- `extract_step_ids` (func, строка 404)
+- `render_active_task` (func, строка 417)
+- `render_task_history` (func, строка 445)
+- `build_task_state` (func, строка 469)
+- `_has_active_content` (func, строка 506)
+- `_summarize_active` (func, строка 514)
+- `_archive_active_task` (func, строка 532)
+- `_write_raw` (func, строка 552)
+- `_write_journal` (func, строка 561)
+- `_migrate_legacy_file` (func, строка 590)
+- `ensure_task_state_file` (func, строка 623)
+- `read_task_state` (func, строка 660)
+- `archive_and_start_task` (func, строка 698)
+- `update_task_state_section` (func, строка 747)
+- `_set_meta_line` (func, строка 792)
+- `update_plan_step_status` (func, строка 808)
+- `clear_task_state` (func, строка 933)
+- `task_state_for_context` (func, строка 964)
 
 ### `dev_agent/tool_executor.py`
 - `_strip_line_numbers` (func, строка 79)
@@ -4499,8 +4637,10 @@
 - `_unknown_args` (func, строка 254)
 - `_usage_string` (func, строка 279)
 - `_coerce_numeric_args` (func, строка 304)
-- `_validate_python_syntax` (func, строка 358)
-- `ToolExecutor` (class, строка 381)
+- `workspace_guard_error` (func, строка 385)
+- `_subprocess_cwd` (func, строка 415)
+- `_validate_python_syntax` (func, строка 430)
+- `ToolExecutor` (class, строка 453)
 
 ### `dev_agent/universal_agent.py`
 - `load_system_prompt` (func, строка 31)
@@ -4509,48 +4649,48 @@
 - `UniversalDevAgent` (class, строка 212)
 
 ### `dev_agent/workspace_binding.py`
-- `_norm_tid` (func, строка 46)
-- `_state_from_meta` (func, строка 51)
-- `register_thread` (func, строка 60)
-- `get_thread_state` (func, строка 79)
-- `get_thread_workspace` (func, строка 89)
-- `clear_thread` (func, строка 97)
-- `has_thread` (func, строка 106)
-- `sync_lock` (func, строка 111)
-- `sync_registry_from_config` (func, строка 117)
-- `snapshot_config` (func, строка 137)
-- `restore_config_state` (func, строка 143)
-- `_apply_state_unlocked` (func, строка 151)
-- `ensure_thread_active` (func, строка 163)
-- `thread_context` (class, строка 183)
+- `_norm_tid` (func, строка 47)
+- `_state_from_meta` (func, строка 52)
+- `register_thread` (func, строка 61)
+- `get_thread_state` (func, строка 90)
+- `get_thread_workspace` (func, строка 100)
+- `clear_thread` (func, строка 108)
+- `has_thread` (func, строка 117)
+- `sync_lock` (func, строка 122)
+- `sync_registry_from_config` (func, строка 128)
+- `snapshot_config` (func, строка 149)
+- `restore_config_state` (func, строка 155)
+- `_apply_state_unlocked` (func, строка 163)
+- `ensure_thread_active` (func, строка 178)
+- `thread_context` (class, строка 198)
 
 ### `dev_agent/workspace_tools.py`
 - `detect_language` (func, строка 67)
 - `set_workspace` (func, строка 73)
-- `_set_workspace_impl` (func, строка 85)
-- `set_target_file` (func, строка 116)
-- `_set_target_file_impl` (func, строка 127)
-- `current_workspace` (func, строка 154)
-- `current_install` (func, строка 169)
-- `list_recent_workspaces` (func, строка 184)
-- `_iter_project_files` (func, строка 214)
-- `_coerce_nonneg_int` (func, строка 262)
-- `search_in_files` (func, строка 270)
-- `scan_folder` (func, строка 464)
-- `assess_workspace` (func, строка 506)
-- `_python_symbols` (func, строка 541)
-- `_python_imports` (func, строка 554)
-- `build_project_map` (func, строка 568)
-- `render_project_map_markdown` (func, строка 613)
-- `default_spec_markdown` (func, строка 661)
-- `default_architecture_markdown` (func, строка 674)
-- `default_readme_markdown` (func, строка 686)
-- `_backup_before_overwrite` (func, строка 704)
-- `write_project_map` (func, строка 718)
-- `write_doc` (func, строка 733)
-- `read_doc` (func, строка 754)
-- `_snapshot_dir` (func, строка 776)
-- `SnapshotInfo` (class, строка 781)
-- `snapshot_all` (func, строка 788)
-- `list_snapshots` (func, строка 821)
-- `restore_all` (func, строка 840)
+- `_set_workspace_impl` (func, строка 86)
+- `set_target_file` (func, строка 117)
+- `_set_target_file_impl` (func, строка 128)
+- `current_workspace` (func, строка 155)
+- `current_install` (func, строка 182)
+- `list_recent_workspaces` (func, строка 197)
+- `_iter_project_files` (func, строка 230)
+- `_coerce_nonneg_int` (func, строка 278)
+- `search_in_files` (func, строка 286)
+- `scan_folder` (func, строка 480)
+- `assess_workspace` (func, строка 522)
+- `_python_symbols` (func, строка 557)
+- `_python_imports` (func, строка 570)
+- `build_project_map` (func, строка 584)
+- `render_project_map_markdown` (func, строка 629)
+- `default_spec_markdown` (func, строка 677)
+- `default_architecture_markdown` (func, строка 690)
+- `default_readme_markdown` (func, строка 702)
+- `_backup_before_overwrite` (func, строка 720)
+- `write_project_map` (func, строка 734)
+- `write_doc` (func, строка 749)
+- `read_doc` (func, строка 770)
+- `_snapshot_dir` (func, строка 792)
+- `SnapshotInfo` (class, строка 797)
+- `snapshot_all` (func, строка 804)
+- `list_snapshots` (func, строка 837)
+- `restore_all` (func, строка 856)

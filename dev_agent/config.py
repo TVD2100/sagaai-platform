@@ -58,6 +58,25 @@ PROJECT_ROOT = _resolve_project_root()
 # Only in this case do the DevAgent-core files need self-protection.
 WORKING_ON_INSTALL = PROJECT_ROOT.resolve() == INSTALL_ROOT.resolve()
 
+# ─── Empty workspace state ("no folder selected") ─────────────────────────────
+# A NEW dialog starts with NO workspace. Instead of inheriting whatever folder
+# another dialog happens to use (the historical leak), a bound thread without
+# a chosen folder runs in this NEUTRAL root: file tools are blocked by the
+# dispatch guard (see tool_executor) and WORKSPACE_SELECTED is False, so the
+# UI/agent can tell the user to pick a folder first.
+NEUTRAL_ROOT = (INSTALL_ROOT / ".dev_agent" / "neutral").resolve()
+
+# True when a concrete target folder was explicitly selected. False only in
+# the neutral empty state. Legacy callers (tests, scripts) select a root via
+# set_target_root/apply_paths and stay unaffected.
+WORKSPACE_SELECTED: bool = PROJECT_ROOT.resolve() != NEUTRAL_ROOT
+
+
+def ensure_neutral_root() -> Path:
+    """Create and return the neutral (empty-state) root folder."""
+    NEUTRAL_ROOT.mkdir(parents=True, exist_ok=True)
+    return NEUTRAL_ROOT
+
 # ─── Runtime directories ──────────────────────────────────────────────────────
 # When developing the SagaAI install itself (legacy), runtime data stays inside
 # the dev_agent package (so existing tests and tooling keep their paths). When
@@ -152,8 +171,14 @@ def set_target_root(path) -> Path:
 
 def apply_paths(root, *, target_file: Optional[str] = None,
                 thread_id: Optional[str] = None,
-                create_dirs: bool = False) -> None:
+                create_dirs: bool = False,
+                selected: Optional[bool] = None) -> None:
     """Repoint every derived path/flag at a (possibly new) target root.
+
+    ``selected=False`` switches to the NEUTRAL empty state ("no folder
+    selected"): PROJECT_ROOT becomes the neutral root and file tools are
+    blocked by the dispatch guard. When ``selected`` is None the flag is
+    derived from the root itself (a real root counts as selected).
 
     The single writer for all mutable workspace state. Lighter than
     set_target_root: does not create runtime dirs unless asked and does not
@@ -164,8 +189,15 @@ def apply_paths(root, *, target_file: Optional[str] = None,
     global BACKUPS_DIR, WORKSPACE_DIR, CHANGELOG_FILE, TASK_STATES_DIR
     global PROJECT_MAP_FILE, SPEC_FILE, ARCHITECTURE_FILE, README_FILE
     global PROJECT_DOC_NAMES, PROTECTED_FILES, TARGET_FILE, ACTIVE_THREAD_ID
+    global WORKSPACE_SELECTED
 
-    new_root = Path(root).expanduser().resolve()
+    if selected is False:
+        new_root = NEUTRAL_ROOT
+        WORKSPACE_SELECTED = False
+    else:
+        new_root = Path(root).expanduser().resolve()
+        WORKSPACE_SELECTED = (True if selected is True
+                              else new_root != NEUTRAL_ROOT)
     PROJECT_ROOT = new_root
     WORKING_ON_INSTALL = new_root == INSTALL_ROOT.resolve()
     _RUNTIME_DIR = DEV_AGENT_DIR if WORKING_ON_INSTALL else (new_root / ".dev_agent")
@@ -205,6 +237,7 @@ def snapshot_state() -> Dict[str, Any]:
         "PROTECTED_FILES": PROTECTED_FILES,
         "TARGET_FILE": TARGET_FILE,
         "ACTIVE_THREAD_ID": ACTIVE_THREAD_ID,
+        "WORKSPACE_SELECTED": WORKSPACE_SELECTED,
     }
 
 
@@ -215,6 +248,7 @@ def restore_state(state: Dict[str, Any]) -> None:
     global CHANGELOG_FILE, PROJECT_MAP_FILE, SPEC_FILE
     global ARCHITECTURE_FILE, README_FILE, PROJECT_DOC_NAMES
     global PROTECTED_FILES, TARGET_FILE, ACTIVE_THREAD_ID
+    global WORKSPACE_SELECTED
 
     PROJECT_ROOT = state["PROJECT_ROOT"]
     WORKING_ON_INSTALL = state["WORKING_ON_INSTALL"]
@@ -230,6 +264,7 @@ def restore_state(state: Dict[str, Any]) -> None:
     PROTECTED_FILES = state["PROTECTED_FILES"]
     TARGET_FILE = state["TARGET_FILE"]
     ACTIVE_THREAD_ID = state["ACTIVE_THREAD_ID"]
+    WORKSPACE_SELECTED = state.get("WORKSPACE_SELECTED", True)
 
 
 def ensure_runtime_dirs() -> None:

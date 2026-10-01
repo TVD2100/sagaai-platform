@@ -15,7 +15,7 @@ Scenarios (given -> when -> then):
 
   Scenario 3 - the YaAgent reference doc and system prompt agree with the
                catalog: the reference lists deepseek-v4.1-flash and none of
-               the retired models; the prompt is v2.9 and no longer mentions
+               the retired models; the prompt is v2.10 and no longer mentions
                GPT-OSS.
 """
 from __future__ import annotations
@@ -96,7 +96,7 @@ def test_service_copies_are_byte_identical():
 def test_reference_and_prompt_agree_with_catalog():
     """Given the YaAgent reference doc and system prompt, when they are
     inspected, then the reference advertises deepseek-v4.1-flash (no retired
-    models) and the prompt carries the v2.9 header without GPT-OSS."""
+    models) and the prompt carries the v2.10 header without GPT-OSS."""
     reference = (
         ROOT / "defaults" / "orchestrators" / "ya_agent"
         / "instructions" / "yandex_models_reference.md"
@@ -109,5 +109,5 @@ def test_reference_and_prompt_agree_with_catalog():
     prompt = (
         ROOT / "defaults" / "orchestrators" / "ya_agent" / "system_prompt.md"
     ).read_text(encoding="utf-8")
-    assert prompt.splitlines()[0].endswith("(v2.9)")
+    assert prompt.splitlines()[0].endswith("(v2.10)")
     assert "GPT-OSS" not in prompt

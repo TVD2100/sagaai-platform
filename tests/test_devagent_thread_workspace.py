@@ -178,3 +178,75 @@ def test_to_dict_contains_new_columns(tmp_path):
     d = obj.to_dict()
     assert d["workspace"] == "/tmp/ws"
     assert d["target_file"] == "/tmp/ws/a.py"
+
+
+# ─── Legacy meta migration (workspace isolation v2) ───────────────────────────
+
+def test_migration_clears_platform_folders_for_foreign_threads(tmp_path):
+    """Platform folders in non-dev_agent meta are cleared; others survive."""
+    from dev_agent import config
+    from core.threads_devagent import (
+        create_devagent_thread,
+        load_thread_meta,
+        migrate_platform_workspace_meta,
+    )
+
+    install = str(config.INSTALL_ROOT.resolve())
+    inside = os.path.join(install, "apps", "some_project")
+
+    teacher = create_devagent_thread(
+        title="teacher dialog", orchestrator_slug="teacher_assistant",
+        orchestrator_name="Teacher", workspace=install, target_file=None,
+    )
+    teacher_nested = create_devagent_thread(
+        title="teacher nested", orchestrator_slug="teacher_assistant",
+        orchestrator_name="Teacher", workspace=inside, target_file=None,
+    )
+    dev_thread = create_devagent_thread(
+        title="dev dialog", orchestrator_slug="dev_agent",
+        orchestrator_name="DevAgent", workspace=install, target_file=None,
+    )
+    proj = tmp_path / "own_project"
+    proj.mkdir()
+    teacher_ok = create_devagent_thread(
+        title="teacher ok", orchestrator_slug="teacher_assistant",
+        orchestrator_name="Teacher", workspace=str(proj), target_file=None,
+    )
+
+    updated_before = load_thread_meta(teacher).get("updated_at")
+    assert migrate_platform_workspace_meta() == 2
+
+    # then: the foreign threads lost the platform folder (empty state on reopen)
+    assert not load_thread_meta(teacher).get("workspace")
+    assert not load_thread_meta(teacher).get("target_file")
+    assert not load_thread_meta(teacher_nested).get("workspace")
+    # ...and their updated_at was NOT bumped (the dialog list stays ordered)
+    assert load_thread_meta(teacher).get("updated_at") == updated_before
+    # dev_agent keeps the platform folder; a real project is untouched
+    assert load_thread_meta(dev_thread).get("workspace") == install
+    assert load_thread_meta(teacher_ok).get("workspace") == str(proj)
+
+    # idempotent: the second pass finds nothing to clean
+    assert migrate_platform_workspace_meta() == 0
+
+
+def test_migration_clears_platform_target_file(tmp_path):
+    """A single-file target inside the platform root is cleaned too."""
+    from dev_agent import config
+    from core.threads_devagent import (
+        create_devagent_thread,
+        load_thread_meta,
+        migrate_platform_workspace_meta,
+    )
+
+    install = str(config.INSTALL_ROOT.resolve())
+    tid = create_devagent_thread(
+        title="teacher single-file", orchestrator_slug="teacher_assistant",
+        orchestrator_name="Teacher", workspace=None,
+        target_file=os.path.join(install, "app.py"),
+    )
+
+    assert migrate_platform_workspace_meta() == 1
+    meta = load_thread_meta(tid)
+    assert not meta.get("workspace")
+    assert not meta.get("target_file")

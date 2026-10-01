@@ -82,6 +82,27 @@ def repo_devagent_save_thread_meta(thread_id: str, meta: dict) -> bool:
         return False
 
 
+def repo_devagent_clear_thread_workspace(thread_id: str) -> bool:
+    """Clear the saved workspace / target_file of one thread.
+
+    Maintenance helper for the workspace-isolation migration: unlike
+    ``repo_devagent_save_thread_meta`` it keeps ``updated_at`` intact, so a
+    cleanup pass never reorders the dialog list. Returns True when the thread
+    existed and was updated, False otherwise.
+    """
+    try:
+        with get_devagent_session() as s:
+            th = s.get(Thread, thread_id)
+            if th is None:
+                return False
+            th.workspace = None
+            th.target_file = None
+            s.commit()
+            return True
+    except Exception:
+        return False
+
+
 def repo_devagent_load_thread_messages(thread_id: str) -> list:
     """Return ordered list of message dicts for a thread."""
     with get_devagent_session() as s:
