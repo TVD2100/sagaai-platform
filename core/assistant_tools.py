@@ -62,14 +62,19 @@ def _build_responses_input_items(hist_msgs: list, user_content: str,
 
     Plain ``{role, content}`` messages are app-ended first, then the current
     user message, then any native items (function_call / function_call_output)
-    added by the loop.
+    added by the loop. Messages with empty content (empty / whitespace-only
+    strings, empty block lists) are skipped: the Responses API rejects
+    payloads with empty input content ("Content of input is empty"), which
+    used to break the loop after a stored empty assistant answer.
     """
+    from core.api_layer import _content_has_material
+
     input_items: List[Dict[str, Any]] = []
     for m in hist_msgs or []:
         if not isinstance(m, dict):
             continue
         content = m.get("content", "")
-        if content is None:
+        if not _content_has_material(content):
             continue
         role = m.get("role", "user")
         if role not in ("user", "assistant", "system", "developer"):
@@ -150,6 +155,7 @@ def _post_yandex_responses(base_url: str, api_key: str, payload: dict,
     """
     from core.api_layer import (
         MODEL_REQUEST_TIMEOUT, _VERIFY_TLS, _extract_error_body, retry_call,
+        _raise_responses_failure,
     )
     from core.api_errors import NetworkError, ProviderHTTPError, RequestTimeoutError
 
@@ -171,7 +177,9 @@ def _post_yandex_responses(base_url: str, api_key: str, payload: dict,
         if r.status_code != 200:
             body = _extract_error_body(r)
             raise ProviderHTTPError(r.status_code, body, service=svc_name)
-        return r.json()
+        data = r.json()
+        _raise_responses_failure(data, svc_name)
+        return data
 
     return retry_call(_attempt, retry_callback=retry_callback)
 

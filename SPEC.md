@@ -195,6 +195,15 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   вызова модели, поэтому диалог не теряется даже после исчерпания всех
   попыток (`core/api_layer.py`, `core/assistant_tools.py`,
   `dev_agent/agent_loop.py`, `ui/pages/orchestrator.py`).
+- **Ошибки Responses API не маскируются под пустой ответ.** Тело HTTP 200
+  со статусом `failed` и/или объектом `error` (Yandex AI Studio, DeepSeek)
+  поднимается как `ProviderResponseError` с кодом и текстом провайдера
+  вместо молчаливого пустого ответа; то же касается native function-цикла
+  ассистентов и проверки соединения в настройках (`(False, <текст>)`
+  вместо OK). Пустые и whitespace-only сообщения истории исключаются из
+  `input` запроса - каскад HTTP 400 «Content of input is empty» после
+  сохранённого пустого ответа устранён (`core/api_layer.py`,
+  `core/assistant_tools.py`, `core/api_errors.py`).
 
 
 ### FR7 - DevAgent (встроенный разработчик)

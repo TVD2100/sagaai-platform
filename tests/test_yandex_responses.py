@@ -611,3 +611,80 @@ def test_extract_deepseek_wraps_unified_extractor():
         ],
     }
     assert _extract_deepseek_responses_text(data) == "Ответ DeepSeek"
+
+
+# ─── failed status / blank history hardening ────────────────────────────────
+
+
+def test_yandex_responses_request_raises_on_failed_status():
+    """HTTP 200 with status=failed raises ProviderResponseError, not an empty answer."""
+    import pytest
+
+    from core.api_layer import _yandex_responses_request
+    from core.api_errors import ProviderResponseError
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "id": "r1", "status": "failed",
+        "error": {"code": "invalid_prompt",
+                  "message": "Error while calling model: 400: Invalid request"},
+        "output": [],
+    }
+    with patch("core.api_layer.requests.post", return_value=mock_resp):
+        with pytest.raises(ProviderResponseError) as excinfo:
+            _yandex_responses_request(
+                "https://ai.api.cloud.yandex.net/v1", "k", "f", "m",
+                "sys", [], "q",
+                temperature=0.3, cfg=_yandex_cfg(), svc_name="YandexAI",
+            )
+    assert excinfo.value.provider_code == "invalid_prompt"
+    assert "Error while calling model" in str(excinfo.value)
+
+
+def test_yandex_responses_request_filters_blank_history():
+    """Empty and blank history items are filtered out of the input payload."""
+    from core.api_layer import _yandex_responses_request
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = _responses_payload(usage_tokens=(1, 2))
+
+    history = [
+        {"role": "user", "content": ""},
+        {"role": "assistant", "content": "   "},
+        {"role": "assistant", "content": "prev"},
+    ]
+    with patch("core.api_layer.requests.post", return_value=mock_resp) as post:
+        _yandex_responses_request(
+            "https://ai.api.cloud.yandex.net/v1", "k", "f", "m",
+            "sys", history, "q",
+            temperature=0.3, cfg=_yandex_cfg(), svc_name="YandexAI",
+        )
+    assert post.call_args[1]["json"]["input"] == [
+        {"role": "assistant", "content": "prev"},
+        {"role": "user", "content": "q"},
+    ]
+
+
+def test_yandex_reasoning_effort_restricted_by_model_options():
+    """A model catalog without xhigh drops a legacy xhigh config value."""
+    from core.api_layer import _yandex_reasoning_effort
+
+    svc = {"models": [
+        {"id": "deepseek-v4.1-flash",
+         "reasoning_effort_options": ["", "none", "low", "medium", "high"]},
+        {"id": "deepseek-v4-flash"},
+    ]}
+    assert _yandex_reasoning_effort(
+        {"YandexAI_reasoning_effort": "xhigh"}, "YandexAI",
+        model="deepseek-v4.1-flash", svc=svc,
+    ) == ""
+    assert _yandex_reasoning_effort(
+        {"YandexAI_reasoning_effort": "high"}, "YandexAI",
+        model="deepseek-v4.1-flash", svc=svc,
+    ) == "high"
+    assert _yandex_reasoning_effort(
+        {"YandexAI_reasoning_effort": "xhigh"}, "YandexAI",
+        model="deepseek-v4-flash", svc=svc,
+    ) == "xhigh"

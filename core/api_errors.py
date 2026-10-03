@@ -114,6 +114,46 @@ class ProviderHTTPError(APIError):
         super().__init__(msg, service=service, detail=body or None, **kwargs)
 
 
+class ProviderResponseError(APIError):
+    """Raised when a Responses API body reports a failed generation.
+
+    Some providers answer with HTTP 200 while the generation itself failed:
+    ``status == "failed"`` and/or a non-null ``error`` object, e.g.
+    ``invalid_prompt`` when a model rejects an unsupported
+    ``reasoning.effort`` value. Treating such a body as a normal empty
+    answer hides the failure from the user.
+
+    Attributes:
+        status: the provider's response status (usually ``"failed"``).
+        provider_code: machine-readable provider error code (may be "").
+        provider_message: human-readable provider message (may be "").
+        response_id: provider response id when present.
+    """
+
+    code = "provider_response_error"
+
+    def __init__(
+        self,
+        status: str,
+        provider_code: str = "",
+        provider_message: str = "",
+        *,
+        service: Optional[str] = None,
+        response_id: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        self.status = status
+        self.provider_code = provider_code
+        self.provider_message = provider_message
+        self.response_id = response_id
+        msg = f"Provider response status '{status}'"
+        if provider_code:
+            msg += f" ({provider_code})"
+        if provider_message:
+            msg += f": {provider_message}"
+        super().__init__(msg, service=service, detail=provider_message or None, **kwargs)
+
+
 class RequestTimeoutError(APIError):
     """Raised when the provider request times out."""
 

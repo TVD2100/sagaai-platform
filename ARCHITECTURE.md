@@ -34,7 +34,7 @@ SagaAI построена по модульной архитектуре с чё
 
 | Модуль | Ключевые функции |
 |--------|------------------|
-| `api_layer` | HTTP-запросы к AI API (Bearer-токен, GigaChat OAuth, Responses API, тест соединения); нормализация GigaChat-payload (единственный ведущий system) и кламп max_tokens; транспорты изображений `send_vision_request` (chat completions для bearer/yandex_iam; выделенный DeepSeek chat/completions для `deepseek_responses` с `detail="original"`) и `send_image_generation_request` (синхронный OpenAI-совместимый Images API YandexAI) |
+| `api_layer` | HTTP-запросы к AI API (Bearer-токен, GigaChat OAuth, Responses API, тест соединения); нормализация GigaChat-payload (единственный ведущий system) и кламп max_tokens; транспорты изображений `send_vision_request` (chat completions для bearer/yandex_iam; выделенный DeepSeek chat/completions для `deepseek_responses` с `detail="original"`) и `send_image_generation_request` (синхронный OpenAI-совместимый Images API YandexAI); детекция `failed`-статуса Responses API (`ProviderResponseError`) и фильтрация пустых input-элементов |
 | `api_errors` | Единая иерархия ошибок API и локализованные сообщения |
 | `files` | Определение типов файлов, оценка токенов, извлечение контента |
 | `fs` | Низкоуровневые операции: чтение/запись JSON и текста, кодировки, `ensure_dir` |

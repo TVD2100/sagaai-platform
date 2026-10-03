@@ -64,7 +64,15 @@ def test_catalog_offers_deepseek_v41_flash_and_drops_retired_models():
         flash_cfg = dict(models[FLASH_ID])
         new_cfg.pop("id")
         flash_cfg.pop("id")
+        # Since 1.9.2 the two Flash models differ ONLY in reasoning effort
+        # options: Yandex AI Studio rejects "minimal"/"xhigh" for
+        # deepseek-v4.1-flash (verified live on 2026-10-03), while
+        # deepseek-v4-flash accepts them.
+        new_opts = new_cfg.pop("reasoning_effort_options")
+        flash_opts = flash_cfg.pop("reasoning_effort_options")
         assert new_cfg == flash_cfg, path
+        assert flash_opts == ["", "none", "minimal", "low", "medium", "high", "xhigh"], path
+        assert new_opts == ["", "none", "low", "medium", "high"], path
 
         ids = [m.get("id") for m in svc["models"]]
         assert ids[ids.index(FLASH_ID) + 1] == NEW_ID, path

@@ -84,7 +84,8 @@ description: Справочник моделей Yandex AI Studio для выб�
 | --- | --- |
 | `yandexgpt-5-lite`, `yandexgpt-5-pro`, `yandexgpt-5.1` | `none`, `minimal`, `low`, `medium`, `high`, `xhigh` |
 | `aliceai-llm`, `aliceai-llm-flash` | `none`, `minimal`, `low`, `medium`, `high` |
-| `deepseek-v4-flash`, `deepseek-v4.1-flash` | `none`, `minimal`, `low`, `medium`, `high`, `xhigh` |
+| `deepseek-v4-flash` | `none`, `minimal`, `low`, `medium`, `high`, `xhigh` |
+| `deepseek-v4.1-flash` | `none`, `low`, `medium`, `high` (значения `minimal` и `xhigh` отклоняются провайдером - проверено вживую) |
 | `qwen3.6-35b-a3b` | `none`, `minimal`, `low`, `medium`, `high`, `xhigh` |
 
 ## Формат ответа JSON

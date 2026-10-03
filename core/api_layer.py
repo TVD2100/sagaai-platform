@@ -34,6 +34,7 @@ from core.api_errors import (
     ApiKeyMissingError,
     AuthTypeUnknownError,
     ProviderHTTPError,
+    ProviderResponseError,
     RequestTimeoutError,
     NetworkError,
     ContextWindowError,
@@ -493,6 +494,93 @@ def _extract_deepseek_responses_text(data: dict) -> str:
     return _extract_responses_text(data)
 
 
+# ─── Responses API failure detection / input sanitising ─────────────────────
+
+
+def _responses_failure_details(data: dict) -> dict:
+    """Return provider failure details for a Responses API body (or {}).
+
+    Some providers answer with HTTP 200 while the generation itself failed:
+    ``status == "failed"`` and/or a non-null ``error`` object (Yandex AI
+    Studio reports an unsupported ``reasoning.effort`` as ``invalid_prompt``
+    with an empty ``output``). Without this check such a body is silently
+    treated as a normal empty answer.
+    """
+    if not isinstance(data, dict):
+        return {}
+    err = data.get("error")
+    status = str(data.get("status") or "").strip().lower()
+    if not err and status != "failed":
+        return {}
+    code = ""
+    message = ""
+    if isinstance(err, dict):
+        code = str(err.get("code") or "")
+        message = str(err.get("message") or "")
+    elif isinstance(err, str):
+        message = err
+    elif err:
+        message = str(err)[:300]
+    return {
+        "status": status or "failed",
+        "code": code,
+        "message": message,
+        "id": str(data.get("id") or ""),
+    }
+
+
+def _responses_failure_message(data: dict) -> str:
+    """Return a user-facing message for a failed Responses body (or "")."""
+    details = _responses_failure_details(data)
+    if not details:
+        return ""
+    status, code = details["status"], details["code"]
+    message = details["message"]
+    text = f"Provider response status '{status}'"
+    if code:
+        text += f" ({code})"
+    if message:
+        text += f": {message}"
+    return text
+
+
+def _raise_responses_failure(data: dict, svc_name: str = "") -> None:
+    """Raise ProviderResponseError when the body reports a failed generation."""
+    details = _responses_failure_details(data)
+    if not details:
+        return
+    raise ProviderResponseError(
+        details["status"], details["code"], details["message"],
+        service=svc_name or None, response_id=details["id"] or None,
+    )
+
+
+def _content_has_material(content) -> bool:
+    """Return True when a history message's content carries anything sendable.
+
+    The Responses API rejects payloads whose input contains empty content
+    (HTTP 400 "Content of input is empty"); that used to happen when a
+    stored empty assistant answer made it back into the history. Empty
+    strings, whitespace-only strings, empty lists and lists without a
+    single non-blank text/image block are treated as empty.
+    """
+    if content is None:
+        return False
+    if isinstance(content, str):
+        return bool(content.strip())
+    if isinstance(content, list):
+        for block in content:
+            if isinstance(block, str) and block.strip():
+                return True
+            if isinstance(block, dict):
+                if str(block.get("text") or "").strip():
+                    return True
+                if block.get("type") in ("input_image", "image_url", "image"):
+                    return True
+        return False
+    return True
+
+
 def _normalise_tools(tools: list) -> list:
     """Convert a tools list to API payload format.
 
@@ -733,7 +821,7 @@ def _deepseek_responses_request(base_url: str, api_key: str, model: str,
         if not isinstance(m, dict):
             continue
         content = m.get("content", "")
-        if content is None:
+        if not _content_has_material(content):
             continue
         role = m.get("role", "user")
         if role not in ("user", "assistant", "system", "developer"):
@@ -775,6 +863,7 @@ def _deepseek_responses_request(base_url: str, api_key: str, model: str,
         raise ProviderHTTPError(r.status_code, body, service=svc_name)
 
     data = r.json()
+    _raise_responses_failure(data, svc_name)
     result_text = _extract_deepseek_responses_text(data)
     if json_format and result_text.strip():
         result_text = _unwrap_json_text(result_text)
@@ -1087,7 +1176,7 @@ def _yandex_responses_request(base_url: str, api_key: str, folder_id: str,
         if not isinstance(m, dict):
             continue
         content = m.get("content", "")
-        if content is None:
+        if not _content_has_material(content):
             continue
         role = m.get("role", "user")
         if role not in ("user", "assistant", "system", "developer"):
@@ -1147,6 +1236,7 @@ def _yandex_responses_request(base_url: str, api_key: str, folder_id: str,
         raise ProviderHTTPError(r.status_code, body, service=svc_name)
 
     data = r.json()
+    _raise_responses_failure(data, svc_name)
     result_text = _extract_responses_text(data)
     if json_format and result_text.strip():
         result_text = _unwrap_json_text(result_text)
@@ -1983,11 +2073,15 @@ def test_connection(svc_name: str, cfg: dict) -> tuple:
                 timeout=30,
                 verify=_VERIFY_TLS,
             )
-            return (
-                (True, f"OK (HTTP {r.status_code})")
-                if r.status_code == 200
-                else (False, f"HTTP {r.status_code}: {r.text[:200]}")
-            )
+            if r.status_code != 200:
+                return False, f"HTTP {r.status_code}: {r.text[:200]}"
+            try:
+                failure = _responses_failure_message(r.json())
+            except Exception:
+                failure = ""
+            if failure:
+                return False, failure
+            return True, f"OK (HTTP {r.status_code})"
 
         elif auth_type == "yandex_iam":
             key = cfg.get(svc.get("config_key", ""), "")
@@ -2019,11 +2113,15 @@ def test_connection(svc_name: str, cfg: dict) -> tuple:
                 timeout=30,
                 verify=_VERIFY_TLS,
             )
-            return (
-                (True, f"OK (HTTP {r.status_code})")
-                if r.status_code == 200
-                else (False, f"HTTP {r.status_code}: {r.text[:200]}")
-            )
+            if r.status_code != 200:
+                return False, f"HTTP {r.status_code}: {r.text[:200]}"
+            try:
+                failure = _responses_failure_message(r.json())
+            except Exception:
+                failure = ""
+            if failure:
+                return False, failure
+            return True, f"OK (HTTP {r.status_code})"
 
         elif auth_type == "gigachat_oauth":
             key = cfg.get(svc.get("config_key", ""), "")

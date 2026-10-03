@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-10-01T16:58:07+00:00`
-- Файлов: **1226**
-- Языки: Config: 1, JSON: 22, Markdown: 947, PEM certificate: 1, Python: 259, Text: 1
+- Обновлено: `2026-10-03T09:45:16+00:00`
+- Файлов: **1243**
+- Языки: Config: 1, JSON: 22, Markdown: 963, PEM certificate: 1, Python: 260, Text: 1
 
 ## Файлы и назначение
 
@@ -253,6 +253,7 @@
 | `tests/scenarios/test_welcome_page_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_workspace_binding_scenario.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_yandex_models_catalog_scenario.py` | Python | Scenario tests for the YandexAI model catalog update | - |
+| `tests/scenarios/test_yandex_responses_failures_scenario.py` | Python | Scenario tests for Responses API failure handling (failed-status surfacing, blank input filtering) | - |
 | `storage/__init__.py` | Python | Package marker | - |
 | `storage/db.py` | Python | SQLAlchemy engines; auto-migration skills->assistants, skill_*->assistant_* columns | storage |
 | `storage/models.py` | Python | ORM models: Assistant (assistants), Thread (assistant_id/assistant_name), Message, ConfigKV, Instruction, Orchestrator | - |
@@ -1232,6 +1233,22 @@
 | `dev_agent/task_states/TASK_STATE__20261001_193248_9be68f.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20261001_193257_00f2b5.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20261001_193257_727a41.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_195930_2261e6.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_195934_52fbd5.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_195934_689082.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_195934_710a57.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_195934_c562ad.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_195934_dbf713.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_195943_2e2b27.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261001_195943_c0c954.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261003_123812_36b600.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261003_123816_21378a.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261003_123816_35a570.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261003_123816_6f1c52.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261003_123816_e7d188.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261003_123816_f5449b.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261003_123827_afeb27.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261003_123827_c0fcb5.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
 | `services/deepseek.json` | JSON | DeepSeek service definition (vision_base_url + vision_models catalog) | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
@@ -1397,52 +1414,53 @@
 - `ApiKeyMissingError` (class, строка 68)
 - `AuthTypeUnknownError` (class, строка 82)
 - `ProviderHTTPError` (class, строка 96)
-- `RequestTimeoutError` (class, строка 117)
-- `NetworkError` (class, строка 126)
-- `ContextWindowError` (class, строка 135)
-- `api_error_message` (func, строка 172)
+- `ProviderResponseError` (class, строка 117)
+- `RequestTimeoutError` (class, строка 157)
+- `NetworkError` (class, строка 166)
+- `ContextWindowError` (class, строка 175)
+- `api_error_message` (func, строка 212)
 
 ### `core/api_layer.py`
-- `_gigachat_verify` (func, строка 71)
-- `_retry_params` (func, строка 100)
-- `retry_call` (func, строка 125)
-- `_parse_sanitized_info` (func, строка 175)
-- `_get_model_max_tokens` (func, строка 201)
-- `_clamp_max_tokens` (func, строка 222)
-- `_prepare_response_content` (func, строка 250)
-- `_format_function_call_item` (func, строка 285)
-- `_normalise_json_schema` (func, строка 313)
-- `_responses_json_format` (func, строка 332)
-- `_openai_response_format` (func, строка 345)
-- `_gigachat_response_format` (func, строка 359)
-- `_unwrap_json_text` (func, строка 376)
-- `_is_schema_rejection` (func, строка 404)
-- `_extract_responses_text` (func, строка 426)
-- `_extract_deepseek_responses_text` (func, строка 484)
-- `_normalise_tools` (func, строка 496)
-- `_has_native_function_tools` (func, строка 514)
-- `_protect_history` (func, строка 529)
-- `_estimate_tokens_in` (func, строка 602)
-- `_bearer_request` (func, строка 613)
-- `_deepseek_reasoning_effort` (func, строка 688)
-- `_deepseek_responses_request` (func, строка 704)
-- `_anthropic_web_search_used` (func, строка 813)
-- `_extract_anthropic_text` (func, строка 829)
-- `_deepseek_anthropic_web_search` (func, строка 853)
-- `_yandex_reasoning_effort` (func, строка 969)
-- `_yandex_web_search_config` (func, строка 996)
-- `_assistant_web_search_config` (func, строка 1026)
-- `_yandex_responses_request` (func, строка 1055)
-- `_gigachat_messages` (func, строка 1172)
-- `_gigachat_token` (func, строка 1228)
-- `_extract_openai_message_text` (func, строка 1258)
-- `send_vision_request` (func, строка 1281)
-- `send_image_generation_request` (func, строка 1390)
-- `_assistant_rag_context` (func, строка 1474)
-- `send_request` (func, строка 1525)
-- `_do_request` (func, строка 1715)
-- `_extract_error_body` (func, строка 1872)
-- `_extract_gigachat_error` (func, строка 1893)
+- `_gigachat_verify` (func, строка 72)
+- `_retry_params` (func, строка 101)
+- `retry_call` (func, строка 126)
+- `_parse_sanitized_info` (func, строка 176)
+- `_get_model_max_tokens` (func, строка 202)
+- `_clamp_max_tokens` (func, строка 223)
+- `_prepare_response_content` (func, строка 251)
+- `_format_function_call_item` (func, строка 286)
+- `_normalise_json_schema` (func, строка 314)
+- `_responses_json_format` (func, строка 333)
+- `_openai_response_format` (func, строка 346)
+- `_gigachat_response_format` (func, строка 360)
+- `_unwrap_json_text` (func, строка 377)
+- `_is_schema_rejection` (func, строка 405)
+- `_extract_responses_text` (func, строка 427)
+- `_extract_deepseek_responses_text` (func, строка 485)
+- `_responses_failure_details` (func, строка 500)
+- `_responses_failure_message` (func, строка 532)
+- `_raise_responses_failure` (func, строка 547)
+- `_content_has_material` (func, строка 558)
+- `_normalise_tools` (func, строка 584)
+- `_has_native_function_tools` (func, строка 602)
+- `_protect_history` (func, строка 617)
+- `_estimate_tokens_in` (func, строка 690)
+- `_bearer_request` (func, строка 701)
+- `_deepseek_reasoning_effort` (func, строка 776)
+- `_deepseek_responses_request` (func, строка 792)
+- `_anthropic_web_search_used` (func, строка 902)
+- `_extract_anthropic_text` (func, строка 918)
+- `_deepseek_anthropic_web_search` (func, строка 942)
+- `_yandex_reasoning_effort` (func, строка 1058)
+- `_yandex_web_search_config` (func, строка 1085)
+- `_assistant_web_search_config` (func, строка 1115)
+- `_yandex_responses_request` (func, строка 1144)
+- `_gigachat_messages` (func, строка 1262)
+- `_gigachat_token` (func, строка 1318)
+- `_extract_openai_message_text` (func, строка 1348)
+- `send_vision_request` (func, строка 1371)
+- `send_image_generation_request` (func, строка 1480)
+- `_assistant_rag_context` (func, строка 1564)
 
 ### `core/assistant_creator.py`
 - `_section_headers` (func, строка 23)
@@ -1489,15 +1507,15 @@
 - `_normalise_tools` (func, строка 40)
 - `_yandex_web_search_config` (func, строка 46)
 - `_build_responses_input_items` (func, строка 59)
-- `_build_yandex_tool_payload` (func, строка 86)
-- `_post_yandex_responses` (func, строка 141)
-- `_extract_function_calls` (func, строка 179)
-- `_item_text` (func, строка 207)
-- `_assistant_allowed_rag_bases` (func, строка 213)
-- `execute_assistant_rag_search` (func, строка 238)
-- `execute_assistant_rag_chunks` (func, строка 298)
-- `_report_usage` (func, строка 368)
-- `run_yandex_responses_tool_loop` (func, строка 389)
+- `_build_yandex_tool_payload` (func, строка 91)
+- `_post_yandex_responses` (func, строка 146)
+- `_extract_function_calls` (func, строка 187)
+- `_item_text` (func, строка 215)
+- `_assistant_allowed_rag_bases` (func, строка 221)
+- `execute_assistant_rag_search` (func, строка 246)
+- `execute_assistant_rag_chunks` (func, строка 306)
+- `_report_usage` (func, строка 376)
+- `run_yandex_responses_tool_loop` (func, строка 397)
 
 ### `core/assistants.py`
 - `_get_user_data_dir` (func, строка 54)
@@ -2647,6 +2665,8 @@
 - `test_strip_tool_calls_removes_dsml_blocks` (func, строка 424)
 - `test_protect_history_still_honors_flags` (func, строка 452)
 - `test_settings_page_hides_reasoning_effort_field` (func, строка 469)
+- `test_deepseek_responses_request_raises_on_failed_status` (func, строка 528)
+- `test_deepseek_responses_request_filters_blank_history` (func, строка 554)
 
 ### `tests/test_default_imports.py`
 - `isolated_data_dir` (func, строка 30)
@@ -4024,6 +4044,9 @@
 - `test_extract_responses_text_incomplete_status_still_returns_text` (func, строка 586)
 - `test_extract_responses_text_empty_output` (func, строка 597)
 - `test_extract_deepseek_wraps_unified_extractor` (func, строка 604)
+- `test_yandex_responses_request_raises_on_failed_status` (func, строка 619)
+- `test_yandex_responses_request_filters_blank_history` (func, строка 645)
+- `test_yandex_reasoning_effort_restricted_by_model_options` (func, строка 670)
 
 ### `tests/smoke/test_app_smoke.py`
 - `isolated_data` (func, строка 24)
@@ -4430,8 +4453,26 @@
 - `_json` (func, строка 38)
 - `_models` (func, строка 43)
 - `test_catalog_offers_deepseek_v41_flash_and_drops_retired_models` (func, строка 51)
-- `test_service_copies_are_byte_identical` (func, строка 83)
-- `test_reference_and_prompt_agree_with_catalog` (func, строка 96)
+- `test_service_copies_are_byte_identical` (func, строка 91)
+- `test_reference_and_prompt_agree_with_catalog` (func, строка 104)
+
+### `tests/scenarios/test_yandex_responses_failures_scenario.py`
+- `_ok_body` (func, строка 66)
+- `_mock_response` (func, строка 78)
+- `_yandex_cfg` (func, строка 86)
+- `_deepseek_service` (func, строка 93)
+- `_effective_yandex_service` (func, строка 104)
+- `_send_env` (func, строка 110)
+- `_yandex_assistant` (func, строка 123)
+- `test_legacy_xhigh_config_dropped_for_v41_flash` (func, строка 132)
+- `test_xhigh_still_sent_for_v4_flash` (func, строка 150)
+- `test_blank_history_filtered_yandex` (func, строка 182)
+- `test_blank_history_filtered_deepseek` (func, строка 198)
+- `test_failed_status_raises_with_provider_message_yandex` (func, строка 217)
+- `test_failed_status_raises_with_provider_message_deepseek` (func, строка 236)
+- `test_test_connection_reports_failed_body_yandex` (func, строка 253)
+- `test_test_connection_reports_failed_body_deepseek` (func, строка 272)
+- `test_tool_loop_raises_on_failed_status` (func, строка 289)
 
 ### `storage/db.py`
 - `_is_file_db` (func, строка 24)

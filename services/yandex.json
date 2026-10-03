@@ -136,11 +136,9 @@
       "reasoning_effort_options": [
         "",
         "none",
-        "minimal",
         "low",
         "medium",
-        "high",
-        "xhigh"
+        "high"
       ]
     },
     {

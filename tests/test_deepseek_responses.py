@@ -520,3 +520,57 @@ def test_settings_page_hides_reasoning_effort_field():
         ]
         assert "cfg_DeepSeek_reasoning_effort" not in keys
         assert "cfg_DeepSeek_thinking_type" not in keys
+
+
+# ─── failed status / blank history hardening ────────────────────────────────
+
+
+def test_deepseek_responses_request_raises_on_failed_status():
+    """HTTP 200 with status=failed raises ProviderResponseError, not an empty answer."""
+    import pytest
+
+    from core.api_layer import _deepseek_responses_request
+    from core.api_errors import ProviderResponseError
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "id": "d1", "status": "failed",
+        "error": {"code": "invalid_prompt",
+                  "message": "Error while calling model: 400: Invalid request"},
+        "output": [],
+    }
+    with patch("core.api_layer.requests.post", return_value=mock_resp):
+        with pytest.raises(ProviderResponseError) as excinfo:
+            _deepseek_responses_request(
+                "https://api.deepseek.com/responses", "sk-test",
+                "deepseek-v4.1-flash", "sys", [], "q",
+                cfg={}, svc_name="DeepSeek",
+            )
+    assert excinfo.value.provider_code == "invalid_prompt"
+    assert "Error while calling model" in str(excinfo.value)
+
+
+def test_deepseek_responses_request_filters_blank_history():
+    """Empty and blank history items are filtered out of the input payload."""
+    from core.api_layer import _deepseek_responses_request
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = _responses_body("ok")
+
+    history = [
+        {"role": "user", "content": ""},
+        {"role": "assistant", "content": "   "},
+        {"role": "assistant", "content": "prev"},
+    ]
+    with patch("core.api_layer.requests.post", return_value=mock_resp) as post:
+        _deepseek_responses_request(
+            "https://api.deepseek.com/responses", "sk-test",
+            "deepseek-v4.1-flash", "sys", history, "q",
+            cfg={}, svc_name="DeepSeek",
+        )
+    assert post.call_args[1]["json"]["input"] == [
+        {"role": "assistant", "content": "prev"},
+        {"role": "user", "content": "q"},
+    ]
