@@ -1,7 +1,60 @@
 # -*- coding: utf-8 -*-
-"""Regenerate PROJECT_MAP.md with roles reflecting the assistant terminology
-and the new skills-invocation tools."""
-import os, sys
+"""
+scripts/regenerate_project_map.py - CANONICAL generator of PROJECT_MAP.md.
+
+The map is a generated artifact: never edit PROJECT_MAP.md by hand (no
+apply_patch / propose_file / direct writes). Update the descriptions below and
+re-run this script; the file list is taken from file_versions.json so the map
+covers exactly the files published on GitHub.
+"""
+import json
+import os
+import sys
+from pathlib import Path
+
+MANIFEST_NAME = "file_versions.json"
+SCOPE_NOTE = ("только файлы, публикуемые на GitHub "
+              "(units + selectable из file_versions.json)")
+
+
+def build_publish_set(manifest: dict) -> dict:
+    """Return the files a repository publishes: units[*].files + selectable.
+
+    Mirrors the coverage rules of scripts/verify_manifest.py. Tolerates
+    malformed sections. Returns {"paths": sorted list, "count": int}.
+    """
+    paths = set()
+    units = manifest.get("units") if isinstance(manifest, dict) else None
+    if isinstance(units, dict):
+        for unit in units.values():
+            files = (unit or {}).get("files") if isinstance(unit, dict) else None
+            if isinstance(files, dict):
+                paths.update(str(p) for p in files.keys())
+    selectable = manifest.get("selectable") if isinstance(manifest, dict) else None
+    if isinstance(selectable, dict):
+        paths.update(str(p) for p in selectable.keys())
+    return {"paths": sorted(paths), "count": len(paths)}
+
+
+def main() -> dict:
+    """Regenerate PROJECT_MAP.md for the workspace's published file set."""
+    from dev_agent import config as dev_config
+    root = Path(dev_config.PROJECT_ROOT).resolve()
+    manifest_path = root / MANIFEST_NAME
+    if not manifest_path.exists():
+        out = {"ok": False, "error": "%s not found in %s" % (MANIFEST_NAME, root)}
+        print(out)
+        return out
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    publish = build_publish_set(manifest)
+    res = wt.write_project_map(
+        roles,
+        include_paths=publish["paths"],
+        scope_note=SCOPE_NOTE,
+    )
+    print(res)
+    return res
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -198,5 +251,39 @@ roles = {
     "tests/scenarios/test_github_read_retry_scenario.py": "Scenario tests: GitHub read retries via the public API (get_user_info/create_repo), no token leaks",
 }
 
-res = wt.write_project_map(roles)
-print(res)
+# Descriptions migrated from the previous PROJECT_MAP.md revision (files
+# whose roles were only ever present in the map) plus refreshed entries for
+# files changed by the AST / fingerprint / published-scope update.
+roles.update({
+    "file_versions.json": "Update manifest: app_version/channel/release_note and per-file semver + sha256 for units/selectable",
+    "core/context_guard.py": "Pre-flight context guard (M4/M5): soft trim at 0.5 window, hard cap 0.8, capped output reserve min(max_out, max(4096, 0.25*window)), economy head protection, history_cap() for budget callers",
+    "defaults/langs/en.json": "UI strings (English, incl. token_line_* keys)",
+    "defaults/langs/ru.json": "UI strings (Russian, incl. token_line_* keys)",
+    "defaults/langs/zh-CN.json": "UI strings (Chinese, incl. token_line_* keys)",
+    "defaults/services/deepseek.json": "DeepSeek service definition (defaults copy; vision_base_url + vision_models catalog; declared default output limit ~32k)",
+    "tests/scenarios/test_context_overflow_protection.py": "Scenario: context-overflow protection - spill of a huge tool result and the failed-spill hard error",
+    "tests/scenarios/test_gigachat_orchestrator_scenario.py": "Scenario: orchestrator run on a GigaChat-like payload (leading-system fold, error visibility)",
+    "tests/scenarios/test_resume_identity_scenarios.py": "Scenario: resume identity - stored thread messages round-trip byte-for-byte after reload",
+    "tests/scenarios/test_yandex_responses_failures_scenario.py": "Scenario: Responses API failure handling (failed-status surfacing, blank input filtering)",
+    "tests/test_agent_loop_snapshot_chain.py": "Unit: persistent TS/TC snapshot chain in the agent loop",
+    "tests/test_agent_loop_snapshot_persistence.py": "Unit: snapshot chain round-trip through the thread store",
+    "tests/test_agent_loop_thread_context.py": "Agent-loop thread-context tests: TS/TC snapshot chain, service-block marking, persistence round-trip",
+    "tests/test_context_window_guard.py": "Context-guard tests: output-reserve formula, 32k window, economy head protection, history_cap",
+    "tests/test_economy_history_budget.py": "Economy budget tests: guard-aligned budget, low-watermark trim, economy_anchor hysteresis (frozen front)",
+    "tests/test_gigachat_messages.py": "GigaChat payload tests: single leading system, mid-history system blocks keep the user role, role merging",
+    "tests/test_orchestrator_economy_cache.py": "Orchestrator economy-cache tests: cache-friendly prefix and anchor behaviour",
+    "tests/test_token_line_cache.py": "Token-line cache tests: language in the cache key, re-render on language switch, localized labels",
+    "tests/test_tool_result_size_cap.py": "Tool-result spill policy tests: head+tail preview, hard-cap fallback, UniversalDevAgent path",
+    "tests/test_tool_result_storage_summary.py": "Storage-summary tests: verbatim small documents (wire==stored), batch splitter, both persist paths",
+    "dev_agent/workspace_tools.py": "Workspace layer: folders, project map (AST symbols, content fingerprint, GitHub-published scope filter), docs, snapshots; workspace_selected reporting and per-orchestrator recent workspaces",
+    "dev_agent/system_prompt.md": "DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.18 generated-PROJECT_MAP rule; v3.17 compact task-state digest, read_file windows, PRAGMA-first; v3.16 empty-state Stage 0, task-journal and thread-files rules)",
+    "scripts/regenerate_project_map.py": "CANONICAL generator of PROJECT_MAP.md: publish scope from file_versions.json (units + selectable) + responsibility dictionary; run it to regenerate the map (never hand-edit it)",
+    "scripts/verify_manifest.py": "Manifest validator/maintainer: schema, coverage of git-tracked files, sha256 freshness, app_version consistency; prompt versions come from file headers on --init/--add; modes --init/--add/--fix-hashes/--json/--strict",
+    "tests/scenarios/test_orchestrator_tool_gating.py": "Gating scenarios: system-prompt version pins (v3.18/v2.10), empty-state prompt invariants, generated-document rule and thread-search tool invariants",
+    "tests/test_project_map_ast.py": "Unit: project map - AST symbol extraction (methods/async/nested, line ranges), regex fallback, per-file symbol cap, include-paths scope, content fingerprint, enriched header",
+    "tests/scenarios/test_project_map_freshness_scenario.py": "Scenario: PROJECT_MAP regeneration - GitHub-published scope only, recorded fingerprint and staleness detection, reproducible output",
+})
+
+
+if __name__ == "__main__":
+    main()

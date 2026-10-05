@@ -289,15 +289,16 @@ def test_canonical_prompts_do_not_duplicate_the_tool_catalog():
     when  they are inspected,
     then  each prompt delegates the full tool list to the auto-added
           '## Available tools' block, keeps its tool-usage rules in-line
-          and contains no duplicated tool-catalog table; dev_agent is v3.17
-          and ya_agent is v2.10. The batch-calls rule and the verbatim
-          user-supplied-plan branch are pinned here as invariants.
+          and contains no duplicated tool-catalog table; dev_agent is v3.18
+          and ya_agent is v2.10. The batch-calls rule, the verbatim
+          user-supplied-plan branch and the generated-PROJECT_MAP rule are
+          pinned here as invariants.
     """
     dev = CANONICAL_PROMPT_FILES["dev_agent"].read_text(encoding="utf-8")
     ya = CANONICAL_PROMPT_FILES["ya_agent"].read_text(encoding="utf-8")
 
     # Version headers carry the bumped versions.
-    assert dev.splitlines()[0].endswith("(v3.17)"), dev.splitlines()[0]
+    assert dev.splitlines()[0].endswith("(v3.18)"), dev.splitlines()[0]
     assert ya.splitlines()[0].endswith("(v2.10)"), ya.splitlines()[0]
 
     # RAG context-restore invariant (v3.14): hits carry ids and the
@@ -332,6 +333,13 @@ def test_canonical_prompts_do_not_duplicate_the_tool_catalog():
     # Compact task-state restore invariant (v3.17): the digest mode and the
     # budgeted injection are described inline.
     assert "task_state_read(compact=True)" in dev
+
+    # Generated-PROJECT_MAP invariant (v3.18): hand edits are forbidden and
+    # the map is updated through the project's generator (or write_project_map
+    # with the complete descriptions dict); staleness = fingerprint mismatch.
+    assert "`PROJECT_MAP.md` is a generated file - never edit it by hand" in dev
+    assert "write_project_map(responsibilities=...)" in dev
+    assert "build_project_map()['fingerprint']" in dev
 
     # Verbatim user-supplied-plan branch invariants.
     assert "User-supplied plan (verbatim acceptance)" in dev

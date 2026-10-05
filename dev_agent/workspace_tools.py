@@ -25,6 +25,8 @@
 
 from __future__ import annotations
 
+import ast
+import hashlib
 import os
 import json
 import re
@@ -554,8 +556,49 @@ def assess_workspace() -> Dict[str, Any]:
 
 
 # ─── Deterministic project map ────────────────────────────────────────────────
-def _python_symbols(text: str) -> List[Dict[str, Any]]:
-    """Extract top-level def/class names with line numbers from Python source."""
+MAX_SYMBOLS_PER_FILE = 200
+"""Maximum symbols kept per file in the project map (the header reports the cut)."""
+
+
+def _ast_symbols(text: str) -> List[Dict[str, Any]]:
+    """Collect class/function symbols from Python source via ``ast``.
+
+    Captures classes, functions, async functions, methods and nested
+    definitions. Nested names are qualified (``Class.method``). Each symbol
+    carries a 1-based ``line`` and the inclusive ``end_line`` of its block.
+    Decorators are not symbols themselves; decorated definitions are still
+    captured through their ``FunctionDef``/``ClassDef`` node.
+    """
+    tree = ast.parse(text)
+    symbols: List[Dict[str, Any]] = []
+
+    def visit(node: ast.AST, parents: List[str]) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                if isinstance(child, ast.ClassDef):
+                    kind = "class"
+                elif isinstance(child, ast.AsyncFunctionDef):
+                    kind = "async_func"
+                else:
+                    kind = "func"
+                end = int(getattr(child, "end_lineno", 0) or child.lineno)
+                symbols.append({
+                    "line": int(child.lineno),
+                    "end_line": end,
+                    "name": ".".join(parents + [child.name]),
+                    "kind": kind,
+                })
+                visit(child, parents + [child.name])
+            else:
+                visit(child, parents)
+
+    visit(tree, [])
+    symbols.sort(key=lambda s: (s["line"], s["name"]))
+    return symbols
+
+
+def _regex_symbols(text: str) -> List[Dict[str, Any]]:
+    """Legacy fallback: top-level def/class names via a zero-indent scan."""
     symbols: List[Dict[str, Any]] = []
     for i, ln in enumerate(text.split("\n"), start=1):
         stripped = ln.rstrip()
@@ -563,8 +606,25 @@ def _python_symbols(text: str) -> List[Dict[str, Any]]:
             name = stripped.split("(")[0]
             name = name.replace("def ", "").replace("class ", "").strip(": ")
             kind = "class" if stripped.startswith("class ") else "func"
-            symbols.append({"line": i, "name": name, "kind": kind})
+            symbols.append({"line": i, "end_line": i, "name": name, "kind": kind})
     return symbols
+
+
+def _python_symbols(text: str) -> List[Dict[str, Any]]:
+    """Extract def/class symbols with line numbers from Python source.
+
+    Primary path - the ``ast``-based extractor (classes, functions, async
+    functions, methods and nested definitions with qualified names and full
+    line ranges). Files that do not parse (e.g. containing syntax errors)
+    fall back to the legacy zero-indent scan so they still contribute their
+    top-level symbols instead of disappearing from the map.
+    """
+    if not text:
+        return []
+    try:
+        return _ast_symbols(text)
+    except (SyntaxError, ValueError, RecursionError):
+        return _regex_symbols(text)
 
 
 def _python_imports(text: str) -> List[str]:
@@ -581,19 +641,53 @@ def _python_imports(text: str) -> List[str]:
     return sorted(r for r in roots if r)
 
 
-def build_project_map() -> Dict[str, Any]:
+def build_project_map(
+    include_paths: Optional[List[str]] = None,
+    scope_note: str = "",
+    fingerprint_exclude: Optional[List[str]] = None,
+) -> Dict[str, Any]:
     """Build a DETERMINISTIC structural map of the workspace.
 
     In single-file mode, maps only the target file.
+
+    *include_paths* optionally restricts the map to an explicit set of
+    relative paths (for example the files a repository publishes to a
+    remote). ``None`` maps every scanned file (the default for arbitrary
+    projects); an empty iterable maps nothing. Paths of *include_paths*
+    the scan does not reach are reported in ``extra_paths`` (binary
+    assets and extensionless files, e.g. LICENSE) so callers can list
+    them too.
+
+    *scope_note* is a free-form line echoed into the rendered map header
+    (for example the inclusion policy).
+
+    *fingerprint_exclude* lists paths left out of the content fingerprint
+    (default: the managed project docs). The fingerprint changes whenever
+    any other mapped file changes, so a map whose recorded fingerprint no
+    longer matches ``build_project_map()['fingerprint']`` is stale.
     """
     scan = scan_folder()
     base = config.PROJECT_ROOT.resolve()
+    all_rows = scan["files"]
+    extra_paths: List[str] = []
+    if include_paths is not None:
+        include_set = {str(p) for p in include_paths}
+        rows = [r for r in all_rows if r["path"] in include_set]
+        scanned_paths = {r["path"] for r in all_rows}
+        extra_paths = sorted(p for p in include_set if p not in scanned_paths)
+    else:
+        rows = list(all_rows)
+
+    languages: Dict[str, int] = {}
+    for row in rows:
+        languages[row["lang"]] = languages.get(row["lang"], 0) + 1
+
     local_modules = {
-        Path(r["path"]).stem for r in scan["files"] if r["lang"] == "Python"
+        Path(r["path"]).stem for r in rows if r["lang"] == "Python"
     }
 
     entries: List[Dict[str, Any]] = []
-    for row in scan["files"]:
+    for row in rows:
         rel = row["path"]
         if rel in config.PROJECT_DOC_NAMES:
             continue
@@ -609,19 +703,40 @@ def build_project_map() -> Dict[str, Any]:
                 text = ""
             syms = _python_symbols(text)
             imports = _python_imports(text)
-            entry["symbols"] = syms[:40]
+            entry["symbols"] = syms[:MAX_SYMBOLS_PER_FILE]
             entry["symbol_count"] = len(syms)
             entry["depends_on"] = sorted(
                 m for m in imports if m in local_modules and m != Path(rel).stem
             )
         entries.append(entry)
 
+    exclude = (
+        list(fingerprint_exclude)
+        if fingerprint_exclude is not None
+        else list(config.PROJECT_DOC_NAMES)
+    )
+    fp_parts: List[str] = []
+    for e in sorted(entries, key=lambda x: x["path"]):
+        if e["path"] in exclude:
+            continue
+        try:
+            data = (base / e["path"]).read_bytes()
+        except OSError:
+            data = b""
+        digest = hashlib.sha256(data).hexdigest()
+        fp_parts.append(f"{e['path']}:{len(data)}:{digest}")
+    fingerprint = hashlib.sha256("\n".join(fp_parts).encode("utf-8")).hexdigest()
+
     return {
         "ok": True,
         "root": str(base),
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "file_count": len(entries),
-        "languages": scan["languages"],
+        "languages": dict(sorted(languages.items())),
+        "scope_note": scope_note,
+        "extra_paths": extra_paths,
+        "symbol_total": sum(int(e.get("symbol_count", 0)) for e in entries),
+        "fingerprint": fingerprint,
         "entries": entries,
     }
 
@@ -637,12 +752,26 @@ def render_project_map_markdown(
     lines.append("")
     lines.append(
         "Автоматически поддерживается DevAgent. Структура - детерминированная, "
-        "описания назначения файлов - генерируются моделью. Вы можете править "
-        "этот файл вручную; при следующей доработке DevAgent учтёт ваши правки."
+        "описания назначения файлов - генерируются моделью. Файл генерируемый: "
+        "не правьте его вручную - для обновления выполните регенерацию "
+        "(генератор проекта или write_project_map с полным словарём описаний)."
     )
     lines.append("")
     lines.append(f"- Обновлено: `{project_map.get('generated_at', '')}`")
     lines.append(f"- Файлов: **{project_map.get('file_count', 0)}**")
+    scope_note = str(project_map.get("scope_note") or "").strip()
+    if scope_note:
+        lines.append(f"- Состав: {scope_note}")
+    sym_total = int(project_map.get("symbol_total", 0) or 0)
+    if sym_total:
+        lines.append(f"- Python-символов: **{sym_total}**")
+    fp = str(project_map.get("fingerprint") or "")
+    if fp:
+        lines.append(
+            f"- Отпечаток содержимого: `sha256:{fp}` - если он не совпадает "
+            "с `build_project_map()['fingerprint']`, карта устарела: "
+            "пересоберите её."
+        )
     langs = project_map.get("languages", {})
     if langs:
         lang_str = ", ".join(f"{k}: {v}" for k, v in sorted(langs.items()))
@@ -659,6 +788,14 @@ def render_project_map_markdown(
         lines.append(f"| `{path}` | {e['lang']} | {resp} | {deps} |")
     lines.append("")
 
+    extra_paths = project_map.get("extra_paths") or []
+    if extra_paths:
+        lines.append("## Прочие публикуемые файлы (вне текстового скана)")
+        lines.append("")
+        for p in extra_paths:
+            lines.append(f"- `{p}`")
+        lines.append("")
+
     py = [e for e in project_map.get("entries", []) if e.get("lang") == "Python"]
     if py:
         lines.append("## Структура Python-модулей")
@@ -670,6 +807,10 @@ def render_project_map_markdown(
             lines.append(f"### `{e['path']}`")
             for s in syms:
                 lines.append(f"- `{s['name']}` ({s['kind']}, строка {s['line']})")
+            total = int(e.get("symbol_count", len(syms)) or len(syms))
+            hidden = total - len(syms)
+            if hidden > 0:
+                lines.append(f"- _(ещё {hidden} определений не показано: лимит {MAX_SYMBOLS_PER_FILE} на файл)_")
             lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
@@ -731,9 +872,25 @@ def _backup_before_overwrite(dest: Path) -> None:
         pass
 
 
-def write_project_map(responsibilities: Dict[str, str]) -> Dict[str, Any]:
-    """Build and write PROJECT_MAP.md with LLM-supplied responsibility descriptions."""
-    pmap = build_project_map()
+def write_project_map(
+    responsibilities: Dict[str, str],
+    include_paths: Optional[List[str]] = None,
+    scope_note: str = "",
+    fingerprint_exclude: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    """Build and write PROJECT_MAP.md with LLM-supplied responsibility descriptions.
+
+    *include_paths*, *scope_note* and *fingerprint_exclude* are forwarded to
+    build_project_map (see its docstring). Note for callers that regenerate an
+    existing map: pass the CURRENT descriptions as *responsibilities* -
+    omitted paths are rendered as placeholders, so hand-written or previous
+    descriptions are preserved only when they are included in the dict.
+    """
+    pmap = build_project_map(
+        include_paths=include_paths,
+        scope_note=scope_note,
+        fingerprint_exclude=fingerprint_exclude,
+    )
     if not pmap.get("ok"):
         return pmap
     md = render_project_map_markdown(pmap, responsibilities)

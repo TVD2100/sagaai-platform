@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "1.10.1",
+  "app_version": "1.11.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Релиз 1.10.1 - DeepSeek: лимит вывода возвращён к 384000 токенов (эконом-профиль ~32k из 1.10.0 отменён, длинные рассуждения больше не упираются в 32k); резерв pre-flight guard на 1M-окне - 250k. Остальное - как в 1.10.0 - снапшоты task state / thread context образуют append-only цепочку в истории треда (префикс запроса остаётся стабильным между шагами), GigaChat собирает байтово стабильный префикс (фолдятся только ведущие system-блоки), pre-flight guard и бюджет эконом-режима согласованы (резерв вывода, history_cap, гистерезис срезов), большие результаты инструментов спиллятся на диск (превью head+tail, полный payload по spill_path) и сохраняются в тредах дословно, доля кэшированных токенов честно снимается на всех транспортах, строка токенов локализована.",
-    "en": "Release 1.10.1 - DeepSeek: the output limit is back to 384000 tokens (the ~32k economy profile of 1.10.0 is reverted, long reasoning no longer hits the 32k cap); the pre-flight guard reserve on a 1M window is 250k. The rest matches 1.10.0 - harness cache friendliness: task-state / thread-context snapshots form an append-only chain in the thread history (the request prefix stays stable across steps), GigaChat builds a byte-stable prefix (only leading system blocks are folded), the pre-flight guard and the economy budget are aligned (output reserve, history_cap, trim hysteresis), large tool results spill to disk (head+tail preview, full payload via spill_path) and persist verbatim in threads, the cached-token share is reported honestly on every transport, and the token line is localized."
+    "ru": "Релиз 1.11.0 - генерируемая карта проекта: AST-разбор символов (классы/методы/async/вложенные, реальные диапазоны строк) с regex-фолбэком и лимитом 200 символов на файл, sha256-отпечаток свежести в шапке, состав только по публикуемым на GitHub файлам (units + selectable); канонический генератор scripts/regenerate_project_map.py; правило «карта только регенерацией» в промпте DevAgent v3.18. Тесты: AST-символы (unit) и сценарии свежести.",
+    "en": "Release 1.11.0 - generated project map: AST symbol extraction (classes/methods/async/nested, real line ranges) with a regex fallback and a 200-symbol cap per file, a sha256 freshness fingerprint in the header, scope limited to GitHub-published files (units + selectable); the canonical generator scripts/regenerate_project_map.py; the map-is-generated-only rule in the DevAgent v3.18 prompt. Tests: AST symbols (unit) and freshness scenarios."
   },
-  "updated": "2026-10-05T06:04:58Z",
+  "updated": "2026-10-05T08:49:17Z",
   "units": {
     "core": {
-      "version": "1.22.1",
+      "version": "1.23.0",
       "note": {
-        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py. 1.15.0: SSH-коннектор - инструмент ssh_upload_file (потоковая публикация локальных файлов на сервер, sha256-верификация, до 50 МиБ); подсказка create_dirs в ошибке ssh_write_file. 1.15.1: сценарный тест каталога моделей YandexAI (tests/scenarios), пин промпта YaAgent v2.9, регенерация PROJECT_MAP.md; версия платформы 1.3.2. 1.16.0: единая модель оркестраторов - слабая модель удалена из настроек, добавлены опциональные vision/image настройки и каталоги у сервисов, рантайм на основной модели, tolerant legacy weak_*; документация и манифест обновлены; версия платформы 1.4.0. 1.17.0: мультимодальные инструменты analyze_image/generate_image (вложения диалога и файлы проекта; генерация сохраняется файлом), транспорты send_vision_request/send_image_generation_request в api_layer, глобальная инструкция multimodal_mode; версия платформы 1.5.0. 1.18.0: синхронный Images API для generate_image (единственная модель aliceai-image-art-3.0, удаление async-ветки YandexART), показ сгенерированного изображения в чате с кнопкой скачивания; версия платформы 1.6.0. 1.19.0: распознавание изображений на DeepSeek - vision_base_url и каталог vision_models (deepseek-flash) в профиле сервиса, ветка deepseek_responses с detail=original в send_vision_request, deepseek-v4.1-flash в vision-каталоге YandexAI; версия платформы 1.7.0. 1.19.1: сгенерированное изображение generate_image показывается сразу в ленте чата - блок с картинкой и кнопкой скачивания вынесен из свёрнутого блока результата (ui/pages/orchestrator.py); сценарные тесты ленты; версия платформы 1.7.1. 1.20.0: поиск по диалогам - инструменты search_in_threads/list_threads/read_thread (текущий диалог по умолчанию, scope/период) с контролем доступа к тредам; промпт DevAgent v3.15; версия платформы 1.8.0. 1.21.0: изоляция рабочей папки - пустое состояние и guard файловых инструментов, мета «последняя папка» треда с миграцией легаси-меты, недавние папки по оркестраторам, журналы/вложения при пустой папке; промпты DevAgent v3.16 / YaAgent v2.10; версия платформы 1.9.0. 1.21.1: авторетрай GET GitHub-коннектора при сетевых сбоях; компактный дайджест журнала задач; промпт DevAgent v3.17; версия платформы 1.9.1. 1.21.2: устойчивые ошибки Responses API (failed-статус -> ProviderResponseError) и фильтрация пустых сообщений input. 1.22.1: отмена эконом-профиля DeepSeek - объявленный лимит вывода возвращён к 384000, тест каталогов синхронизирован.",
-        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py. 1.15.0: SSH connector - ssh_upload_file tool (streamed publishing of local files to a server, sha256 verification, up to 50 MB); create_dirs hint in the ssh_write_file error. 1.15.1: YandexAI model catalog scenario test (tests/scenarios), YaAgent v2.9 prompt pin, PROJECT_MAP.md regenerated; platform version 1.3.2. 1.16.0: single-model orchestrators - the weak model removed from settings, optional vision/image settings and service catalogs added, runtime on the main model, tolerant legacy weak_*; docs and manifest updated; platform version 1.4.0. 1.17.0: multimodal tools analyze_image/generate_image (dialog uploads and project files; generation saved to a file), send_vision_request/send_image_generation_request transports in api_layer, the global multimodal_mode instruction; platform version 1.5.0. 1.18.0: synchronous Images API for generate_image (the single model aliceai-image-art-3.0, the YandexART async branch removed), the generated image shown in the chat with a download button; platform version 1.6.0. 1.19.0: DeepSeek image analysis - vision_base_url and the vision_models catalog (deepseek-flash) in the service profile, the deepseek_responses branch with detail=original in send_vision_request, deepseek-v4.1-flash in the YandexAI vision catalog; platform version 1.7.0. 1.19.1: the generate_image picture is shown immediately in the chat feed - the image block with the download button moved out of the collapsed tool-result block (ui/pages/orchestrator.py); feed scenario tests; platform version 1.7.1. 1.20.0: dialog thread search - the search_in_threads/list_threads/read_thread tools (current dialog by default, scope/period) with thread access control; DevAgent prompt v3.15; platform version 1.8.0. 1.21.0: workspace isolation - the no-folder-selected empty state and the file-tool guard, thread last-folder meta with the legacy-meta migration, per-orchestrator recent folders, journals/uploads in the empty state; DevAgent v3.16 / YaAgent v2.10 prompts; platform version 1.9.0. 1.21.1: GitHub REST GET retries on network errors; compact task-state digest; DevAgent prompt v3.17; platform version 1.9.1. 1.21.2: resilient Responses API failures (failed status -> ProviderResponseError) and blank input filtering. 1.22.1: reverted the DeepSeek economy profile - the declared output limit is back to 384000 and the catalog test is aligned."
+        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py. 1.15.0: SSH-коннектор - инструмент ssh_upload_file (потоковая публикация локальных файлов на сервер, sha256-верификация, до 50 МиБ); подсказка create_dirs в ошибке ssh_write_file. 1.15.1: сценарный тест каталога моделей YandexAI (tests/scenarios), пин промпта YaAgent v2.9, регенерация PROJECT_MAP.md; версия платформы 1.3.2. 1.16.0: единая модель оркестраторов - слабая модель удалена из настроек, добавлены опциональные vision/image настройки и каталоги у сервисов, рантайм на основной модели, tolerant legacy weak_*; документация и манифест обновлены; версия платформы 1.4.0. 1.17.0: мультимодальные инструменты analyze_image/generate_image (вложения диалога и файлы проекта; генерация сохраняется файлом), транспорты send_vision_request/send_image_generation_request в api_layer, глобальная инструкция multimodal_mode; версия платформы 1.5.0. 1.18.0: синхронный Images API для generate_image (единственная модель aliceai-image-art-3.0, удаление async-ветки YandexART), показ сгенерированного изображения в чате с кнопкой скачивания; версия платформы 1.6.0. 1.19.0: распознавание изображений на DeepSeek - vision_base_url и каталог vision_models (deepseek-flash) в профиле сервиса, ветка deepseek_responses с detail=original в send_vision_request, deepseek-v4.1-flash в vision-каталоге YandexAI; версия платформы 1.7.0. 1.19.1: сгенерированное изображение generate_image показывается сразу в ленте чата - блок с картинкой и кнопкой скачивания вынесен из свёрнутого блока результата (ui/pages/orchestrator.py); сценарные тесты ленты; версия платформы 1.7.1. 1.20.0: поиск по диалогам - инструменты search_in_threads/list_threads/read_thread (текущий диалог по умолчанию, scope/период) с контролем доступа к тредам; промпт DevAgent v3.15; версия платформы 1.8.0. 1.21.0: изоляция рабочей папки - пустое состояние и guard файловых инструментов, мета «последняя папка» треда с миграцией легаси-меты, недавние папки по оркестраторам, журналы/вложения при пустой папке; промпты DevAgent v3.16 / YaAgent v2.10; версия платформы 1.9.0. 1.21.1: авторетрай GET GitHub-коннектора при сетевых сбоях; компактный дайджест журнала задач; промпт DevAgent v3.17; версия платформы 1.9.1. 1.21.2: устойчивые ошибки Responses API (failed-статус -> ProviderResponseError) и фильтрация пустых сообщений input. 1.22.1: отмена эконом-профиля DeepSeek - объявленный лимит вывода возвращён к 384000, тест каталогов синхронизирован. 1.23.0: генерируемая карта проекта - AST-символы (методы/async/вложенные, реальные строки) с regex-фолбэком и лимитом 200 символов на файл, sha256-отпечаток содержимого в шапке, фильтр состава include_paths/scope_note по публикуемому набору; канонический генератор карты (publish set + main); промпт DevAgent v3.18 (правило «карта только регенерацией»); версия платформы 1.11.0.",
+        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py. 1.15.0: SSH connector - ssh_upload_file tool (streamed publishing of local files to a server, sha256 verification, up to 50 MB); create_dirs hint in the ssh_write_file error. 1.15.1: YandexAI model catalog scenario test (tests/scenarios), YaAgent v2.9 prompt pin, PROJECT_MAP.md regenerated; platform version 1.3.2. 1.16.0: single-model orchestrators - the weak model removed from settings, optional vision/image settings and service catalogs added, runtime on the main model, tolerant legacy weak_*; docs and manifest updated; platform version 1.4.0. 1.17.0: multimodal tools analyze_image/generate_image (dialog uploads and project files; generation saved to a file), send_vision_request/send_image_generation_request transports in api_layer, the global multimodal_mode instruction; platform version 1.5.0. 1.18.0: synchronous Images API for generate_image (the single model aliceai-image-art-3.0, the YandexART async branch removed), the generated image shown in the chat with a download button; platform version 1.6.0. 1.19.0: DeepSeek image analysis - vision_base_url and the vision_models catalog (deepseek-flash) in the service profile, the deepseek_responses branch with detail=original in send_vision_request, deepseek-v4.1-flash in the YandexAI vision catalog; platform version 1.7.0. 1.19.1: the generate_image picture is shown immediately in the chat feed - the image block with the download button moved out of the collapsed tool-result block (ui/pages/orchestrator.py); feed scenario tests; platform version 1.7.1. 1.20.0: dialog thread search - the search_in_threads/list_threads/read_thread tools (current dialog by default, scope/period) with thread access control; DevAgent prompt v3.15; platform version 1.8.0. 1.21.0: workspace isolation - the no-folder-selected empty state and the file-tool guard, thread last-folder meta with the legacy-meta migration, per-orchestrator recent folders, journals/uploads in the empty state; DevAgent v3.16 / YaAgent v2.10 prompts; platform version 1.9.0. 1.21.1: GitHub REST GET retries on network errors; compact task-state digest; DevAgent prompt v3.17; platform version 1.9.1. 1.21.2: resilient Responses API failures (failed status -> ProviderResponseError) and blank input filtering. 1.22.1: reverted the DeepSeek economy profile - the declared output limit is back to 384000 and the catalog test is aligned. 1.23.0: generated project map - AST symbols (methods/async/nested, real line ranges) with a regex fallback and a 200-symbol cap per file, a content sha256 fingerprint in the header, include_paths/scope_note scope filtering by the published set; the canonical map generator (publish set + main); DevAgent v3.18 prompt (map-is-generated-only rule); platform version 1.11.0."
       },
       "files": {
         "__init__.py": {
@@ -244,8 +244,8 @@
           "sha256": "c9e03ac37d50334f2e8ed0ab3770e16be2535b777d39ea36cde91591cc74858b"
         },
         "core/version.py": {
-          "version": "1.0.28",
-          "sha256": "d3a3246478f75cea61ebfa65d38c2e9e12c220b40a15cf95cb99e0872f62b4d7"
+          "version": "1.0.29",
+          "sha256": "0065218d542da5b44297f526e0405c2466b50d788d6889ff0dcbada009dee897"
         },
         "dev_agent/__init__.py": {
           "version": "1.0.0",
@@ -296,8 +296,8 @@
           "sha256": "c4212c17c135d0c18be7b46c2f67f9010a5d1f81dd2d9db169b0c1455b74c36b"
         },
         "dev_agent/workspace_tools.py": {
-          "version": "1.2.0",
-          "sha256": "13f7d8e767431eaef8481287b686ac284a8ad8d6ffef1f81b11b06143696dc07"
+          "version": "1.3.0",
+          "sha256": "8c159d72482c5c204c6620bebeb6b1fa986647c55b96fc2de33f5107ffa25ed0"
         },
         "pytest.ini": {
           "version": "1.0.0",
@@ -308,8 +308,8 @@
           "sha256": "66abb9f75f09ba1908b3b70012d9fea2aaf15a1fd80f687fa7ea13cdb857362e"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.3.5",
-          "sha256": "09ec7ce1aa866bcc42c337f51335e3b0b97e12b8dfc2cffa8592c9cdb2e1a08c"
+          "version": "1.4.0",
+          "sha256": "c46ea4669376fa9cfa3ccce11b627c15ec5fe2fee1c3c0974fca66e19eb14241"
         },
         "scripts/verify_manifest.py": {
           "version": "1.0.3",
@@ -436,8 +436,8 @@
           "sha256": "a3884d194a0683edf530315627a7e80c5fc3fb01a0b44f7b22a67d3d974b136c"
         },
         "tests/scenarios/test_orchestrator_tool_gating.py": {
-          "version": "1.2.5",
-          "sha256": "aa9cce609afc91f25d470f10799d8d4c31d799adc6ab575b0556d0f7f03bad80"
+          "version": "1.2.6",
+          "sha256": "c628d1665329b0178c8772b17739c8f8deff3f5cb51602e61e7930682bd4eb07"
         },
         "tests/scenarios/test_provider_economy_settings_scenario.py": {
           "version": "1.0.0",
@@ -1078,17 +1078,25 @@
         "tests/test_agent_loop_snapshot_persistence.py": {
           "version": "1.0.0",
           "sha256": "7ff79cf19857bd6dbb1eb96908803ded353a68a1adcc2ef193d8545e675919ee"
+        },
+        "tests/test_project_map_ast.py": {
+          "version": "1.0.0",
+          "sha256": "76df9e2f561496b34093826ba9ec0011955344d45d216d761e053c547bb23e9f"
+        },
+        "tests/scenarios/test_project_map_freshness_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "0fd8b154caa69d4aef6f1d08b31e377395fac075c20190c256abd39e65c5ca06"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.23.0",
-      "sha256": "3892f2e6653f9f168e8434ece139f1bf3ff400b8e07a5e47c6b71443b832b166",
+      "version": "1.24.0",
+      "sha256": "860a5669c11fcaa19a04fffcef5dd57f9020a1e1db6b830a6afc6485128ac259",
       "note": {
-        "ru": "Кэш-дружественные разделы: цепочка снапшотов TS/TC, M1-M5 (спилл, resume-идентичность, гистерезис бюджета, резерв guard), кэш-бакеты транспортов и GigaChat-фолд.",
-        "en": "Cache-friendly sections: TS/TC snapshot chain, M1-M5 (spill, resume identity, budget hysteresis, guard reserve), transport cache buckets and the GigaChat fold."
+        "ru": "workspace_tools: AST-разбор символов с фолбэком и лимитом, sha256-отпечаток, фильтр состава; промпт DevAgent v3.18.",
+        "en": "workspace_tools: AST symbol extraction with fallback and cap, sha256 fingerprint, scope filter; DevAgent v3.18 prompt."
       }
     },
     "COMPARISON.md": {
@@ -1108,27 +1116,27 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.27.0",
-      "sha256": "748f5c0aee271c82394c4722c31f976296817fbe21f3e6008523f1e4808042cc",
+      "version": "1.27.1",
+      "sha256": "307565ee589216cfecc3e9060e88060eba8b01b86877eb155cc3cdfa7abcf181",
       "note": {
-        "ru": "Обновлённая карта проекта: новые тесты кэш-дружественности и символы.",
-        "en": "Refreshed project map: new cache-friendliness tests and symbols."
+        "ru": "Карта проекта перегенерирована: AST-символы с реальными строками (методы/async), sha256-отпечаток в шапке, состав - только публикуемые файлы.",
+        "en": "Project map regenerated: AST symbols with real line ranges (methods/async), a sha256 fingerprint in the header, scope limited to published files."
       }
     },
     "README.md": {
-      "version": "1.20.1",
-      "sha256": "540c2b65253f1d5390f0f0f1b059b2bfa8464cfdb27ebe8e30f55313f747ce9f",
+      "version": "1.20.2",
+      "sha256": "d8162062b533c5267466f87fec8e72ff53cffa4532e530375113f97f1263e48b",
       "note": {
-        "ru": "README: статус версии 1.10.1.",
-        "en": "README: version status 1.10.1."
+        "ru": "README: статус версии 1.11.0.",
+        "en": "README: version status 1.11.0."
       }
     },
     "SPEC.md": {
-      "version": "1.24.0",
-      "sha256": "af2e54e8901128afa6114201734d33e4ac1c6b60fc06349c8abfa7803d174283",
+      "version": "1.25.0",
+      "sha256": "82fb469ce903cee9d36cdb371b05fadb93454f78b2ae305f871f619dcb2bb44b",
       "note": {
-        "ru": "FR6/FR15/FR16: строка токенов и кэш-бакеты, M1-M5, GigaChat-фолд только ведущих system-блоков.",
-        "en": "FR6/FR15/FR16: token line and cache buckets, M1-M5, GigaChat folding of leading system blocks only."
+        "ru": "FR8: карта проекта - генерируемый документ (AST-символы, sha256-отпечаток, состав по публикуемому набору, запрет ручной правки).",
+        "en": "FR8: the project map is a generated document (AST symbols, sha256 fingerprint, published-set scope, no hand-editing)."
       }
     },
     "defaults/README.md": {
@@ -1460,11 +1468,11 @@
       }
     },
     "dev_agent/system_prompt.md": {
-      "version": "3.17",
-      "sha256": "bb36192ee4f5765005d12a7aa8b8fdea121034d1c5a96628d207de71fe6985b5",
+      "version": "3.18",
+      "sha256": "d9946aa922b94c36267607561aabb05e1fd09b6f94de72b08f62b600d759d68a",
       "note": {
-        "ru": "Промпт DevAgent v3.17: §16 - восстановление состояния по компактному дайджесту (task_state_read(compact=True)) и лимиты context/result; §9 - окна read_file(offset/limit) и PRAGMA table_info перед прямым SQL; ранее - пустое состояние «папка не выбрана», журнал в папке диалога, вложения в history/<tid>/files, поиск по диалогам.",
-        "en": "DevAgent prompt v3.17: section 16 - state recovery via the compact digest (task_state_read(compact=True)) and context/result limits; section 9 - read_file(offset/limit) windows and PRAGMA table_info before direct SQL; earlier - the no-folder-selected empty state, the journal in the dialog folder, uploads in history/<tid>/files, dialog thread search."
+        "ru": "Промпт DevAgent v3.18: §10 - PROJECT_MAP.md генерируется, ручная правка запрещена, обновление только регенерацией (генератор проекта или write_project_map с полным словарём), staleness по отпечатку; ранее - v3.17 компактный дайджест и лимиты, пустое состояние «папка не выбрана», поиск по диалогам.",
+        "en": "DevAgent prompt v3.18: section 10 - PROJECT_MAP.md is generated, hand-editing is forbidden, updates only by regeneration (the project generator or write_project_map with the full dictionary), staleness via the fingerprint; earlier - v3.17 compact digest and limits, the no-folder-selected empty state, dialog thread search."
       }
     },
     "langs/en.json": {
