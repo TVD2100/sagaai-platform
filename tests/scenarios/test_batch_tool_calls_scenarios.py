@@ -176,7 +176,7 @@ def test_scenario_truncated_tail_block_is_warned_after_valid_calls(monkeypatch):
 
     message = (
         '```json\n{"tool": "list_files", "args": {}}\n```\n'
-        'Truncated:\n```json\n{"tool": "read_file", "args": {"path": "SPEC.md"}}'
+        'Truncated:\n```json\n{"tool": "read_file", "args": {"path": "AGENT.md"}}'
     )
     responses = [
         message,

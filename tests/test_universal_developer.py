@@ -202,7 +202,7 @@ def test_assess_software_with_docs(code_ws):
     agent = UniversalDevAgent()
     agent.dispatch("build_project_map", {})
     agent.dispatch("write_project_map", {"responsibilities": {}})
-    agent.dispatch("write_doc", {"doc": "spec"})
+    agent.dispatch("write_doc", {"doc": "agent"})
     res = wt.assess_workspace()
     assert res["state"] == "software_with_docs"
 
@@ -236,10 +236,10 @@ def test_render_project_map_markdown_uses_responsibilities(code_ws):
 
 def test_write_and_read_docs(code_ws):
     agent = UniversalDevAgent()
-    w = agent.dispatch("write_doc", {"doc": "spec", "content": "# Spec\n\nHello.\n"})
+    w = agent.dispatch("write_doc", {"doc": "agent", "content": "# Agent doc\n\nHello.\n"})
     assert w["ok"]
-    assert (code_ws / "SPEC.md").exists()
-    r = agent.dispatch("read_doc", {"doc": "spec"})
+    assert (code_ws / "AGENT.md").exists()
+    r = agent.dispatch("read_doc", {"doc": "agent"})
     assert r["ok"] and r["exists"]
     assert "Hello." in r["content"]
 

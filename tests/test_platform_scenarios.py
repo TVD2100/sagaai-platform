@@ -3,7 +3,7 @@
 
 Each test replays a real user workflow against the platform layers
 (core / storage / dev_agent) with every LLM/HTTP call mocked. Scenario
-coverage is mapped to the SPEC functional requirements:
+coverage is mapped to the AGENT.md functional requirements:
 
     SC1  assistant lifecycle ................. FR2, FR4
     SC2  chat with a model + attachments ..... FR1
@@ -460,7 +460,7 @@ def test_universal_developer_external_project_scenario(tmp_path, isolated_data):
         )
         assert wrote_map["ok"] and (ext / "PROJECT_MAP.md").exists()
         assert agent.dispatch(
-            "write_doc", {"doc": "spec", "content": "# Spec\n\nExternal project.\n"}
+            "write_doc", {"doc": "agent", "content": "# Agent\n\nExternal project.\n"}
         )["ok"]
         assert agent.dispatch("assess_workspace", {})["state"] == "software_with_docs"
 

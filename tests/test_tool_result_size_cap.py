@@ -4,7 +4,7 @@
 Regression tests for the context-overflow protection. Three tiers by the
 serialized ``{"tool_result": ...}`` document size:
 
-* up to ``_TOOL_RESULT_INLINE_LIMIT`` (20k) - passed through unchanged;
+* up to ``_TOOL_RESULT_INLINE_LIMIT`` (35k) - passed through unchanged;
 * above the inline limit - the full payload is SPILLED to
   ``<PROJECT_ROOT>/.dev_agent/tool_results/`` and replaced by a bounded
   head+tail preview carrying ``spill_path`` (readable back with the

@@ -2,7 +2,7 @@
 """tests/test_skills_adaptation.py - targeted regression tests for the skills
 adaptation feature.
 
-Covers the developer/adapted ownership model introduced in SPEC FR12:
+Covers the developer/adapted ownership model introduced in AGENT.md FR12:
 
   Core registry:
     - external skills default to unknown / not adapted,

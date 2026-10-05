@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-10-05T08:53:57+00:00`
-- Файлов: **318**
+- Обновлено: `2026-10-05T16:25:26+00:00`
+- Файлов: **319**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **4128**
-- Отпечаток содержимого: `sha256:8fdefb4bfe0072bca416851ce4d56d1b7382e468ad789b325da8801081f992f5` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 1, JSON: 17, Markdown: 37, PEM certificate: 1, Python: 265, Text: 1
+- Python-символов: **4134**
+- Отпечаток содержимого: `sha256:498e339a4e6f2d14e6ecf5885667793e610d7b0fde38ce91a80a81c11f700366` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 1, JSON: 17, Markdown: 37, PEM certificate: 1, Python: 266, Text: 1
 
 ## Файлы и назначение
 
@@ -216,6 +216,7 @@
 | `tests/test_yandex_responses.py` | Python | Yandex Responses API tests | - |
 | `tests/smoke/test_app_smoke.py` | Python | App smoke tests | - |
 | `tests/scenarios/test_access_scenarios.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_agent_md_doc_scenario.py` | Python | Scenario tests: AGENT.md managed doc (scaffold with mandatory conventions, legacy 'spec' alias, assess states) | storage |
 | `tests/scenarios/test_assistant_sidebar_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_batch_tool_calls_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_connection_retry_scenarios.py` | Python | _(описание не задано)_ | - |
@@ -237,7 +238,7 @@
 | `tests/scenarios/test_orchestrator_devagent_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_orchestrator_other_settings_scenario.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_orchestrator_thread_files.py` | Python | Scenario tests: uploads land in thread files; legacy workspace manifests still re-announced | storage |
-| `tests/scenarios/test_orchestrator_tool_gating.py` | Python | Gating scenarios: system-prompt version pins (v3.18/v2.10), empty-state prompt invariants, generated-document rule and thread-search tool invariants | storage |
+| `tests/scenarios/test_orchestrator_tool_gating.py` | Python | Gating scenarios: system-prompt version pins (v3.19/v2.11), empty-state prompt invariants, generated-document rule and thread-search tool invariants | storage |
 | `tests/scenarios/test_project_map_freshness_scenario.py` | Python | Scenario: PROJECT_MAP regeneration - GitHub-published scope only, recorded fingerprint and staleness detection, reproducible output | storage |
 | `tests/scenarios/test_provider_economy_settings_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_assistant_dialog.py` | Python | _(описание не задано)_ | - |
@@ -322,7 +323,7 @@
 | `dev_agent/config.py` | Python | DevAgent runtime config and protected path policy; empty-state neutral root (NEUTRAL_ROOT / WORKSPACE_SELECTED / ensure_neutral_root, apply_paths selected flag) | - |
 | `dev_agent/llm_utils.py` | Python | Unified LLM-call helper (assistant dict contract, legacy skill alias) | - |
 | `dev_agent/safe_writer.py` | Python | Safe full-file rewrite with diff/verification | backup_manager |
-| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.18 generated-PROJECT_MAP rule; v3.17 compact task-state digest, read_file windows, PRAGMA-first; v3.16 empty-state Stage 0, task-journal and thread-files rules) | - |
+| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.19 AGENT.md docs-first (legacy SPEC.md removed); v3.18 generated-PROJECT_MAP rule; v3.17 compact task-state digest, read_file windows, PRAGMA-first; v3.16 empty-state Stage 0, task-journal and thread-files rules) | - |
 | `dev_agent/task_state.py` | Python | Per-thread task-state journal (plan/progress/handoff) with the thread-files fallback folder when no workspace is selected; compact digest (read_task_state compact=True) and budgeted injection | backup_manager |
 | `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools, legacy skill aliases, skills-library and multimodal tools; empty-state workspace guard (workspace_not_selected, neutral cwd for code=) | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
 | `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace + orchestrator tools, incl. thread search: search_in_threads / list_threads / read_thread; empty-state guard and thread workspace-meta persistence) | storage, tool_executor |
@@ -3951,6 +3952,14 @@
 - `test_scenario_form_password_beats_env` (func, строка 129)
 - `test_scenario_password_mismatch_keeps_settings` (func, строка 161)
 
+### `tests/scenarios/test_agent_md_doc_scenario.py`
+- `isolated_db` (func, строка 33)
+- `clean_config_state` (func, строка 46)
+- `empty_ws` (func, строка 54)
+- `test_scenario_write_doc_agent_scaffold` (func, строка 63)
+- `test_scenario_legacy_spec_alias_targets_agent_md` (func, строка 81)
+- `test_scenario_assess_and_unknown_doc_kinds` (func, строка 95)
+
 ### `tests/scenarios/test_assistant_sidebar_scenarios.py`
 - `isolated_data` (func, строка 28)
 - `_set_column` (func, строка 36)
@@ -4007,15 +4016,15 @@
 - `test_scenario_github_tool_available_through_dispatcher` (func, строка 203)
 
 ### `tests/scenarios/test_context_overflow_protection.py`
-- `sandbox` (func, строка 32)
-- `test_scenario_giant_tool_result_is_spilled_before_context` (func, строка 45)
-- `test_scenario_giant_tool_result_is_spilled_before_context._fake_list_files` (func, строка 53)
-- `test_scenario_failed_spill_keeps_hard_cap_error` (func, строка 78)
-- `test_scenario_failed_spill_keeps_hard_cap_error._fake_list_files` (func, строка 88)
-- `test_scenario_long_history_is_trimmed_before_request` (func, строка 103)
-- `test_scenario_long_history_is_trimmed_before_request._fake_do_request` (func, строка 119)
-- `test_scenario_impossible_payload_raises_clear_error` (func, строка 143)
-- `test_scenario_impossible_payload_raises_clear_error._fake_do_request` (func, строка 153)
+- `sandbox` (func, строка 33)
+- `test_scenario_giant_tool_result_is_spilled_before_context` (func, строка 46)
+- `test_scenario_giant_tool_result_is_spilled_before_context._fake_list_files` (func, строка 54)
+- `test_scenario_failed_spill_keeps_hard_cap_error` (func, строка 79)
+- `test_scenario_failed_spill_keeps_hard_cap_error._fake_list_files` (func, строка 89)
+- `test_scenario_long_history_is_trimmed_before_request` (func, строка 104)
+- `test_scenario_long_history_is_trimmed_before_request._fake_do_request` (func, строка 120)
+- `test_scenario_impossible_payload_raises_clear_error` (func, строка 144)
+- `test_scenario_impossible_payload_raises_clear_error._fake_do_request` (func, строка 154)
 
 ### `tests/scenarios/test_employees_sidebar_scenarios.py`
 - `isolated_data` (func, строка 30)
@@ -4723,14 +4732,14 @@
 ### `dev_agent/config.py`
 - `_resolve_project_root` (func, строка 43)
 - `ensure_neutral_root` (func, строка 75)
-- `set_target_root` (func, строка 152)
-- `apply_paths` (func, строка 172)
-- `snapshot_state` (func, строка 223)
-- `restore_state` (func, строка 244)
-- `ensure_runtime_dirs` (func, строка 270)
-- `to_project_relative` (func, строка 276)
-- `is_protected` (func, строка 295)
-- `resolve_in_project` (func, строка 305)
+- `set_target_root` (func, строка 153)
+- `apply_paths` (func, строка 173)
+- `snapshot_state` (func, строка 225)
+- `restore_state` (func, строка 246)
+- `ensure_runtime_dirs` (func, строка 272)
+- `to_project_relative` (func, строка 278)
+- `is_protected` (func, строка 297)
+- `resolve_in_project` (func, строка 307)
 
 ### `dev_agent/llm_utils.py`
 - `_prefers_assistant_dict` (func, строка 32)
@@ -4954,22 +4963,22 @@
 - `search_in_files` (func, строка 288)
 - `scan_folder` (func, строка 482)
 - `assess_workspace` (func, строка 524)
-- `_ast_symbols` (func, строка 563)
-- `_ast_symbols.visit` (func, строка 575)
-- `_regex_symbols` (func, строка 600)
-- `_python_symbols` (func, строка 613)
-- `_python_imports` (func, строка 630)
-- `build_project_map` (func, строка 644)
-- `render_project_map_markdown` (func, строка 744)
-- `default_spec_markdown` (func, строка 818)
-- `default_architecture_markdown` (func, строка 831)
-- `default_readme_markdown` (func, строка 843)
-- `_backup_before_overwrite` (func, строка 861)
-- `write_project_map` (func, строка 875)
-- `write_doc` (func, строка 906)
-- `read_doc` (func, строка 927)
-- `_snapshot_dir` (func, строка 949)
-- `SnapshotInfo` (class, строка 954)
-- `snapshot_all` (func, строка 961)
-- `list_snapshots` (func, строка 994)
-- `restore_all` (func, строка 1013)
+- `_ast_symbols` (func, строка 566)
+- `_ast_symbols.visit` (func, строка 578)
+- `_regex_symbols` (func, строка 603)
+- `_python_symbols` (func, строка 616)
+- `_python_imports` (func, строка 633)
+- `build_project_map` (func, строка 647)
+- `render_project_map_markdown` (func, строка 747)
+- `default_agent_markdown` (func, строка 821)
+- `default_architecture_markdown` (func, строка 842)
+- `default_readme_markdown` (func, строка 854)
+- `_backup_before_overwrite` (func, строка 872)
+- `write_project_map` (func, строка 886)
+- `write_doc` (func, строка 917)
+- `read_doc` (func, строка 941)
+- `_snapshot_dir` (func, строка 964)
+- `SnapshotInfo` (class, строка 969)
+- `snapshot_all` (func, строка 976)
+- `list_snapshots` (func, строка 1009)
+- `restore_all` (func, строка 1028)

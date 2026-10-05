@@ -44,7 +44,7 @@ SKILLS_DIR_NAME = "skills"
 REGISTRY_FILE = "skills.json"
 REMOVED_DEFAULTS_FILE = "removed_defaults.json"
 
-# Ownership and adaptation metadata (see SPEC.md).
+# Ownership and adaptation metadata (see AGENT.md).
 PLATFORM_DEVELOPER = "SagaAI"
 UNKNOWN_DEVELOPER = "unknown"
 
@@ -512,7 +512,7 @@ def _install_from_folder(src: str, root: str, name: Optional[str],
     """Copy src into a new skill folder and register it.
 
     ``developer``/``adapted`` describe the skill's ownership and SagaAI
-    compatibility status (see SPEC.md). When omitted the defaults are
+    compatibility status (see AGENT.md). When omitted the defaults are
     ``unknown`` / not adapted, i.e. a skill imported from an external source.
     """
     folder = _unique_folder(name or Path(src).name or "skill")

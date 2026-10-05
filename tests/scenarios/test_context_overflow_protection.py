@@ -25,6 +25,7 @@ if PKG_ROOT not in sys.path:
 import core.api_layer as api_layer
 from core.api_errors import ContextWindowError
 from dev_agent import config
+from dev_agent.agent_loop import _TOOL_RESULT_INLINE_LIMIT
 from dev_agent.tool_executor import ToolExecutor
 
 
@@ -65,7 +66,7 @@ def test_scenario_giant_tool_result_is_spilled_before_context(sandbox, monkeypat
     assert result['truncated'] is True
     assert result['bulk_sizes']['content'] > 1_000_000
     wire = json.dumps({'tool_result': result}, ensure_ascii=False)
-    assert len(wire) <= 20_000
+    assert len(wire) <= _TOOL_RESULT_INLINE_LIMIT
     assert big_payload not in wire
     # The full payload is recoverable: the spill file holds it completely
     # and the public read_file tool can open the spill path.

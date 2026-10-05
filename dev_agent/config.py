@@ -100,11 +100,12 @@ CHANGELOG_FILE = PROJECT_ROOT / "CHANGELOG.md"
 # Markdown documents the agent maintains inside the TARGET folder so that users
 # can read and hand-edit them. See workspace_tools.py for generation logic.
 PROJECT_MAP_FILE = PROJECT_ROOT / "PROJECT_MAP.md"        # file map + responsibilities
-SPEC_FILE = PROJECT_ROOT / "SPEC.md"                       # requirements specification
+AGENT_FILE = PROJECT_ROOT / "AGENT.md"                    # key project information for agents
 ARCHITECTURE_FILE = PROJECT_ROOT / "ARCHITECTURE.md"       # architecture description
 README_FILE = PROJECT_ROOT / "README.md"                    # user-facing documentation
 # Names (basename only) of the docs DevAgent manages, for scan/skip logic.
-PROJECT_DOC_NAMES = ("PROJECT_MAP.md", "SPEC.md", "ARCHITECTURE.md", "CHANGELOG.md", "README.md")
+# SPEC.md is the legacy name of AGENT.md, still recognized during the transition.
+PROJECT_DOC_NAMES = ("PROJECT_MAP.md", "AGENT.md", "ARCHITECTURE.md", "CHANGELOG.md", "README.md", "SPEC.md")
 
 # ─── Inviolable Core ("Неприкосновенное Ядро") ─────────────────────────────────
 # DevAgent physically cannot modify these files. Enforced on two levels:
@@ -187,7 +188,7 @@ def apply_paths(root, *, target_file: Optional[str] = None,
     """
     global PROJECT_ROOT, WORKING_ON_INSTALL, _RUNTIME_DIR
     global BACKUPS_DIR, WORKSPACE_DIR, CHANGELOG_FILE, TASK_STATES_DIR
-    global PROJECT_MAP_FILE, SPEC_FILE, ARCHITECTURE_FILE, README_FILE
+    global PROJECT_MAP_FILE, AGENT_FILE, ARCHITECTURE_FILE, README_FILE
     global PROJECT_DOC_NAMES, PROTECTED_FILES, TARGET_FILE, ACTIVE_THREAD_ID
     global WORKSPACE_SELECTED
 
@@ -206,10 +207,11 @@ def apply_paths(root, *, target_file: Optional[str] = None,
     TASK_STATES_DIR = _RUNTIME_DIR / "task_states"
     CHANGELOG_FILE = new_root / "CHANGELOG.md"
     PROJECT_MAP_FILE = new_root / "PROJECT_MAP.md"
-    SPEC_FILE = new_root / "SPEC.md"
+    AGENT_FILE = new_root / "AGENT.md"
     ARCHITECTURE_FILE = new_root / "ARCHITECTURE.md"
     README_FILE = new_root / "README.md"
-    PROJECT_DOC_NAMES = ("PROJECT_MAP.md", "SPEC.md", "ARCHITECTURE.md", "CHANGELOG.md", "README.md")
+    # SPEC.md is the legacy name of AGENT.md, still recognized during the transition.
+    PROJECT_DOC_NAMES = ("PROJECT_MAP.md", "AGENT.md", "ARCHITECTURE.md", "CHANGELOG.md", "README.md", "SPEC.md")
     PROTECTED_FILES = _CORE_PROTECTED_FILES if WORKING_ON_INSTALL else ()
     if target_file is not None:
         TARGET_FILE = target_file or None
@@ -230,7 +232,7 @@ def snapshot_state() -> Dict[str, Any]:
         "TASK_STATES_DIR": TASK_STATES_DIR,
         "CHANGELOG_FILE": CHANGELOG_FILE,
         "PROJECT_MAP_FILE": PROJECT_MAP_FILE,
-        "SPEC_FILE": SPEC_FILE,
+        "AGENT_FILE": AGENT_FILE,
         "ARCHITECTURE_FILE": ARCHITECTURE_FILE,
         "README_FILE": README_FILE,
         "PROJECT_DOC_NAMES": PROJECT_DOC_NAMES,
@@ -245,7 +247,7 @@ def restore_state(state: Dict[str, Any]) -> None:
     """Restore every mutable global captured by snapshot_state()."""
     global PROJECT_ROOT, WORKING_ON_INSTALL
     global BACKUPS_DIR, WORKSPACE_DIR, TASK_STATES_DIR
-    global CHANGELOG_FILE, PROJECT_MAP_FILE, SPEC_FILE
+    global CHANGELOG_FILE, PROJECT_MAP_FILE, AGENT_FILE
     global ARCHITECTURE_FILE, README_FILE, PROJECT_DOC_NAMES
     global PROTECTED_FILES, TARGET_FILE, ACTIVE_THREAD_ID
     global WORKSPACE_SELECTED
@@ -257,7 +259,7 @@ def restore_state(state: Dict[str, Any]) -> None:
     TASK_STATES_DIR = state["TASK_STATES_DIR"]
     CHANGELOG_FILE = state["CHANGELOG_FILE"]
     PROJECT_MAP_FILE = state["PROJECT_MAP_FILE"]
-    SPEC_FILE = state["SPEC_FILE"]
+    AGENT_FILE = state["AGENT_FILE"]
     ARCHITECTURE_FILE = state["ARCHITECTURE_FILE"]
     README_FILE = state["README_FILE"]
     PROJECT_DOC_NAMES = state["PROJECT_DOC_NAMES"]

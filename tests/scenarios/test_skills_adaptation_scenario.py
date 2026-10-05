@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """tests/scenarios/test_skills_adaptation_scenario.py - user-level scenarios
-for the skills-library adaptation flow (SPEC FR12).
+for the skills-library adaptation flow (AGENT.md FR12).
 
 Walks the app like a user would, through the public entry points:
 

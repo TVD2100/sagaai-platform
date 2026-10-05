@@ -15,7 +15,7 @@
 #   3. Folder inspection (scan_folder) - files, languages, and which docs exist.
 #   4. Deterministic project map (build_project_map) - structure facts the LLM
 #      then enriches with "what each file is responsible for".
-#   5. Doc scaffolding (ensure_project_docs) - PROJECT_MAP.md / SPEC.md /
+#   5. Doc scaffolding (ensure_project_docs) - PROJECT_MAP.md / AGENT.md /
 #      ARCHITECTURE.md / README.md created as markdown so users can hand-edit them.
 #   6. State report (assess_workspace) - the three pipeline entry states:
 #        empty | software_without_docs | software_with_docs
@@ -530,13 +530,16 @@ def assess_workspace() -> Dict[str, Any]:
     code_files = scan["code_files"]
     docs = scan["docs_present"]
     has_map = docs.get("PROJECT_MAP.md", False)
-    has_spec_or_arch = docs.get("SPEC.md", False) or docs.get("ARCHITECTURE.md", False)
+    # SPEC.md is the legacy name of AGENT.md; it still counts during the transition.
+    has_agent_or_arch = (docs.get("AGENT.md", False)
+                         or docs.get("ARCHITECTURE.md", False)
+                         or docs.get("SPEC.md", False))
 
     if config.TARGET_FILE:
         state = "single_file"
     elif code_files == 0 and not has_map:
         state = "empty"
-    elif has_map and has_spec_or_arch:
+    elif has_map and has_agent_or_arch:
         state = "software_with_docs"
     else:
         state = "software_without_docs"
@@ -815,11 +818,19 @@ def render_project_map_markdown(
     return "\n".join(lines).rstrip() + "\n"
 
 
-def default_spec_markdown(task: str = "") -> str:
-    """Scaffold SPEC.md (requirements). The LLM fills sections during pipeline."""
+def default_agent_markdown(task: str = "") -> str:
+    """Scaffold AGENT.md (key project information for agents)."""
     return (
-        "# Спецификация требований (SPEC)\n\n"
-        "Документ поддерживается DevAgent и редактируется пользователем.\n\n"
+        "# Ключевая информация для агентов (AGENT.md)\n\n"
+        "Документ поддерживается DevAgent и редактируется пользователем.\n"
+        "Содержит ключевую информацию для агентов, работающих с проектом.\n\n"
+        "## Обязательные конвенции разработки\n\n"
+        "1. Текст элементов интерфейса - только из языковых ключей (i18n, t()); "
+        "прямые строки в коде интерфейса запрещены.\n"
+        "2. Экономия за счёт кэша не должна страдать от правок: сохраняйте "
+        "стабильные кэш-дружественные префиксы запросов LLM.\n"
+        "3. Минимум сторонних библиотек: новые зависимости - только в крайнем "
+        "случае, когда без них невозможно обойтись.\n\n"
         "## Назначение системы\n\n_(описание появится после первой задачи)_\n\n"
         "## Функциональные требования\n\n"
         + (f"- {task}\n\n" if task else "_(пока не заданы)_\n\n")
@@ -904,10 +915,13 @@ def write_project_map(
 
 
 def write_doc(doc: str, content: Optional[str] = None) -> Dict[str, Any]:
-    """Write SPEC.md, ARCHITECTURE.md, or README.md. If no content, scaffold defaults."""
-    if doc == "spec":
-        target = config.SPEC_FILE
-        text = content if content is not None else default_spec_markdown()
+    """Write AGENT.md, ARCHITECTURE.md, or README.md. If no content, scaffold defaults.
+
+    ``doc='spec'`` is a legacy alias of ``doc='agent'``.
+    """
+    if doc in ("agent", "spec"):
+        target = config.AGENT_FILE
+        text = content if content is not None else default_agent_markdown()
     elif doc == "architecture":
         target = config.ARCHITECTURE_FILE
         text = content if content is not None else default_architecture_markdown()
@@ -915,7 +929,7 @@ def write_doc(doc: str, content: Optional[str] = None) -> Dict[str, Any]:
         target = config.README_FILE
         text = content if content is not None else default_readme_markdown()
     else:
-        return {"ok": False, "error": f"Unknown doc type: {doc}. Use 'spec', 'architecture', or 'readme'."}
+        return {"ok": False, "error": f"Unknown doc type: {doc}. Use 'agent', 'architecture', or 'readme' ('spec' is a legacy alias of 'agent')."}
     _backup_before_overwrite(target)
     try:
         target.write_text(text, encoding=config.DEFAULT_ENCODING)
@@ -925,17 +939,18 @@ def write_doc(doc: str, content: Optional[str] = None) -> Dict[str, Any]:
 
 
 def read_doc(doc: str) -> Dict[str, Any]:
-    """Read a managed project document (map, spec, architecture, changelog, readme)."""
+    """Read a managed project document (map, agent, architecture, changelog, readme)."""
     mapping = {
         "map": config.PROJECT_MAP_FILE,
-        "spec": config.SPEC_FILE,
+        "agent": config.AGENT_FILE,
+        "spec": config.AGENT_FILE,  # legacy alias
         "architecture": config.ARCHITECTURE_FILE,
         "changelog": config.CHANGELOG_FILE,
         "readme": config.README_FILE,
     }
     target = mapping.get(doc)
     if target is None:
-        return {"ok": False, "error": f"Unknown doc: {doc}. Use map|spec|architecture|changelog|readme."}
+        return {"ok": False, "error": f"Unknown doc: {doc}. Use map|agent|architecture|changelog|readme ('spec' is a legacy alias of 'agent')."}
     if not target.exists():
         return {"ok": False, "exists": False, "error": f"Document not found: {doc}"}
     try:

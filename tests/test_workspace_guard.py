@@ -58,7 +58,7 @@ WORKSPACE_LAYER_CASES = {
     "assess_workspace": {},
     "build_project_map": {},
     "write_project_map": {"responsibilities": {}},
-    "write_doc": {"doc": "spec", "content": "x"},
+    "write_doc": {"doc": "agent", "content": "x"},
     "read_doc": {"doc": "map"},
     "snapshot_all": {},
     "list_snapshots": {},

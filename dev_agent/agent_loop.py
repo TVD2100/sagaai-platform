@@ -181,7 +181,7 @@ MAX_TOOL_RESULT_CHARS: int = 200_000
 
 # Threshold above which a tool_result is spilled to disk and replaced by a
 # bounded preview.
-_TOOL_RESULT_INLINE_LIMIT: int = 20_000
+_TOOL_RESULT_INLINE_LIMIT: int = 35_000
 
 # Head/tail budget (characters) of a spilled-result preview. If the preview
 # still exceeds _TOOL_RESULT_INLINE_LIMIT after bounding, both sides shrink

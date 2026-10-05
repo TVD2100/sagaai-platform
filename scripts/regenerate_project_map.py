@@ -205,7 +205,7 @@ roles = {
     "dev_agent/safe_writer.py": "Safe full-file rewrite with diff/verification",
     "dev_agent/skill_detector.py": "DEPRECATED shim -> dev_agent/assistant_detector.py",
     "dev_agent/skill_model_resolver.py": "DEPRECATED shim -> dev_agent/assistant_model_resolver.py",
-    "dev_agent/system_prompt.md": "DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.17 compact task-state digest, read_file windows, PRAGMA-first; v3.16 empty-state Stage 0, task-journal and thread-files rules)",
+    "dev_agent/system_prompt.md": "DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.19 AGENT.md docs-first (legacy SPEC.md removed); v3.17 compact task-state digest, read_file windows, PRAGMA-first; v3.16 empty-state Stage 0, task-journal and thread-files rules)",
     "dev_agent/task_state.py": "Per-thread task-state journal (plan/progress/handoff) with the thread-files fallback folder when no workspace is selected; compact digest (read_task_state compact=True) and budgeted injection",
     "dev_agent/tool_executor.py": "DevAgent tool set; assistant tools, legacy skill aliases, skills-library and multimodal tools; empty-state workspace guard (workspace_not_selected, neutral cwd for code=)",
     "dev_agent/universal_agent.py": "Universal dispatcher (core + workspace + orchestrator tools, incl. thread search: search_in_threads / list_threads / read_thread; empty-state guard and thread workspace-meta persistence)",
@@ -231,7 +231,7 @@ roles = {
     "tests/test_multimodal_instruction.py": "Tests for the multimodal_mode instruction seeding and content",
     "tests/scenarios/test_multimodal_scenarios.py": "Scenario tests for the multimodal tools (vision analysis, not_assigned, generation, provider hint)",
     "tests/scenarios/test_generated_image_feed_scenario.py": "Scenario tests for the generated image shown immediately in the chat feed (outside the collapsed tool-result block)",
-    "tests/scenarios/test_orchestrator_tool_gating.py": "Gating scenarios: system-prompt version pins (v3.17/v2.10), empty-state prompt invariants and thread-search tool invariants",
+    "tests/scenarios/test_orchestrator_tool_gating.py": "Gating scenarios: system-prompt version pins (v3.19/v2.11), empty-state prompt invariants and thread-search tool invariants",
     "tests/scenarios/test_orchestrator_thread_files.py": "Scenario tests: uploads land in thread files; legacy workspace manifests still re-announced",
     "tests/scenarios/test_empty_state_artifacts_scenario.py": "Scenario tests: task journal and uploads never create files in a foreign project (empty state)",
     "tests/scenarios/test_new_dialog_empty_workspace_scenario.py": "Scenario tests: a new dialog starts with no folder and never inherits a neighbour's workspace",
@@ -255,6 +255,8 @@ roles = {
 # whose roles were only ever present in the map) plus refreshed entries for
 # files changed by the AST / fingerprint / published-scope update.
 roles.update({
+    "AGENT.md": "Key project information for agents (requirements, conventions, constraints); managed doc, replaces SPEC.md",
+    "tests/scenarios/test_agent_md_doc_scenario.py": "Scenario tests: AGENT.md managed doc (scaffold with mandatory conventions, legacy 'spec' alias, assess states)",
     "file_versions.json": "Update manifest: app_version/channel/release_note and per-file semver + sha256 for units/selectable",
     "core/context_guard.py": "Pre-flight context guard (M4/M5): soft trim at 0.5 window, hard cap 0.8, capped output reserve min(max_out, max(4096, 0.25*window)), economy head protection, history_cap() for budget callers",
     "defaults/langs/en.json": "UI strings (English, incl. token_line_* keys)",
@@ -276,10 +278,10 @@ roles.update({
     "tests/test_tool_result_size_cap.py": "Tool-result spill policy tests: head+tail preview, hard-cap fallback, UniversalDevAgent path",
     "tests/test_tool_result_storage_summary.py": "Storage-summary tests: verbatim small documents (wire==stored), batch splitter, both persist paths",
     "dev_agent/workspace_tools.py": "Workspace layer: folders, project map (AST symbols, content fingerprint, GitHub-published scope filter), docs, snapshots; workspace_selected reporting and per-orchestrator recent workspaces",
-    "dev_agent/system_prompt.md": "DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.18 generated-PROJECT_MAP rule; v3.17 compact task-state digest, read_file windows, PRAGMA-first; v3.16 empty-state Stage 0, task-journal and thread-files rules)",
+    "dev_agent/system_prompt.md": "DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.19 AGENT.md docs-first (legacy SPEC.md removed); v3.18 generated-PROJECT_MAP rule; v3.17 compact task-state digest, read_file windows, PRAGMA-first; v3.16 empty-state Stage 0, task-journal and thread-files rules)",
     "scripts/regenerate_project_map.py": "CANONICAL generator of PROJECT_MAP.md: publish scope from file_versions.json (units + selectable) + responsibility dictionary; run it to regenerate the map (never hand-edit it)",
     "scripts/verify_manifest.py": "Manifest validator/maintainer: schema, coverage of git-tracked files, sha256 freshness, app_version consistency; prompt versions come from file headers on --init/--add; modes --init/--add/--fix-hashes/--json/--strict",
-    "tests/scenarios/test_orchestrator_tool_gating.py": "Gating scenarios: system-prompt version pins (v3.18/v2.10), empty-state prompt invariants, generated-document rule and thread-search tool invariants",
+    "tests/scenarios/test_orchestrator_tool_gating.py": "Gating scenarios: system-prompt version pins (v3.19/v2.11), empty-state prompt invariants, generated-document rule and thread-search tool invariants",
     "tests/test_project_map_ast.py": "Unit: project map - AST symbol extraction (methods/async/nested, line ranges), regex fallback, per-file symbol cap, include-paths scope, content fingerprint, enriched header",
     "tests/scenarios/test_project_map_freshness_scenario.py": "Scenario: PROJECT_MAP regeneration - GitHub-published scope only, recorded fingerprint and staleness detection, reproducible output",
 })
