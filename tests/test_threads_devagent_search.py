@@ -192,6 +192,32 @@ def test_search_role_filter_and_hidden_messages():
     assert bad_role["ok"] is False
 
 
+def test_search_snapshot_service_blocks_hidden_by_default():
+    """Context snapshots (TS/TC) are service blocks like tool results:
+    hidden from search and read windows unless include_tool_results."""
+    _make_thread("t_snap", ALPHA, "Alpha")
+    _add_message("t_snap", "system", "CURRENT TASK STATE:\ntask: demo")
+    _add_message("t_snap", "system", "## CURRENT THREAD ARTIFACTS DIR\nthread_id: t1")
+    _add_message("t_snap", "user", "обычный вопрос про demo")
+    from core.threads_devagent import search_thread_messages, read_thread_window
+
+    visible = search_thread_messages("demo", thread_ids=["t_snap"])
+    assert visible["count"] == 1
+    assert visible["hits"][0]["message_index"] == 2
+
+    with_service = search_thread_messages("demo", thread_ids=["t_snap"],
+                                          include_tool_results=True)
+    # Both the TS block and the user message contain "demo"; the TC block
+    # does not, so the full scan finds exactly two matches.
+    assert with_service["count"] == 2
+    assert {h["message_index"] for h in with_service["hits"]} == {0, 2}
+
+    win = read_thread_window("t_snap")
+    assert [m["index"] for m in win["messages"]] == [2]
+    full = read_thread_window("t_snap", include_tool_results=True)
+    assert [m["index"] for m in full["messages"]] == [0, 1, 2]
+
+
 def test_search_max_results_truncates():
     """max_results caps the hits and flags the truncation."""
     _make_thread("t_m", ALPHA, "Alpha")

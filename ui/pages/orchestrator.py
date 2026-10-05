@@ -872,7 +872,8 @@ def _do_step(slug: str, lang: str) -> None:
             msg_tokens = msg.get("_tokens")
             append_thread_message(tid, role, content,
                                   file_name=file_name, file_chars=file_chars,
-                                  events=msg_events, tokens=msg_tokens)
+                                  events=msg_events, tokens=msg_tokens,
+                                  hidden=bool(msg.get("hidden")))
         _set_ss(slug, "saved_msg_count", len(hist))
 
         # Persist the LAST active workspace / target_file so reopening the
@@ -1094,8 +1095,9 @@ def _token_line_cache_key(slug: str, history: list, economy_enabled: bool,
 
     The rendered indicator depends on the full history (economy window, per-
     thread token sums, message classification), the system prompt, the
-    attached-file texts, the strong service/model, the economy config and the
-    live loop state. Hashing a canonical repr of all of them is far cheaper
+    attached-file texts, the strong service/model, the economy config, the
+    live loop state and the UI language. Hashing a canonical repr of all of
+    them is far cheaper
     than recomputing context/token estimates on every rerun, and still
     recomputes whenever any real input changes.
     """
@@ -1127,15 +1129,17 @@ def _token_line_cache_key(slug: str, history: list, economy_enabled: bool,
          bool(m.get("hidden")))
         for m in history
     ]
+    # The rendered labels and the economy suffix depend on the UI language.
+    lang = st.session_state.get("ui_lang")
     payload = repr((
         _ss(slug, "thread_id"), economy_enabled, econ, state,
-        prompt_text, file_text, strong, services_names, msg_parts,
+        prompt_text, file_text, strong, services_names, msg_parts, lang,
     ))
     return hashlib.md5(payload.encode("utf-8")).hexdigest()
 
 
 def _render_token_line(slug: str, history: list, economy_enabled: bool,
-                       loop_state) -> None:
+                       loop_state, lang: str = None) -> None:
     """Render the single-line token/economy indicator, cached per state.
 
     Recomputing the context estimate and the economy window on every rerun is
@@ -1199,7 +1203,9 @@ def _render_token_line(slug: str, history: list, economy_enabled: bool,
         # build_economy_context() prepends one hidden meta message; the remaining
         # entries are the exact history messages actually sent to the model.
         _sent_total = max(0, len(_effective_history) - 1)
-        _economy_meta = f" 💡 economy ({_sent_total}/{_raw_total} msgs)"
+        _econ_word = t("token_line_economy", lang=lang)
+        _msgs_word = t("token_line_msgs", lang=lang)
+        _economy_meta = f" 💡 {_econ_word} ({_sent_total}/{_raw_total} {_msgs_word})"
 
     _effective_text = " ".join(
         m.get("content", "") for m in _effective_history if not m.get("hidden")
@@ -1212,7 +1218,7 @@ def _render_token_line(slug: str, history: list, economy_enabled: bool,
     _tok_in, _tok_out, _tok_cache = sum_thread_tokens(history)
     _html = (
         f'<div style="font-size:0.75rem;color:#555;margin-top:6px">'
-        f'{format_token_line(_current_tokens, _tok_in, _tok_out, _economy_meta, tokens_cache=_tok_cache)}</div>'
+        f'{format_token_line(_current_tokens, _tok_in, _tok_out, _economy_meta, tokens_cache=_tok_cache, lang=lang)}</div>'
     )
     _set_ss(slug, "token_line_cache", {"key": cache_key, "html": _html})
     st.markdown(_html, unsafe_allow_html=True)
@@ -1631,7 +1637,7 @@ def _render_chat_tab(slug: str, lang: str) -> None:
     # context/economy computation is cached in _render_token_line and only
     # rerun when one of its inputs (history, economy config, loop state,
     # prompt, attachments, services) actually changes.
-    _render_token_line(slug, history, economy_enabled, loop_state)
+    _render_token_line(slug, history, economy_enabled, loop_state, lang)
 
     if agent_is_active:
         if st.button(t("orch_stop_btn", lang=lang), key=f"orch_stop_{slug}",

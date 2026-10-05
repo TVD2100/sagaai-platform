@@ -121,6 +121,14 @@ def _setup_page(monkeypatch):
     import dev_agent.agent_loop as al
     import ui.pages.orchestrator as orch_page
 
+    # Context snapshots (task state / thread context) are covered by
+    # tests/test_agent_loop_snapshot_chain.py; neutralize the ambient
+    # runtime sources here so the window arithmetic below stays
+    # deterministic and does not depend on leftover journal files in
+    # the working copy.
+    monkeypatch.setattr(al, "_maybe_task_state_context", lambda: None)
+    monkeypatch.setattr(al, "_maybe_thread_context", lambda state: None)
+
     responses = iter(["All plan steps completed."] * 500)
     sent_histories = []
 

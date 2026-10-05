@@ -90,3 +90,23 @@ def test_defaults_and_legacy_service_files_stay_in_sync():
         with open(path_legacy, encoding="utf-8") as f:
             data_legacy = json.load(f)
         assert data_defaults == data_legacy, fname
+
+
+def test_every_shipped_model_declares_an_output_limit():
+    """B3: every shipped model entry declares ``max_tokens`` (the output
+    limit default) so the guard reserve ``min(max_tokens, max(4096,
+    0.25 * window))`` and ``_clamp_max_tokens`` never have to guess.
+    DeepSeek declares the ~32k economy profile: on its 1M window the guard
+    reserves 32_768 tokens instead of the 384k provider ceiling."""
+    from core.context_guard import _output_reserve
+
+    services = get_services()
+    for name, svc in services.items():
+        for m in svc.get("models") or []:
+            assert isinstance(m, dict), (name, m)
+            assert int(m.get("max_tokens") or 0) > 0, (name, m.get("id"))
+
+    deepseek = services.get("DeepSeek") or {}
+    limits = [m.get("max_tokens") for m in deepseek.get("models") or []]
+    assert limits == [32_768, 32_768], limits
+    assert _output_reserve(1_000_000, 32_768) == 32_768

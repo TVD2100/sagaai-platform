@@ -5,7 +5,8 @@ Tests for the per-request thread context injection in dev_agent.agent_loop:
 - _maybe_thread_context builds a hidden block with thread_id, thread_files_dir
   and the dialog-upload listing (FACTS only - names/paths/sizes/type, no
   content parsing);
-- _with_thread_context appends that block as a hidden system message;
+- refresh_context_snapshots appends that block as an append-only hidden
+  system snapshot (once, and only when its content changed);
 - a missing thread id returns None; a thread without uploads still gets the
   base block (no upload listing).
 """
@@ -90,22 +91,31 @@ def test_thread_context_no_thread_id_returns_none(tmp_path):
     assert al._maybe_thread_context(_NoThreadState()) is None
 
 
-def test_with_thread_context_appends_hidden_system_message(tmp_path):
-    """_with_thread_context appends ONE hidden system message with the block."""
+def test_refresh_appends_thread_context_snapshot(tmp_path, monkeypatch):
+    """refresh_context_snapshots appends ONE hidden thread-context snapshot."""
     from dev_agent import agent_loop as al
     from core.threads_devagent import save_thread_file_data
 
-    save_thread_file_data("ctx_thread_01", "a.txt", "abc".encode())
-    history = [{"role": "user", "content": "hello"}]
+    # Isolate the thread-context kind: no task-state block in this test.
+    monkeypatch.setattr(al, "_maybe_task_state_context", lambda: None)
 
-    out = al._with_thread_context(history, _ThreadState())
-    assert len(out) == len(history) + 1
-    assert out[-1]["role"] == "system"
-    assert out[-1].get("hidden") is True
-    assert "a.txt" in out[-1]["content"]
+    save_thread_file_data("ctx_thread_01", "a.txt", "abc".encode())
+    state = al.AgentLoopState()
+    state.thread_id = "ctx_thread_01"
+    state.history = [{"role": "user", "content": "hello"}]
+
+    assert al.refresh_context_snapshots(state) == 1
+    last = state.history[-1]
+    assert last["role"] == "system"
+    assert last.get("hidden") is True
+    assert "a.txt" in last["content"]
+    assert al._snapshot_kind_of(last) == "thread_context"
 
     # Without a thread id the history stays untouched.
-    assert al._with_thread_context(history, _NoThreadState()) == history
+    no_state = al.AgentLoopState()
+    no_state.history = [{"role": "user", "content": "hello"}]
+    assert al.refresh_context_snapshots(no_state) == 0
+    assert no_state.history == [{"role": "user", "content": "hello"}]
 
 
 def test_thread_context_upload_listing_is_stable(tmp_path):

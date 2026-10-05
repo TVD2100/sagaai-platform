@@ -1022,6 +1022,11 @@ def test_do_step_first_step_failure_is_visible_on_user_message(mock_env, monkeyp
         raise RuntimeError("402 Payment Required: token limit exceeded")
 
     monkeypatch.setattr(al, "send_request", _boom)
+    # Ambient context snapshots (task state / thread context) are not the
+    # subject of this test; neutralize their sources so the expected
+    # history below stays deterministic.
+    monkeypatch.setattr(al, "_maybe_task_state_context", lambda: None)
+    monkeypatch.setattr(al, "_maybe_thread_context", lambda state: None)
 
     slug = "o1"
     orch_mod._init_orch_state(slug)

@@ -347,10 +347,23 @@ def test_tool_catalog_lists_task_state_tools():
 def test_agent_loop_helpers_present():
     from dev_agent import agent_loop
     assert callable(agent_loop._maybe_task_state_context)
-    assert callable(agent_loop._with_task_state)
-    out = agent_loop._with_task_state([{"role": "user", "content": "hi"}])
-    assert isinstance(out, list)
-    assert out[0]["role"] == "user"
+    assert callable(agent_loop.refresh_context_snapshots)
+    assert callable(agent_loop._snapshot_kind_of)
+    # The task-state block is appended to the history chain as an append-only
+    # snapshot (once, and only when its content changed) instead of being
+    # re-injected on every request.
+    state = agent_loop.AgentLoopState()
+    state.history = [{"role": "user", "content": "hi"}]
+    original = agent_loop._maybe_task_state_context
+    try:
+        agent_loop._maybe_task_state_context = lambda: "CURRENT TASK STATE:\nT"
+        assert agent_loop.refresh_context_snapshots(state) == 1
+        assert state.history[-1]["role"] == "system"
+        assert state.history[-1]["hidden"] is True
+        assert agent_loop._snapshot_kind_of(state.history[-1]) == "task_state"
+        assert agent_loop.refresh_context_snapshots(state) == 0
+    finally:
+        agent_loop._maybe_task_state_context = original
 
 
 # --- New v3.1 capabilities: analysis/requests, task_dir, progress markers,

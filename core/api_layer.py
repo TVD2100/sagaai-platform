@@ -711,8 +711,9 @@ def _bearer_request(url: str, api_key: str, model: str,
         When present, rendered as the OpenAI ``response_format`` json_schema
         block and the response is expected (and unwrapped) as JSON text.
     *usage_callback*: callable({"in": N, "out": M, "cache": C}) for token tracking.
-        "cache" is the number of cached input tokens (0 for chat-completion APIs
-        that do not report cache details).
+        "cache" is read from ``usage.prompt_tokens_details.cached_tokens`` or,
+        on DeepSeek's OpenAI-compatible chat route, from
+        ``usage.prompt_cache_hit_tokens``; 0 when the provider reports none.
     *service*: optional service name for error reporting.
 
     Raises ProviderHTTPError on non-200 responses.
@@ -755,14 +756,23 @@ def _bearer_request(url: str, api_key: str, model: str,
     # ── Estimate token usage ────────────────────────────────────────────────
     if usage_callback:
         usage = response_body.get("usage")
+        cache = 0
         if usage and isinstance(usage, dict):
             tokens_in = usage.get("prompt_tokens") or 0
             tokens_out = usage.get("completion_tokens") or 0
+            details = usage.get("prompt_tokens_details")
+            if isinstance(details, dict):
+                cache = details.get("cached_tokens") or 0
+            if not cache:
+                # DeepSeek's OpenAI-compatible chat route reports the cached
+                # prompt share as a dedicated usage field (a subset of
+                # prompt_tokens), not inside prompt_tokens_details.
+                cache = usage.get("prompt_cache_hit_tokens") or 0
         else:
             tokens_in = _estimate_tokens_in(messages)
             from core.files import estimate_tokens
             tokens_out = estimate_tokens(result_text)
-        usage_callback({"in": int(tokens_in), "out": int(tokens_out), "cache": 0})
+        usage_callback({"in": int(tokens_in), "out": int(tokens_out), "cache": int(cache)})
 
     return result_text
 
@@ -1266,21 +1276,25 @@ def _gigachat_messages(sys_text: str, hist_msgs: list, user_content: str) -> lis
     element of ``messages``; any system message inside the conversation
     makes the provider reject the whole payload (HTTP 422, "system message
     must be the first message"). The agent loop, however, injects system
-    blocks (economy-mode metadata, external task state, thread context)
-    into the middle of the history for every provider.
+    blocks into the history: the economy-mode metadata is PREPENDED (a
+    leading block), while the append-only context snapshots (external
+    task state, thread context) sit in the middle of the conversation.
 
-    This helper folds the assistant prompt and every in-history system
-    block into a single leading system message (the prompt first, then the
-    blocks in their original order), keeps only user/assistant roles in
-    the body, and merges consecutive same-role messages (joining their
-    texts with a blank line) so the provider's strict role validation
-    passes. Only ``role`` and ``content`` keys are emitted.
+    To keep the request prefix byte-stable for provider-side caching, only
+    LEADING system blocks are folded into the single leading system
+    message (the assistant prompt first, then the blocks in their original
+    order). A mid-history system block keeps its position and is emitted
+    with the ``user`` role instead (it is harness context, never assistant
+    speech); consecutive same-role messages are then merged (joined with a
+    blank line) to satisfy the provider's strict role validation. Only
+    ``role`` and ``content`` keys are emitted.
     """
     system_parts: list = []
     if sys_text and str(sys_text).strip():
         system_parts.append(str(sys_text))
 
     body: list = []
+    leading = True
     for m in hist_msgs or []:
         if not isinstance(m, dict):
             continue
@@ -1292,8 +1306,14 @@ def _gigachat_messages(sys_text: str, hist_msgs: list, user_content: str) -> lis
             continue
         role = m.get("role", "user")
         if role in ("system", "developer"):
-            system_parts.append(text)
-            continue
+            if leading:
+                system_parts.append(text)
+                continue
+            # Mid-history block: keep its position, but use a role the
+            # provider accepts (system messages are only allowed first).
+            role = "user"
+        else:
+            leading = False
         if role not in ("user", "assistant"):
             role = "user"
         if body and body[-1]["role"] == role:
@@ -1941,14 +1961,18 @@ def _do_request(auth_type: str, svc_name: str, svc: dict, cfg: dict,
 
         if usage_callback:
             usage = response_body.get("usage")
+            cache = 0
             if usage and isinstance(usage, dict):
                 tokens_in = usage.get("prompt_tokens") or 0
                 tokens_out = usage.get("completion_tokens") or 0
+                # GigaChat reports cached prompt tokens (a subset of
+                # prompt_tokens) as precached_prompt_tokens.
+                cache = usage.get("precached_prompt_tokens") or 0
             else:
                 tokens_in = _estimate_tokens_in(messages)
                 from core.files import estimate_tokens
                 tokens_out = estimate_tokens(result_text)
-            usage_callback({"in": int(tokens_in), "out": int(tokens_out), "cache": 0})
+            usage_callback({"in": int(tokens_in), "out": int(tokens_out), "cache": int(cache)})
 
         return result_text
 

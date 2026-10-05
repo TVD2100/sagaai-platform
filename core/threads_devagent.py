@@ -6,7 +6,8 @@ Uses the isolated ``devagent.db`` database via ``storage.repository_devagent``.
 Follows the same simple pattern as ``core.threads.py`` for chat threads:
   - DB is the single source of truth.
   - Messages are stored with embedded ``_events`` / ``_event_start`` / ``_event_end``
-    / ``_tokens`` keys using the same JSON-prefix encoding as ``core.threads.py``.
+    / ``_tokens`` keys (plus the ``hidden`` marker of service entries) using the
+    same JSON-prefix encoding as ``core.threads.py``.
   - ``append_thread_message`` adds one message at a time (no full-history rewrite).
 
 Each thread is associated with an orchestrator via its slug/name (stored in
@@ -212,6 +213,11 @@ def _restore_events(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                     m["_tokens"] = event_data["tokens"]
                 if "_tokens" in event_data:
                     m["_tokens"] = event_data["_tokens"]
+                # Hidden harness entries (context snapshots, service
+                # notices) keep their marker so the chat feed skips them
+                # after a reload exactly like during the live turn.
+                if event_data.get("hidden"):
+                    m["hidden"] = True
         m["content"] = content
         out.append(m)
     return out
@@ -242,7 +248,8 @@ def save_thread_messages(tid: str, messages: List[Dict[str, Any]]) -> None:
         event_start = m.get("_event_start")
         event_end = m.get("_event_end")
         tokens = m.get("_tokens")
-        if events or event_start is not None or event_end is not None or tokens:
+        hidden = m.get("hidden")
+        if events or event_start is not None or event_end is not None or tokens or hidden:
             event_data: Dict[str, Any] = {}
             if events:
                 event_data["_events"] = events
@@ -252,6 +259,8 @@ def save_thread_messages(tid: str, messages: List[Dict[str, Any]]) -> None:
                 event_data["_event_end"] = event_end
             if tokens:
                 event_data["tokens"] = tokens
+            if hidden:
+                event_data["hidden"] = True
             prefix = _PREFIX_MARKER + json.dumps(event_data, ensure_ascii=False) + "\n"
             clean_msg["content"] = prefix + clean_msg.get("content", "")
         clean.append(clean_msg)
@@ -261,12 +270,17 @@ def save_thread_messages(tid: str, messages: List[Dict[str, Any]]) -> None:
 def append_thread_message(tid: str, role: str, content: str,
                           file_name: str = "", file_chars: int = 0,
                           events: Optional[List[Dict[str, Any]]] = None,
-                          tokens: Optional[Dict[str, int]] = None) -> None:
+                          tokens: Optional[Dict[str, int]] = None,
+                          hidden: bool = False) -> None:
     """Append a single message to a DevAgent thread.
 
     If ``events`` is provided, they are embedded as a JSON prefix in the
     content field (same encoding as ``save_thread_messages``).
     If ``tokens`` is provided (dict with 'in'/'out'/'cache' keys), it is embedded too.
+    ``hidden=True`` marks a service entry (a context snapshot or a service
+    notice): the marker is embedded in the same JSON prefix so the entry
+    stays out of the chat feed after a reload exactly like during the live
+    turn.
     """
     final_content = content
     # M2: compact hidden tool_results before persisting (context-overflow
@@ -282,6 +296,8 @@ def append_thread_message(tid: str, role: str, content: str,
         event_data["_events"] = events
     if tokens:
         event_data["tokens"] = tokens
+    if hidden:
+        event_data["hidden"] = True
     if event_data:
         prefix = _PREFIX_MARKER + json.dumps(event_data, ensure_ascii=False) + "\n"
         final_content = prefix + final_content
@@ -558,11 +574,16 @@ def read_thread_file(tid: str, file_name: str,
 # ─── Thread-search service layer ─────────────────────────────────────────────
 # Read side of the dialog tools (search_in_threads / list_threads /
 # read_thread exposed by dev_agent.universal_agent). Hidden service messages
-# (tool-result envelopes, AUTO_CONTINUE prompts) are identified by their
-# content prefixes, duplicated here to keep this module free of the heavy
-# agent-loop import. Access control lives one layer above, in the wrappers.
+# (tool-result envelopes, AUTO_CONTINUE prompts, context snapshots) are
+# identified by their content prefixes, duplicated here to keep this module
+# free of the heavy agent-loop import (the snapshot prefixes mirror
+# agent_loop._SNAPSHOT_TS_HEAD / _SNAPSHOT_TC_HEAD). Access control lives one
+# layer above, in the wrappers.
 
-_HIDDEN_PREFIXES = ('{"tool_result"', "AUTO_CONTINUE:")
+_HIDDEN_PREFIXES = (
+    '{"tool_result"', "AUTO_CONTINUE:",
+    "CURRENT TASK STATE", "## CURRENT THREAD ARTIFACTS DIR",
+)
 
 MAX_SEARCH_THREADS = 200     # cap on dialogs scanned per search call
 MAX_SEARCH_MESSAGES = 5000   # cap on stored messages scanned per search call

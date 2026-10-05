@@ -91,11 +91,11 @@ def _setup_page(ui_env, monkeypatch, slug):
     return orch_page, counter
 
 
-def _render_chat(ui_env, slug, history):
+def _render_chat(ui_env, slug, history, lang="English"):
     import ui.pages.orchestrator as orch_page
 
     st = ui_env
-    st.session_state.update({"ui_lang": "English"})
+    st.session_state.update({"ui_lang": lang})
     st.session_state[f"orch_{slug}_history"] = list(history)
     st.session_state[f"orch_{slug}_economy_mode"] = True
     st.session_state[f"orch_{slug}_web_search"] = False
@@ -155,3 +155,28 @@ def test_reset_dialog_clears_token_line_cache(monkeypatch, ui_env):
     orch_page._reset_dialog(slug)
     assert st.session_state[f"orch_{slug}_token_line_cache"] is None
     assert st.session_state[f"orch_{slug}_history"] == []
+
+
+
+def test_token_line_localized_and_recomputed_on_lang_switch(monkeypatch, ui_env):
+    """A UI-language switch re-renders the indicator with localized labels."""
+    from core.i18n import get_langs
+
+    slug = "custom1"
+    _orch_page, counter = _setup_page(ui_env, monkeypatch, slug)
+    st = ui_env
+
+    _render_chat(ui_env, slug, [_mk(i) for i in range(3)], lang="English")
+    assert counter["check_context"] == 1
+    cache_en = st.session_state[f"orch_{slug}_token_line_cache"]
+    assert "Context: current" in cache_en["html"]
+
+    ru_name = next((n for n, p in get_langs().items() if p.endswith("ru.json")), None)
+    assert ru_name, "Russian language file not discovered"
+    _render_chat(ui_env, slug, [_mk(i) for i in range(3)], lang=ru_name)
+
+    assert counter["check_context"] == 2
+    cache_ru = st.session_state[f"orch_{slug}_token_line_cache"]
+    assert cache_ru["key"] != cache_en["key"]
+    assert "Контекст: текущий" in cache_ru["html"]
+    assert "💡 эконом" in cache_ru["html"]

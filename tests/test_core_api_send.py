@@ -664,3 +664,127 @@ def test_test_connection_gigachat_uses_derived_models_url():
         ok, msg = test_connection("GigaChat", _make_cfg())
         assert ok is True
         assert mock_session.get.call_args[0][0] == "https://api.giga.chat/v1/models"
+
+
+def test_bearer_request_reports_openai_cached_tokens():
+    """usage.prompt_tokens_details.cached_tokens becomes the cache bucket."""
+    from core.api_layer import _bearer_request
+    with patch("core.api_layer.requests.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "choices": [{"message": {"content": "ok"}}],
+            "usage": {
+                "prompt_tokens": 1000,
+                "completion_tokens": 50,
+                "prompt_tokens_details": {"cached_tokens": 830},
+            },
+        }
+        mock_post.return_value = mock_resp
+
+        usage = {}
+        _bearer_request(
+            url="https://api.example.com/v1/chat/completions",
+            api_key="sk-test",
+            model="test-model",
+            messages=[{"role": "user", "content": "Hi"}],
+            temperature=0.7,
+            usage_callback=lambda u: usage.update(u),
+        )
+        assert usage == {"in": 1000, "out": 50, "cache": 830}
+
+
+def test_bearer_request_reports_deepseek_prompt_cache_hit_tokens():
+    """DeepSeek chat route: prompt_cache_hit_tokens becomes the cache bucket."""
+    from core.api_layer import _bearer_request
+    with patch("core.api_layer.requests.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "choices": [{"message": {"content": "ok"}}],
+            "usage": {
+                "prompt_tokens": 1000,
+                "completion_tokens": 50,
+                "prompt_cache_hit_tokens": 700,
+            },
+        }
+        mock_post.return_value = mock_resp
+
+        usage = {}
+        _bearer_request(
+            url="https://api.deepseek.com/v1/chat/completions",
+            api_key="sk-test",
+            model="deepseek-chat",
+            messages=[{"role": "user", "content": "Hi"}],
+            temperature=0.7,
+            usage_callback=lambda u: usage.update(u),
+        )
+        assert usage == {"in": 1000, "out": 50, "cache": 700}
+
+
+def test_bearer_request_cache_zero_when_not_reported():
+    """No cached-token fields -> the cache bucket stays an honest 0."""
+    from core.api_layer import _bearer_request
+    with patch("core.api_layer.requests.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "choices": [{"message": {"content": "ok"}}],
+            "usage": {"prompt_tokens": 40, "completion_tokens": 2},
+        }
+        mock_post.return_value = mock_resp
+
+        usage = {}
+        _bearer_request(
+            url="https://api.example.com/v1/chat/completions",
+            api_key="sk-test",
+            model="test-model",
+            messages=[],
+            temperature=0.7,
+            usage_callback=lambda u: usage.update(u),
+        )
+        assert usage == {"in": 40, "out": 2, "cache": 0}
+
+
+def test_send_request_gigachat_reports_precached_tokens():
+    """GigaChat: usage.precached_prompt_tokens becomes the cache bucket."""
+    from core.api_layer import send_request
+    with patch("core.api_layer.get_services") as mock_svc, \
+         patch("core.api_layer.load_config") as mock_cfg, \
+         patch("core.api_layer.load_skill_files_context", return_value=""), \
+         patch("core.api_layer._gigachat_token", return_value="giga-token"), \
+         patch("core.api_layer.requests.Session") as mock_session_cls:
+        mock_cfg.return_value = _make_cfg()
+        svc = _make_svc(
+            name="GigaChat",
+            auth_type="gigachat_oauth",
+            base_url="https://api.giga.chat/v1/chat/completions",
+            config_key="gigachat_creds",
+        )
+        svc["GigaChat"]["config_key2"] = "gigachat_scope"
+        mock_svc.return_value = svc
+
+        mock_session = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.ok = True
+        mock_resp.json.return_value = {
+            "choices": [{"message": {"content": "ok"}}],
+            "usage": {
+                "prompt_tokens": 100,
+                "completion_tokens": 5,
+                "precached_prompt_tokens": 60,
+            },
+        }
+        mock_session.post.return_value = mock_resp
+        mock_session.headers = {}
+        mock_session.verify = True
+        mock_session_cls.return_value = mock_session
+
+        usage = {}
+        result = send_request(
+            "Привет",
+            _make_skill(service="GigaChat", model="GigaChat"),
+            usage_callback=lambda u: usage.update(u),
+        )
+        assert result == "ok"
+        assert usage == {"in": 100, "out": 5, "cache": 60}

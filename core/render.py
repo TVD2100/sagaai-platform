@@ -212,9 +212,29 @@ def _md_to_txt(text: str) -> str:
     return "\n".join(lines).strip()
 
 
+def _token_label(key: str, default: str, lang: str = None) -> str:
+    """Resolve one i18n label of the token line, with a safe fallback.
+
+    Returns *default* when no language is given, the translation
+    infrastructure is unavailable, or the key is missing in the language
+    files, so the indicator always stays readable even on partially
+    translated installs.
+    """
+    if not lang:
+        return default
+    try:
+        from core.i18n import t
+        value = t(key, lang=lang)
+    except Exception:
+        return default
+    if not value or value == key:
+        return default
+    return value
+
+
 def format_token_line(current_tokens: int, tokens_in: int = 0, tokens_out: int = 0,
                       economy_meta: str = "", color: str = "green",
-                      tokens_cache: int = 0) -> str:
+                      tokens_cache: int = 0, lang: str = None) -> str:
     """Build the single-line token usage indicator used by the chat pages.
 
     Returns an HTML snippet ready for ``st.markdown(..., unsafe_allow_html=True)``.
@@ -231,21 +251,27 @@ def format_token_line(current_tokens: int, tokens_in: int = 0, tokens_out: int =
         tokens_cache: cumulative cached input tokens reported by the provider.
             When > 0, a ``cache <pct>%`` part is shown between ``in`` and
             ``out``, where pct = tokens_cache / tokens_in * 100.
+        lang: UI language for the labels (None uses the built-in English ones).
     """
     total = int(tokens_in or 0) + int(tokens_out or 0)
     in_val = int(tokens_in or 0)
     cache_val = int(tokens_cache or 0)
-    parts = f"in {in_val:,}"
+    label_ctx = _token_label("token_line_context_current", "Context: current", lang)
+    label_total = _token_label("token_line_total", "total", lang)
+    label_in = _token_label("token_line_in", "in", lang)
+    label_cache = _token_label("token_line_cache", "cache", lang)
+    label_out = _token_label("token_line_out", "out", lang)
+    parts = f"{label_in} {in_val:,}"
     if cache_val > 0 and in_val > 0:
         cache_pct = int(round(cache_val * 100.0 / in_val))
         if cache_pct > 100:
             cache_pct = 100
-        parts += f" / cache {cache_pct}%"
-    parts += f" / out {int(tokens_out or 0):,}"
+        parts += f" / {label_cache} {cache_pct}%"
+    parts += f" / {label_out} {int(tokens_out or 0):,}"
     html = (
-        f"Context: current <span style=\"color:{color};font-weight:600\">"
+        f"{label_ctx} <span style=\"color:{color};font-weight:600\">"
         f"{int(current_tokens or 0):,}</span> "
-        f"/ total: {total:,} "
+        f"/ {label_total}: {total:,} "
         f"({parts})"
     )
     if economy_meta:

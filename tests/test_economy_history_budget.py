@@ -18,8 +18,11 @@ from dev_agent.agent_loop import AgentLoopState, build_economy_context
 @pytest.fixture()
 def services_window(monkeypatch):
     """Deterministic window/max-output/token counters for the budget."""
+    # Window chosen so the guard-aligned budget (B3) matches the legacy
+    # ratio budget and keeps the established 15_000-token expectations:
+    # int(36_098 * 0.5) - reserve(1000) - prompt(1) - margin(2048) = 15000.
     monkeypatch.setattr("core.files.get_model_context_window",
-                        lambda skill, services: 20_000)
+                        lambda skill, services: 36_098)
     monkeypatch.setattr("core.api_layer._get_model_max_tokens",
                         lambda svc, model_id: 1_000)
     # 1 token per 4 chars: budget 15_000 tokens == 60_000 chars.
@@ -130,3 +133,71 @@ def test_unknown_window_falls_back_to_passthrough(services_window, monkeypatch, 
     result = build_economy_context(state, assistant)
 
     assert len(result) == len(history) + 1
+
+
+# ── B2: hysteresis of the economy token budget ───────────────────────────────
+
+
+def test_b2_cache_trim_cuts_to_low_watermark_and_folds_anchor(services_window, assistant):
+    """Given a cache-friendly window whose sent payload exceeds the budget,
+    when  build_economy_context trims it,
+    then  the cut drops SEVERAL messages at once (down to the low
+    watermark) and is folded into economy_anchor, so the window front
+    stays put instead of sliding message by message."""
+    big = "x" * 20_000  # 5_000 tokens each
+    state = _make_state([_msg(big) for _ in range(20)])
+    state.economy_cache_enabled = True
+    state.economy_cache_multiplier = 2
+    state.economy_tail_messages = 5
+
+    result = build_economy_context(state, assistant)
+
+    assert state.economy_anchor == 18  # 15 + the 3 messages dropped here
+    assert [m["content"] for m in result[1:]] == [big, big]
+    from dev_agent.agent_loop import _estimate_messages_tokens
+    assert _estimate_messages_tokens(result) <= int(15_000 * 0.75)
+
+    # Same history again: same window, same front (stable provider prefix).
+    again = build_economy_context(state, assistant)
+    assert state.economy_anchor == 18
+    assert [m["content"] for m in again[1:]] == [big, big]
+
+
+def test_b2_front_stays_put_under_small_growth(services_window, assistant):
+    """Given a window front fixed by a big B2 cut,
+    when  small messages keep arriving,
+    then  the front does not move until the payload grows back over the
+    high watermark - no per-step sliding of the cached prefix."""
+    big = "x" * 20_000  # 5_000 tokens
+    state = _make_state([_msg(big) for _ in range(20)])
+    state.economy_cache_enabled = True
+    state.economy_cache_multiplier = 20
+    state.economy_tail_messages = 5
+
+    first = build_economy_context(state, assistant)
+    assert state.economy_anchor == 18
+    assert first[1]["content"] == big
+
+    for _ in range(30):
+        state.history.append(_msg("s" * 100))  # 25 tokens each
+        out = build_economy_context(state, assistant)
+        # 10_000 kept tokens + 750 added stay under the 15_000 budget:
+        # the front is frozen.
+        assert state.economy_anchor == 18
+        assert out[1]["content"] == big
+
+
+def test_b2_legacy_trim_continues_below_budget(services_window, assistant):
+    """Given a legacy-mode payload that just crossed the budget,
+    when  the trim runs,
+    then  it keeps cutting below the budget down to the low watermark
+    (a big enough cut to avoid re-trimming on the very next step)."""
+    mid = "m" * 12_000   # 3_000 tokens
+    big = "x" * 40_000   # 10_000 tokens
+    state = _make_state([_msg(mid), _msg(big), _msg(mid)])
+
+    result = build_economy_context(state, assistant)
+
+    # Old behavior stopped right under 15_000 (keeping big + mid);
+    # the low-watermark cut passes 10_000 tokens too, keeping only mid.
+    assert [m["content"] for m in result[1:]] == [mid]

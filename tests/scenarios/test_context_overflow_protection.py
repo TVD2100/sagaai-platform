@@ -1,13 +1,17 @@
 """
-Scenario tests for the context-overflow protection (M1/M4/M5),
+Scenario tests for the context-overflow protection (M1/M4/M5, C1),
 walking the real public paths end-to-end like a user would:
-  - happy path: a 1.65M-character tool_result is replaced by an explicit
-    ok=False error and its payload never reaches the model context;
+  - happy path: a 1.65M-character tool_result is spilled to disk before
+    the first send and the model gets a bounded head+tail preview with a
+    spill_path - the payload never reaches the model context;
+  - error state: when the spill write fails, a payload beyond the hard
+    cap yields an explicit ok=False size error;
   - edge case: a long conversation history is trimmed from the front
     BEFORE a provider round-trip;
   - error state: an impossible payload raises a clear
     ContextWindowError instead of an opaque HTTP 400.
 """
+import json
 import os
 import sys
 
@@ -38,10 +42,11 @@ def sandbox(tmp_path, monkeypatch):
     return root
 
 
-def test_scenario_giant_tool_result_is_capped_before_context(sandbox, monkeypatch):
+def test_scenario_giant_tool_result_is_spilled_before_context(sandbox, monkeypatch):
     """Given a tool that returns a 1.65M-character payload, when the tool
-    executor dispatches it, then the model receives only an ok=False error
-    describing the size - the giant payload is never serialized back."""
+    executor dispatches it, then the full payload is spilled to
+    .dev_agent/tool_results/ before the first send and the model receives
+    only a bounded head+tail preview with a recoverable spill_path."""
     big_payload = 'x' * 1_650_000
     executor = ToolExecutor()
 
@@ -56,11 +61,41 @@ def test_scenario_giant_tool_result_is_capped_before_context(sandbox, monkeypatc
 
     result = executor.dispatch('list_files', {'subdir': '.'})
 
+    assert result['ok'] is True
+    assert result['truncated'] is True
+    assert result['bulk_sizes']['content'] > 1_000_000
+    wire = json.dumps({'tool_result': result}, ensure_ascii=False)
+    assert len(wire) <= 20_000
+    assert big_payload not in wire
+    # The full payload is recoverable: the spill file holds it completely
+    # and the public read_file tool can open the spill path.
+    spill_text = (sandbox / result['spill_path']).read_text(encoding='utf-8')
+    assert big_payload in spill_text
+    recovered = executor.read_file(result['spill_path'])
+    assert recovered['ok'] is True
+
+
+def test_scenario_failed_spill_keeps_hard_cap_error(sandbox, monkeypatch):
+    """Given the spill write fails, when a tool returns a payload beyond the
+    hard cap, then the safety net of the original incident still applies: an
+    explicit ok=False size error and no payload in the model context."""
+    big_payload = 'x' * 1_650_000
+    executor = ToolExecutor()
+    monkeypatch.setattr(
+        'dev_agent.agent_loop._spill_tool_result_doc', lambda doc, name="": None
+    )
+
+    def _fake_list_files(subdir="", max_depth=1):
+        return {'ok': True, 'subdir': subdir or '.', 'content': big_payload}
+
+    monkeypatch.setattr(executor, 'list_files', _fake_list_files)
+
+    result = executor.dispatch('list_files', {'subdir': '.'})
+
     assert result['ok'] is False
     assert result['result_too_large'] is True
     assert result['result_size'] > 200_000
     assert 'NOT passed to the model' in result['error']
-    # The original payload must not leak into the result.
     assert 'content' not in result
     assert big_payload not in str(result)
 

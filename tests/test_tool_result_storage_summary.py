@@ -16,11 +16,14 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from dev_agent import config
 from dev_agent.agent_loop import (
     summarize_tool_result_for_storage,
     _TOOL_RESULT_STORAGE_KEEP_LIMIT,
     _TOOL_RESULT_STORAGE_FALLBACK_LIMIT,
     _TOOL_RESULT_STORAGE_FIELD_LIMIT,
+    _TOOL_RESULT_INLINE_LIMIT,
+    _apply_tool_result_cap,
 )
 
 
@@ -213,3 +216,94 @@ def test_events_survive_compaction(tmp_path):
     assert msgs[0]["_events"] == [{"type": "tool_result", "tool": "list_files"}]
     assert msgs[0]["_tokens"] == {"in": 10, "out": 2, "cache": 0}
     assert "bulk_sizes" in json.loads(msgs[0]["content"])["tool_result"]
+
+
+# ─── C1: batch splitter and wire == stored ────────────────────────────────────
+
+
+def test_batch_of_small_documents_saved_verbatim():
+    """A newline-joined batch may exceed the keep-limit while every single
+    document is small; such a batch is stored byte-verbatim (wire == stored)."""
+    docs = [
+        json.dumps({"tool_result": {"ok": True, "content": "a" * 3_000}},
+                   ensure_ascii=False)
+        for _ in range(20)
+    ]
+    batch = "\n".join(docs)
+    assert len(batch) > _TOOL_RESULT_STORAGE_KEEP_LIMIT
+    assert summarize_tool_result_for_storage(batch) == batch
+
+
+def test_batch_compacts_only_oversized_member():
+    """In a mixed batch only the oversized document is compacted; the small
+    document survives byte-verbatim."""
+    small = json.dumps({"tool_result": {"ok": True, "content": "s" * 500}})
+    big = _tool_result_payload(_TOOL_RESULT_STORAGE_KEEP_LIMIT + 5_000)
+    batch = small + "\n" + big
+
+    out = summarize_tool_result_for_storage(batch)
+
+    parts = out.split("\n")
+    assert parts[0] == small
+    assert "bulk_sizes" in json.loads(parts[1])["tool_result"]
+
+
+def test_spilled_preview_and_wire_round_trip_verbatim(tmp_path, monkeypatch):
+    """C1: the spilled-result preview the model receives is stored byte-
+    verbatim, so a resumed thread rebuilds the identical wire document."""
+    monkeypatch.setattr(config, "PROJECT_ROOT", tmp_path)
+    payload = "x" * 50_000
+    preview = _apply_tool_result_cap(
+        {"ok": True, "path": "src/big.txt", "content": payload}, "read_file"
+    )
+    wire = json.dumps({"tool_result": preview}, ensure_ascii=False)
+    assert len(wire) <= _TOOL_RESULT_INLINE_LIMIT
+    assert len(wire) <= _TOOL_RESULT_STORAGE_KEEP_LIMIT
+
+    from core.threads_devagent import (
+        create_devagent_thread,
+        append_thread_message,
+        load_thread_messages,
+    )
+
+    tid = create_devagent_thread(title="c1 verbatim", orchestrator_slug="dev_agent")
+    append_thread_message(tid, "user", wire)
+    msgs = load_thread_messages(tid)
+    assert msgs[0]["content"] == wire
+
+
+def test_batch_wire_round_trips_verbatim_through_both_paths(tmp_path, monkeypatch):
+    """C2: a batch (spilled preview + small docs) larger than the keep-limit
+    but with every document small is stored byte-verbatim on BOTH persist
+    paths, so a resumed thread re-sends exactly the live wire bytes."""
+    monkeypatch.setattr(config, "PROJECT_ROOT", tmp_path)
+    payload = "x" * 50_000
+    preview = _apply_tool_result_cap(
+        {"ok": True, "path": "src/big.txt", "content": payload}, "read_file"
+    )
+    doc_a = json.dumps({"tool_result": preview}, ensure_ascii=False)
+    doc_b = json.dumps({"tool_result": {"ok": True, "count": 1}}, ensure_ascii=False)
+    doc_c = json.dumps(
+        {"tool_result": {"ok": True, "content": "s" * 35_000}}, ensure_ascii=False
+    )
+    wire = "\n".join([doc_a, doc_b, doc_c])
+    assert len(wire) > _TOOL_RESULT_STORAGE_KEEP_LIMIT  # splitter path is used
+    for doc in (doc_a, doc_b, doc_c):
+        assert len(doc) <= _TOOL_RESULT_STORAGE_KEEP_LIMIT
+
+    from core.threads_devagent import (
+        create_devagent_thread,
+        append_thread_message,
+        save_thread_messages,
+        load_thread_messages,
+    )
+
+    tid_a = create_devagent_thread(title="c2 batch append", orchestrator_slug="dev_agent")
+    append_thread_message(tid_a, "user", wire)
+    loaded_a = load_thread_messages(tid_a)
+    assert loaded_a[0]["content"] == wire
+
+    tid_b = create_devagent_thread(title="c2 batch save", orchestrator_slug="dev_agent")
+    save_thread_messages(tid_b, [{"role": "user", "content": wire}])
+    loaded_b = load_thread_messages(tid_b)
+    assert loaded_b[0]["content"] == wire

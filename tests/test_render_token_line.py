@@ -136,3 +136,28 @@ def test_clipboard_button_copy_url_params_mode():
     assert json.loads(_attr_value(payload, "data-params")) == params
     assert "url.searchParams.set" in payload
     assert "new URL(window.location.href)" in payload
+
+
+def test_format_token_line_localized_labels(tmp_path, monkeypatch):
+    """Localized labels resolve through i18n; missing keys fall back to English."""
+    from core import i18n as i18n_mod
+
+    lang_file = tmp_path / "testish.json"
+    lang_file.write_text(json.dumps({
+        "lang_display_name": "Testish",
+        "token_line_cache": "CACHE",
+        "token_line_context_current": "CTX",
+        "token_line_in": "IN",
+        "token_line_out": "OUT",
+        "token_line_total": "TOT",
+    }, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(i18n_mod, "get_langs", lambda: {"Testish": str(lang_file)})
+    i18n_mod.load_lang_data.cache_clear()
+    try:
+        html = format_token_line(100, 1000, 20, tokens_cache=500, lang="Testish")
+    finally:
+        i18n_mod.load_lang_data.cache_clear()
+
+    assert "CTX" in html
+    assert "/ TOT: 1,020" in html
+    assert "(IN 1,000 / CACHE 50% / OUT 20)" in html

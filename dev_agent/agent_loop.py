@@ -68,8 +68,10 @@ import inspect
 import json
 import os
 import re
+import uuid
 from datetime import datetime
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 from core.api_layer import send_request
@@ -159,27 +161,199 @@ def _now_ts() -> str:
 _TOOL_RESULT_PREFIX = '{"tool_result"'
 _AUTO_CONTINUE_PREFIX = "AUTO_CONTINUE:"
 
-# ── Tool-result size cap (context-overflow protection) ──────────────────────
+# ── Tool-result size policy (context-overflow protection + spill) ───────────
 # A single tool_result must never blow up the model context window
 # (incident: a 1.65M-character tool_result caused HTTP 400 context
-# overflow). Results up to this many serialized characters are passed to
-# the model unchanged; larger results are NOT forwarded at all - the model
-# receives an explicit ok=False error stating the size instead.
+# overflow). Two thresholds:
+#   * _TOOL_RESULT_INLINE_LIMIT - a result whose serialized
+#     ``{"tool_result": ...}`` document is larger is SPILLED to
+#     ``<PROJECT_ROOT>/.dev_agent/tool_results/`` BEFORE its first send and
+#     replaced by a bounded head+tail preview carrying ``spill_path`` (the
+#     full payload stays readable with the read_file tool). The model never
+#     saw the untruncated version, so from the cache viewpoint the
+#     replacement is append-only (DSH principle P6: budget the tail, keep
+#     truncation recoverable).
+#   * MAX_TOOL_RESULT_CHARS - hard emergency fallback for the case when the
+#     spill cannot be written: results up to this size pass through
+#     unchanged (the storage layer still compacts them), anything larger is
+#     replaced by an explicit ok=False error stating the size.
 MAX_TOOL_RESULT_CHARS: int = 200_000
 
+# Threshold above which a tool_result is spilled to disk and replaced by a
+# bounded preview.
+_TOOL_RESULT_INLINE_LIMIT: int = 20_000
 
-def _apply_tool_result_cap(result: Dict[str, Any]) -> Dict[str, Any]:
-    """Return a context-safe copy/version of a tool result.
+# Head/tail budget (characters) of a spilled-result preview. If the preview
+# still exceeds _TOOL_RESULT_INLINE_LIMIT after bounding, both sides shrink
+# deterministically by _TOOL_RESULT_PREVIEW_SHRINK until it fits.
+_TOOL_RESULT_PREVIEW_SIDE: int = 8_000
+_TOOL_RESULT_PREVIEW_SHRINK: float = 0.85
 
-    Results up to MAX_TOOL_RESULT_CHARS serialized characters are returned
-    unchanged. Larger results are replaced by an explicit error dict
-    (``result_too_large=True`` + ``result_size``) so the payload never
-    reaches the model context.
+# Rotation: keep only this many newest spill files in .dev_agent/tool_results.
+_TOOL_RESULT_SPILL_KEEP: int = 100
+
+
+def _tool_results_dir() -> Path:
+    """Return the spill directory for oversized tool results (not created).
+
+    Mirrors ``dev_agent.task_state``: runtime artifacts live under
+    ``<PROJECT_ROOT>/.dev_agent/``. PROJECT_ROOT is read lazily from
+    dev_agent.config so workspace switches and test sandboxes are honoured.
     """
     try:
-        size = len(json.dumps(result, ensure_ascii=False))
+        from dev_agent import config as _cfg
+        root = Path(_cfg.PROJECT_ROOT)
     except Exception:
-        size = len(str(result))
+        root = Path(os.getcwd())
+    return root / ".dev_agent" / "tool_results"
+
+
+def _rotate_tool_result_spills(directory: Path) -> None:
+    """Best-effort rotation: keep only the newest _TOOL_RESULT_SPILL_KEEP files."""
+    try:
+        files = [p for p in directory.glob("tool_result_*.json") if p.is_file()]
+        if len(files) <= _TOOL_RESULT_SPILL_KEEP:
+            return
+        files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        for stale in files[_TOOL_RESULT_SPILL_KEEP:]:
+            try:
+                stale.unlink()
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+def _spill_tool_result_doc(doc: str, tool_name: str = "") -> Optional[str]:
+    """Write the full tool_result document to disk; return its relative path.
+
+    The file lands in ``<PROJECT_ROOT>/.dev_agent/tool_results/`` as a plain
+    JSON document the model can read back with ``read_file``. Runtime
+    artifacts are written directly (not through the source-writer guards):
+    the directory is DevAgent's own hidden runtime area, never project
+    source. Returns None when the file cannot be written, so the caller
+    falls back to the hard size cap.
+    """
+    directory = _tool_results_dir()
+    directory.mkdir(parents=True, exist_ok=True)
+    safe_tool = re.sub(r"[^A-Za-z0-9_.-]", "_", str(tool_name or "tool"))[:40]
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    name = f"tool_result_{safe_tool}_{stamp}_{uuid.uuid4().hex[:8]}.json"
+    target = directory / name
+    target.write_text(doc, encoding="utf-8")
+    _rotate_tool_result_spills(directory)
+    try:
+        from dev_agent import config as _cfg
+        return target.relative_to(Path(_cfg.PROJECT_ROOT)).as_posix()
+    except Exception:
+        return str(target)
+
+
+def _compact_result_fields(tr: Dict[str, Any]) -> Dict[str, Any]:
+    """Reduce a tool-result dict to scalar fields plus a ``bulk_sizes`` map.
+
+    List values are replaced by their element count, dicts and known bulk
+    fields by their serialized size, oversized scalar strings by a truncated
+    head plus ``<key>_full_len``. Shared by the storage summary and by the
+    spilled-result preview so both carry the same control fields.
+    """
+    if not isinstance(tr, dict):
+        return {}
+    compact: Dict[str, Any] = {}
+    sizes: Dict[str, Any] = {}
+    for key, value in tr.items():
+        if isinstance(value, (list, tuple)):
+            sizes[key] = len(value)
+            continue
+        if isinstance(value, dict) or key in _TOOL_RESULT_BULK_KEYS:
+            try:
+                sizes[key] = len(json.dumps(value, ensure_ascii=False))
+            except Exception:
+                sizes[key] = len(str(value))
+            continue
+        if isinstance(value, str) and len(value) > _TOOL_RESULT_STORAGE_FIELD_LIMIT:
+            compact[key] = value[:_TOOL_RESULT_STORAGE_FIELD_LIMIT]
+            compact[key + "_full_len"] = len(value)
+            continue
+        compact[key] = value
+    if sizes:
+        compact["bulk_sizes"] = sizes
+    return compact
+
+
+def _build_tool_result_preview(result: Any, doc: str, size: int,
+                               spill_path: str) -> Dict[str, Any]:
+    """Build a bounded head+tail preview of a spilled tool result.
+
+    Control fields of *result* (scalars + ``bulk_sizes``) are copied, *doc*
+    contributes the ordered head and tail of the preview budget. The total
+    serialized preview is kept within ``_TOOL_RESULT_INLINE_LIMIT`` so the
+    sent (wire) document and the stored document can stay byte-identical.
+    """
+    head_budget = _TOOL_RESULT_PREVIEW_SIDE
+    tail_budget = _TOOL_RESULT_PREVIEW_SIDE
+    preview: Dict[str, Any] = {}
+    while True:
+        preview = _compact_result_fields(result if isinstance(result, dict) else {})
+        preview["truncated"] = True
+        preview["spill_path"] = spill_path
+        preview["spill_size"] = size
+        preview["head"] = doc[:head_budget]
+        preview["tail"] = doc[-tail_budget:] if tail_budget else ""
+        preview["note"] = (
+            "Result too large for the model context: the full payload is "
+            "spilled to spill_path and readable with read_file "
+            "(use offset/limit). head+tail are the ordered beginning and end."
+        )
+        try:
+            wire_len = len(json.dumps({"tool_result": preview}, ensure_ascii=False))
+        except Exception:
+            return preview
+        if wire_len <= _TOOL_RESULT_INLINE_LIMIT:
+            return preview
+        if head_budget <= 200 and tail_budget <= 200:
+            return preview
+        head_budget = max(100, int(head_budget * _TOOL_RESULT_PREVIEW_SHRINK))
+        tail_budget = max(100, int(tail_budget * _TOOL_RESULT_PREVIEW_SHRINK))
+
+
+def _apply_tool_result_cap(result: Dict[str, Any], tool_name: str = "") -> Dict[str, Any]:
+    """Apply the tool-result size policy; return a context-safe result.
+
+    Three outcomes by the serialized ``{"tool_result": ...}`` document size:
+
+    * up to ``_TOOL_RESULT_INLINE_LIMIT`` - returned unchanged;
+    * above the inline limit - the full document is spilled to
+      ``<PROJECT_ROOT>/.dev_agent/tool_results/`` and the result is replaced
+      by a bounded head+tail preview carrying ``spill_path`` (readable back
+      with the read_file tool). The replacement happens BEFORE the first
+      send, so no untruncated payload ever enters the model context;
+    * above ``MAX_TOOL_RESULT_CHARS`` AND the spill write failed - replaced
+      by an explicit error dict (``result_too_large=True`` +
+      ``result_size``) so even then the payload never reaches the model.
+
+    Parameters
+    ----------
+    result : dict
+        Raw tool result about to be packaged as ``{"tool_result": result}``.
+    tool_name : str
+        Tool the result came from (used only in the spill file name).
+    """
+    try:
+        doc = json.dumps({"tool_result": result}, ensure_ascii=False)
+    except Exception:
+        doc = ""
+    size = len(doc) if doc else len(str(result))
+    if size <= _TOOL_RESULT_INLINE_LIMIT:
+        return result
+    spill_path: Optional[str] = None
+    if doc:
+        try:
+            spill_path = _spill_tool_result_doc(doc, tool_name)
+        except Exception:
+            spill_path = None
+    if spill_path:
+        return _build_tool_result_preview(result, doc, size, spill_path)
     if size <= MAX_TOOL_RESULT_CHARS:
         return result
     return {
@@ -202,12 +376,29 @@ def _apply_tool_result_cap(result: Dict[str, Any]) -> Dict[str, Any]:
 # to _TOOL_RESULT_STORAGE_KEEP_LIMIT characters are kept verbatim; larger
 # ones are reduced to their scalar fields, with bulk fields replaced by their
 # serialized size. Unparseable JSON is kept best-effort up to the fallback
-# limit.
+# limit. The loop joins one step's results with "\n", one single-line JSON
+# document per call; the splitter below processes each document separately,
+# so small documents - among them every spilled-result preview, which is
+# bounded by _TOOL_RESULT_INLINE_LIMIT - are stored byte-verbatim and the
+# stored form matches the wire form sent to the model.
 _TOOL_RESULT_STORAGE_KEEP_LIMIT: int = 50_000
 _TOOL_RESULT_STORAGE_FIELD_LIMIT: int = 400
 _TOOL_RESULT_STORAGE_FALLBACK_LIMIT: int = 10_000
 
 _ECONOMY_INPUT_BUDGET_RATIO: float = 0.8
+
+# Hysteresis watermark of the economy token budget: once the estimate
+# exceeds the budget (the high watermark), it is cut down to this ratio of
+# the budget (the low watermark). The freed headroom lets the caller keep
+# the same window front across the following steps, so the front moves
+# rarely and by large steps instead of sliding one message per request.
+_ECONOMY_TRIM_LOW_RATIO: float = 0.75
+
+# Safety pad (tokens) kept below the guard's effective history cap when the
+# economy budget is aligned with core.context_guard.history_cap: the pad
+# covers the per-request user message so the stateless guard trim stays
+# unused in economy mode and the sent-window front keeps its position.
+_ECONOMY_GUARD_MARGIN: int = 2048
 
 
 # Keys that typically carry large payloads and must not be persisted in full.
@@ -218,32 +409,16 @@ _TOOL_RESULT_BULK_KEYS = frozenset({
 })
 
 
-def summarize_tool_result_for_storage(content: str) -> str:
-    """Return a compact, DB-safe form of a hidden tool_result payload.
+def _summarize_single_tool_result_doc(content: str) -> str:
+    """Compact ONE tool_result document (a single line of wire content).
 
-    Small results (up to ``_TOOL_RESULT_STORAGE_KEEP_LIMIT`` serialized
-    characters) are returned unchanged. Larger results are reduced to their
-    scalar fields (*ok*, *path*, *error*, *applied*, counts, ...); list-like
-    values and known bulk fields are replaced by their size in a
-    ``bulk_sizes`` map, and oversized scalar strings are truncated with their
-    full length recorded. Unparseable JSON (and non-tool_result text) is
-    returned best-effort up to ``_TOOL_RESULT_STORAGE_FALLBACK_LIMIT``
-    characters.
-
-    Parameters
-    ----------
-    content : str
-        The raw persisted message content (possibly a
-        ``{"tool_result": ...}`` JSON payload).
-
-    Returns
-    -------
-    str
-        Either the original content (small / not a tool_result) or the
-        compact summary JSON.
+    Documents up to ``_TOOL_RESULT_STORAGE_KEEP_LIMIT`` characters are
+    returned byte-verbatim, keeping the wire == stored invariant for small
+    results and for every spilled-result preview (bounded by
+    ``_TOOL_RESULT_INLINE_LIMIT``). Larger documents are parsed and reduced
+    via ``_compact_result_fields``; unparseable oversized input is
+    truncated raw to ``_TOOL_RESULT_STORAGE_FALLBACK_LIMIT``.
     """
-    if not isinstance(content, str) or not content.startswith(_TOOL_RESULT_PREFIX):
-        return content
     if len(content) <= _TOOL_RESULT_STORAGE_KEEP_LIMIT:
         return content
     try:
@@ -253,26 +428,43 @@ def summarize_tool_result_for_storage(content: str) -> str:
     tr = data.get("tool_result")
     if not isinstance(tr, dict):
         return content[:_TOOL_RESULT_STORAGE_FALLBACK_LIMIT]
-    compact: Dict[str, Any] = {}
-    sizes: Dict[str, Any] = {}
-    for key, value in tr.items():
-        if isinstance(value, (list, tuple)):
-            sizes[key] = len(value)
-            continue
-        if isinstance(value, dict) or key in _TOOL_RESULT_BULK_KEYS:
-            try:
-                sizes[key] = len(json.dumps(value, ensure_ascii=False))
-            except Exception:
-                sizes[key] = len(str(value))
-            continue
-        if isinstance(value, str) and len(value) > _TOOL_RESULT_STORAGE_FIELD_LIMIT:
-            compact[key] = value[:_TOOL_RESULT_STORAGE_FIELD_LIMIT]
-            compact[key + "_full_len"] = len(value)
-            continue
-        compact[key] = value
-    if sizes:
-        compact["bulk_sizes"] = sizes
+    compact = _compact_result_fields(tr)
     return json.dumps({"tool_result": compact}, ensure_ascii=False)
+
+
+def summarize_tool_result_for_storage(content: str) -> str:
+    """Return a compact, DB-safe form of hidden tool_result message content.
+
+    The loop packs one step's results as newline-joined single-line JSON
+    documents (``{"tool_result": ...}``), so the input may hold several
+    documents. Each document is processed separately by
+    ``_summarize_single_tool_result_doc``: small documents (<= 50k chars)
+    are stored byte-verbatim, larger ones are reduced to their scalar
+    fields with a ``bulk_sizes`` map (emergency path for results the spill
+    could not handle), and unparseable oversized ones are truncated raw to
+    the fallback limit.
+
+    Parameters
+    ----------
+    content : str
+        The raw persisted message content (a ``{"tool_result": ...}`` JSON
+        payload, possibly several newline-joined documents).
+
+    Returns
+    -------
+    str
+        Either the original content (small / not a tool_result) or the
+        compacted form keeping the same document structure.
+    """
+    if not isinstance(content, str) or not content.startswith(_TOOL_RESULT_PREFIX):
+        return content
+    if len(content) <= _TOOL_RESULT_STORAGE_KEEP_LIMIT:
+        return content
+    if "\n" not in content:
+        return _summarize_single_tool_result_doc(content)
+    return "\n".join(
+        _summarize_single_tool_result_doc(part) for part in content.split("\n")
+    )
 
 _CONFIRMATION_REQUEST_PATTERNS = [
     re.compile(p, re.IGNORECASE)
@@ -1307,14 +1499,121 @@ def _maybe_task_state_context() -> Optional[str]:
         return None
 
 
-def _with_task_state(history: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Append the current task state to *history* when it exists."""
-    ts_text = _maybe_task_state_context()
-    if not ts_text:
-        return history
-    out = list(history)
-    out.append({"role": "system", "content": ts_text, "hidden": True})
-    return out
+# ── Append-only context snapshots (task state / thread context) ───────────
+# Cache-friendly design: snapshots are NOT re-injected between the economy
+# window and the step payload on every request (that ephemeral seam broke
+# the byte-stable prefix providers cache). Instead each snapshot is appended
+# to ``state.history`` as a hidden system message, and only when its content
+# actually changed, so the wire sequence of request N+1 is a strict
+# extension of request N. If the latest snapshot of a kind slides out of the
+# sent window, one fresh copy is appended to the tail again (append-only:
+# past messages are never rewritten).
+
+_SNAPSHOT_TS = "task_state"
+_SNAPSHOT_TC = "thread_context"
+_SNAPSHOT_TS_HEAD = "CURRENT TASK STATE"
+_SNAPSHOT_TC_HEAD = "## CURRENT THREAD ARTIFACTS DIR"
+_SNAPSHOT_SUPERSEDE_NOTE = (
+    "\n\nNote: if several snapshots of this kind appear, the "
+    "LAST one is current."
+)
+
+
+def _snapshot_kind_of(msg: Dict[str, Any]) -> Optional[str]:
+    """Return the snapshot kind of a history message, or None.
+
+    In memory the kind comes from the ``_snapshot_kind`` marker; after a
+    DB round-trip (the marker is not persisted) it is recognised by the
+    stable content prefix of the block.
+    """
+    if not isinstance(msg, dict) or msg.get("role") != "system":
+        return None
+    kind = msg.get("_snapshot_kind")
+    if kind in (_SNAPSHOT_TS, _SNAPSHOT_TC):
+        return kind
+    content = str(msg.get("content") or "")
+    if content.startswith(_SNAPSHOT_TS_HEAD):
+        return _SNAPSHOT_TS
+    if content.startswith(_SNAPSHOT_TC_HEAD):
+        return _SNAPSHOT_TC
+    return None
+
+
+def _last_snapshot(history: List[Dict[str, Any]], kind: str) -> Optional[Dict[str, Any]]:
+    """Return the latest snapshot message of *kind* in *history*, or None."""
+    for msg in reversed(history):
+        if _snapshot_kind_of(msg) == kind:
+            return msg
+    return None
+
+
+def _snapshot_content(text: str) -> str:
+    """Final content of a snapshot block (block text + supersede note)."""
+    return (text or "").rstrip() + _SNAPSHOT_SUPERSEDE_NOTE
+
+
+def _append_context_snapshot(state: "AgentLoopState", kind: str,
+                             text: str) -> Dict[str, Any]:
+    """Append ONE hidden system snapshot to the history chain."""
+    entry: Dict[str, Any] = {
+        "role": "system",
+        "content": _snapshot_content(text),
+        "hidden": True,
+        "ts": _now_ts(),
+        "_snapshot_kind": kind,
+        "_index": state.next_index,
+        "_category": "system_notice",
+        "_summary": f"context snapshot: {kind}",
+    }
+    state.next_index += 1
+    state.history.append(entry)
+    return entry
+
+
+def refresh_context_snapshots(state: "AgentLoopState") -> int:
+    """Append changed task-state / thread-context snapshots to history.
+
+    Called at the start of every LLM step BEFORE the economy window is
+    built. Each kind is appended only when its content changed, so an
+    unchanged step adds nothing and the request prefix stays byte-stable.
+    The latest snapshot is guaranteed to be in the outgoing payload via
+    ``_ensure_snapshot_visibility``. Returns the number of appended
+    snapshots.
+    """
+    appended = 0
+    for kind, text in (
+        (_SNAPSHOT_TS, _maybe_task_state_context()),
+        (_SNAPSHOT_TC, _maybe_thread_context(state)),
+    ):
+        if not text:
+            continue
+        content = _snapshot_content(text)
+        last = _last_snapshot(state.history, kind)
+        if last is not None and str(last.get("content") or "") == content:
+            continue
+        _append_context_snapshot(state, kind, text)
+        appended += 1
+    return appended
+
+
+def _ensure_snapshot_visibility(state: "AgentLoopState",
+                                effective_history: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Re-append the latest snapshot of each kind when it fell out of the window.
+
+    Append-only: a fresh copy with the same content goes to the END of both
+    the history chain and the outgoing list, so the request prefix grows
+    instead of being rewritten. No-op when the snapshot is already present.
+    """
+    for kind in (_SNAPSHOT_TS, _SNAPSHOT_TC):
+        last = _last_snapshot(state.history, kind)
+        if last is None or last in effective_history:
+            continue
+        copy = dict(last)
+        copy["_index"] = state.next_index
+        state.next_index += 1
+        state.history.append(copy)
+        effective_history.append(copy)
+    return effective_history
 
 
 # ── Thread context (thread_id + thread files dir) ─────────────────────────
@@ -1362,14 +1661,6 @@ def _maybe_thread_context(state: "AgentLoopState") -> Optional[str]:
     return "\n".join(lines)
 
 
-def _with_thread_context(history: List[Dict[str, Any]], state: "AgentLoopState") -> List[Dict[str, Any]]:
-    """Append the current thread context to *history* when set."""
-    ctx_text = _maybe_thread_context(state)
-    if not ctx_text:
-        return history
-    out = list(history)
-    out.append({"role": "system", "content": ctx_text, "hidden": True})
-    return out
 
 
 # Economy mode helpers
@@ -1522,16 +1813,27 @@ def _estimate_messages_tokens(messages: List[Dict[str, Any]]) -> int:
 
 
 def _enforce_history_token_budget(messages: List[Dict[str, Any]],
-                                  assistant: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
-    """Trim the oldest messages so the context fits the token budget (M3).
+                                  assistant: Optional[Dict[str, Any]] = None,
+                                  state: Optional["AgentLoopState"] = None) -> List[Dict[str, Any]]:
+    """Trim the oldest messages so the context fits the token budget (M3/B2).
 
     Resolves the model's context window and configured output limit for
     *assistant*; the budget is ``window * _ECONOMY_INPUT_BUDGET_RATIO``
     minus the output limit. The head element (the compact metadata system
     message) is always preserved and trimming happens strictly from the
     front, so the most recent turns survive. Returns the list unchanged
-    when the window cannot be resolved (unknown service/model) or when
-    nothing can be trimmed.
+    when the window cannot be resolved (unknown service/model).
+
+    Hysteresis (B2): the budget acts as the HIGH watermark - while the
+    payload fits it, nothing moves. Once the payload exceeds it, whole
+    leading messages are dropped in one step down to the LOW watermark
+    ``budget * _ECONOMY_TRIM_LOW_RATIO`` and the dropped count is folded
+    into ``state.economy_anchor`` (cache-friendly mode, *state* given) so
+    the sent window front stays put until the payload grows back over the
+    budget. Without the fold the trim re-ran on every step and slid the
+    front message by message, invalidating the provider prefix cache from
+    the cut point on every request. *state* stays None in legacy mode,
+    where the front is recomputed per call anyway.
     """
     if not assistant or not isinstance(assistant, dict) or len(messages) <= 2:
         return messages
@@ -1539,27 +1841,60 @@ def _enforce_history_token_budget(messages: List[Dict[str, Any]],
     if not svc_name:
         return messages
     try:
+        from core.context_guard import history_cap
         from core.files import get_model_context_window
         from core.services import get_services
-        from core.api_layer import _get_model_max_tokens
+        from core.api_layer import _clamp_max_tokens, _get_model_max_tokens
 
         services = get_services()
         window = int(get_model_context_window(assistant, services))
         model_id = str(assistant.get("model", "") or "").strip()
         svc = services.get(svc_name, {})
-        max_out = int(_get_model_max_tokens(svc, model_id) or 0)
+        # The same effective output limit the guard will see in
+        # send_request: the configured value falls back to the catalog
+        # default and is clamped to the model's declared limit.
+        max_out = int(_clamp_max_tokens(
+            assistant.get("max_tokens") or _get_model_max_tokens(svc, model_id),
+            svc, model_id) or 0)
         budget = int(window * _ECONOMY_INPUT_BUDGET_RATIO)
         if max_out:
             budget = max(0, budget - max_out)
+        # B3: align the economy budget with the guard's effective history
+        # cap (soft threshold minus reserve minus the fixed prompt) and keep
+        # a small margin for the per-request user message. Staying BELOW the
+        # guard means the stateless guard trim never slides the sent-window
+        # front on saturation.
+        prompt_tokens = _estimate_messages_tokens(
+            [{"role": "system", "content": str(assistant.get("text", "") or "")}])
+        cap = history_cap(window, max_out, prompt_tokens) - _ECONOMY_GUARD_MARGIN
+        budget = min(budget, max(0, cap))
     except Exception:
         return messages
     keep_head = messages[:1]
     body = list(messages[1:])
+    used = _estimate_messages_tokens(keep_head) + _estimate_messages_tokens(body)
+    if used <= budget:
+        # Under the high watermark: nothing moves, the window front stays
+        # put and the provider prefix stays reusable.
+        return messages
+    low = int(budget * _ECONOMY_TRIM_LOW_RATIO)
     while len(body) > 1:
         used = _estimate_messages_tokens(keep_head) + _estimate_messages_tokens(body)
-        if used <= budget:
+        if used <= low:
             break
         body.pop(0)
+    if state is not None:
+        # Fold the cut into the sent-window anchor (cache-friendly mode
+        # only): the window front IS the anchor, so advancing it by the
+        # dropped count keeps the next build from re-including the
+        # messages dropped here.
+        dropped = len(messages) - 1 - len(body)
+        anchor = getattr(state, "economy_anchor", None)
+        if dropped and anchor is not None:
+            try:
+                state.economy_anchor = int(anchor) + dropped
+            except Exception:
+                pass
     return keep_head + body
 
 
@@ -1589,12 +1924,17 @@ def build_economy_context(state: "AgentLoopState",
     mode that message contains only static fields so it does not break the
     prefix cache.
 
-    Token budget (M3, active when *assistant* is given): before returning,
-    the oldest sent messages are additionally trimmed by
+    Token budget (M3/B2, active when *assistant* is given): before
+    returning, the oldest sent messages are additionally trimmed by
     ``_enforce_history_token_budget`` so the estimated input plus the
     model configured max_tokens stays within
     ``window * _ECONOMY_INPUT_BUDGET_RATIO``. The metadata message is
-    always preserved. Without *assistant* the budget step is skipped.
+    always preserved. In cache-friendly mode the trim is a threshold
+    operation with hysteresis: it runs only when the payload exceeds the
+    budget, then cuts several messages at once down to the low watermark
+    and folds the cut into ``economy_anchor``, so the sent-window front
+    (the cached prefix) stays put between rare, large cuts. Without
+    *assistant* the budget step is skipped.
     """
     history = state.history
     if state.economy_tail_messages is not None and int(state.economy_tail_messages) > 0:
@@ -1640,7 +1980,7 @@ def build_economy_context(state: "AgentLoopState",
             state.economy_anchor = max(0, total - tail)
 
     result.extend(history[state.economy_anchor:])
-    return _enforce_history_token_budget(result, assistant)
+    return _enforce_history_token_budget(result, assistant, state=state)
 
 
 def carry_over_economy_cache(source: Optional["AgentLoopState"],
@@ -2159,18 +2499,22 @@ def _step_agent_loop_impl(
             emit({"type": "phase", "phase": "calling_llm", "step": state.steps,
                   "strength": strength, "model": assistant.get("model")})
 
+            # Refresh append-only context snapshots BEFORE the economy window
+            # is built: unchanged snapshots add nothing (byte-stable prefix),
+            # changed ones grow the chain instead of rewriting the seam
+            # between the sent window and the step payload.
+            refresh_context_snapshots(state)
+
             if state.economy_mode:
                 effective_history = build_economy_context(state, assistant)
             else:
-                effective_history = state.history
+                effective_history = list(state.history)
 
-            # ── External memory: append the current task state (when present)
-            # so the model always sees architecture/plan/progress without
-            # digging through history. ───────────────────────────────────────
-            effective_history = _with_task_state(effective_history)
-            # ── Thread context: tell the model where non-project artifacts
-            # of this dialog are saved (thread_id + thread_files_dir). ─────
-            effective_history = _with_thread_context(effective_history, state)
+            # ── Snapshot visibility: the latest task-state / thread-context
+            # snapshot must be inside the outgoing window; when it slid out,
+            # one fresh copy is appended to the tail (append-only: the wire
+            # prefix of previous requests is never rewritten). ─────────────
+            effective_history = _ensure_snapshot_visibility(state, effective_history)
 
             if hasattr(dispatcher, 'core') and hasattr(dispatcher.core, 'set_history'):
                 dispatcher.core.set_history(state.history)

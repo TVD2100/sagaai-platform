@@ -520,17 +520,19 @@ class ToolExecutor:
             args = _coerce_numeric_args(method, args)
             result = method(**args)
             # ── Tool-result size cap (context-overflow protection) ──────────
-            # A result larger than MAX_TOOL_RESULT_CHARS serialized characters
-            # is NOT returned (the agent loop / UI would otherwise inject the
-            # payload into the model context): an explicit ok=False error with
-            # the measured size is produced instead. Guard implemented in
-            # dev_agent.agent_loop (_apply_tool_result_cap); lazy import keeps
-            # module loading order safe.
+            # Results above _TOOL_RESULT_INLINE_LIMIT serialized characters
+            # are spilled to disk before the first send and replaced by a
+            # bounded preview; above MAX_TOOL_RESULT_CHARS an explicit
+            # ok=False size error is returned instead (the agent loop / UI
+            # would otherwise inject the payload into the model context).
+            # Policy implemented in dev_agent.agent_loop
+            # (_apply_tool_result_cap); lazy import keeps module loading
+            # order safe.
             if tool_name in ("propose_file", "apply_patch") and result.get("applied") is False:
                 return result
             try:
                 from .agent_loop import _apply_tool_result_cap
-                return _apply_tool_result_cap(result)
+                return _apply_tool_result_cap(result, tool_name)
             except Exception:
                 return result
         except TypeError as e:

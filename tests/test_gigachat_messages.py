@@ -3,10 +3,14 @@
 
 The GigaChat provider accepts AT MOST ONE system message and it must be the
 FIRST element of ``messages`` (HTTP 422 otherwise). The orchestrator loop
-injects service system blocks (economy-mode metadata, external task state,
-thread context) into the middle of the history, which used to break every
-GigaChat-orchestrated dialog. These tests pin the normalisation done by
-``_gigachat_messages`` and the per-model max_tokens clamp in ``send_request``.
+injects service system blocks into the history: the economy-mode metadata
+is PREPENDED as a leading block, while the append-only context snapshots
+(external task state, thread context) sit in the middle. To keep the
+request head byte-stable for provider-side prefix caching,
+``_gigachat_messages`` folds only LEADING system blocks into the single
+leading system message; mid-history blocks keep their position and are
+emitted with the ``user`` role. These tests pin that normalisation and the
+per-model max_tokens clamp in ``send_request``.
 """
 from __future__ import annotations
 
@@ -45,22 +49,41 @@ DEEPSEEK_SVC = {
 
 # --- _gigachat_messages -----------------------------------------------------
 
-def test_single_leading_system_message_folds_history_system_blocks():
-    """One system message, first; in-history system blocks are folded into it."""
+def test_leading_system_folds_and_mid_history_blocks_become_user_role():
+    """Only LEADING system blocks fold into the single system message;
+    mid-history blocks keep their position as user-role messages."""
     hist = [
-        {"role": "user", "content": "hi"},
         {"role": "system", "content": "ECONOMY MODE: ENABLED"},
+        {"role": "user", "content": "hi"},
         {"role": "assistant", "content": "hello"},
         {"role": "system", "content": "CURRENT TASK STATE"},
     ]
     msgs = _gigachat_messages("SYS PROMPT", hist, "question")
 
     assert msgs[0]["role"] == "system"
-    assert msgs[0]["content"].startswith("SYS PROMPT")
-    assert "ECONOMY MODE: ENABLED" in msgs[0]["content"]
-    assert "CURRENT TASK STATE" in msgs[0]["content"]
+    assert msgs[0]["content"] == "SYS PROMPT\n\nECONOMY MODE: ENABLED"
     assert sum(1 for m in msgs if m["role"] == "system") == 1
-    assert [m["role"] for m in msgs[1:]] == ["user", "assistant", "user"]
+    # Positions are preserved; the mid-history block became a user message.
+    assert [m["role"] for m in msgs] == ["system", "user", "assistant", "user"]
+    assert msgs[3]["content"] == "CURRENT TASK STATE\n\nquestion"
+
+
+def test_mid_history_snapshot_change_keeps_head_byte_stable():
+    """A changed mid-history snapshot must not alter the leading system
+    message: the request head stays byte-stable for prefix caching."""
+    base = [
+        {"role": "system", "content": "ECONOMY MODE: ENABLED"},
+        {"role": "user", "content": "hi"},
+    ]
+    msgs_a = _gigachat_messages("SYS PROMPT", base + [
+        {"role": "system", "content": "CURRENT TASK STATE: step 1"},
+    ], "q")
+    msgs_b = _gigachat_messages("SYS PROMPT", base + [
+        {"role": "assistant", "content": "ok"},
+        {"role": "system", "content": "CURRENT TASK STATE: step 2"},
+    ], "q")
+
+    assert msgs_a[0] == msgs_b[0]
 
 
 def test_consecutive_same_roles_are_merged():
@@ -188,8 +211,12 @@ def test_gigachat_wire_payload_has_single_leading_system_and_clamped_tokens():
     payload = session.post.call_args[1]["json"]
     msgs = payload["messages"]
     assert msgs[0]["role"] == "system"
-    assert "SYS PROMPT" in msgs[0]["content"]
-    assert "ECONOMY MODE: ENABLED" in msgs[0]["content"]
-    assert "CURRENT TASK STATE" in msgs[0]["content"]
+    # Only LEADING system blocks fold into the head: this history starts
+    # with a user message, so the two service blocks keep their position
+    # as user-role messages and the head holds just the prompt.
+    assert msgs[0]["content"] == "SYS PROMPT"
     assert not any(m["role"] == "system" for m in msgs[1:])
+    joined = "\n".join(m["content"] for m in msgs[1:] if m["role"] == "user")
+    assert "ECONOMY MODE: ENABLED" in joined
+    assert "CURRENT TASK STATE" in joined
     assert payload["max_tokens"] == 32768

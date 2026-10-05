@@ -2,9 +2,9 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Вы можете править этот файл вручную; при следующей доработке DevAgent учтёт ваши правки.
 
-- Обновлено: `2026-10-03T09:45:16+00:00`
-- Файлов: **1243**
-- Языки: Config: 1, JSON: 22, Markdown: 963, PEM certificate: 1, Python: 260, Text: 1
+- Обновлено: `2026-10-04T20:59:08+00:00`
+- Файлов: **1318**
+- Языки: Config: 1, JSON: 22, Markdown: 1035, PEM certificate: 1, Python: 263, Text: 1
 
 ## Файлы и назначение
 
@@ -24,10 +24,10 @@
 | `ui/pages/__init__.py` | Python | Package marker | - |
 | `ui/pages/access.py` | Python | _(описание не задано)_ | - |
 | `ui/pages/assistants.py` | Python | Assistants management page (create/edit/delete assistant profiles, files, tools) | - |
-| `ui/pages/chat.py` | Python | Chat page for AI assistants: selector, history, send form | - |
+| `ui/pages/chat.py` | Python | Chat page for AI assistants: selector, history, send form; token line rendered with the UI language | - |
 | `ui/pages/connectors.py` | Python | _(описание не задано)_ | - |
 | `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | - |
-| `ui/pages/orchestrator.py` | Python | Reusable orchestrator page (chat/history/settings incl. skills tab; no employee export/import UI; step events attach to the user message when the first LLM call fails; per-message download/copy controls on plain-prose answers; generated image visible immediately in the feed, outside the collapsed tool-result block; empty-state reset on new/reset dialog; thread workspace meta persistence; workspace-side attachment writer removed - uploads live only in history/<tid>/files) | storage |
+| `ui/pages/orchestrator.py` | Python | Reusable orchestrator page (chat/history/settings incl. skills tab; no employee export/import UI; step events attach to the user message when the first LLM call fails; per-message download/copy controls on plain-prose answers; generated image visible immediately in the feed, outside the collapsed tool-result block; empty-state reset on new/reset dialog; thread workspace meta persistence; workspace-side attachment writer removed - uploads live only in history/<tid>/files; token-line cache key includes the UI language) | storage |
 | `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings entry page | - |
 | `ui/pages/orchestrators.py` | Python | Employees (orchestrators) management page (create/open/settings/delete; export/import deferred) | - |
 | `ui/pages/settings.py` | Python | LLM provider settings page | - |
@@ -39,7 +39,7 @@
 | `ui/pages/welcome.py` | Python | Welcome / about page | - |
 | `core/__init__.py` | Python | Package marker | - |
 | `core/api_errors.py` | Python | API error hierarchy and user messages | - |
-| `core/api_layer.py` | Python | HTTP requests to AI providers; send_request(assistant=...) with legacy skill= alias; vision/image transports (send_vision_request with bearer/yandex_iam/deepseek_responses + detail=original, send_image_generation_request) | - |
+| `core/api_layer.py` | Python | HTTP requests to AI providers; send_request(assistant=...) with legacy skill= alias; vision/image transports (send_vision_request with bearer/yandex_iam/deepseek_responses + detail=original, send_image_generation_request; provider cached-token buckets parsed on all chat transports (cached_tokens / prompt_cache_hit_tokens / precached_prompt_tokens); GigaChat folds only leading system blocks) | - |
 | `core/assistant_creator.py` | Python | Validation and linting helpers for assistant prompts | - |
 | `core/assistant_folders.py` | Python | _(описание не задано)_ | - |
 | `core/assistant_nav.py` | Python | _(описание не задано)_ | - |
@@ -49,7 +49,7 @@
 | `core/bootstrap.py` | Python | First-run provisioning: Assistant/Employee Creator instructions, DevAgent settings, legacy skill_creator migration | - |
 | `core/config.py` | Python | Configuration load/save with secret encryption and env overlay | storage |
 | `core/connectors.py` | Python | _(описание не задано)_ | - |
-| `core/context_guard.py` | Python | _(описание не задано)_ | - |
+| `core/context_guard.py` | Python | Pre-flight context guard (M4/M5): soft trim at 0.5 window, hard cap 0.8, capped output reserve min(max_out, max(4096, 0.25*window)), economy head protection, history_cap() for budget callers | - |
 | `core/crypto.py` | Python | Encryption key handling and Fernet helpers | - |
 | `core/dangerous.py` | Python | Dangerous-code assessment for run_code/run_test | - |
 | `core/default_imports.py` | Python | _(описание не задано)_ | storage |
@@ -78,7 +78,7 @@
 | `core/rag_search.py` | Python | _(описание не задано)_ | - |
 | `core/recent_assistants.py` | Python | Tracks recently used assistant IDs in session_state | - |
 | `core/recent_workspaces.py` | Python | Recent workspaces tracking, scoped per orchestrator (slug-keyed dict seeded from own threads; platform paths hidden; legacy flat list read as dev_agent) | storage |
-| `core/render.py` | Python | Markdown rendering / clipboard helpers | - |
+| `core/render.py` | Python | Markdown rendering / clipboard helpers; localized token-line labels (token_line_* i18n keys, lang parameter) | - |
 | `core/services.py` | Python | Service definitions discovery (services/*.json) | - |
 | `core/skills.py` | Python | DEPRECATED shim -> core/assistants.py (legacy aliases) | - |
 | `core/skills_library.py` | Python | Standardized skills library: registry skills.json, ZIP/GitHub/folder imports, metadata for orchestrator system prompts | - |
@@ -86,7 +86,7 @@
 | `core/ssh_tools.py` | Python | Orchestrator ssh_* tools for the SSH connector | - |
 | `core/statistics.py` | Python | _(описание не задано)_ | - |
 | `core/threads.py` | Python | Chat thread persistence for assistants | storage |
-| `core/threads_devagent.py` | Python | DevAgent/orchestrator thread persistence (devagent.db) and the thread-search service layer (search_thread_messages, list_threads_filtered, read_thread_window) with access control; thread workspace meta (last folder) and the legacy-meta cleanup migration | storage |
+| `core/threads_devagent.py` | Python | DevAgent/orchestrator thread persistence (devagent.db) and the thread-search service layer (search_thread_messages, list_threads_filtered, read_thread_window) with access control; thread workspace meta (last folder) and the legacy-meta cleanup migration; TS/TC context snapshots persisted as service blocks (search/read skip them by default) | storage |
 | `core/tools_utils.py` | Python | Tool definitions list for the Skills/Assistants pages | - |
 | `core/updater.py` | Python | _(описание не задано)_ | - |
 | `core/updater_apply.py` | Python | _(описание не задано)_ | - |
@@ -97,7 +97,9 @@
 | `tests/conftest.py` | Python | Pytest fixture bootstrap | - |
 | `tests/test_agent_loop_connection_retry.py` | Python | _(описание не задано)_ | - |
 | `tests/test_agent_loop_json_repair.py` | Python | _(описание не задано)_ | - |
-| `tests/test_agent_loop_thread_context.py` | Python | _(описание не задано)_ | storage |
+| `tests/test_agent_loop_snapshot_chain.py` | Python | Unit: persistent TS/TC snapshot chain in the agent loop | - |
+| `tests/test_agent_loop_snapshot_persistence.py` | Python | Unit: snapshot chain round-trip through the thread store | storage |
+| `tests/test_agent_loop_thread_context.py` | Python | Agent-loop thread-context tests: TS/TC snapshot chain, service-block marking, persistence round-trip | storage |
 | `tests/test_api_retry.py` | Python | _(описание не задано)_ | - |
 | `tests/test_app_imports.py` | Python | Importability tests | storage |
 | `tests/test_apply_patch.py` | Python | _(описание не задано)_ | - |
@@ -110,10 +112,10 @@
 | `tests/test_backup_and_safewriter.py` | Python | Backup/safe-writer tests | - |
 | `tests/test_chat_pagination.py` | Python | _(описание не задано)_ | - |
 | `tests/test_connectors.py` | Python | _(описание не задано)_ | - |
-| `tests/test_context_window_guard.py` | Python | _(описание не задано)_ | - |
+| `tests/test_context_window_guard.py` | Python | Context-guard tests: output-reserve formula, 32k window, economy head protection, history_cap | - |
 | `tests/test_core_api_json_schema.py` | Python | _(описание не задано)_ | - |
 | `tests/test_core_api_layer.py` | Python | Pure api_layer unit tests | - |
-| `tests/test_core_api_send.py` | Python | send_request integration tests (mocked HTTP) | - |
+| `tests/test_core_api_send.py` | Python | send_request integration tests (mocked HTTP; bearer and GigaChat cached-token buckets) | - |
 | `tests/test_core_files.py` | Python | File helpers tests | - |
 | `tests/test_crypto.py` | Python | Crypto tests | - |
 | `tests/test_db_concurrency.py` | Python | _(описание не задано)_ | storage |
@@ -124,9 +126,9 @@
 | `tests/test_devagent_thread_workspace.py` | Python | DevAgent thread workspace persistence tests | storage |
 | `tests/test_dispatcher_connections.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_dispatcher_tool_gating.py` | Python | _(описание не задано)_ | storage |
-| `tests/test_economy_history_budget.py` | Python | _(описание не задано)_ | - |
+| `tests/test_economy_history_budget.py` | Python | Economy budget tests: guard-aligned budget, low-watermark trim, economy_anchor hysteresis (frozen front) | - |
 | `tests/test_employee_management_ui.py` | Python | UI regression tests: employee management pages render and expose no export/import employee UI | - |
-| `tests/test_gigachat_messages.py` | Python | _(описание не задано)_ | - |
+| `tests/test_gigachat_messages.py` | Python | GigaChat payload tests: single leading system, mid-history system blocks keep the user role, role merging | - |
 | `tests/test_github_connector_rest.py` | Python | Unit tests for the GitHub REST connector (mock sessions) | - |
 | `tests/test_github_connector_retry.py` | Python | Unit tests for the GitHub connector GET retry policy (network errors retried; writes not retried) | - |
 | `tests/test_github_tools_rest.py` | Python | _(описание не задано)_ | - |
@@ -140,7 +142,7 @@
 | `tests/test_numeric_arg_coercion.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_chat_prefs.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_connections.py` | Python | _(описание не задано)_ | storage |
-| `tests/test_orchestrator_economy_cache.py` | Python | _(описание не задано)_ | - |
+| `tests/test_orchestrator_economy_cache.py` | Python | Orchestrator economy-cache tests: cache-friendly prefix and anchor behaviour | - |
 | `tests/test_orchestrator_folders.py` | Python | Orchestrator folder tests | storage |
 | `tests/test_orchestrator_image_result.py` | Python | UI tests: generated image shown in the chat with a download button | - |
 | `tests/test_orchestrator_message_controls.py` | Python | Per-message download/copy controls tests (plain-prose answers) | - |
@@ -166,11 +168,11 @@
 | `tests/test_rag_tools_robustness.py` | Python | _(описание не задано)_ | - |
 | `tests/test_rag_with_stats.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_recent_workspaces.py` | Python | Recent workspaces tests | storage |
-| `tests/test_render_token_line.py` | Python | Token line renderer tests | - |
+| `tests/test_render_token_line.py` | Python | Token line renderer tests; localization via the lang parameter | - |
 | `tests/test_safety_mode.py` | Python | Safety-mode gate tests | - |
 | `tests/test_sanitized_approval_flow.py` | Python | Sanitized-content approval flow tests | - |
 | `tests/test_search_in_files.py` | Python | _(описание не задано)_ | - |
-| `tests/test_service_model_catalogs.py` | Python | Vision/image model catalog tests for service profiles | - |
+| `tests/test_service_model_catalogs.py` | Python | Vision/image model catalog tests for service profiles; declared output limits | - |
 | `tests/test_sidebar_employees_nav.py` | Python | _(описание не задано)_ | - |
 | `tests/test_single_model_config.py` | Python | Single-model config tests (legacy weak_* tolerance, vision/image keys, no weak_* persistence) | storage |
 | `tests/test_skills_adaptation.py` | Python | _(описание не задано)_ | storage |
@@ -187,11 +189,11 @@
 | `tests/test_thread_deeplink.py` | Python | _(описание не задано)_ | - |
 | `tests/test_thread_file_save.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_threads_devagent_files.py` | Python | _(описание не задано)_ | storage |
-| `tests/test_threads_devagent_search.py` | Python | Unit tests for the thread-search storage/service layer: filtered listing, counts, message windows, access control | storage |
-| `tests/test_token_line_cache.py` | Python | _(описание не задано)_ | - |
+| `tests/test_threads_devagent_search.py` | Python | Unit tests for the thread-search storage/service layer: filtered listing, counts, message windows, access control; snapshot service blocks excluded by default | storage |
+| `tests/test_token_line_cache.py` | Python | Token-line cache tests: language in the cache key, re-render on language switch, localized labels | - |
 | `tests/test_tool_executor_env.py` | Python | _(описание не задано)_ | - |
-| `tests/test_tool_result_size_cap.py` | Python | _(описание не задано)_ | - |
-| `tests/test_tool_result_storage_summary.py` | Python | _(описание не задано)_ | storage |
+| `tests/test_tool_result_size_cap.py` | Python | Tool-result spill policy tests: head+tail preview, hard-cap fallback, UniversalDevAgent path | - |
+| `tests/test_tool_result_storage_summary.py` | Python | Storage-summary tests: verbatim small documents (wire==stored), batch splitter, both persist paths | storage |
 | `tests/test_tools_utils.py` | Python | _(описание не задано)_ | - |
 | `tests/test_ui_connectors_ssh.py` | Python | UI tests for the connectors page SSH support | - |
 | `tests/test_ui_pages.py` | Python | UI page tests | - |
@@ -216,13 +218,13 @@
 | `tests/scenarios/test_batch_tool_calls_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_connection_retry_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_connectors_scenarios.py` | Python | _(описание не задано)_ | storage |
-| `tests/scenarios/test_context_overflow_protection.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_context_overflow_protection.py` | Python | Scenario: context-overflow protection - spill of a huge tool result and the failed-spill hard error | - |
 | `tests/scenarios/test_employees_sidebar_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_empty_state_artifacts_scenario.py` | Python | Scenario tests: task journal and uploads never create files in a foreign project (empty state) | storage |
 | `tests/scenarios/test_first_run_flow.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_generated_image_feed_scenario.py` | Python | Scenario tests for the generated image shown immediately in the chat feed (outside the collapsed tool-result block) | - |
 | `tests/scenarios/test_gigachat_models_scenario.py` | Python | _(описание не задано)_ | - |
-| `tests/scenarios/test_gigachat_orchestrator_scenario.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_gigachat_orchestrator_scenario.py` | Python | Scenario: orchestrator run on a GigaChat-like payload (leading-system fold, error visibility) | - |
 | `tests/scenarios/test_github_read_retry_scenario.py` | Python | Scenario tests: GitHub read retries via the public API (get_user_info/create_repo), no token leaks | - |
 | `tests/scenarios/test_github_rest_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_json_repair_scenarios.py` | Python | _(описание не задано)_ | - |
@@ -239,6 +241,7 @@
 | `tests/scenarios/test_rag_context_restore.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_perf_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_recent_workspace_scopes_scenario.py` | Python | Scenario tests: per-orchestrator recent-folder menu (isolation, platform paths hidden, scoped writes) | storage |
+| `tests/scenarios/test_resume_identity_scenarios.py` | Python | Scenario: resume identity - stored thread messages round-trip byte-for-byte after reload | storage |
 | `tests/scenarios/test_search_in_files_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_skills_adaptation_scenario.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_ssh_connector_scenarios.py` | Python | Scenario tests for the SSH connector feature | storage |
@@ -291,33 +294,33 @@
 | `defaults/orchestrators/dev_agent/instructions/self_reflection.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/dev_agent/instructions/skill_developer.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/dev_agent/instructions/ssh_connector.md` | Markdown | _(описание не задано)_ | - |
-| `defaults/langs/en.json` | JSON | _(описание не задано)_ | - |
+| `defaults/langs/en.json` | JSON | UI strings (English, incl. token_line_* keys) | - |
 | `defaults/langs/en_guide.md` | Markdown | _(описание не задано)_ | - |
-| `defaults/langs/ru.json` | JSON | _(описание не задано)_ | - |
+| `defaults/langs/ru.json` | JSON | UI strings (Russian, incl. token_line_* keys) | - |
 | `defaults/langs/ru_guide.md` | Markdown | _(описание не задано)_ | - |
-| `defaults/langs/zh-CN.json` | JSON | _(описание не задано)_ | - |
+| `defaults/langs/zh-CN.json` | JSON | UI strings (Chinese, incl. token_line_* keys) | - |
 | `defaults/langs/zh_CN_guide.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/skills/README.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/skills/rag_base_creator/SKILL.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/skills/rag_base_creator/scripts/build_base.py` | Python | _(описание не задано)_ | - |
-| `defaults/services/deepseek.json` | JSON | _(описание не задано)_ | - |
+| `defaults/services/deepseek.json` | JSON | DeepSeek service definition (defaults copy; vision_base_url + vision_models catalog; declared default output limit ~32k) | - |
 | `defaults/services/gigachat.json` | JSON | _(описание не задано)_ | - |
 | `defaults/services/yandex.json` | JSON | _(описание не задано)_ | - |
 | `personal_assistant_data/calendar.json` | JSON | _(описание не задано)_ | - |
 | `personal_assistant_data/reminders.json` | JSON | _(описание не задано)_ | - |
 | `personal_assistant_data/state.json` | JSON | _(описание не задано)_ | - |
 | `personal_assistant_data/tasks.json` | JSON | _(описание не задано)_ | - |
-| `langs/en.json` | JSON | English UI strings | - |
+| `langs/en.json` | JSON | UI strings (English, incl. token_line_* keys) | - |
 | `langs/en_guide.md` | Markdown | English user guide | - |
-| `langs/ru.json` | JSON | Russian UI strings | - |
+| `langs/ru.json` | JSON | UI strings (Russian, incl. token_line_* keys) | - |
 | `langs/ru_guide.md` | Markdown | Russian user guide | - |
-| `langs/zh-CN.json` | JSON | Simplified Chinese UI strings | - |
+| `langs/zh-CN.json` | JSON | UI strings (Chinese, incl. token_line_* keys) | - |
 | `langs/zh_CN_guide.md` | Markdown | Chinese user guide | - |
 | `certs/russian_trusted_root_ca.pem` | PEM certificate | Russian Trusted Root CA certificate for GigaChat TLS | - |
 | `scripts/regenerate_project_map.py` | Python | Regenerates PROJECT_MAP.md with assistant terminology | - |
 | `scripts/verify_manifest.py` | Python | _(описание не задано)_ | - |
 | `dev_agent/__init__.py` | Python | Package marker | agent_loop, backup_manager, safe_writer, tool_executor, universal_agent, workspace_tools |
-| `dev_agent/agent_loop.py` | Python | Provider-independent agent loop (single-model routing, economy mode, strength-classified tools; per-tool failure counter, duplicate-call flood compaction, cascading JSON repair) | storage |
+| `dev_agent/agent_loop.py` | Python | Provider-independent agent loop (single-model routing, economy mode, strength-classified tools; per-tool failure counter, duplicate-call flood compaction, cascading JSON repair; persistent TS/TC snapshot chain; tool-result spill policy with head+tail preview; economy budget hysteresis with economy_anchor; batch-aware storage summary (wire==stored)) | storage |
 | `dev_agent/assistant_detector.py` | Python | Assistant detection/creation helpers (renamed from skill_detector) | storage |
 | `dev_agent/assistant_model_resolver.py` | Python | Auto model resolution for assistant creation | llm_utils |
 | `dev_agent/backup_manager.py` | Python | Per-file backup/restore manager | - |
@@ -326,8 +329,8 @@
 | `dev_agent/safe_writer.py` | Python | Safe full-file rewrite with diff/verification | backup_manager |
 | `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.17 compact task-state digest, read_file windows, PRAGMA-first; v3.16 empty-state Stage 0, task-journal and thread-files rules) | - |
 | `dev_agent/task_state.py` | Python | Per-thread task-state journal (plan/progress/handoff) with the thread-files fallback folder when no workspace is selected; compact digest (read_task_state compact=True) and budgeted injection | backup_manager |
-| `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools, legacy skill aliases, skills-library and multimodal tools; empty-state workspace guard (workspace_not_selected, neutral cwd for code=) | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
-| `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace + orchestrator tools, incl. thread search: search_in_threads / list_threads / read_thread; empty-state guard and thread workspace-meta persistence) | storage, tool_executor |
+| `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools, legacy skill aliases, skills-library and multimodal tools; empty-state workspace guard (workspace_not_selected, neutral cwd for code=; tool-name-aware result spill/cap policy) | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
+| `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace + orchestrator tools, incl. thread search: search_in_threads / list_threads / read_thread; empty-state guard and thread workspace-meta persistence; result spill/cap policy for custom and connection tools) | storage, tool_executor |
 | `dev_agent/workspace_binding.py` | Python | Per-thread workspace binding registry (RLock, thread_context, ensure_thread_active) with the empty-state neutral root | - |
 | `dev_agent/workspace_tools.py` | Python | Workspace layer: folders, project map, docs, snapshots; workspace_selected reporting and per-orchestrator recent workspaces | backup_manager |
 | `dev_agent/task_states/TASK_STATE__20260828_185325_0d0824.md` | Markdown | _(описание не задано)_ | - |
@@ -1249,8 +1252,80 @@
 | `dev_agent/task_states/TASK_STATE__20261003_123816_f5449b.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20261003_123827_afeb27.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__20261003_123827_c0fcb5.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261003_125510_9b4739.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261003_125513_6190a6.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261003_125513_9c65e7.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261003_125513_9e1cd7.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261003_125513_b4c33f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261003_125513_dfed50.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261003_125522_9b986c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261003_125522_f28e7d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_203614_4b7b45.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_203618_1a1bbc.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_203618_4f3a6a.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_203618_7c2b43.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_203618_efacbc.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_203618_f62c9a.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_203627_086122.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_203627_fcd49c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_204430_c9511c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_204434_07e760.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_204434_20e8e4.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_204434_3615f8.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_204434_a3e38e.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_204434_ecffca.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_204443_3b22c7.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_204443_ff421f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_205752_78b3d6.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_205755_94069e.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_205755_9c284c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_205755_bc9d07.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_205755_be425f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_205755_cdac32.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_205804_420a74.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_205804_8526d9.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_210417_bfbe3d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_210420_7f6bbc.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_210420_89cf99.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_210420_94b278.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_210420_c37518.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_210420_f06332.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_210429_5809eb.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_210429_67ca91.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_211840_265119.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_211843_44361c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_211843_744bb6.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_211843_82877d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_211843_c818c9.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_211843_db677d.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_211852_7fcafd.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_211852_ad9fa6.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_212156_91ffe0.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_212159_2dd504.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_212159_3533f0.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_212159_a5eb4f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_212159_b053ae.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_212159_db20d3.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_212209_695e29.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_212209_c31c89.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_213951_298562.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_213954_7daeb8.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_213954_aa02e0.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_213954_c40c45.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_213954_cc25ac.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_213954_e9dc5f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_214003_874518.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_214003_c3035f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_215631_57227c.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_215635_0c3a32.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_215635_8c2a5b.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_215635_9499fd.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_215635_c22fb5.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_215635_fa5d90.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_215644_04e23f.md` | Markdown | _(описание не задано)_ | - |
+| `dev_agent/task_states/TASK_STATE__20261004_215644_cbe160.md` | Markdown | _(описание не задано)_ | - |
 | `dev_agent/task_states/TASK_STATE__nothread.md` | Markdown | _(описание не задано)_ | - |
-| `services/deepseek.json` | JSON | DeepSeek service definition (vision_base_url + vision_models catalog) | - |
+| `services/deepseek.json` | JSON | DeepSeek service definition (vision_base_url + vision_models catalog; declared default output limit ~32k) | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
 | `services/yandex.json` | JSON | YandexAI service definition | - |
 
@@ -1344,16 +1419,16 @@
 - `_render_event` (func, строка 667)
 - `_attach_events` (func, строка 727)
 - `_do_step` (func, строка 756)
-- `_reset_dialog` (func, строка 900)
-- `_load_thread` (func, строка 926)
-- `_persist_thread_workspace_meta` (func, строка 967)
-- `_chat_toolbar_widget_key` (func, строка 994)
-- `_sync_chat_pref_checkbox` (func, строка 1004)
-- `_chat_toolbar_pref_changed` (func, строка 1022)
-- `_render_chat_toolbar` (func, строка 1032)
-- `_token_line_cache_key` (func, строка 1090)
-- `_render_token_line` (func, строка 1137)
-- `_render_chat_tab` (func, строка 1221)
+- `_reset_dialog` (func, строка 901)
+- `_load_thread` (func, строка 927)
+- `_persist_thread_workspace_meta` (func, строка 968)
+- `_chat_toolbar_widget_key` (func, строка 995)
+- `_sync_chat_pref_checkbox` (func, строка 1005)
+- `_chat_toolbar_pref_changed` (func, строка 1023)
+- `_render_chat_toolbar` (func, строка 1033)
+- `_token_line_cache_key` (func, строка 1091)
+- `_render_token_line` (func, строка 1141)
+- `_render_chat_tab` (func, строка 1227)
 
 ### `ui/pages/orchestrator_settings.py`
 - `page_orchestrator_settings` (func, строка 28)
@@ -1446,21 +1521,21 @@
 - `_protect_history` (func, строка 617)
 - `_estimate_tokens_in` (func, строка 690)
 - `_bearer_request` (func, строка 701)
-- `_deepseek_reasoning_effort` (func, строка 776)
-- `_deepseek_responses_request` (func, строка 792)
-- `_anthropic_web_search_used` (func, строка 902)
-- `_extract_anthropic_text` (func, строка 918)
-- `_deepseek_anthropic_web_search` (func, строка 942)
-- `_yandex_reasoning_effort` (func, строка 1058)
-- `_yandex_web_search_config` (func, строка 1085)
-- `_assistant_web_search_config` (func, строка 1115)
-- `_yandex_responses_request` (func, строка 1144)
-- `_gigachat_messages` (func, строка 1262)
-- `_gigachat_token` (func, строка 1318)
-- `_extract_openai_message_text` (func, строка 1348)
-- `send_vision_request` (func, строка 1371)
-- `send_image_generation_request` (func, строка 1480)
-- `_assistant_rag_context` (func, строка 1564)
+- `_deepseek_reasoning_effort` (func, строка 786)
+- `_deepseek_responses_request` (func, строка 802)
+- `_anthropic_web_search_used` (func, строка 912)
+- `_extract_anthropic_text` (func, строка 928)
+- `_deepseek_anthropic_web_search` (func, строка 952)
+- `_yandex_reasoning_effort` (func, строка 1068)
+- `_yandex_web_search_config` (func, строка 1095)
+- `_assistant_web_search_config` (func, строка 1125)
+- `_yandex_responses_request` (func, строка 1154)
+- `_gigachat_messages` (func, строка 1272)
+- `_gigachat_token` (func, строка 1338)
+- `_extract_openai_message_text` (func, строка 1368)
+- `send_vision_request` (func, строка 1391)
+- `send_image_generation_request` (func, строка 1500)
+- `_assistant_rag_context` (func, строка 1584)
 
 ### `core/assistant_creator.py`
 - `_section_headers` (func, строка 23)
@@ -1615,8 +1690,11 @@
 - `get_service` (func, строка 489)
 
 ### `core/context_guard.py`
-- `apply_context_guard` (func, строка 15)
-- `_estimate_messages` (func, строка 49)
+- `_output_reserve` (func, строка 37)
+- `history_cap` (func, строка 54)
+- `_head_keep_count` (func, строка 78)
+- `apply_context_guard` (func, строка 89)
+- `_estimate_messages` (func, строка 123)
 
 ### `core/crypto.py`
 - `_legacy_key_file_path` (func, строка 29)
@@ -2013,9 +2091,10 @@
 - `clipboard_button` (func, строка 13)
 - `_md_to_html` (func, строка 160)
 - `_md_to_txt` (func, строка 192)
-- `format_token_line` (func, строка 215)
-- `_iter_md_blocks` (func, строка 256)
-- `format_ts_label` (func, строка 336)
+- `_token_label` (func, строка 215)
+- `format_token_line` (func, строка 235)
+- `_iter_md_blocks` (func, строка 282)
+- `format_ts_label` (func, строка 362)
 
 ### `core/services.py`
 - `_scan_dir` (func, строка 15)
@@ -2143,38 +2222,38 @@
 - `messages_to_api_history` (func, строка 236)
 
 ### `core/threads_devagent.py`
-- `_sanitize_title` (func, строка 56)
-- `create_devagent_thread` (func, строка 70)
-- `save_thread_workspace` (func, строка 101)
-- `_is_platform_path` (func, строка 127)
-- `migrate_platform_workspace_meta` (func, строка 139)
-- `load_thread_messages` (func, строка 181)
-- `_restore_events` (func, строка 187)
-- `save_thread_messages` (func, строка 220)
-- `append_thread_message` (func, строка 261)
-- `sum_thread_tokens` (func, строка 292)
-- `load_thread_meta` (func, строка 310)
-- `delete_thread` (func, строка 314)
-- `list_devagent_threads` (func, строка 329)
-- `list_orchestrator_threads` (func, строка 338)
-- `delete_all_devagent_threads` (func, строка 343)
-- `_thread_files_dir` (func, строка 355)
-- `_safe_thread_file_name` (func, строка 360)
-- `_thread_file_path` (func, строка 378)
-- `save_thread_file_data` (func, строка 384)
-- `_looks_binary` (func, строка 409)
-- `_try_decode_text` (func, строка 432)
-- `list_thread_files` (func, строка 448)
-- `read_thread_file` (func, строка 483)
-- `_normalize_date_bound` (func, строка 576)
-- `_strip_events_prefix` (func, строка 599)
-- `_is_hidden_message` (func, строка 609)
-- `_locate_match` (func, строка 615)
-- `_make_snippet` (func, строка 638)
-- `_message_preview` (func, строка 651)
-- `search_thread_messages` (func, строка 670)
-- `list_threads_filtered` (func, строка 841)
-- `read_thread_window` (func, строка 939)
+- `_sanitize_title` (func, строка 57)
+- `create_devagent_thread` (func, строка 71)
+- `save_thread_workspace` (func, строка 102)
+- `_is_platform_path` (func, строка 128)
+- `migrate_platform_workspace_meta` (func, строка 140)
+- `load_thread_messages` (func, строка 182)
+- `_restore_events` (func, строка 188)
+- `save_thread_messages` (func, строка 226)
+- `append_thread_message` (func, строка 270)
+- `sum_thread_tokens` (func, строка 308)
+- `load_thread_meta` (func, строка 326)
+- `delete_thread` (func, строка 330)
+- `list_devagent_threads` (func, строка 345)
+- `list_orchestrator_threads` (func, строка 354)
+- `delete_all_devagent_threads` (func, строка 359)
+- `_thread_files_dir` (func, строка 371)
+- `_safe_thread_file_name` (func, строка 376)
+- `_thread_file_path` (func, строка 394)
+- `save_thread_file_data` (func, строка 400)
+- `_looks_binary` (func, строка 425)
+- `_try_decode_text` (func, строка 448)
+- `list_thread_files` (func, строка 464)
+- `read_thread_file` (func, строка 499)
+- `_normalize_date_bound` (func, строка 597)
+- `_strip_events_prefix` (func, строка 620)
+- `_is_hidden_message` (func, строка 630)
+- `_locate_match` (func, строка 636)
+- `_make_snippet` (func, строка 659)
+- `_message_preview` (func, строка 672)
+- `search_thread_messages` (func, строка 691)
+- `list_threads_filtered` (func, строка 862)
+- `read_thread_window` (func, строка 960)
 
 ### `core/tools_utils.py`
 - `list_tool_definitions` (func, строка 12)
@@ -2284,15 +2363,32 @@
 - `test_varied_broken_calls_never_hard_stop` (func, строка 200)
 - `test_identical_broken_call_stops_the_loop` (func, строка 209)
 
+### `tests/test_agent_loop_snapshot_chain.py`
+- `_state_with_history` (func, строка 37)
+- `_patch_contexts` (func, строка 46)
+- `_step_wire` (func, строка 52)
+- `test_refresh_appends_once_and_keeps_prefix_stable` (func, строка 58)
+- `test_visibility_reappends_snapshot_after_window_slide` (func, строка 80)
+- `test_db_roundtrip_snapshot_recognised_by_prefix` (func, строка 103)
+- `test_snapshot_content_carries_supersede_note` (func, строка 122)
+
+### `tests/test_agent_loop_snapshot_persistence.py`
+- `isolated_data` (func, строка 29)
+- `_seeded_state` (func, строка 47)
+- `_persist_like_ui` (func, строка 60)
+- `test_snapshot_chain_roundtrip_keeps_hidden` (func, строка 72)
+- `test_saved_count_anchor_after_reload` (func, строка 104)
+- `test_save_thread_messages_keeps_hidden_marker` (func, строка 126)
+
 ### `tests/test_agent_loop_thread_context.py`
-- `isolated_data` (func, строка 22)
-- `_ThreadState` (class, строка 40)
-- `_NoThreadState` (class, строка 44)
-- `test_thread_context_lists_dialog_uploads` (func, строка 48)
-- `test_thread_context_without_uploads_still_injects_base_block` (func, строка 76)
-- `test_thread_context_no_thread_id_returns_none` (func, строка 87)
-- `test_with_thread_context_appends_hidden_system_message` (func, строка 93)
-- `test_thread_context_upload_listing_is_stable` (func, строка 111)
+- `isolated_data` (func, строка 23)
+- `_ThreadState` (class, строка 41)
+- `_NoThreadState` (class, строка 45)
+- `test_thread_context_lists_dialog_uploads` (func, строка 49)
+- `test_thread_context_without_uploads_still_injects_base_block` (func, строка 77)
+- `test_thread_context_no_thread_id_returns_none` (func, строка 88)
+- `test_refresh_appends_thread_context_snapshot` (func, строка 94)
+- `test_thread_context_upload_listing_is_stable` (func, строка 121)
 
 ### `tests/test_api_retry.py`
 - `fast_retries` (func, строка 20)
@@ -2499,11 +2595,15 @@
 - `_calls` (func, строка 13)
 - `test_trim_from_front_under_soft_threshold` (func, строка 22)
 - `test_hard_threshold_raises_context_window_error` (func, строка 41)
-- `test_output_reserve_is_clamped_to_half_window` (func, строка 53)
-- `test_passthrough_when_window_unknown` (func, строка 72)
-- `test_passthrough_when_lookup_errors` (func, строка 80)
-- `test_integration_send_request_guards_before_do_request` (func, строка 89)
-- `test_integration_hard_fail_raises_before_do_request` (func, строка 120)
+- `test_output_reserve_formula_caps_provider_limit` (func, строка 53)
+- `test_32k_window_does_not_raise_on_empty_history` (func, строка 65)
+- `test_economy_meta_head_is_never_trimmed` (func, строка 83)
+- `test_passthrough_when_window_unknown` (func, строка 103)
+- `test_passthrough_when_lookup_errors` (func, строка 111)
+- `test_integration_send_request_guards_before_do_request` (func, строка 120)
+- `test_integration_hard_fail_raises_before_do_request` (func, строка 151)
+- `test_history_cap_exposes_the_guard_history_budget` (func, строка 172)
+- `test_economy_payload_stays_below_guard_soft_threshold` (func, строка 187)
 
 ### `tests/test_core_api_json_schema.py`
 - `_svc` (func, строка 23)
@@ -2576,6 +2676,10 @@
 - `test_test_connection_truly_unknown_auth` (func, строка 611)
 - `test_gigachat_models_url_derivation` (func, строка 627)
 - `test_test_connection_gigachat_uses_derived_models_url` (func, строка 641)
+- `test_bearer_request_reports_openai_cached_tokens` (func, строка 669)
+- `test_bearer_request_reports_deepseek_prompt_cache_hit_tokens` (func, строка 697)
+- `test_bearer_request_cache_zero_when_not_reported` (func, строка 725)
+- `test_send_request_gigachat_reports_precached_tokens` (func, строка 749)
 
 ### `tests/test_core_files.py`
 - `test_max_upload_tokens_constant` (func, строка 13)
@@ -2705,13 +2809,16 @@
 
 ### `tests/test_economy_history_budget.py`
 - `services_window` (func, строка 19)
-- `assistant` (func, строка 32)
-- `_make_state` (func, строка 36)
-- `_msg` (func, строка 45)
-- `test_budget_trims_oldest_messages_from_front` (func, строка 49)
-- `test_budget_keeps_everything_when_it_fits` (func, строка 85)
-- `test_no_assistant_skips_budget_passthrough` (func, строка 100)
-- `test_unknown_window_falls_back_to_passthrough` (func, строка 117)
+- `assistant` (func, строка 35)
+- `_make_state` (func, строка 39)
+- `_msg` (func, строка 48)
+- `test_budget_trims_oldest_messages_from_front` (func, строка 52)
+- `test_budget_keeps_everything_when_it_fits` (func, строка 88)
+- `test_no_assistant_skips_budget_passthrough` (func, строка 103)
+- `test_unknown_window_falls_back_to_passthrough` (func, строка 120)
+- `test_b2_cache_trim_cuts_to_low_watermark_and_folds_anchor` (func, строка 141)
+- `test_b2_front_stays_put_under_small_growth` (func, строка 166)
+- `test_b2_legacy_trim_continues_below_budget` (func, строка 190)
 
 ### `tests/test_employee_management_ui.py`
 - `isolated_data` (func, строка 25)
@@ -2721,19 +2828,20 @@
 - `test_no_export_import_employee_ui_in_code` (func, строка 106)
 
 ### `tests/test_gigachat_messages.py`
-- `test_single_leading_system_message_folds_history_system_blocks` (func, строка 48)
-- `test_consecutive_same_roles_are_merged` (func, строка 66)
-- `test_no_system_message_when_prompt_empty` (func, строка 83)
-- `test_ui_only_keys_are_stripped` (func, строка 89)
-- `test_clamp_caps_gigachat_model_limit` (func, строка 101)
-- `test_clamp_keeps_value_below_limit` (func, строка 105)
-- `test_clamp_uses_service_default_for_unknown_model` (func, строка 109)
-- `test_clamp_passthrough_without_explicit_limit` (func, строка 114)
-- `test_clamp_deepseek_limit_unchanged` (func, строка 119)
-- `_run_send` (func, строка 125)
-- `test_send_request_clamps_gigachat_max_tokens` (func, строка 143)
-- `test_send_request_keeps_deepseek_max_tokens` (func, строка 152)
-- `test_gigachat_wire_payload_has_single_leading_system_and_clamped_tokens` (func, строка 160)
+- `test_leading_system_folds_and_mid_history_blocks_become_user_role` (func, строка 52)
+- `test_mid_history_snapshot_change_keeps_head_byte_stable` (func, строка 71)
+- `test_consecutive_same_roles_are_merged` (func, строка 89)
+- `test_no_system_message_when_prompt_empty` (func, строка 106)
+- `test_ui_only_keys_are_stripped` (func, строка 112)
+- `test_clamp_caps_gigachat_model_limit` (func, строка 124)
+- `test_clamp_keeps_value_below_limit` (func, строка 128)
+- `test_clamp_uses_service_default_for_unknown_model` (func, строка 132)
+- `test_clamp_passthrough_without_explicit_limit` (func, строка 137)
+- `test_clamp_deepseek_limit_unchanged` (func, строка 142)
+- `_run_send` (func, строка 148)
+- `test_send_request_clamps_gigachat_max_tokens` (func, строка 166)
+- `test_send_request_keeps_deepseek_max_tokens` (func, строка 175)
+- `test_gigachat_wire_payload_has_single_leading_system_and_clamped_tokens` (func, строка 183)
 
 ### `tests/test_github_connector_rest.py`
 - `isolated_connector` (func, строка 22)
@@ -2924,8 +3032,8 @@
 - `_sent_len` (func, строка 91)
 - `_drive` (func, строка 96)
 - `_setup_page` (func, строка 116)
-- `test_do_step_window_grows_again_after_terminal_status` (func, строка 150)
-- `test_do_step_full_cycle_resets_then_grows` (func, строка 197)
+- `test_do_step_window_grows_again_after_terminal_status` (func, строка 158)
+- `test_do_step_full_cycle_resets_then_grows` (func, строка 205)
 
 ### `tests/test_orchestrator_folders.py`
 - `isolated_data_dir` (func, строка 21)
@@ -3278,6 +3386,7 @@
 - `test_clipboard_button_with_quotes_and_html_label` (func, строка 91)
 - `test_clipboard_button_uses_theme_css_variables` (func, строка 107)
 - `test_clipboard_button_copy_url_params_mode` (func, строка 126)
+- `test_format_token_line_localized_labels` (func, строка 141)
 
 ### `tests/test_safety_mode.py`
 - `test_safety_enabled_is_true_by_default` (func, строка 25)
@@ -3337,6 +3446,7 @@
 - `test_services_without_a_catalog_return_empty_lists` (func, строка 66)
 - `test_catalog_helpers_are_defensive` (func, строка 73)
 - `test_defaults_and_legacy_service_files_stay_in_sync` (func, строка 81)
+- `test_every_shipped_model_declares_an_output_limit` (func, строка 95)
 
 ### `tests/test_sidebar_employees_nav.py`
 - `isolated_data` (func, строка 25)
@@ -3524,19 +3634,19 @@
 - `test_tool_init_archives_previous_task` (func, строка 324)
 - `test_tool_catalog_lists_task_state_tools` (func, строка 337)
 - `test_agent_loop_helpers_present` (func, строка 347)
-- `test_analysis_and_requests_sections_roundtrip` (func, строка 359)
-- `test_build_scaffolds_all_seven_sections` (func, строка 369)
-- `test_start_task_allocates_numbered_task_dir` (func, строка 376)
-- `test_next_task_gets_next_number_and_moves_current_marker` (func, строка 393)
-- `test_mark_in_progress_shows_tilde_marker` (func, строка 403)
-- `test_mark_done_then_pending_toggles_markers` (func, строка 412)
-- `test_context_section_order_matches_canon` (func, строка 423)
-- `empty_state_sandbox` (func, строка 448)
-- `test_empty_state_journal_lives_in_thread_dir` (func, строка 463)
-- `test_empty_state_task_folders_live_in_thread_dir` (func, строка 479)
-- `test_empty_state_context_injection_keeps_thread_path` (func, строка 490)
-- `test_compact_read_returns_digest_without_full_content` (func, строка 503)
-- `test_compact_read_missing_journal_is_not_an_error` (func, строка 526)
+- `test_analysis_and_requests_sections_roundtrip` (func, строка 372)
+- `test_build_scaffolds_all_seven_sections` (func, строка 382)
+- `test_start_task_allocates_numbered_task_dir` (func, строка 389)
+- `test_next_task_gets_next_number_and_moves_current_marker` (func, строка 406)
+- `test_mark_in_progress_shows_tilde_marker` (func, строка 416)
+- `test_mark_done_then_pending_toggles_markers` (func, строка 425)
+- `test_context_section_order_matches_canon` (func, строка 436)
+- `empty_state_sandbox` (func, строка 461)
+- `test_empty_state_journal_lives_in_thread_dir` (func, строка 476)
+- `test_empty_state_task_folders_live_in_thread_dir` (func, строка 492)
+- `test_empty_state_context_injection_keeps_thread_path` (func, строка 503)
+- `test_compact_read_returns_digest_without_full_content` (func, строка 516)
+- `test_compact_read_missing_journal_is_not_an_error` (func, строка 539)
 
 ### `tests/test_theme_restore.py`
 - `_drop_ui_modules` (func, строка 23)
@@ -3592,16 +3702,17 @@
 - `test_search_case_insensitive_cyrillic` (func, строка 142)
 - `test_search_regex_mode_and_invalid_pattern` (func, строка 153)
 - `test_search_role_filter_and_hidden_messages` (func, строка 169)
-- `test_search_max_results_truncates` (func, строка 195)
-- `test_search_access_control_denies_foreign_thread` (func, строка 208)
-- `test_search_access_control_narrows_scope` (func, строка 222)
-- `test_search_missing_query_and_unknown_thread` (func, строка 239)
-- `test_list_threads_pagination_counts_and_order` (func, строка 252)
-- `test_list_threads_date_range_and_validation` (func, строка 281)
-- `test_read_thread_window_indices_and_remaining` (func, строка 301)
-- `test_read_thread_window_skips_hidden_and_reports_totals` (func, строка 323)
-- `test_read_thread_truncates_long_messages` (func, строка 341)
-- `test_read_thread_access_and_errors` (func, строка 355)
+- `test_search_snapshot_service_blocks_hidden_by_default` (func, строка 195)
+- `test_search_max_results_truncates` (func, строка 221)
+- `test_search_access_control_denies_foreign_thread` (func, строка 234)
+- `test_search_access_control_narrows_scope` (func, строка 248)
+- `test_search_missing_query_and_unknown_thread` (func, строка 265)
+- `test_list_threads_pagination_counts_and_order` (func, строка 278)
+- `test_list_threads_date_range_and_validation` (func, строка 307)
+- `test_read_thread_window_indices_and_remaining` (func, строка 327)
+- `test_read_thread_window_skips_hidden_and_reports_totals` (func, строка 349)
+- `test_read_thread_truncates_long_messages` (func, строка 367)
+- `test_read_thread_access_and_errors` (func, строка 381)
 
 ### `tests/test_token_line_cache.py`
 - `ui_env` (func, строка 20)
@@ -3613,6 +3724,7 @@
 - `test_token_line_cached_across_rerenders` (func, строка 106)
 - `test_token_line_recomputed_when_history_changes` (func, строка 128)
 - `test_reset_dialog_clears_token_line_cache` (func, строка 146)
+- `test_token_line_localized_and_recomputed_on_lang_switch` (func, строка 161)
 
 ### `tests/test_tool_executor_env.py`
 - `_fake_run` (func, строка 15)
@@ -3620,28 +3732,38 @@
 - `test_run_test_propagates_sagaai_data_dir` (func, строка 37)
 
 ### `tests/test_tool_result_size_cap.py`
-- `sandbox` (func, строка 22)
-- `test_cap_passes_small_results_unchanged` (func, строка 38)
-- `test_cap_keeps_small_error_results` (func, строка 43)
-- `test_cap_blocks_oversized_result` (func, строка 48)
-- `test_cap_reports_exact_size` (func, строка 59)
-- `test_read_file_oversized_result_is_error` (func, строка 69)
-- `test_read_file_small_file_passes` (func, строка 81)
-- `test_dispatch_applies_cap_to_custom_tool_result` (func, строка 89)
+- `sandbox` (func, строка 30)
+- `_wire` (func, строка 43)
+- `test_cap_passes_small_results_unchanged` (func, строка 51)
+- `test_cap_keeps_small_error_results` (func, строка 56)
+- `test_cap_spills_oversized_result_and_returns_preview` (func, строка 64)
+- `test_cap_preview_bounds_giant_payload` (func, строка 88)
+- `test_cap_rotates_spill_files` (func, строка 101)
+- `test_cap_flags_oversized_result_when_spill_fails` (func, строка 121)
+- `test_cap_passes_midsize_result_when_spill_fails` (func, строка 137)
+- `test_cap_reports_exact_size` (func, строка 147)
+- `test_read_file_oversized_result_is_spilled_to_preview` (func, строка 160)
+- `test_read_file_small_file_passes` (func, строка 180)
+- `test_dispatch_applies_spill_policy_to_custom_tool_result` (func, строка 188)
+- `test_universal_agent_extra_tool_result_goes_through_spill_policy` (func, строка 204)
 
 ### `tests/test_tool_result_storage_summary.py`
-- `_tool_result_payload` (func, строка 27)
-- `test_small_tool_result_returned_unchanged` (func, строка 45)
-- `test_large_tool_result_compacted_bulk_fields_to_sizes` (func, строка 52)
-- `test_large_scalar_string_truncated_with_full_len` (func, строка 71)
-- `test_broken_json_kept_raw_up_to_fallback_limit` (func, строка 90)
-- `test_non_tool_result_text_unchanged` (func, строка 98)
-- `test_tool_result_list_values_counted` (func, строка 104)
-- `isolated_data` (func, строка 120)
-- `test_append_thread_message_compacts_giant_tool_result` (func, строка 138)
-- `test_save_thread_messages_compacts_giant_tool_result` (func, строка 159)
-- `test_small_tool_result_saved_verbatim` (func, строка 183)
-- `test_events_survive_compaction` (func, строка 198)
+- `_tool_result_payload` (func, строка 30)
+- `test_small_tool_result_returned_unchanged` (func, строка 48)
+- `test_large_tool_result_compacted_bulk_fields_to_sizes` (func, строка 55)
+- `test_large_scalar_string_truncated_with_full_len` (func, строка 74)
+- `test_broken_json_kept_raw_up_to_fallback_limit` (func, строка 93)
+- `test_non_tool_result_text_unchanged` (func, строка 101)
+- `test_tool_result_list_values_counted` (func, строка 107)
+- `isolated_data` (func, строка 123)
+- `test_append_thread_message_compacts_giant_tool_result` (func, строка 141)
+- `test_save_thread_messages_compacts_giant_tool_result` (func, строка 162)
+- `test_small_tool_result_saved_verbatim` (func, строка 186)
+- `test_events_survive_compaction` (func, строка 201)
+- `test_batch_of_small_documents_saved_verbatim` (func, строка 224)
+- `test_batch_compacts_only_oversized_member` (func, строка 237)
+- `test_spilled_preview_and_wire_round_trip_verbatim` (func, строка 251)
+- `test_batch_wire_round_trips_verbatim_through_both_paths` (func, строка 275)
 
 ### `tests/test_tools_utils.py`
 - `test_no_service_def_returns_empty` (func, строка 13)
@@ -4115,10 +4237,11 @@
 - `test_scenario_github_tool_available_through_dispatcher` (func, строка 203)
 
 ### `tests/scenarios/test_context_overflow_protection.py`
-- `sandbox` (func, строка 28)
-- `test_scenario_giant_tool_result_is_capped_before_context` (func, строка 41)
-- `test_scenario_long_history_is_trimmed_before_request` (func, строка 68)
-- `test_scenario_impossible_payload_raises_clear_error` (func, строка 108)
+- `sandbox` (func, строка 32)
+- `test_scenario_giant_tool_result_is_spilled_before_context` (func, строка 45)
+- `test_scenario_failed_spill_keeps_hard_cap_error` (func, строка 78)
+- `test_scenario_long_history_is_trimmed_before_request` (func, строка 103)
+- `test_scenario_impossible_payload_raises_clear_error` (func, строка 143)
 
 ### `tests/scenarios/test_employees_sidebar_scenarios.py`
 - `isolated_data` (func, строка 30)
@@ -4182,11 +4305,11 @@
 - `ui_env` (func, строка 81)
 - `_patch_transport` (func, строка 110)
 - `_setup_page` (func, строка 125)
-- `_seed` (func, строка 166)
-- `_drive` (func, строка 176)
-- `test_scenario_orchestrator_turn_on_gigachat_sends_valid_payload` (func, строка 193)
-- `test_scenario_provider_422_is_visible_in_feed_and_next_turn_recovers` (func, строка 232)
-- `test_scenario_economy_meta_and_consecutive_user_roles_are_folded` (func, строка 280)
+- `_seed` (func, строка 174)
+- `_drive` (func, строка 184)
+- `test_scenario_orchestrator_turn_on_gigachat_sends_valid_payload` (func, строка 201)
+- `test_scenario_provider_422_is_visible_in_feed_and_next_turn_recovers` (func, строка 240)
+- `test_scenario_economy_meta_and_consecutive_user_roles_are_folded` (func, строка 288)
 
 ### `tests/scenarios/test_github_read_retry_scenario.py`
 - `isolated_connector` (func, строка 28)
@@ -4340,6 +4463,13 @@
 - `test_scenario_teacher_menu_excludes_devagent_folders` (func, строка 92)
 - `test_scenario_platform_folder_hidden_from_teacher` (func, строка 126)
 - `test_scenario_switch_records_into_own_scope` (func, строка 156)
+
+### `tests/scenarios/test_resume_identity_scenarios.py`
+- `env` (func, строка 23)
+- `_block` (func, строка 74)
+- `_run_batch` (func, строка 79)
+- `test_scenario_wire_survives_append_reload` (func, строка 129)
+- `test_scenario_wire_survives_full_save` (func, строка 167)
 
 ### `tests/scenarios/test_search_in_files_scenarios.py`
 - `project` (func, строка 23)
@@ -4596,46 +4726,46 @@
 - `main` (func, строка 480)
 
 ### `dev_agent/agent_loop.py`
-- `_now_ts` (func, строка 154)
-- `_apply_tool_result_cap` (func, строка 171)
-- `summarize_tool_result_for_storage` (func, строка 221)
-- `_parse_loop_status` (func, строка 300)
-- `_parse_requires_user_response` (func, строка 309)
-- `_prose_contains_progress` (func, строка 327)
-- `_prose_looks_like_question` (func, строка 335)
-- `_looks_like_confirmation_request` (func, строка 354)
-- `_prose_looks_weak` (func, строка 362)
-- `_looks_like_plan` (func, строка 381)
-- `normalize_hyphens` (func, строка 419)
-- `classify_step_strength` (func, строка 423)
-- `_summarise_result` (func, строка 443)
-- `_extract_balanced_json_objects` (func, строка 478)
-- `_unbalanced_json_details` (func, строка 508)
-- `_unclosed_summary` (func, строка 549)
-- `_repair_unclosed_braces` (func, строка 564)
-- `_escape_raw_newlines_in_strings` (func, строка 588)
-- `_repair_stray_bracket` (func, строка 623)
-- `_collapse_value_escapes` (func, строка 652)
-- `_unescape_json_string_body` (func, строка 678)
-- `_try_layer_parse_chain` (func, строка 713)
-- `_json_repair_cascade` (func, строка 735)
-- `_json_loads_lenient` (func, строка 789)
-- `_truncated_tool_json_segments` (func, строка 809)
-- `_unparsed_tool_json_blocks` (func, строка 834)
-- `_json_parse_cause` (func, строка 857)
-- `_unparsed_tool_json_diagnostics` (func, строка 880)
-- `_unparsed_block_signature` (func, строка 923)
-- `_normalize_call` (func, строка 940)
-- `_call_signature` (func, строка 982)
-- `_coerce_dsml_param` (func, строка 991)
-- `_extract_dsml_calls` (func, строка 1033)
-- `_dsml_required_args` (func, строка 1077)
-- `_dsml_json_hint` (func, строка 1120)
-- `_dsml_validation_error` (func, строка 1130)
-- `_fallback_parse_propose_file` (func, строка 1154)
-- `_repair_unclosed_tool_json` (func, строка 1188)
-- `_cascade_recover_tool_calls` (func, строка 1226)
-- `parse_tool_calls` (func, строка 1253)
+- `_now_ts` (func, строка 156)
+- `_tool_results_dir` (func, строка 196)
+- `_rotate_tool_result_spills` (func, строка 211)
+- `_spill_tool_result_doc` (func, строка 227)
+- `_compact_result_fields` (func, строка 252)
+- `_build_tool_result_preview` (func, строка 284)
+- `_apply_tool_result_cap` (func, строка 320)
+- `_summarize_single_tool_result_doc` (func, строка 412)
+- `summarize_tool_result_for_storage` (func, строка 435)
+- `_parse_loop_status` (func, строка 492)
+- `_parse_requires_user_response` (func, строка 501)
+- `_prose_contains_progress` (func, строка 519)
+- `_prose_looks_like_question` (func, строка 527)
+- `_looks_like_confirmation_request` (func, строка 546)
+- `_prose_looks_weak` (func, строка 554)
+- `_looks_like_plan` (func, строка 573)
+- `normalize_hyphens` (func, строка 611)
+- `classify_step_strength` (func, строка 615)
+- `_summarise_result` (func, строка 635)
+- `_extract_balanced_json_objects` (func, строка 670)
+- `_unbalanced_json_details` (func, строка 700)
+- `_unclosed_summary` (func, строка 741)
+- `_repair_unclosed_braces` (func, строка 756)
+- `_escape_raw_newlines_in_strings` (func, строка 780)
+- `_repair_stray_bracket` (func, строка 815)
+- `_collapse_value_escapes` (func, строка 844)
+- `_unescape_json_string_body` (func, строка 870)
+- `_try_layer_parse_chain` (func, строка 905)
+- `_json_repair_cascade` (func, строка 927)
+- `_json_loads_lenient` (func, строка 981)
+- `_truncated_tool_json_segments` (func, строка 1001)
+- `_unparsed_tool_json_blocks` (func, строка 1026)
+- `_json_parse_cause` (func, строка 1049)
+- `_unparsed_tool_json_diagnostics` (func, строка 1072)
+- `_unparsed_block_signature` (func, строка 1115)
+- `_normalize_call` (func, строка 1132)
+- `_call_signature` (func, строка 1174)
+- `_coerce_dsml_param` (func, строка 1183)
+- `_extract_dsml_calls` (func, строка 1225)
+- `_dsml_required_args` (func, строка 1269)
 
 ### `dev_agent/assistant_detector.py`
 - `list_all_assistants_for_detection` (func, строка 49)

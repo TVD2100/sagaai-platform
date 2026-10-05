@@ -34,7 +34,7 @@ SagaAI построена по модульной архитектуре с чё
 
 | Модуль | Ключевые функции |
 |--------|------------------|
-| `api_layer` | HTTP-запросы к AI API (Bearer-токен, GigaChat OAuth, Responses API, тест соединения); нормализация GigaChat-payload (единственный ведущий system) и кламп max_tokens; транспорты изображений `send_vision_request` (chat completions для bearer/yandex_iam; выделенный DeepSeek chat/completions для `deepseek_responses` с `detail="original"`) и `send_image_generation_request` (синхронный OpenAI-совместимый Images API YandexAI); детекция `failed`-статуса Responses API (`ProviderResponseError`) и фильтрация пустых input-элементов |
+| `api_layer` | HTTP-запросы к AI API (Bearer-токен, GigaChat OAuth, Responses API, тест соединения); нормализация GigaChat-payload (в единственное ведущее system-сообщение фолдятся только ведущие system-блоки; mid-history system-блоки остаются на месте с ролью `user`) и кламп max_tokens; разбор кэш-бакетов usage на всех чат-транспортах (bearer/DeepSeek - `prompt_tokens_details.cached_tokens` с фолбэком `prompt_cache_hit_tokens`; GigaChat - `precached_prompt_tokens`); транспорты изображений `send_vision_request` (chat completions для bearer/yandex_iam; выделенный DeepSeek chat/completions для `deepseek_responses` с `detail="original"`) и `send_image_generation_request` (синхронный OpenAI-совместимый Images API YandexAI); детекция `failed`-статуса Responses API (`ProviderResponseError`) и фильтрация пустых input-элементов |
 | `api_errors` | Единая иерархия ошибок API и локализованные сообщения |
 | `files` | Определение типов файлов, оценка токенов, извлечение контента |
 | `fs` | Низкоуровневые операции: чтение/запись JSON и текста, кодировки, `ensure_dir` |
@@ -213,7 +213,12 @@ SagaAI построена по модульной архитектуре с чё
    обрыве связи (`RequestTimeoutError` / `NetworkError`) запрос повторяется
    прозрачно (`retry_call` в `core/api_layer.py`), в ленту чата идёт событие
    `retrying_llm`.
-4. LLM → `parse_tool_calls` → `tool_executor` → результаты → повтор до
+4. Перед шагом LLM `refresh_context_snapshots` добавляет в историю
+   изменившиеся снапшоты task state / thread context скрытыми
+   system-сообщениями (append-only: проводная последовательность
+   запроса N+1 - строгое расширение запроса N); если последняя копия
+   снапшота вытеснена из окна, в хвост добавляется одна свежая копия.
+5. LLM → `parse_tool_calls` → `tool_executor` → результаты → повтор до
    терминального статуса (`loop_status` или approval-гейт).
 
 ### RAG-запрос
@@ -461,22 +466,39 @@ PROJECT_MAP.md, SPEC.md, ARCHITECTURE.md, CHANGELOG.md, снапшоты. Пер
 Пятиуровневая защита от HTTP 400 «context length exceeded» (инцидент
 1 053 249 > 1 048 576 токенов из-за tool_result на 1,65 млн символов):
 
-- **M1 - кап результатов инструментов.** `dev_agent/tool_executor.py` и
-  `dev_agent/universal_agent.py` пропускают результат через
-  `_apply_tool_result_cap` (лимит `MAX_TOOL_RESULT_CHARS` = 200 000):
-  превышение возвращает `ok=False` со структурированной ошибкой
-  (`result_too_large`, `result_size`) без payload.
-- **M2 - компактный персист скрытых tool_result.**
-  `summarize_tool_result_for_storage` в `dev_agent/agent_loop.py` + оба
-  пути записи `core/threads_devagent.py` сохраняют в БД сводку (status,
-  path, applied, размеры bulk-полей), а не сырой JSON.
-- **M3 - бюджет истории эконом-режима.** `build_economy_context`
-  (`dev_agent/agent_loop.py`) + `_enforce_history_token_budget`: вес
-  истории ограничен долей окна 0.8, лишние сообщения срезаются с фронта.
+- **M1 - политика размера результатов инструментов (спилл до отправки).**
+  `dev_agent/tool_executor.py` и `dev_agent/universal_agent.py` пропускают
+  результат через `_apply_tool_result_cap`: документ больше
+  `_TOOL_RESULT_INLINE_LIMIT` (20 000 символов) до первой отправки
+  записывается целиком в `<workspace>/.dev_agent/tool_results/` (ротация
+  до 100 последних файлов), а модели уходит ограниченное превью
+  head+tail со `spill_path` (полный payload восстанавливается через
+  `read_file` с offset/limit). Аварийный фолбэк: если запись спилла не
+  удалась, результат выше `MAX_TOOL_RESULT_CHARS` (200 000) заменяется
+  ошибкой `result_too_large`/`result_size` без payload.
+- **M2 - персист скрытых tool_result с сохранением проводной формы
+  (resume-идентичность).** `summarize_tool_result_for_storage`
+  (`dev_agent/agent_loop.py`) + оба пути записи `core/threads_devagent.py`
+  обрабатывают каждое сообщение пакета по отдельности: документы до
+  50 000 символов (включая все спилл-превью) сохраняются в БД
+  байт-в-байт, так что после reload треда отправляемая форма совпадает с
+  записанной; более крупные документы (аварийный путь) сжимаются до
+  сводки (status, path, applied, размеры bulk-полей).
+- **M3 - бюджет истории эконом-режима (порог + гистерезис).**
+  `build_economy_context` (`dev_agent/agent_loop.py`) +
+  `_enforce_history_token_budget`: бюджет - минимум из легаси-доли
+  (0.8×окна минус лимит вывода) и эффективного предела истории из
+  context_guard (`history_cap(...) - 2048`); под бюджетом список не
+  меняется, при превышении ведущие сообщения режутся за один проход до
+  0.75×бюджета; в кэш-режиме срез сворачивается в `economy_anchor`
+  (фронт окна стабилен). Служебная head-мета сохраняется всегда.
 - **M4/M5 - pre-flight guard в api_layer.** `core/context_guard.py`
   (apply_context_guard) + `ContextWindowError` в `core/api_errors.py`;
-  вызов из `send_request` до отправки. Мягкий трим на 0.5 окна, жёсткий
-  предел 0.8 окна, понятная ошибка без нового диалога.
+  вызов из `send_request` до отправки. Резерв вывода -
+  `min(max_out, max(4096, 0.25×окна))`; служебный head-блок эконом-меты
+  не срезается; мягкий трим на 0.5 окна, жёсткий предел 0.8 окна,
+  понятная ошибка без нового диалога; публичный `history_cap(window,
+  max_tokens, prompt_tokens)` отдаёт эффективный предел истории.
 
 ### Экспорт/импорт оркестраторов (core API)
 Формат `sagaai_orchestrator/v1` (JSON). Slug-конфликты разрешаются

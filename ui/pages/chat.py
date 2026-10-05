@@ -352,7 +352,7 @@ def page_run_query():
         tok_in, tok_out, tok_cache = sum_thread_tokens(load_thread_messages(active_tid))
     st.markdown(
         f'<div style="font-size:0.75rem;color:#555;margin-top:6px">'
-        f'{format_token_line(current_tokens, tok_in, tok_out, tokens_cache=tok_cache)}</div>',
+        f'{format_token_line(current_tokens, tok_in, tok_out, tokens_cache=tok_cache, lang=lang)}</div>',
         unsafe_allow_html=True,
     )
 

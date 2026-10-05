@@ -125,6 +125,14 @@ def _patch_transport(monkeypatch, session: MagicMock) -> None:
 def _setup_page(monkeypatch):
     """Import the orchestrator page and wire the employee seams."""
     import ui.pages.orchestrator as orch_page
+    import dev_agent.agent_loop as al
+
+    # Context snapshots are covered by test_agent_loop_snapshot_chain.py;
+    # neutralize the ambient runtime sources so the scenario expectations
+    # (history roles / wire payload) stay deterministic and do not depend
+    # on leftover journal files in the working copy.
+    monkeypatch.setattr(al, "_maybe_task_state_context", lambda: None)
+    monkeypatch.setattr(al, "_maybe_thread_context", lambda state: None)
 
     strong = {"service": "GigaChat", "model": "GigaChat-3-Pro",
               "temperature": 0.3, "text": EMPLOYEE_PROMPT, "max_tokens": 384000}
