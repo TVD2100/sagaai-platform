@@ -4,7 +4,7 @@
 # public APIs, UI and data formats backward compatible; breaking changes
 # would arrive in a new major version. The version follows SemVer.
 
-__version__ = "1.10.0"
+__version__ = "1.10.1"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: MIT

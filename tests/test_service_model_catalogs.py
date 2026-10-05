@@ -93,11 +93,11 @@ def test_defaults_and_legacy_service_files_stay_in_sync():
 
 
 def test_every_shipped_model_declares_an_output_limit():
-    """B3: every shipped model entry declares ``max_tokens`` (the output
+    """Every shipped model entry declares ``max_tokens`` (the output
     limit default) so the guard reserve ``min(max_tokens, max(4096,
     0.25 * window))`` and ``_clamp_max_tokens`` never have to guess.
-    DeepSeek declares the ~32k economy profile: on its 1M window the guard
-    reserves 32_768 tokens instead of the 384k provider ceiling."""
+    DeepSeek declares the 384k provider ceiling: on its 1M window the
+    reserve is capped by the window ratio at 250_000 tokens."""
     from core.context_guard import _output_reserve
 
     services = get_services()
@@ -108,5 +108,5 @@ def test_every_shipped_model_declares_an_output_limit():
 
     deepseek = services.get("DeepSeek") or {}
     limits = [m.get("max_tokens") for m in deepseek.get("models") or []]
-    assert limits == [32_768, 32_768], limits
-    assert _output_reserve(1_000_000, 32_768) == 32_768
+    assert limits == [384_000, 384_000], limits
+    assert _output_reserve(1_000_000, 384_000) == 250_000
