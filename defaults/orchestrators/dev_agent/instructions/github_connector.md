@@ -26,6 +26,70 @@ files from the workspace disk), never via shell.
 
 ---
 
+## Pre-publish secret & personal-data check (MANDATORY)
+
+Before ANY publishing call - `ghr_upload_file`, `ghr_update_file`,
+`ghr_delete_file`, `ghr_batch_commit`, `ghr_batch_commit_paths`,
+`ghr_batch_upsert` - scan every outgoing file for secrets AND personal
+data. This step is mandatory and is NOT waived by the user's approval to
+publish: an approved batch can still leak a key or expose someone's
+personal data.
+
+What to scan for (the actual content of every file in the outgoing payload):
+- API keys and access tokens (OpenAI / Yandex / GigaChat / DeepSeek keys,
+  GitHub PATs `ghp_...` / `github_pat_...`, AWS `AKIA...`, Telegram bot
+  tokens, and similar);
+- OAuth client secrets, service-account JSON, connection strings with
+  embedded credentials;
+- passwords / passphrases, values of `SAGAAI_AUTH_PASSWORD` and similar
+  environment variables;
+- private keys and certificates: `-----BEGIN ... PRIVATE KEY-----` blocks,
+  `.pem`, `.key`, `.p12`, `.pfx`;
+- dotenv-style files (`.env`, `.env.*`, `secrets.*`, `credentials.*`) and
+  any file whose name signals secrets;
+- high-entropy literals (long base64 / hex strings) assigned to
+  `token` / `secret` / `api_key` / `password` / `client_secret`;
+- platform connection tokens - never reproduce or re-embed them anywhere.
+
+Personal data (PII) - scan for anything that identifies a real person:
+- names together with contact details (email, phone, messenger handle,
+  postal address);
+- government / financial identifiers (passport, SSN, tax or national ID
+  numbers, bank account or card numbers);
+- financial, medical or biometric records and any special-category data;
+- user account dumps and exports (databases, CSV/JSON exports), chat or
+  access logs that contain names, emails, IPs or user ids;
+- customer / employee lists and any contact database.
+
+How to scan: build the explicit list of outgoing paths, then check their
+ACTUAL content (not only the file names) against the patterns above before
+calling the publish tool. For `ghr_batch_commit_paths` the files come from
+disk - read and scan that same disk content; do not trust the path list
+alone.
+
+On a SECRET hit:
+1. STOP - do not publish that file.
+2. Drop it from the payload; if it is a real secret, add it to `.gitignore`
+   and replace the literal with an environment variable.
+3. Report to the user with the value MASKED (file + line + secret kind,
+   never the secret itself) and ask how to proceed.
+
+On a PERSONAL-DATA hit:
+1. STOP - do not publish that file.
+2. Drop it from the payload.
+3. Report to the user WHAT was found, with the value MASKED (file + line +
+   kind of personal data, never the value itself), and ASK whether the file
+   or the data must be removed (or anonymised).
+4. Never delete, rewrite or anonymise the user's data on your own - act only
+   on an explicit answer. Publish the file again only after the user
+   explicitly confirms it is safe to share.
+
+Rule: never publish a secret or personal data even to a PRIVATE repository -
+Git history keeps it forever. A leaked key must be treated as compromised and
+rotated; exposed personal data cannot be un-published.
+
+---
+
 ## Tool signatures
 
 Every tool returns a plain JSON dict:
@@ -211,6 +275,14 @@ Use this for incremental sync of a folder to a repository.
    permissions, use a different repo name, or update instead of upload).
 9. **Never ask for or expose tokens.** If authentication fails, tell the user
    to check the connection on the Connectors page.
+10. **Secret & personal-data check is mandatory before publishing.**
+    Before any publishing call (`ghr_upload_file` / `ghr_update_file` /
+    `ghr_delete_file` / `ghr_batch_commit` / `ghr_batch_commit_paths` /
+    `ghr_batch_upsert`), scan every outgoing file's content for secrets and
+    personal data per the "Pre-publish secret & personal-data check
+    (MANDATORY)" section. Never publish a file that contains a key, token,
+    password, private key or personal data - the user's approval to publish
+    does not override this rule.
 
 ---
 
@@ -222,7 +294,9 @@ inspect files.
 
 ### Create a repo and publish files
 1. `ghr_create_repo(name="my_project", description="...", private=true)`.
-2. Collect the files and publish them in ONE commit:
+2. Run the pre-publish secret & personal-data check on every file you are
+   about to send.
+3. Collect the files and publish them in ONE commit:
    `ghr_batch_commit(connector_id, repo="my_project",
    files=[{"path": "README.md", "content": ...}, ...], message="Initial publish")`.
 
@@ -233,8 +307,11 @@ inspect files.
 
 ### Publish a whole project in one commit (preferred for many files)
 1. Collect all project files as `[{"path": ..., "content": ...}, ...]`.
-2. `ghr_batch_commit(connector_id, repo="owner/my_project", files=files,
+2. Run the pre-publish secret & personal-data check on every file; drop
+   any file with a secret or personal data from the batch and report it
+   (masked) to the user.
+3. `ghr_batch_commit(connector_id, repo="owner/my_project", files=files,
    message="Initial publish")`.
-3. To refresh the remote with only the changed files later, use
+4. To refresh the remote with only the changed files later, use
    `ghr_batch_upsert` with the same `files` list - unchanged files are
    skipped automatically.

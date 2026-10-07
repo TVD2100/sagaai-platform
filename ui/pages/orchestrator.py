@@ -60,6 +60,7 @@ from core.orchestrators import (
     get_enabled_connections, set_enabled_connections,
     get_orchestrator_rag_bases, set_orchestrator_rag_bases,
     get_disabled_tools, set_disabled_tools,
+    reset_builtin_prompt,
     DEVAGENT_SLUG,
 )
 from core.skills_library import list_skills as list_library_skills
@@ -1967,6 +1968,11 @@ def _render_prompt_settings(slug: str, lang: str) -> None:
 
     st.markdown(t("orch_prompt_section", lang=lang))
     st.caption(t("orch_prompt_label_help", lang=lang))
+    is_builtin = bool(orch.get("is_builtin"))
+    cfg = orch.get("config", {}) or {}
+    prompt_edited = is_builtin and cfg.get("prompt_user_edited") is True
+    if prompt_edited:
+        st.info(t("orch_prompt_edited_notice", lang=lang))
     new_prompt = st.text_area(
         label=t("orch_prompt_label", lang=lang),
         value=prompt_text,
@@ -1976,7 +1982,15 @@ def _render_prompt_settings(slug: str, lang: str) -> None:
     )
     if st.button(t("orch_save_prompt_btn", lang=lang), key=f"orch_save_prompt_{slug}", type="primary"):
         save_orchestrator(slug, prompt_text=new_prompt)
+        st.session_state.pop(f"orch_prompt_{slug}", None)
         st.success(t("orch_save_prompt_ok", lang=lang))
+        st.rerun()
+    if prompt_edited:
+        if st.button(t("orch_prompt_reset_btn", lang=lang), key=f"orch_reset_prompt_{slug}"):
+            reset_builtin_prompt(slug)
+            st.session_state.pop(f"orch_prompt_{slug}", None)
+            st.success(t("orch_prompt_reset_ok", lang=lang))
+            st.rerun()
 
 
 def _render_economy_settings(slug: str, lang: str) -> None:

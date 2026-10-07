@@ -273,8 +273,10 @@ def test_ensure_devagent_settings_preserves_user_config(isolated_data_dir):
     # never persisted.
     assert "weak_service" not in cfg
     assert "weak_model" not in cfg
-    # prompt_text is intentionally refreshed from system_prompt.md
-    assert orch["prompt_text"] != "Custom prompt"
+    # A user-edited prompt is preserved across bootstrap runs (the
+    # prompt_user_edited marker suppresses the shipped-prompt refresh).
+    assert orch["prompt_text"] == "Custom prompt"
+    assert cfg.get("prompt_user_edited") is True
 
 
 def test_ensure_devagent_settings_backfills_missing_config_fields(isolated_data_dir):

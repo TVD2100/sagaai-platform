@@ -90,6 +90,14 @@ DEFAULT_WEB_SEARCH_PROMPT = (
     "concisely based on the search results. Cite sources when possible."
 )
 
+# Config marker recorded when the user edits the built-in orchestrator's
+# system prompt through the UI. While it is set, the boot-time refresh in
+# ensure_builtin_orchestrators() keeps the user text instead of overwriting
+# it with the bundled dev_agent/system_prompt.md. Clearing the marker
+# (reset_builtin_prompt / the Reset button) resumes the shipped-prompt
+# refresh on the next boot.
+PROMPT_USER_EDITED_KEY = "prompt_user_edited"
+
 
 def _ensure_default_orchestrators() -> Dict[str, str]:
     """Create default orchestrators from defaults/orchestrators/*.
@@ -307,6 +315,67 @@ def create_orchestrator(slug: str, name: str, description: str = "",
     return orch_id if ok else None
 
 
+def _mark_prompt_edited(orch: Dict[str, Any], kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    """Record the prompt_user_edited marker when the system prompt changes.
+
+    Called by save_orchestrator() and save_devagent_config() so a user edit of
+    the built-in orchestrator's prompt survives the boot-time refresh in
+    ensure_builtin_orchestrators(). The marker lives in the config dict and is
+    only set for built-in orchestrators whose prompt_text is actually updated.
+    Returns the (possibly copied) kwargs dict.
+    """
+    if "prompt_text" not in kwargs or not orch.get("is_builtin"):
+        return kwargs
+    # Prefer a config dict passed in the same call; otherwise take the stored
+    # one. Never drop a caller-provided config.
+    if isinstance(kwargs.get("config"), dict):
+        cfg = dict(kwargs["config"])
+    else:
+        cfg = orch.get("config", {})
+        if not isinstance(cfg, dict):
+            cfg = {}
+        cfg = dict(cfg)
+    if cfg.get(PROMPT_USER_EDITED_KEY) is True:
+        return kwargs
+    cfg[PROMPT_USER_EDITED_KEY] = True
+    kwargs = dict(kwargs)
+    kwargs["config"] = cfg
+    return kwargs
+
+
+def reset_builtin_prompt(slug: str = DEVAGENT_SLUG) -> bool:
+    """Drop the prompt_user_edited marker and restore the shipped prompt.
+
+    Clears the marker so the next ensure_builtin_orchestrators() boot refresh
+    re-applies the bundled dev_agent/system_prompt.md, and refreshes the prompt
+    immediately for the running session. Only built-in orchestrators are
+    affected. Returns True on success.
+    """
+    orch = repo_get_orchestrator_with_text(slug)
+    if orch is None or not orch.get("is_builtin"):
+        return False
+    cfg = orch.get("config", {})
+    if not isinstance(cfg, dict):
+        cfg = {}
+    cfg = dict(cfg)
+    cfg.pop(PROMPT_USER_EDITED_KEY, None)
+    kwargs: Dict[str, Any] = {"config": cfg}
+    if slug == DEVAGENT_SLUG:
+        try:
+            from pathlib import Path
+            prompt_file = (
+                Path(__file__).resolve().parent.parent
+                / "dev_agent" / "system_prompt.md"
+            )
+            kwargs["prompt_text"] = prompt_file.read_text(encoding="utf-8")
+        except Exception:
+            pass
+    ok = repo_update_orchestrator(orch["id"], **kwargs)
+    if ok:
+        _sync_orchestrator_folder(slug)
+    return ok
+
+
 def save_orchestrator(slug: str, **kwargs) -> bool:
     """Update an existing orchestrator by slug.
 
@@ -318,6 +387,7 @@ def save_orchestrator(slug: str, **kwargs) -> bool:
     orch = repo_get_orchestrator_with_text(slug)
     if orch is None:
         return False
+    kwargs = _mark_prompt_edited(orch, kwargs)
     ok = repo_update_orchestrator(orch["id"], **kwargs)
     if ok:
         _sync_orchestrator_folder(slug)
@@ -1515,7 +1585,14 @@ def ensure_builtin_orchestrators() -> Dict[str, str]:
         update_kwargs["config"] = config
     if migrate_max_steps:
         update_kwargs["max_steps"] = DEFAULT_MAX_STEPS
-    repo_update_orchestrator(existing["id"], prompt_text=prompt_text, **update_kwargs)
+    # Honour a user-edited system prompt: while the prompt_user_edited marker is
+    # set, keep the stored text instead of overwriting it with the bundled
+    # dev_agent/system_prompt.md. The shipped prompt is re-applied (and the
+    # marker cleared) through reset_builtin_prompt().
+    if config.get(PROMPT_USER_EDITED_KEY) is True:
+        repo_update_orchestrator(existing["id"], **update_kwargs)
+    else:
+        repo_update_orchestrator(existing["id"], prompt_text=prompt_text, **update_kwargs)
     if backfilled:
         _sync_orchestrator_folder(DEVAGENT_SLUG)
     result = {DEVAGENT_SLUG: "updated"}
@@ -1626,6 +1703,12 @@ def save_devagent_config(
         config["economy_cache_enabled"] = economy_cache_enabled
     if economy_cache_multiplier is not None:
         config["economy_cache_multiplier"] = max(1, int(economy_cache_multiplier))
+
+    # Record a user edit of the built-in prompt so the boot-time refresh in
+    # ensure_builtin_orchestrators() keeps it instead of restoring the bundled
+    # dev_agent/system_prompt.md.
+    if prompt_text and prompt_text.strip():
+        config[PROMPT_USER_EDITED_KEY] = True
 
     ok = repo_update_orchestrator(
         orch["id"],

@@ -254,6 +254,72 @@ class TestBootstrapDefaults:
                 shutil.move(str(backup_dir), str(ya_dir))
 
 
+class TestBuiltinPromptPersistence:
+    """A user-edited built-in prompt survives reboot; the unedited one keeps
+    tracking dev_agent/system_prompt.md (the single source of truth)."""
+
+    def test_user_edited_prompt_survives_bootstrap(self, isolated_data_dir):
+        from core.orchestrators import (
+            ensure_builtin_orchestrators, get_orchestrator, save_orchestrator,
+        )
+
+        ensure_builtin_orchestrators()
+        assert save_orchestrator("dev_agent", prompt_text="USER EDITED PROMPT")
+
+        ensure_builtin_orchestrators()
+
+        orch = get_orchestrator("dev_agent")
+        assert orch["prompt_text"] == "USER EDITED PROMPT"
+        assert orch["config"].get("prompt_user_edited") is True
+
+    def test_edited_prompt_survives_all_defaults(self, isolated_data_dir):
+        """ensure_all_defaults() (the real boot path) must not clobber it."""
+        from core.default_imports import ensure_all_defaults
+        from core.orchestrators import get_orchestrator, save_orchestrator
+
+        ensure_all_defaults()
+        assert save_orchestrator("dev_agent", prompt_text="KEEP ME")
+        ensure_all_defaults()
+        assert get_orchestrator("dev_agent")["prompt_text"] == "KEEP ME"
+
+    def test_unedited_prompt_refreshes_from_md(self, isolated_data_dir):
+        from core.orchestrators import ensure_builtin_orchestrators, get_orchestrator
+
+        ensure_builtin_orchestrators()
+        from pathlib import Path
+        md = (ROOT / "dev_agent" / "system_prompt.md").read_text(encoding="utf-8")
+        assert get_orchestrator("dev_agent")["prompt_text"] == md
+
+    def test_reset_restores_shipped_prompt(self, isolated_data_dir):
+        from core.orchestrators import (
+            ensure_builtin_orchestrators, get_orchestrator, reset_builtin_prompt,
+            save_orchestrator,
+        )
+
+        ensure_builtin_orchestrators()
+        save_orchestrator("dev_agent", prompt_text="USER EDITED PROMPT")
+        assert reset_builtin_prompt("dev_agent")
+
+        orch = get_orchestrator("dev_agent")
+        from pathlib import Path
+        md = (ROOT / "dev_agent" / "system_prompt.md").read_text(encoding="utf-8")
+        assert orch["prompt_text"] == md
+        assert "prompt_user_edited" not in orch["config"]
+
+    def test_custom_orchestrator_edit_is_not_marked(self, isolated_data_dir):
+        """The marker is only for built-in orchestrators."""
+        from core.default_imports import ensure_all_defaults
+        from core.orchestrators import (
+            create_orchestrator, get_orchestrator, save_orchestrator,
+        )
+
+        ensure_all_defaults()
+        create_orchestrator(slug="mybot", name="MyBot", prompt_text="orig")
+        save_orchestrator("mybot", prompt_text="custom edited")
+        cfg = get_orchestrator("mybot")["config"] or {}
+        assert "prompt_user_edited" not in cfg
+
+
 class TestLegacyFallbacks:
     def test_orphan_orchestrator_json_format(self, isolated_data_dir):
         """A defaults/orchestrators folder with a plain legacy export JSON
