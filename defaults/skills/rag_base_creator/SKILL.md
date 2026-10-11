@@ -151,7 +151,10 @@ Arguments:
 - `--source`: a directory (scanned recursively) or a single file or several
   `--source` values.
 - `--name`, `--description`: base display name/description.
-- `--slug`: optional stable slug (derived from the name when omitted).
+- `--slug`: optional stable slug (Latin; overrides the name-derived one;
+  normalised to `[a-z0-9_.-]`). Always pass it explicitly for non-Latin base
+  names (e.g. Cyrillic): the name-derived fallback would otherwise produce a
+  meaningless `base` slug.
 - `--search-mode`: `bm25` (default, offline) / `vector` / `hybrid`.
 - `--chunk-size` / `--chunk-overlap`: chunking parameters (default
   `--chunk-size 1800`, `--chunk-overlap 0`).
@@ -185,7 +188,8 @@ warnings) and exits 0 on success, 1 on error.
    from core import rag
    base = rag.create_base(name="...", description="...", provider="YandexAI",
                           embedding_model="text-search-doc", chunk_size=1800,
-                          chunk_overlap=0, rag_slots=[...])
+                          chunk_overlap=0, rag_slots=[...],
+                          slug="my_kb")  # Latin slug; required for non-Latin names
    slug = base["slug"]
    db = rag.index_db_path(slug)
    ```
@@ -245,6 +249,9 @@ rather than as a path on disk, follow this rule:
   offer a `--dry-run` plan.
 - A base with the same slug already exists -> choose another slug or ask the
   user whether the old base should be replaced (never silently overwrite).
+- An explicit `--slug` without Latin letters (e.g. a Cyrillic-only value) is
+  declined with an error -> pick a Latin slug; the base display name may stay
+  Cyrillic.
 - Embedding request fails midway -> keep the already inserted chunks, report
   exactly how many were added, and suggest re-running with a `--resume` style
   pass or checking the quota/network.

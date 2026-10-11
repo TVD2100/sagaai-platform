@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-10-11T18:32:23+00:00`
-- Файлов: **324**
+- Обновлено: `2026-10-11T19:57:27+00:00`
+- Файлов: **325**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **4225**
-- Отпечаток содержимого: `sha256:0d2481a19c9271d0a629348cdea633bc5fa7ac9835a01bae3340d1e9bc9fb574` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 1, JSON: 17, Markdown: 37, PEM certificate: 1, Python: 271, Text: 1
+- Python-символов: **4237**
+- Отпечаток содержимого: `sha256:f4cf0cff9bdd8d58b03d7e5be06fe44d40e3edfea018727cdbc44613d93f6cae` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 1, JSON: 17, Markdown: 37, PEM certificate: 1, Python: 272, Text: 1
 
 ## Файлы и назначение
 
@@ -71,7 +71,7 @@
 | `core/paths.py` | Python | Base directories and thread paths | - |
 | `core/prompt_guard.py` | Python | Prompt-injection protection and sanitization | - |
 | `core/prompt_improver.py` | Python | _(описание не задано)_ | - |
-| `core/rag.py` | Python | RAG base CRUD: folder and manifest (search_mode bm25/vector/hybrid, default bm25), files, chunk stats and the provider-credentials activity flag | - |
+| `core/rag.py` | Python | RAG base CRUD: folder and manifest (search_mode bm25/vector/hybrid, default bm25), explicit-slug create_base (Latin, normalised), files, chunk stats and the provider-credentials activity flag | - |
 | `core/rag_bm25.py` | Python | Own BM25 lexical index of a RAG base: bm25_terms/bm25_docs tables in the base index.db (lazy first build for legacy bases, incremental add/update/delete hooks, Unicode ru/en tokenization, no API keys) | - |
 | `core/rag_chunker.py` | Python | _(описание не задано)_ | - |
 | `core/rag_embeddings.py` | Python | _(описание не задано)_ | - |
@@ -168,6 +168,7 @@
 | `tests/test_protect_history.py` | Python | History protection tests | - |
 | `tests/test_rag_bm25.py` | Python | Unit: own BM25 index (tokenization, manual ranking check, lazy rebuild, incremental hooks, stats/drop) | - |
 | `tests/test_rag_chunks_and_preset_skills.py` | Python | _(описание не задано)_ | storage |
+| `tests/test_rag_create_base_slug.py` | Python | Unit: rag.create_base explicit slug - normalisation to [a-z0-9_.-], refusal without Latin, duplicate slug, name-derived fallback | storage |
 | `tests/test_rag_hot_paths_no_stats.py` | Python | _(описание не задано)_ | - |
 | `tests/test_rag_stats_cache.py` | Python | _(описание не задано)_ | - |
 | `tests/test_rag_tools_robustness.py` | Python | _(описание не задано)_ | - |
@@ -180,7 +181,7 @@
 | `tests/test_service_model_catalogs.py` | Python | Vision/image model catalog tests for service profiles | - |
 | `tests/test_sidebar_employees_nav.py` | Python | _(описание не задано)_ | - |
 | `tests/test_single_model_config.py` | Python | Single-model config tests (legacy weak_* tolerance, vision/image keys, no weak_* persistence) | storage |
-| `tests/test_skill_build_base.py` | Python | Unit: Rag Base Creator build_base.py - dry-run plan and bm25 build with zero embedding calls | storage |
+| `tests/test_skill_build_base.py` | Python | Unit: Rag Base Creator build_base.py - dry-run plan, bm25 build with zero embedding calls, and the --slug contract (override, normalisation, refusal without Latin, replace) | storage |
 | `tests/test_skills_adaptation.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_skills_library.py` | Python | Skills library tests | storage |
 | `tests/test_ssh_connector.py` | Python | Unit tests for core/ssh_connector (fake paramiko) | - |
@@ -1095,37 +1096,38 @@
 ### `core/rag.py`
 - `_now` (func, строка 45)
 - `_slugify` (func, строка 49)
-- `_manifest_path` (func, строка 56)
-- `base_dir` (func, строка 62)
-- `files_dir` (func, строка 68)
-- `index_db_path` (func, строка 73)
-- `_ensure_files_dir` (func, строка 78)
-- `list_bases` (func, строка 84)
-- `get_base` (func, строка 109)
-- `_with_index_stats` (func, строка 125)
-- `_validate_search_mode` (func, строка 136)
-- `_validate_create` (func, строка 144)
-- `create_base` (func, строка 160)
-- `update_base` (func, строка 210)
-- `set_status` (func, строка 244)
-- `_load_removed_defaults` (func, строка 261)
-- `_save_removed_defaults` (func, строка 271)
-- `_load_manifest_raw` (func, строка 278)
-- `delete_base` (func, строка 286)
-- `add_file` (func, строка 307)
-- `remove_file` (func, строка 317)
-- `list_files` (func, строка 327)
-- `read_file_contents` (func, строка 340)
-- `allowed_for_slot` (func, строка 356)
-- `base_has_credentials` (func, строка 365)
-- `list_chunks` (func, строка 404)
-- `get_chunk` (func, строка 420)
-- `update_chunk` (func, строка 426)
-- `delete_chunk` (func, строка 467)
-- `list_bases_with_activity` (func, строка 473)
-- `list_bases_with_activity._active` (func, строка 491)
-- `_save_manifest` (func, строка 532)
-- `json_load` (func, строка 539)
+- `_normalize_slug` (func, строка 59)
+- `_manifest_path` (func, строка 78)
+- `base_dir` (func, строка 84)
+- `files_dir` (func, строка 90)
+- `index_db_path` (func, строка 95)
+- `_ensure_files_dir` (func, строка 100)
+- `list_bases` (func, строка 106)
+- `get_base` (func, строка 131)
+- `_with_index_stats` (func, строка 147)
+- `_validate_search_mode` (func, строка 158)
+- `_validate_create` (func, строка 166)
+- `create_base` (func, строка 185)
+- `update_base` (func, строка 240)
+- `set_status` (func, строка 274)
+- `_load_removed_defaults` (func, строка 291)
+- `_save_removed_defaults` (func, строка 301)
+- `_load_manifest_raw` (func, строка 308)
+- `delete_base` (func, строка 316)
+- `add_file` (func, строка 337)
+- `remove_file` (func, строка 347)
+- `list_files` (func, строка 357)
+- `read_file_contents` (func, строка 370)
+- `allowed_for_slot` (func, строка 386)
+- `base_has_credentials` (func, строка 395)
+- `list_chunks` (func, строка 434)
+- `get_chunk` (func, строка 450)
+- `update_chunk` (func, строка 456)
+- `delete_chunk` (func, строка 497)
+- `list_bases_with_activity` (func, строка 503)
+- `list_bases_with_activity._active` (func, строка 521)
+- `_save_manifest` (func, строка 562)
+- `json_load` (func, строка 569)
 
 ### `core/rag_bm25.py`
 - `tokenize` (func, строка 52)
@@ -3024,6 +3026,15 @@
 - `TestPresetSkillAutoRegistration.test_seeds_into_nonempty_library` (func, строка 324)
 - `TestPresetSkillAutoRegistration.test_deleted_preset_is_not_resurrected` (func, строка 357)
 
+### `tests/test_rag_create_base_slug.py`
+- `isolated_data_dir` (func, строка 27)
+- `test_name_derived_slug_unchanged` (func, строка 54)
+- `test_explicit_slug_is_used` (func, строка 61)
+- `test_explicit_slug_is_normalised` (func, строка 72)
+- `test_cyrillic_only_slug_raises` (func, строка 80)
+- `test_duplicate_explicit_slug_raises` (func, строка 87)
+- `test_blank_slug_falls_back_to_name` (func, строка 95)
+
 ### `tests/test_rag_hot_paths_no_stats.py`
 - `_invoke` (func, строка 31)
 - `_st_ctx` (func, строка 38)
@@ -3213,13 +3224,17 @@
 - `test_dev_agent_build_assistant_dict_from_config_single_model` (func, строка 248)
 
 ### `tests/test_skill_build_base.py`
-- `isolated_data_dir` (func, строка 32)
-- `_load_skill_module` (func, строка 59)
-- `_source_dir` (func, строка 69)
-- `_args` (func, строка 84)
-- `test_dry_run_reports_bm25_and_creates_nothing` (func, строка 107)
-- `test_bm25_build_needs_no_embeddings` (func, строка 121)
-- `test_bm25_build_needs_no_embeddings._fail` (func, строка 125)
+- `isolated_data_dir` (func, строка 35)
+- `_load_skill_module` (func, строка 62)
+- `_source_dir` (func, строка 72)
+- `_args` (func, строка 87)
+- `test_dry_run_reports_bm25_and_creates_nothing` (func, строка 110)
+- `test_bm25_build_needs_no_embeddings` (func, строка 124)
+- `test_bm25_build_needs_no_embeddings._fail` (func, строка 128)
+- `test_explicit_slug_overrides_name_derived` (func, строка 158)
+- `test_explicit_slug_is_normalised` (func, строка 170)
+- `test_cyrillic_only_slug_is_declined` (func, строка 179)
+- `test_existing_slug_requires_replace` (func, строка 190)
 
 ### `tests/test_skills_adaptation.py`
 - `isolated_data_dir` (func, строка 39)
@@ -4664,20 +4679,20 @@
 - `repo_devagent_load_messages_window` (func, строка 305)
 
 ### `defaults/skills/rag_base_creator/scripts/build_base.py`
-- `_fallback_vector` (func, строка 94)
-- `_check_deps` (func, строка 102)
-- `_collect_files` (func, строка 117)
-- `_add_file` (func, строка 150)
-- `_read_text` (func, строка 165)
-- `_product_of` (func, строка 177)
-- `_headings` (func, строка 186)
-- `_trail_at` (func, строка 194)
-- `_split_units` (func, строка 213)
-- `_group_units` (func, строка 229)
-- `build_chunks` (func, строка 264)
-- `_embed_chunk` (func, строка 304)
-- `run` (func, строка 312)
-- `main` (func, строка 412)
+- `_fallback_vector` (func, строка 95)
+- `_check_deps` (func, строка 103)
+- `_collect_files` (func, строка 118)
+- `_add_file` (func, строка 151)
+- `_read_text` (func, строка 166)
+- `_product_of` (func, строка 178)
+- `_headings` (func, строка 187)
+- `_trail_at` (func, строка 195)
+- `_split_units` (func, строка 214)
+- `_group_units` (func, строка 230)
+- `build_chunks` (func, строка 265)
+- `_embed_chunk` (func, строка 305)
+- `run` (func, строка 313)
+- `main` (func, строка 423)
 
 ### `scripts/regenerate_project_map.py`
 - `build_publish_set` (func, строка 20)

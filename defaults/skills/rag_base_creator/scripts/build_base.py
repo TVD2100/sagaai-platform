@@ -35,7 +35,8 @@ Options:
     --source PATH          Source directory or file (repeatable).
     --name NAME            Base display name.
     --description TEXT     Optional description.
-    --slug SLUG            Optional stable slug.
+    --slug SLUG            Optional stable slug (Latin; overrides the
+                           name-derived one; normalised to [a-z0-9_.-]).
     --search-mode MODE     bm25 (default) | vector | hybrid.
     --chunk-size N         Max chunk length in chars (default 1800).
     --chunk-overlap N      Overlap in chars (default 0).
@@ -350,15 +351,24 @@ def run(args) -> dict:
         if clean and clean not in slots:
             slots.append(clean)
 
-    existing = rag.get_base(args.slug) if args.slug else {}
+    # Explicit --slug overrides the name-derived slug: normalise it strictly
+    # and refuse values without Latin letters (e.g. a Cyrillic-only slug).
+    requested_slug = ""
+    if str(args.slug or "").strip():
+        try:
+            requested_slug = rag._normalize_slug(args.slug)
+        except ValueError as e:
+            return {"ok": False, "error": str(e), "slug": str(args.slug)}
+
+    existing = rag.get_base(requested_slug) if requested_slug else {}
     if existing and not args.replace:
         return {
             "ok": False,
-            "error": f"base already exists: {args.slug}",
+            "error": f"base already exists: {requested_slug}",
             "hint": "choose a different --slug or pass --replace",
         }
     if existing and args.replace:
-        rag.delete_base(args.slug)
+        rag.delete_base(requested_slug)
 
     base = rag.create_base(
         name=args.name,
@@ -369,6 +379,7 @@ def run(args) -> dict:
         chunk_overlap=args.chunk_overlap,
         rag_slots=slots,
         search_mode=args.search_mode,
+        slug=requested_slug,
     )
     slug = base["slug"]
     db = rag.index_db_path(slug)
@@ -419,7 +430,8 @@ def main(argv=None):
                         help="Source directory or file (repeatable)")
     parser.add_argument("--name", required=True, help="Base display name")
     parser.add_argument("--description", default="", help="Base description")
-    parser.add_argument("--slug", default="", help="Stable base slug")
+    parser.add_argument("--slug", default="",
+                        help="Stable base slug (Latin; normalised; overrides the name-derived one)")
     parser.add_argument("--search-mode", default="bm25",
                         choices=("bm25", "vector", "hybrid"),
                         help="Base search mode (default bm25, offline)")

@@ -6,9 +6,12 @@ must build a base with NO embedding calls in the default bm25 mode: chunks are
 inserted into the local index and BM25 structures are built lazily by
 core.rag_bm25, so no YandexAI keys are required.
 
-Covers: dry-run plan (search_mode visible, nothing created) and a full bm25
+Covers: dry-run plan (search_mode visible, nothing created), a full bm25
 build (skill build -> search_base hit via BM25) with embed_text monkeypatched
-to fail on any call.
+to fail on any call, and the --slug contract: an explicit slug overrides the
+name-derived one, unsafe characters are folded, a Cyrillic-only slug is
+declined with a structured error (no base created), and a duplicate slug
+requires --replace.
 """
 import importlib
 import importlib.util
@@ -150,5 +153,51 @@ def test_bm25_build_needs_no_embeddings(isolated_data_dir, tmp_path):
     assert hits, "BM25 must find the chunk containing 'wizard'"
     assert hits[0]["source"] == "guide.md"
     assert hits[0].get("mode") == "bm25"
+
+
+def test_explicit_slug_overrides_name_derived(isolated_data_dir, tmp_path):
+    """--slug wins over the name-derived slug (Cyrillic name -> Latin slug)."""
+    mod = _load_skill_module()
+    src = _source_dir(tmp_path)
+    result = mod.run(_args(src, name="Маркетинг", slug="marketing"))
+    assert result["ok"] is True
+    assert result["slug"] == "marketing"
+    from core import rag
+    assert rag.get_base("marketing")
+    assert rag.get_base("base") == {}
+
+
+def test_explicit_slug_is_normalised(isolated_data_dir, tmp_path):
+    """Unsafe characters in --slug are folded before use."""
+    mod = _load_skill_module()
+    src = _source_dir(tmp_path)
+    result = mod.run(_args(src, slug="My-KB.v2!"))
+    assert result["ok"] is True
+    assert result["slug"] == "my-kb.v2"
+
+
+def test_cyrillic_only_slug_is_declined(isolated_data_dir, tmp_path):
+    """A slug without Latin letters refuses with a structured error."""
+    mod = _load_skill_module()
+    src = _source_dir(tmp_path)
+    result = mod.run(_args(src, name="Книга", slug="маркетинг"))
+    assert result["ok"] is False
+    assert "Latin" in result["error"]
+    from core import rag
+    assert rag.list_bases(with_stats=False) == []
+
+
+def test_existing_slug_requires_replace(isolated_data_dir, tmp_path):
+    """A duplicate explicit slug is declined; --replace rebuilds it."""
+    mod = _load_skill_module()
+    src = _source_dir(tmp_path)
+    first = mod.run(_args(src, slug="dup_kb"))
+    assert first["ok"] is True
+    second = mod.run(_args(src, slug="dup_kb"))
+    assert second["ok"] is False
+    assert "already exists" in second["error"]
+    replaced = mod.run(_args(src, slug="dup_kb", replace=True))
+    assert replaced["ok"] is True
+    assert replaced["slug"] == "dup_kb"
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: MIT

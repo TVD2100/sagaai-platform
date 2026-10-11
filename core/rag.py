@@ -53,6 +53,28 @@ def _slugify(name: str) -> str:
     return s or "base"
 
 
+_SAFE_SLUG_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz0123456789_-.")
+
+
+def _normalize_slug(value: str) -> str:
+    """Normalise an explicitly requested slug (a strict variant of _slugify).
+
+    Lowercases the value, replaces every character outside the safe set
+    (Latin letters, digits, ``_``, ``-``, ``.``) with ``_`` and collapses
+    runs of underscores. Raises ValueError when nothing usable remains
+    (e.g. a Cyrillic-only slug): such a value cannot be a safe folder name,
+    and a silent fallback would hide the caller's error.
+    """
+    s = "".join(ch if ch in _SAFE_SLUG_CHARS else "_"
+                for ch in str(value or "").strip().lower())
+    while "__" in s:
+        s = s.replace("__", "_")
+    s = s.strip("_")
+    if not s:
+        raise ValueError("Slug must contain Latin letters or digits")
+    return s
+
+
 def _manifest_path(slug: str) -> str:
     if not re.fullmatch(r"[a-z0-9_\-\.]+", slug) or slug in (".", ".."):
         raise ValueError("Invalid base slug")
@@ -143,7 +165,7 @@ def _validate_search_mode(mode: str) -> str:
 
 def _validate_create(name: str, description: str, provider: str,
                      embedding_model: str, chunk_size: int,
-                     chunk_overlap: int) -> str:
+                     chunk_overlap: int, slug: str = "") -> str:
     if not name.strip():
         raise ValueError("Base name cannot be empty")
     if not provider.strip():
@@ -154,6 +176,9 @@ def _validate_create(name: str, description: str, provider: str,
         raise ValueError("Chunk overlap cannot be negative")
     if chunk_overlap >= chunk_size:
         raise ValueError("Chunk overlap must be smaller than chunk size")
+    explicit = str(slug or "").strip()
+    if explicit:
+        return _normalize_slug(explicit)
     return _slugify(name)
 
 
@@ -161,18 +186,23 @@ def create_base(name: str, description: str = "", provider: str = "yandex",
                 embedding_model: str = "text-search-doc",
                 chunk_size: int = 1500, chunk_overlap: int = 150,
                 type_: str = "rag", rag_slots=None,
-                search_mode: str = DEFAULT_SEARCH_MODE) -> dict:
+                search_mode: str = DEFAULT_SEARCH_MODE,
+                slug: str = "") -> dict:
     """Create a folder + manifest + index for a new base.
 
     Returns the created manifest (with index stats). Rag *rag_slots* is an
     optional list of assistant/orchestrator identifiers allowed to reference
-    the base; empty means "available to everyone".
+    the base; empty means "available to everyone". The optional *slug*
+    overrides the slug derived from *name* (use it for non-Latin names); it
+    is normalised to the safe character set and raises ValueError when
+    nothing usable remains.
     """
     if type_ not in VALID_TYPES:
         raise ValueError(f"Unsupported storage type: {type_}")
     mode = _validate_search_mode(search_mode)
+    # An explicit slug (parameter) overrides the name-derived one.
     slug = _validate_create(name, description, provider, embedding_model,
-                            chunk_size, chunk_overlap)
+                            chunk_size, chunk_overlap, slug)
     path = _manifest_path(slug)
     if os.path.exists(path):
         raise ValueError("A base with this slug already exists")
