@@ -1,10 +1,11 @@
 """
 ui/pages/storage.py - RAG knowledge base viewing page.
 
-This page is READ-ONLY by design:
+This page is read-only except for the search-mode switch:
   - list existing bases (manifest + index stats);
-  - run a test semantic search over a ready base;
+  - run a test search over a ready base (in the base's search mode);
   - browse, search, view, edit and delete individual chunks of a base;
+  - switch the base search mode (bm25 / vector / hybrid);
   - delete the whole base with inline confirmation.
 
 Bases themselves are NOT created here: creation and population are done by
@@ -39,7 +40,7 @@ def _status_label(status: str, lang: str) -> str:
 
 
 def _render_test_search(slug: str, lang: str) -> None:
-    """Render the test semantic search block for base *slug*."""
+    """Render the test search block for base *slug*."""
     st.markdown("---")
     st.markdown(f"**{t('storage_test_search_title', lang=lang)}**")
     query = st.text_input(
@@ -230,14 +231,38 @@ def _render_base_card(base: dict, lang: str) -> None:
         f"{t('storage_stats_chunks', lang=lang, chunks=chunks, embeddings=embeddings)}"
         f"{inactive_mark}"
     )
+    current_mode = str(base.get("search_mode") or rag.DEFAULT_SEARCH_MODE)
+    if current_mode not in rag.SEARCH_MODES:
+        current_mode = rag.DEFAULT_SEARCH_MODE
     with st.expander(header, expanded=False):
         if not active:
             st.warning(t("storage_inactive_hint", lang=lang))
         st.caption(f"slug: `{slug}` · "
                    f"{t('storage_embedding_model', lang=lang)}: "
-                   f"`{base.get('embedding_model', '')}`")
+                   f"`{base.get('embedding_model', '')}` · "
+                   f"{t('storage_search_mode', lang=lang)}: `{current_mode}`")
         if base.get("description"):
             st.markdown(base["description"])
+
+        mode_cols = st.columns([3, 1])
+        with mode_cols[0]:
+            selected_mode = st.selectbox(
+                t("storage_search_mode", lang=lang),
+                options=list(rag.SEARCH_MODES),
+                index=list(rag.SEARCH_MODES).index(current_mode),
+                key=f"storage_mode_{slug}",
+                help=t("storage_search_mode_help", lang=lang),
+            )
+        with mode_cols[1]:
+            if st.button(t("storage_search_mode_apply", lang=lang),
+                         key=f"storage_mode_btn_{slug}",
+                         use_container_width=True):
+                try:
+                    rag.update_base(slug, {"search_mode": selected_mode})
+                    st.success(t("storage_search_mode_updated", lang=lang))
+                    st.rerun()
+                except Exception:
+                    st.error(t("storage_search_mode_error", lang=lang))
 
         actions = st.columns(4)
         with actions[0]:

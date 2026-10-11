@@ -18,14 +18,16 @@ chunking rules:
         Раздел: <H2 → H3 trail when the file was split>
         Фрагмент: 1/1 — документ целиком  |  Фрагмент: 2/5
 
-Chunks are embedded offline with the YandexAI embeddings API, then inserted
-into the base's local SQLite index. ``--dry-run`` only prints a JSON plan and
-touches nothing; ``--limit N`` limits processed files (useful for trials).
+Chunks are inserted into the base's local SQLite index; in ``vector`` /
+``hybrid`` search modes they are additionally embedded offline with the
+YandexAI embeddings API (the default ``bm25`` mode needs no API keys at all).
+``--dry-run`` only prints a JSON plan and touches nothing; ``--limit N``
+limits processed files (useful for trials).
 
 Usage:
 
     python build_base.py --install-root <ROOT> --source <DIR_OR_FILE> \\
-        --name "My KB" [--slug my_kb] [--exclude index.md] \\
+        --name "My KB" [--slug my_kb] [--exclude index.md] [--search-mode bm25] \\
         [--chunk-size 1800] [--chunk-overlap 0] [--limit N]
 
 Options:
@@ -34,6 +36,7 @@ Options:
     --name NAME            Base display name.
     --description TEXT     Optional description.
     --slug SLUG            Optional stable slug.
+    --search-mode MODE     bm25 (default) | vector | hybrid.
     --chunk-size N         Max chunk length in chars (default 1800).
     --chunk-overlap N      Overlap in chars (default 0).
     --exclude NAME         File name(s) to skip (repeatable).
@@ -320,6 +323,7 @@ def run(args) -> dict:
         "sources": list(args.source),
         "chunk_size": args.chunk_size,
         "chunk_overlap": args.chunk_overlap,
+        "search_mode": args.search_mode,
         "excludes": exclude_values,
         "limit": args.limit,
         "files_total": len(files),
@@ -364,6 +368,7 @@ def run(args) -> dict:
         chunk_size=args.chunk_size,
         chunk_overlap=args.chunk_overlap,
         rag_slots=slots,
+        search_mode=args.search_mode,
     )
     slug = base["slug"]
     db = rag.index_db_path(slug)
@@ -375,7 +380,9 @@ def run(args) -> dict:
         chunks = build_chunks(text, rel, args.chunk_size, args.chunk_overlap)
         for idx, chunk in enumerate(chunks):
             try:
-                vector = _embed_chunk(chunk, "text-search-doc", args.no_embed)
+                vector = ([] if args.search_mode == "bm25"
+                          else _embed_chunk(chunk, "text-search-doc",
+                                            args.no_embed))
             except Exception as e:
                 warnings.append(f"{rel}[{idx}]: embedding failed: {e}")
                 vector = []
@@ -413,6 +420,9 @@ def main(argv=None):
     parser.add_argument("--name", required=True, help="Base display name")
     parser.add_argument("--description", default="", help="Base description")
     parser.add_argument("--slug", default="", help="Stable base slug")
+    parser.add_argument("--search-mode", default="bm25",
+                        choices=("bm25", "vector", "hybrid"),
+                        help="Base search mode (default bm25, offline)")
     parser.add_argument("--chunk-size", type=int, default=_DEFAULT_CHUNK_SIZE)
     parser.add_argument("--chunk-overlap", type=int, default=0)
     parser.add_argument("--exclude", action="append", default=["index.md"],

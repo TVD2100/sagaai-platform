@@ -247,8 +247,9 @@ def execute_assistant_rag_search(args, assistant=None) -> str:
     """Execute a local rag_search call and return the output as a JSON string.
 
     The model invokes this through the Responses ``function_call`` mechanism;
-    the platform runs the semantic search locally and feeds the result back as
-    ``function_call_output``.
+    the platform runs the search locally (per the base's configured search
+    mode: bm25 lexical by default, vector or hybrid) and feeds the result
+    back as ``function_call_output``.
     """
     if not isinstance(args, dict):
         args = {}
@@ -292,6 +293,7 @@ def execute_assistant_rag_search(args, assistant=None) -> str:
                         "source": h.get("source"),
                         "chunk_index": h.get("chunk_index"),
                         "score": round(float(h.get("score") or 0.0), 3),
+                        **({"mode": h.get("mode")} if h.get("mode") else {}),
                     }
                     for h in hits
                 ],

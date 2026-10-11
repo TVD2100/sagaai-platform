@@ -141,3 +141,34 @@ def test_base_card_actions_and_chunks_section(isolated_data_dir):
         names = _call_names(st)
         assert "file_uploader" not in names
         assert "storage_new" not in keys
+
+
+def test_base_card_has_search_mode_selector(isolated_data_dir):
+    """The base card shows the mode selectbox with the current mode selected."""
+    base = _make_base_with_chunks(isolated_data_dir)
+    slug = base["slug"]
+    from core import rag
+    rag.update_base(slug, {"search_mode": "vector"})
+    with install_streamlit_mock() as st:
+        page = _fresh_storage_page()
+        _render(st, page)
+        boxes = {c[2].get("key"): c[2] for c in st.calls if c[0] == "selectbox"}
+        assert f"storage_mode_{slug}" in boxes
+        box = boxes[f"storage_mode_{slug}"]
+        assert list(box.get("options") or []) == ["bm25", "vector", "hybrid"]
+        assert box.get("index") == 1  # 'vector' is the current mode
+
+
+def test_search_mode_apply_updates_manifest(isolated_data_dir):
+    """Clicking Apply persists the selected search mode to the manifest."""
+    base = _make_base_with_chunks(isolated_data_dir)
+    slug = base["slug"]
+    from core import rag
+    assert rag.get_base(slug).get("search_mode") == "bm25"
+    with install_streamlit_mock() as st:
+        page = _fresh_storage_page()
+        st._selectbox_returns[f"storage_mode_{slug}"] = "hybrid"
+        st.click(f"storage_mode_btn_{slug}")
+        _render(st, page)
+        assert st.rerun_count >= 1
+    assert rag.get_base(slug).get("search_mode") == "hybrid"

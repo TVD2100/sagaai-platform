@@ -64,7 +64,7 @@ SagaAI построена по модульной архитектуре с чё
 | `contracts` | Типизированные контракты словарей (AssistantDict, OrchestratorConfig, RAG-контракты и пр.) |
 | `tools_utils` | Список определений инструментов для страниц помощников |
 | `prompt_improver` | LLM-улучшение промптов помощников на основной модели DevAgent |
-| `rag` / `rag_chunker` / `rag_embeddings` / `rag_index` / `rag_indexer` / `rag_search` | RAG-подсистема: CRUD баз знаний, чанкинг, Yandex Embeddings, локальный векторный индекс, индексация, семантический поиск |
+| `rag` / `rag_bm25` / `rag_chunker` / `rag_embeddings` / `rag_index` / `rag_indexer` / `rag_search` | RAG-подсистема: CRUD баз знаний, чанкинг, собственная лексическая BM25-реализация, Yandex Embeddings, локальный индекс, индексация, поиск по режиму базы (bm25/vector/hybrid) |
 | `updater` | Конвейер обновлений: fetch_manifest, check_updates, stage_updates, apply_updates, rollback_updates; CLI check/stage/apply/rollback (raw-канал без токена) |
 | `updater_apply` | Чистый stdlib cold-start апплаер: атомарная запись, бэкапы, откат; хранилище `.dev_agent/updates/` (pending/, state.json, health.json) |
 
@@ -141,7 +141,7 @@ SagaAI построена по модульной архитектуре с чё
 - `universal_agent.py` - `load_system_prompt()` (единый файл
   `dev_agent/system_prompt.md`), `build_assistant_dict_from_config()`,
   `UniversalDevAgent` (core + workspace + orchestrator tools).
-- `system_prompt.md` - канонический системный промпт DevAgent (v3.19):
+- `system_prompt.md` - канонический системный промпт DevAgent (v3.20):
   docs-first workflow (перед началом работы читать `AGENT.md`, если он есть,
   затем `PROJECT_MAP.md`), обязательная секция «Documentation» в финальном отчёте,
   режим pre-approved autonomous mode (при подробном ТЗ агент явно
@@ -162,12 +162,25 @@ SagaAI построена по модульной архитектуре с чё
 
 ### 7. RAG-подсистема (`core/rag*.py`, `ui/pages/storage.py`)
 - **База знаний** - папка `DATA_DIR/rag_bases/<slug>/`:
-  `manifest.json`, файлы документов, локальный SQLite-индекс `index.db`.
-- **Индексация**: `rag_chunker` (чанкинг) → `rag_embeddings` (Yandex
-  Embeddings API, BYOK) → `rag_indexer` (запись в `rag_index`).
-- **Поиск**: `rag_search` - косинусное сходство по локальному индексу
-  и сборка контекста для LLM; заголовки контекста несут `chunk_id` и
-  0-based позицию найденного чанка.
+  `manifest.json` (поле `search_mode`), файлы документов, локальный
+  SQLite-индекс `index.db`.
+- **Режимы поиска** (`search_mode` в манифесте; отсутствие поля = `bm25`,
+  миграция на чтении): `bm25` - собственная лексическая реализация
+  (`core/rag_bm25`: Unicode-токенизация ru/en, k1=1.5/b=0.75, без
+  API-ключей); `vector` - косинусное сходство по эмбеддингам;
+  `hybrid` - Reciprocal Rank Fusion (k=60) обоих ранжирований с
+  деградацией до `bm25` при недоступности эмбеддингов. Хиты несут `mode`.
+- **Активность базы** (`active`) учитывает режим: `bm25` и `hybrid`
+  остаются активными и без ключей провайдера (`hybrid` работает по своей
+  лексической половине), ключи требуются только режиму `vector`.
+- **Индексация**: `rag_chunker` (чанкинг) → `rag_indexer` пишет чанки в
+  `rag_index` всегда и поддерживает BM25-структуры (`core/rag_bm25`;
+  ленивая первая сборка для баз старых версий, далее инкрементальные
+  хуки add/update/delete); в режимах `vector`/`hybrid` дополнительно
+  получает эмбеддинги Yandex Embeddings API (BYOK).
+- **Поиск**: `rag_search` диспетчеризует по режиму базы и собирает
+  контекст для LLM; заголовки контекста несут `chunk_id` и 0-based
+  позицию найденного чанка.
 - **Добор контекста**: `rag_get_chunks` - выборка конкретных чанков без
   эмбеддингов (по `chunk_ids` или `source` + `chunk_indices`) поверх
   `core.rag_index.fetch_chunks`; доступен и DevAgent, и function-циклу
@@ -312,7 +325,7 @@ YandexAI, единственная модель `aliceai-image-art-3.0`; рез�
   скобки/строки, невалидный JSON). Диагностика срабатывает только когда
   есть исполненные вызовы и ни один из них не был JSON-отремонтирован,
   чтобы не дублировать авто-ремонт.
-- Системный промпт DevAgent v3.19 дополняет механизм правилами: закрытый шаг
+- Системный промпт DevAgent v3.20 дополняет механизм правилами: закрытый шаг
   не пересказывается, не более 3 попыток на функцию, прозовый
   `loop_status: continue` продолжает цикл, независимые вызовы можно
   батчить, ветка принятия готового плана пользователя дословно;
@@ -389,8 +402,9 @@ ID и путь передаются мета-блоком системного �
 вложения диалога при пустой папке живут в `history/<tid>/`.
 
 ### RAG: локальные базы знаний
-Индексация локальная (SQLite + косинусное сходство), эмбеддинги - удалённо
-через Yandex Embeddings API (BYOK). Базы хранятся в `DATA_DIR/rag_bases/`.
+Индексация локальная (SQLite: собственный BM25-индекс + опциональные
+векторы), эмбеддинги - удалённо через Yandex Embeddings API (BYOK, режимы
+vector/hybrid). Базы хранятся в `DATA_DIR/rag_bases/`.
 
 ### Коннекторы
 - **`core/connectors.py`** - CRUD подключений: папка
@@ -452,7 +466,7 @@ sha256-отпечаток шапки сигнализирует об устар�
 Блок `## Available tools` добавляется к промпту каждого оркестратора
 (`_extend_prompt_with_tools` -> `render_available_tools_block`) и перечисляет
 доступные инструменты (core, workspace, подключения, кастомные функции).
-Каноничные промпты (`dev_agent/system_prompt.md` v3.19, YaAgent v2.11) не
+Каноничные промпты (`dev_agent/system_prompt.md` v3.20, YaAgent v2.11) не
 дублируют этот справочник: их раздел справочника ссылается на
 автоматический блок, оставляя в промпте только собственные правила
 использования инструментов (форматы вызова, fallback-цепочки).

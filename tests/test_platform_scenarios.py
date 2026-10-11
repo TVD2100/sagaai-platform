@@ -507,11 +507,13 @@ def test_rag_base_full_scenario(isolated_data, monkeypatch):
         "Platform Docs", description="Справочник платформы",
         provider="YandexAI", embedding_model="text-search-doc",
         chunk_size=200, chunk_overlap=20,
+        search_mode="vector",
     )
     slug = base["slug"]
     assert slug == "platform_docs"
     assert base["status"] == "draft"
     assert base["index_stats"]["chunks"] == 0
+    assert base["search_mode"] == "vector"
 
     # 2. Upload a source document long enough to produce 3 chunks at size 200.
     body = (

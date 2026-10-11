@@ -43,7 +43,8 @@ def build_rag_search_tool(base_slugs: Optional[list] = None) -> dict:
         "name": "rag_search",
         "description": (
             "Search the assistant's local RAG knowledge base "
-            "(semantic vector search over document chunks). Results carry "
+            "(the base's configured mode: bm25 lexical by default, "
+            "vector embeddings or hybrid). Results carry "
             "the source file, the 0-based chunk position and the chunk id; "
             "pass them to rag_get_chunks to fetch neighbouring chunks when "
             "a snippet lacks context." + hint

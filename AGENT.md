@@ -36,8 +36,9 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   задачи, с собственными настройками (модели, системный промпт,
   инструменты, инструкции, функции);
 - создавать и использовать **базы знаний (RAG)** - хранить документы в
-  локальных базах, индексировать их эмбеддингами и искать релевантные
-  фрагменты при ответе на запросы;
+  локальных базах и искать релевантные фрагменты лексически (BM25, без
+  API-ключей, режим по умолчанию), семантически (эмбеддинги) или в
+  гибридном режиме;
 - получать **обновления платформы** через встроенный конвейер обновлений
   (манифест версий, проверка/загрузка/применение без токена, выборочная
   установка, бэкап и откат);
@@ -346,24 +347,34 @@ SagaAI - универсальный AI-ассистент с веб-интерф
 
 ### FR10 - Базы знаний (RAG)
 - Пользователь может создавать **базы знаний** (RAG) - локальные хранилища
-  документов с векторным индексом.
+  документов с индексом и поиском в одном из режимов: `bm25` (собственная
+  лексическая реализация, без API-ключей - режим по умолчанию), `vector`
+  (семантический поиск по эмбеддингам) или `hybrid` (объединение обоих
+  ранжирований через Reciprocal Rank Fusion; при недоступности эмбеддингов
+  деградирует до `bm25`).
 - База знаний хранится в папке данных (`DATA_DIR/rag_bases/<slug>/`):
-  `manifest.json`, файлы документов, локальный SQLite-индекс `index.db`.
+  `manifest.json` (включая `search_mode`), файлы документов, локальный
+  SQLite-индекс `index.db`.
 - Страница **«Хранилище»** (`ui/pages/storage.py`) позволяет:
   - просматривать список баз знаний;
-  - создавать новую базу (имя, описание, эмбеддинг-модель);
+  - создавать новую базу (имя, описание, эмбеддинг-модель, режим поиска);
   - загружать файлы в базу;
-  - запускать индексацию (чанкинг + эмбеддинги);
-  - тестировать семантический поиск.
+  - запускать индексацию (чанкинг + BM25-структуры; эмбеддинги - только в
+    режимах `vector`/`hybrid`);
+  - тестировать поиск в режиме базы;
+  - переключать режим поиска базы (селектор в карточке базы).
 - Индексация: `core/rag_chunker` разбивает текст на чанки,
-  `core/rag_embeddings` вызывает Yandex Embeddings API (BYOK),
-  `core/rag_indexer` сохраняет векторы в `core/rag_index`.
-- Поиск: `core/rag_search` выполняет косинусное сходство по локальному
-  индексу и строит контекст для LLM.
+  `core/rag_indexer` пишет чанки в `core/rag_index`, поддерживает
+  лексический индекс `core/rag_bm25` (ленивая первая сборка для старых
+  баз, далее инкрементальные обновления) и - в режимах `vector`/`hybrid` -
+  вызывает Yandex Embeddings API (BYOK) для векторов.
+- Поиск: `core/rag_search` диспетчеризует по режиму базы (`bm25` -
+  собственный лексический индекс, `vector` - косинусное сходство,
+  `hybrid` - RRF) и строит контекст для LLM; хиты несут `mode`.
 - DevAgent и оркестраторы могут обращаться к базам через инструменты
   `list_rag_bases()`, `rag_search()` и `rag_get_chunks()` (метаданные баз
   добавляются в системный промпт оркестратора блоком
-  `Available RAG knowledge bases`).
+  `Available RAG knowledge bases` вместе с режимом поиска).
 - Результаты `rag_search` несут `chunk_id` и 0-based позицию чанка;
   `rag_get_chunks` добирает конкретные чанки (по `chunk_ids` или `source` +
   `chunk_indices`) для восстановления контекста вокруг находки - и в
@@ -375,7 +386,7 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   каждом обновлении; полная статистика читается только при явном запросе
   (страница «Хранилище»).
 - Инструкция **Rag Base Creator** (навык `rag_base_creator`) описывает
-  процедуру создания и индексации баз знаний.
+  процедуру создания и индексации баз знаний, включая выбор режима поиска.
 
 ### FR11 - Коннекторы
 - Пользователь может создавать **подключения** (коннекторы) к внешним
@@ -604,8 +615,9 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   `instructions.json`, функции и инструкции.
 - Треды оркестраторов хранятся в отдельной БД `devagent.db`.
 - Файлы помощников и загруженные пользователем файлы сохраняются на диске.
-- Базы знаний (RAG) хранятся в `DATA_DIR/rag_bases/` с локальным индексом;
-  каноническая база `yaagentai_2020` поставляется в `defaults/rag_bases/`.
+- Базы знаний (RAG) хранятся в `DATA_DIR/rag_bases/` с локальным индексом
+  и режимом поиска (`search_mode`: bm25/vector/hybrid); каноническая база
+  `yaagentai_2020` поставляется в `defaults/rag_bases/`.
 - Бэкапы и снапшоты кода хранятся в `.dev_agent/backups/`.
 
 ### NFR5 - Интернационализация
@@ -622,10 +634,10 @@ SagaAI - универсальный AI-ассистент с веб-интерф
     # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
     # SPDX-License-Identifier: MIT
 
-- Список базовых файлов (91):
+- Список базовых файлов (92):
   - Корень (2): __init__.py, app.py
   - UI (18): ui/__init__.py, ui/app.py, ui/components/__init__.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/assistants.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/orchestrator.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrators.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/welcome.py
-  - Core (52): core/__init__.py, core/api_errors.py, core/api_layer.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/config.py, core/connectors.py, core/contracts.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/entity_sync.py, core/env_loader.py, core/files.py, core/fs.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/multimodal.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrators.py, core/paths.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_skills.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skill_creator.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py
+  - Core (53): core/__init__.py, core/api_errors.py, core/api_layer.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/config.py, core/connectors.py, core/contracts.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/entity_sync.py, core/env_loader.py, core/files.py, core/fs.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/multimodal.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrators.py, core/paths.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_skills.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skill_creator.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py
   - Storage (5): storage/__init__.py, storage/db.py, storage/models.py, storage/repository.py, storage/repository_devagent.py
   - DevAgent (14): dev_agent/__init__.py, dev_agent/agent_loop.py, dev_agent/assistant_detector.py, dev_agent/assistant_model_resolver.py, dev_agent/backup_manager.py, dev_agent/config.py, dev_agent/llm_utils.py, dev_agent/safe_writer.py, dev_agent/skill_detector.py, dev_agent/skill_model_resolver.py, dev_agent/task_state.py, dev_agent/tool_executor.py, dev_agent/universal_agent.py, dev_agent/workspace_tools.py
 
@@ -641,5 +653,6 @@ SagaAI - универсальный AI-ассистент с веб-интерф
 - Экспорт/импорт оркестраторов в UI отложен (доступен только в core API);
   новые оркестраторы появляются через импорт на уровне core или через
   DevAgent.
-- Векторный поиск в RAG выполняется локально (SQLite + косинусное
-  сходство); эмбеддинги генерируются удалённо через Yandex Embeddings API.
+- Поиск в RAG выполняется локально (SQLite): лексический BM25-индекс -
+  полностью офлайн, векторный поиск - косинусное сходство, эмбеддинги
+  генерируются удалённо через Yandex Embeddings API (только vector/hybrid).

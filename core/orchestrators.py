@@ -831,14 +831,17 @@ def _extend_prompt_with_rag_bases(prompt: str, orchestrator_slug: str = DEVAGENT
             active = bool(b.get("active", True))
             name = str(b.get("name") or bslug)
             status = str(b.get("status") or "draft")
+            mode = str(b.get("search_mode") or "").strip().lower() or "bm25"
             flag = "" if active else " [INACTIVE: provider API keys required]"
-            rows.append(f"- `{bslug}` — {name} (status: {status}){flag}")
+            rows.append(f"- `{bslug}` — {name} (status: {status}, search: {mode}){flag}")
         if not rows:
             return prompt
         block = (
             "## Available RAG knowledge bases\n\n"
             "Use only these bases with the `rag_search` tool. Bases not listed "
-            "here are forbidden even if you know their identifiers:\n\n"
+            "here are forbidden even if you know their identifiers. The "
+            "'search' tag is the base's search mode (bm25 = own lexical "
+            "index, no API keys; vector = embeddings; hybrid = both).\n\n"
             + "\n".join(rows)
         )
         if prompt.strip():

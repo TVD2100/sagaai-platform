@@ -6,8 +6,8 @@ using the platform's own Python API (`core.rag`, `core.rag_index`,
 `core.rag_embeddings`, `core.rag_chunker`).
 
 Knowledge bases are NOT created from the settings UI. The settings "Storage"
-page is read-only: it only lists bases, shows their status/stats, runs test
-semantic search, and allows browsing/editing/deleting individual chunks.
+page lists bases, shows their status/stats, switches the base search mode,
+runs test search, and allows browsing/editing/deleting individual chunks.
 Creating and populating bases is YOUR job as the orchestrator, and this skill
 gives you the exact workflow plus a ready-to-run helper script.
 
@@ -23,14 +23,17 @@ Use this skill when the user asks to:
    install root from the `current_install()` tool). You need the install root
    so `core.*` modules are importable: the install root is the folder that
    contains `core/`.
-2. Embedding credentials: RAG bases use the YandexAI service for embeddings
+2. Embedding credentials (needed only for vector/hybrid modes; the default
+   bm25 mode is offline and needs no keys): RAG bases use the YandexAI
+   service for embeddings
    (IAM token + Folder ID configured in LLM settings). Verify them FIRST:
    ```python
    from core.rag_embeddings import get_yandex_embedding_credentials
    api_key, folder_id = get_yandex_embedding_credentials()  # raises if missing
    ```
    If credentials are missing, STOP and tell the user to configure YandexAI
-   API keys in the LLM settings. Offer a dry-run plan instead (see below).
+   API keys in the LLM settings, or build the base in the default offline
+   bm25 mode (no API keys). Offer a dry-run plan instead (see below).
 
 ## Before generation: volume assessment and approval (MANDATORY)
 Do NOT start building a base immediately. Before ANY real run (and before
@@ -53,13 +56,15 @@ Do NOT start building a base immediately. Before ANY real run (and before
      on network/latency. Give an honest estimate and clearly mark it as an
      estimate.
    Use `--dry-run` to produce the exact file/chunk counts where possible.
-3. **Check the embedding model availability BEFORE starting.** Determine
+3. **Check the embedding model availability BEFORE starting (vector/hybrid
+   modes only; the default bm25 needs no embeddings).** Determine
    which provider and which embedding model will be used (by default
    YandexAI / `text-search-doc` (документные эмбеддинги для индексации RAG; legacy-алиас `embeddings` маппится на неё); см. `core.rag_embeddings.get_yandex_embedding_credentials`
    and the platform's service config). Report this to the user in the plan.
    If the provider/model cannot be verified as available (no credentials,
    wrong model id, unknown provider), STOP and tell the user what is missing.
-   Do not start generation in that case.
+   Do not start generation in that case. Bases in the default `bm25` mode
+   skip this step entirely.
 4. **Get explicit approval.** Present the plan above (source, volume summary,
    provider/model, expected time) and WAIT for the user's explicit approval
    before running the build. Do not auto-start.
@@ -111,6 +116,22 @@ Follow these rules unless the user explicitly requests something else:
 6. Do not index binary or non-text files; the default extension list is
    `.md` and `.txt`. Add more explicitly only when asked (e.g. `.py`, `.csv`).
 
+## Search modes (per base)
+
+| Mode | What it does | API keys |
+|---|---|---|
+| `bm25` (default) | Lexical BM25 over the base's own SQLite index (`core.rag_bm25`). Fast, offline, deterministic. | No |
+| `vector` | Semantic search over YandexAI embeddings (`text-search-doc`). | Yes |
+| `hybrid` | Reciprocal Rank Fusion of bm25 + vector; degrades to bm25 when embeddings are unavailable. | For the vector part |
+
+- Chunks are ALWAYS stored in the base index; BM25 structures are built
+  automatically (lazy first build, then incremental updates on chunk edits).
+- `--search-mode bm25` (the default) keeps the whole build free of embedding
+  calls, so no YandexAI keys are needed.
+- The mode is stored in the base manifest (`search_mode`) and can be changed
+  later in Settings -> Storage (base card) or programmatically via
+  `rag.update_base(slug, {"search_mode": "vector"})`.
+
 ## Quick path: use the bundled helper script
 A ready-to-run helper lives next to this file:
 `scripts/build_base.py`. It implements the rules above and the full pipeline.
@@ -131,6 +152,7 @@ Arguments:
   `--source` values.
 - `--name`, `--description`: base display name/description.
 - `--slug`: optional stable slug (derived from the name when omitted).
+- `--search-mode`: `bm25` (default, offline) / `vector` / `hybrid`.
 - `--chunk-size` / `--chunk-overlap`: chunking parameters (default
   `--chunk-size 1800`, `--chunk-overlap 0`).
 - `--exclude`: file name(s) to skip (repeatable; default `index.md`).
@@ -226,8 +248,9 @@ rather than as a path on disk, follow this rule:
 - Embedding request fails midway -> keep the already inserted chunks, report
   exactly how many were added, and suggest re-running with a `--resume` style
   pass or checking the quota/network.
-- The settings Storage page is read-only: never instruct the user to create
-  or populate bases from that page.
+- The settings Storage page never creates or populates bases: it only views
+  bases, switches the search mode and manages chunks. Never instruct the user
+  to create or populate bases from that page.
 
 ## Example task (bundled scenario)
 User: "create a base from Yandex AI Studio docs at

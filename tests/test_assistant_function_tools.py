@@ -712,3 +712,25 @@ def test_execute_rag_search_ok_includes_hits_metadata():
     assert data["ok"] is True
     assert data["hits"] == [{"chunk_id": 15, "source": "docs/a.md",
                              "chunk_index": 3, "score": 0.9}]
+
+
+def test_execute_rag_search_hits_carry_mode_when_present():
+    """Hits serialized by the assistant tool keep the search mode.
+
+    given: search_base returns a hit that carries mode "bm25"
+    when: the assistant rag_search tool serializes it
+    then: the JSON hit includes mode "bm25" (and omits the key when absent)
+    """
+    fake_hits = [
+        {"chunk_id": 7, "source": "docs/b.md", "chunk_index": 1,
+         "score": 0.5, "text": "Фрагмент", "mode": "bm25"},
+    ]
+    with patch("core.assistant_tools.search_base", return_value=fake_hits), \
+         patch("core.assistant_tools._assistant_allowed_rag_bases",
+               return_value={"b1"}):
+        out = execute_assistant_rag_search({"slug": "b1", "query": "docs"})
+    data = json.loads(out)
+    assert data["ok"] is True
+    assert data["hits"] == [{"chunk_id": 7, "source": "docs/b.md",
+                             "chunk_index": 1, "score": 0.5,
+                             "mode": "bm25"}]

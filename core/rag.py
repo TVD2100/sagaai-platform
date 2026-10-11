@@ -8,8 +8,11 @@ Each base lives in ``DATA_DIR/rag_bases/<slug>/``:
   index.db                        -- local SQLite index (core.rag_index)
 
 All data is stored locally; provider APIs are used only for embedding
-vectorization (BYOK). The optional ``rag_slots`` list controls which
-assistants/orchestrators may reference the base (anyone when empty).
+vectorization (BYOK). The manifest's ``search_mode`` selects how the base
+is searched: ``bm25`` (own lexical index, the default for every base),
+``vector`` (Yandex embeddings) or ``hybrid`` (RRF fusion of both). The
+optional ``rag_slots`` list controls which assistants/orchestrators may
+reference the base (anyone when empty).
 
 The module also exposes chunk-level helpers used by the Storage UI and by
 skills: list_chunks, get_chunk, update_chunk, delete_chunk.
@@ -29,6 +32,14 @@ from core.paths import RAG_BASES_DIR
 
 VALID_STATUS = ("draft", "indexing", "ready", "error")
 VALID_TYPES = ("rag",)
+
+# Supported search modes of a base (manifest key ``search_mode``):
+#   bm25   - own lexical index; available for EVERY base by default;
+#   vector - semantic search over Yandex embeddings (requires re-indexing
+#            with an embedding model);
+#   hybrid - RRF fusion of the BM25 and vector rankings.
+SEARCH_MODES = ("bm25", "vector", "hybrid")
+DEFAULT_SEARCH_MODE = "bm25"
 
 
 def _now() -> str:
@@ -122,6 +133,14 @@ def _with_index_stats(data: dict) -> dict:
         return dict(data)
 
 
+def _validate_search_mode(mode: str) -> str:
+    """Normalise and validate a search mode for the manifest."""
+    value = str(mode or "").strip().lower() or DEFAULT_SEARCH_MODE
+    if value not in SEARCH_MODES:
+        raise ValueError(f"Unsupported search mode: {mode}")
+    return value
+
+
 def _validate_create(name: str, description: str, provider: str,
                      embedding_model: str, chunk_size: int,
                      chunk_overlap: int) -> str:
@@ -141,7 +160,8 @@ def _validate_create(name: str, description: str, provider: str,
 def create_base(name: str, description: str = "", provider: str = "yandex",
                 embedding_model: str = "text-search-doc",
                 chunk_size: int = 1500, chunk_overlap: int = 150,
-                type_: str = "rag", rag_slots=None) -> dict:
+                type_: str = "rag", rag_slots=None,
+                search_mode: str = DEFAULT_SEARCH_MODE) -> dict:
     """Create a folder + manifest + index for a new base.
 
     Returns the created manifest (with index stats). Rag *rag_slots* is an
@@ -150,6 +170,7 @@ def create_base(name: str, description: str = "", provider: str = "yandex",
     """
     if type_ not in VALID_TYPES:
         raise ValueError(f"Unsupported storage type: {type_}")
+    mode = _validate_search_mode(search_mode)
     slug = _validate_create(name, description, provider, embedding_model,
                             chunk_size, chunk_overlap)
     path = _manifest_path(slug)
@@ -172,6 +193,7 @@ def create_base(name: str, description: str = "", provider: str = "yandex",
         "chunk_size": int(chunk_size),
         "chunk_overlap": int(chunk_overlap),
         "status": "draft",
+        "search_mode": mode,
         "created_at": now,
         "updated_at": now,
         "rag_slots": slots,
@@ -191,12 +213,15 @@ def update_base(slug: str, updates: dict) -> dict:
     if not os.path.isfile(path):
         raise ValueError("Base does not exist")
     data = json_load(path)
-    updateable = ("name", "description", "chunk_size", "chunk_overlap", "rag_slots")
+    updateable = ("name", "description", "chunk_size", "chunk_overlap",
+                  "rag_slots", "search_mode")
     for key in updateable:
         if key not in updates:
             continue
         value = updates[key]
-        if key in ("chunk_size", "chunk_overlap"):
+        if key == "search_mode":
+            data[key] = _validate_search_mode(value)
+        elif key in ("chunk_size", "chunk_overlap"):
             data[key] = int(value)
         elif key == "rag_slots":
             slots = []
@@ -464,6 +489,12 @@ def list_bases_with_activity(with_stats: bool = True) -> list:
         cfg = {}
 
     def _active(data: dict) -> bool:
+        # Mode-aware activity: bm25/hybrid bases stay searchable without
+        # provider credentials (hybrid degrades to its lexical half);
+        # only the vector mode requires the embedding provider keys.
+        mode = str(data.get("search_mode") or "").strip().lower()
+        if mode != "vector":
+            return True
         provider = str(data.get("provider") or "").strip()
         if not provider:
             return False

@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "1.12.1",
+  "app_version": "1.13.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Релиз 1.12.1 - правки системного промпта встроенного DevAgent больше не теряются при перезапуске: маркер prompt_user_edited в config отключает стартовую перезапись промпта, добавлена кнопка сброса к поставляемому промпту; сохранение промпта очищает состояние виджета. Инструкция GitHub-коннектора дополнена обязательной предпубликационной проверкой персональных данных (в дополнение к проверке секретов). Документация и карта обновлены.",
-    "en": "Release 1.12.1 - edits to the built-in DevAgent system prompt no longer vanish on restart: a prompt_user_edited marker in config disables the boot-time prompt refresh, and a reset button restores the shipped prompt; saving the prompt clears the widget state. The GitHub-connector instruction gained a mandatory pre-publish personal-data (PII) check in addition to the secret check. Docs and map updated."
+    "ru": "Релиз 1.13.0 - RAG-поиск получил режимы: bm25 (собственный лексический индекс, режим по умолчанию, без API-ключей), vector (Yandex эмбеддинги) и hybrid (RRF-объединение с деградацией до bm25). Режим выбирается в карточке базы на странице «Хранилище»; индексация в bm25 не требует ключей; активность базы учитывает режим; обновлены инструменты rag_search (режим в описании и mode в хитах), навык Rag Base Creator (--search-mode) и документация.",
+    "en": "Release 1.13.0 - RAG search gains modes: bm25 (own lexical index, default, no API keys), vector (Yandex embeddings) and hybrid (RRF fusion with graceful bm25 degradation). The mode is switched in the Storage base card; bm25 indexing needs no keys; base activity is mode-aware; the rag_search tools (mode-aware hits), the Rag Base Creator skill (--search-mode) and the docs are updated."
   },
-  "updated": "2026-10-07T19:28:00Z",
+  "updated": "2026-10-11T18:23:17Z",
   "units": {
     "core": {
-      "version": "1.24.1",
+      "version": "1.25.0",
       "note": {
-        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py. 1.15.0: SSH-коннектор - инструмент ssh_upload_file (потоковая публикация локальных файлов на сервер, sha256-верификация, до 50 МиБ); подсказка create_dirs в ошибке ssh_write_file. 1.15.1: сценарный тест каталога моделей YandexAI (tests/scenarios), пин промпта YaAgent v2.9, регенерация PROJECT_MAP.md; версия платформы 1.3.2. 1.16.0: единая модель оркестраторов - слабая модель удалена из настроек, добавлены опциональные vision/image настройки и каталоги у сервисов, рантайм на основной модели, tolerant legacy weak_*; документация и манифест обновлены; версия платформы 1.4.0. 1.17.0: мультимодальные инструменты analyze_image/generate_image (вложения диалога и файлы проекта; генерация сохраняется файлом), транспорты send_vision_request/send_image_generation_request в api_layer, глобальная инструкция multimodal_mode; версия платформы 1.5.0. 1.18.0: синхронный Images API для generate_image (единственная модель aliceai-image-art-3.0, удаление async-ветки YandexART), показ сгенерированного изображения в чате с кнопкой скачивания; версия платформы 1.6.0. 1.19.0: распознавание изображений на DeepSeek - vision_base_url и каталог vision_models (deepseek-flash) в профиле сервиса, ветка deepseek_responses с detail=original в send_vision_request, deepseek-v4.1-flash в vision-каталоге YandexAI; версия платформы 1.7.0. 1.19.1: сгенерированное изображение generate_image показывается сразу в ленте чата - блок с картинкой и кнопкой скачивания вынесен из свёрнутого блока результата (ui/pages/orchestrator.py); сценарные тесты ленты; версия платформы 1.7.1. 1.20.0: поиск по диалогам - инструменты search_in_threads/list_threads/read_thread (текущий диалог по умолчанию, scope/период) с контролем доступа к тредам; промпт DevAgent v3.15; версия платформы 1.8.0. 1.21.0: изоляция рабочей папки - пустое состояние и guard файловых инструментов, мета «последняя папка» треда с миграцией легаси-меты, недавние папки по оркестраторам, журналы/вложения при пустой папке; промпты DevAgent v3.16 / YaAgent v2.10; версия платформы 1.9.0. 1.21.1: авторетрай GET GitHub-коннектора при сетевых сбоях; компактный дайджест журнала задач; промпт DevAgent v3.17; версия платформы 1.9.1. 1.21.2: устойчивые ошибки Responses API (failed-статус -> ProviderResponseError) и фильтрация пустых сообщений input. 1.22.1: отмена эконом-профиля DeepSeek - объявленный лимит вывода возвращён к 384000, тест каталогов синхронизирован. 1.23.0: генерируемая карта проекта - AST-символы (методы/async/вложенные, реальные строки) с regex-фолбэком и лимитом 200 символов на файл, sha256-отпечаток содержимого в шапке, фильтр состава include_paths/scope_note по публикуемому набору; канонический генератор карты (publish set + main); промпт DevAgent v3.18 (правило «карта только регенерацией»); версия платформы 1.11.0. 1.24.0: AGENT.md - управляемый документ ключевой информации для агентов: AGENT_FILE и легаси-осведомлённые PROJECT_DOC_NAMES в конфиге, вид \"agent\" (алиас \"spec\") у write_doc/read_doc, скаффолд default_agent_markdown с тремя обязательными конвенциями, assess_workspace по AGENT.md|ARCHITECTURE.md; тесты обновлены, добавлен сценарный тест AGENT.md; версия платформы 1.12.0. В релизе 1.12.0 inline-лимит результатов инструментов поднят до 35 000 символов (_TOOL_RESULT_INLINE_LIMIT в agent_loop.py; сценарий переполнения контекста берёт константу из модуля).",
-        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py. 1.15.0: SSH connector - ssh_upload_file tool (streamed publishing of local files to a server, sha256 verification, up to 50 MB); create_dirs hint in the ssh_write_file error. 1.15.1: YandexAI model catalog scenario test (tests/scenarios), YaAgent v2.9 prompt pin, PROJECT_MAP.md regenerated; platform version 1.3.2. 1.16.0: single-model orchestrators - the weak model removed from settings, optional vision/image settings and service catalogs added, runtime on the main model, tolerant legacy weak_*; docs and manifest updated; platform version 1.4.0. 1.17.0: multimodal tools analyze_image/generate_image (dialog uploads and project files; generation saved to a file), send_vision_request/send_image_generation_request transports in api_layer, the global multimodal_mode instruction; platform version 1.5.0. 1.18.0: synchronous Images API for generate_image (the single model aliceai-image-art-3.0, the YandexART async branch removed), the generated image shown in the chat with a download button; platform version 1.6.0. 1.19.0: DeepSeek image analysis - vision_base_url and the vision_models catalog (deepseek-flash) in the service profile, the deepseek_responses branch with detail=original in send_vision_request, deepseek-v4.1-flash in the YandexAI vision catalog; platform version 1.7.0. 1.19.1: the generate_image picture is shown immediately in the chat feed - the image block with the download button moved out of the collapsed tool-result block (ui/pages/orchestrator.py); feed scenario tests; platform version 1.7.1. 1.20.0: dialog thread search - the search_in_threads/list_threads/read_thread tools (current dialog by default, scope/period) with thread access control; DevAgent prompt v3.15; platform version 1.8.0. 1.21.0: workspace isolation - the no-folder-selected empty state and the file-tool guard, thread last-folder meta with the legacy-meta migration, per-orchestrator recent folders, journals/uploads in the empty state; DevAgent v3.16 / YaAgent v2.10 prompts; platform version 1.9.0. 1.21.1: GitHub REST GET retries on network errors; compact task-state digest; DevAgent prompt v3.17; platform version 1.9.1. 1.21.2: resilient Responses API failures (failed status -> ProviderResponseError) and blank input filtering. 1.22.1: reverted the DeepSeek economy profile - the declared output limit is back to 384000 and the catalog test is aligned. 1.23.0: generated project map - AST symbols (methods/async/nested, real line ranges) with a regex fallback and a 200-symbol cap per file, a content sha256 fingerprint in the header, include_paths/scope_note scope filtering by the published set; the canonical map generator (publish set + main); DevAgent v3.18 prompt (map-is-generated-only rule); platform version 1.11.0. 1.24.0: AGENT.md managed key-information document: AGENT_FILE and legacy-aware PROJECT_DOC_NAMES in config, the \"agent\" doc kind (legacy \"spec\" alias) in write_doc/read_doc, the default_agent_markdown scaffold with three mandatory conventions, assess_workspace via AGENT.md|ARCHITECTURE.md; tests updated, AGENT.md scenario test added; platform version 1.12.0. In release 1.12.0 the tool-result inline limit was raised to 35,000 characters (_TOOL_RESULT_INLINE_LIMIT in agent_loop.py; the context-overflow scenario reads the constant from the module)."
+        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py. 1.15.0: SSH-коннектор - инструмент ssh_upload_file (потоковая публикация локальных файлов на сервер, sha256-верификация, до 50 МиБ); подсказка create_dirs в ошибке ssh_write_file. 1.15.1: сценарный тест каталога моделей YandexAI (tests/scenarios), пин промпта YaAgent v2.9, регенерация PROJECT_MAP.md; версия платформы 1.3.2. 1.16.0: единая модель оркестраторов - слабая модель удалена из настроек, добавлены опциональные vision/image настройки и каталоги у сервисов, рантайм на основной модели, tolerant legacy weak_*; документация и манифест обновлены; версия платформы 1.4.0. 1.17.0: мультимодальные инструменты analyze_image/generate_image (вложения диалога и файлы проекта; генерация сохраняется файлом), транспорты send_vision_request/send_image_generation_request в api_layer, глобальная инструкция multimodal_mode; версия платформы 1.5.0. 1.18.0: синхронный Images API для generate_image (единственная модель aliceai-image-art-3.0, удаление async-ветки YandexART), показ сгенерированного изображения в чате с кнопкой скачивания; версия платформы 1.6.0. 1.19.0: распознавание изображений на DeepSeek - vision_base_url и каталог vision_models (deepseek-flash) в профиле сервиса, ветка deepseek_responses с detail=original в send_vision_request, deepseek-v4.1-flash в vision-каталоге YandexAI; версия платформы 1.7.0. 1.19.1: сгенерированное изображение generate_image показывается сразу в ленте чата - блок с картинкой и кнопкой скачивания вынесен из свёрнутого блока результата (ui/pages/orchestrator.py); сценарные тесты ленты; версия платформы 1.7.1. 1.20.0: поиск по диалогам - инструменты search_in_threads/list_threads/read_thread (текущий диалог по умолчанию, scope/период) с контролем доступа к тредам; промпт DevAgent v3.15; версия платформы 1.8.0. 1.21.0: изоляция рабочей папки - пустое состояние и guard файловых инструментов, мета «последняя папка» треда с миграцией легаси-меты, недавние папки по оркестраторам, журналы/вложения при пустой папке; промпты DevAgent v3.16 / YaAgent v2.10; версия платформы 1.9.0. 1.21.1: авторетрай GET GitHub-коннектора при сетевых сбоях; компактный дайджест журнала задач; промпт DevAgent v3.17; версия платформы 1.9.1. 1.21.2: устойчивые ошибки Responses API (failed-статус -> ProviderResponseError) и фильтрация пустых сообщений input. 1.22.1: отмена эконом-профиля DeepSeek - объявленный лимит вывода возвращён к 384000, тест каталогов синхронизирован. 1.23.0: генерируемая карта проекта - AST-символы (методы/async/вложенные, реальные строки) с regex-фолбэком и лимитом 200 символов на файл, sha256-отпечаток содержимого в шапке, фильтр состава include_paths/scope_note по публикуемому набору; канонический генератор карты (publish set + main); промпт DevAgent v3.18 (правило «карта только регенерацией»); версия платформы 1.11.0. 1.24.0: AGENT.md - управляемый документ ключевой информации для агентов: AGENT_FILE и легаси-осведомлённые PROJECT_DOC_NAMES в конфиге, вид \"agent\" (алиас \"spec\") у write_doc/read_doc, скаффолд default_agent_markdown с тремя обязательными конвенциями, assess_workspace по AGENT.md|ARCHITECTURE.md; тесты обновлены, добавлен сценарный тест AGENT.md; версия платформы 1.12.0. В релизе 1.12.0 inline-лимит результатов инструментов поднят до 35 000 символов (_TOOL_RESULT_INLINE_LIMIT в agent_loop.py; сценарий переполнения контекста берёт константу из модуля). 1.13.0: RAG-режимы поиска bm25/vector/hybrid (собственный BM25-индекс, hybrid RRF).",
+        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py. 1.15.0: SSH connector - ssh_upload_file tool (streamed publishing of local files to a server, sha256 verification, up to 50 MB); create_dirs hint in the ssh_write_file error. 1.15.1: YandexAI model catalog scenario test (tests/scenarios), YaAgent v2.9 prompt pin, PROJECT_MAP.md regenerated; platform version 1.3.2. 1.16.0: single-model orchestrators - the weak model removed from settings, optional vision/image settings and service catalogs added, runtime on the main model, tolerant legacy weak_*; docs and manifest updated; platform version 1.4.0. 1.17.0: multimodal tools analyze_image/generate_image (dialog uploads and project files; generation saved to a file), send_vision_request/send_image_generation_request transports in api_layer, the global multimodal_mode instruction; platform version 1.5.0. 1.18.0: synchronous Images API for generate_image (the single model aliceai-image-art-3.0, the YandexART async branch removed), the generated image shown in the chat with a download button; platform version 1.6.0. 1.19.0: DeepSeek image analysis - vision_base_url and the vision_models catalog (deepseek-flash) in the service profile, the deepseek_responses branch with detail=original in send_vision_request, deepseek-v4.1-flash in the YandexAI vision catalog; platform version 1.7.0. 1.19.1: the generate_image picture is shown immediately in the chat feed - the image block with the download button moved out of the collapsed tool-result block (ui/pages/orchestrator.py); feed scenario tests; platform version 1.7.1. 1.20.0: dialog thread search - the search_in_threads/list_threads/read_thread tools (current dialog by default, scope/period) with thread access control; DevAgent prompt v3.15; platform version 1.8.0. 1.21.0: workspace isolation - the no-folder-selected empty state and the file-tool guard, thread last-folder meta with the legacy-meta migration, per-orchestrator recent folders, journals/uploads in the empty state; DevAgent v3.16 / YaAgent v2.10 prompts; platform version 1.9.0. 1.21.1: GitHub REST GET retries on network errors; compact task-state digest; DevAgent prompt v3.17; platform version 1.9.1. 1.21.2: resilient Responses API failures (failed status -> ProviderResponseError) and blank input filtering. 1.22.1: reverted the DeepSeek economy profile - the declared output limit is back to 384000 and the catalog test is aligned. 1.23.0: generated project map - AST symbols (methods/async/nested, real line ranges) with a regex fallback and a 200-symbol cap per file, a content sha256 fingerprint in the header, include_paths/scope_note scope filtering by the published set; the canonical map generator (publish set + main); DevAgent v3.18 prompt (map-is-generated-only rule); platform version 1.11.0. 1.24.0: AGENT.md managed key-information document: AGENT_FILE and legacy-aware PROJECT_DOC_NAMES in config, the \"agent\" doc kind (legacy \"spec\" alias) in write_doc/read_doc, the default_agent_markdown scaffold with three mandatory conventions, assess_workspace via AGENT.md|ARCHITECTURE.md; tests updated, AGENT.md scenario test added; platform version 1.12.0. In release 1.12.0 the tool-result inline limit was raised to 35,000 characters (_TOOL_RESULT_INLINE_LIMIT in agent_loop.py; the context-overflow scenario reads the constant from the module). 1.13.0: RAG search modes bm25/vector/hybrid (own BM25 index, hybrid RRF)."
       },
       "files": {
         "__init__.py": {
@@ -56,8 +56,8 @@
           "sha256": "efbb790f483918ab8072d774993b8f25ddb9332450ad9b0d6f3df558b179042c"
         },
         "core/assistant_tools.py": {
-          "version": "1.3.0",
-          "sha256": "5a7554d279734b6024ff656eaaf472c5e751b0ba491b6833c411f5334d7d8e5b"
+          "version": "1.3.1",
+          "sha256": "79940282ad2acc1241463579c595aea862e127060b81d296b98797bcaeb361f5"
         },
         "core/assistants.py": {
           "version": "1.0.0",
@@ -148,8 +148,8 @@
           "sha256": "ba1c1f8100040a72b695e8fbf9de74884a6a4b040ec5352dbe1db4064e116ac5"
         },
         "core/orchestrators.py": {
-          "version": "1.7.1",
-          "sha256": "7a680fd4085640105beda59f3d2c3072e6ef64b685787425c44df6f620ecf15b"
+          "version": "1.8.0",
+          "sha256": "518e8061357a452d5d385036553c53f0a2c45f538a9ed511a7b0e8d199f7ae3c"
         },
         "core/paths.py": {
           "version": "1.0.0",
@@ -164,8 +164,8 @@
           "sha256": "608f272dd067b50db1f781d626d4b3c026fa9d14bb206b12a298a708bd526de6"
         },
         "core/rag.py": {
-          "version": "1.1.0",
-          "sha256": "bd41b6a5000d0dbe3396261346975141c804d8a7e2b88291c6662fa07dfde801"
+          "version": "1.2.0",
+          "sha256": "d652d33c8cdea986d63ca58d2a6a2892f9b46f255d9bb2ef96f880d8147342a6"
         },
         "core/rag_chunker.py": {
           "version": "1.0.0",
@@ -176,16 +176,16 @@
           "sha256": "c66851c084c9ac6f5e6b61870551b4029b485710c6306e88c1614e3cc12b0a04"
         },
         "core/rag_index.py": {
-          "version": "1.2.0",
-          "sha256": "3a6d008855c1d4b591fd01e0855858cdf02cccee56cac861efe80d14955867ec"
+          "version": "1.3.0",
+          "sha256": "6aa289d5f55396cf7a509b3ec2cd8b6e670b152303e67eba74810bd586ea88be"
         },
         "core/rag_indexer.py": {
-          "version": "1.0.1",
-          "sha256": "ce30a05964f4a16d6dd86039cd24add7428f317eda3adff1c1a5da8ec9b50673"
+          "version": "1.1.0",
+          "sha256": "f656e7baa9f07ecaf5e8618f150f1710145b292dbac1881278525a5c5e52a52a"
         },
         "core/rag_search.py": {
-          "version": "1.1.0",
-          "sha256": "36a75e3f924ef1bdb96aca35d903690a1a0ae87fb25b0a3f308a3e2feb601b3a"
+          "version": "1.2.0",
+          "sha256": "a1080c7b8d0af3466cf16e7d6714287bc75686c4561214da5c247d181dceb263"
         },
         "core/recent_assistants.py": {
           "version": "1.0.0",
@@ -232,8 +232,8 @@
           "sha256": "ee58ff28ffd8c0d9a9723d1c6c89bff811bc0bc443fac1fe5b7274126553f85e"
         },
         "core/tools_utils.py": {
-          "version": "1.1.0",
-          "sha256": "78547e37b44458d451124b69e76ecf5bd2f69213e7164dea11137343f4e20df8"
+          "version": "1.2.0",
+          "sha256": "7ca53f93ffb4efea548f45c45c4eaa7d20632fa1fffb31251e1ca31a0238b3fc"
         },
         "core/updater.py": {
           "version": "1.0.2",
@@ -244,8 +244,8 @@
           "sha256": "c9e03ac37d50334f2e8ed0ab3770e16be2535b777d39ea36cde91591cc74858b"
         },
         "core/version.py": {
-          "version": "1.0.31",
-          "sha256": "cefaac25d823c7bd6a0602b1b41b30cce689d3e76a517e6183e678f0fc049d58"
+          "version": "1.0.32",
+          "sha256": "39f99e30c8afb83cc13ec172af1a08ce92b9f3b34ddb3c1cfd254fa822c24ed0"
         },
         "dev_agent/__init__.py": {
           "version": "1.0.0",
@@ -284,8 +284,8 @@
           "sha256": "a2ff6224b0860af4481896ae4aa7ae030a3d6f8d1f840a59c92dd2e2d82f1d09"
         },
         "dev_agent/tool_executor.py": {
-          "version": "1.11.0",
-          "sha256": "4b4bc30b4c7143ef5867d4880189416ead7221eec38dc5f8e59d6f7133dff741"
+          "version": "1.12.0",
+          "sha256": "c494945512cbafd1e8191066311a659feb18a1c65aaeed9cbdbb1fa61a32a97c"
         },
         "dev_agent/universal_agent.py": {
           "version": "1.13.0",
@@ -308,8 +308,8 @@
           "sha256": "66abb9f75f09ba1908b3b70012d9fea2aaf15a1fd80f687fa7ea13cdb857362e"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.5.2",
-          "sha256": "90ea860145a48785e598cdabb98d63b3a3cd15e6b547d19e617e0ed1c82a3900"
+          "version": "1.5.3",
+          "sha256": "19387296ea2daba646f2a0f266021ec1d438d497dfb80f09f31907032ff9c5fe"
         },
         "scripts/verify_manifest.py": {
           "version": "1.0.3",
@@ -436,8 +436,8 @@
           "sha256": "a3884d194a0683edf530315627a7e80c5fc3fb01a0b44f7b22a67d3d974b136c"
         },
         "tests/scenarios/test_orchestrator_tool_gating.py": {
-          "version": "1.2.7",
-          "sha256": "ec1c1c0c89c90aa0ee08c7adc1998ca98eb1b4aa7a4c0e582b52d0845e08770a"
+          "version": "1.2.8",
+          "sha256": "b3e5fa1482e5b7b6e0c72f1d9929c63ba0248ee9dc677731aa9623a2b10c0abc"
         },
         "tests/scenarios/test_provider_economy_settings_scenario.py": {
           "version": "1.0.0",
@@ -452,8 +452,8 @@
           "sha256": "2465407f57a36cb8fdb8c190328e5c2a6ef8e4b5a323582a026d720b0fad1ea9"
         },
         "tests/scenarios/test_rag_perf_scenarios.py": {
-          "version": "1.0.0",
-          "sha256": "04b1a4cbebc25141bb8196d95620b9b491faceff1f8cc634c17d2ccd52fc9646"
+          "version": "1.0.1",
+          "sha256": "8c23ac5b35cd2fb4a11c5a3104ed05761da3af7df860e32874b00c7fcccc9c99"
         },
         "tests/scenarios/test_recent_workspace_scopes_scenario.py": {
           "version": "1.0.0",
@@ -544,8 +544,8 @@
           "sha256": "c3aa1365361ff8dbc1222b7925dd87d7500336187957ba38b13c86534a7e3c91"
         },
         "tests/test_assistant_function_tools.py": {
-          "version": "1.0.1",
-          "sha256": "542a1401d481447139c8618be4ca46651efd6eb52f5d2397e8bf0abd81ccf756"
+          "version": "1.0.2",
+          "sha256": "017c8ba4cf74e4836ffad7c192f697f67bacb6bb2452d7bc17851a1234d3384c"
         },
         "tests/test_assistant_sidebar_sort.py": {
           "version": "1.0.0",
@@ -744,8 +744,8 @@
           "sha256": "c41306ed877cf41baecb763ba644fb38d8363c5ed967d72ce75f7c79bf2250de"
         },
         "tests/test_platform_scenarios.py": {
-          "version": "1.1.1",
-          "sha256": "f3b8bdf4a11b1a3162f5328cd2d93cecd3e95d55da53d3e191f7807645f3cee9"
+          "version": "1.1.2",
+          "sha256": "f7bddd92a87deaee47dda3298888149a320851071d3eeae670052b1ffa8be17b"
         },
         "tests/test_preset_orchestrators.py": {
           "version": "1.2.0",
@@ -788,8 +788,8 @@
           "sha256": "502b0e98df0501af70795c7cdfa469620a0b284c3d421cd973da49f183474580"
         },
         "tests/test_rag_with_stats.py": {
-          "version": "1.0.0",
-          "sha256": "e3f58840ce61365b21c8b0e88af7d3436180953c587b2feaa92b16103acdd050"
+          "version": "1.0.1",
+          "sha256": "4950bb30b7e72162bae91a14087e1d710b9ed93b78288b0039141ce14a7056ca"
         },
         "tests/test_recent_workspaces.py": {
           "version": "1.1.0",
@@ -852,8 +852,8 @@
           "sha256": "30ed983449bb966a75f9d7faee34f82e983cc843c6b40709bbf03a3725ea069d"
         },
         "tests/test_storage_page_ui.py": {
-          "version": "1.0.0",
-          "sha256": "c56874e293df9447d8391da7e137ff318f9de8b60a56805ac13fd3c26234ba5f"
+          "version": "1.0.1",
+          "sha256": "7829c92272f969e3cf4ba48158f7c91eb522079525d2fda1a98c8783848b0576"
         },
         "tests/test_structured_output_consumers.py": {
           "version": "1.0.0",
@@ -1040,8 +1040,8 @@
           "sha256": "73148ce017e3932beca0a102cadab3e7f5f45e3b09fd513c6cdd05f6a50c61b1"
         },
         "ui/pages/storage.py": {
-          "version": "1.0.0",
-          "sha256": "96322eb8e7b2a314fdfba34843372167d7d1bfc8d65c9118683f7c0f5ea88368"
+          "version": "1.1.0",
+          "sha256": "555fbd5318bee6b1d8067a98bcca5db024dff252cf84b097ffda95ae05148458"
         },
         "ui/pages/updates.py": {
           "version": "1.1.0",
@@ -1094,25 +1094,41 @@
         "tests/test_orchestrator_prompt_settings.py": {
           "version": "1.0.0",
           "sha256": "fad58858752be5defcdfb808a22e9865e5105d332a4c5d8a346324dab9a275a6"
+        },
+        "core/rag_bm25.py": {
+          "version": "1.0.0",
+          "sha256": "dfede86580e64e07eb481b495b73bacd69e515b990d20c2149397d2c78339717"
+        },
+        "tests/test_rag_bm25.py": {
+          "version": "1.0.0",
+          "sha256": "6e537cb6e36f42248b663e5d63b89c762492f924c69a7996fbc67b36cdbb402e"
+        },
+        "tests/test_skill_build_base.py": {
+          "version": "1.0.0",
+          "sha256": "ef5cf3b35813425ef750ca7515d8e76c6e000ce2d2fcfa83d103b8f740a1dd22"
+        },
+        "tests/scenarios/test_rag_search_modes_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "8c67c456edfad3f53c2f7778fc70c3b549c4db9083c4ade1c426ac0667e01e8a"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.25.2",
-      "sha256": "ececd8e813cc062b34067254e4a67d5b9fa024d292eafad7e196c503d05dcef6",
+      "version": "1.26.0",
+      "sha256": "22b50d442f7e978a7db5e1cfa97c1f3772d0bb08f2258ca7956c360ad55e0ea2",
       "note": {
-        "ru": "ARCHITECTURE: раздел «Универсальный разработчик» и раздел инструментов - промпты v3.19/v2.11, docs-first по AGENT.md.",
-        "en": "ARCHITECTURE: universal-developer and tool-catalog sections - prompts v3.19/v2.11, AGENT.md-first docs workflow."
+        "ru": "ARCHITECTURE: раздел RAG - режимы поиска, собственный BM25-индекс, RRF-гибрид и режимозависимая активность; промпт v3.20.",
+        "en": "ARCHITECTURE: RAG section - search modes, own BM25 index, RRF hybrid and mode-aware activity; prompt v3.20."
       }
     },
     "COMPARISON.md": {
-      "version": "1.2.0",
-      "sha256": "16d6f5e3a1a834dc82acfa347d5a1d095dd76d1f248cb2f28a22b22b57fe2518",
+      "version": "1.2.1",
+      "sha256": "add86b6876eb57ecf57417f7e5be88904b2236d3e3374c0523ef4f3d36d863c2",
       "note": {
-        "ru": "Лицензия SagaAI указана как MIT во всех таблицах и разделах; позиционирование актуализировано.",
-        "en": "SagaAI license stated as MIT in all tables and sections; positioning refreshed."
+        "ru": "COMPARISON: RAG-позиционирование с BM25/vector/hybrid; версия 1.2.1.",
+        "en": "COMPARISON: RAG positioning with BM25/vector/hybrid; version 1.2.1."
       }
     },
     "LICENSE": {
@@ -1124,19 +1140,19 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.29.0",
-      "sha256": "77e9777358d7fee69bcfaf43f205b7370fdf45b86f7af12a302e4ccbfaa69e01",
+      "version": "1.30.0",
+      "sha256": "dd332fe19a4a581b831a7620221cd56957241d670539c3aa06e948bd8c78b5e3",
       "note": {
-        "ru": "Карта перегенерирована: добавлены описания обеих копий инструкции github_connector (глобальная и оркестраторная), зафиксирована предпубликационная проверка секретов и персональных данных.",
-        "en": "Map regenerated: roles added for both copies of the github_connector instruction (global and orchestrator), reflecting the pre-publish secret & personal-data check."
+        "ru": "Карта перегенерирована: новые файлы core/rag_bm25.py и RAG-тесты, роли режимов поиска.",
+        "en": "Map regenerated: new files core/rag_bm25.py and RAG tests, search-mode roles."
       }
     },
     "README.md": {
-      "version": "1.21.1",
-      "sha256": "6e98a94d5676d6de18eb5b988fa2da907ea7287a4202ed114130977864985e19",
+      "version": "1.22.0",
+      "sha256": "4e9f482d45e3ec1ab855252c817ebde2a0d321dbbc7310eb4df4bb218152f1f3",
       "note": {
-        "ru": "README: статус версии 1.12.0; возможности - документация ведётся через AGENT.md; ссылка на AGENT.md в списке документации.",
-        "en": "README: version status 1.12.0; capabilities - docs maintained via AGENT.md; AGENT.md link in the docs list."
+        "ru": "README: статус v1.13.0; RAG-раздел - три режима поиска (bm25/vector/hybrid).",
+        "en": "README: status v1.13.0; RAG section - three search modes (bm25/vector/hybrid)."
       }
     },
     "defaults/README.md": {
@@ -1212,11 +1228,11 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.9.1",
-      "sha256": "5010c2878b37dfe2a292dd468d4402596f3888b389eeda3c935f5a31e326b3aa",
+      "version": "1.10.0",
+      "sha256": "d5eea27094f73a0ed9bfaf493aced5985f45d95e98335cf867260fa43e9d6ef9",
       "note": {
-        "ru": "Ключи показа сгенерированного изображения в ленте чата (image / download / missing).",
-        "en": "Chat-feed keys for the generated image (image / download / missing)."
+        "ru": "Ключи режима поиска базы (storage_search_mode*), подсказка и заголовок тестового поиска страницы «Хранилище».",
+        "en": "Base search-mode keys (storage_search_mode*), the Storage page hint and the test-search title."
       }
     },
     "defaults/langs/en_guide.md": {
@@ -1228,11 +1244,11 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.9.1",
-      "sha256": "fe3b80cd5d96760e9b52eecd2dc3960d352866180b0f64ab92e40b9b885246ae",
+      "version": "1.10.0",
+      "sha256": "3ad05a00414062efdc796d52835dedbea0e269b2a5ece3dd703d4e80406d42b1",
       "note": {
-        "ru": "Ключи показа сгенерированного изображения в ленте чата (image / download / missing).",
-        "en": "Chat-feed keys for the generated image (image / download / missing)."
+        "ru": "Ключи режима поиска базы (storage_search_mode*), подсказка и заголовок тестового поиска страницы «Хранилище».",
+        "en": "Base search-mode keys (storage_search_mode*), the Storage page hint and the test-search title."
       }
     },
     "defaults/langs/ru_guide.md": {
@@ -1244,11 +1260,11 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.9.1",
-      "sha256": "5e537cdcc5352ff7b5047cf446b69ada71e4f453f6263b23ff2f79254732237c",
+      "version": "1.10.0",
+      "sha256": "4e9466e04db4de7b1596589e75ee7dcd4c2388a4ead7c4491e936187ebb5b5ba",
       "note": {
-        "ru": "Ключи показа сгенерированного изображения в ленте чата (image / download / missing).",
-        "en": "Chat-feed keys for the generated image (image / download / missing)."
+        "ru": "Ключи режима поиска базы (storage_search_mode*), подсказка и заголовок тестового поиска страницы «Хранилище».",
+        "en": "Base search-mode keys (storage_search_mode*), the Storage page hint and the test-search title."
       }
     },
     "defaults/langs/zh_CN_guide.md": {
@@ -1452,35 +1468,35 @@
       }
     },
     "defaults/skills/rag_base_creator/SKILL.md": {
-      "version": "1.0.0",
-      "sha256": "59f080ae3e1edd925dfcfdf2b61587a7d4a7174fb16f3ea9e9243adc98a286b0",
+      "version": "1.1.0",
+      "sha256": "7960c4ac46b8b7006f4c4cac0c43aebe7a7c61d2bcbe259187c04455899c8961",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Rag Base Creator: секция режимов поиска, --search-mode (bm25 по умолчанию, без ключей).",
+        "en": "Rag Base Creator: search-modes section, --search-mode (bm25 default, no keys)."
       }
     },
     "defaults/skills/rag_base_creator/scripts/build_base.py": {
-      "version": "1.0.0",
-      "sha256": "53ba3b3490bea9ca330799504db66284523f568d75062454d34f04e371d06e57",
+      "version": "1.1.0",
+      "sha256": "fc7b0e324efdbcdd81bec3a9cb50312881405a263f2522f07d91f9c7ac225687",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "build_base.py: --search-mode (bm25/vector/hybrid); в bm25 эмбеддинги не вызываются.",
+        "en": "build_base.py: --search-mode (bm25/vector/hybrid); bm25 makes no embedding calls."
       }
     },
     "dev_agent/system_prompt.md": {
-      "version": "3.19",
-      "sha256": "f499cd58b7346ef5ac71b5bbb6eac33e4c000e104230bf52885d07b189cafb72",
+      "version": "3.20",
+      "sha256": "e3ebf73286b85ae03f3b0dafa053fe92622f69a9a8004d7f2ddf4b3a5b1a42f6",
       "note": {
-        "ru": "Промпт DevAgent v3.19: docs-first по AGENT.md (читать первым), SPEC.md выведен из управляемых документов; §9.4 и §10 обновлены; пины gating-теста v3.19/v2.11.",
-        "en": "DevAgent prompt v3.19: AGENT.md-first docs workflow, SPEC.md removed from the managed documents; sections 9.4 and 10 updated; gating-test pins v3.19/v2.11."
+        "ru": "Промпт DevAgent v3.20: режимы поиска RAG-баз (bm25/vector/hybrid) в правилах rag_search.",
+        "en": "DevAgent prompt v3.20: RAG base search modes (bm25/vector/hybrid) in the rag_search rules."
       }
     },
     "langs/en.json": {
-      "version": "1.9.1",
-      "sha256": "5010c2878b37dfe2a292dd468d4402596f3888b389eeda3c935f5a31e326b3aa",
+      "version": "1.10.0",
+      "sha256": "d5eea27094f73a0ed9bfaf493aced5985f45d95e98335cf867260fa43e9d6ef9",
       "note": {
-        "ru": "Ключи показа сгенерированного изображения в ленте чата (image / download / missing).",
-        "en": "Chat-feed keys for the generated image (image / download / missing)."
+        "ru": "Ключи режима поиска базы (storage_search_mode*), подсказка и заголовок тестового поиска страницы «Хранилище».",
+        "en": "Base search-mode keys (storage_search_mode*), the Storage page hint and the test-search title."
       }
     },
     "langs/en_guide.md": {
@@ -1492,11 +1508,11 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.9.1",
-      "sha256": "bf8f3c4b0e5c194d28a98d805d0435a7c689fc3d2940dfc325c4e2a02cbe034e",
+      "version": "1.10.0",
+      "sha256": "ea8972b869aa7c49f0fb103f06cb88e64afc34a11ca3050e68fa176a3729daff",
       "note": {
-        "ru": "Ключи показа сгенерированного изображения в ленте чата (image / download / missing).",
-        "en": "Chat-feed keys for the generated image (image / download / missing)."
+        "ru": "Ключи режима поиска базы (storage_search_mode*), подсказка и заголовок тестового поиска страницы «Хранилище».",
+        "en": "Base search-mode keys (storage_search_mode*), the Storage page hint and the test-search title."
       }
     },
     "langs/ru_guide.md": {
@@ -1508,11 +1524,11 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.9.1",
-      "sha256": "5e537cdcc5352ff7b5047cf446b69ada71e4f453f6263b23ff2f79254732237c",
+      "version": "1.10.0",
+      "sha256": "4e9466e04db4de7b1596589e75ee7dcd4c2388a4ead7c4491e936187ebb5b5ba",
       "note": {
-        "ru": "Ключи показа сгенерированного изображения в ленте чата (image / download / missing).",
-        "en": "Chat-feed keys for the generated image (image / download / missing)."
+        "ru": "Ключи режима поиска базы (storage_search_mode*), подсказка и заголовок тестового поиска страницы «Хранилище».",
+        "en": "Base search-mode keys (storage_search_mode*), the Storage page hint and the test-search title."
       }
     },
     "langs/zh_CN_guide.md": {
@@ -1548,11 +1564,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.0.2",
-      "sha256": "09bd798194be762a817b80b27e1f0dce837cd7fde7964e428966cfb88320fef3",
+      "version": "1.1.0",
+      "sha256": "b274be3e2bf617e887e53fb82d16c7484178afd6693df61d3d1693d22fa14b0a",
       "note": {
-        "ru": "Ключевая информация для агентов (AGENT.md) - пришёл на смену SPEC.md: обязательные конвенции разработки (i18n-ключи для UI-строк, кэш-дружественные префиксы запросов, минимум сторонних библиотек) и профиль проекта.",
-        "en": "Key project information for agents (AGENT.md), replacing SPEC.md: mandatory development conventions (i18n keys for UI strings, cache-friendly request prefixes, minimal third-party dependencies) and the project profile."
+        "ru": "AGENT.md: FR10 - режимы поиска RAG (bm25 по умолчанию, vector, hybrid), счётчик базовых файлов 92, режимозависимая активность баз.",
+        "en": "AGENT.md: FR10 - RAG search modes (default bm25, vector, hybrid), base-file counter 92, mode-aware base activity."
       }
     }
   }

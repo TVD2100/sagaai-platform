@@ -106,6 +106,7 @@ def test_index_lifecycle_serves_cached_counters(rag_data):
         embedding_model="text-search-doc",
         chunk_size=80,
         chunk_overlap=0,
+        search_mode="vector",
     )
     slug = base["slug"]
     text = ("knowledge base chunk text " * 20).strip()

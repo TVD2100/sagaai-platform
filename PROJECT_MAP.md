@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-10-07T19:25:50+00:00`
-- Файлов: **320**
+- Обновлено: `2026-10-11T18:32:23+00:00`
+- Файлов: **324**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **4151**
-- Отпечаток содержимого: `sha256:c14e986701f43037f9ff2b90f6f89f49910ac96d7e1d432a6f3f78b8bb1d806f` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 1, JSON: 17, Markdown: 37, PEM certificate: 1, Python: 267, Text: 1
+- Python-символов: **4225**
+- Отпечаток содержимого: `sha256:0d2481a19c9271d0a629348cdea633bc5fa7ac9835a01bae3340d1e9bc9fb574` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 1, JSON: 17, Markdown: 37, PEM certificate: 1, Python: 271, Text: 1
 
 ## Файлы и назначение
 
@@ -35,7 +35,7 @@
 | `ui/pages/skills.py` | Python | DEPRECATED shim -> ui/pages/assistants.py (page_assistants) | - |
 | `ui/pages/skills_library.py` | Python | Skills library page (install ZIP/GitHub/folder, edit metadata, delete) | - |
 | `ui/pages/stats.py` | Python | _(описание не задано)_ | - |
-| `ui/pages/storage.py` | Python | _(описание не задано)_ | - |
+| `ui/pages/storage.py` | Python | RAG storage page: bases, files, indexing, test search, per-base search-mode selector (bm25/vector/hybrid), chunk browser | - |
 | `ui/pages/updates.py` | Python | _(описание не задано)_ | - |
 | `ui/pages/welcome.py` | Python | Welcome / about page | - |
 | `core/__init__.py` | Python | Package marker | - |
@@ -44,7 +44,7 @@
 | `core/assistant_creator.py` | Python | Validation and linting helpers for assistant prompts | - |
 | `core/assistant_folders.py` | Python | _(описание не задано)_ | - |
 | `core/assistant_nav.py` | Python | _(описание не задано)_ | - |
-| `core/assistant_tools.py` | Python | _(описание не задано)_ | - |
+| `core/assistant_tools.py` | Python | Assistant Responses-API tool loop (local function_call execution incl. rag_search/rag_get_chunks honoring per-base search modes; assistant folder ACL) | - |
 | `core/assistants.py` | Python | CRUD for AI assistant profiles and their attachment files | storage |
 | `core/auth.py` | Python | Optional password authentication gate | - |
 | `core/bootstrap.py` | Python | First-run provisioning: Assistant/Employee Creator instructions, DevAgent settings, legacy skill_creator migration | - |
@@ -71,12 +71,13 @@
 | `core/paths.py` | Python | Base directories and thread paths | - |
 | `core/prompt_guard.py` | Python | Prompt-injection protection and sanitization | - |
 | `core/prompt_improver.py` | Python | _(описание не задано)_ | - |
-| `core/rag.py` | Python | _(описание не задано)_ | - |
+| `core/rag.py` | Python | RAG base CRUD: folder and manifest (search_mode bm25/vector/hybrid, default bm25), files, chunk stats and the provider-credentials activity flag | - |
+| `core/rag_bm25.py` | Python | Own BM25 lexical index of a RAG base: bm25_terms/bm25_docs tables in the base index.db (lazy first build for legacy bases, incremental add/update/delete hooks, Unicode ru/en tokenization, no API keys) | - |
 | `core/rag_chunker.py` | Python | _(описание не задано)_ | - |
 | `core/rag_embeddings.py` | Python | _(описание не задано)_ | - |
-| `core/rag_index.py` | Python | _(описание не задано)_ | - |
-| `core/rag_indexer.py` | Python | _(описание не задано)_ | - |
-| `core/rag_search.py` | Python | _(описание не задано)_ | - |
+| `core/rag_index.py` | Python | Local SQLite RAG index: chunks plus optional vectors, BM25 sync hooks (add/update/delete/reset), fetch_chunks, cached counters | - |
+| `core/rag_indexer.py` | Python | Indexing pipeline: chunking and chunks always, BM25 structures kept in sync; embeddings only in vector/hybrid modes; status and progress | - |
+| `core/rag_search.py` | Python | Base search dispatcher by mode: own BM25, vector cosine over BYOK embeddings, hybrid RRF (k=60) with bm25 degradation; hits carry mode; LLM chat-context builder | - |
 | `core/recent_assistants.py` | Python | Tracks recently used assistant IDs in session_state | - |
 | `core/recent_workspaces.py` | Python | Recent workspaces tracking, scoped per orchestrator (slug-keyed dict seeded from own threads; platform paths hidden; legacy flat list read as dev_agent) | storage |
 | `core/render.py` | Python | Markdown rendering / clipboard helpers | - |
@@ -88,7 +89,7 @@
 | `core/statistics.py` | Python | _(описание не задано)_ | - |
 | `core/threads.py` | Python | Chat thread persistence for assistants | storage |
 | `core/threads_devagent.py` | Python | DevAgent/orchestrator thread persistence (devagent.db) and the thread-search service layer (search_thread_messages, list_threads_filtered, read_thread_window) with access control; thread workspace meta (last folder) and the legacy-meta cleanup migration | storage |
-| `core/tools_utils.py` | Python | Tool definitions list for the Skills/Assistants pages | - |
+| `core/tools_utils.py` | Python | Tool definitions list for the Skills/Assistants pages; RAG tool descriptions carry the per-base search mode | - |
 | `core/updater.py` | Python | _(описание не задано)_ | - |
 | `core/updater_apply.py` | Python | _(описание не задано)_ | - |
 | `core/version.py` | Python | _(описание не задано)_ | - |
@@ -165,11 +166,12 @@
 | `tests/test_propose_file.py` | Python | propose_file tool tests | - |
 | `tests/test_propose_file_scenarios.py` | Python | propose_file edge-case tests | - |
 | `tests/test_protect_history.py` | Python | History protection tests | - |
+| `tests/test_rag_bm25.py` | Python | Unit: own BM25 index (tokenization, manual ranking check, lazy rebuild, incremental hooks, stats/drop) | - |
 | `tests/test_rag_chunks_and_preset_skills.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_rag_hot_paths_no_stats.py` | Python | _(описание не задано)_ | - |
 | `tests/test_rag_stats_cache.py` | Python | _(описание не задано)_ | - |
 | `tests/test_rag_tools_robustness.py` | Python | _(описание не задано)_ | - |
-| `tests/test_rag_with_stats.py` | Python | _(описание не задано)_ | storage |
+| `tests/test_rag_with_stats.py` | Python | Unit: with_stats opt-out for RAG hot paths; mode-aware base activity (bm25/hybrid active without provider keys) | storage |
 | `tests/test_recent_workspaces.py` | Python | Recent workspaces tests | storage |
 | `tests/test_render_token_line.py` | Python | Token line renderer tests | - |
 | `tests/test_safety_mode.py` | Python | Safety-mode gate tests | - |
@@ -178,6 +180,7 @@
 | `tests/test_service_model_catalogs.py` | Python | Vision/image model catalog tests for service profiles | - |
 | `tests/test_sidebar_employees_nav.py` | Python | _(описание не задано)_ | - |
 | `tests/test_single_model_config.py` | Python | Single-model config tests (legacy weak_* tolerance, vision/image keys, no weak_* persistence) | storage |
+| `tests/test_skill_build_base.py` | Python | Unit: Rag Base Creator build_base.py - dry-run plan and bm25 build with zero embedding calls | storage |
 | `tests/test_skills_adaptation.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_skills_library.py` | Python | Skills library tests | storage |
 | `tests/test_ssh_connector.py` | Python | Unit tests for core/ssh_connector (fake paramiko) | - |
@@ -185,7 +188,7 @@
 | `tests/test_st_mock.py` | Python | _(описание не задано)_ | _st_mock |
 | `tests/test_statistics.py` | Python | _(описание не задано)_ | - |
 | `tests/test_stats_page_ui.py` | Python | _(описание не задано)_ | - |
-| `tests/test_storage_page_ui.py` | Python | _(описание не задано)_ | storage |
+| `tests/test_storage_page_ui.py` | Python | UI tests: storage base card - search-mode selectbox (current mode preselected) and Apply persisting the mode | storage |
 | `tests/test_structured_output_consumers.py` | Python | _(описание не задано)_ | - |
 | `tests/test_task_state.py` | Python | Task-state journal tests (dialog-folder fallback in the empty state) | - |
 | `tests/test_theme_restore.py` | Python | _(описание не задано)_ | - |
@@ -239,12 +242,13 @@
 | `tests/scenarios/test_orchestrator_devagent_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_orchestrator_other_settings_scenario.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_orchestrator_thread_files.py` | Python | Scenario tests: uploads land in thread files; legacy workspace manifests still re-announced | storage |
-| `tests/scenarios/test_orchestrator_tool_gating.py` | Python | Gating scenarios: system-prompt version pins (v3.19/v2.11), empty-state prompt invariants, generated-document rule and thread-search tool invariants | storage |
+| `tests/scenarios/test_orchestrator_tool_gating.py` | Python | Gating scenarios: system-prompt version pins (v3.20/v2.11), empty-state prompt invariants, generated-document rule and thread-search tool invariants | storage |
 | `tests/scenarios/test_project_map_freshness_scenario.py` | Python | Scenario: PROJECT_MAP regeneration - GitHub-published scope only, recorded fingerprint and staleness detection, reproducible output | storage |
 | `tests/scenarios/test_provider_economy_settings_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_assistant_dialog.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_context_restore.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_perf_scenarios.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_rag_search_modes_scenario.py` | Python | Scenarios: offline bm25 base end-to-end, vector->hybrid switch with RRF and bm25 degradation, error paths | - |
 | `tests/scenarios/test_recent_workspace_scopes_scenario.py` | Python | Scenario tests: per-orchestrator recent-folder menu (isolation, platform paths hidden, scoped writes) | storage |
 | `tests/scenarios/test_resume_identity_scenarios.py` | Python | Scenario: resume identity - stored thread messages round-trip byte-for-byte after reload | storage |
 | `tests/scenarios/test_search_in_files_scenarios.py` | Python | _(описание не задано)_ | - |
@@ -302,8 +306,8 @@
 | `defaults/langs/zh-CN.json` | JSON | UI strings (Chinese, incl. token_line_* keys) | - |
 | `defaults/langs/zh_CN_guide.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/skills/README.md` | Markdown | _(описание не задано)_ | - |
-| `defaults/skills/rag_base_creator/SKILL.md` | Markdown | _(описание не задано)_ | - |
-| `defaults/skills/rag_base_creator/scripts/build_base.py` | Python | _(описание не задано)_ | - |
+| `defaults/skills/rag_base_creator/SKILL.md` | Markdown | Rag Base Creator skill: create and index RAG bases; Search modes section (bm25 default without keys, vector, hybrid), --search-mode | - |
+| `defaults/skills/rag_base_creator/scripts/build_base.py` | Python | Rag Base Creator helper: builds a base offline (default bm25, no embedding calls) or with embeddings for vector/hybrid | - |
 | `defaults/services/deepseek.json` | JSON | DeepSeek service definition (defaults copy; vision_base_url + vision_models catalog; declared default output limit ~32k) | - |
 | `defaults/services/gigachat.json` | JSON | _(описание не задано)_ | - |
 | `defaults/services/yandex.json` | JSON | _(описание не задано)_ | - |
@@ -324,7 +328,7 @@
 | `dev_agent/config.py` | Python | DevAgent runtime config and protected path policy; empty-state neutral root (NEUTRAL_ROOT / WORKSPACE_SELECTED / ensure_neutral_root, apply_paths selected flag) | - |
 | `dev_agent/llm_utils.py` | Python | Unified LLM-call helper (assistant dict contract, legacy skill alias) | - |
 | `dev_agent/safe_writer.py` | Python | Safe full-file rewrite with diff/verification | backup_manager |
-| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.19 AGENT.md docs-first (legacy SPEC.md removed); v3.18 generated-PROJECT_MAP rule; v3.17 compact task-state digest, read_file windows, PRAGMA-first; v3.16 empty-state Stage 0, task-journal and thread-files rules) | - |
+| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.20 AGENT.md docs-first (legacy SPEC.md removed); v3.18 generated-PROJECT_MAP rule; v3.17 compact task-state digest, read_file windows, PRAGMA-first; v3.16 empty-state Stage 0, task-journal and thread-files rules) | - |
 | `dev_agent/task_state.py` | Python | Per-thread task-state journal (plan/progress/handoff) with the thread-files fallback folder when no workspace is selected; compact digest (read_task_state compact=True) and budgeted injection | backup_manager |
 | `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools, legacy skill aliases, skills-library and multimodal tools; empty-state workspace guard (workspace_not_selected, neutral cwd for code=) | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
 | `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace + orchestrator tools, incl. thread search: search_in_threads / list_threads / read_thread; empty-state guard and thread workspace-meta persistence) | storage, tool_executor |
@@ -493,12 +497,12 @@
 - `page_stats` (func, строка 25)
 
 ### `ui/pages/storage.py`
-- `_status_label` (func, строка 36)
-- `_render_test_search` (func, строка 41)
-- `_render_chunk_editor` (func, строка 67)
-- `_render_chunks_section` (func, строка 107)
-- `_render_base_card` (func, строка 216)
-- `page_storage` (func, строка 294)
+- `_status_label` (func, строка 37)
+- `_render_test_search` (func, строка 42)
+- `_render_chunk_editor` (func, строка 68)
+- `_render_chunks_section` (func, строка 108)
+- `_render_base_card` (func, строка 217)
+- `page_storage` (func, строка 319)
 
 ### `ui/pages/updates.py`
 - `_cached_manifest` (func, строка 39)
@@ -644,9 +648,9 @@
 - `_item_text` (func, строка 215)
 - `_assistant_allowed_rag_bases` (func, строка 221)
 - `execute_assistant_rag_search` (func, строка 246)
-- `execute_assistant_rag_chunks` (func, строка 306)
-- `_report_usage` (func, строка 376)
-- `run_yandex_responses_tool_loop` (func, строка 397)
+- `execute_assistant_rag_chunks` (func, строка 308)
+- `_report_usage` (func, строка 378)
+- `run_yandex_responses_tool_loop` (func, строка 399)
 
 ### `core/assistants.py`
 - `_get_user_data_dir` (func, строка 54)
@@ -1043,32 +1047,32 @@
 - `get_orchestrator_rag_bases` (func, строка 760)
 - `set_orchestrator_rag_bases` (func, строка 777)
 - `_extend_prompt_with_rag_bases` (func, строка 803)
-- `_extend_prompt_with_skills` (func, строка 851)
-- `_extend_prompt_with_instructions` (func, строка 873)
-- `build_assistant_dicts` (func, строка 940)
-- `build_assistant_dicts._resolve_effort` (func, строка 979)
-- `get_web_search_prompt` (func, строка 1005)
-- `get_web_search_config` (func, строка 1020)
-- `get_economy_tail_messages` (func, строка 1048)
-- `get_economy_cache_enabled` (func, строка 1066)
-- `get_economy_cache_multiplier` (func, строка 1084)
-- `get_economy_config` (func, строка 1103)
-- `export_orchestrator` (func, строка 1117)
-- `_validate_imported_tools` (func, строка 1163)
-- `import_orchestrator` (func, строка 1189)
-- `_import_instructions` (func, строка 1308)
-- `_import_functions` (func, строка 1335)
-- `orch_list_instructions` (func, строка 1353)
-- `orch_get_instruction` (func, строка 1358)
-- `orch_save_instruction` (func, строка 1363)
-- `orch_delete_instruction` (func, строка 1374)
-- `orch_list_functions` (func, строка 1381)
-- `orch_get_function` (func, строка 1386)
-- `orch_save_function` (func, строка 1391)
-- `orch_delete_function` (func, строка 1396)
-- `ensure_builtin_orchestrators` (func, строка 1405)
-- `load_devagent_config` (func, строка 1607)
-- `save_devagent_config` (func, строка 1646)
+- `_extend_prompt_with_skills` (func, строка 854)
+- `_extend_prompt_with_instructions` (func, строка 876)
+- `build_assistant_dicts` (func, строка 943)
+- `build_assistant_dicts._resolve_effort` (func, строка 982)
+- `get_web_search_prompt` (func, строка 1008)
+- `get_web_search_config` (func, строка 1023)
+- `get_economy_tail_messages` (func, строка 1051)
+- `get_economy_cache_enabled` (func, строка 1069)
+- `get_economy_cache_multiplier` (func, строка 1087)
+- `get_economy_config` (func, строка 1106)
+- `export_orchestrator` (func, строка 1120)
+- `_validate_imported_tools` (func, строка 1166)
+- `import_orchestrator` (func, строка 1192)
+- `_import_instructions` (func, строка 1311)
+- `_import_functions` (func, строка 1338)
+- `orch_list_instructions` (func, строка 1356)
+- `orch_get_instruction` (func, строка 1361)
+- `orch_save_instruction` (func, строка 1366)
+- `orch_delete_instruction` (func, строка 1377)
+- `orch_list_functions` (func, строка 1384)
+- `orch_get_function` (func, строка 1389)
+- `orch_save_function` (func, строка 1394)
+- `orch_delete_function` (func, строка 1399)
+- `ensure_builtin_orchestrators` (func, строка 1408)
+- `load_devagent_config` (func, строка 1610)
+- `save_devagent_config` (func, строка 1649)
 
 ### `core/paths.py`
 - `ensure_data_dirs` (func, строка 35)
@@ -1089,38 +1093,61 @@
 - `improve_prompt_with_main_model` (func, строка 54)
 
 ### `core/rag.py`
-- `_now` (func, строка 34)
-- `_slugify` (func, строка 38)
-- `_manifest_path` (func, строка 45)
-- `base_dir` (func, строка 51)
-- `files_dir` (func, строка 57)
-- `index_db_path` (func, строка 62)
-- `_ensure_files_dir` (func, строка 67)
-- `list_bases` (func, строка 73)
-- `get_base` (func, строка 98)
-- `_with_index_stats` (func, строка 114)
-- `_validate_create` (func, строка 125)
-- `create_base` (func, строка 141)
-- `update_base` (func, строка 188)
-- `set_status` (func, строка 219)
-- `_load_removed_defaults` (func, строка 236)
-- `_save_removed_defaults` (func, строка 246)
-- `_load_manifest_raw` (func, строка 253)
-- `delete_base` (func, строка 261)
-- `add_file` (func, строка 282)
-- `remove_file` (func, строка 292)
-- `list_files` (func, строка 302)
-- `read_file_contents` (func, строка 315)
-- `allowed_for_slot` (func, строка 331)
-- `base_has_credentials` (func, строка 340)
-- `list_chunks` (func, строка 379)
-- `get_chunk` (func, строка 395)
-- `update_chunk` (func, строка 401)
-- `delete_chunk` (func, строка 442)
-- `list_bases_with_activity` (func, строка 448)
-- `list_bases_with_activity._active` (func, строка 466)
-- `_save_manifest` (func, строка 501)
-- `json_load` (func, строка 508)
+- `_now` (func, строка 45)
+- `_slugify` (func, строка 49)
+- `_manifest_path` (func, строка 56)
+- `base_dir` (func, строка 62)
+- `files_dir` (func, строка 68)
+- `index_db_path` (func, строка 73)
+- `_ensure_files_dir` (func, строка 78)
+- `list_bases` (func, строка 84)
+- `get_base` (func, строка 109)
+- `_with_index_stats` (func, строка 125)
+- `_validate_search_mode` (func, строка 136)
+- `_validate_create` (func, строка 144)
+- `create_base` (func, строка 160)
+- `update_base` (func, строка 210)
+- `set_status` (func, строка 244)
+- `_load_removed_defaults` (func, строка 261)
+- `_save_removed_defaults` (func, строка 271)
+- `_load_manifest_raw` (func, строка 278)
+- `delete_base` (func, строка 286)
+- `add_file` (func, строка 307)
+- `remove_file` (func, строка 317)
+- `list_files` (func, строка 327)
+- `read_file_contents` (func, строка 340)
+- `allowed_for_slot` (func, строка 356)
+- `base_has_credentials` (func, строка 365)
+- `list_chunks` (func, строка 404)
+- `get_chunk` (func, строка 420)
+- `update_chunk` (func, строка 426)
+- `delete_chunk` (func, строка 467)
+- `list_bases_with_activity` (func, строка 473)
+- `list_bases_with_activity._active` (func, строка 491)
+- `_save_manifest` (func, строка 532)
+- `json_load` (func, строка 539)
+
+### `core/rag_bm25.py`
+- `tokenize` (func, строка 52)
+- `_connect` (func, строка 64)
+- `ensure_schema` (func, строка 79)
+- `_read_meta_int` (func, строка 107)
+- `_write_meta` (func, строка 118)
+- `_init_counter` (func, строка 127)
+- `_bump_meta` (func, строка 135)
+- `is_ready` (func, строка 145)
+- `rebuild_index` (func, строка 162)
+- `ensure_ready` (func, строка 214)
+- `drop_index_conn` (func, строка 221)
+- `drop_index` (func, строка 234)
+- `_remove_chunk_rows` (func, строка 251)
+- `index_chunk` (func, строка 271)
+- `on_chunk_added` (func, строка 300)
+- `on_chunk_updated` (func, строка 321)
+- `remove_chunk_conn` (func, строка 326)
+- `on_chunk_deleting` (func, строка 338)
+- `search` (func, строка 360)
+- `stats` (func, строка 460)
 
 ### `core/rag_chunker.py`
 - `_list_index` (func, строка 23)
@@ -1137,41 +1164,50 @@
 - `_now` (func, строка 29)
 - `_ensure_counts` (func, строка 41)
 - `_delta_count` (func, строка 69)
-- `_connect` (func, строка 77)
-- `create_index_db` (func, строка 90)
-- `pack_vector` (func, строка 143)
-- `unpack_vector` (func, строка 148)
-- `reset_index` (func, строка 153)
-- `read_meta` (func, строка 179)
-- `add_chunk` (func, строка 194)
-- `add_embedding` (func, строка 226)
-- `count_chunks` (func, строка 251)
-- `get_chunk` (func, строка 266)
-- `list_chunks` (func, строка 300)
-- `search_chunks_text` (func, строка 341)
-- `update_chunk_text` (func, строка 395)
-- `delete_chunk` (func, строка 426)
-- `delete_embedding` (func, строка 449)
-- `_cosine` (func, строка 468)
-- `search_similar` (func, строка 482)
-- `fetch_chunks` (func, строка 527)
-- `fetch_chunks._normalise` (func, строка 545)
-- `index_stats` (func, строка 630)
-- `dump_chunks` (func, строка 686)
+- `_bm25_hook_added` (func, строка 77)
+- `_bm25_hook_updated` (func, строка 90)
+- `_bm25_hook_deleting_conn` (func, строка 99)
+- `_connect` (func, строка 108)
+- `create_index_db` (func, строка 121)
+- `pack_vector` (func, строка 174)
+- `unpack_vector` (func, строка 179)
+- `reset_index` (func, строка 184)
+- `read_meta` (func, строка 215)
+- `add_chunk` (func, строка 230)
+- `add_embedding` (func, строка 263)
+- `count_chunks` (func, строка 288)
+- `get_chunk` (func, строка 303)
+- `list_chunks` (func, строка 337)
+- `search_chunks_text` (func, строка 378)
+- `update_chunk_text` (func, строка 432)
+- `delete_chunk` (func, строка 464)
+- `delete_embedding` (func, строка 488)
+- `_cosine` (func, строка 507)
+- `search_similar` (func, строка 521)
+- `fetch_chunks` (func, строка 566)
+- `fetch_chunks._normalise` (func, строка 584)
+- `index_stats` (func, строка 669)
+- `dump_chunks` (func, строка 725)
 
 ### `core/rag_indexer.py`
-- `IndexingError` (class, строка 34)
-- `extract_text` (func, строка 38)
-- `_manifest_int` (func, строка 52)
-- `index_base` (func, строка 59)
+- `IndexingError` (class, строка 37)
+- `extract_text` (func, строка 41)
+- `_manifest_int` (func, строка 55)
+- `index_base` (func, строка 62)
 
 ### `core/rag_search.py`
-- `RagSearchError` (class, строка 27)
-- `search_base` (func, строка 31)
-- `_clean_chunk_values` (func, строка 68)
-- `get_chunks` (func, строка 92)
-- `build_search_context` (func, строка 124)
-- `chat_context` (func, строка 160)
+- `RagSearchError` (class, строка 41)
+- `get_search_mode` (func, строка 45)
+- `_resolve_top_k` (func, строка 55)
+- `_apply_min_score` (func, строка 63)
+- `_bm25_hits` (func, строка 74)
+- `_vector_hits` (func, строка 84)
+- `_rrf_fuse` (func, строка 105)
+- `search_base` (func, строка 139)
+- `_clean_chunk_values` (func, строка 184)
+- `get_chunks` (func, строка 208)
+- `build_search_context` (func, строка 240)
+- `chat_context` (func, строка 279)
 
 ### `core/recent_assistants.py`
 - `record_assistant_use` (func, строка 9)
@@ -1364,8 +1400,8 @@
 ### `core/tools_utils.py`
 - `list_tool_definitions` (func, строка 12)
 - `build_rag_search_tool` (func, строка 26)
-- `build_rag_chunks_tool` (func, строка 76)
-- `service_supported_tools` (func, строка 141)
+- `build_rag_chunks_tool` (func, строка 77)
+- `service_supported_tools` (func, строка 142)
 
 ### `core/updater.py`
 - `default_root` (func, строка 62)
@@ -1707,6 +1743,7 @@
 - `test_execute_rag_chunks_error_is_json_not_raised` (func, строка 643)
 - `test_loop_routes_rag_get_chunks` (func, строка 656)
 - `test_execute_rag_search_ok_includes_hits_metadata` (func, строка 702)
+- `test_execute_rag_search_hits_carry_mode_when_present` (func, строка 717)
 
 ### `tests/test_assistant_sidebar_sort.py`
 - `_a` (func, строка 22)
@@ -2799,11 +2836,11 @@
 - `test_devagent_edit_cycle_scenario` (func, строка 355)
 - `test_universal_developer_external_project_scenario` (func, строка 426)
 - `test_rag_base_full_scenario` (func, строка 499)
-- `test_i18n_scenario` (func, строка 587)
-- `test_config_secrets_and_connection_scenario` (func, строка 622)
-- `test_prompt_improvement_scenario` (func, строка 689)
-- `test_prompt_improvement_scenario.fake_send` (func, строка 693)
-- `test_api_roundtrip_scenarios` (func, строка 722)
+- `test_i18n_scenario` (func, строка 589)
+- `test_config_secrets_and_connection_scenario` (func, строка 624)
+- `test_prompt_improvement_scenario` (func, строка 691)
+- `test_prompt_improvement_scenario.fake_send` (func, строка 695)
+- `test_api_roundtrip_scenarios` (func, строка 724)
 
 ### `tests/test_preset_orchestrators.py`
 - `isolated_data_dir` (func, строка 31)
@@ -2916,6 +2953,37 @@
 - `TestParseSanitizedInfo.test_parses_empty_tool_result` (func, строка 172)
 - `TestParseSanitizedInfo.test_handles_invalid_json` (func, строка 178)
 
+### `tests/test_rag_bm25.py`
+- `_make_db` (func, строка 25)
+- `_add_raw` (func, строка 52)
+- `TestTokenize` (class, строка 69)
+- `TestTokenize.test_basic_ru_and_latin` (func, строка 70)
+- `TestTokenize.test_lowercase_normalization` (func, строка 74)
+- `TestTokenize.test_yo_folding` (func, строка 77)
+- `TestTokenize.test_punctuation_and_underscore_are_separators` (func, строка 82)
+- `TestTokenize.test_empty_and_none` (func, строка 86)
+- `TestRebuildAndReady` (class, строка 94)
+- `TestRebuildAndReady.test_missing_db_not_ready_and_search_empty` (func, строка 95)
+- `TestRebuildAndReady.test_rebuild_makes_ready` (func, строка 101)
+- `TestRebuildAndReady.test_rebuild_skips_empty_texts_in_counters` (func, строка 114)
+- `TestSearch` (class, строка 131)
+- `TestSearch._base` (func, строка 132)
+- `TestSearch.test_ranking_prefers_matching_chunk` (func, строка 140)
+- `TestSearch.test_unrelated_chunk_not_returned` (func, строка 148)
+- `TestSearch.test_top_k_limits_results` (func, строка 153)
+- `TestSearch.test_min_score_filters` (func, строка 160)
+- `TestSearch.test_blank_query_and_no_match` (func, строка 169)
+- `TestSearch.test_hits_shape_matches_vector_search` (func, строка 175)
+- `TestSearch.test_manual_score_matches_lucene_formula` (func, строка 180)
+- `TestSearch.test_legacy_lazy_rebuild_on_first_search` (func, строка 196)
+- `TestSearch.test_top_k_junk_falls_back_to_five` (func, строка 205)
+- `TestIncrementalHooks` (class, строка 213)
+- `TestIncrementalHooks.test_hook_noop_when_not_ready` (func, строка 214)
+- `TestIncrementalHooks.test_added_chunk_becomes_searchable` (func, строка 220)
+- `TestIncrementalHooks.test_updated_chunk_replaces_postings` (func, строка 233)
+- `TestIncrementalHooks.test_deleting_hook_adjusts_counters` (func, строка 244)
+- `TestIncrementalHooks.test_drop_index_resets_state` (func, строка 262)
+
 ### `tests/test_rag_chunks_and_preset_skills.py`
 - `isolated_data_dir` (func, строка 25)
 - `_make_index_db` (func, строка 57)
@@ -3014,8 +3082,9 @@
 - `TestWithStatsOptOut.test_default_with_stats_true_still_works` (func, строка 93)
 - `TestWithStatsOptOut.test_list_bases_with_activity_without_stats` (func, строка 101)
 - `TestWithStatsOptOut.test_activity_default_keeps_stats` (func, строка 113)
-- `TestWithStatsOptOut.test_activity_loads_config_once` (func, строка 119)
-- `TestWithStatsOptOut.test_activity_loads_config_once.counting_load` (func, строка 129)
+- `TestWithStatsOptOut.test_activity_is_mode_aware` (func, строка 119)
+- `TestWithStatsOptOut.test_activity_loads_config_once` (func, строка 146)
+- `TestWithStatsOptOut.test_activity_loads_config_once.counting_load` (func, строка 156)
 
 ### `tests/test_recent_workspaces.py`
 - `isolated_db` (func, строка 16)
@@ -3142,6 +3211,15 @@
 - `test_defaults_and_bootstrap_have_no_weak_keys` (func, строка 189)
 - `test_export_import_roundtrip_keeps_multimodal_fields` (func, строка 216)
 - `test_dev_agent_build_assistant_dict_from_config_single_model` (func, строка 248)
+
+### `tests/test_skill_build_base.py`
+- `isolated_data_dir` (func, строка 32)
+- `_load_skill_module` (func, строка 59)
+- `_source_dir` (func, строка 69)
+- `_args` (func, строка 84)
+- `test_dry_run_reports_bm25_and_creates_nothing` (func, строка 107)
+- `test_bm25_build_needs_no_embeddings` (func, строка 121)
+- `test_bm25_build_needs_no_embeddings._fail` (func, строка 125)
 
 ### `tests/test_skills_adaptation.py`
 - `isolated_data_dir` (func, строка 39)
@@ -3337,6 +3415,8 @@
 - `test_page_has_no_create_or_indexing_ui` (func, строка 99)
 - `test_page_without_bases_shows_empty_hint` (func, строка 115)
 - `test_base_card_actions_and_chunks_section` (func, строка 123)
+- `test_base_card_has_search_mode_selector` (func, строка 146)
+- `test_search_mode_apply_updates_manifest` (func, строка 162)
 
 ### `tests/test_structured_output_consumers.py`
 - `test_classify_passes_json_schema_and_name` (func, строка 38)
@@ -4314,10 +4394,16 @@
 - `_track_index_opens.traced` (func, строка 67)
 - `_real_counts` (func, строка 74)
 - `test_index_lifecycle_serves_cached_counters` (func, строка 89)
-- `test_hot_paths_do_not_open_index` (func, строка 136)
-- `test_legacy_index_backfilled_once` (func, строка 211)
-- `test_legacy_index_backfilled_once.traced` (func, строка 251)
-- `test_chunk_maintenance_keeps_counters_in_sync` (func, строка 262)
+- `test_hot_paths_do_not_open_index` (func, строка 137)
+- `test_legacy_index_backfilled_once` (func, строка 212)
+- `test_legacy_index_backfilled_once.traced` (func, строка 252)
+- `test_chunk_maintenance_keeps_counters_in_sync` (func, строка 263)
+
+### `tests/scenarios/test_rag_search_modes_scenario.py`
+- `rag_data` (func, строка 32)
+- `test_offline_bm25_base_end_to_end` (func, строка 40)
+- `test_mode_switch_vector_hybrid_and_degradation` (func, строка 79)
+- `test_error_path_missing_base` (func, строка 127)
 
 ### `tests/scenarios/test_recent_workspace_scopes_scenario.py`
 - `isolated_data_dir` (func, строка 31)
@@ -4578,20 +4664,20 @@
 - `repo_devagent_load_messages_window` (func, строка 305)
 
 ### `defaults/skills/rag_base_creator/scripts/build_base.py`
-- `_fallback_vector` (func, строка 91)
-- `_check_deps` (func, строка 99)
-- `_collect_files` (func, строка 114)
-- `_add_file` (func, строка 147)
-- `_read_text` (func, строка 162)
-- `_product_of` (func, строка 174)
-- `_headings` (func, строка 183)
-- `_trail_at` (func, строка 191)
-- `_split_units` (func, строка 210)
-- `_group_units` (func, строка 226)
-- `build_chunks` (func, строка 261)
-- `_embed_chunk` (func, строка 301)
-- `run` (func, строка 309)
-- `main` (func, строка 405)
+- `_fallback_vector` (func, строка 94)
+- `_check_deps` (func, строка 102)
+- `_collect_files` (func, строка 117)
+- `_add_file` (func, строка 150)
+- `_read_text` (func, строка 165)
+- `_product_of` (func, строка 177)
+- `_headings` (func, строка 186)
+- `_trail_at` (func, строка 194)
+- `_split_units` (func, строка 213)
+- `_group_units` (func, строка 229)
+- `build_chunks` (func, строка 264)
+- `_embed_chunk` (func, строка 304)
+- `run` (func, строка 312)
+- `main` (func, строка 412)
 
 ### `scripts/regenerate_project_map.py`
 - `build_publish_set` (func, строка 20)
@@ -4833,69 +4919,69 @@
 - `_exact_spans` (func, строка 160)
 - `_line_of` (func, строка 173)
 - `_suggest_anchor_lines` (func, строка 178)
-- `_unknown_args` (func, строка 254)
-- `_usage_string` (func, строка 279)
-- `_coerce_numeric_args` (func, строка 304)
-- `workspace_guard_error` (func, строка 385)
-- `_subprocess_cwd` (func, строка 415)
-- `_validate_python_syntax` (func, строка 430)
-- `ToolExecutor` (class, строка 453)
-- `ToolExecutor.__init__` (func, строка 454)
-- `ToolExecutor.set_send_request` (func, строка 482)
-- `ToolExecutor.dispatch` (func, строка 487)
-- `ToolExecutor.dispatch_json` (func, строка 547)
-- `ToolExecutor.read_file` (func, строка 557)
-- `ToolExecutor.list_files` (func, строка 632)
-- `ToolExecutor.list_files._entry_rel` (func, строка 674)
-- `ToolExecutor.list_files._sort_key` (func, строка 685)
-- `ToolExecutor.list_files._visible_children` (func, строка 688)
-- `ToolExecutor.list_files._make_file_entry` (func, строка 694)
-- `ToolExecutor.list_files._walk` (func, строка 705)
-- `ToolExecutor.propose_file` (func, строка 761)
-- `ToolExecutor.apply_patch` (func, строка 938)
-- `ToolExecutor.apply_edit` (func, строка 1158)
-- `ToolExecutor.verify_file` (func, строка 1194)
-- `ToolExecutor.discard_edit` (func, строка 1246)
-- `ToolExecutor.create_backup` (func, строка 1253)
-- `ToolExecutor.restore_backup` (func, строка 1261)
-- `ToolExecutor.show_history` (func, строка 1269)
-- `ToolExecutor.run_test` (func, строка 1273)
-- `ToolExecutor.run_code` (func, строка 1368)
-- `ToolExecutor.web_search` (func, строка 1476)
-- `ToolExecutor._run_deepseek_web_search` (func, строка 1661)
-- `ToolExecutor._resolve_image_path` (func, строка 1746)
-- `ToolExecutor._save_generated_image` (func, строка 1778)
-- `ToolExecutor.analyze_image` (func, строка 1815)
-- `ToolExecutor.generate_image` (func, строка 1875)
-- `ToolExecutor._rag_slug` (func, строка 1942)
-- `ToolExecutor._rag_access_allowed` (func, строка 1946)
-- `ToolExecutor.list_rag_bases` (func, строка 1963)
-- `ToolExecutor.rag_search` (func, строка 2007)
-- `ToolExecutor.rag_get_chunks` (func, строка 2095)
-- `ToolExecutor.set_history` (func, строка 2183)
-- `ToolExecutor._ensure_history_indexed` (func, строка 2193)
-- `ToolExecutor.get_history_index` (func, строка 2200)
-- `ToolExecutor.get_history_messages` (func, строка 2236)
-- `ToolExecutor.list_skills_library` (func, строка 2285)
-- `ToolExecutor.get_skill_folder` (func, строка 2299)
-- `ToolExecutor.get_skill_prompt` (func, строка 2334)
-- `ToolExecutor.get_skill_file` (func, строка 2379)
-- `ToolExecutor.mark_skill_adapted` (func, строка 2413)
-- `ToolExecutor.list_assistants` (func, строка 2430)
-- `ToolExecutor.get_assistant_by_id` (func, строка 2440)
-- `ToolExecutor.update_assistant_by_id` (func, строка 2447)
-- `ToolExecutor.list_instructions` (func, строка 2507)
-- `ToolExecutor.get_instruction` (func, строка 2522)
-- `ToolExecutor.detect_and_select_assistant` (func, строка 2538)
-- `ToolExecutor._orchestrator_instruction_text` (func, строка 2571)
-- `ToolExecutor._create_assistant_with_auto_model` (func, строка 2587)
-- `ToolExecutor.create_assistant_for_task` (func, строка 2746)
-- `ToolExecutor.list_recent_workspaces` (func, строка 2773)
-- `ToolExecutor.task_state_init` (func, строка 2797)
-- `ToolExecutor.task_state_read` (func, строка 2814)
-- `ToolExecutor.task_state_update` (func, строка 2827)
-- `ToolExecutor.task_state_mark_step` (func, строка 2835)
-- `ToolExecutor.task_state_clear` (func, строка 2854)
+- `_unknown_args` (func, строка 257)
+- `_usage_string` (func, строка 282)
+- `_coerce_numeric_args` (func, строка 307)
+- `workspace_guard_error` (func, строка 388)
+- `_subprocess_cwd` (func, строка 418)
+- `_validate_python_syntax` (func, строка 433)
+- `ToolExecutor` (class, строка 456)
+- `ToolExecutor.__init__` (func, строка 457)
+- `ToolExecutor.set_send_request` (func, строка 485)
+- `ToolExecutor.dispatch` (func, строка 490)
+- `ToolExecutor.dispatch_json` (func, строка 550)
+- `ToolExecutor.read_file` (func, строка 560)
+- `ToolExecutor.list_files` (func, строка 635)
+- `ToolExecutor.list_files._entry_rel` (func, строка 677)
+- `ToolExecutor.list_files._sort_key` (func, строка 688)
+- `ToolExecutor.list_files._visible_children` (func, строка 691)
+- `ToolExecutor.list_files._make_file_entry` (func, строка 697)
+- `ToolExecutor.list_files._walk` (func, строка 708)
+- `ToolExecutor.propose_file` (func, строка 764)
+- `ToolExecutor.apply_patch` (func, строка 941)
+- `ToolExecutor.apply_edit` (func, строка 1161)
+- `ToolExecutor.verify_file` (func, строка 1197)
+- `ToolExecutor.discard_edit` (func, строка 1249)
+- `ToolExecutor.create_backup` (func, строка 1256)
+- `ToolExecutor.restore_backup` (func, строка 1264)
+- `ToolExecutor.show_history` (func, строка 1272)
+- `ToolExecutor.run_test` (func, строка 1276)
+- `ToolExecutor.run_code` (func, строка 1371)
+- `ToolExecutor.web_search` (func, строка 1479)
+- `ToolExecutor._run_deepseek_web_search` (func, строка 1664)
+- `ToolExecutor._resolve_image_path` (func, строка 1749)
+- `ToolExecutor._save_generated_image` (func, строка 1781)
+- `ToolExecutor.analyze_image` (func, строка 1818)
+- `ToolExecutor.generate_image` (func, строка 1878)
+- `ToolExecutor._rag_slug` (func, строка 1945)
+- `ToolExecutor._rag_access_allowed` (func, строка 1949)
+- `ToolExecutor.list_rag_bases` (func, строка 1966)
+- `ToolExecutor.rag_search` (func, строка 2012)
+- `ToolExecutor.rag_get_chunks` (func, строка 2104)
+- `ToolExecutor.set_history` (func, строка 2192)
+- `ToolExecutor._ensure_history_indexed` (func, строка 2202)
+- `ToolExecutor.get_history_index` (func, строка 2209)
+- `ToolExecutor.get_history_messages` (func, строка 2245)
+- `ToolExecutor.list_skills_library` (func, строка 2294)
+- `ToolExecutor.get_skill_folder` (func, строка 2308)
+- `ToolExecutor.get_skill_prompt` (func, строка 2343)
+- `ToolExecutor.get_skill_file` (func, строка 2388)
+- `ToolExecutor.mark_skill_adapted` (func, строка 2422)
+- `ToolExecutor.list_assistants` (func, строка 2439)
+- `ToolExecutor.get_assistant_by_id` (func, строка 2449)
+- `ToolExecutor.update_assistant_by_id` (func, строка 2456)
+- `ToolExecutor.list_instructions` (func, строка 2516)
+- `ToolExecutor.get_instruction` (func, строка 2531)
+- `ToolExecutor.detect_and_select_assistant` (func, строка 2547)
+- `ToolExecutor._orchestrator_instruction_text` (func, строка 2580)
+- `ToolExecutor._create_assistant_with_auto_model` (func, строка 2596)
+- `ToolExecutor.create_assistant_for_task` (func, строка 2755)
+- `ToolExecutor.list_recent_workspaces` (func, строка 2782)
+- `ToolExecutor.task_state_init` (func, строка 2806)
+- `ToolExecutor.task_state_read` (func, строка 2823)
+- `ToolExecutor.task_state_update` (func, строка 2836)
+- `ToolExecutor.task_state_mark_step` (func, строка 2844)
+- `ToolExecutor.task_state_clear` (func, строка 2863)
 
 ### `dev_agent/universal_agent.py`
 - `load_system_prompt` (func, строка 31)

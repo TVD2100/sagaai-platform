@@ -5,9 +5,12 @@ Pipeline (blocking, called from the UI action layer; run there is sequential):
 
   1. read every source file from ``<base>/files/`` as UTF-8 text;
   2. split text into chunks (core.rag_chunker);
-  3. request embeddings for chunks (core.rag_embeddings; remote BYOK API,
-     stored only locally);
-  4. write chunks + vectors into the base index (core.rag_index).
+  3. write chunks into the base index (core.rag_index);
+  4. for ``vector``/``hybrid`` modes request embeddings per chunk
+     (core.rag_embeddings; remote BYOK API, stored only locally) and
+     attach the vectors;
+  5. build the lexical BM25 index (core.rag_bm25) - every base is
+     lexically searchable regardless of the mode, no API keys needed.
 
 Status flow on the base manifest: ``indexing`` → ``ready`` (or ``error``).
 The index is recreated on every run, so repeated calls are safe. Progress is
@@ -86,11 +89,15 @@ def index_base(
 
     rag.set_status(slug, "indexing")
 
-    try:
-        get_yandex_embedding_credentials()
-    except Exception:
-        rag.set_status(slug, "error")
-        raise
+    # BM25 mode needs no remote credentials at all; vector/hybrid do.
+    mode = str(base.get("search_mode") or "bm25").strip().lower()
+    want_vectors = mode in ("vector", "hybrid")
+    if want_vectors:
+        try:
+            get_yandex_embedding_credentials()
+        except Exception:
+            rag.set_status(slug, "error")
+            raise
 
     chunk_size = _manifest_int(base, "chunk_size", DEFAULT_CHUNK_SIZE)
     chunk_overlap = _manifest_int(base, "chunk_overlap", DEFAULT_CHUNK_OVERLAP)
@@ -127,37 +134,60 @@ def index_base(
         rag.set_status(slug, "error")
         raise IndexingError("No indexable text found in the base files")
 
-    # 2. Embed chunks (sequential; provider quota allows local rate).
-    from core.rag_embeddings import embed_text
-
     total = len(chunks)
-    api_key, folder_id = get_yandex_embedding_credentials()
-    for i, chunk in enumerate(chunks):
-        try:
-            vector = embed_text(
-                chunk["text"],
-                model=embedding_model,
-                dimension=dimension,
-                api_key=api_key,
-                folder_id=folder_id,
-            )
-        except Exception:
-            rag.set_status(slug, "error")
-            raise
-        if not vector:
-            continue
-        add_chunk(
-            db_path,
-            chunk["text"],
-            source=chunk["source"],
-            chunk_index=chunk["chunk_index"],
-            vector=vector,
-        )
-        if progress_callback is not None:
+
+    if want_vectors:
+        # 2a. Embed chunks (sequential; provider quota allows local rate).
+        from core.rag_embeddings import embed_text
+
+        api_key, folder_id = get_yandex_embedding_credentials()
+        for i, chunk in enumerate(chunks):
             try:
-                progress_callback("embedding", i + 1, total)
+                vector = embed_text(
+                    chunk["text"],
+                    model=embedding_model,
+                    dimension=dimension,
+                    api_key=api_key,
+                    folder_id=folder_id,
+                )
             except Exception:
-                pass
+                rag.set_status(slug, "error")
+                raise
+            if not vector:
+                continue
+            add_chunk(
+                db_path,
+                chunk["text"],
+                source=chunk["source"],
+                chunk_index=chunk["chunk_index"],
+                vector=vector,
+            )
+            if progress_callback is not None:
+                try:
+                    progress_callback("embedding", i + 1, total)
+                except Exception:
+                    pass
+    else:
+        # 2b. BM25 mode: store chunks without vectors (no provider calls).
+        for i, chunk in enumerate(chunks):
+            add_chunk(
+                db_path,
+                chunk["text"],
+                source=chunk["source"],
+                chunk_index=chunk["chunk_index"],
+            )
+            if progress_callback is not None:
+                try:
+                    progress_callback("write", i + 1, total)
+                except Exception:
+                    pass
+
+    # 3. Build the lexical BM25 index over the stored chunks (all modes).
+    try:
+        from core.rag_bm25 import rebuild_index
+        rebuild_index(db_path)
+    except Exception:
+        pass
 
     rag.set_status(slug, "ready")
     return rag.get_base(slug)

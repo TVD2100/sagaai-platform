@@ -74,6 +74,37 @@ def _delta_count(conn: sqlite3.Connection, key: str, delta: int) -> None:
     )
 
 
+def _bm25_hook_added(db_path: str, chunk_id: int, text: str) -> None:
+    """Keep the BM25 lexical index in sync after a chunk insert (best effort).
+
+    No-op when the base was never BM25-indexed yet: the first BM25 search
+    then performs one full rebuild instead.
+    """
+    try:
+        from core.rag_bm25 import on_chunk_added
+        on_chunk_added(db_path, chunk_id, text)
+    except Exception:
+        pass
+
+
+def _bm25_hook_updated(db_path: str, chunk_id: int, text: str) -> None:
+    """Re-index one chunk in the BM25 index after a text update (best effort)."""
+    try:
+        from core.rag_bm25 import on_chunk_updated
+        on_chunk_updated(db_path, chunk_id, text)
+    except Exception:
+        pass
+
+
+def _bm25_hook_deleting_conn(conn: sqlite3.Connection, chunk_id: int) -> None:
+    """Drop BM25 postings of a chunk inside the caller's connection (best effort)."""
+    try:
+        from core.rag_bm25 import remove_chunk_conn
+        remove_chunk_conn(conn, chunk_id)
+    except Exception:
+        pass
+
+
 def _connect(db_path: str) -> sqlite3.Connection:
     """Open (and create directories for) a SQLite connection."""
     parent = os.path.dirname(db_path)
@@ -157,6 +188,11 @@ def reset_index(db_path: str) -> bool:
         try:
             conn.execute("DROP TABLE IF EXISTS embeddings")
             conn.execute("DROP TABLE IF EXISTS chunks")
+            try:
+                from core.rag_bm25 import drop_index_conn as _bm25_drop
+                _bm25_drop(conn)
+            except Exception:
+                pass
             conn.execute(
                 "DELETE FROM meta WHERE k IN (?, ?)",
                 (_CHUNKS_KEY, _EMBEDDINGS_KEY),
@@ -216,6 +252,7 @@ def add_chunk(db_path: str, text: str, source: str = "",
                 )
                 _delta_count(conn, _EMBEDDINGS_KEY, 1)
             conn.commit()
+            _bm25_hook_added(db_path, chunk_id, text)
             return int(chunk_id)
         finally:
             conn.close()
@@ -416,6 +453,7 @@ def update_chunk_text(db_path: str, chunk_id: int, text: str) -> bool:
             if cur.rowcount > 0:
                 _delta_count(conn, _EMBEDDINGS_KEY, -1)
             conn.commit()
+            _bm25_hook_updated(db_path, chunk_id, new_text)
             return True
         finally:
             conn.close()
@@ -433,6 +471,7 @@ def delete_chunk(db_path: str, chunk_id: int) -> bool:
                 "SELECT chunk_id FROM embeddings WHERE chunk_id = ?",
                 (int(chunk_id),),
             ).fetchone()
+            _bm25_hook_deleting_conn(conn, chunk_id)
             cur = conn.execute("DELETE FROM chunks WHERE id = ?", (int(chunk_id),))
             if cur.rowcount > 0:
                 _delta_count(conn, _CHUNKS_KEY, -1)

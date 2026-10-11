@@ -116,6 +116,33 @@ class TestWithStatsOptOut:
         bases = rag.list_bases_with_activity()
         assert bases[0]["index_stats"]["chunks"] == 0
 
+    def test_activity_is_mode_aware(self, isolated_data_dir, monkeypatch):
+        """bm25/hybrid bases stay active without provider keys; vector gates."""
+        import core.config as config_mod
+        import core.rag as rag
+
+        lex = rag.create_base(name="Lex", provider="YandexAI",
+                              embedding_model="text-search-doc")
+        vec = rag.create_base(name="Vec", provider="YandexAI",
+                              embedding_model="text-search-doc",
+                              search_mode="vector")
+        hyb = rag.create_base(name="Hyb", provider="YandexAI",
+                              embedding_model="text-search-doc",
+                              search_mode="hybrid")
+
+        monkeypatch.setattr(config_mod, "load_config", lambda: {})
+        active = {b["slug"]: b["active"] for b in
+                  rag.list_bases_with_activity(with_stats=False)}
+        assert active[lex["slug"]] is True
+        assert active[vec["slug"]] is False
+        assert active[hyb["slug"]] is True
+
+        monkeypatch.setattr(config_mod, "load_config", lambda: {
+            "YANDEX_API_KEY": "k", "YANDEX_FOLDER_ID": "f"})
+        active = {b["slug"]: b["active"] for b in
+                  rag.list_bases_with_activity(with_stats=False)}
+        assert active[vec["slug"]] is True
+
     def test_activity_loads_config_once(self, isolated_data_dir, monkeypatch):
         """Config/services are loaded once per call, not once per base."""
         rag, first_slug = _make_base(isolated_data_dir)
