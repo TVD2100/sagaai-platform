@@ -208,8 +208,8 @@
           "sha256": "fb2809f6d77e319ab614d0a95ded4e7fe9255171e5f0041399cad25eb5d20748"
         },
         "core/skills_library.py": {
-          "version": "1.0.1",
-          "sha256": "8f78c5b87f6c8cb9aa670dfdd6994f8e004f7964bc3ba433c2d13a6d7fbedb63"
+          "version": "1.0.2",
+          "sha256": "1410500e23c347ec3808aba9007cdc31a01c62a731a080285e8cb267989d3ed9"
         },
         "core/ssh_connector.py": {
           "version": "1.1.0",
@@ -828,8 +828,8 @@
           "sha256": "b09831672d9338b778fd923e7a1cffef4c89740fc4ccda74388d776844e7f22c"
         },
         "tests/test_skills_library.py": {
-          "version": "1.1.0",
-          "sha256": "7a958090000b0dfd1f6b116c6a46a570031687d1e22c70c85d6cb4397100002c"
+          "version": "1.2.0",
+          "sha256": "03abdfc061d9ff71a26ed243e9715cab6995bc1c0aba80d093dc886e39163281"
         },
         "tests/test_ssh_connector.py": {
           "version": "1.1.0",
@@ -1144,11 +1144,11 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.30.1",
-      "sha256": "888fb776fc432bc507725217332513e7d5d8067f8fc9bd5516775fb9dfb00c37",
+      "version": "1.30.2",
+      "sha256": "dfc4868a6427147a366f94de8e3e6b81ca75d9f1a7fce860f09d229ea531d240",
       "note": {
-        "ru": "Карта перегенерирована: тест tests/test_rag_create_base_slug.py, явный slug в core/rag.py и контракт --slug навыка.",
-        "en": "Map regenerated: the tests/test_rag_create_base_slug.py file, the explicit slug in core/rag.py and the skill --slug contract."
+        "ru": "Карта перегенерирована: метаданные навыков больше не советуют read_file, регрессионный тест tests/test_skills_library.py.",
+        "en": "Map regenerated: skill metadata no longer advises read_file, the tests/test_skills_library.py regression test."
       }
     },
     "README.md": {
@@ -1568,11 +1568,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.1.1",
-      "sha256": "56230d88f20e79a385a653fa755c3300550c938db7aad5fa81b2fb9ddf00c8f4",
+      "version": "1.2.0",
+      "sha256": "554e2051106dd708f83113a5665b99de0ba726410e44074aa81b86fe1989d4f7",
       "note": {
-        "ru": "AGENT.md: FR10 - навык Rag Base Creator и явный slug базы (--slug, create_base slug=).",
-        "en": "AGENT.md: FR10 - the Rag Base Creator skill and the explicit base slug (--slug, create_base slug=)."
+        "ru": "AGENT.md: FR12 - файлы навыка читаются инструментом get_skill_file (workspace-инструменты отклоняют их пути, 'Path escapes project root').",
+        "en": "AGENT.md: FR12 - skill files are read with get_skill_file (workspace tools reject their paths, 'Path escapes project root')."
       }
     }
   }

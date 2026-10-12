@@ -2,11 +2,11 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-10-11T19:57:27+00:00`
+- Обновлено: `2026-10-12T11:45:28+00:00`
 - Файлов: **325**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **4237**
-- Отпечаток содержимого: `sha256:f4cf0cff9bdd8d58b03d7e5be06fe44d40e3edfea018727cdbc44613d93f6cae` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Python-символов: **4239**
+- Отпечаток содержимого: `sha256:c46f11082676a14699bc704614818366a5a3e2797bb22d20f649153e4b54d8ee` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
 - Языки: Config: 1, JSON: 17, Markdown: 37, PEM certificate: 1, Python: 272, Text: 1
 
 ## Файлы и назначение
@@ -564,37 +564,38 @@
 - `_extract_responses_text` (func, строка 427)
 - `_extract_deepseek_responses_text` (func, строка 485)
 - `_responses_failure_details` (func, строка 500)
-- `_responses_failure_message` (func, строка 532)
-- `_raise_responses_failure` (func, строка 547)
-- `_content_has_material` (func, строка 558)
-- `_normalise_tools` (func, строка 584)
-- `_has_native_function_tools` (func, строка 602)
-- `_protect_history` (func, строка 617)
-- `_estimate_tokens_in` (func, строка 690)
-- `_bearer_request` (func, строка 701)
-- `_deepseek_reasoning_effort` (func, строка 786)
-- `_deepseek_responses_request` (func, строка 802)
-- `_anthropic_web_search_used` (func, строка 912)
-- `_extract_anthropic_text` (func, строка 928)
-- `_deepseek_anthropic_web_search` (func, строка 952)
-- `_yandex_reasoning_effort` (func, строка 1068)
-- `_yandex_web_search_config` (func, строка 1095)
-- `_assistant_web_search_config` (func, строка 1125)
-- `_yandex_responses_request` (func, строка 1154)
-- `_gigachat_messages` (func, строка 1272)
-- `_gigachat_token` (func, строка 1338)
-- `_extract_openai_message_text` (func, строка 1368)
-- `send_vision_request` (func, строка 1391)
-- `send_image_generation_request` (func, строка 1500)
-- `_assistant_rag_context` (func, строка 1584)
-- `send_request` (func, строка 1635)
-- `send_request._call` (func, строка 1774)
-- `send_request._call._send_once` (func, строка 1775)
-- `_do_request` (func, строка 1825)
-- `_extract_error_body` (func, строка 1986)
-- `_extract_gigachat_error` (func, строка 2007)
-- `_gigachat_models_url` (func, строка 2022)
-- `test_connection` (func, строка 2041)
+- `_responses_incomplete_details` (func, строка 535)
+- `_responses_failure_message` (func, строка 574)
+- `_raise_responses_failure` (func, строка 589)
+- `_content_has_material` (func, строка 600)
+- `_normalise_tools` (func, строка 626)
+- `_has_native_function_tools` (func, строка 644)
+- `_protect_history` (func, строка 659)
+- `_estimate_tokens_in` (func, строка 732)
+- `_bearer_request` (func, строка 743)
+- `_deepseek_reasoning_effort` (func, строка 828)
+- `_deepseek_responses_request` (func, строка 844)
+- `_anthropic_web_search_used` (func, строка 958)
+- `_extract_anthropic_text` (func, строка 974)
+- `_deepseek_anthropic_web_search` (func, строка 998)
+- `_yandex_reasoning_effort` (func, строка 1114)
+- `_yandex_web_search_config` (func, строка 1141)
+- `_assistant_web_search_config` (func, строка 1171)
+- `_yandex_responses_request` (func, строка 1200)
+- `_gigachat_messages` (func, строка 1322)
+- `_gigachat_token` (func, строка 1388)
+- `_extract_openai_message_text` (func, строка 1418)
+- `send_vision_request` (func, строка 1441)
+- `send_image_generation_request` (func, строка 1550)
+- `_assistant_rag_context` (func, строка 1634)
+- `send_request` (func, строка 1685)
+- `send_request._call` (func, строка 1825)
+- `send_request._call._send_once` (func, строка 1826)
+- `_do_request` (func, строка 1877)
+- `_extract_error_body` (func, строка 2041)
+- `_extract_gigachat_error` (func, строка 2062)
+- `_gigachat_models_url` (func, строка 2077)
+- `test_connection` (func, строка 2096)
 
 ### `core/assistant_creator.py`
 - `_section_headers` (func, строка 23)
@@ -3275,11 +3276,12 @@
 - `TestHelpers.test_parse_github_url_tree_path` (func, строка 213)
 - `TestHelpers.test_parse_github_url_wrong_domain` (func, строка 221)
 - `TestHelpers.test_metadata_text` (func, строка 225)
-- `TestHelpers.test_metadata_text_empty` (func, строка 249)
-- `TestOrchestratorIntegration` (class, строка 256)
-- `TestOrchestratorIntegration.test_enabled_skills_persist_in_config` (func, строка 257)
-- `TestOrchestratorIntegration.test_build_skill_dicts_appends_skills_metadata` (func, строка 267)
-- `TestOrchestratorIntegration.test_foreign_skills_not_in_prompt` (func, строка 290)
+- `TestHelpers.test_metadata_text_does_not_advise_read_file` (func, строка 249)
+- `TestHelpers.test_metadata_text_empty` (func, строка 271)
+- `TestOrchestratorIntegration` (class, строка 278)
+- `TestOrchestratorIntegration.test_enabled_skills_persist_in_config` (func, строка 279)
+- `TestOrchestratorIntegration.test_build_skill_dicts_appends_skills_metadata` (func, строка 289)
+- `TestOrchestratorIntegration.test_foreign_skills_not_in_prompt` (func, строка 312)
 
 ### `tests/test_ssh_connector.py`
 - `isolated_data_dir` (func, строка 16)

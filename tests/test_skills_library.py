@@ -246,6 +246,28 @@ class TestHelpers:
         # Root folder is created
         assert os.path.isdir(get_skills_root())
 
+    def test_metadata_text_does_not_advise_read_file(self, isolated_data_dir):
+        """The prompt hint must not send the agent to read_file for skill files.
+
+        read_file/verify_file are scoped to the workspace root and reject a
+        skill folder that lives outside it ("Path escapes project root"), so
+        the metadata block has to point at get_skill_file instead. The old
+        wording ("you may also read files inside them with read_file")
+        produced a stream of failing read_file calls in real dialogs.
+        """
+        from core.skills_library import import_skill_from_folder, build_skills_metadata_text
+        src = os.path.join(isolated_data_dir, "hint_src")
+        os.makedirs(src)
+        with open(os.path.join(src, "SKILL.md"), "w", encoding="utf-8") as f:
+            f.write("# Hint skill\n")
+        sid = import_skill_from_folder(src, name="HintSkill", description="HD",
+                                       adapted=True)["skill"]["id"]
+
+        text = build_skills_metadata_text([sid])
+        assert "get_skill_file" in text
+        assert "with read_file" not in text
+        assert "read_file/verify_file reject" in text
+
     def test_metadata_text_empty(self, isolated_data_dir):
         from core.skills_library import build_skills_metadata_text, get_enabled_skills_metadata
         assert build_skills_metadata_text([]) == ""

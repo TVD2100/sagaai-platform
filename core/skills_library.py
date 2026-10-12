@@ -690,7 +690,9 @@ def build_skills_metadata_text(skill_ids: List[str], lang: str = "en") -> str:
                  "`get_skill_folder(<skill_id>)` for the folder path and file list, and "
                  "`get_skill_file(<skill_id>, <filename>)` for individual files. "
                  "`list_skills_library()` lists all installed skills. "
-                 "Skill folders are absolute paths on disk; you may also read files inside them with read_file.")
+                 "Skill folders live OUTSIDE the workspace root, so read_file/verify_file reject their "
+                 "paths (\"Path escapes project root\"); read every file inside a skill folder with "
+                 "`get_skill_file(<skill_id>, <filename>)` instead.")
     return "\n".join(lines)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: MIT
