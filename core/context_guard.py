@@ -20,6 +20,14 @@ minus the reserve minus the fixed prompt). Callers that build their own
 window (the economy mode in ``dev_agent.agent_loop``) use it to stay BELOW
 the guard, so the stateless front trim in this module stays a safety net
 instead of sliding the cached prefix on every step.
+
+``input_ceiling`` / ``input_budget`` expose the UNIFIED input budget shared
+with the economy mode: the input ceiling is the context window minus the
+model's declared output limit (the provider must hold the request and the
+requested answer together), and the input budget keeps ``_INPUT_BUDGET_RATIO``
+of that ceiling for the payload. The soft threshold was raised to
+``_SOFT_RATIO`` = 0.75 and the hard cap to ``_HARD_RATIO`` = 0.9 so a history
+built on the input budget fits BELOW the guard and is never slid by it.
 """
 
 from core.api_errors import ContextWindowError
@@ -27,11 +35,54 @@ from core.files import estimate_tokens, get_model_context_window
 
 _MIN_OUTPUT_RESERVE = 4096
 _OUTPUT_RESERVE_RATIO = 0.25
-_SOFT_RATIO = 0.5
-_HARD_RATIO = 0.8
+# Unified input budget shared with the economy mode (dev_agent.agent_loop):
+# the payload may occupy _INPUT_BUDGET_RATIO of (window - declared output
+# limit). The guard's soft trim sits ABOVE that ratio and the hard cap above
+# both, so an economy-built payload is never slid (see module docstring).
+_INPUT_BUDGET_RATIO = 0.75
+_SOFT_RATIO = 0.75
+_HARD_RATIO = 0.9
 
 # Head block that must survive trimming (see the module docstring).
 _ECONOMY_META_MARKER = "ECONOMY MODE: ENABLED"
+
+
+def input_ceiling(window, max_tokens=0) -> int:
+    """Return the unified input ceiling: ``window - declared output limit``.
+
+    The provider must hold the request and the requested answer inside the
+    context window, so the tokens available for the input payload are the
+    window minus the model's declared output limit. Returns 0 when the
+    window is not positive.
+    """
+    try:
+        window = int(window or 0)
+    except Exception:
+        return 0
+    if window <= 0:
+        return 0
+    try:
+        declared = max(0, int(max_tokens or 0))
+    except Exception:
+        declared = 0
+    return max(0, window - declared)
+
+
+def input_budget(window, max_tokens=0, prompt_tokens=0) -> int:
+    """Return the unified history budget: ``ratio * ceiling - prompt``.
+
+    The economy mode and the guard share this budget: the payload (history)
+    may occupy ``_INPUT_BUDGET_RATIO`` of the input ceiling, minus the fixed
+    prompt estimate. Returns 0 when the window is not positive.
+    """
+    ceiling = input_ceiling(window, max_tokens)
+    if ceiling <= 0:
+        return 0
+    try:
+        prompt = max(0, int(prompt_tokens or 0))
+    except Exception:
+        prompt = 0
+    return max(0, int(ceiling * _INPUT_BUDGET_RATIO) - prompt)
 
 
 def _output_reserve(window, max_tokens) -> int:
@@ -52,27 +103,16 @@ def _output_reserve(window, max_tokens) -> int:
 
 
 def history_cap(window, max_tokens=0, prompt_tokens=0) -> int:
-    """Return the effective history budget the guard allows (0 when none).
+    """Return the effective history budget (0 when none).
 
-    Mirrors ``apply_context_guard``'s steady state: the soft threshold
-    ``int(window * _SOFT_RATIO)`` minus the output reserve
-    (``_output_reserve``) minus the fixed prompt estimate. Callers that
-    build their own window (the economy mode) keep their budget at or below
-    this value so the guard never has to trim their payload and the sent
-    prefix stays stable. Returns 0 when *window* is not positive.
+    Delegates to :func:`input_budget`: the shared economy/guard budget is
+    ``_INPUT_BUDGET_RATIO`` of the input ceiling (window minus the declared
+    output limit) minus the fixed prompt estimate. Because the input budget
+    is kept BELOW ``apply_context_guard``'s soft threshold, the stateless
+    guard trim stays a safety net and never slides a cached prefix. Returns
+    0 when *window* is not positive.
     """
-    try:
-        window = int(window or 0)
-    except Exception:
-        return 0
-    if window <= 0:
-        return 0
-    try:
-        prompt = max(0, int(prompt_tokens or 0))
-    except Exception:
-        prompt = 0
-    cap = int(window * _SOFT_RATIO) - _output_reserve(window, max_tokens) - prompt
-    return max(0, cap)
+    return input_budget(window, max_tokens, prompt_tokens)
 
 
 def _head_keep_count(hist_msgs) -> int:

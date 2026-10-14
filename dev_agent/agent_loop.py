@@ -385,7 +385,10 @@ _TOOL_RESULT_STORAGE_KEEP_LIMIT: int = 50_000
 _TOOL_RESULT_STORAGE_FIELD_LIMIT: int = 400
 _TOOL_RESULT_STORAGE_FALLBACK_LIMIT: int = 10_000
 
-_ECONOMY_INPUT_BUDGET_RATIO: float = 0.8
+# The economy input budget is no longer a local ratio: it IS the shared
+# guard budget (core.context_guard.history_cap =
+# _INPUT_BUDGET_RATIO * (window - max_out) - prompt), so one formula drives
+# both the economy window and the pre-flight guard (B4).
 
 # Hysteresis watermark of the economy token budget: once the estimate
 # exceeds the budget (the high watermark), it is cut down to this ratio of
@@ -1814,26 +1817,33 @@ def _estimate_messages_tokens(messages: List[Dict[str, Any]]) -> int:
 
 def _enforce_history_token_budget(messages: List[Dict[str, Any]],
                                   assistant: Optional[Dict[str, Any]] = None,
-                                  state: Optional["AgentLoopState"] = None) -> List[Dict[str, Any]]:
-    """Trim the oldest messages so the context fits the token budget (M3/B2).
+                                  state: Optional["AgentLoopState"] = None,
+                                  tail: Optional[int] = None) -> List[Dict[str, Any]]:
+    """Trim the oldest messages so the context fits the token budget (M3/B2/B4).
 
     Resolves the model's context window and configured output limit for
-    *assistant*; the budget is ``window * _ECONOMY_INPUT_BUDGET_RATIO``
-    minus the output limit. The head element (the compact metadata system
+    *assistant* and asks :func:`core.context_guard.history_cap` for the
+    unified input budget (the SAME budget the pre-flight guard shares with
+    the economy mode). The head element (the compact metadata system
     message) is always preserved and trimming happens strictly from the
     front, so the most recent turns survive. Returns the list unchanged
     when the window cannot be resolved (unknown service/model).
 
-    Hysteresis (B2): the budget acts as the HIGH watermark - while the
+    Hysteresis (B2/B4): the budget acts as the HIGH watermark - while the
     payload fits it, nothing moves. Once the payload exceeds it, whole
-    leading messages are dropped in one step down to the LOW watermark
-    ``budget * _ECONOMY_TRIM_LOW_RATIO`` and the dropped count is folded
-    into ``state.economy_anchor`` (cache-friendly mode, *state* given) so
-    the sent window front stays put until the payload grows back over the
-    budget. Without the fold the trim re-ran on every step and slid the
-    front message by message, invalidating the provider prefix cache from
-    the cut point on every request. *state* stays None in legacy mode,
-    where the front is recomputed per call anyway.
+    leading messages are dropped in ONE step and the dropped count is
+    folded into ``state.economy_anchor`` (cache-friendly mode, *state* and
+    *tail* given) so the sent window front stays put until the payload
+    grows back over the budget. In cache-friendly mode the cut resets the
+    front to the configured *tail* messages - a large, predictable step -
+    so the token limit triggers exactly the same front reset as the
+    ``tail * multiplier`` window overflow; the payload is cut further only
+    when even the tail does not fit the budget. Without the fold the trim
+    re-ran on every step and slid the front message by message,
+    invalidating the provider prefix cache from the cut point on every
+    request. In legacy mode (*tail* is None) the cut stops at the low
+    watermark ``budget * _ECONOMY_TRIM_LOW_RATIO`` and *state* stays None,
+    because the front is recomputed per call anyway.
     """
     if not assistant or not isinstance(assistant, dict) or len(messages) <= 2:
         return messages
@@ -1856,18 +1866,15 @@ def _enforce_history_token_budget(messages: List[Dict[str, Any]],
         max_out = int(_clamp_max_tokens(
             assistant.get("max_tokens") or _get_model_max_tokens(svc, model_id),
             svc, model_id) or 0)
-        budget = int(window * _ECONOMY_INPUT_BUDGET_RATIO)
-        if max_out:
-            budget = max(0, budget - max_out)
-        # B3: align the economy budget with the guard's effective history
-        # cap (soft threshold minus reserve minus the fixed prompt) and keep
-        # a small margin for the per-request user message. Staying BELOW the
-        # guard means the stateless guard trim never slides the sent-window
-        # front on saturation.
+        # B4: the economy budget IS the guard's unified input budget
+        # (history_cap = _INPUT_BUDGET_RATIO * (window - max_out) - prompt),
+        # minus a small margin for the per-request user message. One shared
+        # formula means the stateless guard trim never slides the
+        # sent-window front while this budget holds.
         prompt_tokens = _estimate_messages_tokens(
             [{"role": "system", "content": str(assistant.get("text", "") or "")}])
-        cap = history_cap(window, max_out, prompt_tokens) - _ECONOMY_GUARD_MARGIN
-        budget = min(budget, max(0, cap))
+        budget = max(0, history_cap(window, max_out, prompt_tokens)
+                     - _ECONOMY_GUARD_MARGIN)
     except Exception:
         return messages
     keep_head = messages[:1]
@@ -1878,11 +1885,24 @@ def _enforce_history_token_budget(messages: List[Dict[str, Any]],
         # put and the provider prefix stays reusable.
         return messages
     low = int(budget * _ECONOMY_TRIM_LOW_RATIO)
-    while len(body) > 1:
-        used = _estimate_messages_tokens(keep_head) + _estimate_messages_tokens(body)
-        if used <= low:
-            break
-        body.pop(0)
+    if tail is not None and tail > 0 and len(body) > tail:
+        # B4: cache-friendly reset - the token overflow drops the front to
+        # the configured tail in ONE predictable step, the same front
+        # position a ``tail * multiplier`` window overflow produces. This
+        # makes the token limit an alternative trigger of the SAME reset
+        # instead of a separate, deeper cut.
+        del body[:len(body) - tail]
+    used = _estimate_messages_tokens(keep_head) + _estimate_messages_tokens(body)
+    if used > budget:
+        # Still over the high watermark: the tail alone does not fit the
+        # budget (or legacy mode without *tail*). Keep dropping whole
+        # messages down to the low watermark so the next step does not
+        # re-trim immediately.
+        while len(body) > 1:
+            used = _estimate_messages_tokens(keep_head) + _estimate_messages_tokens(body)
+            if used <= low:
+                break
+            body.pop(0)
     if state is not None:
         # Fold the cut into the sent-window anchor (cache-friendly mode
         # only): the window front IS the anchor, so advancing it by the
@@ -1924,17 +1944,18 @@ def build_economy_context(state: "AgentLoopState",
     mode that message contains only static fields so it does not break the
     prefix cache.
 
-    Token budget (M3/B2, active when *assistant* is given): before
+    Token budget (M3/B2/B4, active when *assistant* is given): before
     returning, the oldest sent messages are additionally trimmed by
-    ``_enforce_history_token_budget`` so the estimated input plus the
-    model configured max_tokens stays within
-    ``window * _ECONOMY_INPUT_BUDGET_RATIO``. The metadata message is
-    always preserved. In cache-friendly mode the trim is a threshold
-    operation with hysteresis: it runs only when the payload exceeds the
-    budget, then cuts several messages at once down to the low watermark
-    and folds the cut into ``economy_anchor``, so the sent-window front
-    (the cached prefix) stays put between rare, large cuts. Without
-    *assistant* the budget step is skipped.
+    ``_enforce_history_token_budget`` so the estimated input stays within
+    the unified input budget ``core.context_guard.history_cap(window,
+    max_out, prompt)`` - the SAME budget the pre-flight guard shares. The
+    metadata message is always preserved. In cache-friendly mode the trim
+    is a threshold operation with hysteresis: it runs only when the payload
+    exceeds the budget, then resets the front to the configured *tail* in
+    one step (the same reset a window overflow produces) and folds the cut
+    into ``economy_anchor``, so the sent-window front (the cached prefix)
+    stays put between rare, large cuts. Without *assistant* the budget step
+    is skipped.
     """
     history = state.history
     if state.economy_tail_messages is not None and int(state.economy_tail_messages) > 0:
@@ -1980,7 +2001,7 @@ def build_economy_context(state: "AgentLoopState",
             state.economy_anchor = max(0, total - tail)
 
     result.extend(history[state.economy_anchor:])
-    return _enforce_history_token_budget(result, assistant, state=state)
+    return _enforce_history_token_budget(result, assistant, state=state, tail=tail)
 
 
 def carry_over_economy_cache(source: Optional["AgentLoopState"],

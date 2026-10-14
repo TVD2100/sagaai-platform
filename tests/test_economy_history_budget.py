@@ -18,11 +18,12 @@ from dev_agent.agent_loop import AgentLoopState, build_economy_context
 @pytest.fixture()
 def services_window(monkeypatch):
     """Deterministic window/max-output/token counters for the budget."""
-    # Window chosen so the guard-aligned budget (B3) matches the legacy
-    # ratio budget and keeps the established 15_000-token expectations:
-    # int(36_098 * 0.5) - reserve(1000) - prompt(1) - margin(2048) = 15000.
+    # Window chosen so the unified input budget (B4) keeps the established
+    # 15_000-token expectations: input_budget = int(0.75 * (window - 1000))
+    # - prompt(1); minus the 2048 margin -> int(0.75 * 22_733) - 1 - 2048
+    # = 15_000.
     monkeypatch.setattr("core.files.get_model_context_window",
-                        lambda skill, services: 36_098)
+                        lambda skill, services: 23_733)
     monkeypatch.setattr("core.api_layer._get_model_max_tokens",
                         lambda svc, model_id: 1_000)
     # 1 token per 4 chars: budget 15_000 tokens == 60_000 chars.
@@ -201,3 +202,57 @@ def test_b2_legacy_trim_continues_below_budget(services_window, assistant):
     # Old behavior stopped right under 15_000 (keeping big + mid);
     # the low-watermark cut passes 10_000 tokens too, keeping only mid.
     assert [m["content"] for m in result[1:]] == [mid]
+
+
+# ── B4: the token overflow resets the front to the tail ──────────────────────
+
+
+def test_b4_token_overflow_resets_front_to_tail(services_window, assistant):
+    """Given a cache-friendly window whose payload exceeds the token budget
+    while the message window (``tail * multiplier``) is NOT yet full
+    when  build_economy_context trims it,
+    then  the front is reset to the configured *tail* - the SAME position a
+    window overflow would pick - so the token limit is a second trigger of
+    one identical reset, not a separate deeper cut."""
+    msg = "x" * 8_000  # 2_000 tokens each
+    state = _make_state([_msg(msg) for _ in range(20)])  # 40_000 tokens total
+    state.economy_cache_enabled = True
+    # Window (100 msgs) stays unfilled, so ONLY the token budget trips.
+    state.economy_cache_multiplier = 20
+    state.economy_tail_messages = 5
+
+    result = build_economy_context(state, assistant)
+
+    from dev_agent.agent_loop import _estimate_messages_tokens
+    # Front reset to the tail (20 - 5 = 15), same as a window overflow.
+    assert state.economy_anchor == 15
+    assert [m["content"] for m in result[1:]] == [msg] * 5
+    # The 5-message tail fits the budget, so no deeper low-watermark cut.
+    assert _estimate_messages_tokens(result) <= 15_000
+
+    # A following step that does not grow the payload keeps the front put.
+    state.history.append(_msg("s" * 100))  # 25 tokens
+    again = build_economy_context(state, assistant)
+    assert state.economy_anchor == 15
+    assert again[1]["content"] == msg
+
+
+def test_b4_big_tail_still_cut_to_low_watermark(services_window, assistant):
+    """Given a cache-friendly window whose *tail* alone exceeds the token
+    budget
+    when  build_economy_context trims it,
+    then  the tail reset is followed by the low-watermark cut, so the very
+    next step does not re-trim immediately."""
+    msg = "x" * 40_000  # 10_000 tokens each
+    state = _make_state([_msg(msg) for _ in range(20)])
+    state.economy_cache_enabled = True
+    state.economy_cache_multiplier = 20
+    state.economy_tail_messages = 5  # 5 * 10_000 = 50_000 > budget
+
+    result = build_economy_context(state, assistant)
+
+    from dev_agent.agent_loop import _estimate_messages_tokens
+    # Reset to tail, then cut further: one 10_000-token message survives
+    # (two would exceed the 15_000 budget).
+    assert len(result) - 1 == 1
+    assert _estimate_messages_tokens(result) <= int(15_000 * 0.75)

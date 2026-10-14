@@ -170,18 +170,25 @@ def test_integration_hard_fail_raises_before_do_request(monkeypatch):
 
 
 def test_history_cap_exposes_the_guard_history_budget():
-    """B3: ``history_cap`` = soft threshold minus reserve minus the prompt
-    estimate - the guard's effective history budget for caller-side
-    alignment (the economy window keeps its budget at or below it)."""
-    from core.context_guard import history_cap
+    """B4: ``history_cap`` = the unified input budget =
+    ``int(0.75 * (window - max_out)) - prompt`` - the SAME budget the
+    economy mode builds its window on, so the pre-flight guard never has
+    to slide an economy payload."""
+    from core.context_guard import history_cap, input_ceiling, input_budget
 
-    assert history_cap(36_098, 1_000, 1) == 18_049 - 1_000 - 1
-    assert history_cap(32_768, 32_768) == 16_384 - 8_192
-    assert history_cap(1_000_000, 384_000) == 500_000 - 250_000
-    assert history_cap(1_000_000, 0) == 500_000      # no declared limit
+    # input ceiling = window - declared output limit.
+    assert input_ceiling(1_000_000, 384_000) == 616_000
+    assert input_ceiling(100, 500) == 0              # limit >= window
+    assert input_ceiling(0, 32_768) == 0             # unknown window
+
+    assert history_cap(36_098, 1_000, 1) == int(0.75 * 35_098) - 1
+    assert history_cap(1_000_000, 384_000) == int(0.75 * 616_000)
+    assert history_cap(1_000_000, 0) == int(0.75 * 1_000_000)  # no limit
     assert history_cap(0, 32_768) == 0               # unknown window
-    assert history_cap(36_098, 1_000, -5) == 18_049 - 1_000
-    assert history_cap(36_098, 1_000, 99_999) == 0   # prompt clamps to 0
+    assert history_cap(36_098, 1_000, -5) == int(0.75 * 35_098)  # prompt clamps
+    assert history_cap(36_098, 1_000, 99_999) == 0   # prompt > budget
+    # history_cap is exactly input_budget (one shared formula).
+    assert history_cap(500_000, 100_000, 7) == input_budget(500_000, 100_000, 7)
 
 
 def test_economy_payload_stays_below_guard_soft_threshold(monkeypatch):

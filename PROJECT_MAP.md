@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-10-14T19:21:12+00:00`
-- Файлов: **332**
+- Обновлено: `2026-10-14T21:03:13+00:00`
+- Файлов: **335**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **4367**
-- Отпечаток содержимого: `sha256:f1bb044474f0419d466caddb5a25654a6db0ed204e28cb615a6ab84c41878a2f` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 1, JSON: 19, Markdown: 37, PEM certificate: 1, Python: 277, Text: 1
+- Python-символов: **4378**
+- Отпечаток содержимого: `sha256:0af77d031a66bb6636dec424a773d3b00c08be992decb86bb89932526a0bc5aa` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 1, JSON: 21, Markdown: 37, PEM certificate: 1, Python: 278, Text: 1
 
 ## Файлы и назначение
 
@@ -50,7 +50,7 @@
 | `core/bootstrap.py` | Python | First-run provisioning: Assistant/Employee Creator instructions, DevAgent settings, legacy skill_creator migration | - |
 | `core/config.py` | Python | Configuration load/save with secret encryption and env overlay | storage |
 | `core/connectors.py` | Python | _(описание не задано)_ | - |
-| `core/context_guard.py` | Python | Pre-flight context guard (M4/M5): soft trim at 0.5 window, hard cap 0.8, capped output reserve min(max_out, max(4096, 0.25*window)), economy head protection, history_cap() for budget callers | - |
+| `core/context_guard.py` | Python | Pre-flight context guard (M4/M5/B4): unified input budget input_ceiling=window-max_out and input_budget=0.75*ceiling-prompt, soft trim at 0.75 window, hard cap 0.9, capped output reserve min(max_out, max(4096, 0.25*window)), economy head protection, history_cap() delegates to input_budget | - |
 | `core/crypto.py` | Python | Encryption key handling and Fernet helpers | - |
 | `core/dangerous.py` | Python | Dangerous-code assessment for run_code/run_test | - |
 | `core/default_imports.py` | Python | _(описание не задано)_ | storage |
@@ -115,7 +115,7 @@
 | `tests/test_backup_and_safewriter.py` | Python | Backup/safe-writer tests | - |
 | `tests/test_chat_pagination.py` | Python | _(описание не задано)_ | - |
 | `tests/test_connectors.py` | Python | _(описание не задано)_ | - |
-| `tests/test_context_window_guard.py` | Python | Context-guard tests: output-reserve formula, 32k window, economy head protection, history_cap | - |
+| `tests/test_context_window_guard.py` | Python | Context-guard tests: output-reserve formula, 32k window, economy head protection, unified input_ceiling/input_budget/history_cap (B4) | - |
 | `tests/test_core_api_json_schema.py` | Python | _(описание не задано)_ | - |
 | `tests/test_core_api_layer.py` | Python | Pure api_layer unit tests | - |
 | `tests/test_core_api_send.py` | Python | send_request integration tests (mocked HTTP) | - |
@@ -129,7 +129,7 @@
 | `tests/test_devagent_thread_workspace.py` | Python | DevAgent thread workspace persistence tests | storage |
 | `tests/test_dispatcher_connections.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_dispatcher_tool_gating.py` | Python | _(описание не задано)_ | storage |
-| `tests/test_economy_history_budget.py` | Python | Economy budget tests: guard-aligned budget, low-watermark trim, economy_anchor hysteresis (frozen front) | - |
+| `tests/test_economy_history_budget.py` | Python | Economy budget tests: unified (B4) input budget, tail reset on token overflow, low-watermark fallback, economy_anchor hysteresis (frozen front) | - |
 | `tests/test_employee_management_ui.py` | Python | UI regression tests: employee management pages render and expose no export/import employee UI | - |
 | `tests/test_gigachat_messages.py` | Python | GigaChat payload tests: single leading system, mid-history system blocks keep the user role, role merging | - |
 | `tests/test_github_connector_rest.py` | Python | Unit tests for the GitHub REST connector (mock sessions) | - |
@@ -266,12 +266,15 @@
 | `tests/scenarios/test_theme_switch_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_thread_search_scenarios.py` | Python | Scenario tests for the thread-search tools: current-dialog search without lists, explicit thread_id, orchestrator scope with period, search->read around a match, access control, list pagination | storage |
 | `tests/scenarios/test_thread_workspace_meta_scenario.py` | Python | Scenario tests: thread 'last folder' meta (restore, missing folder opens empty, neighbour isolation) | storage |
+| `tests/scenarios/test_unified_context_budget_scenario.py` | Python | Scenario: unified context budget (B4) - economy payload passes the guard unchanged, token overflow resets the front to tail, worst case stays below the hard cap | - |
 | `tests/scenarios/test_updater_runtime_flow.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_welcome_page_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_workspace_binding_scenario.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_yandex_models_catalog_scenario.py` | Python | Scenario tests for the YandexAI model catalog update | - |
 | `tests/scenarios/test_yandex_responses_failures_scenario.py` | Python | Scenario: Responses API failure handling (failed-status surfacing, blank input filtering) | - |
 | `tests/fixtures/rag_eval/corpus.json` | JSON | Benchmark corpus for rag_eval: Russian marketing chunks carrying the RAG Base Creator header (reproduces the IDF-collapse defect) | - |
+| `tests/fixtures/rag_eval/multiproduct_corpus.json` | JSON | Benchmark corpus for the BM25F fielded index: several products whose bodies all mention the generic term while the product name lives ONLY in the header block | - |
+| `tests/fixtures/rag_eval/multiproduct_queries.json` | JSON | Ground-truth queries for multiproduct_corpus.json: product-scoped queries that a body-only index cannot resolve | - |
 | `tests/fixtures/rag_eval/queries.json` | JSON | Ground-truth query set for rag_eval: morphology, multi-word coordination, stop-word phrasing and exact-phrase probes | - |
 | `storage/__init__.py` | Python | Package marker | - |
 | `storage/db.py` | Python | SQLAlchemy engines; auto-migration skills->assistants, skill_*->assistant_* columns | storage |
@@ -761,11 +764,13 @@
 - `get_service` (func, строка 489)
 
 ### `core/context_guard.py`
-- `_output_reserve` (func, строка 37)
-- `history_cap` (func, строка 54)
-- `_head_keep_count` (func, строка 78)
-- `apply_context_guard` (func, строка 89)
-- `_estimate_messages` (func, строка 123)
+- `input_ceiling` (func, строка 50)
+- `input_budget` (func, строка 71)
+- `_output_reserve` (func, строка 88)
+- `history_cap` (func, строка 105)
+- `_head_keep_count` (func, строка 118)
+- `apply_context_guard` (func, строка 129)
+- `_estimate_messages` (func, строка 163)
 
 ### `core/crypto.py`
 - `_legacy_key_file_path` (func, строка 29)
@@ -1908,8 +1913,8 @@
 - `test_integration_send_request_guards_before_do_request` (func, строка 120)
 - `test_integration_hard_fail_raises_before_do_request` (func, строка 151)
 - `test_history_cap_exposes_the_guard_history_budget` (func, строка 172)
-- `test_economy_payload_stays_below_guard_soft_threshold` (func, строка 187)
-- `test_economy_payload_stays_below_guard_soft_threshold.est` (func, строка 196)
+- `test_economy_payload_stays_below_guard_soft_threshold` (func, строка 194)
+- `test_economy_payload_stays_below_guard_soft_threshold.est` (func, строка 203)
 
 ### `tests/test_core_api_json_schema.py`
 - `_svc` (func, строка 23)
@@ -2163,17 +2168,19 @@
 
 ### `tests/test_economy_history_budget.py`
 - `services_window` (func, строка 19)
-- `assistant` (func, строка 35)
-- `_make_state` (func, строка 39)
-- `_msg` (func, строка 48)
-- `test_budget_trims_oldest_messages_from_front` (func, строка 52)
-- `test_budget_keeps_everything_when_it_fits` (func, строка 88)
-- `test_no_assistant_skips_budget_passthrough` (func, строка 103)
-- `test_unknown_window_falls_back_to_passthrough` (func, строка 120)
-- `test_unknown_window_falls_back_to_passthrough._boom` (func, строка 126)
-- `test_b2_cache_trim_cuts_to_low_watermark_and_folds_anchor` (func, строка 141)
-- `test_b2_front_stays_put_under_small_growth` (func, строка 166)
-- `test_b2_legacy_trim_continues_below_budget` (func, строка 190)
+- `assistant` (func, строка 36)
+- `_make_state` (func, строка 40)
+- `_msg` (func, строка 49)
+- `test_budget_trims_oldest_messages_from_front` (func, строка 53)
+- `test_budget_keeps_everything_when_it_fits` (func, строка 89)
+- `test_no_assistant_skips_budget_passthrough` (func, строка 104)
+- `test_unknown_window_falls_back_to_passthrough` (func, строка 121)
+- `test_unknown_window_falls_back_to_passthrough._boom` (func, строка 127)
+- `test_b2_cache_trim_cuts_to_low_watermark_and_folds_anchor` (func, строка 142)
+- `test_b2_front_stays_put_under_small_growth` (func, строка 167)
+- `test_b2_legacy_trim_continues_below_budget` (func, строка 191)
+- `test_b4_token_overflow_resets_front_to_tail` (func, строка 210)
+- `test_b4_big_tail_still_cut_to_low_watermark` (func, строка 240)
 
 ### `tests/test_employee_management_ui.py`
 - `isolated_data` (func, строка 25)
@@ -4659,6 +4666,15 @@
 - `test_scenario_dispatcher_switch_and_empty_state_persist` (func, строка 231)
 - `test_scenario_legacy_platform_folder_migrated_before_reopen` (func, строка 267)
 
+### `tests/scenarios/test_unified_context_budget_scenario.py`
+- `_patch_budget` (func, строка 34)
+- `_state` (func, строка 43)
+- `test_scenario_economy_payload_passes_the_guard_unchanged` (func, строка 55)
+- `test_scenario_economy_payload_passes_the_guard_unchanged.est` (func, строка 64)
+- `test_scenario_token_overflow_resets_front_to_tail` (func, строка 92)
+- `test_scenario_token_overflow_resets_front_to_tail.est` (func, строка 98)
+- `test_scenario_worst_case_stays_below_hard_cap` (func, строка 124)
+
 ### `tests/scenarios/test_updater_runtime_flow.py`
 - `_fresh_page` (func, строка 52)
 - `_enter_page` (func, строка 65)
@@ -4872,97 +4888,97 @@
 - `_compact_result_fields` (func, строка 252)
 - `_build_tool_result_preview` (func, строка 284)
 - `_apply_tool_result_cap` (func, строка 320)
-- `_summarize_single_tool_result_doc` (func, строка 412)
-- `summarize_tool_result_for_storage` (func, строка 435)
-- `_parse_loop_status` (func, строка 492)
-- `_parse_requires_user_response` (func, строка 501)
-- `_prose_contains_progress` (func, строка 519)
-- `_prose_looks_like_question` (func, строка 527)
-- `_looks_like_confirmation_request` (func, строка 546)
-- `_prose_looks_weak` (func, строка 554)
-- `_looks_like_plan` (func, строка 573)
-- `normalize_hyphens` (func, строка 611)
-- `classify_step_strength` (func, строка 615)
-- `_summarise_result` (func, строка 635)
-- `_extract_balanced_json_objects` (func, строка 670)
-- `_unbalanced_json_details` (func, строка 700)
-- `_unclosed_summary` (func, строка 741)
-- `_repair_unclosed_braces` (func, строка 756)
-- `_escape_raw_newlines_in_strings` (func, строка 780)
-- `_repair_stray_bracket` (func, строка 815)
-- `_collapse_value_escapes` (func, строка 844)
-- `_unescape_json_string_body` (func, строка 870)
-- `_try_layer_parse_chain` (func, строка 905)
-- `_json_repair_cascade` (func, строка 927)
-- `_json_loads_lenient` (func, строка 981)
-- `_truncated_tool_json_segments` (func, строка 1001)
-- `_unparsed_tool_json_blocks` (func, строка 1026)
-- `_json_parse_cause` (func, строка 1049)
-- `_unparsed_tool_json_diagnostics` (func, строка 1072)
-- `_unparsed_block_signature` (func, строка 1115)
-- `_normalize_call` (func, строка 1132)
-- `_call_signature` (func, строка 1174)
-- `_coerce_dsml_param` (func, строка 1183)
-- `_coerce_dsml_param._attr` (func, строка 1193)
-- `_extract_dsml_calls` (func, строка 1225)
-- `_dsml_required_args` (func, строка 1269)
-- `_dsml_json_hint` (func, строка 1312)
-- `_dsml_validation_error` (func, строка 1322)
-- `_fallback_parse_propose_file` (func, строка 1346)
-- `_repair_unclosed_tool_json` (func, строка 1380)
-- `_cascade_recover_tool_calls` (func, строка 1418)
-- `parse_tool_calls` (func, строка 1445)
-- `AgentResult` (class, строка 1474)
-- `_maybe_task_state_context` (func, строка 1493)
-- `_snapshot_kind_of` (func, строка 1522)
-- `_last_snapshot` (func, строка 1542)
-- `_snapshot_content` (func, строка 1550)
-- `_append_context_snapshot` (func, строка 1555)
-- `refresh_context_snapshots` (func, строка 1573)
-- `_ensure_snapshot_visibility` (func, строка 1599)
-- `_maybe_thread_context` (func, строка 1624)
-- `_make_short_summary` (func, строка 1678)
-- `_classify_message` (func, строка 1706)
-- `_index_message` (func, строка 1731)
-- `_get_economy_tail_messages` (func, строка 1737)
-- `_economy_meta_key` (func, строка 1752)
-- `_make_meta_msg` (func, строка 1763)
-- `_estimate_messages_tokens` (func, строка 1788)
-- `_enforce_history_token_budget` (func, строка 1815)
-- `build_economy_context` (func, строка 1901)
-- `carry_over_economy_cache` (func, строка 1986)
-- `economy_cache_to_dict` (func, строка 2003)
-- `apply_economy_cache` (func, строка 2020)
-- `AgentLoopState` (class, строка 2044)
-- `_identical_block_count` (func, строка 2168)
-- `_dedupe_diagnostics` (func, строка 2197)
-- `_dominant_duplicate_call` (func, строка 2230)
-- `_record_tool_failure` (func, строка 2255)
-- `_tool_fail_guidance` (func, строка 2273)
-- `_mark_tool_failure` (func, строка 2291)
-- `_reset_tool_failures` (func, строка 2307)
-- `step_agent_loop` (func, строка 2316)
-- `_update_workspace_info` (func, строка 2336)
-- `_step_agent_loop_impl` (func, строка 2350)
-- `_step_agent_loop_impl.emit` (func, строка 2384)
-- `_step_agent_loop_impl._effective_assistant` (func, строка 2390)
-- `_step_agent_loop_impl._process_pending_action` (func, строка 2394)
-- `_step_agent_loop_impl._recoverable_error` (func, строка 2454)
-- `_step_agent_loop_impl._on_tokens` (func, строка 2524)
-- `_step_agent_loop_impl._on_sanitized` (func, строка 2533)
-- `_step_agent_loop_impl._on_retry` (func, строка 2536)
-- `_step_agent_loop_impl._on_incomplete` (func, строка 2552)
-- `approve_pending_confirmation` (func, строка 3118)
-- `approve_pending_confirmation.emit` (func, строка 3126)
-- `deny_pending_confirmation` (func, строка 3177)
-- `deny_pending_confirmation.emit` (func, строка 3185)
-- `approve_sanitized_content` (func, строка 3227)
-- `approve_sanitized_content.emit` (func, строка 3237)
-- `deny_sanitized_content` (func, строка 3274)
-- `deny_sanitized_content.emit` (func, строка 3283)
-- `run_agent_loop` (func, строка 3313)
-- `approve_and_apply` (func, строка 3388)
-- `discard` (func, строка 3392)
+- `_summarize_single_tool_result_doc` (func, строка 415)
+- `summarize_tool_result_for_storage` (func, строка 438)
+- `_parse_loop_status` (func, строка 495)
+- `_parse_requires_user_response` (func, строка 504)
+- `_prose_contains_progress` (func, строка 522)
+- `_prose_looks_like_question` (func, строка 530)
+- `_looks_like_confirmation_request` (func, строка 549)
+- `_prose_looks_weak` (func, строка 557)
+- `_looks_like_plan` (func, строка 576)
+- `normalize_hyphens` (func, строка 614)
+- `classify_step_strength` (func, строка 618)
+- `_summarise_result` (func, строка 638)
+- `_extract_balanced_json_objects` (func, строка 673)
+- `_unbalanced_json_details` (func, строка 703)
+- `_unclosed_summary` (func, строка 744)
+- `_repair_unclosed_braces` (func, строка 759)
+- `_escape_raw_newlines_in_strings` (func, строка 783)
+- `_repair_stray_bracket` (func, строка 818)
+- `_collapse_value_escapes` (func, строка 847)
+- `_unescape_json_string_body` (func, строка 873)
+- `_try_layer_parse_chain` (func, строка 908)
+- `_json_repair_cascade` (func, строка 930)
+- `_json_loads_lenient` (func, строка 984)
+- `_truncated_tool_json_segments` (func, строка 1004)
+- `_unparsed_tool_json_blocks` (func, строка 1029)
+- `_json_parse_cause` (func, строка 1052)
+- `_unparsed_tool_json_diagnostics` (func, строка 1075)
+- `_unparsed_block_signature` (func, строка 1118)
+- `_normalize_call` (func, строка 1135)
+- `_call_signature` (func, строка 1177)
+- `_coerce_dsml_param` (func, строка 1186)
+- `_coerce_dsml_param._attr` (func, строка 1196)
+- `_extract_dsml_calls` (func, строка 1228)
+- `_dsml_required_args` (func, строка 1272)
+- `_dsml_json_hint` (func, строка 1315)
+- `_dsml_validation_error` (func, строка 1325)
+- `_fallback_parse_propose_file` (func, строка 1349)
+- `_repair_unclosed_tool_json` (func, строка 1383)
+- `_cascade_recover_tool_calls` (func, строка 1421)
+- `parse_tool_calls` (func, строка 1448)
+- `AgentResult` (class, строка 1477)
+- `_maybe_task_state_context` (func, строка 1496)
+- `_snapshot_kind_of` (func, строка 1525)
+- `_last_snapshot` (func, строка 1545)
+- `_snapshot_content` (func, строка 1553)
+- `_append_context_snapshot` (func, строка 1558)
+- `refresh_context_snapshots` (func, строка 1576)
+- `_ensure_snapshot_visibility` (func, строка 1602)
+- `_maybe_thread_context` (func, строка 1627)
+- `_make_short_summary` (func, строка 1681)
+- `_classify_message` (func, строка 1709)
+- `_index_message` (func, строка 1734)
+- `_get_economy_tail_messages` (func, строка 1740)
+- `_economy_meta_key` (func, строка 1755)
+- `_make_meta_msg` (func, строка 1766)
+- `_estimate_messages_tokens` (func, строка 1791)
+- `_enforce_history_token_budget` (func, строка 1818)
+- `build_economy_context` (func, строка 1921)
+- `carry_over_economy_cache` (func, строка 2007)
+- `economy_cache_to_dict` (func, строка 2024)
+- `apply_economy_cache` (func, строка 2041)
+- `AgentLoopState` (class, строка 2065)
+- `_identical_block_count` (func, строка 2189)
+- `_dedupe_diagnostics` (func, строка 2218)
+- `_dominant_duplicate_call` (func, строка 2251)
+- `_record_tool_failure` (func, строка 2276)
+- `_tool_fail_guidance` (func, строка 2294)
+- `_mark_tool_failure` (func, строка 2312)
+- `_reset_tool_failures` (func, строка 2328)
+- `step_agent_loop` (func, строка 2337)
+- `_update_workspace_info` (func, строка 2357)
+- `_step_agent_loop_impl` (func, строка 2371)
+- `_step_agent_loop_impl.emit` (func, строка 2405)
+- `_step_agent_loop_impl._effective_assistant` (func, строка 2411)
+- `_step_agent_loop_impl._process_pending_action` (func, строка 2415)
+- `_step_agent_loop_impl._recoverable_error` (func, строка 2475)
+- `_step_agent_loop_impl._on_tokens` (func, строка 2545)
+- `_step_agent_loop_impl._on_sanitized` (func, строка 2554)
+- `_step_agent_loop_impl._on_retry` (func, строка 2557)
+- `_step_agent_loop_impl._on_incomplete` (func, строка 2573)
+- `approve_pending_confirmation` (func, строка 3139)
+- `approve_pending_confirmation.emit` (func, строка 3147)
+- `deny_pending_confirmation` (func, строка 3198)
+- `deny_pending_confirmation.emit` (func, строка 3206)
+- `approve_sanitized_content` (func, строка 3248)
+- `approve_sanitized_content.emit` (func, строка 3258)
+- `deny_sanitized_content` (func, строка 3295)
+- `deny_sanitized_content.emit` (func, строка 3304)
+- `run_agent_loop` (func, строка 3334)
+- `approve_and_apply` (func, строка 3409)
+- `discard` (func, строка 3413)
 
 ### `dev_agent/assistant_detector.py`
 - `list_all_assistants_for_detection` (func, строка 49)
