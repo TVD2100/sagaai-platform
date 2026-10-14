@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-10-12T11:45:28+00:00`
-- Файлов: **325**
+- Обновлено: `2026-10-14T18:34:17+00:00`
+- Файлов: **330**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **4239**
-- Отпечаток содержимого: `sha256:c46f11082676a14699bc704614818366a5a3e2797bb22d20f649153e4b54d8ee` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 1, JSON: 17, Markdown: 37, PEM certificate: 1, Python: 272, Text: 1
+- Python-символов: **4312**
+- Отпечаток содержимого: `sha256:28e46b53a4c2891f2d6c0d17a9fdb2c51e1af27013fb97a7d80d9f72be844dd8` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 1, JSON: 19, Markdown: 37, PEM certificate: 1, Python: 275, Text: 1
 
 ## Файлы и назначение
 
@@ -72,7 +72,7 @@
 | `core/prompt_guard.py` | Python | Prompt-injection protection and sanitization | - |
 | `core/prompt_improver.py` | Python | _(описание не задано)_ | - |
 | `core/rag.py` | Python | RAG base CRUD: folder and manifest (search_mode bm25/vector/hybrid, default bm25), explicit-slug create_base (Latin, normalised), files, chunk stats and the provider-credentials activity flag | - |
-| `core/rag_bm25.py` | Python | Own BM25 lexical index of a RAG base: bm25_terms/bm25_docs tables in the base index.db (lazy first build for legacy bases, incremental add/update/delete hooks, Unicode ru/en tokenization, no API keys) | - |
+| `core/rag_bm25.py` | Python | Own BM25 lexical index of a RAG base: bm25_terms/bm25_docs tables in index.db (schema v2); conservative Cyrillic stemmer and ru/en stop-words, chunk-header metadata stripped from the indexed text (title boosted), coordination factor for multi-term queries, lazy rebuild of older indexes, incremental hooks, no API keys | - |
 | `core/rag_chunker.py` | Python | _(описание не задано)_ | - |
 | `core/rag_embeddings.py` | Python | _(описание не задано)_ | - |
 | `core/rag_index.py` | Python | Local SQLite RAG index: chunks plus optional vectors, BM25 sync hooks (add/update/delete/reset), fetch_chunks, cached counters | - |
@@ -166,9 +166,10 @@
 | `tests/test_propose_file.py` | Python | propose_file tool tests | - |
 | `tests/test_propose_file_scenarios.py` | Python | propose_file edge-case tests | - |
 | `tests/test_protect_history.py` | Python | History protection tests | - |
-| `tests/test_rag_bm25.py` | Python | Unit: own BM25 index (tokenization, manual ranking check, lazy rebuild, incremental hooks, stats/drop) | - |
+| `tests/test_rag_bm25.py` | Python | Unit: own BM25 index (tokenization, stemming, stop-words, chunk-metadata separation, coordination, schema version, manual ranking check, lazy rebuild, incremental hooks, stats/drop) | - |
 | `tests/test_rag_chunks_and_preset_skills.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_rag_create_base_slug.py` | Python | Unit: rag.create_base explicit slug - normalisation to [a-z0-9_.-], refusal without Latin, duplicate slug, name-derived fallback | storage |
+| `tests/test_rag_eval.py` | Python | Unit: rag_eval - metrics on hand-checked rankings, fixture loading errors, end-to-end run and the recorded quality baseline | - |
 | `tests/test_rag_hot_paths_no_stats.py` | Python | _(описание не задано)_ | - |
 | `tests/test_rag_stats_cache.py` | Python | _(описание не задано)_ | - |
 | `tests/test_rag_tools_robustness.py` | Python | _(описание не задано)_ | - |
@@ -250,6 +251,7 @@
 | `tests/scenarios/test_rag_context_restore.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_perf_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_search_modes_scenario.py` | Python | Scenarios: offline bm25 base end-to-end, vector->hybrid switch with RRF and bm25 degradation, error paths | - |
+| `tests/scenarios/test_rag_search_quality_scenario.py` | Python | Scenarios: search quality - morphology across word forms, repeated-header IDF, stop-words/coordination, transparent upgrade of a previous-release index | - |
 | `tests/scenarios/test_recent_workspace_scopes_scenario.py` | Python | Scenario tests: per-orchestrator recent-folder menu (isolation, platform paths hidden, scoped writes) | storage |
 | `tests/scenarios/test_resume_identity_scenarios.py` | Python | Scenario: resume identity - stored thread messages round-trip byte-for-byte after reload | storage |
 | `tests/scenarios/test_search_in_files_scenarios.py` | Python | _(описание не задано)_ | - |
@@ -267,6 +269,8 @@
 | `tests/scenarios/test_workspace_binding_scenario.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_yandex_models_catalog_scenario.py` | Python | Scenario tests for the YandexAI model catalog update | - |
 | `tests/scenarios/test_yandex_responses_failures_scenario.py` | Python | Scenario: Responses API failure handling (failed-status surfacing, blank input filtering) | - |
+| `tests/fixtures/rag_eval/corpus.json` | JSON | Benchmark corpus for rag_eval: Russian marketing chunks carrying the RAG Base Creator header (reproduces the IDF-collapse defect) | - |
+| `tests/fixtures/rag_eval/queries.json` | JSON | Ground-truth query set for rag_eval: morphology, multi-word coordination, stop-word phrasing and exact-phrase probes | - |
 | `storage/__init__.py` | Python | Package marker | - |
 | `storage/db.py` | Python | SQLAlchemy engines; auto-migration skills->assistants, skill_*->assistant_* columns | storage |
 | `storage/models.py` | Python | ORM models: Assistant (assistants), Thread (assistant_id/assistant_name), Message, ConfigKV, Instruction, Orchestrator | - |
@@ -319,6 +323,7 @@
 | `langs/zh-CN.json` | JSON | Simplified Chinese UI strings | - |
 | `langs/zh_CN_guide.md` | Markdown | Chinese user guide | - |
 | `certs/russian_trusted_root_ca.pem` | PEM certificate | Russian Trusted Root CA certificate for GigaChat TLS | - |
+| `scripts/rag_eval.py` | Python | Offline search-quality harness: indexes the benchmark corpus with the real core.rag_bm25 and scores a ground-truth query set with Recall@k / MRR / nDCG@k | - |
 | `scripts/regenerate_project_map.py` | Python | CANONICAL generator of PROJECT_MAP.md: publish scope from file_versions.json (units + selectable) + responsibility dictionary; run it to regenerate the map (never hand-edit it) | - |
 | `scripts/verify_manifest.py` | Python | Manifest validator/maintainer: schema, coverage of git-tracked files, sha256 freshness, app_version consistency; prompt versions come from file headers on --init/--add; modes --init/--add/--fix-hashes/--json/--strict | - |
 | `dev_agent/__init__.py` | Python | Package marker | agent_loop, backup_manager, safe_writer, tool_executor, universal_agent, workspace_tools |
@@ -1131,26 +1136,35 @@
 - `json_load` (func, строка 569)
 
 ### `core/rag_bm25.py`
-- `tokenize` (func, строка 52)
-- `_connect` (func, строка 64)
-- `ensure_schema` (func, строка 79)
-- `_read_meta_int` (func, строка 107)
-- `_write_meta` (func, строка 118)
-- `_init_counter` (func, строка 127)
-- `_bump_meta` (func, строка 135)
-- `is_ready` (func, строка 145)
-- `rebuild_index` (func, строка 162)
-- `ensure_ready` (func, строка 214)
-- `drop_index_conn` (func, строка 221)
-- `drop_index` (func, строка 234)
-- `_remove_chunk_rows` (func, строка 251)
-- `index_chunk` (func, строка 271)
-- `on_chunk_added` (func, строка 300)
-- `on_chunk_updated` (func, строка 321)
-- `remove_chunk_conn` (func, строка 326)
-- `on_chunk_deleting` (func, строка 338)
-- `search` (func, строка 360)
-- `stats` (func, строка 460)
+- `split_metadata` (func, строка 97)
+- `_has_cyrillic` (func, строка 161)
+- `stem_token` (func, строка 166)
+- `tokenize` (func, строка 223)
+- `content_terms` (func, строка 235)
+- `_unique_terms` (func, строка 250)
+- `indexed_terms` (func, строка 267)
+- `_connect` (func, строка 285)
+- `ensure_schema` (func, строка 300)
+- `_read_meta_int` (func, строка 328)
+- `_read_meta_str` (func, строка 339)
+- `_write_meta` (func, строка 347)
+- `_init_counter` (func, строка 356)
+- `_bump_meta` (func, строка 364)
+- `is_ready` (func, строка 374)
+- `_terms_to_counts` (func, строка 394)
+- `_write_chunk_rows` (func, строка 402)
+- `rebuild_index` (func, строка 428)
+- `ensure_ready` (func, строка 481)
+- `drop_index_conn` (func, строка 492)
+- `drop_index` (func, строка 505)
+- `_remove_chunk_rows` (func, строка 522)
+- `index_chunk` (func, строка 542)
+- `on_chunk_added` (func, строка 570)
+- `on_chunk_updated` (func, строка 592)
+- `remove_chunk_conn` (func, строка 597)
+- `on_chunk_deleting` (func, строка 609)
+- `search` (func, строка 631)
+- `stats` (func, строка 738)
 
 ### `core/rag_chunker.py`
 - `_list_index` (func, строка 23)
@@ -2986,6 +3000,33 @@
 - `TestIncrementalHooks.test_updated_chunk_replaces_postings` (func, строка 233)
 - `TestIncrementalHooks.test_deleting_hook_adjusts_counters` (func, строка 244)
 - `TestIncrementalHooks.test_drop_index_resets_state` (func, строка 262)
+- `TestStemming` (class, строка 276)
+- `TestStemming.test_russian_word_forms_share_one_stem` (func, строка 277)
+- `TestStemming.test_client_forms_share_one_stem` (func, строка 284)
+- `TestStemming.test_marketing_forms_share_one_stem` (func, строка 290)
+- `TestStemming.test_short_words_are_untouched` (func, строка 294)
+- `TestStemming.test_latin_and_numeric_tokens_untouched` (func, строка 298)
+- `TestStemming.test_stem_never_shorter_than_min` (func, строка 302)
+- `TestStopwords` (class, строка 307)
+- `TestStopwords.test_function_words_are_dropped` (func, строка 308)
+- `TestStopwords.test_stopwords_matched_by_stem` (func, строка 315)
+- `TestStopwords.test_english_stopwords_dropped` (func, строка 319)
+- `TestStopwords.test_query_of_only_stopwords_returns_nothing` (func, строка 325)
+- `TestStopwords.test_mixed_query_uses_only_content_terms` (func, строка 336)
+- `TestMetadataSeparation` (class, строка 349)
+- `TestMetadataSeparation.test_split_metadata_extracts_header` (func, строка 353)
+- `TestMetadataSeparation.test_plain_text_has_no_metadata` (func, строка 360)
+- `TestMetadataSeparation.test_repeated_product_header_does_not_destroy_idf` (func, строка 365)
+- `TestMetadataSeparation.test_title_is_still_indexed_with_a_boost` (func, строка 389)
+- `TestMetadataSeparation.test_body_length_excludes_the_header` (func, строка 399)
+- `TestCoordination` (class, строка 410)
+- `TestCoordination.test_chunk_with_all_terms_outranks_partial_match` (func, строка 411)
+- `TestCoordination.test_coordination_does_not_drop_partial_matches` (func, строка 419)
+- `TestCoordination.test_single_term_query_has_no_coordination` (func, строка 427)
+- `TestSchemaVersion` (class, строка 440)
+- `TestSchemaVersion.test_rebuild_records_schema_version` (func, строка 441)
+- `TestSchemaVersion.test_older_schema_version_forces_one_rebuild` (func, строка 450)
+- `TestSchemaVersion.test_dropped_index_rebuilds_on_search` (func, строка 464)
 
 ### `tests/test_rag_chunks_and_preset_skills.py`
 - `isolated_data_dir` (func, строка 25)
@@ -3035,6 +3076,26 @@
 - `test_cyrillic_only_slug_raises` (func, строка 80)
 - `test_duplicate_explicit_slug_raises` (func, строка 87)
 - `test_blank_slug_falls_back_to_name` (func, строка 95)
+
+### `tests/test_rag_eval.py`
+- `TestMetrics` (class, строка 36)
+- `TestMetrics.test_recall_at_k_perfect_and_partial` (func, строка 37)
+- `TestMetrics.test_recall_at_k_without_relevant_is_zero` (func, строка 44)
+- `TestMetrics.test_reciprocal_rank_first_hit_position` (func, строка 47)
+- `TestMetrics.test_ndcg_perfect_ranking_is_one` (func, строка 53)
+- `TestMetrics.test_ndcg_penalises_lower_rank` (func, строка 58)
+- `TestMetrics.test_ndcg_matches_hand_computed_value` (func, строка 64)
+- `TestFixtureLoading` (class, строка 75)
+- `TestFixtureLoading.test_load_corpus_and_queries` (func, строка 76)
+- `TestFixtureLoading.test_missing_file_raises_runtime_error` (func, строка 84)
+- `TestFixtureLoading.test_invalid_json_raises_runtime_error` (func, строка 88)
+- `TestFixtureLoading.test_empty_chunks_rejected` (func, строка 94)
+- `TestBundledBenchmark` (class, строка 103)
+- `TestBundledBenchmark.test_evaluate_runs_and_reports_metrics` (func, строка 104)
+- `TestBundledBenchmark.test_quality_not_below_recorded_baseline` (func, строка 115)
+- `TestBundledBenchmark.test_word_forms_of_same_lemma_reach_the_same_chunks` (func, строка 126)
+- `TestBundledBenchmark.test_cli_returns_zero_on_success` (func, строка 140)
+- `TestBundledBenchmark.test_cli_returns_one_on_missing_fixture` (func, строка 146)
 
 ### `tests/test_rag_hot_paths_no_stats.py`
 - `_invoke` (func, строка 31)
@@ -4422,6 +4483,15 @@
 - `test_mode_switch_vector_hybrid_and_degradation` (func, строка 79)
 - `test_error_path_missing_base` (func, строка 127)
 
+### `tests/scenarios/test_rag_search_quality_scenario.py`
+- `rag_data` (func, строка 33)
+- `_index_texts` (func, строка 41)
+- `test_morphology_query_finds_other_word_forms` (func, строка 54)
+- `test_morphology_query_finds_other_word_forms._top` (func, строка 74)
+- `test_skill_header_does_not_collapse_idf` (func, строка 85)
+- `test_natural_language_query_matches_keyword_form` (func, строка 114)
+- `test_previous_release_index_is_upgraded_on_first_search` (func, строка 139)
+
 ### `tests/scenarios/test_recent_workspace_scopes_scenario.py`
 - `isolated_data_dir` (func, строка 31)
 - `clean_config_state` (func, строка 69)
@@ -4695,6 +4765,20 @@
 - `_embed_chunk` (func, строка 305)
 - `run` (func, строка 313)
 - `main` (func, строка 423)
+
+### `scripts/rag_eval.py`
+- `_read_json` (func, строка 58)
+- `load_corpus` (func, строка 69)
+- `load_queries` (func, строка 87)
+- `build_index` (func, строка 113)
+- `chunk_keys` (func, строка 135)
+- `recall_at_k` (func, строка 149)
+- `reciprocal_rank` (func, строка 157)
+- `ndcg_at_k` (func, строка 165)
+- `evaluate` (func, строка 183)
+- `evaluate._mean` (func, строка 232)
+- `_print_report` (func, строка 252)
+- `main` (func, строка 274)
 
 ### `scripts/regenerate_project_map.py`
 - `build_publish_set` (func, строка 20)

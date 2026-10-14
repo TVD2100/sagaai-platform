@@ -271,5 +271,204 @@ class TestIncrementalHooks:
         assert rag_bm25.search(db, "текст") != []
         assert rag_bm25.is_ready(db) is True
         assert rag_bm25.stats(db)["docs"] == 1
+# ─── text analysis: stemming and stop-words ─────────────────────────────────
+
+class TestStemming:
+    def test_russian_word_forms_share_one_stem(self):
+        """The audit defect: 'бренд'/'бренда'/'брендов' must merge."""
+        forms = [rag_bm25.stem_token(w)
+                 for w in ("бренд", "бренда", "брендов")]
+        assert len(set(forms)) == 1
+        assert forms[0] == "бренд"
+
+    def test_client_forms_share_one_stem(self):
+        forms = [rag_bm25.stem_token(w)
+                 for w in ("клиент", "клиента", "клиентами")]
+        assert len(set(forms)) == 1
+        assert forms[0] == "клиент"
+
+    def test_marketing_forms_share_one_stem(self):
+        assert rag_bm25.stem_token("маркетинга") == "маркетинг"
+        assert rag_bm25.stem_token("маркетинг") == "маркетинг"
+
+    def test_short_words_are_untouched(self):
+        for word in ("кот", "дом", "оси", "код"):
+            assert rag_bm25.stem_token(word) == word
+
+    def test_latin_and_numeric_tokens_untouched(self):
+        for token in ("marketing", "testing", "api", "2026"):
+            assert rag_bm25.stem_token(token) == token
+
+    def test_stem_never_shorter_than_min(self):
+        for word in ("оси", "ели", "море", "поле", "синие"):
+            assert len(rag_bm25.stem_token(word)) >= min(len(word), 4)
+
+
+class TestStopwords:
+    def test_function_words_are_dropped(self):
+        terms = rag_bm25.content_terms("что такое бренд для компании")
+        assert "что" not in terms
+        assert "такое" not in terms
+        assert "для" not in terms
+        assert "бренд" in terms
+
+    def test_stopwords_matched_by_stem(self):
+        """An inflected function word ('которого') is dropped too."""
+        assert "которого" not in rag_bm25.content_terms("которого нет")
+
+    def test_english_stopwords_dropped(self):
+        terms = rag_bm25.content_terms("the search and the index")
+        assert "the" not in terms
+        assert "and" not in terms
+        assert "search" in terms
+
+    def test_query_of_only_stopwords_returns_nothing(self, tmp_path):
+        """Function words are absent from the index, so such a query is empty.
+
+        The query still runs (no exception) and honestly reports no hits:
+        there is nothing meaningful to search for.
+        """
+        db = _make_db(tmp_path)
+        _add_raw(db, "что такое маркетинг")
+        rag_bm25.rebuild_index(db)
+        assert rag_bm25.search(db, "что такое", top_k=3) == []
+
+    def test_mixed_query_uses_only_content_terms(self, tmp_path):
+        """'что такое бренд' behaves exactly like the single term 'бренд'."""
+        db = _make_db(tmp_path)
+        _add_raw(db, "сильный бренд компании")
+        _add_raw(db, "совсем другой текст про скидки")
+        rag_bm25.rebuild_index(db)
+        noisy = rag_bm25.search(db, "что такое бренд", top_k=5)
+        clean = rag_bm25.search(db, "бренд", top_k=5)
+        assert [h["chunk_id"] for h in noisy] == [h["chunk_id"] for h in clean] != []
+
+
+# ─── chunk metadata separation ───────────────────────────────────────────────
+
+class TestMetadataSeparation:
+    HEADER = ("Документ: docs/a.txt\nПродукт: Маркетинг\n"
+              "Заголовок: Бренд-менеджмент\nФрагмент: 1/9\n\nтело про скидки")
+
+    def test_split_metadata_extracts_header(self):
+        body, meta = rag_bm25.split_metadata(self.HEADER)
+        assert meta["Документ"] == "docs/a.txt"
+        assert meta["Продукт"] == "Маркетинг"
+        assert meta["Заголовок"] == "Бренд-менеджмент"
+        assert body.strip() == "тело про скидки"
+
+    def test_plain_text_has_no_metadata(self):
+        body, meta = rag_bm25.split_metadata("обычный текст без шапки")
+        assert meta == {}
+        assert body == "обычный текст без шапки"
+
+    def test_repeated_product_header_does_not_destroy_idf(self, tmp_path):
+        """The measured IDF collapse: df must stay below N.
+
+        Every chunk carries 'Продукт: Маркетинг'; a naive index gives
+        df('маркетинг') == N and idf ~ 0. The separated index must keep
+        'маркетинг' discriminative and still find the one chunk whose BODY
+        speaks about marketing goals.
+        """
+        db = _make_db(tmp_path)
+        for i in range(5):
+            _add_raw(db, (f"Документ: docs/{i}.txt\nПродукт: Маркетинг\n"
+                          f"Заголовок: Тема {i}\nФрагмент: 1/1\n\n"
+                          f"тело документа номер {i}"))
+        target = _add_raw(db, ("Документ: docs/goal.txt\nПродукт: Маркетинг\n"
+                               "Заголовок: Цели\nФрагмент: 1/1\n\n"
+                               "цели маркетинга на год"))
+        rag_bm25.rebuild_index(db)
+        stats = rag_bm25.stats(db)
+        hits = rag_bm25.search(db, "маркетинга", top_k=5)
+        assert hits, "the single body occurrence must be found"
+        assert hits[0]["chunk_id"] == target
+        assert hits[0]["score"] > 0.1, "IDF must stay discriminative"
+        assert stats["docs"] == 6
+
+    def test_title_is_still_indexed_with_a_boost(self, tmp_path):
+        """A title term is searchable even when absent from the body."""
+        db = _make_db(tmp_path)
+        cid = _add_raw(db, ("Документ: docs/t.txt\nПродукт: X\n"
+                            "Заголовок: Сегментация рынка\nФрагмент: 1/1\n\n"
+                            "тело без этого слова"))
+        rag_bm25.rebuild_index(db)
+        hits = rag_bm25.search(db, "сегментация", top_k=3)
+        assert [h["chunk_id"] for h in hits] == [cid]
+
+    def test_body_length_excludes_the_header(self, tmp_path):
+        """Doc length counts body tokens only (header must not distort b)."""
+        db = _make_db(tmp_path)
+        _add_raw(db, ("Документ: docs/l.txt\nПродукт: Маркетинг\n"
+                      "Заголовок: Заголовок\nФрагмент: 1/1\n\nодно слово"))
+        rag_bm25.rebuild_index(db)
+        assert rag_bm25.stats(db)["tokens"] == 2  # 'одно', 'слово'
+
+
+# ─── coordination and schema version ─────────────────────────────────────────
+
+class TestCoordination:
+    def test_chunk_with_all_terms_outranks_partial_match(self, tmp_path):
+        db = _make_db(tmp_path)
+        _add_raw(db, "ценовые скидки и акции")            # only one term
+        full = _add_raw(db, "ценовые стратегии компании")  # both terms
+        rag_bm25.rebuild_index(db)
+        hits = rag_bm25.search(db, "ценовые стратегии", top_k=5)
+        assert hits[0]["chunk_id"] == full
+
+    def test_coordination_does_not_drop_partial_matches(self, tmp_path):
+        db = _make_db(tmp_path)
+        partial = _add_raw(db, "ценовые скидки")
+        _add_raw(db, "ценовые стратегии")
+        rag_bm25.rebuild_index(db)
+        ids = [h["chunk_id"] for h in rag_bm25.search(db, "ценовые стратегии", top_k=5)]
+        assert partial in ids
+
+    def test_single_term_query_has_no_coordination(self, tmp_path):
+        db = _make_db(tmp_path)
+        import math
+        _add_raw(db, "бренд бренд")
+        rag_bm25.rebuild_index(db)
+        hits = rag_bm25.search(db, "бренд", top_k=1)
+        n_docs, df, tf, dl = 1, 1, 2, 2
+        k1, b = rag_bm25.DEFAULT_K1, rag_bm25.DEFAULT_B
+        idf = math.log(1 + (n_docs - df + 0.5) / (df + 0.5))
+        expected = idf * tf * (k1 + 1) / (tf + k1 * (1 - b + b * dl / dl))
+        assert abs(hits[0]["score"] - expected) < 1e-9
+
+
+class TestSchemaVersion:
+    def test_rebuild_records_schema_version(self, tmp_path):
+        db = _make_db(tmp_path)
+        _add_raw(db, "текст документа")
+        rag_bm25.rebuild_index(db)
+        stats = rag_bm25.stats(db)
+        assert stats["version"] == rag_bm25.SCHEMA_VERSION
+        assert stats["current_version"] == rag_bm25.SCHEMA_VERSION
+        assert stats["ready"] is True
+
+    def test_older_schema_version_forces_one_rebuild(self, tmp_path):
+        """An index built by the previous analysis is rebuilt transparently."""
+        db = _make_db(tmp_path)
+        _add_raw(db, "старого вида индекс содержит слово бренда")
+        rag_bm25.rebuild_index(db)
+        conn = sqlite3.connect(db)
+        conn.execute("UPDATE meta SET v = '1' WHERE k = 'bm25_version'")
+        conn.commit()
+        conn.close()
+        assert rag_bm25.is_ready(db) is False
+        assert rag_bm25.search(db, "бренд", top_k=3) != []
+        assert rag_bm25.is_ready(db) is True
+        assert rag_bm25.stats(db)["version"] == rag_bm25.SCHEMA_VERSION
+
+    def test_dropped_index_rebuilds_on_search(self, tmp_path):
+        db = _make_db(tmp_path)
+        _add_raw(db, "текст для пересборки")
+        rag_bm25.rebuild_index(db)
+        rag_bm25.drop_index(db)
+        assert rag_bm25.is_ready(db) is False
+        assert rag_bm25.search(db, "пересборка", top_k=3) != []
+
+
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: MIT

@@ -1,0 +1,77 @@
+{
+  "description": "Ground-truth query set for scripts/rag_eval.py. Each query marks the (source, chunk_index) pairs a human would call relevant. The set deliberately mixes: morphology (word forms that must merge), multi-word coordination, stop-word-only phrasing and exact phrases.",
+  "queries": [
+    {
+      "id": "brand_nominative",
+      "query": "бренд",
+      "relevant": [["docs/Маркетинг/brand_management.txt", 0], ["docs/Маркетинг/brand_management.txt", 1], ["docs/Маркетинг/brand_management.txt", 2], ["docs/Маркетинг/pricing.txt", 1]],
+      "note": "Base form of the domain term."
+    },
+    {
+      "id": "brand_genitive",
+      "query": "бренда",
+      "relevant": [["docs/Маркетинг/brand_management.txt", 0], ["docs/Маркетинг/brand_management.txt", 1], ["docs/Маркетинг/brand_management.txt", 2], ["docs/Маркетинг/pricing.txt", 1]],
+      "note": "Genitive form: MUST return the same chunks as 'бренд'."
+    },
+    {
+      "id": "brand_plural",
+      "query": "брендов",
+      "relevant": [["docs/Маркетинг/brand_management.txt", 1], ["docs/Маркетинг/brand_management.txt", 2]],
+      "note": "Plural form: must merge with the singular via the stemmer."
+    },
+    {
+      "id": "client_instrumental",
+      "query": "клиентами",
+      "relevant": [["docs/Маркетинг/crm_clients.txt", 0], ["docs/Маркетинг/crm_clients.txt", 1]],
+      "note": "Instrumental plural form of 'клиент'."
+    },
+    {
+      "id": "client_genitive",
+      "query": "клиента",
+      "relevant": [["docs/Маркетинг/crm_clients.txt", 0], ["docs/Маркетинг/crm_clients.txt", 1], ["docs/Маркетинг/pricing.txt", 1]],
+      "note": "Genitive singular of 'клиент'."
+    },
+    {
+      "id": "segment_market",
+      "query": "сегментировать рынок",
+      "relevant": [["docs/Маркетинг/segmentation.txt", 0]],
+      "note": "Rare verb plus a mid-frequency noun: both terms must be present."
+    },
+    {
+      "id": "price_strategy_company",
+      "query": "ценовые стратегии компании",
+      "relevant": [["docs/Маркетинг/pricing.txt", 0], ["docs/Маркетинг/segmentation.txt", 1]],
+      "note": "Three terms; one hit legitimately lacks a term."
+    },
+    {
+      "id": "product_lifecycle",
+      "query": "жизненный цикл товара",
+      "relevant": [["docs/Маркетинг/product_lifecycle.txt", 0], ["docs/Маркетинг/product_lifecycle.txt", 1]],
+      "note": "Exact multi-word phrase present verbatim."
+    },
+    {
+      "id": "stopword_phrasing",
+      "query": "что такое бренд",
+      "relevant": [["docs/Маркетинг/brand_management.txt", 0], ["docs/Маркетинг/brand_management.txt", 1]],
+      "note": "Stop-words 'что' and 'такое' must not drive the ranking."
+    },
+    {
+      "id": "crm_retention",
+      "query": "удержание клиентов",
+      "relevant": [["docs/Маркетинг/crm_clients.txt", 0], ["docs/Маркетинг/crm_clients.txt", 1]],
+      "note": "Body term 'удержание' plus a word form of 'клиент'."
+    },
+    {
+      "id": "marketing_body_only",
+      "query": "цели маркетинга",
+      "relevant": [["docs/Маркетинг/product_lifecycle.txt", 0]],
+      "note": "'маркетинга' occurs in ONE body only, while 'маркетинг' is in every header - a direct IDF-collapse probe."
+    },
+    {
+      "id": "promotion_channels",
+      "query": "каналы продвижения",
+      "relevant": [["docs/Маркетинг/channels.txt", 0]],
+      "note": "Single-chunk source with both terms in the body."
+    }
+  ]
+}

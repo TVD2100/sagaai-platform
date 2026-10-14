@@ -9,24 +9,47 @@ The postings live in the base's existing local SQLite index
   bm25_docs(chunk_id INTEGER PRIMARY KEY, dl INTEGER)  -- document lengths
 
 Cached counters live in the shared ``meta`` table (bm25_ready,
-bm25_docs_count, bm25_total_len), mirroring the style of core.rag_index.
+bm25_version, bm25_docs_count, bm25_total_len), mirroring the style of
+core.rag_index.
+
+Text analysis (added after the search audit, schema version 2):
+
+  * tokenization is Unicode-aware (lowercase, ``ё`` folds to ``е``);
+  * Cyrillic tokens are reduced to a conservative stem (a small
+    inflectional-suffix stemmer, no third-party dependency), so the word
+    forms ``бренд`` / ``бренда`` / ``брендов`` share one posting;
+  * Latin tokens are left as they are (no risky English stemming);
+  * a small Russian/English stop-word list removes function words
+    (``как``, ``что``, ``для`` ...) from both indexing and queries;
+  * the self-describing chunk header written by the RAG Base Creator
+    (``Документ:`` / ``Продукт:`` / ``Заголовок:`` / ``Раздел:`` /
+    ``Фрагмент:``) is stripped from the INDEXED text, because a header
+    repeated in every chunk collapses IDF to ~0 and blinds the ranker on
+    the corpus' own domain term. Only the per-document ``Заголовок``
+    (title) is still indexed, with a boost, because it is informative and
+    not repeated corpus-wide. The stored chunk text keeps the header, so
+    the agent still reads a self-describing fragment.
 
 Lifecycle:
 
-  * a base indexed by older versions has no BM25 tables: the first search
-    triggers one full lazy rebuild (``ensure_ready``), after which the index
-    is maintained incrementally by the hooks below (called from the
-    core.rag_index write functions);
-  * tokenization is Unicode-aware (lowercase, ``ё`` folds to ``е``) and
-    covers Russian and English out of the box.
+  * a base indexed by older versions has no BM25 tables or carries an
+    older ``bm25_version``: the first search triggers one full rebuild
+    (``ensure_ready``), after which the index is maintained incrementally
+    by the hooks below (called from the core.rag_index write functions).
 
 Scoring (Lucene-style, k1=1.5, b=0.75 by default):
 
   idf(t)   = ln(1 + (N - df + 0.5) / (df + 0.5))
   score(d) = sum_t idf(t) * tf * (k1 + 1) / (tf + k1 * (1 - b + b * dl/avgdl))
 
+Multi-term queries additionally apply a coordination factor
+(``Coord = 0.5 + 0.5 * matched_terms / total_terms``) so a chunk matching
+all meaningful query terms outranks a chunk matching only one of them.
+Single-term queries are unaffected.
+
 No streamlit imports; every function takes an explicit database path.
 """
+import heapq
 import math
 import os
 import re
@@ -41,22 +64,220 @@ TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
 DEFAULT_K1 = 1.5
 DEFAULT_B = 0.75
 
+# Schema version of the BM25 structures. Bump it whenever the text analysis
+# or the stored layout changes: is_ready() then reports False for older
+# indexes and the next search rebuilds them once (no silent stale index).
+SCHEMA_VERSION = 2
+
+# Title tokens of the chunk header are indexed with this weight (they are
+# informative, but a shorter field must not dominate the body).
+META_TITLE_BOOST = 2
+
+# Coordination floor for multi-term queries: a chunk matching none of the
+# extra terms keeps this share of its score (never 0, so recall is safe).
+COORD_FLOOR = 0.5
+
 # meta keys of the cached BM25 state (shared meta table).
 _READY_KEY = "bm25_ready"
+_VERSION_KEY = "bm25_version"
 _DOCS_KEY = "bm25_docs_count"
 _LEN_KEY = "bm25_total_len"
 
 
-# ─── tokenization ────────────────────────────────────────────────────────────
+# ─── text analysis: metadata ─────────────────────────────────────────────────
+
+# Header lines written by build_base.py (RAG Base Creator) into every chunk.
+META_LINE_RE = re.compile(
+    r"^(Документ|Продукт|Заголовок|Раздел|Фрагмент)\s*:\s*(.*)$", re.UNICODE)
+
+# Every header key except 'Заголовок' is dropped from the indexed text: a
+# value repeated in every chunk (Документ/Продукт/Раздел/Фрагмент) destroys
+# IDF. 'Заголовок' is re-added with META_TITLE_BOOST instead.
+
+def split_metadata(text: str):
+    """Split a chunk into its leading metadata block and the body text.
+
+    Returns ``(body, meta)`` where *meta* maps header keys to their values
+    (first occurrence wins) and *body* is the text with the leading header
+    block removed. Chunks without a header are returned unchanged, so the
+    function is safe for arbitrary user text as well.
+    """
+    raw = str(text or "")
+    if not raw:
+        return "", {}
+    lines = raw.split("\n")
+    meta: dict = {}
+    idx = 0
+    while idx < len(lines):
+        line = lines[idx]
+        stripped = line.strip()
+        if not stripped:
+            idx += 1
+            continue
+        match = META_LINE_RE.match(stripped)
+        if not match:
+            break
+        key = match.group(1)
+        if key not in meta:
+            meta[key] = match.group(2).strip()
+        idx += 1
+    if not meta:
+        return raw, {}
+    return "\n".join(lines[idx:]), meta
+
+
+# ─── text analysis: stemming ─────────────────────────────────────────────────
+
+# Conservative inflectional suffixes (longest first). Only endings that
+# change the form of the SAME word are listed; derivational suffixes are
+# deliberately omitted so unrelated words are not merged.
+_RU_SUFFIXES = tuple(sorted({
+    # verbs, participles, gerunds
+    "ироваться", "ировать", "овать", "евать", "ывать", "ивать",
+    "аться", "яться", "иться", "еться", "аешь", "иешь", "уешь",
+    "аете", "иете", "айте", "ийте", "ился", "илась", "илось",
+    "ались", "ились", "елся", "ать", "ять", "еть", "ить",
+    "уть", "ыть", "ешь", "ишь", "ете", "ите", "ем", "им",
+    "ут", "ют", "ат", "ят", "ет", "ит", "ла", "ло", "ли", "л",
+    # adjectives and participles
+    "ейший", "айший", "ейшего", "ого", "его", "ому", "ему",
+    "ыми", "ими", "ых", "их", "ый", "ий", "ой", "ая", "яя",
+    "ое", "ее", "ые", "ие", "ую", "юю",
+    # nouns
+    "иями", "ями", "ами", "иях", "иям", "ием", "ией", "ии", "ия",
+    "ию", "ие", "ей", "ою", "ею", "ов", "ев", "ах", "ях", "ам",
+    "ям", "ом", "ем", "ою", "ью", "ья", "ье", "у", "ю", "а",
+    "я", "о", "е", "ы", "и", "й", "ь",
+}, key=lambda s: (-len(s), s)))
+
+# Stemming only applies to tokens at least this long, and never shortens a
+# token below _MIN_STEM characters. Both guards keep short words intact.
+_MIN_STEM_WORD = 5
+_MIN_STEM = 4
+
+_CYRILLIC_RE = re.compile(r"[а-яё]", re.IGNORECASE)
+
+
+def _has_cyrillic(token: str) -> bool:
+    """True when *token* contains at least one Cyrillic letter."""
+    return bool(_CYRILLIC_RE.search(token or ""))
+
+
+def stem_token(token: str) -> str:
+    """Reduce a token to a conservative stem.
+
+    Cyrillic tokens are shortened by a listed inflectional suffix; Latin
+    and numeric tokens are returned unchanged (English stemming is not
+    attempted here). Guards keep the stem at least ``_MIN_STEM`` chars long
+    so short words are never mangled.
+    """
+    word = str(token or "")
+    if len(word) < _MIN_STEM_WORD or not _has_cyrillic(word):
+        return word
+    for suffix in _RU_SUFFIXES:
+        if word.endswith(suffix) and len(word) - len(suffix) >= _MIN_STEM:
+            return word[:len(word) - len(suffix)]
+    return word
+
+
+# Function words dropped from indexing and queries. A curated subset of the
+# classic Russian/English stop lists - no domain terms.
+_STOPWORDS_RAW = (
+    # Russian
+    "и", "в", "во", "не", "что", "он", "на", "я", "с", "со", "как", "а",
+    "то", "все", "она", "так", "его", "но", "да", "ты", "к", "у", "же",
+    "вы", "за", "бы", "по", "только", "ее", "мне", "было", "вот", "от",
+    "меня", "еще", "нет", "о", "из", "ему", "теперь", "когда", "даже",
+    "ну", "вдруг", "ли", "если", "уже", "или", "ни", "быть", "был", "него",
+    "до", "вас", "вам", "ведь", "там", "потом", "себя", "ничего", "ей",
+    "может", "они", "тут", "где", "есть", "надо", "ней", "для", "мы",
+    "тебя", "их", "чем", "была", "сам", "чтоб", "без", "будто", "чего",
+    "раз", "тоже", "себе", "под", "будет", "тогда", "кто", "этот", "того",
+    "потому", "этого", "какой", "совсем", "ним", "здесь", "этом", "один",
+    "почти", "мой", "тем", "чтобы", "нее", "сейчас", "были", "куда",
+    "зачем", "всех", "никогда", "можно", "при", "наконец", "два", "об",
+    "другой", "хоть", "после", "над", "больше", "тот", "через", "эти",
+    "нас", "про", "всего", "них", "какая", "много", "разве", "три", "эту",
+    "моя", "впрочем", "хорошо", "свою", "этой", "перед", "иногда", "лучше",
+    "чуть", "том", "нельзя", "такой", "им", "более", "всегда", "конечно",
+    "всю", "между", "это", "такое", "чему", "этих", "этими", "который",
+    "которая", "которое", "которые", "наш", "ваш", "свой", "свои", "наши",
+    "также", "либо", "нельзя", "нужно", "дай", "кстати", "вроде",
+    # English
+    "the", "a", "an", "and", "or", "of", "to", "in", "is", "are", "was",
+    "were", "be", "been", "being", "for", "on", "at", "by", "with", "as",
+    "that", "this", "these", "those", "it", "its", "from", "not", "but",
+    "if", "then", "so", "than", "too", "very", "can", "could", "will",
+    "would", "should", "may", "might", "must", "do", "does", "did", "has",
+    "have", "had", "we", "you", "they", "he", "she", "i", "me", "my",
+    "our", "your", "their", "his", "her", "them", "us", "there", "here",
+    "what", "which", "who", "whom", "when", "where", "why", "how", "all",
+)
+
+# Stop-words are compared in stemmed form, so an inflected function word
+# ('которого', 'такие') is dropped as well.
+STOPWORDS = frozenset(_STOPWORDS_RAW)
+STOP_STEMS = frozenset(stem_token(word) for word in _STOPWORDS_RAW)
+
 
 def tokenize(text: str) -> list:
     """Return lowercase Unicode word tokens of *text*.
 
     Punctuation and underscores are separators; ``ё`` is folded to ``е`` so
-    queries like ``еще`` also match ``ещё`` in the documents.
+    queries like ``еще`` also match ``ещё`` in the documents. This is the
+    RAW tokenizer: no stemming and no stop-word filtering (see
+    :func:`content_terms` for the analysis used by the index).
     """
     normalized = str(text or "").lower().replace("ё", "е")
     return TOKEN_RE.findall(normalized)
+
+
+def content_terms(text: str) -> list:
+    """Return the index terms of *text* (stemmed, stop-words removed).
+
+    Repeated terms are kept (the caller needs the frequencies); use
+    :func:`_unique_terms` for a query.
+    """
+    out = []
+    for token in tokenize(text):
+        stem = stem_token(token)
+        if not stem or stem in STOP_STEMS:
+            continue
+        out.append(stem)
+    return out
+
+
+def _unique_terms(text: str) -> list:
+    """Return the distinct index terms of *text*, order preserved.
+
+    The analysis is EXACTLY the one used at indexing time, so a query and a
+    document are always reduced the same way. A query made only of
+    stop-words therefore yields no terms and honestly finds nothing - a
+    fallback to raw tokens would search for words the index does not store.
+    """
+    terms: list = []
+    seen: set = set()
+    for stem in content_terms(text):
+        if stem not in seen:
+            seen.add(stem)
+            terms.append(stem)
+    return terms
+
+
+def indexed_terms(text: str) -> list:
+    """Return the weighted index terms of one chunk text.
+
+    The self-describing header is stripped; body terms are taken as is and
+    the title (``Заголовок``) is added ``META_TITLE_BOOST`` times, so a
+    title match still ranks but cannot dominate the body.
+    """
+    body, meta = split_metadata(text)
+    terms = content_terms(body)
+    title = str(meta.get("Заголовок") or "")
+    if title:
+        title_terms = content_terms(title)
+        terms.extend(title_terms * max(0, int(META_TITLE_BOOST) - 1))
+    return terms
 
 
 # ─── low-level helpers ───────────────────────────────────────────────────────
@@ -115,6 +336,14 @@ def _read_meta_int(conn: sqlite3.Connection, key: str, default: int = 0) -> int:
         return default
 
 
+def _read_meta_str(conn: sqlite3.Connection, key: str, default: str = "") -> str:
+    """Read one string meta value (default on missing/unreadable)."""
+    row = conn.execute("SELECT v FROM meta WHERE k = ?", (key,)).fetchone()
+    if row is None:
+        return default
+    return str(row["v"])
+
+
 def _write_meta(conn: sqlite3.Connection, key: str, value) -> None:
     """Upsert one meta value."""
     conn.execute(
@@ -143,28 +372,65 @@ def _bump_meta(conn: sqlite3.Connection, key: str, delta: int) -> None:
 # ─── readiness / lifecycle ───────────────────────────────────────────────────
 
 def is_ready(db_path: str) -> bool:
-    """True when the BM25 index of the base is built and up to date."""
+    """True when the BM25 index exists AND matches the current schema.
+
+    An index built by an older schema version reports False, so the next
+    search rebuilds it once instead of serving a stale analysis.
+    """
     if not os.path.exists(db_path):
         return False
     try:
         conn = _connect(db_path)
         try:
-            row = conn.execute(
-                "SELECT v FROM meta WHERE k = ?", (_READY_KEY,)
-            ).fetchone()
-            return row is not None and str(row["v"]) == "1"
+            ready = _read_meta_str(conn, _READY_KEY, "")
+            version = _read_meta_str(conn, _VERSION_KEY, "")
+            return ready == "1" and version == str(SCHEMA_VERSION)
         finally:
             conn.close()
     except Exception:
         return False
 
 
+def _terms_to_counts(terms: list) -> dict:
+    """Group an already-analysed term list into ``{term: tf}``."""
+    counts: dict = {}
+    for term in terms:
+        counts[term] = counts.get(term, 0) + 1
+    return counts
+
+
+def _write_chunk_rows(conn: sqlite3.Connection, chunk_id: int,
+                      text: str) -> int:
+    """(Re)write the postings and doc length of one chunk. Returns terms.
+
+    The caller owns the transaction. The chunk text is analysed through
+    :func:`indexed_terms` (header stripped, title boosted) and the stored
+    doc length counts BODY tokens only, so a boosted title cannot distort
+    the length normalisation.
+    """
+    body, _meta = split_metadata(text)
+    body_terms = content_terms(body)
+    counts = _terms_to_counts(indexed_terms(text))
+    if not counts:
+        return 0
+    cid = int(chunk_id)
+    conn.executemany(
+        "INSERT OR REPLACE INTO bm25_terms(term, chunk_id, tf) VALUES(?, ?, ?)",
+        [(t, cid, tf) for t, tf in counts.items()],
+    )
+    conn.execute(
+        "INSERT OR REPLACE INTO bm25_docs(chunk_id, dl) VALUES(?, ?)",
+        (cid, len(body_terms)),
+    )
+    return len(counts)
+
+
 def rebuild_index(db_path: str) -> dict:
     """Rebuild the whole BM25 index from the chunks table.
 
-    Returns ``{"ok": True, "docs", "tokens", "terms"}`` or
-    ``{"ok": False, "error": ...}``. Idempotent; the ready flag is set
-    only when the rebuild fully succeeded.
+    Returns ``{"ok": True, "docs", "tokens", "terms", "version"}`` or
+    ``{"ok": False, "error": ...}``. Idempotent; the ready flag and the
+    schema version are set only when the rebuild fully succeeded.
     """
     if not os.path.exists(db_path):
         return {"ok": False, "error": "index database not found"}
@@ -179,12 +445,12 @@ def rebuild_index(db_path: str) -> dict:
             total_len = 0
             term_rows = 0
             for row in rows:
-                toks = tokenize(row["text"])
-                if not toks:
+                text = row["text"]
+                body, _meta = split_metadata(text)
+                body_terms = content_terms(body)
+                counts = _terms_to_counts(indexed_terms(text))
+                if not counts:
                     continue
-                counts: dict = {}
-                for token in toks:
-                    counts[token] = counts.get(token, 0) + 1
                 cid = int(row["id"])
                 conn.executemany(
                     "INSERT OR REPLACE INTO bm25_terms(term, chunk_id, tf)"
@@ -194,17 +460,18 @@ def rebuild_index(db_path: str) -> dict:
                 conn.execute(
                     "INSERT OR REPLACE INTO bm25_docs(chunk_id, dl) "
                     "VALUES(?, ?)",
-                    (cid, len(toks)),
+                    (cid, len(body_terms)),
                 )
                 docs += 1
-                total_len += len(toks)
+                total_len += len(body_terms)
                 term_rows += len(counts)
             _write_meta(conn, _DOCS_KEY, docs)
             _write_meta(conn, _LEN_KEY, total_len)
+            _write_meta(conn, _VERSION_KEY, SCHEMA_VERSION)
             _write_meta(conn, _READY_KEY, 1)
             conn.commit()
             return {"ok": True, "docs": docs, "tokens": total_len,
-                    "terms": term_rows}
+                    "terms": term_rows, "version": SCHEMA_VERSION}
         finally:
             conn.close()
     except Exception as e:
@@ -212,7 +479,11 @@ def rebuild_index(db_path: str) -> dict:
 
 
 def ensure_ready(db_path: str) -> bool:
-    """Ensure the BM25 index exists (lazy one-time rebuild for legacy bases)."""
+    """Ensure the BM25 index exists and is up to date with the schema.
+
+    Legacy bases (no tables) and bases indexed by an older schema version
+    get ONE full rebuild here, transparently to the caller.
+    """
     if is_ready(db_path):
         return True
     return bool(rebuild_index(db_path).get("ok"))
@@ -226,8 +497,8 @@ def drop_index_conn(conn: sqlite3.Connection) -> None:
     conn.execute("DROP TABLE IF EXISTS bm25_terms")
     conn.execute("DROP TABLE IF EXISTS bm25_docs")
     conn.execute(
-        "DELETE FROM meta WHERE k IN (?, ?, ?)",
-        (_READY_KEY, _DOCS_KEY, _LEN_KEY),
+        "DELETE FROM meta WHERE k IN (?, ?, ?, ?)",
+        (_READY_KEY, _VERSION_KEY, _DOCS_KEY, _LEN_KEY),
     )
 
 
@@ -276,32 +547,32 @@ def index_chunk(conn: sqlite3.Connection, chunk_id: int, text: str) -> int:
     """
     cid = int(chunk_id)
     _remove_chunk_rows(conn, cid)
-    toks = tokenize(text)
-    if not toks:
+    body, _meta = split_metadata(text)
+    body_terms = content_terms(body)
+    counts = _terms_to_counts(indexed_terms(text))
+    if not counts:
         return 0
-    counts: dict = {}
-    for token in toks:
-        counts[token] = counts.get(token, 0) + 1
     conn.executemany(
         "INSERT OR REPLACE INTO bm25_terms(term, chunk_id, tf) VALUES(?, ?, ?)",
         [(t, cid, tf) for t, tf in counts.items()],
     )
     conn.execute(
         "INSERT OR REPLACE INTO bm25_docs(chunk_id, dl) VALUES(?, ?)",
-        (cid, len(toks)),
+        (cid, len(body_terms)),
     )
     _init_counter(conn, _DOCS_KEY)
     _init_counter(conn, _LEN_KEY)
     _bump_meta(conn, _DOCS_KEY, 1)
-    _bump_meta(conn, _LEN_KEY, len(toks))
+    _bump_meta(conn, _LEN_KEY, len(body_terms))
     return len(counts)
 
 
 def on_chunk_added(db_path: str, chunk_id: int, text: str) -> bool:
     """Keep the BM25 index in sync after a chunk write (never raises).
 
-    No-op when the base was never BM25-indexed yet (legacy base): the first
-    search performs one full rebuild instead of thousands of tiny writes.
+    No-op when the base was never BM25-indexed yet (legacy base) or when
+    its index carries an older schema version: the first search performs
+    one full rebuild instead of thousands of tiny writes.
     """
     try:
         if not is_ready(db_path):
@@ -364,16 +635,12 @@ def search(db_path: str, query: str, top_k: int = 5, min_score: float = 0.0,
     Returns hits sorted by descending score with the same shape as the
     vector search (``chunk_id``, ``text``, ``source``, ``chunk_index``,
     ``score``). Empty list for a missing database, blank query or an empty
-    index. Non-positive scores are never produced (idf >= 0).
+    index. Multi-term queries apply the coordination factor described in the
+    module docstring; single-term queries keep the plain BM25 score.
     """
     if not os.path.exists(db_path):
         return []
-    terms: list = []
-    seen = set()
-    for token in tokenize(query):
-        if token not in seen:
-            seen.add(token)
-            terms.append(token)
+    terms = _unique_terms(query)
     if not terms:
         return []
     if not ensure_ready(db_path):
@@ -387,6 +654,7 @@ def search(db_path: str, query: str, top_k: int = 5, min_score: float = 0.0,
                 return []
             avgdl = total_len / n_docs if n_docs else 0.0
             scores: dict = {}
+            matched: dict = {}
             for term in terms:
                 rows = conn.execute(
                     "SELECT t.chunk_id AS cid, t.tf AS tf,"
@@ -414,15 +682,25 @@ def search(db_path: str, query: str, top_k: int = 5, min_score: float = 0.0,
                     scores[cid] = scores.get(cid, 0.0) + (
                         idf * tf * (k1 + 1.0) / denom
                     )
+                    matched[cid] = matched.get(cid, 0) + 1
             if not scores:
                 return []
+            # Coordination (multi-term only): a chunk matching all meaningful
+            # terms must outrank a chunk matching just one of them.
+            if len(terms) > 1:
+                for cid, score in scores.items():
+                    share = matched.get(cid, 0) / len(terms)
+                    scores[cid] = score * (COORD_FLOOR + (1.0 - COORD_FLOOR) * share)
             try:
                 limit = max(1, int(top_k))
             except (TypeError, ValueError):
                 limit = 5
-            ranked = sorted(
-                scores.items(), key=lambda kv: (-kv[1], kv[0])
-            )[:limit]
+            # heapq.nlargest keeps the top-k selection O(N log k) instead of
+            # a full O(N log N) sort, which matters on frequent terms over
+            # 20k+ chunks. The key reproduces the old tie-break exactly:
+            # higher score first, then the smaller chunk id.
+            ranked = heapq.nlargest(
+                limit, scores.items(), key=lambda kv: (kv[1], -kv[0]))
             ids = [cid for cid, _ in ranked]
             placeholders = ",".join("?" for _ in ids)
             chunk_rows = conn.execute(
@@ -459,7 +737,8 @@ def search(db_path: str, query: str, top_k: int = 5, min_score: float = 0.0,
 
 def stats(db_path: str) -> dict:
     """Return diagnostic BM25 stats (sizes only; safe on missing files)."""
-    out = {"ready": False, "docs": 0, "tokens": 0, "posting_rows": 0}
+    out = {"ready": False, "docs": 0, "tokens": 0, "posting_rows": 0,
+           "version": 0, "current_version": SCHEMA_VERSION}
     if not os.path.exists(db_path):
         return out
     try:
@@ -468,6 +747,7 @@ def stats(db_path: str) -> dict:
             out["ready"] = is_ready(db_path)
             out["docs"] = _read_meta_int(conn, _DOCS_KEY, 0)
             out["tokens"] = _read_meta_int(conn, _LEN_KEY, 0)
+            out["version"] = _read_meta_int(conn, _VERSION_KEY, 0)
             try:
                 row = conn.execute(
                     "SELECT COUNT(*) AS n FROM bm25_terms"
