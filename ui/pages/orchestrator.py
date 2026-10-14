@@ -707,6 +707,9 @@ def _render_event(ev: dict, lang: str) -> None:
             delay = int(delay)
         st.warning(t("orch_retry_llm", lang=lang,
                      attempt=attempt, attempts=attempts, delay=delay))
+    elif etype == "incomplete_retry":
+        reason = ev.get("reason", "") or "max_output_tokens"
+        st.warning(t("orch_incomplete_retry", lang=lang, reason=reason))
     elif etype == "sanitized_detected":
         events = ev.get("events", [])
         for info in events:

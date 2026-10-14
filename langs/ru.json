@@ -558,6 +558,7 @@
   "orch_tab_skills": "🧩 Навыки",
   "orch_temperature_label": "Температура",
   "orch_temperature_label_help": "Креативность ответов: ниже — точнее и стабильнее, выше — разнообразнее.",
+  "orch_incomplete_retry": "⚠️ Ответ модели обрезан по лимиту токенов ({reason}). Повторяю с меньшим бюджетом рассуждений...",
   "orch_retry_llm": "⚠️ Связь прервалась. Повторная попытка {attempt} из {attempts} (пауза {delay} с)...",
   "orch_thinking": "Думаю…",
   "orch_unknown_error": "Неизвестная ошибка",

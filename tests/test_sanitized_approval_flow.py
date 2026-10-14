@@ -83,7 +83,8 @@ def test_approve_sanitized_lets_loop_continue(monkeypatch):
     ])
 
     def fake_send(user_message, assistant, file_context="", history=None, lang=None,
-                  usage_callback=None, enable_injection_protection=True,
+                  usage_callback=None, incomplete_callback=None,
+                  enable_injection_protection=True,
                   sanitized_callback=None, sanitized_approved_paths=None,
                   retry_callback=None):
         # Mirror what the REAL core.api_layer.send_request does with history:

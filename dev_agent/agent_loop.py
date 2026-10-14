@@ -2543,6 +2543,15 @@ def _step_agent_loop_impl(
                     "error": info.get("error"),
                 })
 
+            # ── Incomplete (truncated) Responses: capture via callback ─────
+            # The provider answers HTTP 200 with status=='incomplete' when the
+            # reasoning budget consumed the whole max_output_tokens allowance;
+            # the body may then carry no user-visible text at all.
+            incomplete_events: List[Dict[str, Any]] = []
+
+            def _on_incomplete(info: dict) -> None:
+                incomplete_events.append(info)
+
             # ── Connection resilience: persist the user message BEFORE the
             # LLM call. If send_request fails (connection lost even after all
             # retries), the message must already be in history so the user
@@ -2561,18 +2570,52 @@ def _step_agent_loop_impl(
                 state.history.append(entry)
                 state.file_name = ""
 
+            # The file context is sent with the FIRST call and reset below;
+            # keep a copy so a truncated-answer recovery retry resends it too.
+            turn_file_context = state.file_context
+
             state.assistant_text = send_request(
                 state.user_message, assistant,
                 file_context=state.file_context,
                 history=effective_history,
                 lang=lang,
                 usage_callback=_on_tokens,
+                incomplete_callback=_on_incomplete,
                 enable_injection_protection=state.enable_injection_protection,
                 sanitized_callback=_on_sanitized,
                 sanitized_approved_paths=state.sanitized_approved_paths,
                 retry_callback=_on_retry,
             )
             state.file_context = ""
+
+            # ── Incomplete (truncated) Responses recovery ───────────────────
+            # An HTTP 200 body with status=='incomplete' (usually the reasoning
+            # budget ate the whole max_output_tokens allowance) can carry NO
+            # user-visible text, so the raw answer looks normally empty. Retry
+            # ONCE with the reasoning effort lowered to 'none', which frees the
+            # whole output budget for visible text. This is bounded to one
+            # retry per step; an answer that already has text is kept as is.
+            if incomplete_events and not str(state.assistant_text).strip():
+                info = incomplete_events[0]
+                emit({"type": "incomplete_retry",
+                      "step": state.steps,
+                      "reason": str(info.get("reason") or ""),
+                      "output_tokens": info.get("output_tokens", 0)})
+                retry_assistant = dict(assistant)
+                retry_assistant["reasoning_effort"] = "none"
+                incomplete_events = []
+                state.assistant_text = send_request(
+                    state.user_message, retry_assistant,
+                    file_context=turn_file_context,
+                    history=effective_history,
+                    lang=lang,
+                    usage_callback=_on_tokens,
+                    incomplete_callback=_on_incomplete,
+                    enable_injection_protection=state.enable_injection_protection,
+                    sanitized_callback=_on_sanitized,
+                    sanitized_approved_paths=state.sanitized_approved_paths,
+                    retry_callback=_on_retry,
+                )
 
             # ── If prompt-injection protection just sanitized a payload, stop ──
             # and ask the user whether to view the withheld content.

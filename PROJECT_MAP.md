@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-10-14T18:34:17+00:00`
-- Файлов: **330**
+- Обновлено: `2026-10-14T18:54:35+00:00`
+- Файлов: **332**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **4312**
-- Отпечаток содержимого: `sha256:28e46b53a4c2891f2d6c0d17a9fdb2c51e1af27013fb97a7d80d9f72be844dd8` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 1, JSON: 19, Markdown: 37, PEM certificate: 1, Python: 275, Text: 1
+- Python-символов: **4351**
+- Отпечаток содержимого: `sha256:c2afd8bbc0390e9183222b3cd721c6aac8f0f2dca5a6849b61585b310db79605` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 1, JSON: 19, Markdown: 37, PEM certificate: 1, Python: 277, Text: 1
 
 ## Файлы и назначение
 
@@ -40,7 +40,7 @@
 | `ui/pages/welcome.py` | Python | Welcome / about page | - |
 | `core/__init__.py` | Python | Package marker | - |
 | `core/api_errors.py` | Python | API error hierarchy and user messages | - |
-| `core/api_layer.py` | Python | HTTP requests to AI providers; send_request(assistant=...) with legacy skill= alias; vision/image transports (send_vision_request with bearer/yandex_iam/deepseek_responses + detail=original, send_image_generation_request) | - |
+| `core/api_layer.py` | Python | HTTP requests to AI providers; send_request(assistant=...) with legacy skill= alias and optional incomplete_callback (truncated Responses detection); vision/image transports (send_vision_request with bearer/yandex_iam/deepseek_responses + detail=original, send_image_generation_request) | - |
 | `core/assistant_creator.py` | Python | Validation and linting helpers for assistant prompts | - |
 | `core/assistant_folders.py` | Python | _(описание не задано)_ | - |
 | `core/assistant_nav.py` | Python | _(описание не задано)_ | - |
@@ -97,7 +97,8 @@
 | `tests/_st_mock.py` | Python | Streamlit mock for tests | - |
 | `tests/_test_isolation.py` | Python | _(описание не задано)_ | - |
 | `tests/conftest.py` | Python | Pytest fixture bootstrap | - |
-| `tests/test_agent_loop_connection_retry.py` | Python | _(описание не задано)_ | - |
+| `tests/test_agent_loop_connection_retry.py` | Python | Connection-resilience tests for the agent loop (retrying_llm events, user message persisted before the LLM call) | - |
+| `tests/test_agent_loop_incomplete.py` | Python | Unit: truncated (incomplete) Responses recovery in the agent loop - one bounded retry on lowered reasoning effort, event, file-context preservation | - |
 | `tests/test_agent_loop_json_repair.py` | Python | _(описание не задано)_ | - |
 | `tests/test_agent_loop_snapshot_chain.py` | Python | Unit: persistent TS/TC snapshot chain in the agent loop | - |
 | `tests/test_agent_loop_snapshot_persistence.py` | Python | Unit: snapshot chain round-trip through the thread store | storage |
@@ -177,7 +178,7 @@
 | `tests/test_recent_workspaces.py` | Python | Recent workspaces tests | storage |
 | `tests/test_render_token_line.py` | Python | Token line renderer tests | - |
 | `tests/test_safety_mode.py` | Python | Safety-mode gate tests | - |
-| `tests/test_sanitized_approval_flow.py` | Python | Sanitized-content approval flow tests | - |
+| `tests/test_sanitized_approval_flow.py` | Python | Sanitized-content approval flow tests (loop stops, user approves, protected payload not re-triggered) | - |
 | `tests/test_search_in_files.py` | Python | _(описание не задано)_ | - |
 | `tests/test_service_model_catalogs.py` | Python | Vision/image model catalog tests for service profiles | - |
 | `tests/test_sidebar_employees_nav.py` | Python | _(описание не задано)_ | - |
@@ -236,6 +237,7 @@
 | `tests/scenarios/test_gigachat_orchestrator_scenario.py` | Python | Scenario: orchestrator run on a GigaChat-like payload (leading-system fold, error visibility) | - |
 | `tests/scenarios/test_github_read_retry_scenario.py` | Python | Scenario tests: GitHub read retries via the public API (get_user_info/create_repo), no token leaks | - |
 | `tests/scenarios/test_github_rest_scenario.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_incomplete_responses_recovery_scenario.py` | Python | Scenarios: incomplete-responses recovery - truncation then success, partial text kept, persistent truncation terminates | - |
 | `tests/scenarios/test_json_repair_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_loop_stuck_protection_scenarios.py` | Python | Loop-stuck protection scenarios: per-tool failure counter hints, duplicate-call flood compaction, prose loop_status continue | - |
 | `tests/scenarios/test_multimodal_scenarios.py` | Python | Scenario tests for the multimodal tools (vision analysis, not_assigned, generation, provider hint) | - |
@@ -327,7 +329,7 @@
 | `scripts/regenerate_project_map.py` | Python | CANONICAL generator of PROJECT_MAP.md: publish scope from file_versions.json (units + selectable) + responsibility dictionary; run it to regenerate the map (never hand-edit it) | - |
 | `scripts/verify_manifest.py` | Python | Manifest validator/maintainer: schema, coverage of git-tracked files, sha256 freshness, app_version consistency; prompt versions come from file headers on --init/--add; modes --init/--add/--fix-hashes/--json/--strict | - |
 | `dev_agent/__init__.py` | Python | Package marker | agent_loop, backup_manager, safe_writer, tool_executor, universal_agent, workspace_tools |
-| `dev_agent/agent_loop.py` | Python | Provider-independent agent loop (single-model routing, economy mode, strength-classified tools; per-tool failure counter, duplicate-call flood compaction, cascading JSON repair) | storage |
+| `dev_agent/agent_loop.py` | Python | Provider-independent agent loop (single-model routing, economy mode, strength-classified tools; per-tool failure counter, duplicate-call flood compaction, cascading JSON repair; one bounded recovery retry with lowered reasoning effort when a Responses body is incomplete/truncated) | storage |
 | `dev_agent/assistant_detector.py` | Python | Assistant detection/creation helpers (renamed from skill_detector) | storage |
 | `dev_agent/assistant_model_resolver.py` | Python | Auto model resolution for assistant creation | llm_utils |
 | `dev_agent/backup_manager.py` | Python | Per-file backup/restore manager | - |
@@ -442,39 +444,39 @@
 - `_render_tool_result` (func, строка 566)
 - `_render_events` (func, строка 648)
 - `_render_event` (func, строка 668)
-- `_attach_events` (func, строка 728)
-- `_do_step` (func, строка 757)
-- `_do_step.on_event` (func, строка 769)
-- `_reset_dialog` (func, строка 902)
-- `_load_thread` (func, строка 928)
-- `_persist_thread_workspace_meta` (func, строка 969)
-- `_chat_toolbar_widget_key` (func, строка 996)
-- `_sync_chat_pref_checkbox` (func, строка 1006)
-- `_chat_toolbar_pref_changed` (func, строка 1024)
-- `_render_chat_toolbar` (func, строка 1034)
-- `_token_line_cache_key` (func, строка 1092)
-- `_render_token_line` (func, строка 1142)
-- `_render_chat_tab` (func, строка 1228)
-- `_render_chat_tab.on_event` (func, строка 1413)
-- `_render_chat_tab.on_event` (func, строка 1438)
-- `_render_chat_tab.on_event` (func, строка 1482)
-- `_render_chat_tab.on_event` (func, строка 1505)
-- `_services_with_web_search` (func, строка 1657)
-- `_temp_slider` (func, строка 1669)
-- `_get_max_tokens_limit` (func, строка 1678)
-- `_render_optional_model_section` (func, строка 1698)
-- `_render_models_settings` (func, строка 1762)
-- `_render_prompt_settings` (func, строка 1962)
-- `_render_economy_settings` (func, строка 1996)
-- `_render_orch_system_tools` (func, строка 2049)
-- `_render_orchestrator_functions_settings` (func, строка 2089)
-- `_render_orchestrator_instructions_settings` (func, строка 2168)
-- `_render_orch_skills_settings` (func, строка 2241)
-- `_render_orch_rag_bases` (func, строка 2283)
-- `_render_orch_connections` (func, строка 2336)
-- `_render_other_settings` (func, строка 2380)
-- `page_orchestrator` (func, строка 2417)
-- `page_devagent` (func, строка 2432)
+- `_attach_events` (func, строка 731)
+- `_do_step` (func, строка 760)
+- `_do_step.on_event` (func, строка 772)
+- `_reset_dialog` (func, строка 905)
+- `_load_thread` (func, строка 931)
+- `_persist_thread_workspace_meta` (func, строка 972)
+- `_chat_toolbar_widget_key` (func, строка 999)
+- `_sync_chat_pref_checkbox` (func, строка 1009)
+- `_chat_toolbar_pref_changed` (func, строка 1027)
+- `_render_chat_toolbar` (func, строка 1037)
+- `_token_line_cache_key` (func, строка 1095)
+- `_render_token_line` (func, строка 1145)
+- `_render_chat_tab` (func, строка 1231)
+- `_render_chat_tab.on_event` (func, строка 1416)
+- `_render_chat_tab.on_event` (func, строка 1441)
+- `_render_chat_tab.on_event` (func, строка 1485)
+- `_render_chat_tab.on_event` (func, строка 1508)
+- `_services_with_web_search` (func, строка 1660)
+- `_temp_slider` (func, строка 1672)
+- `_get_max_tokens_limit` (func, строка 1681)
+- `_render_optional_model_section` (func, строка 1701)
+- `_render_models_settings` (func, строка 1765)
+- `_render_prompt_settings` (func, строка 1965)
+- `_render_economy_settings` (func, строка 1999)
+- `_render_orch_system_tools` (func, строка 2052)
+- `_render_orchestrator_functions_settings` (func, строка 2092)
+- `_render_orchestrator_instructions_settings` (func, строка 2171)
+- `_render_orch_skills_settings` (func, строка 2244)
+- `_render_orch_rag_bases` (func, строка 2286)
+- `_render_orch_connections` (func, строка 2339)
+- `_render_other_settings` (func, строка 2383)
+- `page_orchestrator` (func, строка 2420)
+- `page_devagent` (func, строка 2435)
 
 ### `ui/pages/orchestrator_settings.py`
 - `page_orchestrator_settings` (func, строка 28)
@@ -1555,6 +1557,29 @@
 - `test_retrying_llm_event_emitted_on_retry.retrying_send` (func, строка 105)
 - `test_hidden_tool_result_stays_hidden_when_persisted_early` (func, строка 127)
 - `test_hidden_tool_result_stays_hidden_when_persisted_early.ok_send` (func, строка 130)
+
+### `tests/test_agent_loop_incomplete.py`
+- `_FakeCore` (class, строка 17)
+- `_FakeCore.__init__` (func, строка 20)
+- `_FakeCore.set_history` (func, строка 23)
+- `_FakeCore.set_send_request` (func, строка 26)
+- `_FakeDispatcher` (class, строка 30)
+- `_FakeDispatcher.__init__` (func, строка 33)
+- `_FakeDispatcher.dispatch` (func, строка 36)
+- `_FakeDispatcher.dispatch_json` (func, строка 39)
+- `_make_state` (func, строка 52)
+- `_replace_send_request` (func, строка 59)
+- `_run_until_terminal` (func, строка 64)
+- `test_incomplete_without_text_retries_once_with_lower_effort` (func, строка 72)
+- `test_incomplete_without_text_retries_once_with_lower_effort.send` (func, строка 77)
+- `test_incomplete_with_text_does_not_retry` (func, строка 98)
+- `test_incomplete_with_text_does_not_retry.send` (func, строка 102)
+- `test_incomplete_retry_event_emitted` (func, строка 121)
+- `test_incomplete_retry_event_emitted.send` (func, строка 125)
+- `test_recovery_retry_resends_file_context` (func, строка 146)
+- `test_recovery_retry_resends_file_context.send` (func, строка 151)
+- `test_no_incomplete_no_retry` (func, строка 170)
+- `test_no_incomplete_no_retry.send` (func, строка 174)
 
 ### `tests/test_agent_loop_json_repair.py`
 - `TestRepairUnclosedBracesUnit` (class, строка 26)
@@ -3210,7 +3235,7 @@
 - `_run_until_terminal` (func, строка 66)
 - `test_approve_sanitized_lets_loop_continue` (func, строка 75)
 - `test_approve_sanitized_lets_loop_continue.fake_send` (func, строка 85)
-- `test_protect_history_honors_approved_paths` (func, строка 139)
+- `test_protect_history_honors_approved_paths` (func, строка 140)
 
 ### `tests/test_search_in_files.py`
 - `ws` (func, строка 29)
@@ -3747,17 +3772,19 @@
 - `test_chat_page_keeps_selected_assistant_across_reruns.get_assistant` (func, строка 854)
 - `test_render_event_retrying_llm_warns_with_i18n` (func, строка 900)
 - `test_render_event_retrying_llm_warns_with_i18n.fake_t` (func, строка 909)
-- `test_attach_events_targets_last_assistant_of_current_turn` (func, строка 931)
-- `test_attach_events_falls_back_to_visible_user_without_assistant` (func, строка 951)
-- `test_attach_events_skips_hidden_messages_and_empty_inputs` (func, строка 963)
-- `test_do_step_first_step_failure_is_visible_on_user_message` (func, строка 989)
-- `test_do_step_first_step_failure_is_visible_on_user_message._Core` (class, строка 996)
-- `test_do_step_first_step_failure_is_visible_on_user_message._Core.set_history` (func, строка 999)
-- `test_do_step_first_step_failure_is_visible_on_user_message._Core.set_send_request` (func, строка 1002)
-- `test_do_step_first_step_failure_is_visible_on_user_message._Dispatcher` (class, строка 1005)
-- `test_do_step_first_step_failure_is_visible_on_user_message._Dispatcher.__init__` (func, строка 1006)
-- `test_do_step_first_step_failure_is_visible_on_user_message._Dispatcher.dispatch` (func, строка 1009)
-- `test_do_step_first_step_failure_is_visible_on_user_message._boom` (func, строка 1021)
+- `test_render_event_incomplete_retry_warns_with_i18n` (func, строка 929)
+- `test_render_event_incomplete_retry_warns_with_i18n.fake_t` (func, строка 939)
+- `test_attach_events_targets_last_assistant_of_current_turn` (func, строка 959)
+- `test_attach_events_falls_back_to_visible_user_without_assistant` (func, строка 979)
+- `test_attach_events_skips_hidden_messages_and_empty_inputs` (func, строка 991)
+- `test_do_step_first_step_failure_is_visible_on_user_message` (func, строка 1017)
+- `test_do_step_first_step_failure_is_visible_on_user_message._Core` (class, строка 1024)
+- `test_do_step_first_step_failure_is_visible_on_user_message._Core.set_history` (func, строка 1027)
+- `test_do_step_first_step_failure_is_visible_on_user_message._Core.set_send_request` (func, строка 1030)
+- `test_do_step_first_step_failure_is_visible_on_user_message._Dispatcher` (class, строка 1033)
+- `test_do_step_first_step_failure_is_visible_on_user_message._Dispatcher.__init__` (func, строка 1034)
+- `test_do_step_first_step_failure_is_visible_on_user_message._Dispatcher.dispatch` (func, строка 1037)
+- `test_do_step_first_step_failure_is_visible_on_user_message._boom` (func, строка 1049)
 
 ### `tests/test_ui_tooltips.py`
 - `_lang_files` (func, строка 49)
@@ -4321,6 +4348,23 @@
 - `test_scenario_created_repo_appears_in_listing` (func, строка 466)
 - `test_scenario_missing_repo_and_file_report_clean_errors` (func, строка 483)
 - `test_scenario_tool_layer_returns_error_dicts_for_failures` (func, строка 507)
+
+### `tests/scenarios/test_incomplete_responses_recovery_scenario.py`
+- `_FakeCore` (class, строка 27)
+- `_FakeCore.set_history` (func, строка 30)
+- `_FakeCore.set_send_request` (func, строка 33)
+- `_FakeDispatcher` (class, строка 37)
+- `_FakeDispatcher.__init__` (func, строка 40)
+- `_FakeDispatcher.dispatch` (func, строка 43)
+- `_FakeDispatcher.dispatch_json` (func, строка 46)
+- `_make_state` (func, строка 59)
+- `_run_until_terminal` (func, строка 66)
+- `test_scenario_truncation_then_recovery` (func, строка 74)
+- `test_scenario_truncation_then_recovery.send` (func, строка 83)
+- `test_scenario_partial_text_is_kept_without_retry` (func, строка 107)
+- `test_scenario_partial_text_is_kept_without_retry.send` (func, строка 114)
+- `test_scenario_persistent_truncation_terminates` (func, строка 132)
+- `test_scenario_persistent_truncation_terminates.send` (func, строка 140)
 
 ### `tests/scenarios/test_json_repair_scenarios.py`
 - `_make_skill` (func, строка 24)
@@ -4891,17 +4935,18 @@
 - `_step_agent_loop_impl._on_tokens` (func, строка 2524)
 - `_step_agent_loop_impl._on_sanitized` (func, строка 2533)
 - `_step_agent_loop_impl._on_retry` (func, строка 2536)
-- `approve_pending_confirmation` (func, строка 3075)
-- `approve_pending_confirmation.emit` (func, строка 3083)
-- `deny_pending_confirmation` (func, строка 3134)
-- `deny_pending_confirmation.emit` (func, строка 3142)
-- `approve_sanitized_content` (func, строка 3184)
-- `approve_sanitized_content.emit` (func, строка 3194)
-- `deny_sanitized_content` (func, строка 3231)
-- `deny_sanitized_content.emit` (func, строка 3240)
-- `run_agent_loop` (func, строка 3270)
-- `approve_and_apply` (func, строка 3345)
-- `discard` (func, строка 3349)
+- `_step_agent_loop_impl._on_incomplete` (func, строка 2552)
+- `approve_pending_confirmation` (func, строка 3118)
+- `approve_pending_confirmation.emit` (func, строка 3126)
+- `deny_pending_confirmation` (func, строка 3177)
+- `deny_pending_confirmation.emit` (func, строка 3185)
+- `approve_sanitized_content` (func, строка 3227)
+- `approve_sanitized_content.emit` (func, строка 3237)
+- `deny_sanitized_content` (func, строка 3274)
+- `deny_sanitized_content.emit` (func, строка 3283)
+- `run_agent_loop` (func, строка 3313)
+- `approve_and_apply` (func, строка 3388)
+- `discard` (func, строка 3392)
 
 ### `dev_agent/assistant_detector.py`
 - `list_all_assistants_for_detection` (func, строка 49)

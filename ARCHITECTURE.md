@@ -238,7 +238,10 @@ SagaAI построена по модульной архитектуре с чё
    в фазу `calling_llm` и отправляет запрос основной моделью; при
    обрыве связи (`RequestTimeoutError` / `NetworkError`) запрос повторяется
    прозрачно (`retry_call` в `core/api_layer.py`), в ленту чата идёт событие
-   `retrying_llm`.
+   `retrying_llm`. Если тело HTTP 200 помечено `status == "incomplete"`
+   (усечение по лимиту токенов) и видимого текста нет, запрос повторяется
+   РОВНО ОДИН раз с `reasoning_effort='none'`, в ленту идёт событие
+   `incomplete_retry`.
 4. Перед шагом LLM `refresh_context_snapshots` добавляет в историю
    изменившиеся снапшоты task state / thread context скрытыми
    system-сообщениями (append-only: проводная последовательность
@@ -355,6 +358,13 @@ LLM-запросы обёрнуты в `retry_call` (`core/api_layer.py`): по�
 Responses (`core/assistant_tools.py`) обёрнуты тем же механизмом. Сообщение
 пользователя персистится в историю ДО вызова модели - при исчерпании всех
 попыток диалог не теряется, а продолжается со следующего сообщения.
+
+Отдельный необязательный `incomplete_callback` (по образцу
+`usage_callback`/`sanitized_callback`) сообщает вызывающему о теле HTTP 200
+со статусом `incomplete` (`_responses_incomplete_details`, reason обычно
+`max_output_tokens`), которое иначе выглядело бы как обычный пустой ответ.
+`dev_agent/agent_loop.py` подписывается на него и при отсутствии видимого
+текста делает один восстановительный повтор с пониженным `reasoning_effort`.
 
 ### Web-search модель (search_service/model)
 Отдельная пара service/model для задач с веб-поиском, хранится в

@@ -926,6 +926,34 @@ def test_render_event_retrying_llm_warns_with_i18n(mock_env):
     assert t_calls[0][1]["delay"] == 30
 
 
+def test_render_event_incomplete_retry_warns_with_i18n(mock_env):
+    """_render_event('incomplete_retry') draws st.warning with the translated
+    orch_incomplete_retry key and the truncation reason."""
+    from ui.pages import orchestrator as orch_mod
+
+    orch_mod.st = mock_env
+    ev = {"type": "incomplete_retry", "reason": "max_output_tokens",
+          "output_tokens": 384000}
+    t_calls = []
+
+    def fake_t(key, *a, **k):
+        t_calls.append((key, k))
+        return key
+
+    with patch.object(orch_mod, "t", side_effect=fake_t):
+        orch_mod._render_event(ev, "English")
+
+    warnings = [
+        (args[0] if args else "", kwargs)
+        for name, args, kwargs in mock_env.calls
+        if name == "warning"
+    ]
+    assert warnings, "st.warning was not rendered for incomplete_retry"
+    assert warnings[0][0] == "orch_incomplete_retry"
+    assert t_calls[0][1]["lang"] == "English"
+    assert t_calls[0][1]["reason"] == "max_output_tokens"
+
+
 # ─── _attach_events / first-step failure visibility ───────────────────────────
 
 def test_attach_events_targets_last_assistant_of_current_turn(mock_env):

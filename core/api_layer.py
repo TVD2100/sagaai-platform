@@ -529,6 +529,48 @@ def _responses_failure_details(data: dict) -> dict:
     }
 
 
+# ─── Incomplete (truncated) Responses detection ─────────────────────────────
+
+
+def _responses_incomplete_details(data: dict) -> dict:
+    """Return details when a Responses body was truncated by the token limit.
+
+    Some providers answer with HTTP 200 and ``status == "incomplete"`` when
+    the generation stopped early - most commonly because the reasoning
+    budget consumed the whole ``max_output_tokens`` allowance
+    (``incomplete_details.reason == "max_output_tokens"``). In that case the
+    message ``output`` may contain only reasoning items and NO user-visible
+    text, so the raw body looks like a normal empty answer. Callers use this
+    to distinguish "the model said nothing" from "the model ran out of
+    budget" and to recover (e.g. lower the reasoning effort and retry).
+
+    Returns {} when the body is not an incomplete response; otherwise a
+    compact dict with the status, the machine-readable reason and the
+    provider response id.
+    """
+    if not isinstance(data, dict):
+        return {}
+    status = str(data.get("status") or "").strip().lower()
+    if status != "incomplete":
+        return {}
+    reason = ""
+    details = data.get("incomplete_details")
+    if isinstance(details, dict):
+        reason = str(details.get("reason") or "").strip()
+    usage = data.get("usage")
+    output_tokens = 0
+    if isinstance(usage, dict):
+        output_tokens = int(
+            usage.get("output_tokens") or usage.get("completion_tokens") or 0
+        )
+    return {
+        "status": status,
+        "reason": reason,
+        "id": str(data.get("id") or ""),
+        "output_tokens": output_tokens,
+    }
+
+
 def _responses_failure_message(data: dict) -> str:
     """Return a user-facing message for a failed Responses body (or "")."""
     details = _responses_failure_details(data)
@@ -805,6 +847,7 @@ def _deepseek_responses_request(base_url: str, api_key: str, model: str,
                                 max_tool_calls=None, reasoning_effort: str = None,
                                 cfg: dict = None,
                                 svc_name: str = "", usage_callback=None,
+                                incomplete_callback=None,
                                 tool_choice=None, json_schema=None) -> str:
     """Send a DeepSeek Responses API request (POST /responses).
 
@@ -874,6 +917,9 @@ def _deepseek_responses_request(base_url: str, api_key: str, model: str,
 
     data = r.json()
     _raise_responses_failure(data, svc_name)
+    incomplete = _responses_incomplete_details(data)
+    if incomplete and incomplete_callback:
+        incomplete_callback(incomplete)
     result_text = _extract_deepseek_responses_text(data)
     if json_format and result_text.strip():
         result_text = _unwrap_json_text(result_text)
@@ -1158,6 +1204,7 @@ def _yandex_responses_request(base_url: str, api_key: str, folder_id: str,
                               max_tool_calls=None, reasoning_effort: str = None,
                               cfg: dict = None,
                               svc_name: str = "", usage_callback=None,
+                              incomplete_callback=None,
                               tool_choice=None, svc: dict = None,
                               assistant: Optional[dict] = None,
                               json_schema=None) -> str:
@@ -1247,6 +1294,9 @@ def _yandex_responses_request(base_url: str, api_key: str, folder_id: str,
 
     data = r.json()
     _raise_responses_failure(data, svc_name)
+    incomplete = _responses_incomplete_details(data)
+    if incomplete and incomplete_callback:
+        incomplete_callback(incomplete)
     result_text = _extract_responses_text(data)
     if json_format and result_text.strip():
         result_text = _unwrap_json_text(result_text)
@@ -1636,6 +1686,7 @@ def send_request(user_message: str, assistant: Optional[dict] = None,
                  file_context: str = "", history: list = None,
                  lang: str = None,
                  usage_callback=None,
+                 incomplete_callback=None,
                  enable_injection_protection: bool = True,
                  sanitized_callback=None,
                  sanitized_approved_paths=None,
@@ -1787,6 +1838,7 @@ def send_request(user_message: str, assistant: Optional[dict] = None,
                     reasoning_effort=reasoning_effort,
                     tool_choice=tool_choice,
                     usage_callback=usage_callback,
+                    incomplete_callback=incomplete_callback,
                     native_function_tools=native_function_tools,
                     assistant=assistant,
                     on_tool_call=kwargs.get("on_tool_call"),
@@ -1828,6 +1880,7 @@ def _do_request(auth_type: str, svc_name: str, svc: dict, cfg: dict,
                 temp: float, max_tokens: int,
                 tools_list: list, max_tool_calls, usage_callback,
                 tool_choice=None, reasoning_effort=None,
+                incomplete_callback=None,
                 native_function_tools: bool = False, assistant: dict = None,
                 on_tool_call=None, json_schema=None, retry_callback=None) -> str:
     """Dispatch to the appropriate auth-handler. Internal helper of send_request."""
@@ -1865,6 +1918,7 @@ def _do_request(auth_type: str, svc_name: str, svc: dict, cfg: dict,
             cfg=cfg,
             svc_name=svc_name,
             usage_callback=usage_callback,
+            incomplete_callback=incomplete_callback,
             tool_choice=tool_choice,
             json_schema=json_schema,
         )
@@ -1910,6 +1964,7 @@ def _do_request(auth_type: str, svc_name: str, svc: dict, cfg: dict,
             cfg=cfg,
             svc_name=svc_name,
             usage_callback=usage_callback,
+            incomplete_callback=incomplete_callback,
             tool_choice=tool_choice,
             svc=svc,
             assistant=assistant,

@@ -228,6 +228,19 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   `input` запроса - каскад HTTP 400 «Content of input is empty» после
   сохранённого пустого ответа устранён (`core/api_layer.py`,
   `core/assistant_tools.py`, `core/api_errors.py`).
+- **Усечённый (incomplete) ответ не выглядит как пустой.** Тело HTTP 200
+  со статусом `incomplete` (обычно `incomplete_details.reason ==
+  "max_output_tokens"`: бюджет рассуждений съел весь лимит вывода и
+  видимого текста не осталось) детектируется в обоих Responses-провайдерах
+  (`_responses_incomplete_details`, Yandex AI Studio и DeepSeek) и
+  пробрасывается наружу необязательным `incomplete_callback`. Оркестратор
+  (`dev_agent/agent_loop.py`) при пустом тексте делает РОВНО ОДИН
+  восстановительный повтор с `reasoning_effort='none'` (весь бюджет уходит
+  на видимый текст), сохраняя файловый контекст пользователя, и показывает
+  в чате событие `incomplete_retry` (i18n-ключ `orch_incomplete_retry`).
+  Ответ с видимым текстом не повторяется; повтор ограничен одним разом на
+  шаг (`core/api_layer.py`, `dev_agent/agent_loop.py`,
+  `ui/pages/orchestrator.py`).
 
 
 ### FR7 - DevAgent (встроенный разработчик)
