@@ -2,11 +2,11 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-10-14T18:54:35+00:00`
+- Обновлено: `2026-10-14T19:21:12+00:00`
 - Файлов: **332**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **4351**
-- Отпечаток содержимого: `sha256:c2afd8bbc0390e9183222b3cd721c6aac8f0f2dca5a6849b61585b310db79605` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Python-символов: **4367**
+- Отпечаток содержимого: `sha256:f1bb044474f0419d466caddb5a25654a6db0ed204e28cb615a6ab84c41878a2f` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
 - Языки: Config: 1, JSON: 19, Markdown: 37, PEM certificate: 1, Python: 277, Text: 1
 
 ## Файлы и назначение
@@ -72,7 +72,7 @@
 | `core/prompt_guard.py` | Python | Prompt-injection protection and sanitization | - |
 | `core/prompt_improver.py` | Python | _(описание не задано)_ | - |
 | `core/rag.py` | Python | RAG base CRUD: folder and manifest (search_mode bm25/vector/hybrid, default bm25), explicit-slug create_base (Latin, normalised), files, chunk stats and the provider-credentials activity flag | - |
-| `core/rag_bm25.py` | Python | Own BM25 lexical index of a RAG base: bm25_terms/bm25_docs tables in index.db (schema v2); conservative Cyrillic stemmer and ru/en stop-words, chunk-header metadata stripped from the indexed text (title boosted), coordination factor for multi-term queries, lazy rebuild of older indexes, incremental hooks, no API keys | - |
+| `core/rag_bm25.py` | Python | Own BM25F lexical index of a RAG base: bm25_terms/bm25_docs tables with a field dimension in index.db (schema v3); body and chunk-header indexed as SEPARATE fields with their own df/avgdl, so a repeated header does not collapse the body IDF while a header-only product name stays searchable; conservative Cyrillic stemmer, ru/en stop-words, coordination factor, lazy rebuild of older indexes/legacy tables, incremental hooks, no API keys | - |
 | `core/rag_chunker.py` | Python | _(описание не задано)_ | - |
 | `core/rag_embeddings.py` | Python | _(описание не задано)_ | - |
 | `core/rag_index.py` | Python | Local SQLite RAG index: chunks plus optional vectors, BM25 sync hooks (add/update/delete/reset), fetch_chunks, cached counters | - |
@@ -167,10 +167,10 @@
 | `tests/test_propose_file.py` | Python | propose_file tool tests | - |
 | `tests/test_propose_file_scenarios.py` | Python | propose_file edge-case tests | - |
 | `tests/test_protect_history.py` | Python | History protection tests | - |
-| `tests/test_rag_bm25.py` | Python | Unit: own BM25 index (tokenization, stemming, stop-words, chunk-metadata separation, coordination, schema version, manual ranking check, lazy rebuild, incremental hooks, stats/drop) | - |
+| `tests/test_rag_bm25.py` | Python | Unit: own BM25F index (tokenization, stemming, stop-words, fielded body/meta separation, header-only product findable, repeated-header IDF kept, legacy unfielded tables rebuild, coordination, schema version, manual ranking check, lazy rebuild, incremental hooks, stats/drop) | - |
 | `tests/test_rag_chunks_and_preset_skills.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_rag_create_base_slug.py` | Python | Unit: rag.create_base explicit slug - normalisation to [a-z0-9_.-], refusal without Latin, duplicate slug, name-derived fallback | storage |
-| `tests/test_rag_eval.py` | Python | Unit: rag_eval - metrics on hand-checked rankings, fixture loading errors, end-to-end run and the recorded quality baseline | - |
+| `tests/test_rag_eval.py` | Python | Unit: rag_eval - metrics on hand-checked rankings, fixture loading errors, end-to-end run, the recorded quality baseline and the multi-product BM25F benchmark (product-scoped queries at recall@5 = MRR = 1.0) | - |
 | `tests/test_rag_hot_paths_no_stats.py` | Python | _(описание не задано)_ | - |
 | `tests/test_rag_stats_cache.py` | Python | _(описание не задано)_ | - |
 | `tests/test_rag_tools_robustness.py` | Python | _(описание не задано)_ | - |
@@ -253,7 +253,7 @@
 | `tests/scenarios/test_rag_context_restore.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_perf_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_search_modes_scenario.py` | Python | Scenarios: offline bm25 base end-to-end, vector->hybrid switch with RRF and bm25 degradation, error paths | - |
-| `tests/scenarios/test_rag_search_quality_scenario.py` | Python | Scenarios: search quality - morphology across word forms, repeated-header IDF, stop-words/coordination, transparent upgrade of a previous-release index | - |
+| `tests/scenarios/test_rag_search_quality_scenario.py` | Python | Scenarios: search quality - morphology across word forms, repeated-header IDF, stop-words/coordination, transparent upgrade of a previous-release index, and multi-product ranking where the product name lives only in the header (BM25F) | - |
 | `tests/scenarios/test_recent_workspace_scopes_scenario.py` | Python | Scenario tests: per-orchestrator recent-folder menu (isolation, platform paths hidden, scoped writes) | storage |
 | `tests/scenarios/test_resume_identity_scenarios.py` | Python | Scenario: resume identity - stored thread messages round-trip byte-for-byte after reload | storage |
 | `tests/scenarios/test_search_in_files_scenarios.py` | Python | _(описание не задано)_ | - |
@@ -313,7 +313,7 @@
 | `defaults/langs/zh-CN.json` | JSON | UI strings (Chinese, incl. token_line_* keys) | - |
 | `defaults/langs/zh_CN_guide.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/skills/README.md` | Markdown | _(описание не задано)_ | - |
-| `defaults/skills/rag_base_creator/SKILL.md` | Markdown | Rag Base Creator skill: create and index RAG bases; Search modes section (bm25 default without keys, vector, hybrid), --search-mode | - |
+| `defaults/skills/rag_base_creator/SKILL.md` | Markdown | Rag Base Creator skill: create and index RAG bases; Search modes section (bm25 default without keys - fielded BM25F over body+header, vector, hybrid), --search-mode | - |
 | `defaults/skills/rag_base_creator/scripts/build_base.py` | Python | Rag Base Creator helper: builds a base offline (default bm25, no embedding calls) or with embeddings for vector/hybrid | - |
 | `defaults/services/deepseek.json` | JSON | DeepSeek service definition (defaults copy; vision_base_url + vision_models catalog; declared default output limit ~32k) | - |
 | `defaults/services/gigachat.json` | JSON | _(описание не задано)_ | - |
@@ -1138,35 +1138,39 @@
 - `json_load` (func, строка 569)
 
 ### `core/rag_bm25.py`
-- `split_metadata` (func, строка 97)
-- `_has_cyrillic` (func, строка 161)
-- `stem_token` (func, строка 166)
-- `tokenize` (func, строка 223)
-- `content_terms` (func, строка 235)
-- `_unique_terms` (func, строка 250)
-- `indexed_terms` (func, строка 267)
-- `_connect` (func, строка 285)
-- `ensure_schema` (func, строка 300)
-- `_read_meta_int` (func, строка 328)
-- `_read_meta_str` (func, строка 339)
-- `_write_meta` (func, строка 347)
-- `_init_counter` (func, строка 356)
-- `_bump_meta` (func, строка 364)
-- `is_ready` (func, строка 374)
-- `_terms_to_counts` (func, строка 394)
-- `_write_chunk_rows` (func, строка 402)
-- `rebuild_index` (func, строка 428)
-- `ensure_ready` (func, строка 481)
-- `drop_index_conn` (func, строка 492)
-- `drop_index` (func, строка 505)
-- `_remove_chunk_rows` (func, строка 522)
-- `index_chunk` (func, строка 542)
-- `on_chunk_added` (func, строка 570)
-- `on_chunk_updated` (func, строка 592)
-- `remove_chunk_conn` (func, строка 597)
-- `on_chunk_deleting` (func, строка 609)
-- `search` (func, строка 631)
-- `stats` (func, строка 738)
+- `_len_key` (func, строка 110)
+- `split_metadata` (func, строка 126)
+- `_meta_text` (func, строка 158)
+- `_has_cyrillic` (func, строка 200)
+- `stem_token` (func, строка 205)
+- `tokenize` (func, строка 262)
+- `content_terms` (func, строка 274)
+- `_unique_terms` (func, строка 289)
+- `field_terms` (func, строка 306)
+- `indexed_terms` (func, строка 322)
+- `_connect` (func, строка 337)
+- `_table_has_column` (func, строка 352)
+- `ensure_schema` (func, строка 368)
+- `_read_meta_int` (func, строка 412)
+- `_read_meta_str` (func, строка 423)
+- `_write_meta` (func, строка 431)
+- `_init_counter` (func, строка 440)
+- `_bump_meta` (func, строка 448)
+- `is_ready` (func, строка 458)
+- `_terms_to_counts` (func, строка 478)
+- `_remove_chunk_rows` (func, строка 486)
+- `_write_chunk_fields` (func, строка 510)
+- `rebuild_index` (func, строка 536)
+- `ensure_ready` (func, строка 586)
+- `drop_index_conn` (func, строка 598)
+- `drop_index` (func, строка 614)
+- `index_chunk` (func, строка 632)
+- `on_chunk_added` (func, строка 655)
+- `on_chunk_updated` (func, строка 677)
+- `remove_chunk_conn` (func, строка 682)
+- `on_chunk_deleting` (func, строка 694)
+- `search` (func, строка 716)
+- `stats` (func, строка 833)
 
 ### `core/rag_chunker.py`
 - `_list_index` (func, строка 23)
@@ -3044,14 +3048,22 @@
 - `TestMetadataSeparation.test_repeated_product_header_does_not_destroy_idf` (func, строка 365)
 - `TestMetadataSeparation.test_title_is_still_indexed_with_a_boost` (func, строка 389)
 - `TestMetadataSeparation.test_body_length_excludes_the_header` (func, строка 399)
-- `TestCoordination` (class, строка 410)
-- `TestCoordination.test_chunk_with_all_terms_outranks_partial_match` (func, строка 411)
-- `TestCoordination.test_coordination_does_not_drop_partial_matches` (func, строка 419)
-- `TestCoordination.test_single_term_query_has_no_coordination` (func, строка 427)
-- `TestSchemaVersion` (class, строка 440)
-- `TestSchemaVersion.test_rebuild_records_schema_version` (func, строка 441)
-- `TestSchemaVersion.test_older_schema_version_forces_one_rebuild` (func, строка 450)
-- `TestSchemaVersion.test_dropped_index_rebuilds_on_search` (func, строка 464)
+- `TestBM25FFields` (class, строка 408)
+- `TestBM25FFields.test_field_terms_split_header_from_body` (func, строка 409)
+- `TestBM25FFields.test_product_name_only_in_header_is_searchable` (func, строка 420)
+- `TestBM25FFields.test_multi_product_query_ranks_correct_product_first` (func, строка 434)
+- `TestBM25FFields.test_repeated_header_term_keeps_body_match_discriminative` (func, строка 451)
+- `TestBM25FFields.test_fragment_marker_is_not_indexed` (func, строка 466)
+- `TestBM25FFields.test_stats_reports_body_and_meta_tokens` (func, строка 473)
+- `TestBM25FFields.test_legacy_unfielded_tables_trigger_rebuild` (func, строка 482)
+- `TestCoordination` (class, строка 506)
+- `TestCoordination.test_chunk_with_all_terms_outranks_partial_match` (func, строка 507)
+- `TestCoordination.test_coordination_does_not_drop_partial_matches` (func, строка 515)
+- `TestCoordination.test_single_term_query_has_no_coordination` (func, строка 523)
+- `TestSchemaVersion` (class, строка 536)
+- `TestSchemaVersion.test_rebuild_records_schema_version` (func, строка 537)
+- `TestSchemaVersion.test_older_schema_version_forces_one_rebuild` (func, строка 546)
+- `TestSchemaVersion.test_dropped_index_rebuilds_on_search` (func, строка 560)
 
 ### `tests/test_rag_chunks_and_preset_skills.py`
 - `isolated_data_dir` (func, строка 25)
@@ -3103,24 +3115,27 @@
 - `test_blank_slug_falls_back_to_name` (func, строка 95)
 
 ### `tests/test_rag_eval.py`
-- `TestMetrics` (class, строка 36)
-- `TestMetrics.test_recall_at_k_perfect_and_partial` (func, строка 37)
-- `TestMetrics.test_recall_at_k_without_relevant_is_zero` (func, строка 44)
-- `TestMetrics.test_reciprocal_rank_first_hit_position` (func, строка 47)
-- `TestMetrics.test_ndcg_perfect_ranking_is_one` (func, строка 53)
-- `TestMetrics.test_ndcg_penalises_lower_rank` (func, строка 58)
-- `TestMetrics.test_ndcg_matches_hand_computed_value` (func, строка 64)
-- `TestFixtureLoading` (class, строка 75)
-- `TestFixtureLoading.test_load_corpus_and_queries` (func, строка 76)
-- `TestFixtureLoading.test_missing_file_raises_runtime_error` (func, строка 84)
-- `TestFixtureLoading.test_invalid_json_raises_runtime_error` (func, строка 88)
-- `TestFixtureLoading.test_empty_chunks_rejected` (func, строка 94)
-- `TestBundledBenchmark` (class, строка 103)
-- `TestBundledBenchmark.test_evaluate_runs_and_reports_metrics` (func, строка 104)
-- `TestBundledBenchmark.test_quality_not_below_recorded_baseline` (func, строка 115)
-- `TestBundledBenchmark.test_word_forms_of_same_lemma_reach_the_same_chunks` (func, строка 126)
-- `TestBundledBenchmark.test_cli_returns_zero_on_success` (func, строка 140)
-- `TestBundledBenchmark.test_cli_returns_one_on_missing_fixture` (func, строка 146)
+- `TestMetrics` (class, строка 38)
+- `TestMetrics.test_recall_at_k_perfect_and_partial` (func, строка 39)
+- `TestMetrics.test_recall_at_k_without_relevant_is_zero` (func, строка 46)
+- `TestMetrics.test_reciprocal_rank_first_hit_position` (func, строка 49)
+- `TestMetrics.test_ndcg_perfect_ranking_is_one` (func, строка 55)
+- `TestMetrics.test_ndcg_penalises_lower_rank` (func, строка 60)
+- `TestMetrics.test_ndcg_matches_hand_computed_value` (func, строка 66)
+- `TestFixtureLoading` (class, строка 77)
+- `TestFixtureLoading.test_load_corpus_and_queries` (func, строка 78)
+- `TestFixtureLoading.test_missing_file_raises_runtime_error` (func, строка 86)
+- `TestFixtureLoading.test_invalid_json_raises_runtime_error` (func, строка 90)
+- `TestFixtureLoading.test_empty_chunks_rejected` (func, строка 96)
+- `TestBundledBenchmark` (class, строка 105)
+- `TestBundledBenchmark.test_evaluate_runs_and_reports_metrics` (func, строка 106)
+- `TestBundledBenchmark.test_quality_not_below_recorded_baseline` (func, строка 117)
+- `TestBundledBenchmark.test_word_forms_of_same_lemma_reach_the_same_chunks` (func, строка 128)
+- `TestMultiProductBenchmark` (class, строка 142)
+- `TestMultiProductBenchmark.test_product_scoped_queries_are_solved` (func, строка 145)
+- `TestMultiProductBenchmark.test_each_product_query_ranks_its_own_product` (func, строка 156)
+- `TestMultiProductBenchmark.test_cli_returns_zero_on_success` (func, строка 167)
+- `TestMultiProductBenchmark.test_cli_returns_one_on_missing_fixture` (func, строка 173)
 
 ### `tests/test_rag_hot_paths_no_stats.py`
 - `_invoke` (func, строка 31)
@@ -4535,6 +4550,7 @@
 - `test_skill_header_does_not_collapse_idf` (func, строка 85)
 - `test_natural_language_query_matches_keyword_form` (func, строка 114)
 - `test_previous_release_index_is_upgraded_on_first_search` (func, строка 139)
+- `test_multi_product_query_ranks_the_right_product` (func, строка 189)
 
 ### `tests/scenarios/test_recent_workspace_scopes_scenario.py`
 - `isolated_data_dir` (func, строка 31)

@@ -21,6 +21,8 @@ import scripts.rag_eval as rag_eval  # noqa: E402
 
 FIXTURE_CORPUS = Path(__file__).resolve().parent / "fixtures" / "rag_eval" / "corpus.json"
 FIXTURE_QUERIES = Path(__file__).resolve().parent / "fixtures" / "rag_eval" / "queries.json"
+MP_CORPUS = Path(__file__).resolve().parent / "fixtures" / "rag_eval" / "multiproduct_corpus.json"
+MP_QUERIES = Path(__file__).resolve().parent / "fixtures" / "rag_eval" / "multiproduct_queries.json"
 
 # Quality baseline measured before the P0 search work (see CHANGELOG):
 #   recall@5 0.8472, mrr 1.0000, ndcg@10 0.8879.
@@ -136,6 +138,31 @@ class TestBundledBenchmark:
         by_id = {row["id"]: row for row in report["rows"]}
         assert by_id["brand_nominative"]["recall"] > 0
         assert by_id["brand_genitive"]["recall"] > 0
+
+class TestMultiProductBenchmark:
+    """The BM25F fielded index must resolve product-scoped queries."""
+
+    def test_product_scoped_queries_are_solved(self):
+        """Given product names live only in the header block, when a query
+        names the product, then every relevant product chunk is in the top-5."""
+        report = rag_eval.evaluate(
+            corpus_path=str(MP_CORPUS),
+            queries_path=str(MP_QUERIES),
+        )
+        assert report["ok"] is True
+        assert report["metrics"]["recall@5"] == 1.0, report["metrics"]
+        assert report["metrics"]["mrr"] == 1.0, report["metrics"]
+
+    def test_each_product_query_ranks_its_own_product(self):
+        """No query may be captured by another product (per-query probe)."""
+        report = rag_eval.evaluate(
+            corpus_path=str(MP_CORPUS),
+            queries_path=str(MP_QUERIES),
+        )
+        by_id = {row["id"]: row for row in report["rows"]}
+        for row in by_id.values():
+            assert row["recall"] == 1.0, row
+            assert row["rr"] == 1.0, row
 
     def test_cli_returns_zero_on_success(self):
         rc = rag_eval.main(["--corpus", str(FIXTURE_CORPUS),

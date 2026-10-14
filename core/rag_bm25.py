@@ -1,18 +1,49 @@
 """
-core.rag_bm25 - own BM25 lexical index for RAG knowledge bases.
+core.rag_bm25 - own BM25F lexical index for RAG knowledge bases.
 
-Every RAG base can be searched lexically (BM25, pure Python, no API keys).
-The postings live in the base's existing local SQLite index
-(``<base_dir>/index.db``) in two extra tables:
+Every RAG base can be searched lexically (pure Python, no API keys). The
+postings live in the base's existing local SQLite index
+(``<base_dir>/index.db``) in two extra tables WITH a field dimension:
 
-  bm25_terms(term TEXT, chunk_id INTEGER, tf INTEGER)  -- per-chunk term freq
-  bm25_docs(chunk_id INTEGER PRIMARY KEY, dl INTEGER)  -- document lengths
+  bm25_terms(term TEXT, chunk_id INTEGER, field TEXT, tf INTEGER)
+  bm25_docs(chunk_id INTEGER, field TEXT, dl INTEGER)
 
-Cached counters live in the shared ``meta`` table (bm25_ready,
-bm25_version, bm25_docs_count, bm25_total_len), mirroring the style of
-core.rag_index.
+Two fields are indexed per chunk:
 
-Text analysis (added after the search audit, schema version 2):
+  * ``body`` - the chunk text with its self-describing header removed;
+  * ``meta`` - the header values written by the RAG Base Creator
+    (``Документ`` / ``Продукт`` / ``Заголовок`` / ``Раздел``).
+
+Why two fields (BM25F). A header value repeated in EVERY chunk of a
+document family (e.g. ``Продукт: Маркетинг``) is useless for ranking: when
+body and header share one posting list its document frequency reaches N and
+its IDF collapses, blinding the ranker on the corpus' own domain term. The
+fielded layout fixes this and keeps the useful half:
+
+  * each field has its OWN document frequency and average length, so a
+t    repeated header term has df ~ N *within the meta field* and contributes
+almost nothing there, while the domain term keeps a high IDF in the body
+    field;
+  * a product name that appears ONLY in the header (``Продукт: Yandex
+    Atelier``) stays searchable, because it is still indexed in the meta
+    field - without the field it was simply unfindable.
+
+Scoring (BM25F, Lucene-style k1=1.5 / b=0.75, per-field statistics):
+
+  idf(t,f)  = ln(1 + (N - df(t,f) + 0.5) / (df(t,f) + 0.5))
+  score_f(d)= sum_t idf(t,f) * tf(t,d,f) * (k1 + 1)
+              / (tf + k1 * (1 - b + b * dl(d,f) / avgdl(f)))
+  score(d)  = w_body * score_body(d) + w_meta * score_meta(d)
+
+N is the collection size, df/avgdl are taken per field, and w_body/w_meta
+are the field weights in ``FIELD_WEIGHTS`` (both 1.0 by default).
+
+Multi-term queries additionally apply a coordination factor
+(``Coord = 0.5 + 0.5 * matched_terms / total_terms``) so a chunk matching
+all meaningful query terms outranks a chunk matching only one of them.
+Single-term queries are unaffected.
+
+Text analysis:
 
   * tokenization is Unicode-aware (lowercase, ``ё`` folds to ``е``);
   * Cyrillic tokens are reduced to a conservative stem (a small
@@ -21,31 +52,17 @@ Text analysis (added after the search audit, schema version 2):
   * Latin tokens are left as they are (no risky English stemming);
   * a small Russian/English stop-word list removes function words
     (``как``, ``что``, ``для`` ...) from both indexing and queries;
-  * the self-describing chunk header written by the RAG Base Creator
-    (``Документ:`` / ``Продукт:`` / ``Заголовок:`` / ``Раздел:`` /
-    ``Фрагмент:``) is stripped from the INDEXED text, because a header
-    repeated in every chunk collapses IDF to ~0 and blinds the ranker on
-    the corpus' own domain term. Only the per-document ``Заголовок``
-    (title) is still indexed, with a boost, because it is informative and
-    not repeated corpus-wide. The stored chunk text keeps the header, so
-    the agent still reads a self-describing fragment.
+  * the self-describing chunk header is split off the body and indexed as
+    the separate ``meta`` field (see above); the STORED chunk text keeps
+    the header, so the agent still reads a self-describing fragment.
 
 Lifecycle:
 
-  * a base indexed by older versions has no BM25 tables or carries an
-    older ``bm25_version``: the first search triggers one full rebuild
-    (``ensure_ready``), after which the index is maintained incrementally
-    by the hooks below (called from the core.rag_index write functions).
-
-Scoring (Lucene-style, k1=1.5, b=0.75 by default):
-
-  idf(t)   = ln(1 + (N - df + 0.5) / (df + 0.5))
-  score(d) = sum_t idf(t) * tf * (k1 + 1) / (tf + k1 * (1 - b + b * dl/avgdl))
-
-Multi-term queries additionally apply a coordination factor
-(``Coord = 0.5 + 0.5 * matched_terms / total_terms``) so a chunk matching
-all meaningful query terms outranks a chunk matching only one of them.
-Single-term queries are unaffected.
+  * a base indexed by an older version has no BM25 tables or carries an
+    older ``bm25_version`` (or legacy tables without the ``field``
+    column): the first search triggers one full rebuild (``ensure_ready``),
+    after which the index is maintained incrementally by the hooks below
+    (called from the core.rag_index write functions).
 
 No streamlit imports; every function takes an explicit database path.
 """
@@ -64,24 +81,35 @@ TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
 DEFAULT_K1 = 1.5
 DEFAULT_B = 0.75
 
-# Schema version of the BM25 structures. Bump it whenever the text analysis
-# or the stored layout changes: is_ready() then reports False for older
-# indexes and the next search rebuilds them once (no silent stale index).
-SCHEMA_VERSION = 2
+# Schema version of the BM25 structures. Bump it whenever the text analysis,
+# the field layout or the scoring changes: is_ready() then reports False for
+# older indexes and the next search rebuilds them once (no silent stale
+# index). v3 introduced the fielded (BM25F) layout.
+SCHEMA_VERSION = 3
 
-# Title tokens of the chunk header are indexed with this weight (they are
-# informative, but a shorter field must not dominate the body).
-META_TITLE_BOOST = 2
+# Indexed fields. 'body' is the chunk text without its header; 'meta' is the
+# header block (Документ/Продукт/Заголовок/Раздел).
+FIELD_BODY = "body"
+FIELD_META = "meta"
+_FIELD_ORDER = (FIELD_BODY, FIELD_META)
+
+# Per-field weights of the BM25F score. Both default to 1.0.
+FIELD_WEIGHTS = {FIELD_BODY: 1.0, FIELD_META: 1.0}
 
 # Coordination floor for multi-term queries: a chunk matching none of the
 # extra terms keeps this share of its score (never 0, so recall is safe).
 COORD_FLOOR = 0.5
 
-# meta keys of the cached BM25 state (shared meta table).
+# meta keys of the cached BM25 state (shared meta table). Document lengths are
+# cached PER FIELD under 'bm25_len_<field>'.
 _READY_KEY = "bm25_ready"
 _VERSION_KEY = "bm25_version"
 _DOCS_KEY = "bm25_docs_count"
-_LEN_KEY = "bm25_total_len"
+
+
+def _len_key(field: str) -> str:
+    """Return the meta key that caches a field's total token count."""
+    return "bm25_len_" + str(field)
 
 
 # ─── text analysis: metadata ─────────────────────────────────────────────────
@@ -90,9 +118,10 @@ _LEN_KEY = "bm25_total_len"
 META_LINE_RE = re.compile(
     r"^(Документ|Продукт|Заголовок|Раздел|Фрагмент)\s*:\s*(.*)$", re.UNICODE)
 
-# Every header key except 'Заголовок' is dropped from the indexed text: a
-# value repeated in every chunk (Документ/Продукт/Раздел/Фрагмент) destroys
-# IDF. 'Заголовок' is re-added with META_TITLE_BOOST instead.
+# Header keys that feed the meta field. 'Фрагмент' is a pure position marker
+# (1/3, 2/3 ...) and carries no ranking signal, so it is skipped.
+_META_FIELD_KEYS = ("Документ", "Продукт", "Заголовок", "Раздел")
+
 
 def split_metadata(text: str):
     """Split a chunk into its leading metadata block and the body text.
@@ -124,6 +153,16 @@ def split_metadata(text: str):
     if not meta:
         return raw, {}
     return "\n".join(lines[idx:]), meta
+
+
+def _meta_text(meta: dict) -> str:
+    """Concatenate the header values that feed the meta field."""
+    parts = []
+    for key in _META_FIELD_KEYS:
+        val = str((meta or {}).get(key) or "").strip()
+        if val:
+            parts.append(val)
+    return " ".join(parts)
 
 
 # ─── text analysis: stemming ─────────────────────────────────────────────────
@@ -264,20 +303,33 @@ def _unique_terms(text: str) -> list:
     return terms
 
 
-def indexed_terms(text: str) -> list:
-    """Return the weighted index terms of one chunk text.
+def field_terms(text: str) -> dict:
+    """Return the analysed index terms of one chunk, grouped by field.
 
-    The self-describing header is stripped; body terms are taken as is and
-    the title (``Заголовок``) is added ``META_TITLE_BOOST`` times, so a
-    title match still ranks but cannot dominate the body.
+    The result always carries both fields:
+
+      * ``body`` - terms of the chunk text with its header removed;
+      * ``meta`` - terms of the header values (Документ/Продукт/Заголовок/
+        Раздел); emptiness means the chunk carries no header.
     """
     body, meta = split_metadata(text)
-    terms = content_terms(body)
-    title = str(meta.get("Заголовок") or "")
-    if title:
-        title_terms = content_terms(title)
-        terms.extend(title_terms * max(0, int(META_TITLE_BOOST) - 1))
-    return terms
+    return {
+        FIELD_BODY: content_terms(body),
+        FIELD_META: content_terms(_meta_text(meta)),
+    }
+
+
+def indexed_terms(text: str) -> list:
+    """Return every index term of a chunk (body first, then meta).
+
+    Convenience view for diagnostics/tests; the index itself stores the two
+    fields separately (see :func:`field_terms`).
+    """
+    terms_by_field = field_terms(text)
+    out = []
+    for field in _FIELD_ORDER:
+        out.extend(terms_by_field.get(field, []))
+    return out
 
 
 # ─── low-level helpers ───────────────────────────────────────────────────────
@@ -297,16 +349,43 @@ def _connect(db_path: str) -> sqlite3.Connection:
     return conn
 
 
+def _table_has_column(conn: sqlite3.Connection, table: str,
+                      column: str) -> bool:
+    """True when *table* exists AND carries *column* (works on any row factory)."""
+    try:
+        rows = conn.execute("PRAGMA table_info(%s)" % table).fetchall()
+    except Exception:
+        return False
+    for row in rows:
+        try:
+            if str(row[1]) == column:
+                return True
+        except Exception:
+            continue
+    return False
+
+
 def ensure_schema(conn: sqlite3.Connection) -> bool:
-    """Create the BM25 tables (idempotent). Caller owns the transaction."""
+    """Create the fielded BM25 tables (idempotent). Owns no transaction.
+
+    Legacy v1/v2 tables lack the ``field`` column: they are dropped and
+    recreated so the fielded layout can be rebuilt cleanly. The caller owns
+    the transaction.
+    """
     conn.execute(
         "CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)"
     )
+    if not _table_has_column(conn, "bm25_terms", "field"):
+        conn.execute("DROP TABLE IF EXISTS bm25_terms")
+    if not _table_has_column(conn, "bm25_docs", "field"):
+        conn.execute("DROP TABLE IF EXISTS bm25_docs")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS bm25_docs (
-               chunk_id INTEGER PRIMARY KEY REFERENCES chunks(id)
+               chunk_id INTEGER NOT NULL REFERENCES chunks(id)
                ON DELETE CASCADE,
-               dl INTEGER NOT NULL
+               field TEXT NOT NULL,
+               dl INTEGER NOT NULL,
+               PRIMARY KEY (chunk_id, field)
            )"""
     )
     conn.execute(
@@ -314,13 +393,18 @@ def ensure_schema(conn: sqlite3.Connection) -> bool:
                term TEXT NOT NULL,
                chunk_id INTEGER NOT NULL REFERENCES chunks(id)
                ON DELETE CASCADE,
+               field TEXT NOT NULL,
                tf INTEGER NOT NULL,
-               PRIMARY KEY (term, chunk_id)
+               PRIMARY KEY (term, chunk_id, field)
            )"""
     )
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_bm25_terms_chunk "
         "ON bm25_terms(chunk_id)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_bm25_terms_term_field "
+        "ON bm25_terms(term, field)"
     )
     return True
 
@@ -399,38 +483,63 @@ def _terms_to_counts(terms: list) -> dict:
     return counts
 
 
-def _write_chunk_rows(conn: sqlite3.Connection, chunk_id: int,
-                      text: str) -> int:
-    """(Re)write the postings and doc length of one chunk. Returns terms.
+def _remove_chunk_rows(conn: sqlite3.Connection, chunk_id: int) -> bool:
+    """Drop postings/doc rows of one chunk and adjust the counters.
 
-    The caller owns the transaction. The chunk text is analysed through
-    :func:`indexed_terms` (header stripped, title boosted) and the stored
-    doc length counts BODY tokens only, so a boosted title cannot distort
-    the length normalisation.
+    Positional access is used because this helper also runs on foreign
+    connections (core.rag_index) whose row factory may be the default tuple.
     """
-    body, _meta = split_metadata(text)
-    body_terms = content_terms(body)
-    counts = _terms_to_counts(indexed_terms(text))
-    if not counts:
-        return 0
     cid = int(chunk_id)
-    conn.executemany(
-        "INSERT OR REPLACE INTO bm25_terms(term, chunk_id, tf) VALUES(?, ?, ?)",
-        [(t, cid, tf) for t, tf in counts.items()],
-    )
-    conn.execute(
-        "INSERT OR REPLACE INTO bm25_docs(chunk_id, dl) VALUES(?, ?)",
-        (cid, len(body_terms)),
-    )
-    return len(counts)
+    rows = conn.execute(
+        "SELECT field, dl FROM bm25_docs WHERE chunk_id = ?", (cid,)
+    ).fetchall()
+    conn.execute("DELETE FROM bm25_terms WHERE chunk_id = ?", (cid,))
+    conn.execute("DELETE FROM bm25_docs WHERE chunk_id = ?", (cid,))
+    if not rows:
+        return False
+    for row in rows:
+        field = str(row[0])
+        dl = int(row[1] or 0)
+        _init_counter(conn, _len_key(field))
+        _bump_meta(conn, _len_key(field), -dl)
+    _init_counter(conn, _DOCS_KEY)
+    _bump_meta(conn, _DOCS_KEY, -1)
+    return True
+
+
+def _write_chunk_fields(conn: sqlite3.Connection, cid: int,
+                        terms_by_field: dict) -> int:
+    """Write postings + doc lengths for one chunk (caller owns the txn).
+
+    Returns the number of distinct terms written across all fields.
+    """
+    written = 0
+    for field in _FIELD_ORDER:
+        terms = terms_by_field.get(field) or []
+        counts = _terms_to_counts(terms)
+        if not counts:
+            continue
+        conn.executemany(
+            "INSERT OR REPLACE INTO bm25_terms(term, chunk_id, field, tf)"
+            " VALUES(?, ?, ?, ?)",
+            [(t, cid, field, tf) for t, tf in counts.items()],
+        )
+        conn.execute(
+            "INSERT OR REPLACE INTO bm25_docs(chunk_id, field, dl)"
+            " VALUES(?, ?, ?)",
+            (cid, field, len(terms)),
+        )
+        written += len(counts)
+    return written
 
 
 def rebuild_index(db_path: str) -> dict:
-    """Rebuild the whole BM25 index from the chunks table.
+    """Rebuild the whole BM25F index from the chunks table.
 
-    Returns ``{"ok": True, "docs", "tokens", "terms", "version"}`` or
-    ``{"ok": False, "error": ...}``. Idempotent; the ready flag and the
-    schema version are set only when the rebuild fully succeeded.
+    Returns ``{"ok": True, "docs", "tokens", "meta_tokens", "terms",
+    "version"}`` or ``{"ok": False, "error": ...}``. Idempotent; the ready
+    flag and the schema version are set only when the rebuild fully
+    succeeded.
     """
     if not os.path.exists(db_path):
         return {"ok": False, "error": "index database not found"}
@@ -442,36 +551,32 @@ def rebuild_index(db_path: str) -> dict:
             conn.execute("DELETE FROM bm25_docs")
             rows = conn.execute("SELECT id, text FROM chunks").fetchall()
             docs = 0
-            total_len = 0
             term_rows = 0
+            len_by_field = {field: 0 for field in _FIELD_ORDER}
             for row in rows:
-                text = row["text"]
-                body, _meta = split_metadata(text)
-                body_terms = content_terms(body)
-                counts = _terms_to_counts(indexed_terms(text))
-                if not counts:
-                    continue
                 cid = int(row["id"])
-                conn.executemany(
-                    "INSERT OR REPLACE INTO bm25_terms(term, chunk_id, tf)"
-                    " VALUES(?, ?, ?)",
-                    [(t, cid, tf) for t, tf in counts.items()],
-                )
-                conn.execute(
-                    "INSERT OR REPLACE INTO bm25_docs(chunk_id, dl) "
-                    "VALUES(?, ?)",
-                    (cid, len(body_terms)),
-                )
+                terms_by_field = field_terms(row["text"])
+                wrote = _write_chunk_fields(conn, cid, terms_by_field)
+                if wrote <= 0:
+                    continue
                 docs += 1
-                total_len += len(body_terms)
-                term_rows += len(counts)
+                term_rows += wrote
+                for field in _FIELD_ORDER:
+                    len_by_field[field] += len(terms_by_field.get(field) or [])
             _write_meta(conn, _DOCS_KEY, docs)
-            _write_meta(conn, _LEN_KEY, total_len)
+            for field in _FIELD_ORDER:
+                _write_meta(conn, _len_key(field), len_by_field[field])
             _write_meta(conn, _VERSION_KEY, SCHEMA_VERSION)
             _write_meta(conn, _READY_KEY, 1)
             conn.commit()
-            return {"ok": True, "docs": docs, "tokens": total_len,
-                    "terms": term_rows, "version": SCHEMA_VERSION}
+            return {
+                "ok": True,
+                "docs": docs,
+                "tokens": len_by_field.get(FIELD_BODY, 0),
+                "meta_tokens": len_by_field.get(FIELD_META, 0),
+                "terms": term_rows,
+                "version": SCHEMA_VERSION,
+            }
         finally:
             conn.close()
     except Exception as e:
@@ -481,8 +586,9 @@ def rebuild_index(db_path: str) -> dict:
 def ensure_ready(db_path: str) -> bool:
     """Ensure the BM25 index exists and is up to date with the schema.
 
-    Legacy bases (no tables) and bases indexed by an older schema version
-    get ONE full rebuild here, transparently to the caller.
+    Legacy bases (no tables, or an older schema version, or legacy tables
+    without the field column) get ONE full rebuild here, transparently to
+    the caller.
     """
     if is_ready(db_path):
         return True
@@ -497,8 +603,11 @@ def drop_index_conn(conn: sqlite3.Connection) -> None:
     conn.execute("DROP TABLE IF EXISTS bm25_terms")
     conn.execute("DROP TABLE IF EXISTS bm25_docs")
     conn.execute(
-        "DELETE FROM meta WHERE k IN (?, ?, ?, ?)",
-        (_READY_KEY, _VERSION_KEY, _DOCS_KEY, _LEN_KEY),
+        "DELETE FROM meta WHERE k IN (?, ?, ?)",
+        (_READY_KEY, _VERSION_KEY, _DOCS_KEY),
+    )
+    conn.execute(
+        "DELETE FROM meta WHERE k LIKE 'bm25_len_%' OR k = 'bm25_total_len'"
     )
 
 
@@ -519,52 +628,28 @@ def drop_index(db_path: str) -> None:
 
 # ─── incremental maintenance (called from core.rag_index) ────────────────────
 
-def _remove_chunk_rows(conn: sqlite3.Connection, chunk_id: int) -> bool:
-    """Drop postings/doc row of one chunk and adjust the counters."""
-    cid = int(chunk_id)
-    row = conn.execute(
-        "SELECT dl FROM bm25_docs WHERE chunk_id = ?", (cid,)
-    ).fetchone()
-    conn.execute("DELETE FROM bm25_terms WHERE chunk_id = ?", (cid,))
-    conn.execute("DELETE FROM bm25_docs WHERE chunk_id = ?", (cid,))
-    if row is None:
-        return False
-    # Positional access: this helper also runs on foreign connections
-    # (core.rag_index) whose row factory may be the default tuple.
-    dl = int(row[0] or 0)
-    _init_counter(conn, _DOCS_KEY)
-    _init_counter(conn, _LEN_KEY)
-    _bump_meta(conn, _DOCS_KEY, -1)
-    _bump_meta(conn, _LEN_KEY, -dl)
-    return True
-
 
 def index_chunk(conn: sqlite3.Connection, chunk_id: int, text: str) -> int:
     """(Re)index one chunk inside an open connection. Returns term count.
 
     The caller commits. An existing entry for the same chunk id is replaced
-    (the old doc length is subtracted from the cached counters).
+    (the old doc lengths are subtracted from the cached counters).
     """
     cid = int(chunk_id)
     _remove_chunk_rows(conn, cid)
-    body, _meta = split_metadata(text)
-    body_terms = content_terms(body)
-    counts = _terms_to_counts(indexed_terms(text))
-    if not counts:
+    terms_by_field = field_terms(text)
+    written = _write_chunk_fields(conn, cid, terms_by_field)
+    if written <= 0:
         return 0
-    conn.executemany(
-        "INSERT OR REPLACE INTO bm25_terms(term, chunk_id, tf) VALUES(?, ?, ?)",
-        [(t, cid, tf) for t, tf in counts.items()],
-    )
-    conn.execute(
-        "INSERT OR REPLACE INTO bm25_docs(chunk_id, dl) VALUES(?, ?)",
-        (cid, len(body_terms)),
-    )
+    for field in _FIELD_ORDER:
+        dl = len(terms_by_field.get(field) or [])
+        if not dl:
+            continue
+        _init_counter(conn, _len_key(field))
+        _bump_meta(conn, _len_key(field), dl)
     _init_counter(conn, _DOCS_KEY)
-    _init_counter(conn, _LEN_KEY)
     _bump_meta(conn, _DOCS_KEY, 1)
-    _bump_meta(conn, _LEN_KEY, len(body_terms))
-    return len(counts)
+    return written
 
 
 def on_chunk_added(db_path: str, chunk_id: int, text: str) -> bool:
@@ -630,13 +715,14 @@ def on_chunk_deleting(db_path: str, chunk_id: int) -> bool:
 
 def search(db_path: str, query: str, top_k: int = 5, min_score: float = 0.0,
            k1: float = DEFAULT_K1, b: float = DEFAULT_B) -> list:
-    """Run an own-BM25 search over the base index.
+    """Run an own-BM25F search over the base index.
 
     Returns hits sorted by descending score with the same shape as the
     vector search (``chunk_id``, ``text``, ``source``, ``chunk_index``,
     ``score``). Empty list for a missing database, blank query or an empty
-    index. Multi-term queries apply the coordination factor described in the
-    module docstring; single-term queries keep the plain BM25 score.
+    index. Each field (body/meta) contributes its own IDF-weighted BM25
+    score; multi-term queries apply the coordination factor described in the
+    module docstring, single-term queries keep the plain score.
     """
     if not os.path.exists(db_path):
         return []
@@ -649,45 +735,54 @@ def search(db_path: str, query: str, top_k: int = 5, min_score: float = 0.0,
         conn = _connect(db_path)
         try:
             n_docs = _read_meta_int(conn, _DOCS_KEY, 0)
-            total_len = _read_meta_int(conn, _LEN_KEY, 0)
             if n_docs <= 0:
                 return []
-            avgdl = total_len / n_docs if n_docs else 0.0
+            avgdl = {}
+            for field in _FIELD_ORDER:
+                total = _read_meta_int(conn, _len_key(field), 0)
+                avgdl[field] = (total / n_docs) if n_docs else 0.0
             scores: dict = {}
-            matched: dict = {}
-            for term in terms:
-                rows = conn.execute(
-                    "SELECT t.chunk_id AS cid, t.tf AS tf,"
-                    " COALESCE(d.dl, 0) AS dl"
-                    " FROM bm25_terms t"
-                    " LEFT JOIN bm25_docs d ON d.chunk_id = t.chunk_id"
-                    " WHERE t.term = ?",
-                    (term,),
-                ).fetchall()
-                df = len(rows)
-                if not df:
-                    continue
-                idf = math.log(1.0 + (n_docs - df + 0.5) / (df + 0.5))
-                for row in rows:
-                    tf = int(row["tf"] or 0)
-                    if tf <= 0:
+            matched_pairs: set = set()
+            for field in _FIELD_ORDER:
+                weight = float(FIELD_WEIGHTS.get(field, 1.0))
+                a = avgdl.get(field) or 0.0
+                for term in terms:
+                    rows = conn.execute(
+                        "SELECT t.chunk_id AS cid, t.tf AS tf,"
+                        " COALESCE(d.dl, 0) AS dl"
+                        " FROM bm25_terms t"
+                        " LEFT JOIN bm25_docs d"
+                        " ON d.chunk_id = t.chunk_id AND d.field = t.field"
+                        " WHERE t.term = ? AND t.field = ?",
+                        (term, field),
+                    ).fetchall()
+                    df = len(rows)
+                    if not df:
                         continue
-                    dl = int(row["dl"] or 0)
-                    denom = tf + k1 * (
-                        1.0 - b + b * (dl / avgdl if avgdl else 0.0)
-                    )
-                    if denom <= 0:
-                        continue
-                    cid = int(row["cid"])
-                    scores[cid] = scores.get(cid, 0.0) + (
-                        idf * tf * (k1 + 1.0) / denom
-                    )
-                    matched[cid] = matched.get(cid, 0) + 1
+                    idf = math.log(1.0 + (n_docs - df + 0.5) / (df + 0.5))
+                    for row in rows:
+                        tf = int(row["tf"] or 0)
+                        if tf <= 0:
+                            continue
+                        dl = int(row["dl"] or 0)
+                        denom = tf + k1 * (
+                            1.0 - b + b * (dl / a if a else 0.0)
+                        )
+                        if denom <= 0:
+                            continue
+                        cid = int(row["cid"])
+                        scores[cid] = scores.get(cid, 0.0) + (
+                            weight * idf * tf * (k1 + 1.0) / denom
+                        )
+                        matched_pairs.add((cid, term))
             if not scores:
                 return []
             # Coordination (multi-term only): a chunk matching all meaningful
             # terms must outrank a chunk matching just one of them.
             if len(terms) > 1:
+                matched: dict = {}
+                for cid, _term in matched_pairs:
+                    matched[cid] = matched.get(cid, 0) + 1
                 for cid, score in scores.items():
                     share = matched.get(cid, 0) / len(terms)
                     scores[cid] = score * (COORD_FLOOR + (1.0 - COORD_FLOOR) * share)
@@ -737,8 +832,8 @@ def search(db_path: str, query: str, top_k: int = 5, min_score: float = 0.0,
 
 def stats(db_path: str) -> dict:
     """Return diagnostic BM25 stats (sizes only; safe on missing files)."""
-    out = {"ready": False, "docs": 0, "tokens": 0, "posting_rows": 0,
-           "version": 0, "current_version": SCHEMA_VERSION}
+    out = {"ready": False, "docs": 0, "tokens": 0, "meta_tokens": 0,
+           "posting_rows": 0, "version": 0, "current_version": SCHEMA_VERSION}
     if not os.path.exists(db_path):
         return out
     try:
@@ -746,7 +841,8 @@ def stats(db_path: str) -> dict:
         try:
             out["ready"] = is_ready(db_path)
             out["docs"] = _read_meta_int(conn, _DOCS_KEY, 0)
-            out["tokens"] = _read_meta_int(conn, _LEN_KEY, 0)
+            out["tokens"] = _read_meta_int(conn, _len_key(FIELD_BODY), 0)
+            out["meta_tokens"] = _read_meta_int(conn, _len_key(FIELD_META), 0)
             out["version"] = _read_meta_int(conn, _VERSION_KEY, 0)
             try:
                 row = conn.execute(

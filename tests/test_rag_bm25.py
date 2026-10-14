@@ -405,6 +405,102 @@ class TestMetadataSeparation:
         assert rag_bm25.stats(db)["tokens"] == 2  # 'одно', 'слово'
 
 
+class TestBM25FFields:
+    def test_field_terms_split_header_from_body(self):
+        """Body and meta terms are separated; the position marker is skipped."""
+        text = ("Документ: docs/a.md\nПродукт: Маркетинг\n"
+                "Заголовок: Бренд-менеджмент\nФрагмент: 1/1\n\nпро скидки")
+        fields = rag_bm25.field_terms(text)
+        assert "маркетинг" in fields[rag_bm25.FIELD_META]
+        assert "бренд" in fields[rag_bm25.FIELD_META]
+        assert "скидк" in fields[rag_bm25.FIELD_BODY]
+        assert "маркетинг" not in fields[rag_bm25.FIELD_BODY]
+        assert "фрагмент" not in fields[rag_bm25.FIELD_META]
+
+    def test_product_name_only_in_header_is_searchable(self, tmp_path):
+        """A product name living only in the header must be found (BM25F)."""
+        db = _make_db(tmp_path)
+        cid = _add_raw(db, ("Документ: docs/atelier/a.md\n"
+                            "Продукт: Yandex Atelier\n"
+                            "Заголовок: Справочник по агентам\nФрагмент: 1/1\n\n"
+                            "функция tool_call вызывает инструмент"))
+        _add_raw(db, ("Документ: docs/gigachat/g.md\nПродукт: GigaChat\n"
+                      "Заголовок: Function calling\nФрагмент: 1/1\n\n"
+                      "GigaChat поддерживает tool_call"))
+        rag_bm25.rebuild_index(db)
+        hits = rag_bm25.search(db, "Yandex Atelier", top_k=5)
+        assert [h["chunk_id"] for h in hits] == [cid]
+
+    def test_multi_product_query_ranks_correct_product_first(self, tmp_path):
+        """The reported scenario: 'tool_call <product>' must favour it."""
+        db = _make_db(tmp_path)
+        atelier = _add_raw(db, ("Документ: docs/a/x.md\n"
+                                "Продукт: Yandex Atelier\n"
+                                "Заголовок: Агенты\nФрагмент: 1/1\n\n"
+                                "функция tool_call вызывает инструмент"))
+        _add_raw(db, ("Документ: docs/g/y.md\nПродукт: GigaChat\n"
+                      "Заголовок: Функции\nФрагмент: 1/1\n\n"
+                      "GigaChat поддерживает tool_call"))
+        _add_raw(db, ("Документ: docs/s/z.md\nПродукт: AI Studio\n"
+                      "Заголовок: API\nФрагмент: 1/1\n\n"
+                      "Responses API поле tool_call"))
+        rag_bm25.rebuild_index(db)
+        hits = rag_bm25.search(db, "tool_call Yandex Atelier", top_k=5)
+        assert hits[0]["chunk_id"] == atelier
+
+    def test_repeated_header_term_keeps_body_match_discriminative(self, tmp_path):
+        """The P0 defect must stay fixed: meta term must not blind the body."""
+        db = _make_db(tmp_path)
+        for i in range(5):
+            _add_raw(db, (f"Документ: docs/{i}.txt\nПродукт: Маркетинг\n"
+                          f"Заголовок: Тема {i}\nФрагмент: 1/1\n\n"
+                          f"тело документа номер {i}"))
+        target = _add_raw(db, ("Документ: docs/g.txt\nПродукт: Маркетинг\n"
+                               "Заголовок: Цели\nФрагмент: 1/1\n\n"
+                               "цели маркетинга на год"))
+        rag_bm25.rebuild_index(db)
+        hits = rag_bm25.search(db, "маркетинга", top_k=6)
+        assert hits[0]["chunk_id"] == target
+        assert hits[0]["score"] > 0.3
+
+    def test_fragment_marker_is_not_indexed(self, tmp_path):
+        db = _make_db(tmp_path)
+        _add_raw(db, ("Документ: docs/a.md\nПродукт: X\nЗаголовок: Y\n"
+                      "Фрагмент: 2/5\n\nтело текст"))
+        rag_bm25.rebuild_index(db)
+        assert rag_bm25.search(db, "фрагмент") == []
+
+    def test_stats_reports_body_and_meta_tokens(self, tmp_path):
+        db = _make_db(tmp_path)
+        _add_raw(db, ("Документ: docs/a.md\nПродукт: Маркетинг\n"
+                      "Заголовок: Тема\nФрагмент: 1/1\n\nодно слово"))
+        rag_bm25.rebuild_index(db)
+        stats = rag_bm25.stats(db)
+        assert stats["tokens"] == 2
+        assert stats["meta_tokens"] >= 3
+
+    def test_legacy_unfielded_tables_trigger_rebuild(self, tmp_path):
+        """Legacy tables without the 'field' column are rebuilt in place."""
+        db = _make_db(tmp_path)
+        _add_raw(db, "клиент клиента")
+        rag_bm25.rebuild_index(db)
+        conn = sqlite3.connect(db)
+        try:
+            conn.execute("DROP TABLE bm25_terms")
+            conn.execute("DROP TABLE bm25_docs")
+            conn.execute("CREATE TABLE bm25_terms (term TEXT, chunk_id INTEGER,"
+                         " tf INTEGER, PRIMARY KEY (term, chunk_id))")
+            conn.execute("CREATE TABLE bm25_docs (chunk_id INTEGER PRIMARY KEY,"
+                         " dl INTEGER)")
+            conn.execute("UPDATE meta SET v = '2' WHERE k = 'bm25_version'")
+            conn.commit()
+        finally:
+            conn.close()
+        assert rag_bm25.is_ready(db) is False
+        assert rag_bm25.search(db, "клиент") != []
+        assert rag_bm25.stats(db)["version"] == rag_bm25.SCHEMA_VERSION
+
+
 # ─── coordination and schema version ─────────────────────────────────────────
 
 class TestCoordination:

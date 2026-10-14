@@ -160,9 +160,18 @@ def test_previous_release_index_is_upgraded_on_first_search(rag_data):
     db = rag.index_db_path(slug)
     conn = sqlite3.connect(db)
     try:
-        # Simulate the previous release: old schema version, raw postings.
+        # Simulate the previous release: old schema version AND the old
+        # unfielded postings layout (no 'field' column at all).
         conn.execute("UPDATE meta SET v = '1' WHERE k = 'bm25_version'")
-        conn.execute("DELETE FROM bm25_terms")
+        conn.execute("DROP TABLE IF EXISTS bm25_terms")
+        conn.execute("DROP TABLE IF EXISTS bm25_docs")
+        conn.execute(
+            "CREATE TABLE bm25_terms (term TEXT NOT NULL,"
+            " chunk_id INTEGER NOT NULL, tf INTEGER NOT NULL,"
+            " PRIMARY KEY (term, chunk_id))")
+        conn.execute(
+            "CREATE TABLE bm25_docs (chunk_id INTEGER PRIMARY KEY,"
+            " dl INTEGER NOT NULL)")
         conn.execute("INSERT INTO bm25_terms(term, chunk_id, tf) "
                      "SELECT 'клиентами', id, 1 FROM chunks LIMIT 1")
         conn.commit()
@@ -177,5 +186,41 @@ def test_previous_release_index_is_upgraded_on_first_search(rag_data):
     assert set(h["chunk_id"] for h in first) & set(h["chunk_id"] for h in second)
     stats = rag_index.index_stats(db)
     assert stats["chunks"] == 2
+def test_multi_product_query_ranks_the_right_product(rag_data):
+    """S5: a product name living ONLY in the header must stay searchable.
+
+    given: an offline base spanning several products, where every chunk's
+           BODY mentions the generic term 'tool_call' but the product name
+           ('Yandex Atelier', 'GigaChat') appears only in the header block
+    when: the user searches 'tool_call <product>'
+    then: the chunks of THAT product rank first (a body-only index made the
+          product term unreachable, so unrelated products won)
+    """
+    import core.rag as rag
+    import core.rag_search as rag_search
+
+    base = rag.create_base(name="Products KB")
+    slug = base["slug"]
+    header = ("Документ: docs/%s/%s.md\nПродукт: %s\nЗаголовок: %s\n"
+              "Фрагмент: 1/1\n\n")
+    _index_texts(slug, [
+        header % ("atelier", "a", "Yandex Atelier", "Агенты")
+        + "функция tool_call вызывает инструмент",
+        header % ("atelier", "b", "Yandex Atelier", "Инструменты")
+        + "каждый tool_call описывает аргументы",
+        header % ("gigachat", "g", "GigaChat", "Функции")
+        + "GigaChat поддерживает tool_call",
+        header % ("ai-studio", "s", "AI Studio", "API")
+        + "Responses API поле tool_call",
+    ])
+
+    atelier = rag_search.search_base(slug, "tool_call Yandex Atelier", top_k=4)
+    assert atelier, "the product query must return hits"
+    assert {h["source"] for h in atelier[:2]} == {"doc0.txt", "doc1.txt"}
+
+    gigachat = rag_search.search_base(slug, "tool_call GigaChat", top_k=4)
+    assert gigachat[0]["source"] == "doc2.txt"
+
+
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: MIT

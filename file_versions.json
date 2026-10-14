@@ -1,15 +1,15 @@
 {
   "schema": 1,
-  "app_version": "1.15.0",
+  "app_version": "1.16.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Релиз 1.15.0 - восстановление усечённых ответов моделей: если Responses API вернул статус incomplete (лимит токенов израсходован на рассуждения, видимого текста нет), оркестратор один раз повторяет запрос с меньшим бюджетом рассуждений и возвращает нормальный ответ вместо пустого; в чате видно событие об этом.",
-    "en": "Release 1.15.0 - truncated-response recovery: when the Responses API returns status incomplete (the token budget was spent on reasoning with no visible text), the orchestrator retries once with a lower reasoning budget and returns a proper answer instead of an empty one; the chat shows a notice about it."
+    "ru": "Релиз 1.16.0 - качество лексического поиска RAG: индекс стал полезависимым (BM25F) - тело чанка и его контекстная шапка (продукт, заголовок, раздел) индексируются как отдельные поля со своей статистикой. Повтор шапки больше не обрушивает значимость термина тела, а имя продукта или раздела, встречающееся только в шапке, теперь находится. Старые индексы пересобираются автоматически при первом поиске.",
+    "en": "Release 1.16.0 - RAG lexical search quality: the index is now fielded (BM25F) - the chunk body and its context header (product, title, section) are indexed as separate fields with their own statistics. A repeated header no longer collapses the body term significance, and a product or section name living only in the header is now findable. Older indexes rebuild automatically on first search."
   },
-  "updated": "2026-10-11T19:57:01Z",
+  "updated": "2026-10-14T19:25:00Z",
   "units": {
     "core": {
-      "version": "1.28.0",
+      "version": "1.29.0",
       "note": {
         "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py. 1.15.0: SSH-коннектор - инструмент ssh_upload_file (потоковая публикация локальных файлов на сервер, sha256-верификация, до 50 МиБ); подсказка create_dirs в ошибке ssh_write_file. 1.15.1: сценарный тест каталога моделей YandexAI (tests/scenarios), пин промпта YaAgent v2.9, регенерация PROJECT_MAP.md; версия платформы 1.3.2. 1.16.0: единая модель оркестраторов - слабая модель удалена из настроек, добавлены опциональные vision/image настройки и каталоги у сервисов, рантайм на основной модели, tolerant legacy weak_*; документация и манифест обновлены; версия платформы 1.4.0. 1.17.0: мультимодальные инструменты analyze_image/generate_image (вложения диалога и файлы проекта; генерация сохраняется файлом), транспорты send_vision_request/send_image_generation_request в api_layer, глобальная инструкция multimodal_mode; версия платформы 1.5.0. 1.18.0: синхронный Images API для generate_image (единственная модель aliceai-image-art-3.0, удаление async-ветки YandexART), показ сгенерированного изображения в чате с кнопкой скачивания; версия платформы 1.6.0. 1.19.0: распознавание изображений на DeepSeek - vision_base_url и каталог vision_models (deepseek-flash) в профиле сервиса, ветка deepseek_responses с detail=original в send_vision_request, deepseek-v4.1-flash в vision-каталоге YandexAI; версия платформы 1.7.0. 1.19.1: сгенерированное изображение generate_image показывается сразу в ленте чата - блок с картинкой и кнопкой скачивания вынесен из свёрнутого блока результата (ui/pages/orchestrator.py); сценарные тесты ленты; версия платформы 1.7.1. 1.20.0: поиск по диалогам - инструменты search_in_threads/list_threads/read_thread (текущий диалог по умолчанию, scope/период) с контролем доступа к тредам; промпт DevAgent v3.15; версия платформы 1.8.0. 1.21.0: изоляция рабочей папки - пустое состояние и guard файловых инструментов, мета «последняя папка» треда с миграцией легаси-меты, недавние папки по оркестраторам, журналы/вложения при пустой папке; промпты DevAgent v3.16 / YaAgent v2.10; версия платформы 1.9.0. 1.21.1: авторетрай GET GitHub-коннектора при сетевых сбоях; компактный дайджест журнала задач; промпт DevAgent v3.17; версия платформы 1.9.1. 1.21.2: устойчивые ошибки Responses API (failed-статус -> ProviderResponseError) и фильтрация пустых сообщений input. 1.22.1: отмена эконом-профиля DeepSeek - объявленный лимит вывода возвращён к 384000, тест каталогов синхронизирован. 1.23.0: генерируемая карта проекта - AST-символы (методы/async/вложенные, реальные строки) с regex-фолбэком и лимитом 200 символов на файл, sha256-отпечаток содержимого в шапке, фильтр состава include_paths/scope_note по публикуемому набору; канонический генератор карты (publish set + main); промпт DevAgent v3.18 (правило «карта только регенерацией»); версия платформы 1.11.0. 1.24.0: AGENT.md - управляемый документ ключевой информации для агентов: AGENT_FILE и легаси-осведомлённые PROJECT_DOC_NAMES в конфиге, вид \"agent\" (алиас \"spec\") у write_doc/read_doc, скаффолд default_agent_markdown с тремя обязательными конвенциями, assess_workspace по AGENT.md|ARCHITECTURE.md; тесты обновлены, добавлен сценарный тест AGENT.md; версия платформы 1.12.0. В релизе 1.12.0 inline-лимит результатов инструментов поднят до 35 000 символов (_TOOL_RESULT_INLINE_LIMIT в agent_loop.py; сценарий переполнения контекста берёт константу из модуля). 1.25.0: RAG-режимы поиска bm25/vector/hybrid (собственный BM25-индекс, hybrid RRF). 1.26.0: create_base принимает явный slug (нормализация к [a-z0-9_.-], отказ без латиницы); навык Rag Base Creator пробрасывает --slug и ведёт --replace по нему. 1.27.0: качество лексического поиска RAG - консервативный русский стеммер, русский/английский стоп-список, вывод служебной шапки чанка из индексируемого текста (заголовок с бустом), координация терминов и ускорение отбора top-k; схема BM25 v2 с ленивым пересбором старых индексов; скрипт оценки качества scripts/rag_eval.py (Recall@k/MRR/nDCG@k).",
         "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py. 1.15.0: SSH connector - ssh_upload_file tool (streamed publishing of local files to a server, sha256 verification, up to 50 MB); create_dirs hint in the ssh_write_file error. 1.15.1: YandexAI model catalog scenario test (tests/scenarios), YaAgent v2.9 prompt pin, PROJECT_MAP.md regenerated; platform version 1.3.2. 1.16.0: single-model orchestrators - the weak model removed from settings, optional vision/image settings and service catalogs added, runtime on the main model, tolerant legacy weak_*; docs and manifest updated; platform version 1.4.0. 1.17.0: multimodal tools analyze_image/generate_image (dialog uploads and project files; generation saved to a file), send_vision_request/send_image_generation_request transports in api_layer, the global multimodal_mode instruction; platform version 1.5.0. 1.18.0: synchronous Images API for generate_image (the single model aliceai-image-art-3.0, the YandexART async branch removed), the generated image shown in the chat with a download button; platform version 1.6.0. 1.19.0: DeepSeek image analysis - vision_base_url and the vision_models catalog (deepseek-flash) in the service profile, the deepseek_responses branch with detail=original in send_vision_request, deepseek-v4.1-flash in the YandexAI vision catalog; platform version 1.7.0. 1.19.1: the generate_image picture is shown immediately in the chat feed - the image block with the download button moved out of the collapsed tool-result block (ui/pages/orchestrator.py); feed scenario tests; platform version 1.7.1. 1.20.0: dialog thread search - the search_in_threads/list_threads/read_thread tools (current dialog by default, scope/period) with thread access control; DevAgent prompt v3.15; platform version 1.8.0. 1.21.0: workspace isolation - the no-folder-selected empty state and the file-tool guard, thread last-folder meta with the legacy-meta migration, per-orchestrator recent folders, journals/uploads in the empty state; DevAgent v3.16 / YaAgent v2.10 prompts; platform version 1.9.0. 1.21.1: GitHub REST GET retries on network errors; compact task-state digest; DevAgent prompt v3.17; platform version 1.9.1. 1.21.2: resilient Responses API failures (failed status -> ProviderResponseError) and blank input filtering. 1.22.1: reverted the DeepSeek economy profile - the declared output limit is back to 384000 and the catalog test is aligned. 1.23.0: generated project map - AST symbols (methods/async/nested, real line ranges) with a regex fallback and a 200-symbol cap per file, a content sha256 fingerprint in the header, include_paths/scope_note scope filtering by the published set; the canonical map generator (publish set + main); DevAgent v3.18 prompt (map-is-generated-only rule); platform version 1.11.0. 1.24.0: AGENT.md managed key-information document: AGENT_FILE and legacy-aware PROJECT_DOC_NAMES in config, the \"agent\" doc kind (legacy \"spec\" alias) in write_doc/read_doc, the default_agent_markdown scaffold with three mandatory conventions, assess_workspace via AGENT.md|ARCHITECTURE.md; tests updated, AGENT.md scenario test added; platform version 1.12.0. In release 1.12.0 the tool-result inline limit was raised to 35,000 characters (_TOOL_RESULT_INLINE_LIMIT in agent_loop.py; the context-overflow scenario reads the constant from the module). 1.25.0: RAG search modes bm25/vector/hybrid (own BM25 index, hybrid RRF). 1.26.0: create_base accepts an explicit slug (normalised to [a-z0-9_.-], refused without Latin); the Rag Base Creator skill forwards --slug and scopes --replace to it. 1.27.0: RAG lexical search quality - conservative Russian stemmer, ru/en stop-words, chunk-header metadata removed from the indexed text (title boosted), term coordination and faster top-k; BM25 schema v2 with lazy rebuild of older indexes; the quality harness scripts/rag_eval.py (Recall@k/MRR/nDCG@k)."
@@ -167,6 +167,10 @@
           "version": "1.3.0",
           "sha256": "511cd832ef2de6bac800ad6218cbd96cc257c39dee7e3ba4907b3859222250c3"
         },
+        "core/rag_bm25.py": {
+          "version": "1.2.0",
+          "sha256": "38d2e13353eb9c3b77ce47cfc0bf6c0f2dd3ac8a9fbf09c5f7742f882fd3b3ac"
+        },
         "core/rag_chunker.py": {
           "version": "1.0.0",
           "sha256": "2a9718708e1da17dfe8a99890704c56688491ab0f607374bbfe43e0859b0cde7"
@@ -244,8 +248,8 @@
           "sha256": "c9e03ac37d50334f2e8ed0ab3770e16be2535b777d39ea36cde91591cc74858b"
         },
         "core/version.py": {
-          "version": "1.0.35",
-          "sha256": "0da925bdfef2347d29ccc2bce05350a7a3c30e30fc04c21ade47e2d19d80a080"
+          "version": "1.0.36",
+          "sha256": "d1f91b95af7bcd46b3fbbae6534428cdbe5d5947df651c61f2357a18c990ecd2"
         },
         "dev_agent/__init__.py": {
           "version": "1.0.0",
@@ -307,9 +311,13 @@
           "version": "1.2.0",
           "sha256": "66abb9f75f09ba1908b3b70012d9fea2aaf15a1fd80f687fa7ea13cdb857362e"
         },
+        "scripts/rag_eval.py": {
+          "version": "1.0.0",
+          "sha256": "c8e51a574d28e22aaa3bd091cbf9109e8d694e825de35730133b17189f6bb52f"
+        },
         "scripts/regenerate_project_map.py": {
-          "version": "1.6.0",
-          "sha256": "0e7378a4b45f60fa8576014a8378f8da7c4984badb7d5c33c876a41b76fcce5a"
+          "version": "1.7.0",
+          "sha256": "6db3daf1c3bd56221198f1640f17fce3b562ea292669202542081e983e2a454a"
         },
         "scripts/verify_manifest.py": {
           "version": "1.0.3",
@@ -351,9 +359,29 @@
           "version": "1.1.0",
           "sha256": "9434ffd54c0e9b032d1d68e17e9722c5627a170a5bc8dd8176f223c04f9156b6"
         },
+        "tests/fixtures/rag_eval/corpus.json": {
+          "version": "1.0.0",
+          "sha256": "8f44a4825d735fade58db05a84c2c41ee8ddd77367e1d6750d9c80bb83cfa0a5"
+        },
+        "tests/fixtures/rag_eval/multiproduct_corpus.json": {
+          "version": "1.0.0",
+          "sha256": "7b2450200a62a45791b2cec4b4412d32ec7e498ac4946e0f911238b0d0f71673"
+        },
+        "tests/fixtures/rag_eval/multiproduct_queries.json": {
+          "version": "1.0.0",
+          "sha256": "560800ef71b4a4e249707eefa879b45587a1422688880759fe88e814059cd6a8"
+        },
+        "tests/fixtures/rag_eval/queries.json": {
+          "version": "1.0.0",
+          "sha256": "91fd4b514ab791d1433fd180694e8d4ed6b438bec68a6b85fad69162e5881cc2"
+        },
         "tests/scenarios/test_access_scenarios.py": {
           "version": "1.0.0",
           "sha256": "e5e7389b55b2a21eda9f04c56246191561e647c30b3a5e45ed9b60b21768185e"
+        },
+        "tests/scenarios/test_agent_md_doc_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "18a035f1b193adfd2ad46ecbf74835bee99a93e0269027fd3c73526553219eee"
         },
         "tests/scenarios/test_assistant_sidebar_scenarios.py": {
           "version": "1.0.0",
@@ -399,9 +427,17 @@
           "version": "1.0.1",
           "sha256": "0d0a4d268ccffcd9f3853cb85af19ca5defebcb5cecf3ce3b4b7439a328c2528"
         },
+        "tests/scenarios/test_github_read_retry_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "00f93d08ffe23a8219a2c5fa1c0ecfd6220b33b3a0dba6bbb729671b80f8d803"
+        },
         "tests/scenarios/test_github_rest_scenario.py": {
           "version": "1.0.0",
           "sha256": "743c93400ab05d08982356d3df83ffccc00298dcb9fdbe1a045c5232c144666b"
+        },
+        "tests/scenarios/test_incomplete_responses_recovery_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "af3d50a595b22e50c902b92a81e56fb7fc692049b7860f23071a92f73eadc50a"
         },
         "tests/scenarios/test_json_repair_scenarios.py": {
           "version": "1.0.0",
@@ -439,6 +475,10 @@
           "version": "1.2.8",
           "sha256": "b3e5fa1482e5b7b6e0c72f1d9929c63ba0248ee9dc677731aa9623a2b10c0abc"
         },
+        "tests/scenarios/test_project_map_freshness_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "0fd8b154caa69d4aef6f1d08b31e377395fac075c20190c256abd39e65c5ca06"
+        },
         "tests/scenarios/test_provider_economy_settings_scenario.py": {
           "version": "1.0.0",
           "sha256": "309f31735f1c97a3ed1706bbc770dabd14b593d507bf562e5f08d6b50ac7f6b9"
@@ -455,9 +495,21 @@
           "version": "1.0.1",
           "sha256": "8c23ac5b35cd2fb4a11c5a3104ed05761da3af7df860e32874b00c7fcccc9c99"
         },
+        "tests/scenarios/test_rag_search_modes_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "8c67c456edfad3f53c2f7778fc70c3b549c4db9083c4ade1c426ac0667e01e8a"
+        },
+        "tests/scenarios/test_rag_search_quality_scenario.py": {
+          "version": "1.1.0",
+          "sha256": "018febcfec4269422f0d2b4e3ed567bc3580f93fb4db0c4fccb91ee5d11d1eb6"
+        },
         "tests/scenarios/test_recent_workspace_scopes_scenario.py": {
           "version": "1.0.0",
           "sha256": "42a4b32f10b8249d2cabcfb4c3c32505d78d95b6881182e1d3606d8048889cd7"
+        },
+        "tests/scenarios/test_resume_identity_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "1baaf5500f932e475d1983fd762c7d33caeeebca1e751c906ff615c2c7bdca87"
         },
         "tests/scenarios/test_search_in_files_scenarios.py": {
           "version": "1.0.0",
@@ -470,6 +522,10 @@
         "tests/scenarios/test_ssh_connector_scenarios.py": {
           "version": "1.1.0",
           "sha256": "9639c130e68f2c05ee768d84787dc0f9373fdb2797e0de57501df1e552c2ae5e"
+        },
+        "tests/scenarios/test_state_recovery_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "bfd26d7c586a65630e18332e8340b982b58a46fdcc2d7b14d25bcb94d2bf8e06"
         },
         "tests/scenarios/test_stats_scenario.py": {
           "version": "1.0.0",
@@ -511,6 +567,10 @@
           "version": "1.0.3",
           "sha256": "c9c9acb503a69e12defef8c52e806728126d3f6ff942de60d42bfafc8e8452de"
         },
+        "tests/scenarios/test_yandex_responses_failures_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "9524ee400e65072d45471725294323fec747612236b311023767ab7136007768"
+        },
         "tests/smoke/test_app_smoke.py": {
           "version": "1.0.1",
           "sha256": "df3fd59d22fdebfacdfc1920ccd37194c8498b9ce53b1cd3149a6edddb982e49"
@@ -519,9 +579,21 @@
           "version": "1.0.0",
           "sha256": "57c3fed99e3e7c07576de79542052dc8fdcc5e3f2f0b5168203b9fef0dcb2a3b"
         },
+        "tests/test_agent_loop_incomplete.py": {
+          "version": "1.0.0",
+          "sha256": "29895f4dd3cc13baf91b51b09180483fd0847d6f020b141fae849e8ca9c9d409"
+        },
         "tests/test_agent_loop_json_repair.py": {
           "version": "1.1.0",
           "sha256": "15b15e67c447cc18633be1a434a7fbaeafe5118fcfefacd509f189d8b9442da7"
+        },
+        "tests/test_agent_loop_snapshot_chain.py": {
+          "version": "1.0.0",
+          "sha256": "3190e191a7d2e70a5daf57aeed591f5c3216966508eb81ab5e12f4e962e69585"
+        },
+        "tests/test_agent_loop_snapshot_persistence.py": {
+          "version": "1.0.0",
+          "sha256": "7ff79cf19857bd6dbb1eb96908803ded353a68a1adcc2ef193d8545e675919ee"
         },
         "tests/test_agent_loop_thread_context.py": {
           "version": "1.0.1",
@@ -647,6 +719,10 @@
           "version": "1.2.0",
           "sha256": "db09ae4f1ef8ad86c258ba5379b1c555f5653801cccfebbd5afd6836440a29d3"
         },
+        "tests/test_github_connector_retry.py": {
+          "version": "1.0.0",
+          "sha256": "e2c4720ee78736e4a3d618f47a983b2468800421b1f4d9be5228939159eec4a5"
+        },
         "tests/test_github_tools_rest.py": {
           "version": "1.1.1",
           "sha256": "785104e7f5dd4f4cdbf6ba0c921be2309ec6607b609dc615c706df38b5d5bc4e"
@@ -719,6 +795,10 @@
           "version": "1.0.0",
           "sha256": "d01f597f047716bd896af56291bdc5b2479584f86d0e70403c666ce793444c3b"
         },
+        "tests/test_orchestrator_prompt_settings.py": {
+          "version": "1.0.0",
+          "sha256": "fad58858752be5defcdfb808a22e9865e5105d332a4c5d8a346324dab9a275a6"
+        },
         "tests/test_orchestrator_system_tools_ui.py": {
           "version": "1.0.0",
           "sha256": "dc2ba69051496ace83567e2112f5f5570accdd1f63af4900c4e549113fa5f61b"
@@ -751,6 +831,10 @@
           "version": "1.2.0",
           "sha256": "784284eb26733e98a3382e59bbd52ef3767abfec9ebe902a70855e256e7f5aec"
         },
+        "tests/test_project_map_ast.py": {
+          "version": "1.0.0",
+          "sha256": "76df9e2f561496b34093826ba9ec0011955344d45d216d761e053c547bb23e9f"
+        },
         "tests/test_prompt_guard_strict.py": {
           "version": "1.0.0",
           "sha256": "0ddba14881ce1bc283fcb3418d41c8e9c982a80acf7c5467cae12e27ab74ba23"
@@ -771,9 +855,21 @@
           "version": "1.0.0",
           "sha256": "05d194a1639eafdabcfbc82e5b9dd9ff1890009a488bc104abf58236630c1e27"
         },
+        "tests/test_rag_bm25.py": {
+          "version": "1.2.0",
+          "sha256": "2a96a85fc852eafdf8f67a4fe4accd7f771687ea94a6c2afdf2bb85d161796e2"
+        },
         "tests/test_rag_chunks_and_preset_skills.py": {
           "version": "1.0.1",
           "sha256": "1557be3c0e9d2ef87e28fb9d367490934149a1a9cd65d024bc7177c514f1c3a1"
+        },
+        "tests/test_rag_create_base_slug.py": {
+          "version": "1.0.0",
+          "sha256": "17842c6bc9c8af5a6d4e406bb569b59e4f0e1ed68dddfe0b2fb0d85d6a4d02ca"
+        },
+        "tests/test_rag_eval.py": {
+          "version": "1.1.0",
+          "sha256": "f1d5a4410d09eac129f2c6735bcd31b8478455588fa2f0385b4e782524301764"
         },
         "tests/test_rag_hot_paths_no_stats.py": {
           "version": "1.0.0",
@@ -822,6 +918,10 @@
         "tests/test_single_model_config.py": {
           "version": "1.1.0",
           "sha256": "a567419354ac1bf5e1ac93eaf16a82d2748fcef95e2bd1bcc374ed50a810e183"
+        },
+        "tests/test_skill_build_base.py": {
+          "version": "1.0.1",
+          "sha256": "7763939e0ea33c3f873b6cf7c80f7bdb50406f6ee3ac06ed43c4bbad74736a1f"
         },
         "tests/test_skills_adaptation.py": {
           "version": "1.0.1",
@@ -1050,109 +1150,17 @@
         "ui/pages/welcome.py": {
           "version": "1.0.0",
           "sha256": "ce6235fcf9d00a1981b32ea0fcdef7bb7a32c036d33a09d70cbff134cfe138ba"
-        },
-        "tests/test_github_connector_retry.py": {
-          "version": "1.0.0",
-          "sha256": "e2c4720ee78736e4a3d618f47a983b2468800421b1f4d9be5228939159eec4a5"
-        },
-        "tests/scenarios/test_state_recovery_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "bfd26d7c586a65630e18332e8340b982b58a46fdcc2d7b14d25bcb94d2bf8e06"
-        },
-        "tests/scenarios/test_github_read_retry_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "00f93d08ffe23a8219a2c5fa1c0ecfd6220b33b3a0dba6bbb729671b80f8d803"
-        },
-        "tests/scenarios/test_yandex_responses_failures_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "9524ee400e65072d45471725294323fec747612236b311023767ab7136007768"
-        },
-        "tests/scenarios/test_resume_identity_scenarios.py": {
-          "version": "1.0.0",
-          "sha256": "1baaf5500f932e475d1983fd762c7d33caeeebca1e751c906ff615c2c7bdca87"
-        },
-        "tests/test_agent_loop_snapshot_chain.py": {
-          "version": "1.0.0",
-          "sha256": "3190e191a7d2e70a5daf57aeed591f5c3216966508eb81ab5e12f4e962e69585"
-        },
-        "tests/test_agent_loop_snapshot_persistence.py": {
-          "version": "1.0.0",
-          "sha256": "7ff79cf19857bd6dbb1eb96908803ded353a68a1adcc2ef193d8545e675919ee"
-        },
-        "tests/test_project_map_ast.py": {
-          "version": "1.0.0",
-          "sha256": "76df9e2f561496b34093826ba9ec0011955344d45d216d761e053c547bb23e9f"
-        },
-        "tests/scenarios/test_project_map_freshness_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "0fd8b154caa69d4aef6f1d08b31e377395fac075c20190c256abd39e65c5ca06"
-        },
-        "tests/scenarios/test_agent_md_doc_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "18a035f1b193adfd2ad46ecbf74835bee99a93e0269027fd3c73526553219eee"
-        },
-        "tests/test_orchestrator_prompt_settings.py": {
-          "version": "1.0.0",
-          "sha256": "fad58858752be5defcdfb808a22e9865e5105d332a4c5d8a346324dab9a275a6"
-        },
-        "core/rag_bm25.py": {
-          "version": "1.1.0",
-          "sha256": "d330e6a560ccf5bdba9e042df668f1a8f54ed5b24962ac9ab5cd52b068017738"
-        },
-        "tests/test_rag_bm25.py": {
-          "version": "1.1.0",
-          "sha256": "e29c334a6446d9536d74d5ace046cb18696b0b7d9ce4815b673afc6083fa240c"
-        },
-        "tests/test_skill_build_base.py": {
-          "version": "1.0.1",
-          "sha256": "7763939e0ea33c3f873b6cf7c80f7bdb50406f6ee3ac06ed43c4bbad74736a1f"
-        },
-        "tests/scenarios/test_rag_search_modes_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "8c67c456edfad3f53c2f7778fc70c3b549c4db9083c4ade1c426ac0667e01e8a"
-        },
-        "tests/test_rag_create_base_slug.py": {
-          "version": "1.0.0",
-          "sha256": "17842c6bc9c8af5a6d4e406bb569b59e4f0e1ed68dddfe0b2fb0d85d6a4d02ca"
-        },
-        "scripts/rag_eval.py": {
-          "version": "1.0.0",
-          "sha256": "c8e51a574d28e22aaa3bd091cbf9109e8d694e825de35730133b17189f6bb52f"
-        },
-        "tests/test_rag_eval.py": {
-          "version": "1.0.0",
-          "sha256": "c31c5df0e7c03db8b7525f43bff616d41966530eb35543cdd796355ebf93568b"
-        },
-        "tests/scenarios/test_rag_search_quality_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "7cb4f15ca7322f7f696d1686f483e407101f7af8ccd53d2c32871755edfb2e2a"
-        },
-        "tests/fixtures/rag_eval/corpus.json": {
-          "version": "1.0.0",
-          "sha256": "8f44a4825d735fade58db05a84c2c41ee8ddd77367e1d6750d9c80bb83cfa0a5"
-        },
-        "tests/fixtures/rag_eval/queries.json": {
-          "version": "1.0.0",
-          "sha256": "91fd4b514ab791d1433fd180694e8d4ed6b438bec68a6b85fad69162e5881cc2"
-        },
-        "tests/test_agent_loop_incomplete.py": {
-          "version": "1.0.0",
-          "sha256": "29895f4dd3cc13baf91b51b09180483fd0847d6f020b141fae849e8ca9c9d409"
-        },
-        "tests/scenarios/test_incomplete_responses_recovery_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "af3d50a595b22e50c902b92a81e56fb7fc692049b7860f23071a92f73eadc50a"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.29.0",
-      "sha256": "6dc4a53abb0f2bf17ac50ef548dacb5c80834a158a9f4922cb7976d76a70b91b",
+      "version": "1.30.0",
+      "sha256": "4b1c712772d7bbe95b30314507b73190ebaf2859f5848199ff81dba2ab366e92",
       "note": {
-        "ru": "ARCHITECTURE: раздел RAG - режимы поиска, собственный BM25-индекс, RRF-гибрид и режимозависимая активность; промпт v3.20.",
-        "en": "ARCHITECTURE: RAG section - search modes, own BM25 index, RRF hybrid and mode-aware activity; prompt v3.20."
+        "ru": "ARCHITECTURE.md: раздел RAG - полезависимый BM25F (схема v3): тело и шапка индексируются раздельно, IDF доменного термина не обрушивается, имя продукта/раздела из шапки остаётся находимым; ленивый пересбор индексов v1/v2.",
+        "en": "ARCHITECTURE.md: RAG section - fielded BM25F (schema v3): body and header indexed separately, the body IDF no longer collapses, a header-only product/section name stays searchable; lazy rebuild of v1/v2 indexes."
       }
     },
     "COMPARISON.md": {
@@ -1172,19 +1180,19 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.32.0",
-      "sha256": "774c2f0f3101a578b09e7d01f350745cec6a250774635dc1abd8512b476329da",
+      "version": "1.33.0",
+      "sha256": "df690d55d2275826ad77c5ea84e0dad5aea9e7a382da61cc2690a1908858cfeb",
       "note": {
-        "ru": "Карта перегенерирована: метаданные навыков больше не советуют read_file, регрессионный тест tests/test_skills_library.py.",
-        "en": "Map regenerated: skill metadata no longer advises read_file, the tests/test_skills_library.py regression test."
+        "ru": "PROJECT_MAP.md: перегенерирована после BM25F (карта публикуемых файлов, отпечаток совпадает).",
+        "en": "PROJECT_MAP.md: regenerated after BM25F (published-file map, fingerprint matches)."
       }
     },
     "README.md": {
-      "version": "1.22.1",
-      "sha256": "f18b4ffaeccc1c024541b857cbcb9bde946a2992cbb70d01a82416629d8eb076",
+      "version": "1.23.0",
+      "sha256": "c71b1bf99b607344b43e4e5c1b133bc7e3f66bfc55e0b78e1f368e9661725648",
       "note": {
-        "ru": "README: статус v1.13.1.",
-        "en": "README: status v1.13.1."
+        "ru": "README.md: статус v1.16.0; описание RAG - полезависимый лексический индекс BM25F (тело и шапка как отдельные поля).",
+        "en": "README.md: status v1.16.0; RAG description - fielded BM25F lexical index (body and header as separate fields)."
       }
     },
     "defaults/README.md": {
@@ -1500,11 +1508,11 @@
       }
     },
     "defaults/skills/rag_base_creator/SKILL.md": {
-      "version": "1.1.1",
-      "sha256": "447dad382f69beec3fd73ffc15e91bda4a6e3b7013a6feaff6b86d50b28be29d",
+      "version": "1.1.2",
+      "sha256": "1766a66e6c298e234dd4a7deae475d9c8b0bff4e36475f31bf8d4c4a1463d687",
       "note": {
-        "ru": "Rag Base Creator: --slug - латиница, нормализация [a-z0-9_.-], обязателен для нелатинских имён; секция режимов поиска сохранена.",
-        "en": "Rag Base Creator: --slug - Latin, [a-z0-9_.-] normalisation, required for non-Latin names; the search-modes section is retained."
+        "ru": "SKILL.md: режим bm25 - полезависимый BM25F, шапка чанка индексируется отдельным полем; правки навыка (разбиение на чанки) не требовались.",
+        "en": "SKILL.md: bm25 mode is fielded BM25F, the chunk header is indexed as a separate field; the skill chunking logic needed no change."
       }
     },
     "defaults/skills/rag_base_creator/scripts/build_base.py": {
@@ -1596,11 +1604,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.5.0",
-      "sha256": "24bee89d01346440b1add4ed48828e806af6e150b5dc15e4759a00ea02d51de7",
+      "version": "1.6.0",
+      "sha256": "5ce32a782337f08d0fc2d7a57b4f246b579fa47ae4f2343b59d5729088604dfd",
       "note": {
-        "ru": "AGENT.md: FR10 - качество лексического поиска RAG (русский стеммер, стоп-слова, отделение служебной шапки чанка, координация) и скрипт метрик scripts/rag_eval.py.",
-        "en": "AGENT.md: FR10 - RAG lexical search quality (Russian stemmer, stop-words, chunk-header separation, coordination) and the metrics harness scripts/rag_eval.py."
+        "ru": "AGENT.md: FR10 - качество лексического поиска RAG: полезависимый BM25F (тело и шапка как отдельные поля), русский стеммер, стоп-слова, координация; схема bm25_version = 3; скрипт метрик scripts/rag_eval.py.",
+        "en": "AGENT.md: FR10 - RAG lexical search quality: fielded BM25F (body and header as separate fields), Russian stemmer, stop-words, coordination; schema bm25_version = 3; the metrics harness scripts/rag_eval.py."
       }
     }
   }

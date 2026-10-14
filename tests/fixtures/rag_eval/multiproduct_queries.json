@@ -1,0 +1,29 @@
+{
+  "description": "Ground-truth queries for tests/fixtures/rag_eval/multiproduct_corpus.json. Each product-scoped query must rank the chunks of THAT product first, even though the product name appears only in the header block.",
+  "queries": [
+    {
+      "id": "mp_tool_call_atelier",
+      "query": "tool_call Yandex Atelier",
+      "relevant": [["docs/atelier/agents.md", 0], ["docs/atelier/tools.md", 0]],
+      "note": "Product name only in the header; generic term in every body."
+    },
+    {
+      "id": "mp_tool_call_gigachat",
+      "query": "tool_call GigaChat",
+      "relevant": [["docs/gigachat/functions.md", 0]],
+      "note": "Same generic term, a different product."
+    },
+    {
+      "id": "mp_tool_call_ai_studio",
+      "query": "tool_call AI Studio",
+      "relevant": [["docs/ai-studio/responses.md", 0], ["docs/ai-studio/concepts.md", 0]],
+      "note": "Two AI Studio chunks; a third product must not outrank them."
+    },
+    {
+      "id": "mp_product_only",
+      "query": "Yandex Atelier",
+      "relevant": [["docs/atelier/agents.md", 0], ["docs/atelier/tools.md", 0]],
+      "note": "The product term alone, present only in the headers."
+    }
+  ]
+}

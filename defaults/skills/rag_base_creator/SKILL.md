@@ -120,12 +120,18 @@ Follow these rules unless the user explicitly requests something else:
 
 | Mode | What it does | API keys |
 |---|---|---|
-| `bm25` (default) | Lexical BM25 over the base's own SQLite index (`core.rag_bm25`). Fast, offline, deterministic. | No |
+| `bm25` (default) | Fielded lexical BM25 (BM25F) over the base's own SQLite index (`core.rag_bm25`). The chunk header and the body are indexed as SEPARATE fields, so a product name that lives only in `Продукт:` stays searchable without blinding the ranker. Fast, offline, deterministic. | No |
 | `vector` | Semantic search over YandexAI embeddings (`text-search-doc`). | Yes |
 | `hybrid` | Reciprocal Rank Fusion of bm25 + vector; degrades to bm25 when embeddings are unavailable. | For the vector part |
 
 - Chunks are ALWAYS stored in the base index; BM25 structures are built
   automatically (lazy first build, then incremental updates on chunk edits).
+- The header block is not just cosmetics for the reader: `core.rag_bm25`
+  indexes it as a SEPARATE field (BM25F). `Продукт`/`Заголовок`/`Раздел`/
+  `Документ` therefore help the search - a query naming the product or a
+  section finds its chunks - while `Фрагмент` (the `N/M` part marker) is
+  skipped as pure position data. Keep the header exactly as the helper
+  script writes it.
 - `--search-mode bm25` (the default) keeps the whole build free of embedding
   calls, so no YandexAI keys are needed.
 - The mode is stored in the base manifest (`search_mode`) and can be changed

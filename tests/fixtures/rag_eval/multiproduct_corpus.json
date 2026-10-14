@@ -1,0 +1,35 @@
+{
+  "description": "Benchmark corpus for the BM25F fielded index: several products whose chunks all mention the generic term 'tool_call' in the BODY, while the product name appears ONLY in the header block. A body-only index cannot tell the products apart.",
+  "chunks": [
+    {
+      "source": "docs/atelier/agents.md",
+      "chunk_index": 0,
+      "text": "Документ: docs/atelier/agents.md\nПродукт: Yandex Atelier\nЗаголовок: Справочник по агентам\nФрагмент: 1/2\n\nФункция tool_call позволяет агенту вызывать инструменты во время диалога."
+    },
+    {
+      "source": "docs/atelier/tools.md",
+      "chunk_index": 0,
+      "text": "Документ: docs/atelier/tools.md\nПродукт: Yandex Atelier\nЗаголовок: Описание инструментов\nФрагмент: 1/1\n\nКаждый tool_call описывает имя инструмента и его аргументы."
+    },
+    {
+      "source": "docs/ai-studio/responses.md",
+      "chunk_index": 0,
+      "text": "Документ: docs/ai-studio/responses.md\nПродукт: AI Studio\nЗаголовок: Responses API\nФрагмент: 1/2\n\nВ Responses API поле tool_call передаёт вызов инструмента ассистента."
+    },
+    {
+      "source": "docs/ai-studio/concepts.md",
+      "chunk_index": 0,
+      "text": "Документ: docs/ai-studio/concepts.md\nПродукт: AI Studio\nЗаголовок: Концепции агентов\nФрагмент: 1/1\n\nОтвет модели может содержать несколько tool_call с идентификаторами вызовов."
+    },
+    {
+      "source": "docs/gigachat/functions.md",
+      "chunk_index": 0,
+      "text": "Документ: docs/gigachat/functions.md\nПродукт: GigaChat\nЗаголовок: Function calling\nФрагмент: 1/1\n\nGigaChat поддерживает tool_call через интерфейс function calling."
+    },
+    {
+      "source": "docs/speechkit/tts.md",
+      "chunk_index": 0,
+      "text": "Документ: docs/speechkit/tts.md\nПродукт: SpeechKit\nЗаголовок: Синтез речи\nФрагмент: 1/1\n\nСинтез речи преобразует текст в аудио и к вызовам инструментов отношения не имеет."
+    }
+  ]
+}
