@@ -2,11 +2,11 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-10-15T17:34:33+00:00`
+- Обновлено: `2026-10-15T17:47:46+00:00`
 - Файлов: **336**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **4420**
-- Отпечаток содержимого: `sha256:7ea072f86c273bd6f20e47079236319200b3d6b5f1acd28e45ac724909da0035` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Python-символов: **4421**
+- Отпечаток содержимого: `sha256:8a627754b98c11d1ba8d8d26b4ee8190c0a116a7432ffd68eb9927a195ed3396` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
 - Языки: Config: 1, JSON: 21, Markdown: 37, PEM certificate: 1, Python: 279, Text: 1
 
 ## Файлы и назначение
@@ -2310,16 +2310,16 @@
 - `test_batch_commit_honest_counters_created_updated_unchanged.handler` (func, строка 1095)
 - `_make_ref_handler` (func, строка 1143)
 - `_make_ref_handler.handler` (func, строка 1148)
-- `test_create_ref_tag_on_given_sha` (func, строка 1188)
-- `test_create_tag_with_abbreviated_sha` (func, строка 1204)
-- `test_create_ref_short_form_and_default_branch_resolution` (func, строка 1219)
-- `test_create_ref_existing_ref_requires_force` (func, строка 1230)
-- `test_create_ref_rejects_invalid_ref_names` (func, строка 1249)
-- `test_create_ref_rejects_non_hex_sha` (func, строка 1256)
-- `test_create_tag_lightweight_points_at_commit` (func, строка 1265)
-- `test_create_tag_annotated_creates_tag_object` (func, строка 1279)
-- `test_create_tag_force_moves_existing_tag` (func, строка 1301)
-- `test_create_tag_rejects_refs_prefix_and_empty` (func, строка 1315)
+- `test_create_ref_tag_on_given_sha` (func, строка 1196)
+- `test_create_tag_with_abbreviated_sha` (func, строка 1212)
+- `test_create_ref_short_form_and_default_branch_resolution` (func, строка 1232)
+- `test_create_ref_existing_ref_requires_force` (func, строка 1243)
+- `test_create_ref_rejects_invalid_ref_names` (func, строка 1262)
+- `test_create_ref_rejects_non_hex_sha` (func, строка 1269)
+- `test_create_tag_lightweight_points_at_commit` (func, строка 1278)
+- `test_create_tag_annotated_creates_tag_object` (func, строка 1292)
+- `test_create_tag_force_moves_existing_tag` (func, строка 1314)
+- `test_create_tag_rejects_refs_prefix_and_empty` (func, строка 1328)
 
 ### `tests/test_github_connector_retry.py`
 - `isolated_connector` (func, строка 25)
@@ -4396,15 +4396,16 @@
 - `FakeGitHub._flat_tree` (func, строка 155)
 - `FakeGitHub._contents_commit` (func, строка 160)
 - `FakeGitHub._repo_dispatch` (func, строка 174)
-- `FakeGitHub._ref_dispatch` (func, строка 264)
-- `FakeGitHub._contents_dispatch` (func, строка 281)
-- `test_scenario_publish_read_update_delete_batch` (func, строка 341)
-- `test_scenario_upload_over_existing_file_fails_cleanly` (func, строка 462)
-- `test_scenario_created_repo_appears_in_listing` (func, строка 481)
-- `test_scenario_missing_repo_and_file_report_clean_errors` (func, строка 498)
-- `test_scenario_tool_layer_returns_error_dicts_for_failures` (func, строка 522)
-- `test_scenario_create_annotated_and_lightweight_tags` (func, строка 548)
-- `test_scenario_create_tag_resolves_default_branch_head` (func, строка 616)
+- `FakeGitHub._ref_dispatch` (func, строка 278)
+- `FakeGitHub._contents_dispatch` (func, строка 295)
+- `test_scenario_publish_read_update_delete_batch` (func, строка 355)
+- `test_scenario_upload_over_existing_file_fails_cleanly` (func, строка 476)
+- `test_scenario_created_repo_appears_in_listing` (func, строка 495)
+- `test_scenario_missing_repo_and_file_report_clean_errors` (func, строка 512)
+- `test_scenario_tool_layer_returns_error_dicts_for_failures` (func, строка 536)
+- `test_scenario_create_annotated_and_lightweight_tags` (func, строка 562)
+- `test_scenario_create_tag_resolves_default_branch_head` (func, строка 630)
+- `test_scenario_create_tag_with_abbreviated_sha` (func, строка 648)
 
 ### `tests/scenarios/test_incomplete_responses_recovery_scenario.py`
 - `_FakeCore` (class, строка 27)

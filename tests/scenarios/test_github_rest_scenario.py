@@ -229,8 +229,22 @@ class FakeGitHub:
             commit_sha = urllib.parse.unquote(rest[len("git/commits/"):])
             stored = self.commits.get(commit_sha)
             if stored is None:
+                # Git Data endpoint: full object ids only, short ids 404.
                 raise ghr.GithubRestError("Commit not found", status=404)
             return {"sha": commit_sha, "message": stored["message"],
+                    "tree": {"sha": stored["tree"]},
+                    "parents": [{"sha": p} for p in stored["parents"]]}
+
+        if rest.startswith("commits/") and method == "GET":
+            # Repositories endpoint: expands an abbreviated id to the full one.
+            short = urllib.parse.unquote(rest[len("commits/"):])
+            matches = [s for s in self.commits if s.startswith(short)]
+            if len(matches) != 1:
+                raise ghr.GithubRestError(
+                    "No commit found for SHA: " + short, status=422)
+            full = matches[0]
+            stored = self.commits[full]
+            return {"sha": full, "message": stored["message"],
                     "tree": {"sha": stored["tree"]},
                     "parents": [{"sha": p} for p in stored["parents"]]}
 
@@ -629,3 +643,32 @@ def test_scenario_create_tag_resolves_default_branch_head(isolated_data_dir):
         tagged = ghr.create_tag(conn_id, repo, "v0.1.0")
         assert tagged["target_sha"] == batch["commit_sha"]
         assert fake.refs["refs/tags/v0.1.0"] == batch["commit_sha"]
+
+
+def test_scenario_create_tag_with_abbreviated_sha(isolated_data_dir):
+    """A short commit id (as printed by git) is expanded via the
+    Repositories commits endpoint before tagging (the Git Data endpoint
+    rejects abbreviated ids, as on real GitHub)."""
+    conn = _github_rest_connection(isolated_data_dir)
+    conn_id = conn["id"]
+    repo = "tvd/scenario-abbrev"
+    fake = FakeGitHub()
+
+    with mock.patch.object(ghr, "_request", new=fake):
+        ghr.create_repo(conn_id, "scenario-abbrev", private=True,
+                        auto_init=False)
+        batch = ghr.batch_commit(
+            conn_id, repo, [{"path": "a.txt", "content": "A\n"}],
+            branch="main",
+        )
+        full = batch["commit_sha"]
+        short = full[:7]
+        assert short != full
+
+        tagged = ghr.create_tag(conn_id, repo, "v0.2.0", sha=short)
+        assert tagged["target_sha"] == full
+        assert fake.refs["refs/tags/v0.2.0"] == full
+
+        # A tag on an unknown/missing abbreviated id fails cleanly.
+        with pytest.raises(ghr.GithubRestError):
+            ghr.create_tag(conn_id, repo, "v0.3.0", sha="deadbee")

@@ -1151,8 +1151,16 @@ def _make_ref_handler(head_sha="a" * 40, tag_object_sha="b" * 40, existing=None)
         if method == "GET" and url == prefix:
             return {"default_branch": "main"}
         if method == "GET" and "/git/commits/" in url:
-            short = url.rsplit("/git/commits/", 1)[1]
-            full = short if len(short) == 40 else (short.ljust(40, "0"))
+            # Git Data endpoint: full object ids only (a short id gets a 404).
+            rest = url.rsplit("/git/commits/", 1)[1]
+            if len(rest) not in (40, 64):
+                raise ghr.GithubRestError("Not Found", status=404)
+            return {"sha": rest, "message": "m",
+                    "tree": {"sha": "t" * 40}, "parents": []}
+        if method == "GET" and "/commits/" in url:
+            # Repositories endpoint: expands an abbreviated id to the full one.
+            rest = url.rsplit("/commits/", 1)[1]
+            full = rest if len(rest) == 40 else rest.ljust(40, "0")
             return {"sha": full, "message": "m",
                     "tree": {"sha": "t" * 40}, "parents": []}
         if method == "GET" and url.endswith("/git/ref/heads/main"):
@@ -1212,8 +1220,13 @@ def test_create_tag_with_abbreviated_sha(isolated_connector):
                                 sha=short)
     assert result["target_sha"] == full
     assert state["existing"]["refs/tags/v1.17.0"] == full
-    # The abbreviation is resolved via the commits endpoint.
-    assert any(c["url"].endswith("/git/commits/" + short) for c in api.calls)
+    # The abbreviation is resolved via the Repositories commits endpoint
+    # (the Git Data /git/commits/ endpoint rejects short ids).
+    assert any(
+        c["url"].endswith("/repos/alice/repo/commits/" + short)
+        for c in api.calls
+    )
+    assert not any("/git/commits/" in c["url"] for c in api.calls)
 
 
 def test_create_ref_short_form_and_default_branch_resolution(isolated_connector):

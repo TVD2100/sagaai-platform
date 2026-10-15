@@ -673,14 +673,14 @@ def _resolve_abbreviated_sha(conn_id: str, owner: str, name: str,
 
     GitHub accepts a full object id as-is; a short id (as printed by
     ``git rev-parse --short``) is expanded through
-    ``GET /repos/{owner}/{repo}/git/commits/{sha}``, whose response carries the
+    ``GET /repos/{owner}/{repo}/commits/{sha}``, whose response carries the
     canonical ``sha``. Full 40/64-char ids are returned untouched to avoid an
     extra round-trip.
     """
     if len(value) in (40, 64):
         return value
     data = _request(
-        conn_id, "GET", f"/repos/{owner}/{name}/git/commits/{value}"
+        conn_id, "GET", f"/repos/{owner}/{name}/commits/{value}"
     )
     info = data if isinstance(data, dict) else {}
     full = str(info.get("sha") or "").strip()
