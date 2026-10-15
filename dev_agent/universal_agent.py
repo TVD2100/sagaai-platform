@@ -930,4 +930,4 @@ class UniversalDevAgent:
             return {"ok": False, "error": f"Failed to delete instruction: {slug}/{instruction_id}"}
         return {"ok": True, "slug": slug, "instruction_id": instruction_id, "deleted": True}
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

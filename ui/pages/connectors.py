@@ -321,4 +321,4 @@ def page_connectors() -> None:
     for conn in connections:
         _render_connection_card(conn, lang)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

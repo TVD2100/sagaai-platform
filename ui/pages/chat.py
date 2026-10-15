@@ -435,4 +435,4 @@ def page_run_query():
         st.session_state.input_key += 1
         st.rerun()
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

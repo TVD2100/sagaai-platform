@@ -77,4 +77,4 @@ def detect_and_select_assistant(
 # Legacy alias (old "skill" terminology).
 detect_and_select_skill = detect_and_select_assistant
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

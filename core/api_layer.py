@@ -2232,4 +2232,4 @@ def test_connection(svc_name: str, cfg: dict) -> tuple:
         return False, str(e)
     return False, "Unknown auth_type"
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -224,4 +224,4 @@ def format_api_error(exc: Exception) -> str:
     except Exception:
         return str(exc) or "multimodal error"
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

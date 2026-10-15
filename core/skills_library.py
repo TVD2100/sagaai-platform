@@ -695,4 +695,4 @@ def build_skills_metadata_text(skill_ids: List[str], lang: str = "en") -> str:
                  "`get_skill_file(<skill_id>, <filename>)` instead.")
     return "\n".join(lines)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

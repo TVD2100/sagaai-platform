@@ -253,4 +253,4 @@ def render_diff(original: str, updated: str, filename: str = "file") -> str:
     )
     return "\n".join(diff)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

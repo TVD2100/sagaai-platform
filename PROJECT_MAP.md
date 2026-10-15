@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-10-14T21:03:13+00:00`
-- Файлов: **335**
+- Обновлено: `2026-10-15T16:58:25+00:00`
+- Файлов: **336**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **4378**
-- Отпечаток содержимого: `sha256:0af77d031a66bb6636dec424a773d3b00c08be992decb86bb89932526a0bc5aa` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 1, JSON: 21, Markdown: 37, PEM certificate: 1, Python: 278, Text: 1
+- Python-символов: **4386**
+- Отпечаток содержимого: `sha256:82724981f7fd6236eb1b20c89865dc79b04e284c4fb91736b710b1be6f34049e` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 1, JSON: 21, Markdown: 37, PEM certificate: 1, Python: 279, Text: 1
 
 ## Файлы и назначение
 
@@ -239,6 +239,7 @@
 | `tests/scenarios/test_github_rest_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_incomplete_responses_recovery_scenario.py` | Python | Scenarios: incomplete-responses recovery - truncation then success, partial text kept, persistent truncation terminates | - |
 | `tests/scenarios/test_json_repair_scenarios.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_license_consistency_scenario.py` | Python | Scenario: license migration to PolyForm Noncommercial 1.0.0 - canonical LICENSE text, no MIT SPDX identifier among published files, README/COMPARISON/UI/AGENT.md agreement, 2.0.0 version and manifest consistency, documented licensing history | - |
 | `tests/scenarios/test_loop_stuck_protection_scenarios.py` | Python | Loop-stuck protection scenarios: per-tool failure counter hints, duplicate-call flood compaction, prose loop_status continue | - |
 | `tests/scenarios/test_multimodal_scenarios.py` | Python | Scenario tests for the multimodal tools (vision analysis, not_assigned, generation, provider hint) | - |
 | `tests/scenarios/test_new_dialog_empty_workspace_scenario.py` | Python | Scenario tests: a new dialog starts with no folder and never inherits a neighbour's workspace | storage |
@@ -4399,6 +4400,16 @@
 - `test_scenario_happy_path_truncated_call_is_repaired_and_executed` (func, строка 59)
 - `test_scenario_edge_case_truncation_inside_closed_fence` (func, строка 81)
 - `test_scenario_error_state_unrepairable_truncation_stops_loop` (func, строка 103)
+
+### `tests/scenarios/test_license_consistency_scenario.py`
+- `_manifest` (func, строка 36)
+- `_published_paths` (func, строка 41)
+- `_read` (func, строка 52)
+- `test_license_file_is_canonical_polyform` (func, строка 57)
+- `test_no_published_file_keeps_the_mit_spdx_identifier` (func, строка 85)
+- `test_user_facing_surfaces_agree_with_the_license` (func, строка 111)
+- `test_version_and_manifest_announce_the_change` (func, строка 137)
+- `test_licensing_history_stays_documented` (func, строка 151)
 
 ### `tests/scenarios/test_loop_stuck_protection_scenarios.py`
 - `_make_skill` (func, строка 24)

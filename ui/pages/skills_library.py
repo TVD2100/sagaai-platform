@@ -314,4 +314,4 @@ def _render_edit_form(lang: str) -> None:
                         st.session_state["slib_confirm_delete"] = False
                         st.rerun()
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -20,4 +20,4 @@ def record_assistant_use(assistant_id: str) -> None:
     # Legacy mirror for backward compatibility.
     st.session_state["recent_skill_ids"] = list(st.session_state["recent_assistant_ids"])
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

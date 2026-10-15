@@ -144,4 +144,4 @@ def test_index_base_uses_no_stats():
             idx.index_base('kb1')
     mock_gb.assert_called_once_with('kb1', with_stats=False)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -319,4 +319,4 @@ def build_summary(records: List[Dict[str, Any]], granularity: str,
         "provider_names": [r["provider"] for r in provider_rows],
     }
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -249,4 +249,4 @@ def api_error_message(exc: APIError, lang: Optional[str] = None) -> str:
         return f"Network error: {exc.message}"
     return exc.message
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

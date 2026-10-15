@@ -3413,4 +3413,4 @@ def approve_and_apply(path: str, dispatcher: Any, note: str = "") -> Dict[str, A
 def discard(path: str, dispatcher: Any) -> Dict[str, Any]:
     return dispatcher.dispatch("discard_edit", {"path": path})
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -2913,4 +2913,4 @@ TOOL_CATALOG = [
     {"name": "task_state_clear", "desc": "Archive the completed Active Task (including its task_dir meta) into the journal's Task History section after a task is finished. The journal file is NEVER deleted. Idempotent: returns archived=False when there is no active task. Args: none."},
 ]
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

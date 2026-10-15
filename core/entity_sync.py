@@ -113,4 +113,4 @@ def _backfill_slug(assistant_id: str, assistant: Dict[str, Any]) -> str:
     repo_set_assistant_slug(assistant_id, candidate)
     return candidate
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

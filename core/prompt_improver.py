@@ -117,4 +117,4 @@ def improve_prompt_with_main_model(
 # function so existing imports keep working.
 improve_prompt_with_weak_model = improve_prompt_with_main_model
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

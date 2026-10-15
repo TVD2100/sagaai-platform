@@ -296,4 +296,4 @@ def test_chunk_maintenance_keeps_counters_in_sync(rag_data):
             rag_index.index_stats(db)["embeddings"]) == _real_counts(db)
     assert rag.get_base(slug)["index_stats"]["chunks"] == rag_index.index_stats(db)["chunks"]
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

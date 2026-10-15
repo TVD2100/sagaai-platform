@@ -284,4 +284,4 @@ def test_ssh_upload_file_escape_wrapped(isolated_data_dir, monkeypatch, tmp_path
     assert result["ok"] is False
     assert "escapes" in result["error"]
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

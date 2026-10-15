@@ -857,4 +857,4 @@ def stats(db_path: str) -> dict:
         pass
     return out
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -396,4 +396,4 @@ def test_scenario_publish_local_files(isolated_data_dir, monkeypatch, tmp_path):
     assert result["ok"] is True
     assert result["result"]["stdout"].startswith(index_sha)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

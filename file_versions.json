@@ -1,27 +1,27 @@
 {
   "schema": 1,
-  "app_version": "1.17.0",
+  "app_version": "2.0.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Релиз 1.17.0 - единый бюджет контекста для эконом-режима и pre-flight guard. Устранена коллизия двух независимых бюджетов: обе подсистемы теперь используют одну формулу (0.75 x (окно - лимит вывода) - промпт), а пороги guard подняты (мягкий трим 0.75 окна, жёсткий предел 0.9). Экономический payload проходит без guard-среза, поэтому префиксный кэш на длинных тредах не рвётся; срез по токенам сбрасывает фронт окна до tail - тем же шагом, что переполнение по числу сообщений.",
-    "en": "Release 1.17.0 - a unified context budget for economy mode and the pre-flight guard. The collision of two independent budgets is gone: both subsystems now share one formula (0.75 x (window - output limit) - prompt), and the guard thresholds are raised (soft trim at 0.75 window, hard cap 0.9). An economy payload now passes without a guard trim, so the prefix cache on long threads stays intact; the token overflow resets the window front to tail - the same step a message-count overflow takes."
+    "ru": "Релиз 2.0.0 - смена лицензии: платформа переходит с MIT на PolyForm Noncommercial 1.0.0. Исходный код остаётся открытым: некоммерческое использование, изменение и распространение разрешены; коммерческое использование (внедрение и перепродажа решений на основе платформы) требует отдельного договора. Версии 1.x и ранее (до 1.17.0 включительно) остаются под MIT. Обновлены LICENSE, SPDX-идентификаторы всех поставляемых модулей, README, COMPARISON.md, AGENT.md и футер интерфейса; добавлен сценарный тест консистентности лицензии.",
+    "en": "Release 2.0.0 - license change: the platform moves from MIT to PolyForm Noncommercial 1.0.0. The source stays open: noncommercial use, modification and distribution are permitted; commercial use (deploying or reselling solutions built on the platform) requires a separate agreement. Versions 1.x and earlier (up to and including 1.17.0) remain under MIT. LICENSE, the SPDX identifiers of every shipped module, README, COMPARISON.md, AGENT.md and the UI footer were updated; a license-consistency scenario test was added."
   },
-  "updated": "2026-10-14T19:25:00Z",
+  "updated": "2026-10-15T16:56:13Z",
   "units": {
     "core": {
-      "version": "1.30.0",
+      "version": "1.31.0",
       "note": {
         "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py. 1.15.0: SSH-коннектор - инструмент ssh_upload_file (потоковая публикация локальных файлов на сервер, sha256-верификация, до 50 МиБ); подсказка create_dirs в ошибке ssh_write_file. 1.15.1: сценарный тест каталога моделей YandexAI (tests/scenarios), пин промпта YaAgent v2.9, регенерация PROJECT_MAP.md; версия платформы 1.3.2. 1.16.0: единая модель оркестраторов - слабая модель удалена из настроек, добавлены опциональные vision/image настройки и каталоги у сервисов, рантайм на основной модели, tolerant legacy weak_*; документация и манифест обновлены; версия платформы 1.4.0. 1.17.0: мультимодальные инструменты analyze_image/generate_image (вложения диалога и файлы проекта; генерация сохраняется файлом), транспорты send_vision_request/send_image_generation_request в api_layer, глобальная инструкция multimodal_mode; версия платформы 1.5.0. 1.18.0: синхронный Images API для generate_image (единственная модель aliceai-image-art-3.0, удаление async-ветки YandexART), показ сгенерированного изображения в чате с кнопкой скачивания; версия платформы 1.6.0. 1.19.0: распознавание изображений на DeepSeek - vision_base_url и каталог vision_models (deepseek-flash) в профиле сервиса, ветка deepseek_responses с detail=original в send_vision_request, deepseek-v4.1-flash в vision-каталоге YandexAI; версия платформы 1.7.0. 1.19.1: сгенерированное изображение generate_image показывается сразу в ленте чата - блок с картинкой и кнопкой скачивания вынесен из свёрнутого блока результата (ui/pages/orchestrator.py); сценарные тесты ленты; версия платформы 1.7.1. 1.20.0: поиск по диалогам - инструменты search_in_threads/list_threads/read_thread (текущий диалог по умолчанию, scope/период) с контролем доступа к тредам; промпт DevAgent v3.15; версия платформы 1.8.0. 1.21.0: изоляция рабочей папки - пустое состояние и guard файловых инструментов, мета «последняя папка» треда с миграцией легаси-меты, недавние папки по оркестраторам, журналы/вложения при пустой папке; промпты DevAgent v3.16 / YaAgent v2.10; версия платформы 1.9.0. 1.21.1: авторетрай GET GitHub-коннектора при сетевых сбоях; компактный дайджест журнала задач; промпт DevAgent v3.17; версия платформы 1.9.1. 1.21.2: устойчивые ошибки Responses API (failed-статус -> ProviderResponseError) и фильтрация пустых сообщений input. 1.22.1: отмена эконом-профиля DeepSeek - объявленный лимит вывода возвращён к 384000, тест каталогов синхронизирован. 1.23.0: генерируемая карта проекта - AST-символы (методы/async/вложенные, реальные строки) с regex-фолбэком и лимитом 200 символов на файл, sha256-отпечаток содержимого в шапке, фильтр состава include_paths/scope_note по публикуемому набору; канонический генератор карты (publish set + main); промпт DevAgent v3.18 (правило «карта только регенерацией»); версия платформы 1.11.0. 1.24.0: AGENT.md - управляемый документ ключевой информации для агентов: AGENT_FILE и легаси-осведомлённые PROJECT_DOC_NAMES в конфиге, вид \"agent\" (алиас \"spec\") у write_doc/read_doc, скаффолд default_agent_markdown с тремя обязательными конвенциями, assess_workspace по AGENT.md|ARCHITECTURE.md; тесты обновлены, добавлен сценарный тест AGENT.md; версия платформы 1.12.0. В релизе 1.12.0 inline-лимит результатов инструментов поднят до 35 000 символов (_TOOL_RESULT_INLINE_LIMIT в agent_loop.py; сценарий переполнения контекста берёт константу из модуля). 1.25.0: RAG-режимы поиска bm25/vector/hybrid (собственный BM25-индекс, hybrid RRF). 1.26.0: create_base принимает явный slug (нормализация к [a-z0-9_.-], отказ без латиницы); навык Rag Base Creator пробрасывает --slug и ведёт --replace по нему. 1.27.0: качество лексического поиска RAG - консервативный русский стеммер, русский/английский стоп-список, вывод служебной шапки чанка из индексируемого текста (заголовок с бустом), координация терминов и ускорение отбора top-k; схема BM25 v2 с ленивым пересбором старых индексов; скрипт оценки качества scripts/rag_eval.py (Recall@k/MRR/nDCG@k). 1.30.0: единый бюджет контекста (B4) - общая формула input_ceiling=окно-лимит вывода и input_budget=0.75xceiling-промпт для эконом-режима и pre-flight guard; мягкий трим 0.75 окна, жёсткий предел 0.9; эконом-срез при переполнении по токенам сбрасывает фронт до tail (единый триггер с переполнением окна).",
         "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py. 1.15.0: SSH connector - ssh_upload_file tool (streamed publishing of local files to a server, sha256 verification, up to 50 MB); create_dirs hint in the ssh_write_file error. 1.15.1: YandexAI model catalog scenario test (tests/scenarios), YaAgent v2.9 prompt pin, PROJECT_MAP.md regenerated; platform version 1.3.2. 1.16.0: single-model orchestrators - the weak model removed from settings, optional vision/image settings and service catalogs added, runtime on the main model, tolerant legacy weak_*; docs and manifest updated; platform version 1.4.0. 1.17.0: multimodal tools analyze_image/generate_image (dialog uploads and project files; generation saved to a file), send_vision_request/send_image_generation_request transports in api_layer, the global multimodal_mode instruction; platform version 1.5.0. 1.18.0: synchronous Images API for generate_image (the single model aliceai-image-art-3.0, the YandexART async branch removed), the generated image shown in the chat with a download button; platform version 1.6.0. 1.19.0: DeepSeek image analysis - vision_base_url and the vision_models catalog (deepseek-flash) in the service profile, the deepseek_responses branch with detail=original in send_vision_request, deepseek-v4.1-flash in the YandexAI vision catalog; platform version 1.7.0. 1.19.1: the generate_image picture is shown immediately in the chat feed - the image block with the download button moved out of the collapsed tool-result block (ui/pages/orchestrator.py); feed scenario tests; platform version 1.7.1. 1.20.0: dialog thread search - the search_in_threads/list_threads/read_thread tools (current dialog by default, scope/period) with thread access control; DevAgent prompt v3.15; platform version 1.8.0. 1.21.0: workspace isolation - the no-folder-selected empty state and the file-tool guard, thread last-folder meta with the legacy-meta migration, per-orchestrator recent folders, journals/uploads in the empty state; DevAgent v3.16 / YaAgent v2.10 prompts; platform version 1.9.0. 1.21.1: GitHub REST GET retries on network errors; compact task-state digest; DevAgent prompt v3.17; platform version 1.9.1. 1.21.2: resilient Responses API failures (failed status -> ProviderResponseError) and blank input filtering. 1.22.1: reverted the DeepSeek economy profile - the declared output limit is back to 384000 and the catalog test is aligned. 1.23.0: generated project map - AST symbols (methods/async/nested, real line ranges) with a regex fallback and a 200-symbol cap per file, a content sha256 fingerprint in the header, include_paths/scope_note scope filtering by the published set; the canonical map generator (publish set + main); DevAgent v3.18 prompt (map-is-generated-only rule); platform version 1.11.0. 1.24.0: AGENT.md managed key-information document: AGENT_FILE and legacy-aware PROJECT_DOC_NAMES in config, the \"agent\" doc kind (legacy \"spec\" alias) in write_doc/read_doc, the default_agent_markdown scaffold with three mandatory conventions, assess_workspace via AGENT.md|ARCHITECTURE.md; tests updated, AGENT.md scenario test added; platform version 1.12.0. In release 1.12.0 the tool-result inline limit was raised to 35,000 characters (_TOOL_RESULT_INLINE_LIMIT in agent_loop.py; the context-overflow scenario reads the constant from the module). 1.25.0: RAG search modes bm25/vector/hybrid (own BM25 index, hybrid RRF). 1.26.0: create_base accepts an explicit slug (normalised to [a-z0-9_.-], refused without Latin); the Rag Base Creator skill forwards --slug and scopes --replace to it. 1.27.0: RAG lexical search quality - conservative Russian stemmer, ru/en stop-words, chunk-header metadata removed from the indexed text (title boosted), term coordination and faster top-k; BM25 schema v2 with lazy rebuild of older indexes; the quality harness scripts/rag_eval.py (Recall@k/MRR/nDCG@k). 1.30.0: unified context budget (B4) - the shared formula input_ceiling=window-output_limit and input_budget=0.75xceiling-prompt for economy mode and the pre-flight guard; soft trim at 0.75 window, hard cap 0.9; the economy trim on token overflow resets the front to tail (one trigger with a window overflow)."
       },
       "files": {
         "__init__.py": {
-          "version": "1.0.0",
-          "sha256": "c0c32fcbd798455f713c21ff241ef34333daf9ca5eaa132b1379377a5c09e12e"
+          "version": "1.0.1",
+          "sha256": "98a049939e085cc41be3ae04222615dacb059ad21b6f9514d8fae47ada0bff37"
         },
         "app.py": {
-          "version": "1.0.3",
-          "sha256": "f9e275ea6142beef475fb3f9f6fa8cf288ef0b395e39d5ef5586187053e55886"
+          "version": "1.0.4",
+          "sha256": "942e332147a5da08372f22c9c89e96459a786da256052582d712611a485deab1"
         },
         "assets/favicon.svg": {
           "version": "1.0.0",
@@ -32,276 +32,276 @@
           "sha256": "aa800ef345422d6158c6fafe1c06c429dbda21c3df4bb1ccb45a920ec1111399"
         },
         "core/__init__.py": {
-          "version": "1.0.0",
-          "sha256": "7b623930ac29db86b2939a3ea163e4c42dd602ea35a2a1151690393e4169ae71"
+          "version": "1.0.1",
+          "sha256": "445396cd18924e34e6eb5ff08bfaff61e1ad6c4582d9dc5b36c135dda2ec6619"
         },
         "core/api_errors.py": {
-          "version": "1.2.0",
-          "sha256": "6b6790174400ae462ca6d29183efdfdea4275a2228846c64eab8c9d274e6bfdf"
+          "version": "1.2.1",
+          "sha256": "3891e9acfdd716954c52520cea6944916ac9eae45cb6be62b382c0f4c9c107f3"
         },
         "core/api_layer.py": {
-          "version": "1.10.0",
-          "sha256": "10907d8a991051807012c212ff5bfbfba90cd45ecddc288f4a2d7b41aa940b82"
+          "version": "1.10.1",
+          "sha256": "9a46c75682567b47a135e6dfcb1cbf0a5c9fa6dd0a27a4fe6040c9ba6618bde7"
         },
         "core/assistant_creator.py": {
-          "version": "1.0.0",
-          "sha256": "d7fcf53e5b8bf6f8dbb767dcf83495fb999b5f4c520e525bca3199b6ac42c876"
+          "version": "1.0.1",
+          "sha256": "dc072016eecc984f37ac620bef57bad51edc301b96ae70cc88bd7df21be4ec91"
         },
         "core/assistant_folders.py": {
-          "version": "1.0.0",
-          "sha256": "2b7f2eb54193bb6dfb1c30089d1b803b76bde608428af644a1ac08c6874f82a3"
+          "version": "1.0.1",
+          "sha256": "a69aa90b106a3d8f4b8eaed9623c952bc846634730e2d2bb2d7c472360a7d144"
         },
         "core/assistant_nav.py": {
-          "version": "1.0.0",
-          "sha256": "efbb790f483918ab8072d774993b8f25ddb9332450ad9b0d6f3df558b179042c"
+          "version": "1.0.1",
+          "sha256": "d58628b1325d524059e74cee19ea0b3cd7de7ac58cd5c6a803d36680e8dc4d62"
         },
         "core/assistant_tools.py": {
-          "version": "1.3.1",
-          "sha256": "79940282ad2acc1241463579c595aea862e127060b81d296b98797bcaeb361f5"
+          "version": "1.3.2",
+          "sha256": "1d99590b3a71b357c738ad2c21cbee106b115a37b508a49ca21fc33fd9c9d84d"
         },
         "core/assistants.py": {
-          "version": "1.0.0",
-          "sha256": "4f099ba7b366218cad6bbc724b564a8cd1b238ba7a21cdb7a6bc045d0b8f7b63"
+          "version": "1.0.1",
+          "sha256": "67c56c0e574921e02d52446c4f1a6970af4a60310c62ef7097d6b4bd048fec6e"
         },
         "core/auth.py": {
-          "version": "1.1.0",
-          "sha256": "19d18b24a69e946427068f2b7e875a7fe79425a0692c1fceb0ee010994505423"
+          "version": "1.1.1",
+          "sha256": "a9ea064ddce0afeb42b32b5fd7845e8858b817670d2be9ddb8f0ef480d8ea200"
         },
         "core/bootstrap.py": {
-          "version": "1.0.1",
-          "sha256": "48164fec6c55932c006c4dfe5c37fd7019ca22feb340895bf8c39507c56e09f9"
+          "version": "1.0.2",
+          "sha256": "e9fdac8939a399b5f02080432abcf3b00a83663822b724e2a3e0384b4ee6c3f9"
         },
         "core/config.py": {
-          "version": "1.3.0",
-          "sha256": "c608331e1092c9c166a0d765fda434d38f2198e8ba3fe09db52bbfeee3af3c75"
+          "version": "1.3.1",
+          "sha256": "839444d49cde3b228416845d51871ff59ed00dfe43131eb7e6cc3fa6d6811fa8"
         },
         "core/connectors.py": {
-          "version": "1.3.0",
-          "sha256": "7e553b189f7e092ef5f78149c648ac51c19b4703cbc4fe50f2fd50df1d93ed7d"
+          "version": "1.3.1",
+          "sha256": "4f99de372446ff5ecc0ce17c80bd75e6c1599f4ce04f05cbd4acff316c12a331"
         },
         "core/context_guard.py": {
           "version": "1.2.0",
           "sha256": "3971ee649995d838c64e1410bb7c9a60a15b492f4fd42dcb9421bdcfe313b786"
         },
         "core/crypto.py": {
-          "version": "1.0.0",
-          "sha256": "830aad9563569b310ed1afd9c9359a632fb7aba461b196a870e50de14977bcd6"
+          "version": "1.0.1",
+          "sha256": "a8cb424b24598c983769fa2fc3de0b74376b87f7cfe6f2c313b18169f35aaf7a"
         },
         "core/dangerous.py": {
-          "version": "1.0.0",
-          "sha256": "9e2ac9c04031e053f17123853a4f47b8a8ff65f2bf91980487445b7a56b721e0"
+          "version": "1.0.1",
+          "sha256": "e753b3e3d7b4659421cfd7ed911c053ef92db2254cb50433c1c834e5e3176af1"
         },
         "core/default_imports.py": {
-          "version": "1.1.0",
-          "sha256": "601687d3f47ed14d6e17696fcea4972550d424857e9fc69e2991b4c3e0247608"
+          "version": "1.1.1",
+          "sha256": "f919370d13579ecb4205fdbbc4df86830be7d3ac1cf1eae8a9653e6f3af01789"
         },
         "core/defaults.py": {
-          "version": "1.1.0",
-          "sha256": "29dd52169dfb1047a89d98bac5d1f2e59111698d32d53c665ac6e1ef9328808b"
+          "version": "1.1.1",
+          "sha256": "aa5c24c7eafa3923938595c00d4c8e3cc5ae6d41c8062f4b2d2e98d06ad34411"
         },
         "core/entity_sync.py": {
-          "version": "1.0.0",
-          "sha256": "aabfa31bfdc390c3ea61716c1ebde2f34598483b7fc918eab26eea74ea9b3d54"
+          "version": "1.0.1",
+          "sha256": "daa8f4759b5571f69dd2ca0b2ee1dff006b538241f4fb5b9c8fadbd4146b19c3"
         },
         "core/env_loader.py": {
-          "version": "1.0.0",
-          "sha256": "75847f514fdc496cbf8ce91e4f627eac6b94cf888f37b74f1b156ee06ae7f677"
+          "version": "1.0.1",
+          "sha256": "1f11fdeca269ab31af8a8c4703f9dd9f1be23f3f54e57b79e9c1518835df5edc"
         },
         "core/files.py": {
-          "version": "1.1.0",
-          "sha256": "3921220298c2aa3a4e725ad1248c4c9a62925c54a3df6706f0cecdf20e8c322d"
+          "version": "1.1.1",
+          "sha256": "2a185dfe107d3156664fa3d4cb62dafde97ddeead32c10c89eaa89d96119b098"
         },
         "core/fs.py": {
-          "version": "1.0.0",
-          "sha256": "bec53c1a8ff7ea9dc91c81586009d0d79fb1ada73f211bcb670baaf873a55118"
+          "version": "1.0.1",
+          "sha256": "f1ba30d23129558ed9c0ca069bc9ecd0a43aae52ebfdebcb7af71801aee6f824"
         },
         "core/github_connector_rest.py": {
-          "version": "1.3.0",
-          "sha256": "6e35b2f92df2ad867c6cfdc16d3db979481fa285b7607ec083a7bc1849a93bea"
+          "version": "1.3.1",
+          "sha256": "f816178514c7cd8247121b59f767ed01039077e7c2380fbe99cb7e3cda1cddeb"
         },
         "core/github_tools_rest.py": {
-          "version": "1.2.0",
-          "sha256": "d519edf51bdd47916b7fe4617da1dfc34fd110b3a66447338899219e84691b0d"
+          "version": "1.2.1",
+          "sha256": "90bd0c38ee36a90db62af21e58dabeddb826e803a1f05ee662906554f4431893"
         },
         "core/i18n.py": {
-          "version": "1.0.0",
-          "sha256": "cbd8764a168ac1a05f8eb63cedd8b02a9d78c705d51773132251de1e24336ef4"
+          "version": "1.0.1",
+          "sha256": "930cf66b18ff710edec031aab7137b5764d1e425345800eef998379bf92eeeee"
         },
         "core/instructions.py": {
-          "version": "1.1.0",
-          "sha256": "5d0f70ead7bab40cbb091b011f314d3de88420189f7937ff5819066c697f471b"
+          "version": "1.1.1",
+          "sha256": "0dce1e0c8bfed7dfe91e06f722df9a48b3484a33d971b96229b79143b9cc1459"
         },
         "core/multimodal.py": {
-          "version": "1.1.0",
-          "sha256": "df5f46d179033a13759485dab35f014c64d19ad0a7130a68180376df3d266131"
+          "version": "1.1.1",
+          "sha256": "9848ae5635cca2649f0c0dc96530dbcd97879fb228f093127cc5f7002d46a19d"
         },
         "core/orchestrator_folders.py": {
-          "version": "1.1.0",
-          "sha256": "e457904340ea8475ec98e6ececad8be98ee09fcd3959607fca1d5a16e678a915"
+          "version": "1.1.1",
+          "sha256": "1c49ad4155bc457c437be69644b27a373ab525d8ff4afe9ef9007f4e2afe8f5b"
         },
         "core/orchestrator_nav.py": {
-          "version": "1.0.0",
-          "sha256": "a47b5e932c65fe6b5462ff95016bd55f8ba2ee7cdfd3c1930caf7ef90ea71845"
+          "version": "1.0.1",
+          "sha256": "4f40a4acf45a15107cbe8ac2ed62d34e2ff12658a42fdd2c980a860c8b76108b"
         },
         "core/orchestrator_tools.py": {
-          "version": "1.1.0",
-          "sha256": "ba1c1f8100040a72b695e8fbf9de74884a6a4b040ec5352dbe1db4064e116ac5"
+          "version": "1.1.1",
+          "sha256": "f952c0e804085e60e5e6d7564de96519383e240533391b8abc82c15d562f9562"
         },
         "core/orchestrators.py": {
-          "version": "1.8.0",
-          "sha256": "518e8061357a452d5d385036553c53f0a2c45f538a9ed511a7b0e8d199f7ae3c"
+          "version": "1.8.1",
+          "sha256": "f9a3359e76c7c08858d1441d2844e656b456be9fcd524a00b5aca3bf03f96943"
         },
         "core/paths.py": {
-          "version": "1.0.0",
-          "sha256": "29cd026d56e1e490cf0f31300eaba2f6de63c21dcbfa8fbe43b9b879cbb33252"
+          "version": "1.0.1",
+          "sha256": "6bba744c0edf6e2694ee646943d7157a24a64b0639c9d374cf636baf86618ccf"
         },
         "core/prompt_guard.py": {
-          "version": "1.0.0",
-          "sha256": "b04f60e3673f760ab11ba4e6e91f24134516f9f4ab6f42210f5c6399dcae39de"
+          "version": "1.0.1",
+          "sha256": "fe4e2195c6f89391e7b1e4378525b5080c9754bae924dc36aa1ff843ef420727"
         },
         "core/prompt_improver.py": {
-          "version": "1.1.0",
-          "sha256": "608f272dd067b50db1f781d626d4b3c026fa9d14bb206b12a298a708bd526de6"
+          "version": "1.1.1",
+          "sha256": "cc3497cae84f6a10d2924ff61f5b720c1ef28cfbf36217621b0b372121c22d9e"
         },
         "core/rag.py": {
-          "version": "1.3.0",
-          "sha256": "511cd832ef2de6bac800ad6218cbd96cc257c39dee7e3ba4907b3859222250c3"
+          "version": "1.3.1",
+          "sha256": "8ad00361df545ea7ea86b3d3776a8b4a9b3f17cdce5a9f26d2cf17c9e54793d9"
         },
         "core/rag_bm25.py": {
-          "version": "1.2.0",
-          "sha256": "38d2e13353eb9c3b77ce47cfc0bf6c0f2dd3ac8a9fbf09c5f7742f882fd3b3ac"
+          "version": "1.2.1",
+          "sha256": "85a02d6d3950fc46e336641b31b94952b5d018d8f93d0c2a54c4b8b9753117aa"
         },
         "core/rag_chunker.py": {
-          "version": "1.0.0",
-          "sha256": "2a9718708e1da17dfe8a99890704c56688491ab0f607374bbfe43e0859b0cde7"
+          "version": "1.0.1",
+          "sha256": "a42f0fc10d7dd8337a63a5792b89073f768b5e730c8e126f27e685b85512e762"
         },
         "core/rag_embeddings.py": {
-          "version": "1.0.0",
-          "sha256": "c66851c084c9ac6f5e6b61870551b4029b485710c6306e88c1614e3cc12b0a04"
+          "version": "1.0.1",
+          "sha256": "b164c07917cbd782965fbe9a20cdc8e201a035da4daaf3673973d34566f43072"
         },
         "core/rag_index.py": {
-          "version": "1.3.0",
-          "sha256": "6aa289d5f55396cf7a509b3ec2cd8b6e670b152303e67eba74810bd586ea88be"
+          "version": "1.3.1",
+          "sha256": "d952c5ea759c05b95e6909618fa96de84b2d0b3e488dd3ff12466e680d8c5a2d"
         },
         "core/rag_indexer.py": {
-          "version": "1.1.0",
-          "sha256": "f656e7baa9f07ecaf5e8618f150f1710145b292dbac1881278525a5c5e52a52a"
+          "version": "1.1.1",
+          "sha256": "dc9043cf82ae7577473aab06dd8cf2fb695f0e0cb3d404cf619bb66b6bd49a78"
         },
         "core/rag_search.py": {
-          "version": "1.2.0",
-          "sha256": "a1080c7b8d0af3466cf16e7d6714287bc75686c4561214da5c247d181dceb263"
+          "version": "1.2.1",
+          "sha256": "f1377d2298695f3d9bbc93ef2fd77e00f84d7c2d9ba13795569623d54e3bd6c2"
         },
         "core/recent_assistants.py": {
-          "version": "1.0.0",
-          "sha256": "9838aba3f1a7ff6ab4790a18eaac400e8331a4336fce22638c0c45631ad479f3"
+          "version": "1.0.1",
+          "sha256": "0041b854d085af3bc98cfa3b7c6ea52c50df73f6a09edcb130c379451b35eb69"
         },
         "core/recent_workspaces.py": {
-          "version": "1.1.0",
-          "sha256": "8ed5a77e8b2769604759eb874b040248e0fd63e05ccc69b0649df4c2d3ede3ce"
+          "version": "1.1.1",
+          "sha256": "c885f487ad6d4527022f591d1903f25f15d47cfdc8bf7a101ccb15e136fe5624"
         },
         "core/render.py": {
-          "version": "1.1.0",
-          "sha256": "84a4606985a0ab1b5ccaa454187d58c018180d3d87cb8524ea15d5a733431d46"
+          "version": "1.1.1",
+          "sha256": "4462a66d9122b84b93263cfde04cfdaf8436f9bfa12954c29cc28ddc3b6aa944"
         },
         "core/services.py": {
-          "version": "1.1.0",
-          "sha256": "100501004026987a02bee4a93392eebecadf8965a8553dbf540556bd0aefd1e2"
+          "version": "1.1.1",
+          "sha256": "bd1b8e7f30e3637b77232e2dbe6a7b38bd8d6b7fbc9c673320effe8875a31b2b"
         },
         "core/skills.py": {
-          "version": "1.0.0",
-          "sha256": "fb2809f6d77e319ab614d0a95ded4e7fe9255171e5f0041399cad25eb5d20748"
+          "version": "1.0.1",
+          "sha256": "c768ecc5d11e4fe4ccfc0d34e3e43d1353ee85a7aadadb8dbbcec0b6bc2e7484"
         },
         "core/skills_library.py": {
-          "version": "1.0.2",
-          "sha256": "1410500e23c347ec3808aba9007cdc31a01c62a731a080285e8cb267989d3ed9"
+          "version": "1.0.3",
+          "sha256": "86cf7cfe151e2e13b01141cb88805173bab16886d5c67bea1de5314c5abc5317"
         },
         "core/ssh_connector.py": {
-          "version": "1.1.0",
-          "sha256": "a73e4363a0d6206d4e73f5827d81097e34c0f1832aad7485ef92a25b879ecbe6"
+          "version": "1.1.1",
+          "sha256": "c01d8162fb33abdce83d682125db5df2a6813c2baaa3f6b844de84064d59df61"
         },
         "core/ssh_tools.py": {
-          "version": "1.1.0",
-          "sha256": "034ed7c9dc588ae8dea5c2fb1022a5905d9b93dfaed4bfaa55badd58a7f14a7b"
+          "version": "1.1.1",
+          "sha256": "8dac05cad3bd098b5c9789af997a464bc2f00fb96b563b4aa4d87f777f9922d6"
         },
         "core/statistics.py": {
-          "version": "1.0.1",
-          "sha256": "0772c8925814d7f97c283ff6a03a0ba8ff9a80d901000668336cc4faf0fafa4c"
+          "version": "1.0.2",
+          "sha256": "a55fe16b111a03b8de2d686e2e504eedc887fa432390c3b12eec52ebfb899cd1"
         },
         "core/threads.py": {
-          "version": "1.0.0",
-          "sha256": "fd2a5e55710b34a6c6b573bdc50a380c7276db80b1b4f061a11f443441588cee"
+          "version": "1.0.1",
+          "sha256": "37f384e9fd692cbce12b8c651217453baf9efb1fff470f7c81632d1c6f863ac3"
         },
         "core/threads_devagent.py": {
-          "version": "1.5.0",
-          "sha256": "ee58ff28ffd8c0d9a9723d1c6c89bff811bc0bc443fac1fe5b7274126553f85e"
+          "version": "1.5.1",
+          "sha256": "109e55e74f85480254b5d43381f4ac1281fb67112ada79271b6a219ec53c85ca"
         },
         "core/tools_utils.py": {
-          "version": "1.2.0",
-          "sha256": "7ca53f93ffb4efea548f45c45c4eaa7d20632fa1fffb31251e1ca31a0238b3fc"
+          "version": "1.2.1",
+          "sha256": "d86fc7a17fc4658703a260c69609e834b2bd0a130c834fe285e9dc41ed234f8f"
         },
         "core/updater.py": {
-          "version": "1.0.2",
-          "sha256": "0f5791a46ff9bdf86f60741ca2394b58878f8dce4fd9c6ae3e5417639880ce2a"
+          "version": "1.0.3",
+          "sha256": "234177671a548f1fb74d3449be671926f9a6e2cbd3d8f94f4329bb75c9b2716f"
         },
         "core/updater_apply.py": {
-          "version": "1.1.0",
-          "sha256": "c9e03ac37d50334f2e8ed0ab3770e16be2535b777d39ea36cde91591cc74858b"
+          "version": "1.1.1",
+          "sha256": "fff605ff8fa7117dc22552f28343490df4ba11b154176b6862abdb2a97fa5f86"
         },
         "core/version.py": {
-          "version": "1.0.36",
-          "sha256": "aa8fb443b12db19bc7dd809740d8c1a4182c782ea221c490eaa223baeb595032"
+          "version": "1.0.37",
+          "sha256": "fae1eb6152f2ce933d519577ff746cbca0beaa63aaebc3f1895c70d5c921194a"
         },
         "dev_agent/__init__.py": {
-          "version": "1.0.0",
-          "sha256": "d87092665bbf50e5270ad17b3c2c7eb8230b22ae968f52113672025267ead063"
+          "version": "1.0.1",
+          "sha256": "db2e313abe2dd0a76081c0c9b9b2dfb4d3dc3b16dfbfbb833328c4a6d8d42216"
         },
         "dev_agent/agent_loop.py": {
-          "version": "1.13.0",
-          "sha256": "5d7f793f55b11f44f2ce14f6629bd1a0ad110a5672774bab81e779c5c008cf42"
+          "version": "1.13.1",
+          "sha256": "3820f05265536a50eda0b9de187d5da08765d6acbbf5c03633c77da0b372dba8"
         },
         "dev_agent/assistant_detector.py": {
-          "version": "1.0.1",
-          "sha256": "1c9ec75c10b0dd865b895702ee66bb3645456dd55f4301130ac29d31dd3de03c"
+          "version": "1.0.2",
+          "sha256": "bcca6303bd7c8f6c8fdcaa0a18d559b4339ecb1c98905cfdd800ee1f1999c9d3"
         },
         "dev_agent/assistant_model_resolver.py": {
-          "version": "1.1.0",
-          "sha256": "5d9ff0bb99491712bbb7b5b62b89023dad69f149222d96fef5e28e03b7487b6a"
+          "version": "1.1.1",
+          "sha256": "872e619e5d9651acf768b5811c46b87814c2d0ba2030907374d02e1553255f2d"
         },
         "dev_agent/backup_manager.py": {
-          "version": "1.0.0",
-          "sha256": "80e46a3e75620994b82995dc70cebee0e1a8971767fd15b1dbc95200c2dc1183"
+          "version": "1.0.1",
+          "sha256": "fa82286ec5de057b73d65eba55eb2c4402e6c3d25fa04f0b95f52b81a3cd6d08"
         },
         "dev_agent/config.py": {
-          "version": "1.4.0",
-          "sha256": "b6dfac7fdb905e0fd4d1de9df4edf0a904187b23f8db07fd547e99b608011fed"
+          "version": "1.4.1",
+          "sha256": "54a9fc3facc67422f26e8478aecfb433f50a285eddc777436ee8fa8123e1b0e4"
         },
         "dev_agent/llm_utils.py": {
-          "version": "1.0.0",
-          "sha256": "8159a84e92220788f8e48daa349841b98b4cf0b270c901f357d3d0d5da78c06a"
+          "version": "1.0.1",
+          "sha256": "6c8574e99ac08fdf56a105c82dcd51c309bb4644852af4794892f5d68c416e3d"
         },
         "dev_agent/safe_writer.py": {
-          "version": "1.0.0",
-          "sha256": "e3c52b184852fba028df4b24795f80ce6f752d5d8b0885aa556861ec0b7badc0"
+          "version": "1.0.1",
+          "sha256": "a304d6276e2f2d4b00ad2f41492dfaff59f69fa765494a26822dfea9af58a948"
         },
         "dev_agent/task_state.py": {
-          "version": "1.4.0",
-          "sha256": "a2ff6224b0860af4481896ae4aa7ae030a3d6f8d1f840a59c92dd2e2d82f1d09"
+          "version": "1.4.1",
+          "sha256": "348bb1d63034cc24d51a8f0da30f69a3814e919f3fa98781c02098c65555dcc6"
         },
         "dev_agent/tool_executor.py": {
-          "version": "1.12.0",
-          "sha256": "c494945512cbafd1e8191066311a659feb18a1c65aaeed9cbdbb1fa61a32a97c"
+          "version": "1.12.1",
+          "sha256": "c202d1b1317c4243030ffbbbf7355717f92f8b6a4248e55114a6ae9619f97600"
         },
         "dev_agent/universal_agent.py": {
-          "version": "1.13.0",
-          "sha256": "eaedd70544055a4cf7d4cfa67aa93a0d0e689526cc5363cfa7204a4996271fbf"
+          "version": "1.13.1",
+          "sha256": "480a3eaa7a10bbcdacf239b6194179262d25accc5fd5dbd2f1b2d547d4808c54"
         },
         "dev_agent/workspace_binding.py": {
-          "version": "1.1.0",
-          "sha256": "c4212c17c135d0c18be7b46c2f67f9010a5d1f81dd2d9db169b0c1455b74c36b"
+          "version": "1.1.1",
+          "sha256": "804243ddea7f94a3efc4ba77b67ac296d3381a4a8cc7e90f69c97cac1b73b068"
         },
         "dev_agent/workspace_tools.py": {
-          "version": "1.4.0",
-          "sha256": "a0c9c30f3ff79ae5f2845fad311bb644465acef07e3d224aebeaa995c06e3d5f"
+          "version": "1.4.1",
+          "sha256": "e701263e32514a7e1d07b65475a892c01b494991789418719095c73d84d7e651"
         },
         "pytest.ini": {
           "version": "1.0.0",
@@ -312,36 +312,36 @@
           "sha256": "66abb9f75f09ba1908b3b70012d9fea2aaf15a1fd80f687fa7ea13cdb857362e"
         },
         "scripts/rag_eval.py": {
-          "version": "1.0.0",
-          "sha256": "c8e51a574d28e22aaa3bd091cbf9109e8d694e825de35730133b17189f6bb52f"
+          "version": "1.0.1",
+          "sha256": "d243711998803755df65bf05630e6ce2c22ec031241399bcf5788dfc32d0dddf"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.7.1",
-          "sha256": "a2c689191c5e6c5c2d43913b064c2d312a6d932a42c40f73725fcc38c86bdc29"
+          "version": "1.7.2",
+          "sha256": "1020a0a08252961475bd2e8ef99541bb40ed5ce486863de481fe08ee60d39dde"
         },
         "scripts/verify_manifest.py": {
           "version": "1.0.3",
           "sha256": "d8139bc88ea8658614333176ce506fac86a7778a1ca10d0d64be067d311bbd13"
         },
         "storage/__init__.py": {
-          "version": "1.0.0",
-          "sha256": "009189e351a9da1590470b27a3699067e5e4ffa93d8d0a4d4dc06676951a36db"
+          "version": "1.0.1",
+          "sha256": "46c652f62e73918dd32517ed1018e4bea6d0fa9c4e8536bfa38b00c25467b5e7"
         },
         "storage/db.py": {
-          "version": "1.1.1",
-          "sha256": "79bed3de48f9a6282b23d6221aa95172e559a4324619a767659c00e9778db847"
+          "version": "1.1.2",
+          "sha256": "e6f9d9161d72e87a232bed4b8c96f00b32644d9602aa4c283f88197400e95656"
         },
         "storage/models.py": {
-          "version": "1.2.1",
-          "sha256": "63dbe0e257d6e3e93b004bdb60abe5e5275e1dcb9f7acb43a9eaa2346c689b19"
+          "version": "1.2.2",
+          "sha256": "20321da7b0cffaff9b8f7f72f3cd00a4324d0b207b9e09c7cbe934be221fd5f0"
         },
         "storage/repository.py": {
-          "version": "1.1.0",
-          "sha256": "df0e72fa52d5e32f6301d1a3228a9f300277ada2acc78a4bd889b84f5731728a"
+          "version": "1.1.1",
+          "sha256": "170bf30f2ee9258713a731b302880b02fa8e2556726b6a9e296e8b57d87fe293"
         },
         "storage/repository_devagent.py": {
-          "version": "1.2.0",
-          "sha256": "d097845a9ee4691d361c5f7d788d4fd3e22c9106088cf6935b841dbf1d4d533d"
+          "version": "1.2.1",
+          "sha256": "e981297ea754cb3bb7fdcf8d61b088b36487fdf0d57a180e1fe2202048382a23"
         },
         "tests/__init__.py": {
           "version": "1.0.0",
@@ -436,8 +436,8 @@
           "sha256": "743c93400ab05d08982356d3df83ffccc00298dcb9fdbe1a045c5232c144666b"
         },
         "tests/scenarios/test_incomplete_responses_recovery_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "af3d50a595b22e50c902b92a81e56fb7fc692049b7860f23071a92f73eadc50a"
+          "version": "1.0.1",
+          "sha256": "065ff97a3e8ef40fe667f8c8b15821fda79d7aa54a9f6a34aeefbe172d996075"
         },
         "tests/scenarios/test_json_repair_scenarios.py": {
           "version": "1.0.0",
@@ -492,16 +492,16 @@
           "sha256": "2465407f57a36cb8fdb8c190328e5c2a6ef8e4b5a323582a026d720b0fad1ea9"
         },
         "tests/scenarios/test_rag_perf_scenarios.py": {
-          "version": "1.0.1",
-          "sha256": "8c23ac5b35cd2fb4a11c5a3104ed05761da3af7df860e32874b00c7fcccc9c99"
+          "version": "1.0.2",
+          "sha256": "ffb89e71274e9aa6a9984aa605cbdd699df83e6387a85f7513e2e513728173b4"
         },
         "tests/scenarios/test_rag_search_modes_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "8c67c456edfad3f53c2f7778fc70c3b549c4db9083c4ade1c426ac0667e01e8a"
+          "version": "1.0.1",
+          "sha256": "a1e7d0bbac57634bd202ccbd6d99ccd345269749263c7bca34045ce707c75989"
         },
         "tests/scenarios/test_rag_search_quality_scenario.py": {
-          "version": "1.1.0",
-          "sha256": "018febcfec4269422f0d2b4e3ed567bc3580f93fb4db0c4fccb91ee5d11d1eb6"
+          "version": "1.1.1",
+          "sha256": "a85fdbb559c5012558f5f8e827d8200c5cedd1f053469e8d19c726f760b81fb9"
         },
         "tests/scenarios/test_recent_workspace_scopes_scenario.py": {
           "version": "1.0.0",
@@ -520,8 +520,8 @@
           "sha256": "b212e2cad747df880c8882615d78ef121d9a9c851697783d46d20098470a4ff8"
         },
         "tests/scenarios/test_ssh_connector_scenarios.py": {
-          "version": "1.1.0",
-          "sha256": "9639c130e68f2c05ee768d84787dc0f9373fdb2797e0de57501df1e552c2ae5e"
+          "version": "1.1.1",
+          "sha256": "16878ae991486580cbf82ca9e38325ec7cec529d7787db56c65401f363524cb3"
         },
         "tests/scenarios/test_state_recovery_scenario.py": {
           "version": "1.0.0",
@@ -552,8 +552,8 @@
           "sha256": "4497a82f6fc5da85c503f9cae73c1c465f753168331868ba894bbd214ccdecb1"
         },
         "tests/scenarios/test_updater_runtime_flow.py": {
-          "version": "1.0.0",
-          "sha256": "0dcc3462b29426b5c1e1a490935f93627d3335931bb74189af14daef9617d120"
+          "version": "1.0.1",
+          "sha256": "87017b52c6d47655eac12c4d38070583f4a9a63e2ef2bc525d6eda39bfbdab59"
         },
         "tests/scenarios/test_welcome_page_scenarios.py": {
           "version": "1.0.1",
@@ -576,12 +576,12 @@
           "sha256": "df3fd59d22fdebfacdfc1920ccd37194c8498b9ce53b1cd3149a6edddb982e49"
         },
         "tests/test_agent_loop_connection_retry.py": {
-          "version": "1.0.0",
-          "sha256": "57c3fed99e3e7c07576de79542052dc8fdcc5e3f2f0b5168203b9fef0dcb2a3b"
+          "version": "1.0.1",
+          "sha256": "4dde60c56065edee43aafa80d1fe757632ea388622f6e8e8d55c733f9177a71f"
         },
         "tests/test_agent_loop_incomplete.py": {
-          "version": "1.0.0",
-          "sha256": "29895f4dd3cc13baf91b51b09180483fd0847d6f020b141fae849e8ca9c9d409"
+          "version": "1.0.1",
+          "sha256": "edb872d8975f41e3fbfbe2101cfdfae7f50c8c658497c53ccb78764b12449518"
         },
         "tests/test_agent_loop_json_repair.py": {
           "version": "1.1.0",
@@ -856,36 +856,36 @@
           "sha256": "05d194a1639eafdabcfbc82e5b9dd9ff1890009a488bc104abf58236630c1e27"
         },
         "tests/test_rag_bm25.py": {
-          "version": "1.2.0",
-          "sha256": "2a96a85fc852eafdf8f67a4fe4accd7f771687ea94a6c2afdf2bb85d161796e2"
+          "version": "1.2.1",
+          "sha256": "3e72ba4e809e9cb5ce63c9591a6cf16450842688529b7b1f564076adb7c73ada"
         },
         "tests/test_rag_chunks_and_preset_skills.py": {
           "version": "1.0.1",
           "sha256": "1557be3c0e9d2ef87e28fb9d367490934149a1a9cd65d024bc7177c514f1c3a1"
         },
         "tests/test_rag_create_base_slug.py": {
-          "version": "1.0.0",
-          "sha256": "17842c6bc9c8af5a6d4e406bb569b59e4f0e1ed68dddfe0b2fb0d85d6a4d02ca"
+          "version": "1.0.1",
+          "sha256": "09ce3fe7cdbbc900def23292c7833b7000bf8b979f31e005f00264f9ab962849"
         },
         "tests/test_rag_eval.py": {
-          "version": "1.1.0",
-          "sha256": "f1d5a4410d09eac129f2c6735bcd31b8478455588fa2f0385b4e782524301764"
+          "version": "1.1.1",
+          "sha256": "c7eb5d7d3de68be48089f95e4d4a3b51763d748003c7fa7d9dfeae91f2ff6e59"
         },
         "tests/test_rag_hot_paths_no_stats.py": {
-          "version": "1.0.0",
-          "sha256": "171657d4cfa281e2c943407c85e7b8efd8c0ba7c32efa649a169d2fba46fc4cd"
+          "version": "1.0.1",
+          "sha256": "4a123844ad01ebdd8242aa6d0088b4eba71bf2bd435a3a467d25b383fb6ee3e5"
         },
         "tests/test_rag_stats_cache.py": {
-          "version": "1.0.0",
-          "sha256": "433185608d19a1d48950f56f9bfd06ad555394abc0c74adf4e284d8ce7bb5972"
+          "version": "1.0.1",
+          "sha256": "53d4825b5cb5e4c83359d9ceb93f6dd0564959018936e7f15123db6d7e20b088"
         },
         "tests/test_rag_tools_robustness.py": {
           "version": "1.0.1",
           "sha256": "502b0e98df0501af70795c7cdfa469620a0b284c3d421cd973da49f183474580"
         },
         "tests/test_rag_with_stats.py": {
-          "version": "1.0.1",
-          "sha256": "4950bb30b7e72162bae91a14087e1d710b9ed93b78288b0039141ce14a7056ca"
+          "version": "1.0.2",
+          "sha256": "6deef929a8637457a9d78ebf5df4605ef054d6253bee44cfbf21c21f823addba"
         },
         "tests/test_recent_workspaces.py": {
           "version": "1.1.0",
@@ -920,8 +920,8 @@
           "sha256": "a567419354ac1bf5e1ac93eaf16a82d2748fcef95e2bd1bcc374ed50a810e183"
         },
         "tests/test_skill_build_base.py": {
-          "version": "1.0.1",
-          "sha256": "7763939e0ea33c3f873b6cf7c80f7bdb50406f6ee3ac06ed43c4bbad74736a1f"
+          "version": "1.0.2",
+          "sha256": "9c9ba1b636bb31c81fbc5175a780551c0c316caf2dbd4c7f637e950efceab03e"
         },
         "tests/test_skills_adaptation.py": {
           "version": "1.0.1",
@@ -936,8 +936,8 @@
           "sha256": "7e81dfe27ce4078551d1f69d01acbf6b1ba2d8e2fe3ad1023632a1fec7084771"
         },
         "tests/test_ssh_tools.py": {
-          "version": "1.1.0",
-          "sha256": "064d3a5db6e8e8094f6f46b17bc31cc425beb11551695e9f834e8ccb50dac1d3"
+          "version": "1.1.1",
+          "sha256": "b768f8a7bb5045f676ae993d6badaf10851eac2446a056f48a48df0be5afba69"
         },
         "tests/test_st_mock.py": {
           "version": "1.0.0",
@@ -1004,8 +1004,8 @@
           "sha256": "eeea08046d63ebe8d71a402ed0f9a08e8ca7e9117a3b63be0daa327dda7037cc"
         },
         "tests/test_ui_connectors_ssh.py": {
-          "version": "1.0.0",
-          "sha256": "bb143518c29484d478948ad57f9a0e176da28b2e2529ce50be0a7895a554515a"
+          "version": "1.0.1",
+          "sha256": "78037aa659f4571ae75a38805f7a89b19d7c3d4e3db0566060950d649e5c5298"
         },
         "tests/test_ui_pages.py": {
           "version": "1.0.7",
@@ -1032,12 +1032,12 @@
           "sha256": "da9aa39fe66d397ebc97b9c6386e5b5467d4a06fd7675813567c636d77ea78dc"
         },
         "tests/test_updater.py": {
-          "version": "1.0.2",
-          "sha256": "322d5a33239df2192da08e1947bfc11b2a50555f794caa6f63824835064f76d0"
+          "version": "1.0.3",
+          "sha256": "973fdfab8cf9afb318935baf667dfdf4fe7948cd885580e8ab4623f47c10e0ad"
         },
         "tests/test_updater_apply.py": {
-          "version": "1.0.0",
-          "sha256": "69f158e7c02e8511a8dc5506352813ccdaeb847009c741eca62e1f6d84f404c9"
+          "version": "1.0.1",
+          "sha256": "95375cd5c23c34ec54d84988a829c138d88a9b279dd964c51c5da00be3f0dc5a"
         },
         "tests/test_updater_ui.py": {
           "version": "1.0.2",
@@ -1072,88 +1072,92 @@
           "sha256": "8175a9820505d8f6fcf222686c7214ac4ce3320776823a8410aaf7b5285907c6"
         },
         "ui/__init__.py": {
-          "version": "1.0.0",
-          "sha256": "364164080192ca393405d235f1fc7ae64d45f48fd0e7a6bf27b064ea439e7a1f"
+          "version": "1.0.1",
+          "sha256": "0581f0ba70632a8048a3f161f15377f719d5a5dfc339412bf5a19a2ee39f54c6"
         },
         "ui/app.py": {
-          "version": "1.5.0",
-          "sha256": "8e3c60bb1b39312f47b1be6948f2b89c0c58e88776156296c3a27b6ac23f8221"
+          "version": "1.5.1",
+          "sha256": "b593e3d5a1df8bbcb7f7c398cd1cb4686ec206feca01133f45001ea4f2f3c3c0"
         },
         "ui/components/__init__.py": {
-          "version": "1.0.0",
-          "sha256": "84c1327e5816d855c9f8c931cf780eb2f4693c5459cf2dea6c3c133651eb30cd"
+          "version": "1.0.1",
+          "sha256": "feb08a9acd7a4f82a86957efab8e0ab6cbb99a9fa69c46a3cd64bf3d90eb65d2"
         },
         "ui/components/workspace_picker.py": {
-          "version": "1.0.0",
-          "sha256": "3c18786390bdcd8a8b1309987d0522ee345ec998c19aca56003b9b54685d1716"
+          "version": "1.0.1",
+          "sha256": "36efaefe38b88b7cf8bf0c017eeedec256a835470a2c7967ef6123b07ff44560"
         },
         "ui/pages/__init__.py": {
-          "version": "1.0.0",
-          "sha256": "580d966418fb40de67b13995294875a6552d7a81a7009b927a672c31b8a189e1"
+          "version": "1.0.1",
+          "sha256": "a7e5a1e16d4bf869e9ee203b428d6ce5ce52ad5cf8379947c5063a20d80291ee"
         },
         "ui/pages/access.py": {
           "version": "1.0.0",
           "sha256": "ffb75aa7f6bf9b60c1a7a0649a98f57f92557fed70b37f89724a94e744577c42"
         },
         "ui/pages/assistants.py": {
-          "version": "1.3.0",
-          "sha256": "e8bb00e74aeb18865cc563a5f4fe9cd762d5b562f4c853de98a6addca00d4b45"
+          "version": "1.3.1",
+          "sha256": "42b8e2d8dc6a0f21f889fd8a5f10229b2f217031acb4fe489cafd7af11d1abd9"
         },
         "ui/pages/chat.py": {
-          "version": "1.0.1",
-          "sha256": "8b684cdcf56099f224e90e05e6bc22f3df980dd19696dc42e2b3d3d210fc0eed"
+          "version": "1.0.2",
+          "sha256": "ae8b8cd855493bd90ffe823096075f627beca957e226e1898de9bb93fcd7b943"
         },
         "ui/pages/connectors.py": {
-          "version": "1.3.0",
-          "sha256": "81b93d0d8f91ca3b1551c00b1ca8a8172ca74986842c8ed0cf512052e89dd950"
+          "version": "1.3.1",
+          "sha256": "ff906a57296d7cb8e89d53e050ada58bf220c711e9a734869f777697dbb34947"
         },
         "ui/pages/history.py": {
-          "version": "1.0.0",
-          "sha256": "448dbf67eff496ec7d2689ef5d6f5be3640b79162e7456934ed478856b54ca74"
+          "version": "1.0.1",
+          "sha256": "9b4054227ddd01bef1c3efb3c8135c1fa8b49d4d6b26d9aa4e15e93e08e34807"
         },
         "ui/pages/orchestrator.py": {
-          "version": "1.13.0",
-          "sha256": "e44528d9dd7a0e97d495839776343dffa34f198593a8b33e759e03cf8ddffa32"
+          "version": "1.13.1",
+          "sha256": "7761593c6484dc965c9a84a62a23390ceae0ab6729b7d2a53fbc494621593c22"
         },
         "ui/pages/orchestrator_settings.py": {
-          "version": "1.1.0",
-          "sha256": "26cb6de2ea82e978d4c551c2f74b2cfadc1b60e3df27bfa8f10e8c97bc2936bd"
+          "version": "1.1.1",
+          "sha256": "2e0b908c0bb31f83fbbe447642f5db61646899bf8cad7efa831d7cfb577c478c"
         },
         "ui/pages/orchestrators.py": {
-          "version": "1.0.0",
-          "sha256": "cdb2f3687634a40666c0638631402260049168bff72636eb0422111e5afd2da2"
+          "version": "1.0.1",
+          "sha256": "b2532ef01ba03321392f1fa370117c7d2a5dc71976adf081f9eb0919433b7816"
         },
         "ui/pages/settings.py": {
-          "version": "1.2.0",
-          "sha256": "c6f894ed40da6661a40888572a0c8b240a3d46c1dd32d62706a78ca299e707ec"
+          "version": "1.2.1",
+          "sha256": "9c162c6ece395d77160226c496505ce4dcdeaadd67755c08461a2e63f7d6864f"
         },
         "ui/pages/skills.py": {
-          "version": "1.0.0",
-          "sha256": "bd871f789f30de36f619392626a59faf404432b99c34ba7c23b4438047a5b7de"
+          "version": "1.0.1",
+          "sha256": "99d1a2bb3437f179926879118018982355b6bee090e39bfa95ddbdca011ff289"
         },
         "ui/pages/skills_library.py": {
-          "version": "1.0.0",
-          "sha256": "5a507d2bcc91b0269c8c81c029b716ff9d6e278ce16cebdcd9fca20473eed3b6"
+          "version": "1.0.1",
+          "sha256": "94aa96ebccf9fa02cdcd299a08488311632330fa88db32bcb9e16af2c75eff47"
         },
         "ui/pages/stats.py": {
-          "version": "1.0.0",
-          "sha256": "73148ce017e3932beca0a102cadab3e7f5f45e3b09fd513c6cdd05f6a50c61b1"
+          "version": "1.0.1",
+          "sha256": "1c0ba249c7a0ef2a2d21cd3cdce5d2c887818988926306006da0506d21a4bc53"
         },
         "ui/pages/storage.py": {
-          "version": "1.1.0",
-          "sha256": "555fbd5318bee6b1d8067a98bcca5db024dff252cf84b097ffda95ae05148458"
+          "version": "1.1.1",
+          "sha256": "9e403351438d3d0a04df5cc43bebf243dff346ed67c97de50118cee61167e6f3"
         },
         "ui/pages/updates.py": {
-          "version": "1.1.0",
-          "sha256": "9544562c9c6dfe928bf8535442564143153a41852e5b9a0454a556c7b7d81aa3"
+          "version": "1.1.1",
+          "sha256": "41af7b708cebd06b00bc6a90e7d0418c8df1a72a94d065ba5309cf89703162f5"
         },
         "ui/pages/welcome.py": {
-          "version": "1.0.0",
-          "sha256": "ce6235fcf9d00a1981b32ea0fcdef7bb7a32c036d33a09d70cbff134cfe138ba"
+          "version": "1.0.1",
+          "sha256": "457f99f30bc68a00c5d0be77afa7ba0123b5c3c3eb59e5f0bdfd10924658d811"
         },
         "tests/scenarios/test_unified_context_budget_scenario.py": {
           "version": "1.0.0",
           "sha256": "327af735aa6a45ffa91841eeb6603a21617cbc6e950f9c6720ea98a7adb4b2d8"
+        },
+        "tests/scenarios/test_license_consistency_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "892393d3b201e033c72bebc4413dcc90dfadb3436905c4f7f3f5c3db520546d0"
         }
       }
     }
@@ -1168,32 +1172,32 @@
       }
     },
     "COMPARISON.md": {
-      "version": "1.2.1",
-      "sha256": "add86b6876eb57ecf57417f7e5be88904b2236d3e3374c0523ef4f3d36d863c2",
+      "version": "1.2.2",
+      "sha256": "2f7d5e2faac66a957e4e1002837e7204acb511d456e44dc8380fdb1d78b074be",
       "note": {
         "ru": "COMPARISON: RAG-позиционирование с BM25/vector/hybrid; версия 1.2.1.",
         "en": "COMPARISON: RAG positioning with BM25/vector/hybrid; version 1.2.1."
       }
     },
     "LICENSE": {
-      "version": "1.0.0",
-      "sha256": "cbbdb52d349f3b39cdf433fb9254513a2850df07117e447b5b91f272c4bce9c4",
+      "version": "2.0.0",
+      "sha256": "42250062103c8f8431618f9fdc1b0dd968a88522fafbec4c4290216201707f7d",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Текст лицензии. 2.0.0: платформа переходит с MIT на PolyForm Noncommercial 1.0.0 - некоммерческое использование, изменение и распространение разрешены, коммерческое использование требует отдельного договора. Версии 1.x и ранее остаются под MIT.",
+        "en": "License text. 2.0.0: the platform moves from MIT to PolyForm Noncommercial 1.0.0 - noncommercial use, modification and distribution are permitted, commercial use requires a separate agreement. Versions 1.x and earlier remain under MIT."
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.34.0",
-      "sha256": "ebc564a8eddd0c94c5a124082b75fb11d5ce003b940b22846201bf8ccbe734ec",
+      "version": "1.34.2",
+      "sha256": "2c38782a0af427ed6196484c6b261af846c33bde78b600f8864a4aa6cfdaf664",
       "note": {
         "ru": "PROJECT_MAP.md: перегенерирована после единого бюджета контекста B4 (отпечаток совпадает).",
         "en": "PROJECT_MAP.md: regenerated after the B4 unified context budget (fingerprint matches)."
       }
     },
     "README.md": {
-      "version": "1.23.1",
-      "sha256": "ece7d6c454df14d01690bae8b86a2c72d64994e0c7188cf3ac3d9b87b44e86c3",
+      "version": "1.24.0",
+      "sha256": "7df3df09bdbdf80205eee0a8e976bde803fd050ac2e7d7bb168ab4a437836404",
       "note": {
         "ru": "README.md: строка статуса обновлена под релиз 1.17.0 (единый бюджет контекста).",
         "en": "README.md: status line updated for release 1.17.0 (unified context budget)."
@@ -1608,8 +1612,8 @@
       }
     },
     "AGENT.md": {
-      "version": "1.7.0",
-      "sha256": "80e49fe6e6b61aa5cd75f7d1477522e06d3a17c6d3e1b279d771ad42c60153b6",
+      "version": "1.7.1",
+      "sha256": "63c55a790829009c545e6b61347e870bec8800c9ba0330902f22ef9f6354e337",
       "note": {
         "ru": "AGENT.md: M3/B4 - единый бюджет истории для эконом-режима и guard, сброс фронта до tail, пороги 0.75/0.9.",
         "en": "AGENT.md: M3/B4 - unified history budget for economy mode and the guard, front reset to tail, thresholds 0.75/0.9."

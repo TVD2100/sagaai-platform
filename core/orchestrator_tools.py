@@ -242,4 +242,4 @@ def render_available_tools_block(
         lines.append(f"- `{name}`{suffix} - {desc}")
     return "\n".join(lines)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

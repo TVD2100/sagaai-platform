@@ -161,4 +161,4 @@ def embed_many(texts: list, model: str = DOC_EMBEDDING_MODEL, dimension: int = 2
                 pass
     return result
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

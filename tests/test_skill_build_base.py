@@ -200,4 +200,4 @@ def test_existing_slug_requires_replace(isolated_data_dir, tmp_path):
     assert replaced["ok"] is True
     assert replaced["slug"] == "dup_kb"
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

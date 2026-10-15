@@ -82,4 +82,4 @@ def page_orchestrator_settings(slug: str) -> None:
     with sub_tabs[8]:
         _render_other_settings(slug, lang)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

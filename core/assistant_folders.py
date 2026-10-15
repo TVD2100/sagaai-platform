@@ -429,4 +429,4 @@ def _copy_legacy_files_if_needed(assistant_id: str, slug: str, folder: str) -> N
             except Exception:
                 pass
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

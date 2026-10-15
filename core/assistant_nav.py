@@ -108,4 +108,4 @@ def split_nav_lists(assistants: List[Any],
         count = 0
     return assistants[:count], assistants[count:]
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

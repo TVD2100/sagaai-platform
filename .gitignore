@@ -2,6 +2,10 @@
 /.encryption_key
 /sagaai.db
 /devagent.db
+/sagaai.db-shm
+/sagaai.db-wal
+/devagent.db-shm
+/devagent.db-wal
 /data/
 /apps/
 /assistants/

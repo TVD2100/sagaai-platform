@@ -137,4 +137,4 @@ def test_error_path_missing_base(rag_data):
         rag_search.search_base("no_such_base", "hello")
     assert rag_search.chat_context("no_such_base", "hello") == ""
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

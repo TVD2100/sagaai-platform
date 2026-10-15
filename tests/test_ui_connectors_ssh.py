@@ -252,4 +252,4 @@ def test_ssh_test_button_reports_failure(st_mock):
     assert st_mock.errors, "expected an st.error for the failed ssh test"
     assert "auth failed" in st_mock.errors[0]
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

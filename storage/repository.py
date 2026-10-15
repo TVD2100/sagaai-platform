@@ -693,4 +693,4 @@ def repo_update_skill(skill_id: str, name: str, service: str, model: str,
         reasoning_effort=reasoning_effort,
     )
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

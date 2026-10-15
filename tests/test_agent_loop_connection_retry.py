@@ -144,4 +144,4 @@ def test_hidden_tool_result_stays_hidden_when_persisted_early(monkeypatch):
     assert len(tool_msgs) == 1
     assert tool_msgs[0].get('hidden') is True
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

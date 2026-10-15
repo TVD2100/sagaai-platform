@@ -153,4 +153,4 @@ def test_scenario_persistent_truncation_terminates(monkeypatch):
     assert state.phase == "done"
     assert len(calls) == 2, "recovery retry must be bounded to one attempt"
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

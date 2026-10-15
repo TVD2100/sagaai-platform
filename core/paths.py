@@ -50,4 +50,4 @@ def get_thread_file_path(tid: str, file_name: str) -> str:
         file_name = f"{file_name}.txt"
     return os.path.join(get_thread_dir(tid), "files", file_name)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -970,7 +970,7 @@ def main():
         st.markdown(
             f'<div class="sidebar-footer">© 2026 Deinekin T.V. | v{PLATFORM_VERSION} | '
             '<a href="https://github.com/TVD2100/sagaai-platform/blob/main/LICENSE" '
-            'target="_blank" rel="noopener">MIT License</a></div>',
+            'target="_blank" rel="noopener">PolyForm Noncommercial License</a></div>',
             unsafe_allow_html=True,
         )
 
@@ -1009,4 +1009,4 @@ def main():
         # Fallback for legacy "devagent" page value.
         page_orchestrator(DEVAGENT_SLUG)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

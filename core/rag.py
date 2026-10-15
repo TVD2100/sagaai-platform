@@ -575,4 +575,4 @@ def json_load(path: str) -> dict:
         return {}
     return data if isinstance(data, dict) else {}
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

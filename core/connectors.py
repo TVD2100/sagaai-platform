@@ -490,4 +490,4 @@ def get_service(service: str) -> Optional[Dict[str, Any]]:
     """Return a service registry entry by id, or None."""
     return CONNECTOR_SERVICES.get(_validate_service(service))
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

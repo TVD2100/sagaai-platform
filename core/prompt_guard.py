@@ -182,4 +182,4 @@ def sanitize_search_result(text: str, max_len: int = 6000) -> str:
         return ""
     return f"[DATA_FROM_WEB_SEARCH]\n{raw}"
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

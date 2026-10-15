@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 # -*- coding: utf-8 -*-
 """
 ui.pages.updates - the self-update page: check, select, stage, apply, rollback.

@@ -493,4 +493,4 @@ def ensure_all_defaults() -> Dict[str, Dict[str, str]]:
         results["folders"] = {"_error": str(exc)}
     return results
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

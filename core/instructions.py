@@ -268,4 +268,4 @@ def delete_instruction(instruction_id: str) -> bool:
     except Exception:
         return False
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

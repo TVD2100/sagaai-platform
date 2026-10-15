@@ -229,4 +229,4 @@ def clear_recent_workspaces(slug: Optional[str] = None) -> None:
     except Exception:
         pass
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

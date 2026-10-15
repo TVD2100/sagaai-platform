@@ -223,4 +223,4 @@ def test_multi_product_query_ranks_the_right_product(rag_data):
 
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

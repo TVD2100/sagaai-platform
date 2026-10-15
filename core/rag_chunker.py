@@ -125,4 +125,4 @@ def chunk_text(text: str, chunk_size: int = 1500, chunk_overlap: int = 150) -> l
         chunks.append(buf)
     return chunks
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -115,4 +115,4 @@ def page_welcome():
         st.markdown("---")
         st.markdown(guide_text)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

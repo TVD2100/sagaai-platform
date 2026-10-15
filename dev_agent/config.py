@@ -312,4 +312,4 @@ def resolve_in_project(path) -> Path:
     rel = to_project_relative(path)  # validates containment
     return (PROJECT_ROOT / rel).resolve()
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -443,4 +443,4 @@ def reload_assistant_from_folder(slug: str) -> dict:
 
     return _apply(existing["id"] if existing else None)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

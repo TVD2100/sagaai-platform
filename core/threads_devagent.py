@@ -1015,4 +1015,4 @@ def read_thread_window(thread_id: str,
         "messages": messages,
     }
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -247,4 +247,4 @@ def messages_to_api_history(messages: List[Dict[str, Any]]) -> List[Dict[str, st
             result.append({"role": role, "content": content})
     return result
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

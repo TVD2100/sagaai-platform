@@ -2436,4 +2436,4 @@ def page_devagent() -> None:
     """DevAgent page - delegates to the generic orchestrator page."""
     page_orchestrator(DEVAGENT_SLUG)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

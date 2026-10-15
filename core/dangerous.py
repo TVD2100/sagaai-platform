@@ -347,4 +347,4 @@ def format_reasons_for_ui(reasons: List[str]) -> str:
         lines.append(f"- {r}")
     return "\n".join(lines)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

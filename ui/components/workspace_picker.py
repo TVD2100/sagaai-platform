@@ -155,4 +155,4 @@ def render_workspace_picker(
     # ── Empty-state: show welcome message in chat area, not here ──────────
     # (The welcome is rendered by the page itself as the first assistant message.)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

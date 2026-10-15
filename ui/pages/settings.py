@@ -337,4 +337,4 @@ def page_settings():
     _render_api_keys(lang)
     _render_folder_sync(lang)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

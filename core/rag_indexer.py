@@ -192,4 +192,4 @@ def index_base(
     rag.set_status(slug, "ready")
     return rag.get_base(slug)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

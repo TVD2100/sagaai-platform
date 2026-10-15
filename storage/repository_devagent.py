@@ -335,4 +335,4 @@ def repo_devagent_load_messages_window(thread_id: str, offset: int = 0,
         return {"total": 0, "messages": []}
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

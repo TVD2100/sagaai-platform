@@ -315,6 +315,7 @@ roles.update({
     "core/tools_utils.py": "Tool definitions list for the Skills/Assistants pages; RAG tool descriptions carry the per-base search mode",
     "defaults/skills/rag_base_creator/SKILL.md": "Rag Base Creator skill: create and index RAG bases; Search modes section (bm25 default without keys - fielded BM25F over body+header, vector, hybrid), --search-mode",
     "defaults/skills/rag_base_creator/scripts/build_base.py": "Rag Base Creator helper: builds a base offline (default bm25, no embedding calls) or with embeddings for vector/hybrid",
+    "tests/scenarios/test_license_consistency_scenario.py": "Scenario: license migration to PolyForm Noncommercial 1.0.0 - canonical LICENSE text, no MIT SPDX identifier among published files, README/COMPARISON/UI/AGENT.md agreement, 2.0.0 version and manifest consistency, documented licensing history",
 })
 
 

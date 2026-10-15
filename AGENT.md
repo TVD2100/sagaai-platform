@@ -667,7 +667,7 @@ SagaAI - универсальный AI-ассистент с веб-интерф
 - Базовые Python-файлы платформы в конце файла должны содержать две закомментированные строки копирайта:
 
     # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-    # SPDX-License-Identifier: MIT
+    # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
 - Список базовых файлов (92):
   - Корень (2): __init__.py, app.py

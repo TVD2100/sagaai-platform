@@ -249,4 +249,4 @@ class thread_context:
             self.engaged = False
             _BINDING_LOCK.release()
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

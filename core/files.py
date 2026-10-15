@@ -345,4 +345,4 @@ def extract_file_content(uploaded_file) -> str:
 
     raise RuntimeError("Unsupported file format")
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

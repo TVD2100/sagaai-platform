@@ -500,4 +500,4 @@ def load_global_settings() -> Dict[str, Any]:
     data = read_json(path, {})
     return data if isinstance(data, dict) else {}
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

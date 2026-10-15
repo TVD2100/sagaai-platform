@@ -40,4 +40,4 @@ save_skill_file = save_assistant_file
 delete_skill_file = delete_assistant_file
 load_skill_files_context = load_assistant_files_context
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

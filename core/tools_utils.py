@@ -165,4 +165,4 @@ def service_supported_tools(service_def: Optional[dict], tool_defs: Optional[lis
             keys = [k for k in keys if k in known]
     return keys
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

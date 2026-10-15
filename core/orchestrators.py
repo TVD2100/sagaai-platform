@@ -1727,4 +1727,4 @@ def save_devagent_config(
 # Kept so older UI code keeps working; new code must use build_assistant_dicts.
 build_skill_dicts = build_assistant_dicts
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

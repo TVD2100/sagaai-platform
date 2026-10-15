@@ -148,4 +148,4 @@ def page_stats() -> None:
     ]
     st.dataframe(provider_rows, use_container_width=True)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

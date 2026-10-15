@@ -62,4 +62,4 @@ def sort_orchestrators(orchestrators: List[Dict[str, Any]],
 
     return sorted(orchestrators, key=key)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

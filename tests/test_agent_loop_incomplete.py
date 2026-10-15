@@ -186,4 +186,4 @@ def test_no_incomplete_no_retry(monkeypatch):
     retries = [e for e in events if e.get('type') == 'incomplete_retry']
     assert retries == []
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

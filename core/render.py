@@ -387,4 +387,4 @@ def format_ts_label(ts_raw: str) -> str:
         return f"{int(time_m.group(1)):02d}:{int(time_m.group(2)):02d}"
     return ""
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

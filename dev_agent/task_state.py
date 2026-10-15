@@ -1206,4 +1206,4 @@ def task_state_for_context(max_history: int = 3) -> Optional[str]:
         body = body[:limit] + "\n... [truncated]"
     return header + body
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

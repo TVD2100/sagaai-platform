@@ -142,4 +142,4 @@ def dump_lang_file(fpath: str, data: dict, sort_keys: bool = False) -> bool:
     except Exception:
         return False
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -11,4 +11,4 @@ page_skills = page_assistants
 
 __all__ = ["page_skills", "page_assistants", "_get_model_max_tokens_limit"]
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

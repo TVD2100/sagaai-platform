@@ -391,4 +391,4 @@ def _resolve_reasoning_effort(
 classify_skill_requirements = classify_assistant_requirements
 resolve_service_model_for_skill = resolve_service_model_for_assistant
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

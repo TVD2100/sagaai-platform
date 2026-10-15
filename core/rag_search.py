@@ -297,4 +297,4 @@ def chat_context(slug: str, query: str, top_k: int = DEFAULT_TOP_K,
         "**Используй эти материалы при ответе и ссылайся на них.**"
     )
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
