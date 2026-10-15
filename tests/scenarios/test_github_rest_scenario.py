@@ -60,8 +60,10 @@ class FakeGitHub:
         self.trees = {}       # tree_sha -> list of {path, mode, type, sha}
         self.commits = {}     # commit_sha -> {message, tree, parents}
         self.refs = {}        # "refs/heads/main" -> commit_sha
+        self.tag_objects = {}  # tag object sha -> payload
         self._tree_counter = 0
         self._commit_counter = 0
+        self._tag_counter = 0
         self.blob_creates = 0
         self.tree_creates = 0
         self.commit_count = 0
@@ -75,11 +77,15 @@ class FakeGitHub:
 
     def _new_tree_sha(self):
         self._tree_counter += 1
-        return f"t{self._tree_counter:04d}"
+        return f"{self._tree_counter:040x}"
 
     def _new_commit_sha(self):
         self._commit_counter += 1
-        return f"c{self._commit_counter:04d}"
+        return f"{self._commit_counter:040x}"
+
+    def _new_tag_sha(self):
+        self._tag_counter += 1
+        return f"{self._tag_counter:040x}"
 
     # Low-level dispatch ---------------------------------------------------
     def __call__(self, conn_id, method, url_path, body=None, params=None,
@@ -228,17 +234,26 @@ class FakeGitHub:
                     "tree": {"sha": stored["tree"]},
                     "parents": [{"sha": p} for p in stored["parents"]]}
 
+        if rest == "git/tags" and method == "POST":
+            body = body or {}
+            tag_sha = self._new_tag_sha()
+            self.tag_objects[tag_sha] = dict(body)
+            return {"sha": tag_sha, "tag": body.get("tag", ""),
+                    "object": {"sha": body.get("object", ""), "type": body.get("type", "commit")},
+                    "message": body.get("message", "")}
+
         if rest == "git/refs" and method == "POST":
             ref_name = body.get("ref", "")
             commit_sha = body.get("sha", "")
+            if ref_name in self.refs:
+                raise ghr.GithubRestError("Reference already exists", status=422)
             self.refs[ref_name] = commit_sha
             return {"ref": ref_name, "object": {"sha": commit_sha, "type": "commit"}}
 
-        branch_prefixes = ("git/ref/heads/", "git/refs/heads/")
-        for prefix in branch_prefixes:
+        for prefix in ("git/ref/", "git/refs/"):
             if rest.startswith(prefix):
-                branch = urllib.parse.unquote(rest[len(prefix):])
-                return self._branch_dispatch(method, branch, body)
+                ref_path = urllib.parse.unquote(rest[len(prefix):])
+                return self._ref_dispatch(method, ref_path, body)
 
         if rest.startswith("contents/"):
             path = urllib.parse.unquote(rest[len("contents/"):])
@@ -246,22 +261,22 @@ class FakeGitHub:
 
         raise AssertionError(f"Unexpected repo endpoint: {method} {url_path}")
 
-    def _branch_dispatch(self, method, branch, body):
-        ref_name = "refs/heads/" + branch
+    def _ref_dispatch(self, method, ref_path, body):
+        ref_name = "refs/" + ref_path
         if method == "GET":
-            commit_sha = self.refs.get(ref_name)
-            if not commit_sha:
+            sha = self.refs.get(ref_name)
+            if not sha:
                 raise ghr.GithubRestError(
                     f"Reference {ref_name} does not exist", status=404
                 )
             return {"ref": ref_name,
-                    "object": {"sha": commit_sha, "type": "commit"}}
+                    "object": {"sha": sha, "type": "commit"}}
         if method == "PATCH":
-            commit_sha = body.get("sha", "")
-            self.refs[ref_name] = commit_sha
+            sha = body.get("sha", "")
+            self.refs[ref_name] = sha
             return {"ref": ref_name,
-                    "object": {"sha": commit_sha, "type": "commit"}}
-        raise AssertionError(f"Unexpected branch method: {method}")
+                    "object": {"sha": sha, "type": "commit"}}
+        raise AssertionError(f"Unexpected ref method: {method}")
 
     def _contents_dispatch(self, method, repo_name, path, body, params):
         branch = urllib.parse.unquote(
@@ -524,3 +539,93 @@ def test_scenario_tool_layer_returns_error_dicts_for_failures(isolated_data_dir)
         )
     assert result["ok"] is False
     assert "not-there.txt" in result["error"]
+
+
+# ---------------------------------------------------------------------------
+# 5. Tagging a release: annotated and lightweight tags, force, and the tool layer
+# ---------------------------------------------------------------------------
+
+def test_scenario_create_annotated_and_lightweight_tags(isolated_data_dir):
+    """Publish a commit, tag it (annotated + lightweight), then guard repeats."""
+    conn = _github_rest_connection(isolated_data_dir)
+    conn_id = conn["id"]
+    repo = "tvd/scenario-tag-repo"
+    fake = FakeGitHub()
+
+    with mock.patch.object(ghr, "_request", new=fake):
+        ghr.create_repo(conn_id, "scenario-tag-repo", private=True,
+                        auto_init=False)
+        batch = ghr.batch_commit(
+            conn_id, repo, [{"path": "README.md", "content": "# Release\n"}],
+            branch="main",
+        )
+        commit_sha = batch["commit_sha"]
+
+        # 1. An annotated tag: a tag object is created, the ref points at it
+        #    and the message is preserved (GitHub shows it in the tags UI).
+        annotated = ghr.create_tag(
+            conn_id, repo, "v2.0.0", sha=commit_sha,
+            message="Release 2.0.0 - PolyForm Noncommercial license",
+            tagger_name="Release Bot", tagger_email="bot@example.com",
+        )
+        assert annotated["annotated"] is True
+        assert annotated["ref"] == "refs/tags/v2.0.0"
+        assert annotated["target_sha"] == commit_sha
+        assert fake.refs["refs/tags/v2.0.0"] == annotated["tag_sha"]
+        tag_payload = fake.tag_objects[annotated["tag_sha"]]
+        assert tag_payload["object"] == commit_sha
+        assert tag_payload["type"] == "commit"
+        assert "PolyForm" in tag_payload["message"]
+        assert tag_payload["tagger"]["name"] == "Release Bot"
+
+        # 2. A lightweight tag points straight at the commit (no tag object).
+        tag_objs_before = len(fake.tag_objects)
+        light = ghr.create_tag(conn_id, repo, "v2.0.0-lite", sha=commit_sha)
+        assert light["annotated"] is False
+        assert light["tag_sha"] == ""
+        assert fake.refs["refs/tags/v2.0.0-lite"] == commit_sha
+        assert len(fake.tag_objects) == tag_objs_before
+
+        # 3. Re-creating the same tag is refused; force moves it deliberately.
+        with pytest.raises(ghr.GithubRestError) as exc:
+            ghr.create_tag(conn_id, repo, "v2.0.0", sha=commit_sha)
+        assert "already exists" in str(exc.value).lower()
+        assert fake.refs["refs/tags/v2.0.0"] == annotated["tag_sha"]
+        moved = ghr.create_tag(conn_id, repo, "v2.0.0", sha=commit_sha,
+                               message="re-tagged", force=True)
+        assert moved["forced"] is True
+        assert moved["updated"] is True
+
+        # 4. create_ref handles an arbitrary ref (a release branch).
+        branch = ghr.create_ref(conn_id, repo, "refs/heads/release/2.0.0",
+                                sha=commit_sha)
+        assert branch["created"] is True
+        assert fake.refs["refs/heads/release/2.0.0"] == commit_sha
+
+        # 5. The orchestrator tool layer exposes the same behaviour.
+        from core import github_tools_rest
+        tool_tag = github_tools_rest.ghr_create_tag(
+            connector_id=conn_id, repo=repo, tag="v2.0.0-tool",
+            sha=commit_sha, message="tagged via tool layer",
+        )
+        assert tool_tag["ok"] is True
+        assert tool_tag["result"]["annotated"] is True
+        assert fake.refs["refs/tags/v2.0.0-tool"] == tool_tag["result"]["tag_sha"]
+
+
+def test_scenario_create_tag_resolves_default_branch_head(isolated_data_dir):
+    """Omitting sha tags the head of the default branch."""
+    conn = _github_rest_connection(isolated_data_dir)
+    conn_id = conn["id"]
+    repo = "tvd/scenario-tag-head"
+    fake = FakeGitHub()
+
+    with mock.patch.object(ghr, "_request", new=fake):
+        ghr.create_repo(conn_id, "scenario-tag-head", private=True,
+                        auto_init=False)
+        batch = ghr.batch_commit(
+            conn_id, repo, [{"path": "a.txt", "content": "A\n"}], branch="main"
+        )
+        tagged = ghr.create_tag(conn_id, repo, "v0.1.0")
+        assert tagged["target_sha"] == batch["commit_sha"]
+        assert fake.refs["refs/tags/v0.1.0"] == batch["commit_sha"]

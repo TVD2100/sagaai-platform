@@ -195,6 +195,41 @@ Arguments: `connector_id`, `repo` (required); `branch` (optional),
 `recursive` (bool, optional, default `false`).
 Returns `tree_sha`, `truncated`, `entries`.
 
+### `ghr_create_ref`
+Create a Git ref (branch or tag) pointing at a commit.
+Arguments:
+- `connector_id` (str, required).
+- `repo` (str, required).
+- `ref` (str, required): full Git ref, e.g. `"refs/tags/v1.0.0"` or
+  `"refs/heads/release"` (the short `tags/...` / `heads/...` form is accepted
+  too).
+- `sha` (str, optional): target commit; a full 40/64-char id or an
+  abbreviated id as printed by `git rev-parse --short` (resolved
+  automatically). When omitted, the head of `branch` (or the repository
+  default branch) is used.
+- `branch` (str, optional): branch whose head is the target.
+- `force` (bool, optional, default `false`): move an existing ref.
+Returns `ref`, `sha`, `target_sha`, `created`, `updated`, `forced`.
+An existing ref is a clean error unless `force=true` (a tag or branch is
+never overwritten by accident).
+
+### `ghr_create_tag`
+Create a Git tag - lightweight, or annotated when `message` is given.
+Arguments:
+- `connector_id`, `repo` (required).
+- `tag` (str, required): bare tag name, e.g. `"v1.17.0"` (do NOT pass the
+  `refs/tags/` prefix).
+- `sha` (str, optional): target commit (full or abbreviated id); when
+  omitted, the head of `branch` / the default branch is tagged.
+- `message` (str, optional): annotation message - when set, an annotated tag
+  object is created first (`POST /git/tags`), so GitHub shows the message in
+  the tags/releases UI.
+- `branch` (str, optional): branch whose head is the target.
+- `force` (bool, optional, default `false`): move an existing tag.
+- `tagger_name` / `tagger_email` (str, optional): tagger identity.
+Returns `ref`, `tag`, `sha`, `target_sha`, `annotated`, `tag_sha`,
+`created`, `updated`, `forced`.
+
 ### `ghr_batch_commit` - publish many files in ONE commit (PREFERRED)
 **The primary way to publish multiple files.** Uses the Git Data API: all
 blobs are created first, then one tree, one commit and one ref update for
@@ -315,3 +350,15 @@ inspect files.
 4. To refresh the remote with only the changed files later, use
    `ghr_batch_upsert` with the same `files` list - unchanged files are
    skipped automatically.
+
+### Tag a release
+1. Publish the files first (a commit needs to exist before it can be tagged).
+2. Capture the commit id from the publish result (`commit_sha`), or read the
+   branch head with `ghr_get_ref`.
+3. `ghr_create_tag(connector_id, repo, tag="v1.17.0", sha=<commit>,
+   message="...")` - pass `message` for an annotated tag, omit it for a
+   lightweight one.
+4. Verify: `ghr_get_ref(connector_id, repo, branch="tags/v1.17.0")` (or
+   re-read the tag) and confirm it points at the expected commit.
+Use `ghr_create_ref` to create a release branch, and `force=true` only when
+you deliberately need to move an existing tag/branch.

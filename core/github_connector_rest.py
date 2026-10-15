@@ -597,6 +597,235 @@ def get_tree(conn_id: str, repo: str, branch: str = "",
     }
 
 
+_HEX_DIGITS = "0123456789abcdef"
+_FORBIDDEN_REF_CHARS = " ~^:?*[" + chr(92) + chr(127)
+
+
+def _validate_ref_name(ref: str) -> str:
+    """Validate and normalize a full Git ref name.
+
+    Accepts the canonical ``refs/...`` form and the short ``heads/...`` /
+    ``tags/...`` form (normalized to ``refs/...``). Rejects empty names,
+    names without a category prefix and names containing characters Git
+    forbids in refs.
+    """
+    raw = str(ref or "").strip()
+    if not raw:
+        raise GithubRestError("Ref name cannot be empty")
+    if raw.startswith("refs/"):
+        full = raw
+    elif raw.startswith("heads/") or raw.startswith("tags/"):
+        full = "refs/" + raw
+    else:
+        raise GithubRestError(
+            "Ref must be a full Git ref such as 'refs/tags/v1.0.0' or "
+            "'refs/heads/main' (for a bare tag name use create_tag): " + raw
+        )
+    if (any(ch in _FORBIDDEN_REF_CHARS or ord(ch) < 32 for ch in full)
+            or ".." in full or "@{" in full or "//" in full
+            or full.endswith("/") or full.endswith(".")
+            or full.endswith(".lock")):
+        raise GithubRestError("Invalid ref name: " + raw)
+    if full.count("/") < 2:
+        raise GithubRestError(
+            "Ref must name a category and a branch/tag, e.g. refs/tags/v1.0.0: "
+            + raw
+        )
+    return full
+
+
+def _validate_tag_name(tag: str) -> str:
+    """Validate a bare tag name; return it without the ``refs/tags/`` part."""
+    name = str(tag or "").strip()
+    if not name:
+        raise GithubRestError("Tag name cannot be empty")
+    if name.startswith("refs/"):
+        raise GithubRestError(
+            "Pass a bare tag name to create_tag (without the 'refs/' prefix): "
+            + str(tag)
+        )
+    full = _validate_ref_name("refs/tags/" + name.strip("/"))
+    return full[len("refs/tags/"):]
+
+
+def _normalize_object_sha(sha: str) -> str:
+    """Validate a Git object id; empty means unset.
+
+    Accepts a full 40-char SHA-1, a 64-char SHA-256, or an abbreviated SHA
+    (7-40 hex chars, as printed by ``git rev-parse --short``) that is resolved
+    to the full id later. Non-hex input is rejected here, before any network
+    call.
+    """
+    value = str(sha or "").strip().lower()
+    if not value:
+        return ""
+    length_ok = (7 <= len(value) <= 40) or len(value) == 64
+    if not length_ok or any(ch not in _HEX_DIGITS for ch in value):
+        raise GithubRestError(
+            "sha must be a hex Git object id (7-40 chars, or 64): " + str(sha)
+        )
+    return value
+
+
+def _resolve_abbreviated_sha(conn_id: str, owner: str, name: str,
+                             value: str) -> str:
+    """Expand an abbreviated commit SHA to the full 40-char id.
+
+    GitHub accepts a full object id as-is; a short id (as printed by
+    ``git rev-parse --short``) is expanded through
+    ``GET /repos/{owner}/{repo}/git/commits/{sha}``, whose response carries the
+    canonical ``sha``. Full 40/64-char ids are returned untouched to avoid an
+    extra round-trip.
+    """
+    if len(value) in (40, 64):
+        return value
+    data = _request(
+        conn_id, "GET", f"/repos/{owner}/{name}/git/commits/{value}"
+    )
+    info = data if isinstance(data, dict) else {}
+    full = str(info.get("sha") or "").strip()
+    if not full:
+        raise GithubRestError(
+            "Cannot resolve the abbreviated commit sha: " + str(value)
+        )
+    return full
+
+
+def _resolve_target_object(conn_id: str, owner: str, name: str,
+                           sha: str, branch: str) -> str:
+    """Return the commit SHA a new ref/tag should point at.
+
+    Uses *sha* when given (validated); otherwise resolves the head commit of
+    *branch* (the repository default branch when *branch* is empty).
+    """
+    value = _normalize_object_sha(sha)
+    if value:
+        return _resolve_abbreviated_sha(conn_id, owner, name, value)
+    target_branch = branch or _default_branch(conn_id, owner, name)
+    data = _request(
+        conn_id, "GET",
+        f"/repos/{owner}/{name}/git/ref/heads/{_quote_branch(target_branch)}",
+    )
+    info = data if isinstance(data, dict) else {}
+    head = str((info.get("object") or {}).get("sha") or "").strip()
+    if not head:
+        raise GithubRestError(
+            "Cannot resolve the head of branch: " + str(target_branch)
+        )
+    # The head is server data: trust it as-is (GitHub returns a full object id),
+    # only user-supplied sha values are validated strictly.
+    return head
+
+
+def _write_ref(conn_id: str, owner: str, name: str, ref: str, sha: str,
+               force: bool = False) -> Dict[str, Any]:
+    """Create *ref* pointing at *sha*, or move it when it already exists.
+
+    An existing ref is only moved when *force* is True; otherwise a clean
+    error is raised, so an existing tag or branch is never overwritten by
+    accident.
+    """
+    path = _quote_branch(ref[len("refs/"):])
+    exists = False
+    try:
+        _request(conn_id, "GET", f"/repos/{owner}/{name}/git/ref/{path}")
+        exists = True
+    except GithubRestError as e:
+        if e.status != 404:
+            raise
+    if exists:
+        if not force:
+            raise GithubRestError(
+                "Ref already exists: " + ref + ". Pass force=True to move it."
+            )
+        _request(conn_id, "PATCH",
+                 f"/repos/{owner}/{name}/git/refs/{path}",
+                 body={"sha": sha, "force": True})
+        return {"ref": ref, "sha": sha, "created": False, "updated": True,
+                "forced": True}
+    _request(conn_id, "POST", f"/repos/{owner}/{name}/git/refs",
+             body={"ref": ref, "sha": sha})
+    return {"ref": ref, "sha": sha, "created": True, "updated": False,
+            "forced": False}
+
+
+def create_ref(conn_id: str, repo: str, ref: str, sha: str = "",
+               branch: str = "", force: bool = False) -> Dict[str, Any]:
+    """Create a Git ref (branch or tag) pointing at a commit.
+
+    *ref* is a full Git ref (``refs/tags/v1.0.0`` or ``refs/heads/main``);
+    the short ``tags/...`` / ``heads/...`` form is accepted too. *sha* is the
+    target commit; when omitted, the head of *branch* (or the repository
+    default branch) is used. An existing ref is reported as a clean error
+    unless *force* is True, in which case it is moved.
+
+    Returns {"ref", "sha", "target_sha", "created", "updated", "forced"}.
+    """
+    owner, name = _repo_spec(conn_id, repo)
+    full_ref = _validate_ref_name(ref)
+    target = _resolve_target_object(conn_id, owner, name, sha, branch)
+    result = _write_ref(conn_id, owner, name, full_ref, target,
+                        force=bool(force))
+    result["target_sha"] = target
+    return result
+
+
+def create_tag(conn_id: str, repo: str, tag: str, sha: str = "",
+               message: str = "", branch: str = "", force: bool = False,
+               tagger_name: str = "", tagger_email: str = "") -> Dict[str, Any]:
+    """Create a Git tag (lightweight, or annotated when *message* is given).
+
+    A lightweight tag points straight at the target commit. An annotated tag
+    first creates a tag object (``POST /git/tags``) with *message* and the
+    tagger identity, then points the ref at that object (GitHub exposes the
+    message in the releases/tags UI).
+
+    *tag* is a bare name (``v1.0.0``); *sha* is the target commit (the head of
+    *branch*, or the repository default branch, when omitted). An existing tag
+    is a clean error unless *force* is True.
+
+    Returns {"ref", "tag", "sha", "target_sha", "annotated", "tag_sha",
+    "created", "updated", "forced"}.
+    """
+    owner, name = _repo_spec(conn_id, repo)
+    tag_name = _validate_tag_name(tag)
+    target = _resolve_target_object(conn_id, owner, name, sha, branch)
+    ref = "refs/tags/" + tag_name
+    annotated = bool(str(message or "").strip())
+    tag_sha = ""
+    ref_target = target
+    if annotated:
+        tagger = {}
+        if str(tagger_name or "").strip():
+            tagger["name"] = str(tagger_name).strip()
+        if str(tagger_email or "").strip():
+            tagger["email"] = str(tagger_email).strip()
+        body: Dict[str, Any] = {
+            "tag": tag_name,
+            "message": str(message),
+            "object": target,
+            "type": "commit",
+        }
+        if tagger:
+            body["tagger"] = tagger
+        data = _request(conn_id, "POST", f"/repos/{owner}/{name}/git/tags",
+                        body=body, timeout=_BATCH_TIMEOUT)
+        info = data if isinstance(data, dict) else {}
+        tag_sha = str(info.get("sha") or "")
+        if not tag_sha:
+            raise GithubRestError("GitHub did not return a tag object SHA")
+        ref_target = tag_sha
+    result = _write_ref(conn_id, owner, name, ref, ref_target,
+                        force=bool(force))
+    result.update({
+        "tag": tag_name,
+        "target_sha": target,
+        "annotated": annotated,
+        "tag_sha": tag_sha,
+    })
+    return result
+
+
 def _git_blob_sha(content: str) -> str:
     """Compute the canonical Git blob SHA-1 for UTF-8 text content."""
     data = (content or "").encode("utf-8")
@@ -1026,7 +1255,8 @@ __all__ = [
     "test_connection", "get_user_info", "list_repos", "get_repo_info",
     "create_repo", "read_file", "read_file_meta", "upload_file",
     "update_file", "delete_file", "list_files", "get_ref", "get_commit",
-    "get_tree", "batch_commit", "batch_commit_paths", "batch_upsert",
+    "get_tree", "create_ref", "create_tag", "batch_commit",
+    "batch_commit_paths", "batch_upsert",
 ]
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

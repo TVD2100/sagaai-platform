@@ -450,7 +450,7 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   `ghr_upload_file`, `ghr_update_file`, `ghr_delete_file`, `ghr_list_files`,
   `ghr_batch_commit`, `ghr_batch_upsert`, `ghr_test_connection`,
   `ghr_get_repo_info`, `ghr_read_file_meta`, `ghr_get_ref`, `ghr_get_commit`,
-  `ghr_get_tree`; каталог - `get_tools()`.
+  `ghr_get_tree`, `ghr_create_ref`, `ghr_create_tag`; каталог - `get_tools()`.
   Сервис подключения - `github_rest`; legacy-сервис `github` (PyGithub)
   удалён и больше не существует. Токен шифруется через `core.crypto` при
   сохранении соединения и никогда не попадает в результаты, ошибки или

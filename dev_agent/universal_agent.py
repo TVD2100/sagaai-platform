@@ -405,6 +405,8 @@ class UniversalDevAgent:
         "ghr_get_ref",
         "ghr_get_commit",
         "ghr_get_tree",
+        "ghr_create_ref",
+        "ghr_create_tag",
         "ghr_batch_commit",
         "ghr_batch_commit_paths",
         "ghr_batch_upsert",

@@ -410,6 +410,81 @@ def ghr_get_tree(**kwargs: Any) -> Dict[str, Any]:
     return _wrap(run, kwargs)
 
 
+def ghr_create_ref(**kwargs: Any) -> Dict[str, Any]:
+    """Create a Git ref (branch or tag) pointing at a commit.
+
+    Arguments:
+        connector_id (str, required): connection id.
+        repo (str, required): "owner/repo" or bare repo name.
+        ref (str, required): full Git ref, e.g. "refs/tags/v1.0.0" or
+            "refs/heads/release" (short "tags/..."/"heads/..." accepted).
+        sha (str, optional): target commit SHA (40/64 hex); head of branch
+            when omitted.
+        branch (str, optional): branch whose head is the target.
+        force (bool, optional, default False): move an existing ref.
+    Returns:
+        {"ok": True, "result": {"ref", "sha", "target_sha", "created",
+        "updated", "forced"}}
+    """
+    from core.github_connector_rest import create_ref
+
+    def run():
+        conn_id = _get_connector_id(kwargs)
+        repo = str(kwargs.get("repo") or "").strip()
+        ref = str(kwargs.get("ref") or kwargs.get("ref_name") or "").strip()
+        if not repo:
+            raise GithubRestError("Missing required argument: repo")
+        if not ref:
+            raise GithubRestError("Missing required argument: ref")
+        return create_ref(
+            conn_id, repo, ref,
+            sha=str(kwargs.get("sha") or ""),
+            branch=str(kwargs.get("branch") or ""),
+            force=bool(kwargs.get("force", False)),
+        )
+
+    return _wrap(run, kwargs)
+
+
+def ghr_create_tag(**kwargs: Any) -> Dict[str, Any]:
+    """Create a Git tag (lightweight, or annotated when message is given).
+
+    Arguments:
+        connector_id (str, required): connection id.
+        repo (str, required): "owner/repo" or bare repo name.
+        tag (str, required): bare tag name, e.g. "v1.17.0".
+        sha (str, optional): target commit SHA; head of branch when omitted.
+        message (str, optional): annotation message (annotated tag).
+        branch (str, optional): branch whose head is the target.
+        force (bool, optional, default False): move an existing tag.
+        tagger_name / tagger_email (str, optional): tagger identity.
+    Returns:
+        {"ok": True, "result": {"ref", "tag", "sha", "target_sha",
+        "annotated", "tag_sha", "created", "updated", "forced"}}
+    """
+    from core.github_connector_rest import create_tag
+
+    def run():
+        conn_id = _get_connector_id(kwargs)
+        repo = str(kwargs.get("repo") or "").strip()
+        tag = str(kwargs.get("tag") or "").strip()
+        if not repo:
+            raise GithubRestError("Missing required argument: repo")
+        if not tag:
+            raise GithubRestError("Missing required argument: tag")
+        return create_tag(
+            conn_id, repo, tag,
+            sha=str(kwargs.get("sha") or ""),
+            message=str(kwargs.get("message") or ""),
+            branch=str(kwargs.get("branch") or ""),
+            force=bool(kwargs.get("force", False)),
+            tagger_name=str(kwargs.get("tagger_name") or ""),
+            tagger_email=str(kwargs.get("tagger_email") or ""),
+        )
+
+    return _wrap(run, kwargs)
+
+
 def ghr_batch_commit(**kwargs: Any) -> Dict[str, Any]:
     """Publish many files in ONE commit via the Git Data API (optimized).
 
@@ -612,6 +687,21 @@ TOOLS["ghr_get_tree"] = {
     "desc": (
         "Return the repository tree for a branch (REST connector). "
         "Arguments: connector_id, repo, branch, recursive."
+    ),
+}
+TOOLS["ghr_create_ref"] = {
+    "name": "ghr_create_ref",
+    "desc": (
+        "Create a Git ref (branch or tag) pointing at a commit (REST connector). "
+        "Arguments: connector_id, repo, ref (full 'refs/...'), sha, branch, force."
+    ),
+}
+TOOLS["ghr_create_tag"] = {
+    "name": "ghr_create_tag",
+    "desc": (
+        "Create a Git tag - lightweight, or annotated when message is given "
+        "(REST connector). Arguments: connector_id, repo, tag, sha, message, "
+        "branch, force, tagger_name, tagger_email."
     ),
 }
 TOOLS["ghr_batch_commit"] = {

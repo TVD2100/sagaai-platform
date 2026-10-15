@@ -438,17 +438,20 @@ vector/hybrid). Базы хранятся в `DATA_DIR/rag_bases/`.
 - **`core/github_connector_rest.py`** - единственный прямой REST-коннектор
   (requests, REST API v3, `X-GitHub-Api-Version: 2022-11-28`, Bearer).
   Реализует repo CRUD, чтение/запись файлов и метаданных, плюс Git Data API:
-  `get_ref`, `get_commit`, `get_tree`, а также оптимизированная пакетная публикация
+  `get_ref`, `get_commit`, `get_tree`, `create_ref` (произвольный ref -
+  ветка или тег) и `create_tag` (лёгкий или аннотированный через
+  `POST /git/tags`), а также оптимизированная пакетная публикация
   `batch_commit` (blobs -> одно дерево с чанкингом по 9000 записей -> один
   коммит -> PATCH ref; ветка создаётся через POST /git/refs для пустого
   репозитория) и `batch_upsert` (дифф по blob-SHA с пропуском неизменённых).
   Ошибки - `GithubRestError` (наследник ValueError) со статусом; токен
   расшифровывается внутри модуля и не попадает в результаты/ошибки.
-- **`core/github_tools_rest.py`** - инструменты `ghr_*` (15 штук:
+- **`core/github_tools_rest.py`** - инструменты `ghr_*` (17 штук:
   `ghr_list_repos`, `ghr_create_repo`, `ghr_read_file`, `ghr_upload_file`,
   `ghr_update_file`, `ghr_delete_file`, `ghr_list_files`, `ghr_batch_commit`,
   `ghr_batch_upsert`, `ghr_test_connection`, `ghr_get_repo_info`,
-  `ghr_read_file_meta`, `ghr_get_ref`, `ghr_get_commit`, `ghr_get_tree`)
+  `ghr_read_file_meta`, `ghr_get_ref`, `ghr_get_commit`, `ghr_get_tree`,
+  `ghr_create_ref`, `ghr_create_tag`)
   и каталог `get_tools()`; `files` для batch принимается списком dict'ов
   или JSON-строкой.
 - **`core/ssh_connector.py`** - SSH/SFTP-коннектор (paramiko + SFTP, ленивый

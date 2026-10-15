@@ -218,6 +218,8 @@ def test_get_tools_metadata():
         "ghr_get_ref",
         "ghr_get_commit",
         "ghr_get_tree",
+        "ghr_create_ref",
+        "ghr_create_tag",
         "ghr_batch_commit",
         "ghr_batch_commit_paths",
         "ghr_batch_upsert",
@@ -305,3 +307,77 @@ def test_ghr_get_tree_ok(mock_tree):
     mock_tree.assert_called_once_with(
         "abc", "alice/r", branch="main", recursive=True,
     )
+
+
+@mock.patch("core.github_connector_rest.create_ref")
+def test_ghr_create_ref_ok(mock_create):
+    mock_create.return_value = {
+        "ref": "refs/tags/v1.0.0", "sha": "c1", "target_sha": "c1",
+        "created": True, "updated": False, "forced": False,
+    }
+    result = gtr.ghr_create_ref(
+        connector_id="abc", repo="alice/r", ref="refs/tags/v1.0.0",
+        sha="c1", branch="main", force=True,
+    )
+    assert result["ok"] is True
+    assert result["result"]["ref"] == "refs/tags/v1.0.0"
+    mock_create.assert_called_once_with(
+        "abc", "alice/r", "refs/tags/v1.0.0",
+        sha="c1", branch="main", force=True,
+    )
+
+
+def test_ghr_create_ref_missing_ref_and_repo():
+    assert gtr.ghr_create_ref(connector_id="abc", repo="alice/r")["ok"] is False
+    r = gtr.ghr_create_ref(connector_id="abc", ref="refs/tags/v1")
+    assert r["ok"] is False and "repo" in r["error"]
+    r2 = gtr.ghr_create_ref(connector_id="abc", repo="alice/r")
+    assert r2["ok"] is False and "ref" in r2["error"]
+
+
+def test_ghr_create_ref_accepts_ref_name_alias():
+    from unittest import mock as _mock
+    with _mock.patch("core.github_connector_rest.create_ref") as mock_create:
+        mock_create.return_value = {"ref": "refs/heads/x"}
+        gtr.ghr_create_ref(connector_id="abc", repo="alice/r", ref_name="refs/heads/x")
+    mock_create.assert_called_once_with(
+        "abc", "alice/r", "refs/heads/x", sha="", branch="", force=False,
+    )
+
+
+@mock.patch("core.github_connector_rest.create_tag")
+def test_ghr_create_tag_ok(mock_create):
+    mock_create.return_value = {
+        "ref": "refs/tags/v1.17.0", "tag": "v1.17.0", "sha": "t1",
+        "target_sha": "c1", "annotated": True, "tag_sha": "t1",
+        "created": True, "updated": False, "forced": False,
+    }
+    result = gtr.ghr_create_tag(
+        connector_id="abc", repo="alice/r", tag="v1.17.0",
+        message="last MIT release", sha="c1", branch="main",
+        tagger_name="T. Dev", tagger_email="dev@example.com",
+    )
+    assert result["ok"] is True
+    assert result["result"]["annotated"] is True
+    mock_create.assert_called_once_with(
+        "abc", "alice/r", "v1.17.0",
+        sha="c1", message="last MIT release", branch="main", force=False,
+        tagger_name="T. Dev", tagger_email="dev@example.com",
+    )
+
+
+def test_ghr_create_tag_missing_tag_and_repo():
+    assert gtr.ghr_create_tag(connector_id="abc", repo="alice/r")["ok"] is False
+    r = gtr.ghr_create_tag(connector_id="abc", tag="v1")
+    assert r["ok"] is False and "repo" in r["error"]
+    r2 = gtr.ghr_create_tag(connector_id="abc", repo="alice/r")
+    assert r2["ok"] is False and "tag" in r2["error"]
+
+
+@mock.patch("core.github_connector_rest.create_tag")
+def test_ghr_create_tag_wraps_connector_error(mock_create):
+    from core.github_connector_rest import GithubRestError
+    mock_create.side_effect = GithubRestError("Ref already exists", status=422)
+    result = gtr.ghr_create_tag(connector_id="abc", repo="alice/r", tag="v1")
+    assert result["ok"] is False
+    assert "already exists" in result["error"]

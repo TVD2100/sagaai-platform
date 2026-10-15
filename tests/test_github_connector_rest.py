@@ -1133,3 +1133,189 @@ def test_batch_commit_honest_counters_created_updated_unchanged(isolated_connect
         if c["method"] == "POST" and c["url"].endswith("/git/trees")
     )
     assert {e["path"] for e in tree_call["body"]["tree"]} == {"a.txt", "b.txt", "c.txt"}
+
+
+# ---------------------------------------------------------------------------
+# refs and tags: create_ref / create_tag
+# ---------------------------------------------------------------------------
+
+
+def _make_ref_handler(head_sha="a" * 40, tag_object_sha="b" * 40, existing=None):
+    """FakeAPI handler covering the ref/tag endpoints used by create_ref/tag."""
+    state = {"existing": dict(existing or {})}
+    prefix = "/repos/alice/repo"
+
+    def handler(call):
+        method, url = call["method"], call["url"]
+        body = call["body"] or {}
+        if method == "GET" and url == prefix:
+            return {"default_branch": "main"}
+        if method == "GET" and "/git/commits/" in url:
+            short = url.rsplit("/git/commits/", 1)[1]
+            full = short if len(short) == 40 else (short.ljust(40, "0"))
+            return {"sha": full, "message": "m",
+                    "tree": {"sha": "t" * 40}, "parents": []}
+        if method == "GET" and url.endswith("/git/ref/heads/main"):
+            return {"ref": "refs/heads/main",
+                    "object": {"sha": head_sha, "type": "commit"}}
+        if method == "POST" and url.endswith("/git/tags"):
+            return {"sha": tag_object_sha, "tag": body.get("tag", "")}
+        if method == "POST" and url.endswith("/git/refs"):
+            ref = body.get("ref", "")
+            if ref in state["existing"]:
+                raise ghr.GithubRestError("Reference already exists", status=422)
+            state["existing"][ref] = body.get("sha", "")
+            return {"ref": ref,
+                    "object": {"sha": body.get("sha", ""), "type": "commit"}}
+        if url.startswith(prefix + "/git/ref/"):
+            ref = "refs/" + url[len(prefix + "/git/ref/"):]
+            if method == "GET":
+                if ref in state["existing"]:
+                    return {"ref": ref,
+                            "object": {"sha": state["existing"][ref],
+                                       "type": "commit"}}
+                raise ghr.GithubRestError("Not Found", status=404)
+        if url.startswith(prefix + "/git/refs/") and method == "PATCH":
+            ref = "refs/" + url[len(prefix + "/git/refs/"):]
+            state["existing"][ref] = body.get("sha", "")
+            return {"ref": ref,
+                    "object": {"sha": body.get("sha", ""), "type": "commit"}}
+        raise AssertionError(f"Unexpected: {method} {url}")
+
+    return handler, state
+
+
+def test_create_ref_tag_on_given_sha(isolated_connector):
+    handler, state = _make_ref_handler()
+    api = FakeAPI(handler)
+    sha = "c" * 40
+    with mock.patch.object(ghr, "_request", new=api):
+        result = ghr.create_ref(isolated_connector, "alice/repo",
+                                "refs/tags/v1.0.0", sha=sha)
+    assert result["created"] is True
+    assert result["updated"] is False
+    assert result["ref"] == "refs/tags/v1.0.0"
+    assert result["target_sha"] == sha
+    assert state["existing"]["refs/tags/v1.0.0"] == sha
+    # No default-branch resolution when sha is supplied explicitly.
+    assert not any(c["url"].endswith("/git/ref/heads/main") for c in api.calls)
+
+
+def test_create_tag_with_abbreviated_sha(isolated_connector):
+    """A short commit id (as printed by git) is expanded before tagging."""
+    handler, state = _make_ref_handler()
+    api = FakeAPI(handler)
+    short = "2d3de38"
+    full = short.ljust(40, "0")
+    with mock.patch.object(ghr, "_request", new=api):
+        result = ghr.create_tag(isolated_connector, "alice/repo", "v1.17.0",
+                                sha=short)
+    assert result["target_sha"] == full
+    assert state["existing"]["refs/tags/v1.17.0"] == full
+    # The abbreviation is resolved via the commits endpoint.
+    assert any(c["url"].endswith("/git/commits/" + short) for c in api.calls)
+
+
+def test_create_ref_short_form_and_default_branch_resolution(isolated_connector):
+    head = "a" * 40
+    handler, state = _make_ref_handler(head_sha=head)
+    api = FakeAPI(handler)
+    with mock.patch.object(ghr, "_request", new=api):
+        result = ghr.create_ref(isolated_connector, "alice/repo", "heads/release")
+    assert result["ref"] == "refs/heads/release"
+    assert result["target_sha"] == head
+    assert state["existing"]["refs/heads/release"] == head
+
+
+def test_create_ref_existing_ref_requires_force(isolated_connector):
+    old = "d" * 40
+    new = "e" * 40
+    handler, state = _make_ref_handler(existing={"refs/tags/v1.0.0": old})
+    api = FakeAPI(handler)
+    with mock.patch.object(ghr, "_request", new=api):
+        with pytest.raises(ghr.GithubRestError) as exc:
+            ghr.create_ref(isolated_connector, "alice/repo",
+                           "refs/tags/v1.0.0", sha=new)
+        assert "already exists" in str(exc.value).lower()
+        assert state["existing"]["refs/tags/v1.0.0"] == old  # untouched
+        forced = ghr.create_ref(isolated_connector, "alice/repo",
+                                "refs/tags/v1.0.0", sha=new, force=True)
+    assert forced["updated"] is True
+    assert forced["forced"] is True
+    assert state["existing"]["refs/tags/v1.0.0"] == new
+
+
+@pytest.mark.parametrize("ref", ["", "v1.0.0", "refs/v1.0.0", "tags/"])
+def test_create_ref_rejects_invalid_ref_names(isolated_connector, ref):
+    api = mock.Mock(side_effect=AssertionError("network call must not happen"))
+    with mock.patch.object(ghr, "_request", new=api):
+        with pytest.raises(ghr.GithubRestError):
+            ghr.create_ref(isolated_connector, "alice/repo", ref, sha="c" * 40)
+
+
+def test_create_ref_rejects_non_hex_sha(isolated_connector):
+    api = mock.Mock(side_effect=AssertionError("network call must not happen"))
+    with mock.patch.object(ghr, "_request", new=api):
+        with pytest.raises(ghr.GithubRestError) as exc:
+            ghr.create_ref(isolated_connector, "alice/repo", "refs/tags/v1",
+                           sha="not-a-sha")
+    assert "hex" in str(exc.value)
+
+
+def test_create_tag_lightweight_points_at_commit(isolated_connector):
+    head = "a" * 40
+    handler, state = _make_ref_handler(head_sha=head)
+    api = FakeAPI(handler)
+    with mock.patch.object(ghr, "_request", new=api):
+        result = ghr.create_tag(isolated_connector, "alice/repo", "v1.17.0")
+    assert result["annotated"] is False
+    assert result["tag"] == "v1.17.0"
+    assert result["ref"] == "refs/tags/v1.17.0"
+    assert state["existing"]["refs/tags/v1.17.0"] == head
+    # A lightweight tag creates no tag object.
+    assert not any(c["url"].endswith("/git/tags") for c in api.calls)
+
+
+def test_create_tag_annotated_creates_tag_object(isolated_connector):
+    head = "a" * 40
+    tag_obj = "b" * 40
+    handler, state = _make_ref_handler(head_sha=head, tag_object_sha=tag_obj)
+    api = FakeAPI(handler)
+    with mock.patch.object(ghr, "_request", new=api):
+        result = ghr.create_tag(
+            isolated_connector, "alice/repo", "v1.17.0",
+            message="last release under the MIT License",
+            tagger_name="T. Dev", tagger_email="dev@example.com",
+        )
+    assert result["annotated"] is True
+    assert result["tag_sha"] == tag_obj
+    assert result["target_sha"] == head
+    # The ref points at the tag object, not the commit.
+    assert state["existing"]["refs/tags/v1.17.0"] == tag_obj
+    tag_call = next(c for c in api.calls if c["url"].endswith("/git/tags"))
+    assert tag_call["body"]["object"] == head
+    assert tag_call["body"]["type"] == "commit"
+    assert tag_call["body"]["tagger"] == {"name": "T. Dev", "email": "dev@example.com"}
+
+
+def test_create_tag_force_moves_existing_tag(isolated_connector):
+    head = "a" * 40
+    handler, state = _make_ref_handler(head_sha=head,
+                                       existing={"refs/tags/v1.0.0": "f" * 40})
+    api = FakeAPI(handler)
+    with mock.patch.object(ghr, "_request", new=api):
+        with pytest.raises(ghr.GithubRestError):
+            ghr.create_tag(isolated_connector, "alice/repo", "v1.0.0")
+        result = ghr.create_tag(isolated_connector, "alice/repo", "v1.0.0",
+                                force=True)
+    assert result["forced"] is True
+    assert state["existing"]["refs/tags/v1.0.0"] == head
+
+
+def test_create_tag_rejects_refs_prefix_and_empty(isolated_connector):
+    api = mock.Mock(side_effect=AssertionError("network call must not happen"))
+    with mock.patch.object(ghr, "_request", new=api):
+        with pytest.raises(ghr.GithubRestError):
+            ghr.create_tag(isolated_connector, "alice/repo", "refs/tags/v1")
+        with pytest.raises(ghr.GithubRestError):
+            ghr.create_tag(isolated_connector, "alice/repo", "")
