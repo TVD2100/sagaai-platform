@@ -300,7 +300,7 @@ def page_run_query():
             send_clicked = st.form_submit_button(label_send, type="primary", use_container_width=False)
         with col_side:
             uploaded = st.file_uploader(
-                "",
+                t("file_uploader_label", lang=lang),
                 type=get_file_uploader_types(),
                 key=uploader_key,
                 label_visibility="collapsed",

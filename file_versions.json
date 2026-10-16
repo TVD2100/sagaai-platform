@@ -308,8 +308,8 @@
           "sha256": "208d0f9e48700f367ab579de3a91d02a259c8e0322dbfae0758d0cb90cefddb1"
         },
         "requirements.txt": {
-          "version": "1.2.0",
-          "sha256": "66abb9f75f09ba1908b3b70012d9fea2aaf15a1fd80f687fa7ea13cdb857362e"
+          "version": "1.2.1",
+          "sha256": "dab9eac25e5d64479e71bdc77ba36c65b1b4803c07ac7f86f660fb2664b3217a"
         },
         "scripts/rag_eval.py": {
           "version": "1.0.1",
@@ -1100,8 +1100,8 @@
           "sha256": "42b8e2d8dc6a0f21f889fd8a5f10229b2f217031acb4fe489cafd7af11d1abd9"
         },
         "ui/pages/chat.py": {
-          "version": "1.0.2",
-          "sha256": "ae8b8cd855493bd90ffe823096075f627beca957e226e1898de9bb93fcd7b943"
+          "version": "1.0.3",
+          "sha256": "bd8d1b092d9b368368dc1e3d1fde4834035b6e45ed45ac772cf83289ebf1c80e"
         },
         "ui/pages/connectors.py": {
           "version": "1.3.1",
@@ -1188,11 +1188,11 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.34.4",
-      "sha256": "c68b4dcb250d95f596e4adf86c86ff7947bac678838135adde6161f60b70ef8c",
+      "version": "1.34.5",
+      "sha256": "b3ac2e0eba8fb5389e40cc4f24ea1f5e05b1dacf224ce1fe0718ed011273b976",
       "note": {
-        "ru": "Перегенерирована карта проекта (create_ref/create_tag, правка резолва сокращённого SHA и тесты).",
-        "en": "Project map regenerated (create_ref/create_tag, the abbreviated-SHA resolver fix and tests)."
+        "ru": "Перегенерирована карта проекта (фикс пустого label у st.file_uploader в ui/pages/chat.py, обновление Streamlit 1.66.0).",
+        "en": "Project map regenerated (empty-label fix for st.file_uploader in ui/pages/chat.py, Streamlit 1.66.0 update)."
       }
     },
     "README.md": {
