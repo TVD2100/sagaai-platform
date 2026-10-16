@@ -21,7 +21,7 @@
 #        empty | software_without_docs | software_with_docs
 #   7. System-wide backup/restore (snapshot_all / restore_all).
 #   8. Recent-workspaces history (list_recent_workspaces) - lets the agent
-#      suggest the last 5 projects at the start of a new task.
+#      suggest the last 10 projects at the start of a new task.
 
 from __future__ import annotations
 
@@ -197,7 +197,7 @@ def current_install() -> Dict[str, Any]:
 
 
 def list_recent_workspaces(slug: Optional[str] = None) -> Dict[str, Any]:
-    """Return up to 5 recently used workspace paths (newest first).
+    """Return up to 10 recently used workspace paths (newest first).
 
     Each entry contains a 1-based index (for the user to pick by number),
     the absolute path, and a short display name (folder basename).

@@ -38,6 +38,7 @@ class StreamlitMock(types.ModuleType):
         self._text_returns = {}         # key -> value
         self._date_returns = {}         # key -> date value
         self._number_returns = {}       # key -> number value to return
+        self._chat_returns = {}         # key -> st.chat_input return value
         self.rerun_count = 0
         self.errors = []                # st.error messages
         self.warnings = []              # st.warning messages
@@ -111,6 +112,13 @@ class StreamlitMock(types.ModuleType):
     def file_uploader(self, label="", *args, **kwargs):
         self._rec("file_uploader", (label,), kwargs)
         return None
+
+    def chat_input(self, placeholder="", *args, **kwargs):
+        # ``accept_file`` (Streamlit >= 1.45) makes the widget return an
+        # object exposing ``.text`` and ``.files``; tests seed that value via
+        # ``_chat_returns`` (keyed by the widget key, ``None`` when absent).
+        self._rec("chat_input", (placeholder,), kwargs)
+        return self._chat_returns.get(kwargs.get("key"))
 
     def checkbox(self, label="", *args, **kwargs):
         key = kwargs.get("key")

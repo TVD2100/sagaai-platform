@@ -194,12 +194,16 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   единственного источника `dev_agent/system_prompt.md` при каждом старте
   приложения (отдельная копия в `defaults/` не поддерживается).
 - Чат оркестратора принимает вложения **любого формата** (без фильтра
-  типов): при отправке байты сохраняются в `history/<tid>/files`, в
-  сообщение агента добавляется уведомление со списком файлов, а в
-  персистентный префикс каждого запроса - тот же список. Платформа не
-  парсит содержимое; агент сам решает, когда и как его извлечь
-  (инструменты `list_thread_files` / `read_thread_file`, бинарные форматы -
-  через `run_code`). Лимит одного файла - 100 МиБ.
+  типов) прямо в поле ввода: `st.chat_input(accept_file="multiple")`
+  показывает иконку-скрепку с всплывающей подсказкой, отдельного блока
+  `file_uploader` и подписи «Прикрепить файлы любого формата…» больше нет.
+  При отправке байты сохраняются в `history/<tid>/files`, в сообщение агента
+  добавляется уведомление со списком файлов, а в персистентный префикс
+  каждого запроса - тот же список. Если текста нет, а файлы приложены,
+  сообщением задачи становится i18n-строка `orch_attach_only_message` с
+  именами файлов. Платформа не парсит содержимое; агент сам решает, когда и
+  как его извлечь (инструменты `list_thread_files` / `read_thread_file`,
+  бинарные форматы - через `run_code`). Лимит одного файла - 100 МиБ.
 - **Поиск по диалогам:** инструменты `search_in_threads` (поиск по
   сообщениям; по умолчанию - текущий диалог, без предварительных
   листингов; явный `thread_id` работает без списков; `scope` по
@@ -308,7 +312,27 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   миграция очищает легаси-мету тредов остальных оркестраторов, указывающую
   на платформенные корни.
 - **Недавние папки** скоупятся по оркестратору: у каждого сотрудника своё
-  меню; пути платформенной установки не показываются другим оркестраторам.
+  меню (до 10 позиций); пути платформенной установки не показываются
+  другим оркестраторам.
+- **Блок «Выбор папки» в чате:** статичный селектор под полем ввода -
+  «Авто», до 10 недавних папок оркестратора и пункт нативного выбора папки
+  на компьютере (`core/folder_dialog.py`: tkinter в дочернем процессе с
+  откатом на osascript в macOS; без GUI пункт скрыт, остаётся ручной ввод
+  пути). Выбранная папка применяется автоматически при отправке сообщения
+  (до вызова модели), после чего селектор возвращается в «Авто», а активный
+  путь виден под полем. Уже действующая папка повторно не применяется;
+  активный путь показывается по привязке треда, поэтому временное
+  переключение папки агентом не конфликтует с выбором в интерфейсе.
+- **Авто-прокрутка ленты чата** (`core/feed_autoscroll.py`): пока агент
+  работает, лента следует за новым выводом; ручная прокрутка вверх ставит
+  слежение на паузу, возврат к низу - возобновляет; отправка сообщения
+  форсирует прокрут вниз. Отступ снизу модуль не задаёт - Streamlit 1.66
+  сам резервирует место под липкой панелью.
+- **Файлы во вводе чата:** загрузчик встроен в само поле ввода
+  (`st.chat_input(accept_file="multiple")`, иконка-скрепка с всплывающей
+  подсказкой); отдельной dropzone и подписи про «любой формат» нет. Файлы
+  уходят вместе с текстом одной отправкой: только файлы - задача получает
+  i18n-строку с их именами; только текст - как раньше.
 - **Журналы задач и вложения диалога** при пустой папке живут в папке
   диалога (`history/<tid>/`) и не пишутся в чужие проекты.
 - Автоматическое построение карты проекта (`PROJECT_MAP.md`), ведение
@@ -605,6 +629,20 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   (`_attach_events` в `ui/pages/orchestrator.py`); ошибка не теряется при
   очистке loop_state.
 
+### FR17 - Проверка зависимостей на холодном старте
+- При первом старте приложения (`ui/app.py`, helper
+  `_run_dependency_check_once`, один раз за сессию) выполняется аудит
+  установленных библиотек через `core/dependency_check.py`.
+- Реестр `DEPENDENCIES` задаёт для каждого пакета минимальную версию и
+  флаг `required`; состав и минимумы синхронизированы с `requirements.txt`
+  (проверяется тестом `tests/test_dependency_check.py`).
+- Пользователю показываются отдельные предупреждения: `deps_missing` -
+  отсутствующие библиотеки (с рекомендацией `pip install -r
+  requirements.txt`); `deps_outdated` - устаревшие версии вида
+  `pkg installed -> required` (с рекомендацией обновить).
+- Проверка устойчива к сбоям: отсутствие metadata у пакета трактуется
+  мягко, любая ошибка аудита не блокирует старт приложения.
+
 ## Нефункциональные требования
 
 ### NFR1 - Модульность
@@ -670,10 +708,10 @@ SagaAI - универсальный AI-ассистент с веб-интерф
     # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
     # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
-- Список базовых файлов (92):
+- Список базовых файлов (93):
   - Корень (2): __init__.py, app.py
   - UI (18): ui/__init__.py, ui/app.py, ui/components/__init__.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/assistants.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/orchestrator.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrators.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/welcome.py
-  - Core (53): core/__init__.py, core/api_errors.py, core/api_layer.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/config.py, core/connectors.py, core/contracts.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/entity_sync.py, core/env_loader.py, core/files.py, core/fs.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/multimodal.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrators.py, core/paths.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_skills.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skill_creator.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py
+  - Core (54): core/__init__.py, core/api_errors.py, core/api_layer.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/config.py, core/connectors.py, core/contracts.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/entity_sync.py, core/env_loader.py, core/files.py, core/folder_dialog.py, core/fs.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/multimodal.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrators.py, core/paths.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_skills.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skill_creator.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py
   - Storage (5): storage/__init__.py, storage/db.py, storage/models.py, storage/repository.py, storage/repository_devagent.py
   - DevAgent (14): dev_agent/__init__.py, dev_agent/agent_loop.py, dev_agent/assistant_detector.py, dev_agent/assistant_model_resolver.py, dev_agent/backup_manager.py, dev_agent/config.py, dev_agent/llm_utils.py, dev_agent/safe_writer.py, dev_agent/skill_detector.py, dev_agent/skill_model_resolver.py, dev_agent/task_state.py, dev_agent/tool_executor.py, dev_agent/universal_agent.py, dev_agent/workspace_tools.py
 

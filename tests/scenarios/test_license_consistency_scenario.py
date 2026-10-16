@@ -10,8 +10,9 @@ contributor and the updater would see it:
      that carries the copyright line carries the new identifier instead.
   3. The user-facing surfaces agree with the LICENSE: README.md,
      COMPARISON.md, AGENT.md and the sidebar footer of ui/app.py.
-  4. The release is versioned as 2.0.0 and the manifest app_version matches
-     core/version.py; the release note announces the license change.
+  4. The license change shipped in release 2.0.0 (later 2.x releases keep
+     it); the manifest app_version matches core/version.py, and the release
+     note announces the license change.
   5. The licensing history stays documented (1.x and earlier were MIT) and
      the MIT licenses of other projects in COMPARISON.md are not wiped.
 
@@ -19,6 +20,7 @@ The scenario is read-only and needs no network or database.
 """
 import json
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -135,17 +137,27 @@ def test_user_facing_surfaces_agree_with_the_license():
 
 
 def test_version_and_manifest_announce_the_change():
-    """given the release metadata, when compared, then 2.0.0 is consistent."""
+    """given the release metadata, when compared, then 2.x is consistent."""
     manifest = _manifest()
     version_src = _read("core/version.py")
-    assert '__version__ = "2.0.0"' in version_src
+    # The license change shipped in 2.0.0; the 2.x line keeps it, so any
+    # release at or above 2.0.0 is consistent with the migration.
+    m = re.search(r'__version__ = "(\d+)\.(\d+)\.(\d+)"', version_src)
+    assert m, "core/version.py has no __version__"
+    code_ver = tuple(int(x) for x in m.groups())
+    assert code_ver >= (2, 0, 0), code_ver
     assert NEW_SPDX in version_src
-    assert manifest["app_version"] == "2.0.0"
+    assert manifest["app_version"] == ".".join(str(x) for x in code_ver)
     note = manifest["release_note"]
-    assert "PolyForm" in note["ru"] and "PolyForm" in note["en"]
-    assert "MIT" in note["ru"] and "MIT" in note["en"]
+    assert note["ru"].strip() and note["en"].strip()
+    # The license change announced with 2.0.0 stays documented: the release
+    # note is release-specific, so the announcement lives in the licensing
+    # history of README.md (and AGENT.md).
+    readme = _read("README.md")
+    hist = readme[readme.find("История лицензирования"):]
+    assert "PolyForm" in hist and "MIT" in hist
     # README status block must not lag behind the release.
-    assert "v2.0.0" in _read("README.md")
+    assert f"v{manifest['app_version']}" in readme
 
 
 def test_licensing_history_stays_documented():

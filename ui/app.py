@@ -23,7 +23,11 @@ from core.i18n import t, get_langs
 from core.config import load_config, save_config, get_default_ui_lang
 from core.assistants import load_assistants_index
 from core.threads import load_thread_meta, list_chat_threads
-from core.files import ensure_optional_dependencies
+from core.dependency_check import (
+    check_dependencies,
+    missing_packages,
+    outdated_lines,
+)
 from core.bootstrap import ensure_instructions, ensure_devagent_settings
 import core.default_imports as default_imports
 from core.env_loader import load_env_from_shell_profiles
@@ -333,6 +337,31 @@ def _handle_thread_deeplink() -> None:
         pass
 
 
+def _run_dependency_check_once():
+    """Audit installed dependencies once per session at cold start.
+
+    Warns about missing or outdated packages so the user can run
+    ``pip install -r requirements.txt`` (or ``pip install -U <pkg>``) before
+    hitting a confusing ImportError deep inside a feature. Runs at most
+    once per session to keep reruns cheap; a probing error is swallowed and
+    never blocks the app start.
+    """
+    if st.session_state.get("_deps_checked"):
+        return
+    st.session_state["_deps_checked"] = True
+    try:
+        report = check_dependencies()
+    except Exception:
+        return
+    lang = st.session_state.get("ui_lang")
+    missing = missing_packages(report)
+    if missing:
+        st.warning(t("deps_missing", lang=lang, libs=", ".join(missing)))
+    outdated = outdated_lines(report)
+    if outdated:
+        st.warning(t("deps_outdated", lang=lang, libs=", ".join(outdated)))
+
+
 def main():
     """Entry point called from app.py after st.set_page_config."""
     # ── Authentication gate ────────────────────────────────────────────────
@@ -353,10 +382,7 @@ def main():
     # Load env vars from shell profiles.
     load_env_from_shell_profiles()
 
-    missing_deps = ensure_optional_dependencies()
-    if missing_deps:
-        st.warning(t("missing_deps", lang=st.session_state.get("ui_lang"),
-                     libs=", ".join(sorted(set(missing_deps)))))
+    _run_dependency_check_once()
 
     defaults = dict(
         show_assistant_form=False,

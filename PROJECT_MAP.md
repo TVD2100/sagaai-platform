@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-10-16T06:51:19+00:00`
-- Файлов: **336**
+- Обновлено: `2026-10-16T08:55:19+00:00`
+- Файлов: **346**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **4421**
-- Отпечаток содержимого: `sha256:66495ea669f8818f6978c5437798e65333741dad1b78b39620b7d83a92118d44` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 1, JSON: 21, Markdown: 37, PEM certificate: 1, Python: 279, Text: 1
+- Python-символов: **4541**
+- Отпечаток содержимого: `sha256:2bb40d4e6fc3bae3fd4c844d658e2bdfeb81b868ea12348fa32849824c707b49` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 1, JSON: 21, Markdown: 36, PEM certificate: 1, Python: 289, Text: 1
 
 ## Файлы и назначение
 
@@ -28,7 +28,7 @@
 | `ui/pages/chat.py` | Python | Chat page for AI assistants: selector, history, send form | - |
 | `ui/pages/connectors.py` | Python | _(описание не задано)_ | - |
 | `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | - |
-| `ui/pages/orchestrator.py` | Python | Reusable orchestrator page (chat/history/settings incl. skills tab; no employee export/import UI; step events attach to the user message when the first LLM call fails; per-message download/copy controls on plain-prose answers; generated image visible immediately in the feed, outside the collapsed tool-result block; empty-state reset on new/reset dialog; thread workspace meta persistence; workspace-side attachment writer removed - uploads live only in history/<tid>/files) | storage |
+| `ui/pages/orchestrator.py` | Python | Reusable orchestrator page (chat/history/settings incl. skills tab; no employee export/import UI; step events attach to the user message when the first LLM call fails; per-message download/copy controls on plain-prose answers; generated image visible immediately in the feed, outside the collapsed tool-result block; empty-state reset on new/reset dialog; thread workspace meta persistence; chat folder picker (Выбор папки): Авто + recent folders + native dialog, applied on send; file upload built into st.chat_input(accept_file="multiple") - no separate dropzone; uploads live only in history/<tid>/files) | storage |
 | `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings entry page | - |
 | `ui/pages/orchestrators.py` | Python | Employees (orchestrators) management page (create/open/settings/delete; export/import deferred) | - |
 | `ui/pages/settings.py` | Python | LLM provider settings page | - |
@@ -55,9 +55,12 @@
 | `core/dangerous.py` | Python | Dangerous-code assessment for run_code/run_test | - |
 | `core/default_imports.py` | Python | _(описание не задано)_ | storage |
 | `core/defaults.py` | Python | _(описание не задано)_ | storage |
+| `core/dependency_check.py` | Python | Cold-start dependency audit: DEPENDENCIES registry (import name -> pip name, minimum version, required flag) kept in sync with requirements.txt; parse_version/version_lt; check_dependencies() probes importlib.metadata and reports missing/outdated packages | - |
 | `core/entity_sync.py` | Python | _(описание не задано)_ | storage |
 | `core/env_loader.py` | Python | Loads API keys from shell profiles | - |
+| `core/feed_autoscroll.py` | Python | Client-side auto-scroll for the orchestrator chat feed: follows the agent output, pauses on a manual scroll-up (sessionStorage flag), resumes at the bottom; adds no bottom padding of its own (Streamlit 1.66 already reserves room for the pinned bottom bar) | - |
 | `core/files.py` | Python | File upload helpers, token estimation, context checks | - |
+| `core/folder_dialog.py` | Python | Native OS folder picker for the Streamlit UI (no built-in chooser): tkinter filedialog in a child process with an osascript fallback on macOS, verdict via a temp UTF-8 JSON file, timeout, graceful degradation without a GUI (SAGAAI_DISABLE_FOLDER_DIALOG) | - |
 | `core/fs.py` | Python | Filesystem helpers (json/text read/write, ensure_dir, combine_nonempty) | - |
 | `core/github_connector_rest.py` | Python | GitHub REST connector: batch commits and file ops; GET requests retry on network errors (Timeout/ConnectionError, up to 3 attempts, 0.5/1.5s backoff) | - |
 | `core/github_tools_rest.py` | Python | _(описание не задано)_ | - |
@@ -79,7 +82,7 @@
 | `core/rag_indexer.py` | Python | Indexing pipeline: chunking and chunks always, BM25 structures kept in sync; embeddings only in vector/hybrid modes; status and progress | - |
 | `core/rag_search.py` | Python | Base search dispatcher by mode: own BM25, vector cosine over BYOK embeddings, hybrid RRF (k=60) with bm25 degradation; hits carry mode; LLM chat-context builder | - |
 | `core/recent_assistants.py` | Python | Tracks recently used assistant IDs in session_state | - |
-| `core/recent_workspaces.py` | Python | Recent workspaces tracking, scoped per orchestrator (slug-keyed dict seeded from own threads; platform paths hidden; legacy flat list read as dev_agent) | storage |
+| `core/recent_workspaces.py` | Python | Recent workspaces tracking, scoped per orchestrator (slug-keyed dict seeded from own threads; up to 10 entries with an optional limit; platform paths hidden; legacy flat list read as dev_agent) | storage |
 | `core/render.py` | Python | Markdown rendering / clipboard helpers | - |
 | `core/services.py` | Python | Service definitions discovery (services/*.json) | - |
 | `core/skills.py` | Python | DEPRECATED shim -> core/assistants.py (legacy aliases) | - |
@@ -94,7 +97,7 @@
 | `core/updater_apply.py` | Python | _(описание не задано)_ | - |
 | `core/version.py` | Python | _(описание не задано)_ | - |
 | `tests/__init__.py` | Python | Package marker | - |
-| `tests/_st_mock.py` | Python | Streamlit mock for tests | - |
+| `tests/_st_mock.py` | Python | Streamlit mock for tests (records widget calls, controllable session_state; chat_input returns a seeded ChatInputValue-like object with .text/.files) | - |
 | `tests/_test_isolation.py` | Python | _(описание не задано)_ | - |
 | `tests/conftest.py` | Python | Pytest fixture bootstrap | - |
 | `tests/test_agent_loop_connection_retry.py` | Python | Connection-resilience tests for the agent loop (retrying_llm events, user message persisted before the LLM call) | - |
@@ -114,6 +117,7 @@
 | `tests/test_auth_access.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_backup_and_safewriter.py` | Python | Backup/safe-writer tests | - |
 | `tests/test_chat_pagination.py` | Python | _(описание не задано)_ | - |
+| `tests/test_cold_start_deps.py` | Python | UI tests for the cold-start dependency warning in ui.app: missing/outdated reports render deps_missing/deps_outdated, no warning when up to date, audit runs once per session, probe errors are swallowed | - |
 | `tests/test_connectors.py` | Python | _(описание не задано)_ | - |
 | `tests/test_context_window_guard.py` | Python | Context-guard tests: output-reserve formula, 32k window, economy head protection, unified input_ceiling/input_budget/history_cap (B4) | - |
 | `tests/test_core_api_json_schema.py` | Python | _(описание не задано)_ | - |
@@ -126,11 +130,14 @@
 | `tests/test_deepseek_responses.py` | Python | DeepSeek Responses API tests | - |
 | `tests/test_default_imports.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_default_rag_bases.py` | Python | _(описание не задано)_ | storage |
+| `tests/test_dependency_check.py` | Python | Unit tests for core.dependency_check: version parsing/comparison, registry contract, check report with stubbed importlib.metadata, and registry<->requirements.txt consistency | - |
 | `tests/test_devagent_thread_workspace.py` | Python | DevAgent thread workspace persistence tests | storage |
 | `tests/test_dispatcher_connections.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_dispatcher_tool_gating.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_economy_history_budget.py` | Python | Economy budget tests: unified (B4) input budget, tail reset on token overflow, low-watermark fallback, economy_anchor hysteresis (frozen front) | - |
 | `tests/test_employee_management_ui.py` | Python | UI regression tests: employee management pages render and expose no export/import employee UI | - |
+| `tests/test_feed_autoscroll.py` | Python | Unit + integration tests for core.feed_autoscroll and its wiring into _render_chat_tab: JS markers, force flag, zero-height component, idle/active/send behaviour | - |
+| `tests/test_folder_dialog.py` | Python | Unit tests for core.folder_dialog: availability probe, tkinter/osascript backends, timeout and cancel handling, non-ASCII paths, disable switch | - |
 | `tests/test_gigachat_messages.py` | Python | GigaChat payload tests: single leading system, mid-history system blocks keep the user role, role merging | - |
 | `tests/test_github_connector_rest.py` | Python | Unit tests for the GitHub REST connector (mock sessions) | - |
 | `tests/test_github_connector_retry.py` | Python | Unit tests for the GitHub connector GET retry policy (network errors retried; writes not retried) | - |
@@ -214,7 +221,7 @@
 | `tests/test_updater.py` | Python | _(описание не задано)_ | - |
 | `tests/test_updater_apply.py` | Python | _(описание не задано)_ | - |
 | `tests/test_updater_ui.py` | Python | _(описание не задано)_ | - |
-| `tests/test_usability_fixes.py` | Python | _(описание не задано)_ | - |
+| `tests/test_usability_fixes.py` | Python | UI regression tests for the usability fixes (two-step delete confirmations, neutral employee caption, datetime captions, inline chat-input file upload: accept_file="multiple", raw-byte persistence, size cap) | - |
 | `tests/test_verify_manifest.py` | Python | _(описание не задано)_ | - |
 | `tests/test_web_search_prompt.py` | Python | _(описание не задано)_ | - |
 | `tests/test_workspace_binding.py` | Python | Workspace-binding registry tests (empty state, per-thread isolation) | storage |
@@ -230,16 +237,19 @@
 | `tests/scenarios/test_connectors_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_context_overflow_protection.py` | Python | Scenario: context-overflow protection - spill of a huge tool result and the failed-spill hard error | - |
 | `tests/scenarios/test_employees_sidebar_scenarios.py` | Python | _(описание не задано)_ | storage |
-| `tests/scenarios/test_empty_state_artifacts_scenario.py` | Python | Scenario tests: task journal and uploads never create files in a foreign project (empty state) | storage |
+| `tests/scenarios/test_empty_state_artifacts_scenario.py` | Python | Scenario tests: task journal and uploads never create files in a foreign project (empty state); files arrive via st.chat_input | storage |
+| `tests/scenarios/test_feed_autoscroll_scenario.py` | Python | Scenario tests for chat feed auto-scroll (given->when->then): forced scroll on send, follow on each agent step, pause on scroll-up / resume at bottom, idle chat untouched | - |
 | `tests/scenarios/test_first_run_flow.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_folder_picker_scenario.py` | Python | Scenario tests for the chat folder picker (Выбор папки): applied on first send, mid-dialog switch, agent detour does not change the reported folder, native browse button records and stages the folder | storage |
 | `tests/scenarios/test_generated_image_feed_scenario.py` | Python | Scenario tests for the generated image shown immediately in the chat feed (outside the collapsed tool-result block) | - |
 | `tests/scenarios/test_gigachat_models_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_gigachat_orchestrator_scenario.py` | Python | Scenario: orchestrator run on a GigaChat-like payload (leading-system fold, error visibility) | - |
 | `tests/scenarios/test_github_read_retry_scenario.py` | Python | Scenario tests: GitHub read retries via the public API (get_user_info/create_repo), no token leaks | - |
 | `tests/scenarios/test_github_rest_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_incomplete_responses_recovery_scenario.py` | Python | Scenarios: incomplete-responses recovery - truncation then success, partial text kept, persistent truncation terminates | - |
+| `tests/scenarios/test_inline_chat_upload_scenario.py` | Python | Scenario tests for the inline file upload built into st.chat_input (given->when->then): text+file together, files-only submission, plain text creates no files, oversized attachment rejected | - |
 | `tests/scenarios/test_json_repair_scenarios.py` | Python | _(описание не задано)_ | - |
-| `tests/scenarios/test_license_consistency_scenario.py` | Python | Scenario: license migration to PolyForm Noncommercial 1.0.0 - canonical LICENSE text, no MIT SPDX identifier among published files, README/COMPARISON/UI/AGENT.md agreement, 2.0.0 version and manifest consistency, documented licensing history | - |
+| `tests/scenarios/test_license_consistency_scenario.py` | Python | Scenario: license migration to PolyForm Noncommercial 1.0.0 - canonical LICENSE text, no MIT SPDX identifier among published files, README/COMPARISON/UI/AGENT.md agreement, 2.x version and manifest consistency, documented licensing history | - |
 | `tests/scenarios/test_loop_stuck_protection_scenarios.py` | Python | Loop-stuck protection scenarios: per-tool failure counter hints, duplicate-call flood compaction, prose loop_status continue | - |
 | `tests/scenarios/test_multimodal_scenarios.py` | Python | Scenario tests for the multimodal tools (vision analysis, not_assigned, generation, provider hint) | - |
 | `tests/scenarios/test_new_dialog_empty_workspace_scenario.py` | Python | Scenario tests: a new dialog starts with no folder and never inherits a neighbour's workspace | storage |
@@ -247,7 +257,7 @@
 | `tests/scenarios/test_orchestrator_devagent_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_orchestrator_other_settings_scenario.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_orchestrator_thread_files.py` | Python | Scenario tests: uploads land in thread files; legacy workspace manifests still re-announced | storage |
-| `tests/scenarios/test_orchestrator_tool_gating.py` | Python | Gating scenarios: system-prompt version pins (v3.20/v2.11), empty-state prompt invariants, generated-document rule and thread-search tool invariants | storage |
+| `tests/scenarios/test_orchestrator_tool_gating.py` | Python | Gating scenarios: system-prompt version pins (v3.21/v2.11), empty-state prompt invariants, generated-document rule, Stage 0 recent-folders menu and thread-search tool invariants | storage |
 | `tests/scenarios/test_project_map_freshness_scenario.py` | Python | Scenario: PROJECT_MAP regeneration - GitHub-published scope only, recorded fingerprint and staleness detection, reproducible output | storage |
 | `tests/scenarios/test_provider_economy_settings_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_assistant_dialog.py` | Python | _(описание не задано)_ | - |
@@ -340,12 +350,12 @@
 | `dev_agent/config.py` | Python | DevAgent runtime config and protected path policy; empty-state neutral root (NEUTRAL_ROOT / WORKSPACE_SELECTED / ensure_neutral_root, apply_paths selected flag) | - |
 | `dev_agent/llm_utils.py` | Python | Unified LLM-call helper (assistant dict contract, legacy skill alias) | - |
 | `dev_agent/safe_writer.py` | Python | Safe full-file rewrite with diff/verification | backup_manager |
-| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.20 AGENT.md docs-first (legacy SPEC.md removed); v3.18 generated-PROJECT_MAP rule; v3.17 compact task-state digest, read_file windows, PRAGMA-first; v3.16 empty-state Stage 0, task-journal and thread-files rules) | - |
+| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.21 Stage 0 recent-folders menu for a concrete project and the chat folder selector; v3.20 AGENT.md docs-first (legacy SPEC.md removed); v3.18 generated-PROJECT_MAP rule; v3.17 compact task-state digest, read_file windows, PRAGMA-first; v3.16 empty-state Stage 0, task-journal and thread-files rules) | - |
 | `dev_agent/task_state.py` | Python | Per-thread task-state journal (plan/progress/handoff) with the thread-files fallback folder when no workspace is selected; compact digest (read_task_state compact=True) and budgeted injection | backup_manager |
 | `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools, legacy skill aliases, skills-library and multimodal tools; empty-state workspace guard (workspace_not_selected, neutral cwd for code=) | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
 | `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace + orchestrator tools, incl. thread search: search_in_threads / list_threads / read_thread; empty-state guard and thread workspace-meta persistence) | storage, tool_executor |
 | `dev_agent/workspace_binding.py` | Python | Per-thread workspace binding registry (RLock, thread_context, ensure_thread_active) with the empty-state neutral root | - |
-| `dev_agent/workspace_tools.py` | Python | Workspace layer: folders, project map (AST symbols, content fingerprint, GitHub-published scope filter), docs, snapshots; workspace_selected reporting and per-orchestrator recent workspaces | backup_manager |
+| `dev_agent/workspace_tools.py` | Python | Workspace layer: folders, project map (AST symbols, content fingerprint, GitHub-published scope filter), docs, snapshots; workspace_selected reporting and per-orchestrator recent workspaces (top 10) | backup_manager |
 | `services/deepseek.json` | JSON | DeepSeek service definition (vision_base_url + vision_models catalog) | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
 | `services/yandex.json` | JSON | YandexAI service definition | - |
@@ -353,23 +363,25 @@
 ## Прочие публикуемые файлы (вне текстового скана)
 
 - `LICENSE`
+- `PROJECT_MAP.md`
 - `assets/favicon.svg`
 - `defaults/rag_bases/yaagentai_2020/index.db`
 
 ## Структура Python-модулей
 
 ### `ui/app.py`
-- `_build_orch_nav` (func, строка 63)
-- `_build_assistants_nav` (func, строка 94)
-- `_apply_theme` (func, строка 124)
-- `_sync_saved_theme` (func, строка 160)
-- `_sync_saved_theme_once` (func, строка 199)
-- `_build_ui_restore_payload` (func, строка 213)
-- `_restore_ui_reload_state` (func, строка 248)
-- `_handle_thread_deeplink` (func, строка 297)
-- `main` (func, строка 336)
-- `main._render_orch_button` (func, строка 602)
-- `main._matches_search` (func, строка 686)
+- `_build_orch_nav` (func, строка 67)
+- `_build_assistants_nav` (func, строка 98)
+- `_apply_theme` (func, строка 128)
+- `_sync_saved_theme` (func, строка 164)
+- `_sync_saved_theme_once` (func, строка 203)
+- `_build_ui_restore_payload` (func, строка 217)
+- `_restore_ui_reload_state` (func, строка 252)
+- `_handle_thread_deeplink` (func, строка 301)
+- `_run_dependency_check_once` (func, строка 340)
+- `main` (func, строка 365)
+- `main._render_orch_button` (func, строка 628)
+- `main._matches_search` (func, строка 712)
 
 ### `ui/components/workspace_picker.py`
 - `_picker_state_keys` (func, строка 26)
@@ -419,68 +431,74 @@
 - `_last_reply` (func, строка 362)
 
 ### `ui/pages/orchestrator.py`
-- `_chat_pref_config_keys` (func, строка 79)
-- `_chat_prefs` (func, строка 86)
-- `_save_chat_pref` (func, строка 94)
-- `_make_state_keys` (func, строка 110)
-- `_init_orch_state` (func, строка 143)
-- `_sk` (func, строка 150)
-- `_ss` (func, строка 155)
-- `_set_ss` (func, строка 160)
-- `_pop_ss` (func, строка 164)
-- `_save_economy_cache` (func, строка 168)
-- `_load_economy_cache` (func, строка 187)
-- `_attachments_manifest_path` (func, строка 194)
-- `_load_attachments_manifest` (func, строка 198)
-- `_scroll_page` (func, строка 216)
-- `_make_send_adapter` (func, строка 270)
-- `_make_send_adapter._adapter` (func, строка 283)
-- `_make_dispatcher` (func, строка 302)
-- `_assistant_has_api_key` (func, строка 327)
-- `_strip_html_details_tags` (func, строка 342)
-- `_strip_empty_fenced_blocks` (func, строка 358)
-- `_strip_tool_calls` (func, строка 409)
-- `_strip_tool_calls_for_message` (func, строка 466)
-- `_first_two_lines` (func, строка 493)
-- `_format_call_args_preview` (func, строка 506)
-- `_extract_result_body` (func, строка 524)
-- `_render_generated_image` (func, строка 538)
-- `_render_tool_result` (func, строка 566)
-- `_render_events` (func, строка 648)
-- `_render_event` (func, строка 668)
-- `_attach_events` (func, строка 731)
-- `_do_step` (func, строка 760)
-- `_do_step.on_event` (func, строка 772)
-- `_reset_dialog` (func, строка 905)
-- `_load_thread` (func, строка 931)
-- `_persist_thread_workspace_meta` (func, строка 972)
-- `_chat_toolbar_widget_key` (func, строка 999)
-- `_sync_chat_pref_checkbox` (func, строка 1009)
-- `_chat_toolbar_pref_changed` (func, строка 1027)
-- `_render_chat_toolbar` (func, строка 1037)
-- `_token_line_cache_key` (func, строка 1095)
-- `_render_token_line` (func, строка 1145)
-- `_render_chat_tab` (func, строка 1231)
-- `_render_chat_tab.on_event` (func, строка 1416)
-- `_render_chat_tab.on_event` (func, строка 1441)
-- `_render_chat_tab.on_event` (func, строка 1485)
-- `_render_chat_tab.on_event` (func, строка 1508)
-- `_services_with_web_search` (func, строка 1660)
-- `_temp_slider` (func, строка 1672)
-- `_get_max_tokens_limit` (func, строка 1681)
-- `_render_optional_model_section` (func, строка 1701)
-- `_render_models_settings` (func, строка 1765)
-- `_render_prompt_settings` (func, строка 1965)
-- `_render_economy_settings` (func, строка 1999)
-- `_render_orch_system_tools` (func, строка 2052)
-- `_render_orchestrator_functions_settings` (func, строка 2092)
-- `_render_orchestrator_instructions_settings` (func, строка 2171)
-- `_render_orch_skills_settings` (func, строка 2244)
-- `_render_orch_rag_bases` (func, строка 2286)
-- `_render_orch_connections` (func, строка 2339)
-- `_render_other_settings` (func, строка 2383)
-- `page_orchestrator` (func, строка 2420)
-- `page_devagent` (func, строка 2435)
+- `_chat_pref_config_keys` (func, строка 86)
+- `_chat_prefs` (func, строка 93)
+- `_save_chat_pref` (func, строка 101)
+- `_make_state_keys` (func, строка 117)
+- `_init_orch_state` (func, строка 155)
+- `_sk` (func, строка 162)
+- `_ss` (func, строка 167)
+- `_set_ss` (func, строка 172)
+- `_pop_ss` (func, строка 176)
+- `_save_economy_cache` (func, строка 180)
+- `_load_economy_cache` (func, строка 199)
+- `_attachments_manifest_path` (func, строка 206)
+- `_load_attachments_manifest` (func, строка 210)
+- `_folder_picker_key` (func, строка 228)
+- `_reset_folder_choice` (func, строка 239)
+- `_thread_folder` (func, строка 246)
+- `_apply_folder_choice` (func, строка 271)
+- `_render_folder_picker` (func, строка 311)
+- `_render_folder_picker._label` (func, строка 331)
+- `_make_send_adapter` (func, строка 379)
+- `_make_send_adapter._adapter` (func, строка 392)
+- `_make_dispatcher` (func, строка 411)
+- `_assistant_has_api_key` (func, строка 436)
+- `_strip_html_details_tags` (func, строка 451)
+- `_strip_empty_fenced_blocks` (func, строка 467)
+- `_strip_tool_calls` (func, строка 518)
+- `_strip_tool_calls_for_message` (func, строка 575)
+- `_first_two_lines` (func, строка 602)
+- `_format_call_args_preview` (func, строка 615)
+- `_extract_result_body` (func, строка 633)
+- `_render_generated_image` (func, строка 647)
+- `_render_tool_result` (func, строка 675)
+- `_render_events` (func, строка 757)
+- `_render_event` (func, строка 777)
+- `_attach_events` (func, строка 840)
+- `_do_step` (func, строка 869)
+- `_do_step.on_event` (func, строка 881)
+- `_reset_dialog` (func, строка 1014)
+- `_load_thread` (func, строка 1041)
+- `_persist_thread_workspace_meta` (func, строка 1082)
+- `_chat_toolbar_widget_key` (func, строка 1109)
+- `_sync_chat_pref_checkbox` (func, строка 1119)
+- `_chat_toolbar_pref_changed` (func, строка 1137)
+- `_render_chat_toolbar` (func, строка 1147)
+- `_token_line_cache_key` (func, строка 1205)
+- `_render_token_line` (func, строка 1255)
+- `_split_chat_prompt` (func, строка 1340)
+- `_render_chat_tab` (func, строка 1361)
+- `_render_chat_tab.on_event` (func, строка 1551)
+- `_render_chat_tab.on_event` (func, строка 1576)
+- `_render_chat_tab.on_event` (func, строка 1620)
+- `_render_chat_tab.on_event` (func, строка 1643)
+- `_services_with_web_search` (func, строка 1780)
+- `_temp_slider` (func, строка 1792)
+- `_get_max_tokens_limit` (func, строка 1801)
+- `_render_optional_model_section` (func, строка 1821)
+- `_render_models_settings` (func, строка 1885)
+- `_render_prompt_settings` (func, строка 2085)
+- `_render_economy_settings` (func, строка 2119)
+- `_render_orch_system_tools` (func, строка 2172)
+- `_render_orchestrator_functions_settings` (func, строка 2212)
+- `_render_orchestrator_instructions_settings` (func, строка 2291)
+- `_render_orch_skills_settings` (func, строка 2364)
+- `_render_orch_rag_bases` (func, строка 2406)
+- `_render_orch_connections` (func, строка 2459)
+- `_render_other_settings` (func, строка 2503)
+- `page_orchestrator` (func, строка 2540)
+- `page_devagent` (func, строка 2555)
 
 ### `ui/pages/orchestrator_settings.py`
 - `page_orchestrator_settings` (func, строка 28)
@@ -828,6 +846,15 @@
 - `load_default_assistant` (func, строка 429)
 - `load_global_settings` (func, строка 497)
 
+### `core/dependency_check.py`
+- `parse_version` (func, строка 55)
+- `version_lt` (func, строка 78)
+- `_installed_version` (func, строка 92)
+- `_importable` (func, строка 100)
+- `check_dependencies` (func, строка 108)
+- `missing_packages` (func, строка 147)
+- `outdated_lines` (func, строка 152)
+
 ### `core/entity_sync.py`
 - `ensure_entity_folders_sync` (func, строка 39)
 - `sync_assistants` (func, строка 52)
@@ -838,6 +865,10 @@
 - `_parse_shell_exports` (func, строка 12)
 - `_profile_candidates` (func, строка 30)
 - `load_env_from_shell_profiles` (func, строка 43)
+
+### `core/feed_autoscroll.py`
+- `autoscroll_js` (func, строка 106)
+- `render_autoscroll` (func, строка 126)
 
 ### `core/files.py`
 - `get_file_uploader_types` (func, строка 32)
@@ -852,6 +883,16 @@
 - `check_context` (func, строка 193)
 - `ensure_optional_dependencies` (func, строка 216)
 - `extract_file_content` (func, строка 236)
+
+### `core/folder_dialog.py`
+- `_probe_child_code` (func, строка 92)
+- `native_dialog_available` (func, строка 99)
+- `reset_availability_cache` (func, строка 136)
+- `_run_tk_dialog` (func, строка 144)
+- `_read_child_verdict` (func, строка 160)
+- `_osascript_available` (func, строка 172)
+- `_run_osascript_dialog` (func, строка 177)
+- `pick_folder` (func, строка 203)
 
 ### `core/fs.py`
 - `ensure_dir` (func, строка 10)
@@ -1261,8 +1302,8 @@
 - `_is_hidden` (func, строка 110)
 - `_seed_from_threads` (func, строка 139)
 - `get_recent_workspaces` (func, строка 159)
-- `add_recent_workspace` (func, строка 189)
-- `clear_recent_workspaces` (func, строка 214)
+- `add_recent_workspace` (func, строка 196)
+- `clear_recent_workspaces` (func, строка 221)
 
 ### `core/render.py`
 - `clipboard_button` (func, строка 13)
@@ -1507,45 +1548,46 @@
 - `_SessionState.__setattr__` (func, строка 27)
 - `StreamlitMock` (class, строка 31)
 - `StreamlitMock.__init__` (func, строка 32)
-- `StreamlitMock._rec` (func, строка 48)
-- `StreamlitMock.click` (func, строка 51)
-- `StreamlitMock.reset_clicks` (func, строка 54)
-- `StreamlitMock.__getattr__` (func, строка 58)
-- `StreamlitMock.__getattr__._stub` (func, строка 60)
-- `StreamlitMock.button` (func, строка 66)
-- `StreamlitMock.form_submit_button` (func, строка 71)
-- `StreamlitMock.selectbox` (func, строка 76)
-- `StreamlitMock.text_input` (func, строка 87)
-- `StreamlitMock.text_area` (func, строка 92)
-- `StreamlitMock.number_input` (func, строка 97)
-- `StreamlitMock.date_input` (func, строка 102)
-- `StreamlitMock.slider` (func, строка 107)
-- `StreamlitMock.file_uploader` (func, строка 111)
-- `StreamlitMock.checkbox` (func, строка 115)
-- `StreamlitMock.multiselect` (func, строка 129)
-- `StreamlitMock.radio` (func, строка 137)
-- `StreamlitMock.error` (func, строка 142)
-- `StreamlitMock.warning` (func, строка 146)
-- `StreamlitMock.rerun` (func, строка 150)
-- `StreamlitMock.stop` (func, строка 154)
-- `StreamlitMock.sidebar` (func, строка 158)
-- `StreamlitMock.columns` (func, строка 161)
-- `StreamlitMock.tabs` (func, строка 166)
-- `StreamlitMock.expander` (func, строка 170)
-- `StreamlitMock.container` (func, строка 174)
-- `StreamlitMock.form` (func, строка 178)
-- `StreamlitMock.spinner` (func, строка 182)
-- `StreamlitMock.chat_message` (func, строка 186)
-- `StreamlitMock.empty` (func, строка 190)
-- `_NullCtx` (class, строка 195)
-- `_NullCtx.__init__` (func, строка 202)
-- `_NullCtx.__enter__` (func, строка 206)
-- `_NullCtx.__exit__` (func, строка 209)
-- `_NullCtx.__call__` (func, строка 212)
-- `_NullCtx.__getattr__` (func, строка 217)
-- `_NullCtx.__getattr__._stub` (func, строка 220)
-- `_make_components_stub` (func, строка 235)
-- `install_streamlit_mock` (func, строка 245)
+- `StreamlitMock._rec` (func, строка 49)
+- `StreamlitMock.click` (func, строка 52)
+- `StreamlitMock.reset_clicks` (func, строка 55)
+- `StreamlitMock.__getattr__` (func, строка 59)
+- `StreamlitMock.__getattr__._stub` (func, строка 61)
+- `StreamlitMock.button` (func, строка 67)
+- `StreamlitMock.form_submit_button` (func, строка 72)
+- `StreamlitMock.selectbox` (func, строка 77)
+- `StreamlitMock.text_input` (func, строка 88)
+- `StreamlitMock.text_area` (func, строка 93)
+- `StreamlitMock.number_input` (func, строка 98)
+- `StreamlitMock.date_input` (func, строка 103)
+- `StreamlitMock.slider` (func, строка 108)
+- `StreamlitMock.file_uploader` (func, строка 112)
+- `StreamlitMock.chat_input` (func, строка 116)
+- `StreamlitMock.checkbox` (func, строка 123)
+- `StreamlitMock.multiselect` (func, строка 137)
+- `StreamlitMock.radio` (func, строка 145)
+- `StreamlitMock.error` (func, строка 150)
+- `StreamlitMock.warning` (func, строка 154)
+- `StreamlitMock.rerun` (func, строка 158)
+- `StreamlitMock.stop` (func, строка 162)
+- `StreamlitMock.sidebar` (func, строка 166)
+- `StreamlitMock.columns` (func, строка 169)
+- `StreamlitMock.tabs` (func, строка 174)
+- `StreamlitMock.expander` (func, строка 178)
+- `StreamlitMock.container` (func, строка 182)
+- `StreamlitMock.form` (func, строка 186)
+- `StreamlitMock.spinner` (func, строка 190)
+- `StreamlitMock.chat_message` (func, строка 194)
+- `StreamlitMock.empty` (func, строка 198)
+- `_NullCtx` (class, строка 203)
+- `_NullCtx.__init__` (func, строка 210)
+- `_NullCtx.__enter__` (func, строка 214)
+- `_NullCtx.__exit__` (func, строка 217)
+- `_NullCtx.__call__` (func, строка 220)
+- `_NullCtx.__getattr__` (func, строка 225)
+- `_NullCtx.__getattr__._stub` (func, строка 228)
+- `_make_components_stub` (func, строка 243)
+- `install_streamlit_mock` (func, строка 253)
 
 ### `tests/_test_isolation.py`
 - `is_app_module` (func, строка 18)
@@ -1892,6 +1934,18 @@
 - `test_short_history_renders_without_pagination` (func, строка 151)
 - `test_show_earlier_key_in_all_langs` (func, строка 163)
 
+### `tests/test_cold_start_deps.py`
+- `st_env` (func, строка 31)
+- `_render_main` (func, строка 45)
+- `_deps_warnings` (func, строка 63)
+- `test_no_warning_when_all_up_to_date` (func, строка 69)
+- `test_warning_lists_missing_packages` (func, строка 74)
+- `test_warning_lists_outdated_packages` (func, строка 86)
+- `test_both_missing_and_outdated_warn_separately` (func, строка 97)
+- `test_check_runs_only_once_per_session` (func, строка 110)
+- `test_check_runs_only_once_per_session._fake` (func, строка 114)
+- `test_probe_error_never_blocks_start` (func, строка 131)
+
 ### `tests/test_connectors.py`
 - `isolated_data_dir` (func, строка 17)
 - `_load_raw` (func, строка 23)
@@ -2141,6 +2195,32 @@
 - `TestPresetRagAssignment.test_flags_listed_in_metadata_block` (func, строка 192)
 - `TestPresetRagAssignment.test_flag_can_be_removed_by_user` (func, строка 205)
 
+### `tests/test_dependency_check.py`
+- `test_parse_version_components` (func, строка 18)
+- `test_parse_version_truncates_suffixes` (func, строка 24)
+- `test_parse_version_unparsable_is_empty` (func, строка 30)
+- `test_version_lt_basic_ordering` (func, строка 36)
+- `test_version_lt_pads_missing_components` (func, строка 42)
+- `test_version_lt_unparsable_is_false` (func, строка 48)
+- `test_registry_has_expected_shape` (func, строка 56)
+- `test_streamlit_is_required_with_min_1_66` (func, строка 65)
+- `test_core_runtime_packages_are_required` (func, строка 72)
+- `test_doc_and_ssh_packages_are_optional` (func, строка 77)
+- `_stub_versions` (func, строка 85)
+- `_stub_versions._version` (func, строка 87)
+- `test_check_all_up_to_date` (func, строка 94)
+- `test_check_detects_outdated` (func, строка 103)
+- `test_check_detects_missing` (func, строка 114)
+- `test_importable_without_metadata_is_not_missing` (func, строка 125)
+- `test_check_report_is_sorted` (func, строка 137)
+- `test_missing_packages_helper` (func, строка 148)
+- `test_outdated_lines_helper` (func, строка 155)
+- `test_default_registry_returns_report_shape` (func, строка 161)
+- `_parse_requirements` (func, строка 172)
+- `test_requirements_pins_streamlit_minimum_not_exact` (func, строка 190)
+- `test_registry_matches_requirements` (func, строка 197)
+- `test_dev_dependencies_match_requirements` (func, строка 210)
+
 ### `tests/test_devagent_thread_workspace.py`
 - `isolated_data` (func, строка 23)
 - `_create_temp_workspaces` (func, строка 41)
@@ -2202,6 +2282,31 @@
 - `test_orchestrators_management_page_renders` (func, строка 54)
 - `test_orchestrator_settings_page_has_no_export_import_tab` (func, строка 74)
 - `test_no_export_import_employee_ui_in_code` (func, строка 106)
+
+### `tests/test_feed_autoscroll.py`
+- `test_autoscroll_js_has_required_markers` (func, строка 22)
+- `test_autoscroll_js_force_flag_toggles` (func, строка 39)
+- `test_render_autoscroll_emits_zero_height_component` (func, строка 45)
+- `ui_env` (func, строка 59)
+- `_LoopState` (class, строка 71)
+- `_LoopState.__init__` (func, строка 74)
+- `_chat_env` (func, строка 81)
+- `_render` (func, строка 126)
+- `test_idle_chat_does_not_scroll` (func, строка 133)
+- `test_active_agent_scrolls` (func, строка 140)
+- `test_forced_scroll_on_send_clears_flag` (func, строка 148)
+
+### `tests/test_folder_dialog.py`
+- `_reset_cache` (func, строка 21)
+- `test_disabled_env_short_circuits` (func, строка 28)
+- `test_pick_folder_returns_resolved_dir` (func, строка 40)
+- `test_pick_folder_returns_resolved_dir.fake_run` (func, строка 45)
+- `test_pick_folder_cancel_and_bad_path` (func, строка 54)
+- `test_read_child_verdict_tolerates_broken_output` (func, строка 71)
+- `test_macos_fallback_used_only_on_backend_error` (func, строка 89)
+- `test_availability_is_cached` (func, строка 111)
+- `test_availability_is_cached._Probe` (class, строка 115)
+- `test_availability_is_cached.fake_run` (func, строка 118)
 
 ### `tests/test_gigachat_messages.py`
 - `test_leading_system_folds_and_mid_history_blocks_become_user_role` (func, строка 52)
@@ -3244,17 +3349,18 @@
 - `test_add_and_get` (func, строка 45)
 - `test_get_empty_returns_list` (func, строка 59)
 - `test_duplicates_are_deduplicated` (func, строка 65)
-- `test_max_limit_is_five` (func, строка 79)
-- `test_nonexistent_folders_are_filtered` (func, строка 99)
-- `test_clear_removes_all` (func, строка 114)
-- `test_add_idempotent_on_failure` (func, строка 126)
-- `test_list_recent_workspaces_tool` (func, строка 139)
-- `test_scopes_are_independent` (func, строка 159)
-- `test_legacy_flat_list_read_as_dev_agent_scope` (func, строка 177)
-- `test_neutral_root_is_never_suggested` (func, строка 192)
-- `test_platform_root_hidden_from_foreign_scopes` (func, строка 215)
-- `test_seed_from_own_threads_only` (func, строка 233)
-- `test_clear_one_scope_keeps_others` (func, строка 252)
+- `test_max_limit_is_ten` (func, строка 79)
+- `test_optional_limit_argument` (func, строка 103)
+- `test_nonexistent_folders_are_filtered` (func, строка 119)
+- `test_clear_removes_all` (func, строка 134)
+- `test_add_idempotent_on_failure` (func, строка 146)
+- `test_list_recent_workspaces_tool` (func, строка 159)
+- `test_scopes_are_independent` (func, строка 179)
+- `test_legacy_flat_list_read_as_dev_agent_scope` (func, строка 197)
+- `test_neutral_root_is_never_suggested` (func, строка 212)
+- `test_platform_root_hidden_from_foreign_scopes` (func, строка 235)
+- `test_seed_from_own_threads_only` (func, строка 253)
+- `test_clear_one_scope_keeps_others` (func, строка 272)
 
 ### `tests/test_render_token_line.py`
 - `test_format_token_line_basic` (func, строка 10)
@@ -3788,57 +3894,57 @@
 - `test_ssh_test_button_reports_failure` (func, строка 239)
 
 ### `tests/test_ui_pages.py`
-- `_apply_all` (func, строка 79)
-- `invoke_page` (func, строка 92)
-- `_call_names` (func, строка 103)
-- `mock_env` (func, строка 111)
-- `test_main_base_renders` (func, строка 135)
-- `test_theme_selector_rendered_in_sidebar` (func, строка 141)
-- `_render_theme_select` (func, строка 160)
-- `test_theme_dark_select_writes_native_streamlit_theme_key` (func, строка 168)
-- `test_theme_system_and_light_select_emit_correct_mode` (func, строка 187)
-- `test_skills_page_when_empty` (func, строка 217)
-- `test_skills_page_with_skills_list` (func, строка 222)
-- `test_settings_api_keys_tab_renders` (func, строка 237)
-- `test_devagent_settings_tab_renders` (func, строка 245)
-- `test_instructions_tab_renders` (func, строка 260)
-- `test_settings_provider_save_shows_success` (func, строка 266)
-- `test_settings_global_save_button_absent` (func, строка 287)
-- `test_workspace_picker_initial_state` (func, строка 310)
-- `test_orchestrator_favicon_is_static_only` (func, строка 316)
-- `test_orchestrator_models_settings_renders_search_prompt_area` (func, строка 336)
-- `test_orchestrator_models_settings_saves_reasoning_effort` (func, строка 392)
-- `test_assistants_improve_prompt_does_not_mutate_existing_widget` (func, строка 440)
-- `_open_assistant_create_form` (func, строка 498)
-- `test_assistant_form_field_order` (func, строка 507)
-- `test_assistant_form_max_tool_calls_default_three` (func, строка 542)
-- `test_assistant_form_renders_reasoning_effort_select` (func, строка 562)
-- `test_assistant_create_saves_reasoning_effort` (func, строка 589)
-- `test_assistants_page_back_to_chat_returns_to_chat` (func, строка 619)
-- `test_strip_html_details_tags_removes_wrappers` (func, строка 641)
-- `test_strip_tool_calls_removes_details_tags` (func, строка 659)
-- `test_render_tool_result_shows_call_and_first_two_lines` (func, строка 676)
-- `test_render_tool_result_short_result_no_nested_expander` (func, строка 716)
-- `test_render_events_pairs_tool_call_with_tool_result` (func, строка 738)
-- `test_render_events_standalone_tool_call_falls_back` (func, строка 766)
-- `test_chat_page_has_settings_and_new_dialog_buttons` (func, строка 782)
-- `test_chat_page_keeps_selected_assistant_across_reruns` (func, строка 827)
-- `test_chat_page_keeps_selected_assistant_across_reruns.get_assistant` (func, строка 854)
-- `test_render_event_retrying_llm_warns_with_i18n` (func, строка 900)
-- `test_render_event_retrying_llm_warns_with_i18n.fake_t` (func, строка 909)
-- `test_render_event_incomplete_retry_warns_with_i18n` (func, строка 929)
-- `test_render_event_incomplete_retry_warns_with_i18n.fake_t` (func, строка 939)
-- `test_attach_events_targets_last_assistant_of_current_turn` (func, строка 959)
-- `test_attach_events_falls_back_to_visible_user_without_assistant` (func, строка 979)
-- `test_attach_events_skips_hidden_messages_and_empty_inputs` (func, строка 991)
-- `test_do_step_first_step_failure_is_visible_on_user_message` (func, строка 1017)
-- `test_do_step_first_step_failure_is_visible_on_user_message._Core` (class, строка 1024)
-- `test_do_step_first_step_failure_is_visible_on_user_message._Core.set_history` (func, строка 1027)
-- `test_do_step_first_step_failure_is_visible_on_user_message._Core.set_send_request` (func, строка 1030)
-- `test_do_step_first_step_failure_is_visible_on_user_message._Dispatcher` (class, строка 1033)
-- `test_do_step_first_step_failure_is_visible_on_user_message._Dispatcher.__init__` (func, строка 1034)
-- `test_do_step_first_step_failure_is_visible_on_user_message._Dispatcher.dispatch` (func, строка 1037)
-- `test_do_step_first_step_failure_is_visible_on_user_message._boom` (func, строка 1049)
+- `_apply_all` (func, строка 80)
+- `invoke_page` (func, строка 93)
+- `_call_names` (func, строка 104)
+- `mock_env` (func, строка 112)
+- `test_main_base_renders` (func, строка 136)
+- `test_theme_selector_rendered_in_sidebar` (func, строка 142)
+- `_render_theme_select` (func, строка 161)
+- `test_theme_dark_select_writes_native_streamlit_theme_key` (func, строка 169)
+- `test_theme_system_and_light_select_emit_correct_mode` (func, строка 188)
+- `test_skills_page_when_empty` (func, строка 218)
+- `test_skills_page_with_skills_list` (func, строка 223)
+- `test_settings_api_keys_tab_renders` (func, строка 238)
+- `test_devagent_settings_tab_renders` (func, строка 246)
+- `test_instructions_tab_renders` (func, строка 261)
+- `test_settings_provider_save_shows_success` (func, строка 267)
+- `test_settings_global_save_button_absent` (func, строка 288)
+- `test_workspace_picker_initial_state` (func, строка 311)
+- `test_orchestrator_favicon_is_static_only` (func, строка 317)
+- `test_orchestrator_models_settings_renders_search_prompt_area` (func, строка 337)
+- `test_orchestrator_models_settings_saves_reasoning_effort` (func, строка 393)
+- `test_assistants_improve_prompt_does_not_mutate_existing_widget` (func, строка 441)
+- `_open_assistant_create_form` (func, строка 499)
+- `test_assistant_form_field_order` (func, строка 508)
+- `test_assistant_form_max_tool_calls_default_three` (func, строка 543)
+- `test_assistant_form_renders_reasoning_effort_select` (func, строка 563)
+- `test_assistant_create_saves_reasoning_effort` (func, строка 590)
+- `test_assistants_page_back_to_chat_returns_to_chat` (func, строка 620)
+- `test_strip_html_details_tags_removes_wrappers` (func, строка 642)
+- `test_strip_tool_calls_removes_details_tags` (func, строка 660)
+- `test_render_tool_result_shows_call_and_first_two_lines` (func, строка 677)
+- `test_render_tool_result_short_result_no_nested_expander` (func, строка 717)
+- `test_render_events_pairs_tool_call_with_tool_result` (func, строка 739)
+- `test_render_events_standalone_tool_call_falls_back` (func, строка 767)
+- `test_chat_page_has_settings_and_new_dialog_buttons` (func, строка 783)
+- `test_chat_page_keeps_selected_assistant_across_reruns` (func, строка 828)
+- `test_chat_page_keeps_selected_assistant_across_reruns.get_assistant` (func, строка 855)
+- `test_render_event_retrying_llm_warns_with_i18n` (func, строка 901)
+- `test_render_event_retrying_llm_warns_with_i18n.fake_t` (func, строка 910)
+- `test_render_event_incomplete_retry_warns_with_i18n` (func, строка 930)
+- `test_render_event_incomplete_retry_warns_with_i18n.fake_t` (func, строка 940)
+- `test_attach_events_targets_last_assistant_of_current_turn` (func, строка 960)
+- `test_attach_events_falls_back_to_visible_user_without_assistant` (func, строка 980)
+- `test_attach_events_skips_hidden_messages_and_empty_inputs` (func, строка 992)
+- `test_do_step_first_step_failure_is_visible_on_user_message` (func, строка 1018)
+- `test_do_step_first_step_failure_is_visible_on_user_message._Core` (class, строка 1025)
+- `test_do_step_first_step_failure_is_visible_on_user_message._Core.set_history` (func, строка 1028)
+- `test_do_step_first_step_failure_is_visible_on_user_message._Core.set_send_request` (func, строка 1031)
+- `test_do_step_first_step_failure_is_visible_on_user_message._Dispatcher` (class, строка 1034)
+- `test_do_step_first_step_failure_is_visible_on_user_message._Dispatcher.__init__` (func, строка 1035)
+- `test_do_step_first_step_failure_is_visible_on_user_message._Dispatcher.dispatch` (func, строка 1038)
+- `test_do_step_first_step_failure_is_visible_on_user_message._boom` (func, строка 1050)
 
 ### `tests/test_ui_tooltips.py`
 - `_lang_files` (func, строка 49)
@@ -4048,23 +4154,23 @@
 - `test_assistant_form_switch_clears_stale_prompt_keys` (func, строка 449)
 - `test_assistant_form_switch_clears_stale_prompt_keys._assistant` (func, строка 464)
 - `_orch_chat_env` (func, строка 521)
-- `test_orch_chat_renders_datetime_captions` (func, строка 564)
-- `test_orch_chat_omits_caption_without_ts` (func, строка 579)
-- `test_orchestrator_strips_empty_json_fences` (func, строка 590)
-- `_assistant_chat_env` (func, строка 616)
-- `test_assistant_chat_renders_datetime_captions` (func, строка 659)
-- `test_assistant_chat_omits_caption_without_ts` (func, строка 675)
-- `_FakeUpload` (class, строка 690)
-- `_FakeUpload.__init__` (func, строка 693)
-- `_FakeUpload.read` (func, строка 697)
-- `_orch_upload_env` (func, строка 701)
-- `_orch_upload_env._fake_uploader` (func, строка 710)
-- `test_orch_upload_attaches_file_and_bumps_uploader_key` (func, строка 718)
-- `test_orch_upload_second_render_settles_without_refire` (func, строка 742)
-- `test_orch_upload_too_large_shows_error_without_rerun_loop` (func, строка 768)
-- `test_orch_upload_too_large_shows_error_without_rerun_loop._fake_uploader` (func, строка 773)
-- `test_orch_upload_duplicate_is_ignored_without_rerun_loop` (func, строка 787)
-- `test_orch_send_persists_raw_uploads_and_sets_notice` (func, строка 803)
+- `test_orch_chat_renders_datetime_captions` (func, строка 562)
+- `test_orch_chat_omits_caption_without_ts` (func, строка 577)
+- `test_orchestrator_strips_empty_json_fences` (func, строка 588)
+- `_assistant_chat_env` (func, строка 614)
+- `test_assistant_chat_renders_datetime_captions` (func, строка 657)
+- `test_assistant_chat_omits_caption_without_ts` (func, строка 673)
+- `_FakeUpload` (class, строка 688)
+- `_FakeUpload.__init__` (func, строка 691)
+- `_FakeUpload.read` (func, строка 695)
+- `_FakePrompt` (class, строка 699)
+- `_FakePrompt.__init__` (func, строка 702)
+- `_seed_submission` (func, строка 707)
+- `test_orch_chat_input_offers_inline_file_upload` (func, строка 712)
+- `test_orch_send_with_text_and_files_persists_raw_bytes` (func, строка 726)
+- `test_orch_files_only_submission_gets_placeholder_message` (func, строка 751)
+- `test_orch_text_only_submission_touches_no_files` (func, строка 768)
+- `test_orch_oversized_upload_is_rejected_with_error` (func, строка 782)
 
 ### `tests/test_verify_manifest.py`
 - `_git` (func, строка 29)
@@ -4306,9 +4412,25 @@
 - `st_mock` (func, строка 91)
 - `_make_neighbour_project` (func, строка 100)
 - `_render_page` (func, строка 108)
-- `_render_page._input` (func, строка 121)
-- `test_scenario_empty_state_journal_stays_in_dialog_folder` (func, строка 134)
-- `test_scenario_empty_state_attachment_never_touches_foreign_project` (func, строка 178)
+- `_render_page._Prompt` (class, строка 121)
+- `_render_page._Prompt.__init__` (func, строка 122)
+- `_render_page._input` (func, строка 126)
+- `test_scenario_empty_state_journal_stays_in_dialog_folder` (func, строка 141)
+- `test_scenario_empty_state_attachment_never_touches_foreign_project` (func, строка 185)
+- `test_scenario_empty_state_attachment_never_touches_foreign_project._Upload` (class, строка 209)
+- `test_scenario_empty_state_attachment_never_touches_foreign_project._Upload.__init__` (func, строка 210)
+- `test_scenario_empty_state_attachment_never_touches_foreign_project._Upload.read` (func, строка 214)
+
+### `tests/scenarios/test_feed_autoscroll_scenario.py`
+- `ui_env` (func, строка 32)
+- `_LoopState` (class, строка 44)
+- `_LoopState.__init__` (func, строка 47)
+- `_chat_env` (func, строка 54)
+- `_render` (func, строка 97)
+- `test_scenario_first_send_forces_scroll_to_bottom` (func, строка 106)
+- `test_scenario_active_agent_follows_each_step` (func, строка 117)
+- `test_scenario_script_pauses_on_scroll_up_and_resumes_at_bottom` (func, строка 129)
+- `test_scenario_idle_chat_does_not_scroll` (func, строка 150)
 
 ### `tests/scenarios/test_first_run_flow.py`
 - `isolated_data` (func, строка 64)
@@ -4320,6 +4442,20 @@
 - `test_settings_explain_keys_and_save_them._fake_save` (func, строка 172)
 - `test_create_first_assistant_with_real_storage` (func, строка 203)
 - `test_skills_library_install_forms_and_neutral_placeholder` (func, строка 272)
+
+### `tests/scenarios/test_folder_picker_scenario.py`
+- `isolated_data_dir` (func, строка 37)
+- `clean_config_state` (func, строка 75)
+- `st_mock` (func, строка 92)
+- `_make_project` (func, строка 101)
+- `_prepare_page` (func, строка 109)
+- `_render_page` (func, строка 129)
+- `_render_page._input` (func, строка 131)
+- `test_scenario_picked_folder_applied_on_first_send` (func, строка 143)
+- `test_scenario_picked_folder_applied_on_first_send._spy` (func, строка 163)
+- `test_scenario_mid_dialog_switch_applies_new_folder` (func, строка 192)
+- `test_scenario_agent_detour_does_not_change_reported_folder` (func, строка 233)
+- `test_scenario_browse_button_records_and_stages_folder` (func, строка 277)
 
 ### `tests/scenarios/test_generated_image_feed_scenario.py`
 - `ui_env` (func, строка 37)
@@ -4424,6 +4560,21 @@
 - `test_scenario_persistent_truncation_terminates` (func, строка 132)
 - `test_scenario_persistent_truncation_terminates.send` (func, строка 140)
 
+### `tests/scenarios/test_inline_chat_upload_scenario.py`
+- `ui_env` (func, строка 36)
+- `_FakeUpload` (class, строка 48)
+- `_FakeUpload.__init__` (func, строка 51)
+- `_FakeUpload.read` (func, строка 55)
+- `_FakePrompt` (class, строка 59)
+- `_FakePrompt.__init__` (func, строка 62)
+- `_chat_env` (func, строка 67)
+- `_seed_submission` (func, строка 106)
+- `_send` (func, строка 111)
+- `test_scenario_text_and_file_sent_together` (func, строка 120)
+- `test_scenario_file_only_submission_reaches_agent` (func, строка 141)
+- `test_scenario_plain_text_creates_no_files` (func, строка 157)
+- `test_scenario_oversized_attachment_is_rejected` (func, строка 172)
+
 ### `tests/scenarios/test_json_repair_scenarios.py`
 - `_make_skill` (func, строка 24)
 - `_scripted_send` (func, строка 33)
@@ -4437,14 +4588,14 @@
 - `test_scenario_error_state_unrepairable_truncation_stops_loop` (func, строка 103)
 
 ### `tests/scenarios/test_license_consistency_scenario.py`
-- `_manifest` (func, строка 36)
-- `_published_paths` (func, строка 41)
-- `_read` (func, строка 52)
-- `test_license_file_is_canonical_polyform` (func, строка 57)
-- `test_no_published_file_keeps_the_mit_spdx_identifier` (func, строка 85)
-- `test_user_facing_surfaces_agree_with_the_license` (func, строка 111)
-- `test_version_and_manifest_announce_the_change` (func, строка 137)
-- `test_licensing_history_stays_documented` (func, строка 151)
+- `_manifest` (func, строка 38)
+- `_published_paths` (func, строка 43)
+- `_read` (func, строка 54)
+- `test_license_file_is_canonical_polyform` (func, строка 59)
+- `test_no_published_file_keeps_the_mit_spdx_identifier` (func, строка 87)
+- `test_user_facing_surfaces_agree_with_the_license` (func, строка 113)
+- `test_version_and_manifest_announce_the_change` (func, строка 139)
+- `test_licensing_history_stays_documented` (func, строка 163)
 
 ### `tests/scenarios/test_loop_stuck_protection_scenarios.py`
 - `_make_skill` (func, строка 24)

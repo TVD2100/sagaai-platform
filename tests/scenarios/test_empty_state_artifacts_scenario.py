@@ -105,7 +105,7 @@ def _make_neighbour_project(tmp_path):
     return proj
 
 
-def _render_page(st, monkeypatch, user_input=None):
+def _render_page(st, monkeypatch, user_input=None, files=None):
     """Render the orchestrator page with a controllable chat input."""
     import ui.pages.orchestrator as orch_page
 
@@ -118,9 +118,16 @@ def _render_page(st, monkeypatch, user_input=None):
                         lambda s: orch if s == SLUG else None)
     monkeypatch.setattr(orch_page, "_assistant_has_api_key", lambda svc: True)
 
+    class _Prompt:
+        def __init__(self, text, files):
+            self.text = text or ""
+            self.files = list(files or [])
+
     def _input(*args, **kwargs):
         st._rec("chat_input", args, kwargs)
-        return user_input
+        if user_input is None and not files:
+            return None
+        return _Prompt(user_input, files)
 
     monkeypatch.setattr(st, "chat_input", _input)
     st.session_state.update({"ui_lang": "English"})
@@ -196,12 +203,19 @@ def test_scenario_empty_state_attachment_never_touches_foreign_project(st_mock, 
 
     monkeypatch.setattr(orch_page, "_do_step", lambda **kwargs: None)
 
-    # when: a queued attachment is sent from the empty-state dialog
+    # when: a file attached in the chat input is sent from the empty-state dialog
     orch_page._reset_dialog(SLUG)
-    st_mock.session_state[f"orch_{SLUG}_attached"] = [
-        {"name": "note.txt", "data": b"payload", "bytes": 7},
-    ]
-    _render_page(st_mock, monkeypatch, user_input="attach please")
+
+    class _Upload:
+        def __init__(self, name, data):
+            self.name = name
+            self._data = data
+
+        def read(self):
+            return self._data
+
+    _render_page(st_mock, monkeypatch, user_input="attach please",
+                 files=[_Upload("note.txt", b"payload")])
     tid = st_mock.session_state.get(f"orch_{SLUG}_thread_id")
     assert tid, "the send path did not create a thread"
 

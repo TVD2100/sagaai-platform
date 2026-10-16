@@ -550,14 +550,12 @@ def _orch_chat_env(ui_env, monkeypatch, history):
         "orch_o1_web_search": False,
         "orch_o1_economy_mode": False,
         "orch_o1_safety_mode": True,
-        "orch_o1_attached": [],
-        "orch_o1_upload_counter": 0,
         "orch_o1_saved_msg_count": len(history),
         "orch_o1_dispatcher": None,
-        "orch_o1_scroll_to": None,
+        "orch_o1_scroll_bottom": False,
     })
-    # Keep the mock chat_input empty so the send path never triggers.
-    ui_env.chat_input = lambda *a, **k: ""
+    # The mocked st.chat_input returns None by default, so the send path never
+    # triggers; tests seed a submission via ui_env._chat_returns[None].
     return orch_page
 
 
@@ -684,11 +682,11 @@ def test_assistant_chat_omits_caption_without_ts(ui_env, monkeypatch):
     assert not any("\U0001f550" in str(c) for c in caps), f"captions: {caps}"
 
 
-# ─── orchestrator chat: upload processing must not block sending ───────────
+# ─── orchestrator chat: files arrive inside st.chat_input ──────────────────
 
 
 class _FakeUpload:
-    """Minimal uploaded-file stand-in exposing .name and .read()."""
+    """Minimal upload stand-in exposing .name and .read()."""
 
     def __init__(self, name, data=b"file data"):
         self.name = name
@@ -698,130 +696,101 @@ class _FakeUpload:
         return self._data
 
 
-def _orch_upload_env(ui_env, monkeypatch, uploaded, attached=None):
-    """Seed the chat tab and mock the any-format uploader returning raw bytes.
+class _FakePrompt:
+    """Stand-in for the ChatInputValue returned by st.chat_input."""
 
-    ``uploaded`` is a list of ``(file_name, raw_bytes)`` the mocked uploader
-    returns on every render; ``attached`` is the initial attached-files list.
-    """
+    def __init__(self, text="", files=None):
+        self.text = text
+        self.files = list(files or [])
+
+
+def _seed_submission(ui_env, text="", files=None):
+    """Seed the mocked st.chat_input result (the widget carries no key)."""
+    ui_env._chat_returns[None] = _FakePrompt(text, files)
+
+
+def test_orch_chat_input_offers_inline_file_upload(ui_env, monkeypatch):
+    """The chat renders ONE input with accept_file="multiple" and no separate
+    any-format uploader/caption (the bulky dropzone must be gone)."""
     orch_page = _orch_chat_env(ui_env, monkeypatch, [])
-    ui_env.session_state["orch_o1_attached"] = list(attached or [])
-
-    def _fake_uploader(*a, **k):
-        ui_env._rec("file_uploader", a, k)
-        return [_FakeUpload(n, d) for n, d in uploaded]
-
-    ui_env.file_uploader = _fake_uploader
-    return orch_page
-
-
-def test_orch_upload_attaches_file_and_bumps_uploader_key(ui_env, monkeypatch):
-    """Uploading a file must add it to the attachment list, bump the reset
-    counter (so the uploader widget key changes) and rerun exactly once."""
-    orch_page = _orch_upload_env(
-        ui_env, monkeypatch, uploaded=[("report.txt", b"file data")])
     _rerender(ui_env, lambda: orch_page._render_chat_tab("o1", "English"))
 
-    attached = ui_env.session_state["orch_o1_attached"]
-    assert [f["name"] for f in attached] == ["report.txt"], attached
-    assert attached[0]["data"] == b"file data"
-    assert attached[0]["bytes"] == 9
-    assert ui_env.session_state["orch_o1_upload_counter"] == 1
-    assert ui_env.rerun_count == 1
-
-    keys = [c[2].get("key") for c in ui_env.calls if c[0] == "file_uploader"]
-    assert "orch_upload_o1_0" in keys, keys
-    # The any-format uploader must impose NO extension filter.
-    uploader_kwargs = [c[2] for c in ui_env.calls if c[0] == "file_uploader"]
-    assert uploader_kwargs and uploader_kwargs[-1].get("type") is None, \
-        uploader_kwargs
-    # The caption must use the any-type i18n key.
-    assert "orch_attach_any_type" in _captions(ui_env), _captions(ui_env)
+    inputs = [c for c in ui_env.calls if c[0] == "chat_input"]
+    assert inputs, "st.chat_input was not rendered"
+    assert inputs[-1][2].get("accept_file") == "multiple", inputs[-1][2]
+    # The standalone uploader and its caption must be gone.
+    assert not [c for c in ui_env.calls if c[0] == "file_uploader"]
+    assert "orch_attach_any_type" not in _captions(ui_env), _captions(ui_env)
 
 
-def test_orch_upload_second_render_settles_without_refire(ui_env, monkeypatch):
-    """The upload processing must not loop forever: the second render (with
-    the same file still reported by a stale widget) attaches nothing new,
-    bumps the key again and does NOT rerun - the chat stays usable.
-
-    In real Streamlit the recreated widget returns no files at all; the
-    mock keeps returning the file to prove the guard works even in the
-    worst case.
-    """
-    orch_page = _orch_upload_env(
-        ui_env, monkeypatch, uploaded=[("archive.zip", b"PK\x03\x04" + bytes(10))])
-    _rerender(ui_env, lambda: orch_page._render_chat_tab("o1", "English"))
-    assert ui_env.rerun_count == 1
-
-    _rerender(ui_env, lambda: orch_page._render_chat_tab("o1", "English"))
-    assert ui_env.rerun_count == 1, (
-        "chat page keeps rerunning on every render - sending stays blocked"
-    )
-    attached = ui_env.session_state["orch_o1_attached"]
-    assert [f["name"] for f in attached] == ["archive.zip"]
-    assert attached[0]["data"].startswith(b"PK\x03\x04")
-    assert ui_env.session_state["orch_o1_upload_counter"] == 2
-    keys = [c[2].get("key") for c in ui_env.calls if c[0] == "file_uploader"]
-    assert "orch_upload_o1_1" in keys, keys
-
-
-def test_orch_upload_too_large_shows_error_without_rerun_loop(ui_env, monkeypatch):
-    """A file over the raw-byte size cap must show the error and reset the
-    widget without entering a rerun loop."""
+def test_orch_send_with_text_and_files_persists_raw_bytes(ui_env, monkeypatch):
+    """Text plus files: RAW BYTES land in history/<tid>/files and the
+    thread-files notice reaches file_ctx."""
     orch_page = _orch_chat_env(ui_env, monkeypatch, [])
-
-    def _fake_uploader(*a, **k):
-        ui_env._rec("file_uploader", a, k)
-        return [_FakeUpload("big.bin", b"\x00" * (orch_page.MAX_THREAD_FILE_BYTES + 1))]
-
-    ui_env.file_uploader = _fake_uploader
-
-    _rerender(ui_env, lambda: orch_page._render_chat_tab("o1", "English"))
-    assert ui_env.rerun_count == 0
-    assert any("orch_file_too_large_bytes" in str(e) for e in ui_env.errors), \
-        ui_env.errors
-    assert ui_env.session_state["orch_o1_attached"] == []
-    assert ui_env.session_state["orch_o1_upload_counter"] == 1
-
-
-def test_orch_upload_duplicate_is_ignored_without_rerun_loop(ui_env, monkeypatch):
-    """Re-selecting an already attached file must not duplicate it and must
-    not trigger repeated reruns."""
-    orch_page = _orch_upload_env(
-        ui_env, monkeypatch, uploaded=[("report.txt", b"same")],
-        attached=[{"name": "report.txt", "data": b"old", "bytes": 3}],
-    )
-    _rerender(ui_env, lambda: orch_page._render_chat_tab("o1", "English"))
-
-    attached = ui_env.session_state["orch_o1_attached"]
-    assert len(attached) == 1, attached
-    assert attached[0]["data"] == b"old"
-    assert ui_env.rerun_count == 0
-    assert ui_env.session_state["orch_o1_upload_counter"] == 1
-
-
-def test_orch_send_persists_raw_uploads_and_sets_notice(ui_env, monkeypatch):
-    """Sending with attachments must save their RAW BYTES into
-    history/<tid>/files and put the thread-files notice into file_ctx."""
-    orch_page = _orch_chat_env(ui_env, monkeypatch, [])
-    ui_env.session_state["orch_o1_thread_id"] = "tid-test"
-    ui_env.session_state["orch_o1_attached"] = [
-        {"name": "doc.txt", "data": b"hello d1", "bytes": 8},
-        {"name": "arch.zip", "data": b"PK\x03\x04raw", "bytes": 7},
-    ]
-    ui_env.chat_input = lambda *a, **k: "go"
+    ui_env.session_state["orch_o1_thread_id"] = "tid-text-files"
+    _seed_submission(ui_env, text="go", files=[
+        _FakeUpload("doc.txt", b"hello d1"),
+        _FakeUpload("arch.zip", b"rawzip"),
+    ])
     monkeypatch.setattr(orch_page, "_do_step", lambda slug, lang: None)
     _rerender(ui_env, lambda: orch_page._render_chat_tab("o1", "English"))
 
     assert ui_env.session_state["orch_o1_user_message"] == "go"
-    assert ui_env.session_state["orch_o1_attached"] == []
 
     import core.threads_devagent as td
-    records = td.list_thread_files("tid-test")
-    names = {r["name"]: r for r in records}
-    assert set(names) == {"doc.txt", "arch.zip"}, names
-    assert td.read_thread_file("tid-test", "doc.txt")["content"] == "hello d1"
-    assert td.read_thread_file("tid-test", "arch.zip")["is_text"] is False
+    records = td.list_thread_files("tid-text-files")
+    names = {r["name"] for r in records}
+    assert names == {"doc.txt", "arch.zip"}, names
+    assert td.read_thread_file("tid-text-files", "doc.txt")["content"] == "hello d1"
+    assert td.read_thread_file("tid-text-files", "arch.zip")["is_text"] is False
 
     notice = ui_env.session_state["orch_o1_file_ctx"]
     assert "doc.txt" in notice and "arch.zip" in notice, notice
+
+
+def test_orch_files_only_submission_gets_placeholder_message(ui_env, monkeypatch):
+    """Files without text still reach the agent: the task line falls back to
+    the dedicated i18n placeholder naming the attachments."""
+    orch_page = _orch_chat_env(ui_env, monkeypatch, [])
+    ui_env.session_state["orch_o1_thread_id"] = "tid-files-only"
+    _seed_submission(ui_env, text="   ", files=[_FakeUpload("only.txt", b"x")])
+    monkeypatch.setattr(orch_page, "_do_step", lambda slug, lang: None)
+    _rerender(ui_env, lambda: orch_page._render_chat_tab("o1", "English"))
+
+    # t() is patched to echo the key itself in this fixture.
+    assert ui_env.session_state["orch_o1_user_message"] == "orch_attach_only_message"
+
+    import core.threads_devagent as td
+    names = {r["name"] for r in td.list_thread_files("tid-files-only")}
+    assert names == {"only.txt"}, names
+
+
+def test_orch_text_only_submission_touches_no_files(ui_env, monkeypatch):
+    """A plain text message must not create any thread-file record."""
+    orch_page = _orch_chat_env(ui_env, monkeypatch, [])
+    ui_env.session_state["orch_o1_thread_id"] = "tid-test"
+    _seed_submission(ui_env, text="just text")
+    monkeypatch.setattr(orch_page, "_do_step", lambda slug, lang: None)
+    _rerender(ui_env, lambda: orch_page._render_chat_tab("o1", "English"))
+
+    assert ui_env.session_state["orch_o1_user_message"] == "just text"
+
+    import core.threads_devagent as td
+    assert td.list_thread_files("tid-text-only") == []
+
+
+def test_orch_oversized_upload_is_rejected_with_error(ui_env, monkeypatch):
+    """A file over the raw-byte cap shows the error and is not persisted."""
+    orch_page = _orch_chat_env(ui_env, monkeypatch, [])
+    ui_env.session_state["orch_o1_thread_id"] = "tid-oversized"
+    _seed_submission(ui_env, text="go", files=[
+        _FakeUpload("big.bin", b"A" * (orch_page.MAX_THREAD_FILE_BYTES + 1)),
+    ])
+    monkeypatch.setattr(orch_page, "_do_step", lambda slug, lang: None)
+    _rerender(ui_env, lambda: orch_page._render_chat_tab("o1", "English"))
+
+    assert any("orch_file_too_large_bytes" in str(e)
+               for e in ui_env.errors), ui_env.errors
+
+    import core.threads_devagent as td
+    assert td.list_thread_files("tid-oversized") == []

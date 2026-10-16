@@ -30,6 +30,7 @@ from core.files import (
 from core.fs import combine_nonempty
 from core.api_layer import send_request
 from core.render import _md_to_txt, clipboard_button, format_token_line, format_ts_label
+from core.feed_autoscroll import render_autoscroll
 from core.threads_devagent import (
     create_devagent_thread, load_thread_messages,
     append_thread_message, load_thread_meta,
@@ -67,11 +68,17 @@ from core.skills_library import list_skills as list_library_skills
 from core.rag import list_bases_with_activity
 from core.connectors import list_connections
 from core.orchestrator_tools import list_system_tools
+from core.recent_workspaces import get_recent_workspaces, add_recent_workspace
+from core import folder_dialog
 
 
 # Pagination window for the chat feed: render at most this many messages
 # initially and widen the window by the same amount on "show earlier".
 CHAT_PAGE_SIZE = 50
+
+# How many recently used folders the "Выбор папки" selector offers
+# (in addition to the leading "Авто" entry).
+FOLDER_PICKER_LIMIT = 10
 
 
 # ─── Session-state helpers ────────────────────────────────────────────────────
@@ -122,8 +129,6 @@ def _make_state_keys(slug: str) -> dict:
         # expensive context estimate is not recomputed on every rerun.
         f"orch_{slug}_token_line_cache": None,
         f"orch_{slug}_auto_apply": True,
-        f"orch_{slug}_attached": [],
-        f"orch_{slug}_upload_counter": 0,
         f"orch_{slug}_web_search": prefs["web_search"],
         f"orch_{slug}_economy_mode": prefs["economy_mode"],
         f"orch_{slug}_stop_requested": False,
@@ -131,12 +136,19 @@ def _make_state_keys(slug: str) -> dict:
         f"orch_{slug}_saved_msg_count": 0,
         # Chat feed pagination: at most this many trailing entries shown.
         f"orch_{slug}_chat_show_count": CHAT_PAGE_SIZE,
-        f"orch_{slug}_scroll_to": None,
+        # Set to True right after a user message is sent: the next render
+        # forces the feed to the bottom (clears a manual-scroll pause).
+        f"orch_{slug}_scroll_bottom": False,
         f"orch_{slug}_show_func_form": False,
         f"orch_{slug}_edit_func": None,
         f"orch_{slug}_show_oinstr_form": False,
         f"orch_{slug}_edit_oinstr": None,
         f"orch_{slug}_safety_mode": prefs["safety_mode"],
+        # Folder staged in the "folder picker" block ("" = Авто / no explicit
+        # choice) plus a widget-key counter used to reset the selector after
+        # a send without touching an already-instantiated widget's state.
+        f"orch_{slug}_folder_choice": "",
+        f"orch_{slug}_folder_picker_counter": 0,
     }
 
 
@@ -211,58 +223,155 @@ def _load_attachments_manifest(ws_root: str, tid: str) -> list:
 # kept to re-announce manifests written by older builds.
 
 
-# ─── Scroll helpers ───────────────────────────────────────────────────────────
+# ─── Folder picker ("Выбор папки") ────────────────────────────────────────────
 
-def _scroll_page(target: str) -> None:
-    """Emit a small JS snippet that scrolls the main Streamlit container to top/bottom.
+def _folder_picker_key(slug: str) -> str:
+    """Return the widget key of the folder selector for this orchestrator.
 
-    Tries several selectors (new and legacy Streamlit layouts) as well as the
-    plain window/body scroll because the correct scroll container varies between
-    Streamlit versions.
+    The key embeds a counter, so snapping the selector back to "Авто" after
+    a send creates a BRAND-NEW widget instead of mutating an existing one
+    (Streamlit forbids changing a widget's session state after it was
+    instantiated in the same run).
     """
-    import streamlit.components.v1 as components
-    if target == "bottom":
-        scroller = "el.scrollTop = el.scrollHeight;"
-        win_scroll = "window.parent.scrollTo(0, doc.body.scrollHeight || doc.documentElement.scrollHeight);"
-    else:
-        scroller = "el.scrollTop = 0;"
-        win_scroll = "window.parent.scrollTo(0, 0);"
-    components.html(
-        f"""
-        <script>
-        (function() {{
-            function doScroll() {{
-                try {{
-                    var doc = window.parent.document;
-                    var selectors = [
-                        '[data-testid="stMain"]',
-                        '[data-testid="stMainBlockContainer"]',
-                        '.main',
-                        '.block-container',
-                        'body',
-                        'html'
-                    ];
-                    for (var i = 0; i < selectors.length; i++) {{
-                        var nodes = doc.querySelectorAll(selectors[i]);
-                        for (var j = 0; j < nodes.length; j++) {{
-                            var el = nodes[j];
-                            {scroller}
-                        }}
-                    }}
-                    {win_scroll}
-                }} catch (e) {{}}
-            }}
-            if (document.readyState === 'complete' || document.readyState === 'interactive') {{
-                setTimeout(doScroll, 60);
-            }} else {{
-                window.addEventListener('DOMContentLoaded', function() {{ setTimeout(doScroll, 60); }});
-            }}
-        }})();
-        </script>
-        """,
-        height=0,
-        scrolling=False,
-    )
+    return f"orch_folder_pick_{slug}_{int(_ss(slug, 'folder_picker_counter') or 0)}"
+
+
+def _reset_folder_choice(slug: str) -> None:
+    """Snap the folder selector back to "Авто" (via a fresh widget key)."""
+    _set_ss(slug, "folder_choice", "")
+    _set_ss(slug, "folder_picker_counter",
+            int(_ss(slug, "folder_picker_counter") or 0) + 1)
+
+
+def _thread_folder(slug: str) -> str:
+    """Return the working folder of THIS dialog (authoritative source).
+
+    Prefers the thread binding: the live config may belong to a
+    neighbouring dialog or hold a temporary detour the agent itself made.
+    Falls back to the live workspace when the dialog has no thread and to
+    a staged choice when the user just picked one.
+    """
+    tid = _ss(slug, "thread_id")
+    if tid:
+        try:
+            bound = wb.get_thread_workspace(tid)
+            if bound:
+                return str(bound)
+        except Exception:
+            pass
+    try:
+        cur = wt.current_workspace()
+        if cur.get("workspace_selected", True):
+            return str(cur.get("root", "") or "")
+    except Exception:
+        pass
+    return ""
+
+
+def _apply_folder_choice(slug: str) -> Optional[str]:
+    """Apply the folder staged in the selector BEFORE the LLM call.
+
+    Called from the send path so the agent never spends a step calling
+    ``set_workspace`` itself. The switch is recorded in the recent-folders
+    history by ``set_workspace`` and bound to the dialog's thread, which
+    makes it authoritative on the next dispatch. Afterwards the selector
+    snaps back to "Авто" - the folder becomes dialog-managed, so a
+    temporary detour the agent makes later is never overwritten by the UI.
+
+    Returns the applied path, or None when nothing was staged (the normal
+    case after the first message) or the folder was already in effect.
+    """
+    path = str(_ss(slug, "folder_choice") or "").strip()
+    if not path:
+        return None
+    if not os.path.isdir(path):
+        _reset_folder_choice(slug)
+        return None
+    tid = _ss(slug, "thread_id")
+    # Compare against THIS dialog's thread binding - not the live config,
+    # which may belong to a neighbouring dialog or to a temporary detour
+    # the agent itself made while inspecting another folder.
+    already = bool(tid) and wb.get_thread_workspace(tid) == path
+    if not already:
+        try:
+            wt.set_workspace(path, slug=slug)
+        except Exception:
+            _reset_folder_choice(slug)
+            return None
+        if tid:
+            try:
+                wb.register_thread(tid, workspace=path, target_file=None)
+                _persist_thread_workspace_meta(tid)
+            except Exception:
+                pass
+    _reset_folder_choice(slug)
+    return path
+
+
+def _render_folder_picker(slug: str, lang: str) -> None:
+    """Render the "Выбор папки" block right above the chat input.
+
+    Offers "Авто" plus the orchestrator's recent folders (up to
+    FOLDER_PICKER_LIMIT), a native "Обзор…" button that opens the OS folder
+    dialog, and - below - the path of the folder active AT THIS MOMENT.
+    Selecting a folder does not touch the workspace immediately: the choice
+    is applied automatically when the next message is sent (see
+    ``_apply_folder_choice``).
+    """
+    options: list = [""]
+    try:
+        options.extend(get_recent_workspaces(slug, limit=FOLDER_PICKER_LIMIT))
+    except Exception:
+        pass
+
+    staged = str(_ss(slug, "folder_choice") or "")
+    if staged and staged not in options:
+        options.append(staged)
+
+    def _label(path: str) -> str:
+        if not path:
+            return t("orch_folder_auto", lang=lang)
+        return f"📁 {os.path.basename(path.rstrip('/')) or path} - {path}"
+
+    index = options.index(staged) if staged in options else 0
+
+    col_sel, col_browse = st.columns([5, 1])
+    with col_sel:
+        picked = st.selectbox(
+            t("orch_folder_picker_label", lang=lang),
+            options=range(len(options)),
+            format_func=lambda i: _label(options[i]),
+            index=index,
+            key=_folder_picker_key(slug),
+        )
+        try:
+            _set_ss(slug, "folder_choice", options[int(picked)])
+        except Exception:
+            pass
+    with col_browse:
+        st.write("")
+        if folder_dialog.native_dialog_available():
+            if st.button(t("orch_folder_browse", lang=lang),
+                         key=f"orch_folder_browse_{slug}",
+                         use_container_width=True):
+                chosen = folder_dialog.pick_folder(
+                    initial_dir=staged or None,
+                    title=t("orch_folder_dialog_title", lang=lang),
+                )
+                if chosen:
+                    add_recent_workspace(chosen, slug=slug)
+                    _set_ss(slug, "folder_choice", chosen)
+                    _set_ss(slug, "folder_picker_counter",
+                            int(_ss(slug, "folder_picker_counter") or 0) + 1)
+                st.rerun()
+
+    # Always show the working folder of THIS dialog. The thread binding is
+    # authoritative: the live config may belong to a neighbouring dialog or
+    # hold a temporary detour the agent made; a just-picked folder wins
+    # until it is applied on the next send.
+    active = staged or _thread_folder(slug)
+    if active:
+        st.caption(t("orch_folder_active", lang=lang, path=active))
 
 
 # ─── Adapters & dispatcher ────────────────────────────────────────────────────
@@ -910,11 +1019,12 @@ def _reset_dialog(slug: str) -> None:
     _set_ss(slug, "token_line_cache", None)
     _set_ss(slug, "thread_id", None)
     _set_ss(slug, "stop_requested", False)
-    _set_ss(slug, "attached", [])
-    _set_ss(slug, "upload_counter", 0)
     _set_ss(slug, "saved_msg_count", 0)
     _set_ss(slug, "chat_show_count", CHAT_PAGE_SIZE)
-    _set_ss(slug, "scroll_to", None)
+    _set_ss(slug, "scroll_bottom", False)
+    _set_ss(slug, "folder_choice", "")
+    _set_ss(slug, "folder_picker_counter",
+            int(_ss(slug, "folder_picker_counter") or 0) + 1)
     if _sk(slug, "dispatcher") in st.session_state:
         del st.session_state[_sk(slug, "dispatcher")]
     # A fresh dialog starts in the EMPTY workspace state: repoint the live
@@ -1155,10 +1265,9 @@ def _render_token_line(slug: str, history: list, economy_enabled: bool,
     """
     _orch = get_orchestrator(slug)
     _full_sys = _orch.get("prompt_text", "") if _orch else ""
-    _file_text = " ".join(
-        f.get("content", "") if not f.get("stored") else f.get("preview", "")
-        for f in (_ss(slug, "attached") or [])
-    )
+    # Attachments now travel with the chat input submission and are persisted
+    # immediately, so there is no pending attachment text between renders.
+    _file_text = ""
     _strong_assistant, _ = build_assistant_dicts(slug)
     _services_names = tuple(sorted(get_services().keys()))
 
@@ -1228,15 +1337,30 @@ def _render_token_line(slug: str, history: list, economy_enabled: bool,
     st.markdown(_html, unsafe_allow_html=True)
 
 
+def _split_chat_prompt(raw):
+    """Normalize an ``st.chat_input`` result into ``(text, files)``.
+
+    Streamlit >= 1.45 returns a ``ChatInputValue``-like object exposing
+    ``.text`` and ``.files`` when ``accept_file`` is enabled. Plain strings
+    and ``None`` are tolerated so older callers and test doubles keep
+    working; non-string text and non-list file payloads degrade to empty.
+    """
+    if raw is None:
+        return "", []
+    if isinstance(raw, str):
+        return raw, []
+    text = getattr(raw, "text", "")
+    files = getattr(raw, "files", [])
+    if not isinstance(text, str):
+        text = ""
+    if not isinstance(files, (list, tuple)):
+        files = []
+    return text, list(files)
+
+
 def _render_chat_tab(slug: str, lang: str) -> None:
     orch = get_orchestrator(slug)
     orch_name = orch.get("name", slug) if orch else slug
-
-    # Execute pending scroll request (if any).
-    scroll_to = _ss(slug, "scroll_to")
-    if scroll_to:
-        _set_ss(slug, "scroll_to", None)
-        _scroll_page(scroll_to)
 
     st.markdown(
         "<style>\n"
@@ -1288,6 +1412,17 @@ def _render_chat_tab(slug: str, lang: str) -> None:
     # agent is still active and which assistant message is the final one.
     loop_state = _ss(slug, "loop_state")
     agent_is_active = (loop_state is not None and loop_state.phase not in ("done", "error"))
+
+    # Feed auto-scroll: while the agent works the feed follows the newest
+    # output; a manual scroll-up pauses that follow and returning to the
+    # bottom resumes it (see core.feed_autoscroll). A just-sent user message
+    # sets scroll_bottom, which forces one scroll regardless of the pause.
+    _force_scroll = bool(_ss(slug, "scroll_bottom"))
+    if _force_scroll:
+        _set_ss(slug, "scroll_bottom", False)
+    if _force_scroll or agent_is_active:
+        render_autoscroll(force=_force_scroll)
+
     last_assistant_idx = None
     for _idx, _msg in enumerate(history):
         if _msg.get("role") == "assistant" and not _msg.get("hidden") and _msg.get("content"):
@@ -1521,68 +1656,35 @@ def _render_chat_tab(slug: str, lang: str) -> None:
                         st.rerun()
 
     if not agent_is_active:
-        att_files: list = _ss(slug, "attached") or []
-
-        if att_files:
-            with st.container():
-                for i, f in enumerate(att_files):
-                    col_name, col_btn = st.columns([5, 1])
-                    with col_name:
-                        st.caption(f"📎 {f['name']}")
-                    with col_btn:
-                        if st.button("✕", key=f"orch_att_rm_{slug}_{i}"):
-                            att_files.pop(i)
-                            _set_ss(slug, "upload_counter",
-                                    int(_ss(slug, "upload_counter") or 0) + 1)
-                            _set_ss(slug, "attached", att_files)
-                            st.rerun()
-
         with st.bottom:
-            user_input = st.chat_input(t("orch_input_placeholder", lang=lang))
+            _render_folder_picker(slug, lang)
+            _chat_prompt = st.chat_input(
+                t("orch_input_placeholder", lang=lang),
+                accept_file="multiple",
+            )
             _render_chat_toolbar(slug, lang)
 
-        uploaded_files = st.file_uploader(
-            t("orch_attach_label", lang=lang),
-            type=None,
-            accept_multiple_files=True,
-            key=f"orch_upload_{slug}_{int(_ss(slug, 'upload_counter') or 0)}",
-            label_visibility="collapsed",
-        )
-        st.caption(t("orch_attach_any_type", lang=lang))
+        _prompt_text, _prompt_files = _split_chat_prompt(_chat_prompt)
 
-        if uploaded_files:
-            # Attach the raw bytes UNCHANGED - the platform never parses upload
-            # content. The agent itself decides when/how to extract it after
-            # sending (list_thread_files / read_thread_file, or run_code).
-            existing_names = {f["name"] for f in att_files}
-            added = False
-            for uf in uploaded_files:
-                if uf.name in existing_names:
-                    continue
-                try:
-                    data = uf.read()
-                except Exception:
-                    continue
-                if len(data) > MAX_THREAD_FILE_BYTES:
-                    st.error(t("orch_file_too_large_bytes", lang=lang,
-                               max_bytes=MAX_THREAD_FILE_BYTES))
-                    continue
-                att_files.append({
-                    "name": uf.name,
-                    "data": bytes(data),
-                    "bytes": len(data),
-                })
-                added = True
-            _set_ss(slug, "attached", att_files)
-            # Recreate the uploader widget after processing so the files just
-            # uploaded are dropped from the widget state and do not re-trigger
-            # this block on the next rerun (which used to block the chat).
-            _set_ss(slug, "upload_counter",
-                    int(_ss(slug, "upload_counter") or 0) + 1)
-            if added:
-                st.rerun()
-
-        if user_input and user_input.strip():
+        if _prompt_text.strip() or _prompt_files:
+            # Files arrive together with the text from the single chat input
+            # (accept_file="multiple"); raw bytes are persisted UNCHANGED and
+            # the agent decides later how to extract them.
+            _msg_text = _prompt_text.strip()
+            if not _msg_text and _prompt_files:
+                # A files-only submission still needs a task line: the agent
+                # loop ignores an empty user_message.
+                _names = ", ".join(
+                    getattr(f, "name", "") for f in _prompt_files
+                    if getattr(f, "name", "")
+                )
+                _msg_text = t("orch_attach_only_message", lang=lang,
+                              names=_names).strip()
+            # A folder picked in "Выбор папки" is applied HERE, before the
+            # model is called: the workspace switch happens automatically
+            # (set_workspace + thread binding), so the agent never spends a
+            # step doing it itself. No-op once the selector snapped to "Авто".
+            _apply_folder_choice(slug)
             if not _ss(slug, "thread_id"):
                 # Create thread associated with this orchestrator
                 orch_obj = orch or {}
@@ -1592,7 +1694,7 @@ def _render_chat_tab(slug: str, lang: str) -> None:
                 # user had chosen it.
                 ws_selected = bool(ws_info.get("workspace_selected", True))
                 tid = create_devagent_thread(
-                    title=user_input.strip(),
+                    title=_msg_text,
                     orchestrator_slug=slug,
                     orchestrator_name=orch_obj.get("name", slug),
                     workspace=(ws_info.get("root", "") or None) if ws_selected else None,
@@ -1601,6 +1703,20 @@ def _render_chat_tab(slug: str, lang: str) -> None:
                 )
                 _set_ss(slug, "thread_id", tid)
                 _set_ss(slug, "saved_msg_count", 0)
+                # Bind the brand-new thread to the folder chosen for THIS
+                # dialog, so the thread binding is authoritative from the very
+                # first message instead of waiting for the next render to
+                # lazily snapshot the live config.
+                if ws_selected and ws_info.get("root"):
+                    try:
+                        wb.register_thread(
+                            tid,
+                            workspace=ws_info.get("root", ""),
+                            target_file=((ws_info.get("target_file") or None)
+                                         if ws_info.get("single_file_mode") else None),
+                        )
+                    except Exception:
+                        pass
 
             ctx_text, name = "", ""
             tid = _ss(slug, "thread_id")
@@ -1608,10 +1724,18 @@ def _render_chat_tab(slug: str, lang: str) -> None:
                 ws_root = wt.current_workspace().get("root", "")
                 # Persist EVERY attachment as RAW BYTES into history/<tid>/files.
                 saved_names = []
-                for f in att_files:
+                for uf in _prompt_files:
                     try:
-                        save_thread_file_data(tid, f.get("name", ""), f.get("data") or b"")
-                        saved_names.append(f.get("name", ""))
+                        data = uf.read()
+                    except Exception:
+                        continue
+                    if len(data) > MAX_THREAD_FILE_BYTES:
+                        st.error(t("orch_file_too_large_bytes", lang=lang,
+                                   max_bytes=MAX_THREAD_FILE_BYTES))
+                        continue
+                    try:
+                        save_thread_file_data(tid, getattr(uf, "name", ""), bytes(data))
+                        saved_names.append(getattr(uf, "name", ""))
                     except Exception:
                         continue
                 if saved_names:
@@ -1628,12 +1752,8 @@ def _render_chat_tab(slug: str, lang: str) -> None:
                     ctx_text = f"{ctx_text}\n\n{registry}" if ctx_text else registry
             _set_ss(slug, "file_ctx", ctx_text)
             _set_ss(slug, "file_name", name)
-            _set_ss(slug, "user_message", user_input.strip())
-            _set_ss(slug, "attached", [])
-            # Recreate the uploader widget after sending so the files just
-            # sent are not re-attached from the widget state on rerun.
-            _set_ss(slug, "upload_counter",
-                    int(_ss(slug, "upload_counter") or 0) + 1)
+            _set_ss(slug, "user_message", _msg_text)
+            _set_ss(slug, "scroll_bottom", True)
             _do_step(slug=slug, lang=lang)
             st.rerun()
 

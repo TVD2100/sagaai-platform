@@ -103,7 +103,7 @@ def _setup_feed(ui_env, monkeypatch, history):
         'orch_' + SLUG + '_upload_counter': 0,
         'orch_' + SLUG + '_saved_msg_count': len(history),
         'orch_' + SLUG + '_dispatcher': None,
-        'orch_' + SLUG + '_scroll_to': None,
+        'orch_' + SLUG + '_scroll_bottom': False,
     })
     ui_env.chat_input = lambda *a, **k: ''
     return orch_page

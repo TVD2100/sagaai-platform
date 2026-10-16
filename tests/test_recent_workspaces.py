@@ -76,24 +76,44 @@ def test_duplicates_are_deduplicated(two_dirs):
     assert b in recent
 
 
-def test_max_limit_is_five(tmp_path):
-    """Adding more than 5 projects trims the oldest."""
-    from core.recent_workspaces import add_recent_workspace, get_recent_workspaces
+def test_max_limit_is_ten(tmp_path):
+    """Adding more than 10 projects trims the oldest."""
+    from core.recent_workspaces import (
+        add_recent_workspace, get_recent_workspaces, MAX_RECENT_WORKSPACES,
+    )
 
+    assert MAX_RECENT_WORKSPACES == 10
+    total = 12
     dirs = []
-    for i in range(7):
+    for i in range(total):
         d = tmp_path / f"proj_{i}"
         d.mkdir()
         dirs.append(str(d))
 
-    for i in range(7):
+    for i in range(total):
         add_recent_workspace(dirs[i])
 
     recent = get_recent_workspaces()
-    assert len(recent) == 5
-    # The newest are proj_6 ... proj_2 (5 items)
-    assert dirs[6] == recent[0]
-    assert dirs[2] == recent[-1]
+    assert len(recent) == 10
+    # The newest are proj_11 ... proj_2 (10 items)
+    assert dirs[total - 1] == recent[0]
+    assert dirs[total - 10] == recent[-1]
+
+
+def test_optional_limit_argument(tmp_path):
+    """get_recent_workspaces honours an explicit limit (and 0 yields none)."""
+    from core.recent_workspaces import add_recent_workspace, get_recent_workspaces
+
+    dirs = []
+    for i in range(4):
+        d = tmp_path / f"lim_{i}"
+        d.mkdir()
+        dirs.append(str(d))
+        add_recent_workspace(str(d))
+
+    assert get_recent_workspaces(limit=2) == [dirs[3], dirs[2]]
+    assert get_recent_workspaces(limit=0) == []
+    assert len(get_recent_workspaces(limit="bad")) == 4
 
 
 def test_nonexistent_folders_are_filtered(two_dirs):

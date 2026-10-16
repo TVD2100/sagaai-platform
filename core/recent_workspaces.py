@@ -45,7 +45,7 @@ from storage.repository import repo_load_config, repo_save_config
 RECENT_WORKSPACES_KEY = "recent_workspaces"
 
 # Maximum number of workspace paths we remember per orchestrator scope.
-MAX_RECENT_WORKSPACES = 5
+MAX_RECENT_WORKSPACES = 10
 
 # Default scope: the built-in developer. Legacy (unscoped) API calls map here.
 SCOPE_DEV_AGENT = "dev_agent"
@@ -156,8 +156,9 @@ def _seed_from_threads(scope: str) -> List[str]:
     return seeds
 
 
-def get_recent_workspaces(slug: Optional[str] = None) -> List[str]:
-    """Return up to MAX_RECENT_WORKSPACES recently used workspace paths.
+def get_recent_workspaces(slug: Optional[str] = None,
+                          limit: Optional[int] = None) -> List[str]:
+    """Return up to MAX_RECENT_WORKSPACES (or *limit*) recent workspace paths.
 
     The scope is selected by *slug* (default: dev_agent). The list is sorted
     newest-first: explicitly recorded paths come first, then the workspaces
@@ -167,6 +168,12 @@ def get_recent_workspaces(slug: Optional[str] = None) -> List[str]:
     locations.
     """
     scope = _norm_scope(slug)
+    try:
+        cap = MAX_RECENT_WORKSPACES if limit is None else max(0, int(limit))
+    except (TypeError, ValueError):
+        cap = MAX_RECENT_WORKSPACES
+    if cap <= 0:
+        return []
     stored = _load_scopes().get(scope, [])
     candidates: List[str] = [item for item in stored if isinstance(item, str)]
     candidates.extend(_seed_from_threads(scope))
@@ -181,7 +188,7 @@ def get_recent_workspaces(slug: Optional[str] = None) -> List[str]:
         if _is_hidden(norm, scope):
             continue
         result.append(norm)
-        if len(result) >= MAX_RECENT_WORKSPACES:
+        if len(result) >= cap:
             break
     return result
 

@@ -53,7 +53,8 @@ PATCHES_MISC = [
     ("core.threads.load_thread_meta",            {}),
     ("core.default_imports.ensure_all_defaults", None),
     ("core.env_loader.load_env_from_shell_profiles", None),
-    ("core.files.ensure_optional_dependencies",  []),
+    ("ui.app.check_dependencies",
+     {"ok": True, "missing": [], "outdated": []}),
     ("core.files.get_file_uploader_types",       []),
 ]
 
