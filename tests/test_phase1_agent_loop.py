@@ -570,6 +570,30 @@ class TestDSML:
         assert "DSML" not in stripped
         assert stripped.strip() == "Готово."
 
+    def test_marker_dialect_stray_attribute_fragment_before_json(self):
+        # Real shape from a dialog: the model glued the typed-attribute
+        # fragment into the value, so the body starts with ``false">``.
+        m = self._MARK
+        text = (
+            f'<{m} invoke name="task_state_mark_step">\n'
+            f'<{m} parameter name="args" string="false">'
+            'false">{"step_id": "step_5", "status": "done"}'
+            f'</{m} parameter>\n</{m} invoke>'
+        )
+        calls = parse_tool_calls(text)
+        assert len(calls) == 1
+        assert calls[0]["args"] == {"step_id": "step_5", "status": "done"}
+
+    def test_marker_dialect_double_wrapped_json_string(self):
+        # The wrapper may hold a JSON *string* whose text is the argument
+        # object; it must still be unwrapped into a dict.
+        inner = json.dumps(json.dumps({"path": "a.py"}))
+        text = self._marker_text("read_file", inner)
+        calls = parse_tool_calls(text)
+        assert len(calls) == 1
+        assert calls[0]["tool"] == "read_file"
+        assert calls[0]["args"] == {"path": "a.py"}
+
     def test_parse_dsml_with_tool_calls_wrapper(self):
         from dev_agent.agent_loop import _extract_dsml_calls
         text = (

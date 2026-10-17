@@ -1234,7 +1234,7 @@ _DSML_MARK = r"(?:[\s\u2502\uFF5C|:]*DSML[\s\u2502\uFF5C|:]*)?"
 _DSML_ARGS_WRAPPERS = ("args", "arguments", "parameters", "kwargs")
 
 
-def _parse_dsml_json_value(raw: str) -> Optional[Any]:
+def _parse_dsml_json_value(raw: str, _depth: int = 0) -> Optional[Any]:
     """Parse a DSML parameter value that carries JSON, tolerating stray braces.
 
     Models often duplicate the closing brace of the argument object
@@ -1256,12 +1256,34 @@ def _parse_dsml_json_value(raw: str) -> Optional[Any]:
             return json.loads(trimmed)
         except (json.JSONDecodeError, TypeError, ValueError):
             continue
-    if text[:1] in "{[":
+    # Leading garbage: models may glue a stray attribute fragment in front of
+    # the argument object (``string="false">false">{"path": "a.py"}``), so
+    # decode from the first structural character. ``{``/``[`` win over ``"``:
+    # a stray quote inside that fragment would otherwise decode into a bogus
+    # string literal and mask the real argument object.
+    for char in "{[":
+        idx = text.find(char)
+        if idx < 0:
+            continue
         try:
-            value, _end = json.JSONDecoder().raw_decode(text)
-            return value
+            value, _end = json.JSONDecoder().raw_decode(text[idx:])
         except (json.JSONDecodeError, TypeError, ValueError):
-            pass
+            continue
+        if isinstance(value, (dict, list)):
+            return value
+    # A JSON *string* whose text is itself the argument object (double wrap).
+    if _depth < 2:
+        for idx, char in enumerate(text):
+            if char != '"':
+                continue
+            try:
+                value, _end = json.JSONDecoder().raw_decode(text[idx:])
+            except (json.JSONDecodeError, TypeError, ValueError):
+                continue
+            if isinstance(value, str) and value.strip() != text:
+                nested = _parse_dsml_json_value(value, _depth + 1)
+                if isinstance(nested, (dict, list)):
+                    return nested
     return None
 
 
@@ -1279,12 +1301,19 @@ def _unwrap_dsml_args(args: Dict[str, Any]) -> Dict[str, Any]:
     if str(key).strip().lower() not in _DSML_ARGS_WRAPPERS:
         return args
     value = args[key]
-    if isinstance(value, dict):
-        return dict(value)
-    if isinstance(value, str):
+    # Two-level wrapping occurs too: the wrapper holds a JSON *string* whose
+    # text is the argument object, so unwrap until a dict surfaces (bounded).
+    for _ in range(2):
+        if isinstance(value, dict):
+            return dict(value)
+        if not isinstance(value, str):
+            break
         parsed = _parse_dsml_json_value(value)
-        if isinstance(parsed, dict):
-            return parsed
+        if parsed is value:
+            break
+        value = parsed
+        if isinstance(value, dict):
+            return dict(value)
     return args
 
 
