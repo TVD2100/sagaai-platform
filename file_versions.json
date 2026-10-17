@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "app_version": "2.1.5",
+  "app_version": "2.1.6",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Релиз 2.1.5 - подтверждение сохранения теперь действительно видно. Сообщения, нарисованные прямо перед st.rerun(), отбрасывались вместе с текущим проходом, поэтому страницы настроек не показывали «Сохранено». Уведомления теперь идут через ui.components.flash (очередь в session_state) и отрисовываются render_flash() на следующем проходе; переведены настройки сотрудника (промпт, функции, инструкции), помощники, подключения, навыки, базы знаний и выбор рабочей папки.",
-    "en": "Release 2.1.5 - save confirmations are now actually visible. A message painted right before st.rerun() was discarded together with the current pass, so settings pages never showed 'Saved'. Announcements now go through ui.components.flash (a queue in session_state) and are painted by render_flash() on the next pass; the employee settings (prompt, functions, instructions), assistants, connections, skills, knowledge bases and the folder picker were migrated."
+    "ru": "Релиз 2.1.6 - сохранение настроек больше не выбрасывает из редактируемой секции: после сохранения открыта та же вкладка, а подтверждение видно рядом с ней (в том числе при повторном сохранении). Неудачное сохранение теперь сообщает об ошибке, а сбой зеркалирования папки не отменяет успешную запись в БД.",
+    "en": "Release 2.1.6 - saving settings no longer throws the user out of the section being edited: the same tab stays open and the confirmation is visible next to it (including a repeated save). A failed save now reports an error, and a folder-mirror failure no longer discards a successful database write."
   },
   "updated": "2026-10-17T19:28:13Z",
   "units": {
@@ -160,8 +160,12 @@
           "sha256": "f952c0e804085e60e5e6d7564de96519383e240533391b8abc82c15d562f9562"
         },
         "core/orchestrators.py": {
-          "version": "1.8.1",
-          "sha256": "f9a3359e76c7c08858d1441d2844e656b456be9fcd524a00b5aca3bf03f96943"
+          "version": "1.8.2",
+          "sha256": "a490676a2f04f6a9488f636376ed0f3d62b3e821f987e17598e09b6ab4ccea6c",
+          "note": {
+            "ru": "Сохранение оркестратора: сбой зеркалирования папки больше не отменяет успешную запись в БД.",
+            "en": "Orchestrator save: a folder-mirror failure no longer discards a successful database write."
+          }
         },
         "core/paths.py": {
           "version": "1.0.1",
@@ -260,8 +264,8 @@
           "sha256": "fff605ff8fa7117dc22552f28343490df4ba11b154176b6862abdb2a97fa5f86"
         },
         "core/version.py": {
-          "version": "1.0.43",
-          "sha256": "1e2991b9aa1eef867d0ee244a565f103278fd9d14c25350fe9638e6789c0fc9a"
+          "version": "1.0.44",
+          "sha256": "c9798735c97d420a28b215f288a5b152d1a0674abae190c5d49dff5201563268"
         },
         "dev_agent/__init__.py": {
           "version": "1.0.1",
@@ -332,8 +336,8 @@
           "sha256": "d243711998803755df65bf05630e6ce2c22ec031241399bcf5788dfc32d0dddf"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.7.9",
-          "sha256": "778b70de8d857f32020d93d5a3b9cb65760d8d7c7316f6d8ecc5029170fdaec6"
+          "version": "1.7.10",
+          "sha256": "57c3c21f55ac77db2dda4659e30f0d463164b6cc8c9dadedc59dec6a7a3db0ba"
         },
         "scripts/verify_manifest.py": {
           "version": "1.0.3",
@@ -496,8 +500,8 @@
           "sha256": "fe4d92c9d293b0ea9071b44f17ed75d0b0486194fe7f8efb2d87f16171e29b6b"
         },
         "tests/scenarios/test_orchestrator_other_settings_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "db88cbd471cad26fcf08db86ca8472c612117ce6a83e9ff4674284a71bb10dc0"
+          "version": "1.0.1",
+          "sha256": "66865cb8b6f1f3ca0e0f8455861755e2b4143ee629e1c14cc6defe721c495629"
         },
         "tests/scenarios/test_orchestrator_thread_files.py": {
           "version": "1.0.1",
@@ -848,16 +852,16 @@
           "sha256": "10f75e8ac600bb38961f71873cd6efcc50155851e29b31075981852b949d9efd"
         },
         "tests/test_orchestrator_other_settings.py": {
-          "version": "1.0.0",
-          "sha256": "d01f597f047716bd896af56291bdc5b2479584f86d0e70403c666ce793444c3b"
+          "version": "1.0.1",
+          "sha256": "eb34add64bda43fbcac0ef718e988c5463e4c5b77aa384a8baba044e8de537f3"
         },
         "tests/test_orchestrator_prompt_settings.py": {
           "version": "1.0.1",
           "sha256": "8fc026f75f82346a2a86af996556393debe11b0b4b613691b453ca59cd358858"
         },
         "tests/test_orchestrator_system_tools_ui.py": {
-          "version": "1.0.0",
-          "sha256": "dc2ba69051496ace83567e2112f5f5570accdd1f63af4900c4e549113fa5f61b"
+          "version": "1.0.1",
+          "sha256": "e91f1d2274c0522f0c51101ccf92819ebdafbeee34d7f0b2a702811bae5c9428"
         },
         "tests/test_orchestrator_tools.py": {
           "version": "1.0.2",
@@ -1172,16 +1176,20 @@
           "sha256": "9b4054227ddd01bef1c3efb3c8135c1fa8b49d4d6b26d9aa4e15e93e08e34807"
         },
         "ui/pages/orchestrator.py": {
-          "version": "1.15.3",
-          "sha256": "300d815641abb362fab608648e7ce6cf5beb8a37cc5f5ef3658f7a5ca82cc23e",
+          "version": "1.16.0",
+          "sha256": "214e6542f420096e868a5b44e4098c172a12e48dc868ba97592416f0293f461f",
           "note": {
-            "ru": "Чат: DSML-разметка с резервным токеном (｜｜DSML｜｜) вычищается из текста ответа.",
-            "en": "Chat: DSML markup with the reserved token (｜｜DSML｜｜) is stripped from the rendered answer text."
+            "ru": "Настройки: сохранение удерживает открытую секцию и показывает подтверждение или ошибку рядом с ней.",
+            "en": "Settings: a save keeps the open section and shows its confirmation or error next to it."
           }
         },
         "ui/pages/orchestrator_settings.py": {
-          "version": "1.1.1",
-          "sha256": "2e0b908c0bb31f83fbbe447642f5db61646899bf8cad7efa831d7cfb577c478c"
+          "version": "1.2.0",
+          "sha256": "21f2edcab329a201e541eef26b8fb611dbc9c6f4f8cd70379f7da91e825ac83c",
+          "note": {
+            "ru": "Настройки: активная вкладка сохраняется между перерисовками, устаревшая метка сбрасывается.",
+            "en": "Settings: the active tab survives reruns and a stale label is dropped."
+          }
         },
         "ui/pages/orchestrators.py": {
           "version": "1.0.2",
@@ -1234,6 +1242,18 @@
         "tests/scenarios/test_save_confirmation_scenario.py": {
           "version": "1.0.0",
           "sha256": "0a0aed13017f47bf999b620ecf5e66be91bfa86e2f04662f346542099c558887"
+        },
+        "tests/scenarios/test_settings_tab_persists_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "29631a0886ad05f2b0698a9602ca78c735ebb3051855a8008354dd7c74d3acdd"
+        },
+        "tests/test_orchestrator_settings_tabs.py": {
+          "version": "1.0.0",
+          "sha256": "cbb559063c396fea040a09d7362b5e0dc005ba94ebd18763bb36c6f5b25d5ec3"
+        },
+        "tests/test_save_orchestrator_folder_sync.py": {
+          "version": "1.0.0",
+          "sha256": "f4fa9bc9b08d9c87e6987dc6de36fbf3fa6be00508020ad918b8f155abf64bbf"
         }
       }
     }
@@ -1256,16 +1276,16 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.35.8",
-      "sha256": "e9bb153080a565867817ca4634a293d6a6576cf8ec0edfc95090edfac9e59b98",
+      "version": "1.35.9",
+      "sha256": "5c13dcd25c112cf442dbc1ebc319b4574c680cb0418e95ae743d4a538c809e3c",
       "note": {
         "ru": "Регенерирована каноническим генератором (DSML-разбор: мусорный префикс перед JSON, двойная обёртка args).",
         "en": "Regenerated by the canonical generator (DSML parsing: stray prefix before JSON, double-wrapped args)."
       }
     },
     "README.md": {
-      "version": "1.25.7",
-      "sha256": "c12751100c564f15d1271427def40e4d88cff15e0b765aa21539be367ab70e14",
+      "version": "1.25.8",
+      "sha256": "ff09991f16e177554d3500137a3bacf4ddf70eb93f6f18532fa42f6b49a378d4",
       "note": {
         "ru": "README.md: статус версии обновлён под релиз 2.1.0, добавлен пункт про блок «Выбор папки» в чате.",
         "en": "README.md: the status line is updated for release 2.1.0 and a bullet about the chat folder picker is added."
@@ -1344,8 +1364,8 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.11.3",
-      "sha256": "3b1a43373f430eca8a3552f9a468a99415c6cd656a074f1efd553aac079e4520",
+      "version": "1.11.4",
+      "sha256": "ecd159f18139d8e807769141dfe3f215b73cbd956e3644366b224fc2b232544a",
       "note": {
         "ru": "Локализация: ключи блока «Выбор папки» (orch_folder_*).",
         "en": "Localization: chat folder-picker keys (orch_folder_*)."
@@ -1360,8 +1380,8 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.11.3",
-      "sha256": "3e1df2aa45d5419aedba70b8ef12c49876030d853cf7569e9b97efd0ee24b204",
+      "version": "1.11.4",
+      "sha256": "58e98d7fc5b5651f80722d807b92ab7b3d9dd4a103e9f889d6b241b4dca2f4d5",
       "note": {
         "ru": "Локализация: ключи блока «Выбор папки» (orch_folder_*).",
         "en": "Localization: chat folder-picker keys (orch_folder_*)."
@@ -1376,8 +1396,8 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.11.3",
-      "sha256": "3edfef0d2896beb75ac39ac98af24c6b24b383be8e05b5a7e8c16be2df99bc8f",
+      "version": "1.11.4",
+      "sha256": "ca8259bb6ed1e8570b04042e907df67deb3da5d0994b5b27f26fb29aba7bb4d2",
       "note": {
         "ru": "Локализация: ключи блока «Выбор папки» (orch_folder_*).",
         "en": "Localization: chat folder-picker keys (orch_folder_*)."
@@ -1608,8 +1628,8 @@
       }
     },
     "langs/en.json": {
-      "version": "1.11.3",
-      "sha256": "3b1a43373f430eca8a3552f9a468a99415c6cd656a074f1efd553aac079e4520",
+      "version": "1.11.4",
+      "sha256": "ecd159f18139d8e807769141dfe3f215b73cbd956e3644366b224fc2b232544a",
       "note": {
         "ru": "Локализация: ключи блока «Выбор папки» (orch_folder_*).",
         "en": "Localization: chat folder-picker keys (orch_folder_*)."
@@ -1624,8 +1644,8 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.11.3",
-      "sha256": "ac129d567a47a6c354744ae787983e97c2e00652d5718f3bd9a0b52c8b2b4b05",
+      "version": "1.11.4",
+      "sha256": "158b10f9c5c4c98515c0869b3175fbd798125e1c446a67b87c12ed5a03eab884",
       "note": {
         "ru": "Локализация: ключи блока «Выбор папки» (orch_folder_*).",
         "en": "Localization: chat folder-picker keys (orch_folder_*)."
@@ -1640,8 +1660,8 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.11.3",
-      "sha256": "3edfef0d2896beb75ac39ac98af24c6b24b383be8e05b5a7e8c16be2df99bc8f",
+      "version": "1.11.4",
+      "sha256": "ca8259bb6ed1e8570b04042e907df67deb3da5d0994b5b27f26fb29aba7bb4d2",
       "note": {
         "ru": "Локализация: ключи блока «Выбор папки» (orch_folder_*).",
         "en": "Localization: chat folder-picker keys (orch_folder_*)."

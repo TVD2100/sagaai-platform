@@ -390,7 +390,14 @@ def save_orchestrator(slug: str, **kwargs) -> bool:
     kwargs = _mark_prompt_edited(orch, kwargs)
     ok = repo_update_orchestrator(orch["id"], **kwargs)
     if ok:
-        _sync_orchestrator_folder(slug)
+        # The folder bundle only mirrors the DB record. A failed mirror write
+        # (read-only volume, permissions, a stale bundle) must not turn a
+        # successful update into an exception: the caller would lose the
+        # confirmation and the user would see "nothing happened".
+        try:
+            _sync_orchestrator_folder(slug)
+        except Exception:
+            pass
     return ok
 
 

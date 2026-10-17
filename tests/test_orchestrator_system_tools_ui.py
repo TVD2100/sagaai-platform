@@ -65,6 +65,11 @@ def test_render_and_save_disabled_tools(st):
         if name == "checkbox"
     ]
     assert checkboxes == [("**read_file**", False), ("**list_files**", False)]
+
+    # The confirmation is queued for the next pass, not painted here.
+    assert not any(name == "success" for name, _a, _k in st.calls)
+    from ui.components.flash import render_flash
+    render_flash()
     assert any(name == "success" for name, _a, _k in st.calls)
 
 
@@ -102,4 +107,9 @@ def test_save_failure_shows_error(st):
          patch.object(orch_mod, "set_disabled_tools", return_value=False):
         _render(orch_mod, st)
 
+    # The error is queued (and the section pinned) for the next pass.
+    assert st.session_state[orch_mod.settings_section_key("demo")] == "functions"
+    assert not any(name == "error" for name, _a, _k in st.calls)
+    from ui.components.flash import render_flash
+    render_flash()
     assert any(name == "error" for name, _a, _k in st.calls)

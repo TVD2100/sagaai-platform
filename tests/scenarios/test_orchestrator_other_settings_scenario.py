@@ -116,6 +116,10 @@ def test_scenario_other_tab_save_persists_to_repository(isolated_data):
         st._number_returns[MAX_STEPS_KEY] = 350
         st.click(SAVE_KEY)
         _render_settings(st)
+        # The save pass only queues the confirmation; the runner then starts
+        # another pass, which paints the queue before dispatching the page.
+        st.reset_clicks()
+        _render_settings(st)
 
     assert st.errors == [], "save render emitted errors: %r" % st.errors
     orch = get_orchestrator(DEVAGENT_SLUG)

@@ -37,7 +37,15 @@
 # showed "Saved". Announcements now go through ui.components.flash (a queue in
 # session_state) and are painted by render_flash() on the next pass.
 
-__version__ = "2.1.5"
+#
+# 2.1.6 keeps a settings save in place: the employee settings page tracks
+# the open section, so after st.rerun() the user stays on the tab they were
+# editing instead of landing on the first one, and the queued confirmation
+# is visible next to that section (a repeated save is confirmed every time).
+# A failed save now reports an error instead of silently doing nothing, and
+# a failing folder mirror no longer discards a successful database write.
+
+__version__ = "2.1.6"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

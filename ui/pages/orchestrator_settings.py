@@ -2,10 +2,13 @@
 """
 ui.pages.orchestrator_settings - dedicated settings page for orchestrators.
 
-Navigated to via orchestrator_settings:{slug}. Renders the same settings
-as the old Settings tab but on its own page with a "Back to chat" button.
-The settings sections are organised with native st.tabs so the active tab
-survives reruns without manual button state.
+Navigated to via orchestrator_settings:{slug}. Renders the settings of one
+orchestrator on its own page with a "Back to chat" button.
+
+The sections are native st.tabs. Their selection is kept across reruns by a
+stable tab key; a save handler additionally pins the section it saved, so
+after its st.rerun() the page reopens on the tab the user was editing and
+the queued confirmation is visible next to the section it belongs to.
 """
 import streamlit as st
 from core.i18n import t
@@ -13,6 +16,9 @@ from core.orchestrators import get_orchestrator, DEVAGENT_SLUG
 
 # Import rendering helpers from the main orchestrator module
 from ui.pages.orchestrator import (
+    SETTINGS_SECTIONS,
+    settings_section_key,
+    settings_tabs_key,
     _render_models_settings,
     _render_prompt_settings,
     _render_economy_settings,
@@ -49,9 +55,10 @@ def page_orchestrator_settings(slug: str) -> None:
 
     st.markdown("---")
 
-    # Native tabs keep the selected settings section alive across reruns
-    # (saves, toggles, ...) without any manual button/session-state plumbing.
-    sub_tabs = st.tabs([
+    # Sections are rendered as tabs. The selection is kept across reruns by
+    # the tab key plus the section pin set by a save handler, so a save never
+    # throws the user back to the first tab.
+    labels = [
         t("orch_tab_models", lang=lang),
         t("orch_tab_prompt", lang=lang),
         t("orch_tab_economy", lang=lang),
@@ -61,7 +68,24 @@ def page_orchestrator_settings(slug: str) -> None:
         t("orch_tab_rag_bases", lang=lang),
         t("orch_tab_connections", lang=lang),
         t("orch_tab_other", lang=lang),
-    ])
+    ]
+
+    # A save handler asks for its own section before calling st.rerun(); the
+    # request is consumed here, BEFORE the tabs are created, so the active tab
+    # survives the rerun and the user stays where the save happened.
+    tabs_key = settings_tabs_key(slug)
+    requested = st.session_state.pop(settings_section_key(slug), None)
+    if requested in SETTINGS_SECTIONS:
+        st.session_state[tabs_key] = labels[SETTINGS_SECTIONS.index(requested)]
+    elif st.session_state.get(tabs_key) not in labels:
+        # The stored selection is a translated label, so switching the UI
+        # language leaves a value that matches no tab; drop it instead of
+        # handing the widget an unknown tab name.
+        st.session_state.pop(tabs_key, None)
+
+    # key= pins the container identity, so the selected tab is preserved
+    # across reruns and a settings save no longer falls back to the first tab.
+    sub_tabs = st.tabs(labels, key=tabs_key)
 
     with sub_tabs[0]:
         _render_models_settings(slug, lang)

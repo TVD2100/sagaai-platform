@@ -14,7 +14,7 @@ import json
 from typing import Any, Dict, List, Optional, Callable
 
 from core.i18n import t
-from ui.components.flash import flash_success
+from ui.components.flash import flash_success, flash_error
 from core.services import (
     get_services,
     get_vision_models,
@@ -1898,6 +1898,52 @@ def _render_optional_model_section(slug: str, lang: str, cfg: dict, service_name
     return sel_svc, sel_mdl
 
 
+# ─── Settings sections (shared with ui.pages.orchestrator_settings) ────────────
+
+#: Stable identifiers of the settings sections, in tab order. Tab labels are
+#: translated, so a requested section is tracked by its id and mapped to a
+#: label only at render time.
+SETTINGS_SECTIONS = (
+    "models", "prompt", "economy", "functions", "instructions",
+    "skills", "rag_bases", "connections", "other",
+)
+
+
+def settings_tabs_key(slug: str) -> str:
+    """Return the session_state key holding the active settings tab."""
+    return f"orch_settings_tabs_{slug}"
+
+
+def settings_section_key(slug: str) -> str:
+    """Return the session_state key holding a requested settings section."""
+    return f"orch_settings_section_{slug}"
+
+
+def pin_settings_section(slug: str, section: str) -> None:
+    """Ask the settings page to reopen *section* on the next render pass.
+
+    A save handler calls this before ``st.rerun()``: the page reads the
+    request before it creates the tabs and activates the matching one, so a
+    save keeps the user in the section they were editing instead of dropping
+    them on the first tab.
+    """
+    if section in SETTINGS_SECTIONS:
+        st.session_state[settings_section_key(slug)] = section
+
+
+def settings_save_failed(slug: str, section: str, message_key: str,
+                         lang: str) -> None:
+    """Report a failed settings save and keep the user in *section*.
+
+    The flash queue for the current pass was already painted at the top of
+    the page, so the message is queued and the page is rerun: the next pass
+    shows the error above the very section whose save failed.
+    """
+    pin_settings_section(slug, section)
+    flash_error(t(message_key, lang=lang))
+    st.rerun()
+
+
 def _render_models_settings(slug: str, lang: str) -> None:
     orch = get_orchestrator(slug)
     if orch is None:
@@ -2094,8 +2140,12 @@ def _render_models_settings(slug: str, lang: str) -> None:
         new_cfg["search_max_tool_calls"] = sel_search_mtc
         new_cfg["search_reasoning_effort"] = sel_search_re
         new_cfg["web_search_prompt"] = sel_search_prompt
-        save_orchestrator(slug, config=new_cfg)
-        st.success(t("orch_save_models_ok", lang=lang))
+        if save_orchestrator(slug, config=new_cfg):
+            pin_settings_section(slug, "models")
+            flash_success(t("orch_save_models_ok", lang=lang))
+            st.rerun()
+        else:
+            settings_save_failed(slug, "models", "orch_save_models_error", lang)
 
 
 def _render_prompt_settings(slug: str, lang: str) -> None:
@@ -2120,16 +2170,24 @@ def _render_prompt_settings(slug: str, lang: str) -> None:
         label_visibility="collapsed",
     )
     if st.button(t("orch_save_prompt_btn", lang=lang), key=f"orch_save_prompt_{slug}", type="primary"):
-        save_orchestrator(slug, prompt_text=new_prompt)
-        st.session_state.pop(f"orch_prompt_{slug}", None)
-        flash_success(t("orch_save_prompt_ok", lang=lang))
-        st.rerun()
+        if save_orchestrator(slug, prompt_text=new_prompt):
+            # Drop the widget state so the field re-reads the stored prompt,
+            # then ask the page to reopen this section after the rerun.
+            st.session_state.pop(f"orch_prompt_{slug}", None)
+            pin_settings_section(slug, "prompt")
+            flash_success(t("orch_save_prompt_ok", lang=lang))
+            st.rerun()
+        else:
+            settings_save_failed(slug, "prompt", "orch_save_prompt_error", lang)
     if prompt_edited:
         if st.button(t("orch_prompt_reset_btn", lang=lang), key=f"orch_reset_prompt_{slug}"):
-            reset_builtin_prompt(slug)
-            st.session_state.pop(f"orch_prompt_{slug}", None)
-            flash_success(t("orch_prompt_reset_ok", lang=lang))
-            st.rerun()
+            if reset_builtin_prompt(slug):
+                st.session_state.pop(f"orch_prompt_{slug}", None)
+                pin_settings_section(slug, "prompt")
+                flash_success(t("orch_prompt_reset_ok", lang=lang))
+                st.rerun()
+            else:
+                settings_save_failed(slug, "prompt", "orch_prompt_reset_error", lang)
 
 
 def _render_economy_settings(slug: str, lang: str) -> None:
@@ -2181,8 +2239,12 @@ def _render_economy_settings(slug: str, lang: str) -> None:
         new_cfg["economy_tail_messages"] = sel_tail
         new_cfg["economy_cache_enabled"] = bool(sel_cache_enabled)
         new_cfg["economy_cache_multiplier"] = int(sel_multiplier)
-        save_orchestrator(slug, config=new_cfg)
-        st.success(t("orch_economy_saved", lang=lang, tail=sel_tail))
+        if save_orchestrator(slug, config=new_cfg):
+            pin_settings_section(slug, "economy")
+            flash_success(t("orch_economy_saved", lang=lang, tail=sel_tail))
+            st.rerun()
+        else:
+            settings_save_failed(slug, "economy", "orch_economy_save_error", lang)
 
 
 def _render_orch_system_tools(slug: str, lang: str) -> None:
@@ -2220,9 +2282,11 @@ def _render_orch_system_tools(slug: str, lang: str) -> None:
     if st.button(t("orch_sysfunc_save_btn", lang=lang), key=f"orch_save_sysfunc_{slug}",
                  type="primary"):
         if set_disabled_tools(slug, disabled_selected):
-            st.success(t("orch_sysfunc_saved", lang=lang))
+            pin_settings_section(slug, "functions")
+            flash_success(t("orch_sysfunc_saved", lang=lang))
+            st.rerun()
         else:
-            st.error(t("orch_sysfunc_save_error", lang=lang))
+            settings_save_failed(slug, "functions", "orch_sysfunc_save_error", lang)
 
 
 def _render_orchestrator_functions_settings(slug: str, lang: str) -> None:
@@ -2265,10 +2329,11 @@ def _render_orchestrator_functions_settings(slug: str, lang: str) -> None:
                         if ok:
                             _set_ss(slug, "show_func_form", False)
                             _set_ss(slug, "edit_func", None)
+                            pin_settings_section(slug, "functions")
                             flash_success(t("orch_func_saved", lang=lang))
                             st.rerun()
                         else:
-                            st.error(t("orch_func_save_error", lang=lang))
+                            settings_save_failed(slug, "functions", "orch_func_save_error", lang)
             with c2:
                 if st.button(t("orch_instr_cancel_btn", lang=lang), key=f"orch_func_cancel_{slug}"):
                     _set_ss(slug, "show_func_form", False)
@@ -2300,6 +2365,7 @@ def _render_orchestrator_functions_settings(slug: str, lang: str) -> None:
             with c_del:
                 if st.button("🗑", key=f"orch_func_del_{slug}_{fn['name']}"):
                     orch_delete_function(slug, fn["name"])
+                    pin_settings_section(slug, "functions")
                     flash_success(t("orch_func_deleted", lang=lang))
                     st.rerun()
 
@@ -2339,8 +2405,11 @@ def _render_orchestrator_instructions_settings(slug: str, lang: str) -> None:
                         if ok:
                             _set_ss(slug, "show_oinstr_form", False)
                             _set_ss(slug, "edit_oinstr", None)
+                            pin_settings_section(slug, "instructions")
                             flash_success(t("orch_instr_saved", lang=lang))
                             st.rerun()
+                        else:
+                            settings_save_failed(slug, "instructions", "orch_instr_save_error", lang)
             with c2:
                 if st.button(t("orch_instr_cancel_btn", lang=lang), key=f"orch_oinstr_cancel_{slug}"):
                     _set_ss(slug, "show_oinstr_form", False)
@@ -2373,6 +2442,7 @@ def _render_orchestrator_instructions_settings(slug: str, lang: str) -> None:
             with c_del:
                 if st.button("🗑", key=f"orch_oinstr_del_{slug}_{inst['id']}"):
                     orch_delete_instruction(slug, inst["id"])
+                    pin_settings_section(slug, "instructions")
                     flash_success(t("orch_instr_deleted", lang=lang))
                     st.rerun()
 
@@ -2414,9 +2484,11 @@ def _render_orch_skills_settings(slug: str, lang: str) -> None:
     if st.button(t("orch_skills_save_btn", lang=lang), key=f"orch_save_skills_{slug}",
                  type="primary"):
         if set_enabled_skills(slug, selected):
-            st.success(t("orch_skills_saved", lang=lang))
+            pin_settings_section(slug, "skills")
+            flash_success(t("orch_skills_saved", lang=lang))
+            st.rerun()
         else:
-            st.error(t("orch_skills_save_error", lang=lang))
+            settings_save_failed(slug, "skills", "orch_skills_save_error", lang)
 
 
 def _render_orch_rag_bases(slug: str, lang: str) -> None:
@@ -2467,9 +2539,11 @@ def _render_orch_rag_bases(slug: str, lang: str) -> None:
     if st.button(t("orch_rag_bases_save_btn", lang=lang), key=f"orch_save_rag_bases_{slug}",
                  type="primary"):
         if set_orchestrator_rag_bases(slug, selected):
-            st.success(t("orch_rag_bases_saved", lang=lang))
+            pin_settings_section(slug, "rag_bases")
+            flash_success(t("orch_rag_bases_saved", lang=lang))
+            st.rerun()
         else:
-            st.error(t("orch_rag_bases_save_error", lang=lang))
+            settings_save_failed(slug, "rag_bases", "orch_rag_bases_save_error", lang)
 
 
 def _render_orch_connections(slug: str, lang: str) -> None:
@@ -2511,9 +2585,11 @@ def _render_orch_connections(slug: str, lang: str) -> None:
                  key=f"orch_save_connections_{slug}",
                  type="primary"):
         if set_enabled_connections(slug, selected):
-            st.success(t("orch_connections_saved", lang=lang))
+            pin_settings_section(slug, "connections")
+            flash_success(t("orch_connections_saved", lang=lang))
+            st.rerun()
         else:
-            st.error(t("orch_connections_save_error", lang=lang))
+            settings_save_failed(slug, "connections", "orch_connections_save_error", lang)
 
 
 def _render_other_settings(slug: str, lang: str) -> None:
@@ -2544,9 +2620,11 @@ def _render_other_settings(slug: str, lang: str) -> None:
             new_max_steps = cur_max_steps
         new_max_steps = max(1, min(10000, new_max_steps))
         if save_orchestrator(slug, max_steps=new_max_steps):
-            st.success(t("orch_max_steps_saved", lang=lang, value=new_max_steps))
+            pin_settings_section(slug, "other")
+            flash_success(t("orch_max_steps_saved", lang=lang, value=new_max_steps))
+            st.rerun()
         else:
-            st.error(t("orch_other_save_error", lang=lang))
+            settings_save_failed(slug, "other", "orch_other_save_error", lang)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

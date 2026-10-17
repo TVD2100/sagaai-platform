@@ -78,11 +78,21 @@ def test_other_tab_respects_stored_value(mock_env):
 
 
 def test_other_tab_save_persists_and_shows_success(mock_env):
-    """Clicking save persists the entered value and shows a success message."""
+    """Clicking save persists the entered value and queues the confirmation.
+
+    The handler saves, queues the message and calls st.rerun(), so the
+    message is painted by the next render pass (ui.app renders the flash
+    queue before dispatching the page).
+    """
     from core.i18n import t
+    from ui.components.flash import render_flash
+
     save_mock = _render_other(mock_env, dict(ORCH_NO_MAX, max_steps=100),
                               number_value=750, click=SAVE_KEY)
     save_mock.assert_called_once_with(SLUG, max_steps=750)
+    assert [args[0] for name, args, _kw in mock_env.calls if name == "success"] == []
+
+    render_flash()
     success_calls = [args[0] for name, args, _kw in mock_env.calls if name == "success"]
     assert t("orch_max_steps_saved", lang="English", value=750) in success_calls
 
@@ -111,6 +121,9 @@ def test_other_tab_invalid_input_falls_back_to_current(mock_env):
 def test_other_tab_save_failure_shows_error(mock_env):
     """A failed save shows the error message and does not claim success."""
     import ui.pages.orchestrator as orch_mod
+    from core.i18n import t
+    from ui.components.flash import render_flash
+
     mock_env.click(SAVE_KEY)
     save_mock = MagicMock(return_value=False)
     with patch.object(orch_mod, "get_orchestrator",
@@ -118,7 +131,10 @@ def test_other_tab_save_failure_shows_error(mock_env):
          patch.object(orch_mod, "save_orchestrator", save_mock):
         _invoke(lambda: orch_mod._render_other_settings(SLUG, "English"))
     save_mock.assert_called_once_with(SLUG, max_steps=100)
-    from core.i18n import t
+
+    # The error is queued together with a request to stay on this section.
+    assert mock_env.session_state[orch_mod.settings_section_key(SLUG)] == "other"
+    render_flash()
     assert t("orch_other_save_error", lang="English") in mock_env.errors
     success_calls = [args[0] for name, args, _kw in mock_env.calls if name == "success"]
     assert not success_calls

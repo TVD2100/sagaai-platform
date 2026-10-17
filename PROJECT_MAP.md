@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-10-17T19:27:52+00:00`
-- Файлов: **349**
+- Обновлено: `2026-10-17T20:22:12+00:00`
+- Файлов: **352**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **4590**
-- Отпечаток содержимого: `sha256:0841ec68ea81ccb7a238493ad4ae5ce22fc7014d7b5ab8f871c3991e080cd690` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 1, JSON: 21, Markdown: 36, PEM certificate: 1, Python: 293, Text: 1
+- Python-символов: **4619**
+- Отпечаток содержимого: `sha256:68c5273a87631f8151b7efee279157454e1e357ab725b33b5937ded6d1e4851c` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 1, JSON: 21, Markdown: 36, PEM certificate: 1, Python: 296, Text: 1
 
 ## Файлы и назначение
 
@@ -29,7 +29,7 @@
 | `ui/pages/connectors.py` | Python | _(описание не задано)_ | - |
 | `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | - |
 | `ui/pages/orchestrator.py` | Python | Reusable orchestrator page (chat/history/settings incl. skills tab; no employee export/import UI; step events attach to the user message when the first LLM call fails; per-message download/copy controls on plain-prose answers; generated image visible immediately in the feed, outside the collapsed tool-result block; empty-state reset on new/reset dialog; thread workspace meta persistence; chat folder picker (Выбор папки): Авто + recent folders + native dialog, applied on send; file upload built into st.chat_input(accept_file="multiple") - no separate dropzone; uploads live only in history/<tid>/files) | storage |
-| `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings entry page | - |
+| `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings page: tabbed sections, the active tab is kept across reruns and pinned after a save | - |
 | `ui/pages/orchestrators.py` | Python | Employees (orchestrators) management page (create/open/settings/delete; export/import deferred) | - |
 | `ui/pages/settings.py` | Python | LLM provider settings page | - |
 | `ui/pages/skills.py` | Python | DEPRECATED shim -> ui/pages/assistants.py (page_assistants) | - |
@@ -70,7 +70,7 @@
 | `core/orchestrator_folders.py` | Python | Per-orchestrator folders: bundles, functions, instructions | storage |
 | `core/orchestrator_nav.py` | Python | _(описание не задано)_ | - |
 | `core/orchestrator_tools.py` | Python | _(описание не задано)_ | - |
-| `core/orchestrators.py` | Python | Orchestrator API; build_assistant_dicts (legacy alias build_skill_dicts); enabled_skills for orchestrator skills | storage |
+| `core/orchestrators.py` | Python | Orchestrator API; build_assistant_dicts (legacy alias build_skill_dicts); enabled_skills for orchestrator skills; save keeps DB write when folder mirror fails | storage |
 | `core/paths.py` | Python | Base directories and thread paths | - |
 | `core/prompt_guard.py` | Python | Prompt-injection protection and sanitization | - |
 | `core/prompt_improver.py` | Python | _(описание не задано)_ | - |
@@ -160,6 +160,7 @@
 | `tests/test_orchestrator_nav.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_other_settings.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_prompt_settings.py` | Python | UI tests: prompt settings tab - save, reset button and edited-prompt notice for the built-in orchestrator | - |
+| `tests/test_orchestrator_settings_tabs.py` | Python | UI tests: settings tabs - stable tab key, section pinning after a save, language-change fallback | - |
 | `tests/test_orchestrator_system_tools_ui.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_tools.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_phase1_agent_loop.py` | Python | Agent loop tests | - |
@@ -186,6 +187,7 @@
 | `tests/test_render_token_line.py` | Python | Token line renderer tests | - |
 | `tests/test_safety_mode.py` | Python | Safety-mode gate tests | - |
 | `tests/test_sanitized_approval_flow.py` | Python | Sanitized-content approval flow tests (loop stops, user approves, protected payload not re-triggered) | - |
+| `tests/test_save_orchestrator_folder_sync.py` | Python | Unit tests: save_orchestrator keeps a successful database write when the folder mirror fails | - |
 | `tests/test_search_in_files.py` | Python | _(описание не задано)_ | - |
 | `tests/test_service_model_catalogs.py` | Python | Vision/image model catalog tests for service profiles | - |
 | `tests/test_sidebar_employees_nav.py` | Python | _(описание не задано)_ | - |
@@ -271,6 +273,7 @@
 | `tests/scenarios/test_resume_identity_scenarios.py` | Python | Scenario: resume identity - stored thread messages round-trip byte-for-byte after reload | storage |
 | `tests/scenarios/test_save_confirmation_scenario.py` | Python | Scenario tests for save confirmations (given->when->then): clicking Save on the prompt, connector, skill and employee pages paints nothing in the saving pass and shows the queued confirmation exactly once on the next pass (render_flash) | - |
 | `tests/scenarios/test_search_in_files_scenarios.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_settings_tab_persists_scenario.py` | Python | Scenario tests: a settings save keeps its own tab (given->when->then) - save pin, repeated save, chat rerun keeps the section | - |
 | `tests/scenarios/test_skills_adaptation_scenario.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_ssh_connector_scenarios.py` | Python | Scenario tests for the SSH connector feature | storage |
 | `tests/scenarios/test_state_recovery_scenario.py` | Python | Scenario tests: compact task-state digest and budgeted CURRENT TASK STATE injection for large journals | - |
@@ -498,21 +501,25 @@
 - `_temp_slider` (func, строка 1808)
 - `_get_max_tokens_limit` (func, строка 1817)
 - `_render_optional_model_section` (func, строка 1837)
-- `_render_models_settings` (func, строка 1901)
-- `_render_prompt_settings` (func, строка 2101)
-- `_render_economy_settings` (func, строка 2135)
-- `_render_orch_system_tools` (func, строка 2188)
-- `_render_orchestrator_functions_settings` (func, строка 2228)
-- `_render_orchestrator_instructions_settings` (func, строка 2307)
-- `_render_orch_skills_settings` (func, строка 2380)
-- `_render_orch_rag_bases` (func, строка 2422)
-- `_render_orch_connections` (func, строка 2475)
-- `_render_other_settings` (func, строка 2519)
-- `page_orchestrator` (func, строка 2556)
-- `page_devagent` (func, строка 2571)
+- `settings_tabs_key` (func, строка 1912)
+- `settings_section_key` (func, строка 1917)
+- `pin_settings_section` (func, строка 1922)
+- `settings_save_failed` (func, строка 1934)
+- `_render_models_settings` (func, строка 1947)
+- `_render_prompt_settings` (func, строка 2151)
+- `_render_economy_settings` (func, строка 2193)
+- `_render_orch_system_tools` (func, строка 2250)
+- `_render_orchestrator_functions_settings` (func, строка 2292)
+- `_render_orchestrator_instructions_settings` (func, строка 2373)
+- `_render_orch_skills_settings` (func, строка 2450)
+- `_render_orch_rag_bases` (func, строка 2494)
+- `_render_orch_connections` (func, строка 2549)
+- `_render_other_settings` (func, строка 2595)
+- `page_orchestrator` (func, строка 2634)
+- `page_devagent` (func, строка 2649)
 
 ### `ui/pages/orchestrator_settings.py`
-- `page_orchestrator_settings` (func, строка 28)
+- `page_orchestrator_settings` (func, строка 34)
 
 ### `ui/pages/orchestrators.py`
 - `_go_to_page` (func, строка 24)
@@ -1111,47 +1118,47 @@
 - `_mark_prompt_edited` (func, строка 318)
 - `reset_builtin_prompt` (func, строка 346)
 - `save_orchestrator` (func, строка 379)
-- `delete_orchestrator` (func, строка 397)
-- `_sync_orchestrator_folder` (func, строка 417)
-- `reload_orchestrator_from_folder` (func, строка 448)
-- `sync_all_orchestrator_folders` (func, строка 512)
-- `get_enabled_skills` (func, строка 530)
-- `set_enabled_skills` (func, строка 544)
-- `get_enabled_connections` (func, строка 570)
-- `set_enabled_connections` (func, строка 584)
-- `_extend_prompt_with_connections` (func, строка 607)
-- `get_disabled_tools` (func, строка 692)
-- `set_disabled_tools` (func, строка 712)
-- `_extend_prompt_with_tools` (func, строка 736)
-- `get_orchestrator_rag_bases` (func, строка 760)
-- `set_orchestrator_rag_bases` (func, строка 777)
-- `_extend_prompt_with_rag_bases` (func, строка 803)
-- `_extend_prompt_with_skills` (func, строка 854)
-- `_extend_prompt_with_instructions` (func, строка 876)
-- `build_assistant_dicts` (func, строка 943)
-- `build_assistant_dicts._resolve_effort` (func, строка 982)
-- `get_web_search_prompt` (func, строка 1008)
-- `get_web_search_config` (func, строка 1023)
-- `get_economy_tail_messages` (func, строка 1051)
-- `get_economy_cache_enabled` (func, строка 1069)
-- `get_economy_cache_multiplier` (func, строка 1087)
-- `get_economy_config` (func, строка 1106)
-- `export_orchestrator` (func, строка 1120)
-- `_validate_imported_tools` (func, строка 1166)
-- `import_orchestrator` (func, строка 1192)
-- `_import_instructions` (func, строка 1311)
-- `_import_functions` (func, строка 1338)
-- `orch_list_instructions` (func, строка 1356)
-- `orch_get_instruction` (func, строка 1361)
-- `orch_save_instruction` (func, строка 1366)
-- `orch_delete_instruction` (func, строка 1377)
-- `orch_list_functions` (func, строка 1384)
-- `orch_get_function` (func, строка 1389)
-- `orch_save_function` (func, строка 1394)
-- `orch_delete_function` (func, строка 1399)
-- `ensure_builtin_orchestrators` (func, строка 1408)
-- `load_devagent_config` (func, строка 1610)
-- `save_devagent_config` (func, строка 1649)
+- `delete_orchestrator` (func, строка 404)
+- `_sync_orchestrator_folder` (func, строка 424)
+- `reload_orchestrator_from_folder` (func, строка 455)
+- `sync_all_orchestrator_folders` (func, строка 519)
+- `get_enabled_skills` (func, строка 537)
+- `set_enabled_skills` (func, строка 551)
+- `get_enabled_connections` (func, строка 577)
+- `set_enabled_connections` (func, строка 591)
+- `_extend_prompt_with_connections` (func, строка 614)
+- `get_disabled_tools` (func, строка 699)
+- `set_disabled_tools` (func, строка 719)
+- `_extend_prompt_with_tools` (func, строка 743)
+- `get_orchestrator_rag_bases` (func, строка 767)
+- `set_orchestrator_rag_bases` (func, строка 784)
+- `_extend_prompt_with_rag_bases` (func, строка 810)
+- `_extend_prompt_with_skills` (func, строка 861)
+- `_extend_prompt_with_instructions` (func, строка 883)
+- `build_assistant_dicts` (func, строка 950)
+- `build_assistant_dicts._resolve_effort` (func, строка 989)
+- `get_web_search_prompt` (func, строка 1015)
+- `get_web_search_config` (func, строка 1030)
+- `get_economy_tail_messages` (func, строка 1058)
+- `get_economy_cache_enabled` (func, строка 1076)
+- `get_economy_cache_multiplier` (func, строка 1094)
+- `get_economy_config` (func, строка 1113)
+- `export_orchestrator` (func, строка 1127)
+- `_validate_imported_tools` (func, строка 1173)
+- `import_orchestrator` (func, строка 1199)
+- `_import_instructions` (func, строка 1318)
+- `_import_functions` (func, строка 1345)
+- `orch_list_instructions` (func, строка 1363)
+- `orch_get_instruction` (func, строка 1368)
+- `orch_save_instruction` (func, строка 1373)
+- `orch_delete_instruction` (func, строка 1384)
+- `orch_list_functions` (func, строка 1391)
+- `orch_get_function` (func, строка 1396)
+- `orch_save_function` (func, строка 1401)
+- `orch_delete_function` (func, строка 1406)
+- `ensure_builtin_orchestrators` (func, строка 1415)
+- `load_devagent_config` (func, строка 1617)
+- `save_devagent_config` (func, строка 1656)
 
 ### `core/paths.py`
 - `ensure_data_dirs` (func, строка 35)
@@ -2757,10 +2764,10 @@
 - `test_other_tab_default_value_and_tooltip` (func, строка 57)
 - `test_other_tab_respects_stored_value` (func, строка 72)
 - `test_other_tab_save_persists_and_shows_success` (func, строка 80)
-- `test_other_tab_save_clamps_upper_bound` (func, строка 90)
-- `test_other_tab_save_clamps_lower_bound` (func, строка 97)
-- `test_other_tab_invalid_input_falls_back_to_current` (func, строка 104)
-- `test_other_tab_save_failure_shows_error` (func, строка 111)
+- `test_other_tab_save_clamps_upper_bound` (func, строка 100)
+- `test_other_tab_save_clamps_lower_bound` (func, строка 107)
+- `test_other_tab_invalid_input_falls_back_to_current` (func, строка 114)
+- `test_other_tab_save_failure_shows_error` (func, строка 121)
 
 ### `tests/test_orchestrator_prompt_settings.py`
 - `_render_prompt` (func, строка 33)
@@ -2773,14 +2780,30 @@
 - `test_custom_orchestrator_has_no_reset` (func, строка 123)
 - `test_reset_button_calls_reset_builtin_prompt` (func, строка 128)
 
+### `tests/test_orchestrator_settings_tabs.py`
+- `st_env` (func, строка 34)
+- `_page_modules` (func, строка 48)
+- `_render_page` (func, строка 57)
+- `_tabs_calls` (func, строка 68)
+- `_tab_label` (func, строка 72)
+- `test_tabs_container_has_a_stable_key` (func, строка 78)
+- `test_pinned_section_activates_its_tab` (func, строка 89)
+- `test_unknown_section_is_ignored` (func, строка 102)
+- `test_prompt_save_keeps_the_prompt_tab` (func, строка 113)
+- `test_repeated_prompt_save_reports_every_time` (func, строка 147)
+- `test_failed_prompt_save_reports_the_error_in_place` (func, строка 174)
+- `test_stale_tab_label_after_language_switch_is_dropped` (func, строка 196)
+- `test_current_language_selection_is_kept` (func, строка 206)
+- `test_every_section_save_pins_its_own_tab` (func, строка 217)
+
 ### `tests/test_orchestrator_system_tools_ui.py`
 - `st` (func, строка 27)
 - `_invoke` (func, строка 37)
 - `_render` (func, строка 44)
 - `test_render_and_save_disabled_tools` (func, строка 49)
-- `test_render_all_enabled_saves_empty` (func, строка 71)
-- `test_list_failure_shows_info` (func, строка 85)
-- `test_save_failure_shows_error` (func, строка 96)
+- `test_render_all_enabled_saves_empty` (func, строка 76)
+- `test_list_failure_shows_info` (func, строка 90)
+- `test_save_failure_shows_error` (func, строка 101)
 
 ### `tests/test_orchestrator_tools.py`
 - `isolated_data_dir` (func, строка 17)
@@ -3417,6 +3440,12 @@
 - `test_approve_sanitized_lets_loop_continue` (func, строка 75)
 - `test_approve_sanitized_lets_loop_continue.fake_send` (func, строка 85)
 - `test_protect_history_honors_approved_paths` (func, строка 140)
+
+### `tests/test_save_orchestrator_folder_sync.py`
+- `test_successful_update_survives_a_failing_folder_mirror` (func, строка 31)
+- `test_failed_update_still_reports_failure` (func, строка 45)
+- `test_missing_orchestrator_reports_failure` (func, строка 55)
+- `test_folder_mirror_runs_on_success` (func, строка 64)
 
 ### `tests/test_search_in_files.py`
 - `ws` (func, строка 29)
@@ -4707,7 +4736,7 @@
 - `_success_calls` (func, строка 68)
 - `test_scenario_other_tab_shows_default_500` (func, строка 72)
 - `test_scenario_other_tab_save_persists_to_repository` (func, строка 101)
-- `test_scenario_other_tab_saved_limit_survives_rerender` (func, строка 128)
+- `test_scenario_other_tab_saved_limit_survives_rerender` (func, строка 132)
 
 ### `tests/scenarios/test_orchestrator_thread_files.py`
 - `isolated_data_dir` (func, строка 47)
@@ -4835,6 +4864,15 @@
 - `test_scenario_happy_path_search_across_project` (func, строка 45)
 - `test_scenario_edge_case_explicit_extensions_find_csv` (func, строка 58)
 - `test_scenario_error_state_missing_subdir` (func, строка 70)
+
+### `tests/scenarios/test_settings_tab_persists_scenario.py`
+- `app` (func, строка 34)
+- `_render` (func, строка 56)
+- `_labels` (func, строка 66)
+- `_active_tab_label` (func, строка 74)
+- `_painted_since` (func, строка 79)
+- `test_prompt_save_keeps_the_user_on_the_prompt_section` (func, строка 83)
+- `test_failed_save_reports_the_error_and_keeps_the_section` (func, строка 122)
 
 ### `tests/scenarios/test_skills_adaptation_scenario.py`
 - `isolated_data_dir` (func, строка 29)
