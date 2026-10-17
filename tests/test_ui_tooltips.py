@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """tests/test_ui_tooltips.py - targeted tooltip regression tests.
 
-Verifies the tooltip-audit work end-to-end at the UI layer.
+Verifies tooltip coverage end-to-end at the UI layer.
 
 Level 1 - i18n checks: every i18n key referenced as a widget tooltip
 (help=t(...)) in the touched UI pages exists, is non-empty and does not
@@ -10,7 +10,7 @@ legacy langs/ copies); the removed anthropics skills example link is gone;
 the DevAgent search-model help does not advertise a concrete provider.
 
 Level 2 - widget checks: rendering each touched page under the Streamlit
-mock produces real non-empty tooltips for the audited widgets: settings
+mock produces real non-empty tooltips for the covered widgets: settings
 API-key inputs, assistant form, skills library forms, RAG storage widgets
 and orchestrator settings.
 

@@ -20,6 +20,7 @@ from typing import Callable, Optional
 import streamlit as st
 
 from core.i18n import t
+from ui.components.flash import flash_error, flash_success
 
 
 # ── session-state keys ──────────────────────────────────────────────────────
@@ -135,7 +136,7 @@ def render_workspace_picker(
                         st.session_state[keys["target_file"]] = ""
                         if on_workspace_set:
                             on_workspace_set(resolved)
-                        st.success(t("devagent_path_set", lang=lang, path=resolved))
+                        flash_success(t("devagent_path_set", lang=lang, path=resolved))
                         st.rerun()
                     elif is_file:
                         # Single-file mode: workspace = parent dir
@@ -146,10 +147,10 @@ def render_workspace_picker(
                             on_workspace_set(parent_dir)
                         if on_file_set:
                             on_file_set(resolved)
-                        st.success(t("devagent_single_file_mode", lang=lang, path=resolved))
+                        flash_success(t("devagent_single_file_mode", lang=lang, path=resolved))
                         st.rerun()
                     else:
-                        st.error(t("devagent_path_bad_path", lang=lang, path=resolved))
+                        flash_error(t("devagent_path_bad_path", lang=lang, path=resolved))
                 st.rerun()
 
     # ── Empty-state: show welcome message in chat area, not here ──────────

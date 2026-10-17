@@ -289,7 +289,7 @@ def test_canonical_prompts_do_not_duplicate_the_tool_catalog():
     when  they are inspected,
     then  each prompt delegates the full tool list to the auto-added
           '## Available tools' block, keeps its tool-usage rules in-line
-          and contains no duplicated tool-catalog table; dev_agent is v3.22
+          and contains no duplicated tool-catalog table; dev_agent is v3.23
           and ya_agent is v2.11. The batch-calls rule, the verbatim
           user-supplied-plan branch, the generated-PROJECT_MAP rule, the
           Stage 0 recent-workspaces menu (v3.21) and the DSML-fallback
@@ -299,7 +299,7 @@ def test_canonical_prompts_do_not_duplicate_the_tool_catalog():
     ya = CANONICAL_PROMPT_FILES["ya_agent"].read_text(encoding="utf-8")
 
     # Version headers carry the bumped versions.
-    assert dev.splitlines()[0].endswith("(v3.22)"), dev.splitlines()[0]
+    assert dev.splitlines()[0].endswith("(v3.23)"), dev.splitlines()[0]
     assert ya.splitlines()[0].endswith("(v2.11)"), ya.splitlines()[0]
 
     # RAG context-restore invariant (v3.14): hits carry ids and the
@@ -356,6 +356,11 @@ def test_canonical_prompts_do_not_duplicate_the_tool_catalog():
     # documented as a working tolerance fallback instead of being denied.
     assert "JSON-first, DSML fallback" in dev
     assert "DSML/XML/HTML tags are never parsed" not in dev
+
+    # Origin-attribution rule invariant (v3.23): code, docs and tests must
+    # stay technically self-sufficient and never name the source of an idea.
+    assert "Never cite the origin of a requirement or a design idea" in dev
+    assert "must not name the source of the idea" in dev
 
     # Stale single-call wording is gone from both prompts.
     assert "One tool call per message" not in dev

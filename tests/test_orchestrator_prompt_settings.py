@@ -85,12 +85,27 @@ def test_prompt_text_area_rendered_for_stored_text(mock_env):
 
 
 def test_save_persists_edited_prompt(mock_env):
+    """Saving persists the prompt and QUEUES the confirmation.
+
+    The page saves and then calls st.rerun(), which discards the current
+    render pass; the confirmation is therefore queued for the next pass
+    instead of being painted (and lost) right here.
+    """
     save_mock, _ = _render_prompt(mock_env, dict(ORCH_PLAIN),
                                   text_value="EDITED", click=SAVE_KEY)
     from core.i18n import t
+    from ui.components.flash import FLASH_KEY, render_flash
+
     save_mock.assert_called_once_with(SLUG, prompt_text="EDITED")
+    assert [a[0] for n, a, _k in mock_env.calls if n == "success"] == []
+
+    queued = mock_env.session_state.get(FLASH_KEY) or []
+    assert [m["text"] for m in queued] == [t("orch_save_prompt_ok", lang="English")]
+
+    # The next render pass paints it exactly once.
+    render_flash()
     success = [a[0] for n, a, _k in mock_env.calls if n == "success"]
-    assert t("orch_save_prompt_ok", lang="English") in success
+    assert success == [t("orch_save_prompt_ok", lang="English")]
 
 
 def test_edited_builtin_shows_notice_and_reset(mock_env):

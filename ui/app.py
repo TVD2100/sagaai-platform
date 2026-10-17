@@ -42,6 +42,7 @@ from ui.pages.chat     import page_run_query
 from ui.pages.skills   import page_skills
 from ui.pages.settings import page_settings
 from ui.pages.history  import page_history
+from ui.components.flash import render_flash
 
 from core.orchestrators import list_orchestrators, DEVAGENT_SLUG
 from core.version import __version__ as PLATFORM_VERSION
@@ -1001,6 +1002,11 @@ def main():
         )
 
     # ── Page dispatch ─────────────────────────────────────────────────────────
+    # Queued notifications are painted here, once, before the page body: a
+    # page that saves something and calls st.rerun() keeps its confirmation
+    # visible on the next pass instead of losing it with the discarded render.
+    render_flash()
+
     if page == "welcome":
         page_welcome()
     elif page == "run":

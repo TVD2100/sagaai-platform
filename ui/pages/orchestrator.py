@@ -14,6 +14,7 @@ import json
 from typing import Any, Dict, List, Optional, Callable
 
 from core.i18n import t
+from ui.components.flash import flash_success
 from core.services import (
     get_services,
     get_vision_models,
@@ -2121,13 +2122,13 @@ def _render_prompt_settings(slug: str, lang: str) -> None:
     if st.button(t("orch_save_prompt_btn", lang=lang), key=f"orch_save_prompt_{slug}", type="primary"):
         save_orchestrator(slug, prompt_text=new_prompt)
         st.session_state.pop(f"orch_prompt_{slug}", None)
-        st.success(t("orch_save_prompt_ok", lang=lang))
+        flash_success(t("orch_save_prompt_ok", lang=lang))
         st.rerun()
     if prompt_edited:
         if st.button(t("orch_prompt_reset_btn", lang=lang), key=f"orch_reset_prompt_{slug}"):
             reset_builtin_prompt(slug)
             st.session_state.pop(f"orch_prompt_{slug}", None)
-            st.success(t("orch_prompt_reset_ok", lang=lang))
+            flash_success(t("orch_prompt_reset_ok", lang=lang))
             st.rerun()
 
 
@@ -2264,7 +2265,7 @@ def _render_orchestrator_functions_settings(slug: str, lang: str) -> None:
                         if ok:
                             _set_ss(slug, "show_func_form", False)
                             _set_ss(slug, "edit_func", None)
-                            st.success(t("orch_func_saved", lang=lang))
+                            flash_success(t("orch_func_saved", lang=lang))
                             st.rerun()
                         else:
                             st.error(t("orch_func_save_error", lang=lang))
@@ -2299,7 +2300,7 @@ def _render_orchestrator_functions_settings(slug: str, lang: str) -> None:
             with c_del:
                 if st.button("🗑", key=f"orch_func_del_{slug}_{fn['name']}"):
                     orch_delete_function(slug, fn["name"])
-                    st.success(t("orch_func_deleted", lang=lang))
+                    flash_success(t("orch_func_deleted", lang=lang))
                     st.rerun()
 
 
@@ -2338,7 +2339,7 @@ def _render_orchestrator_instructions_settings(slug: str, lang: str) -> None:
                         if ok:
                             _set_ss(slug, "show_oinstr_form", False)
                             _set_ss(slug, "edit_oinstr", None)
-                            st.success(t("orch_instr_saved", lang=lang))
+                            flash_success(t("orch_instr_saved", lang=lang))
                             st.rerun()
             with c2:
                 if st.button(t("orch_instr_cancel_btn", lang=lang), key=f"orch_oinstr_cancel_{slug}"):
@@ -2372,7 +2373,7 @@ def _render_orchestrator_instructions_settings(slug: str, lang: str) -> None:
             with c_del:
                 if st.button("🗑", key=f"orch_oinstr_del_{slug}_{inst['id']}"):
                     orch_delete_instruction(slug, inst["id"])
-                    st.success(t("orch_instr_deleted", lang=lang))
+                    flash_success(t("orch_instr_deleted", lang=lang))
                     st.rerun()
 
 

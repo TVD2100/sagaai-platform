@@ -17,6 +17,7 @@ never passed to the frontend in plain text.
 import streamlit as st
 
 from core.i18n import t
+from ui.components.flash import flash_success
 from core import connectors
 from core.connectors import (
     list_connections,
@@ -175,7 +176,7 @@ def _render_create_form(lang: str) -> None:
         try:
             create_connection(svc_id, name, token, account=account,
                               config=config, secrets=secrets)
-            st.success(t("connectors_created", lang=lang))
+            flash_success(t("connectors_created", lang=lang))
             st.rerun()
         except Exception as e:
             st.error(str(e))
@@ -216,7 +217,7 @@ def _render_edit_form(conn: dict, lang: str) -> None:
             update_connection(conn_id, name=name, account=account, token=token,
                               config=config, secrets=secrets)
             st.session_state[f"conn_edit_{conn_id}"] = False
-            st.success(t("connectors_saved", lang=lang))
+            flash_success(t("connectors_saved", lang=lang))
             st.rerun()
         except Exception as e:
             st.error(str(e))
@@ -289,7 +290,7 @@ def _render_connection_card(conn: dict, lang: str) -> None:
                                  use_container_width=True):
                         if delete_connection(conn_id):
                             st.session_state[confirm_key] = None
-                            st.success(t("connectors_deleted", lang=lang))
+                            flash_success(t("connectors_deleted", lang=lang))
                             st.rerun()
                         else:
                             st.error(t("connectors_delete_error", lang=lang))

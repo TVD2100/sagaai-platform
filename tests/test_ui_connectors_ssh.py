@@ -137,7 +137,12 @@ def test_create_ssh_connection_passes_config_and_secrets(st_mock):
         config={"host": "203.0.113.10", "port": 2222, "username": "deploy"},
         secrets={"password": "s3cret"},
     )
-    assert any(c[0] == "success" for c in st_mock.calls)
+    # The confirmation is queued for the next render pass: the save calls
+    # st.rerun() right away, so a plain st.success() here would never paint.
+    from ui.components.flash import FLASH_KEY
+    assert not any(c[0] == "success" for c in st_mock.calls)
+    queued = st_mock.session_state.get(FLASH_KEY) or []
+    assert [m["kind"] for m in queued] == ["success"]
 
 
 def test_create_github_connection_keeps_token_flow(st_mock):

@@ -19,6 +19,7 @@ made during agent-side re-embedding (BYOK).
 import streamlit as st
 
 from core.i18n import t
+from ui.components.flash import flash_success, flash_warning
 from core import rag
 from core.rag_search import search_base
 
@@ -91,9 +92,9 @@ def _render_chunk_editor(slug: str, chunk_id: int, chunk: dict,
         if outcome.get("ok"):
             st.session_state[f"storage_edit_chunk_{slug}"] = None
             if outcome.get("reembedded"):
-                st.success(t("storage_chunk_saved_reembedded", lang=lang))
+                flash_success(t("storage_chunk_saved_reembedded", lang=lang))
             else:
-                st.warning(
+                flash_warning(
                     t(
                         "storage_chunk_saved_no_embedding",
                         lang=lang,
@@ -181,7 +182,7 @@ def _render_chunks_section(slug: str, lang: str) -> None:
                                      use_container_width=True):
                             if rag.delete_chunk(slug, cid):
                                 st.session_state[confirm_key] = None
-                                st.success(t("storage_chunk_deleted", lang=lang))
+                                flash_success(t("storage_chunk_deleted", lang=lang))
                                 st.rerun()
                             else:
                                 st.error(t("storage_chunk_delete_error", lang=lang))
@@ -259,7 +260,7 @@ def _render_base_card(base: dict, lang: str) -> None:
                          use_container_width=True):
                 try:
                     rag.update_base(slug, {"search_mode": selected_mode})
-                    st.success(t("storage_search_mode_updated", lang=lang))
+                    flash_success(t("storage_search_mode_updated", lang=lang))
                     st.rerun()
                 except Exception:
                     st.error(t("storage_search_mode_error", lang=lang))
@@ -292,7 +293,7 @@ def _render_base_card(base: dict, lang: str) -> None:
                         try:
                             rag.delete_base(slug)
                             st.session_state["storage_confirm_delete"] = None
-                            st.success(t("storage_deleted", lang=lang))
+                            flash_success(t("storage_deleted", lang=lang))
                             st.rerun()
                         except Exception:
                             st.error(t("storage_error", lang=lang))

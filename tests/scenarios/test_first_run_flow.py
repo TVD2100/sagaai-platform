@@ -21,7 +21,7 @@ functions), so prompts/injections never bypass the application flow.
                github.com/anthropics/skills example link anywhere), and
                the page renders without errors.
 
-These scenarios back tier 3 (scenario testing) of the tooltip-audit task
+These scenarios are the scenario-tier coverage of the tooltip work
 and double as regression suite members.
 """
 from __future__ import annotations

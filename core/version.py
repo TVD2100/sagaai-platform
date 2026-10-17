@@ -31,8 +31,13 @@
 # the first start the platform checks installed libraries and their versions
 # and warns the user about missing or outdated packages (with a pip hint);
 # requirements.txt now pins streamlit>=1.66.0 instead of an exact ==.
+#
+# 2.1.5 makes save confirmations visible: a message painted right before
+# st.rerun() was discarded with the current pass, so settings pages never
+# showed "Saved". Announcements now go through ui.components.flash (a queue in
+# session_state) and are painted by render_flash() on the next pass.
 
-__version__ = "2.1.4"
+__version__ = "2.1.5"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

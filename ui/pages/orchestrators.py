@@ -13,6 +13,7 @@ This page is reachable from the sidebar section "Orchestrators".
 import streamlit as st
 
 from core.i18n import t
+from ui.components.flash import flash_success
 from core.orchestrators import (
     list_orchestrators,
     delete_orchestrator,
@@ -97,9 +98,9 @@ def page_orchestrators() -> None:
                         ok = delete_orchestrator(slug)
                         st.session_state["orch_mgmt_confirm_delete"] = None
                         if ok:
-                            st.success(t("orch_mgmt_deleted", lang=lang, name=name))
+                            flash_success(t("orch_mgmt_deleted", lang=lang, name=name))
                         else:
-                            st.error(t("orch_mgmt_delete_error", lang=lang, name=name))
+                            flash_error(t("orch_mgmt_delete_error", lang=lang, name=name))
                         st.rerun()
                 with c_no:
                     if st.button(t("btn_cancel", lang=lang),

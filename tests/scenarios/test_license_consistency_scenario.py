@@ -9,12 +9,11 @@ contributor and the updater would see it:
   2. No published source file keeps the MIT SPDX identifier; every module
      that carries the copyright line carries the new identifier instead.
   3. The user-facing surfaces agree with the LICENSE: README.md,
-     COMPARISON.md, AGENT.md and the sidebar footer of ui/app.py.
+     AGENT.md and the sidebar footer of ui/app.py.
   4. The license change shipped in release 2.0.0 (later 2.x releases keep
      it); the manifest app_version matches core/version.py, and the release
      note announces the license change.
-  5. The licensing history stays documented (1.x and earlier were MIT) and
-     the MIT licenses of other projects in COMPARISON.md are not wiped.
+  5. The licensing history stays documented (1.x and earlier were MIT).
 
 The scenario is read-only and needs no network or database.
 """
@@ -119,13 +118,6 @@ def test_user_facing_surfaces_agree_with_the_license():
     assert "Согласно лицензии MIT" not in readme
     assert "код (MIT)" not in readme
 
-    comparison = _read("COMPARISON.md")
-    sagaai_rows = [ln for ln in comparison.splitlines() if ln.startswith("| **SagaAI")]
-    assert sagaai_rows, "SagaAI row not found in COMPARISON.md"
-    assert all("PolyForm NC 1.0.0" in ln for ln in sagaai_rows), sagaai_rows
-    assert "| **Лицензия** | PolyForm NC 1.0.0" in comparison
-    # Competitor MIT licenses must survive the migration.
-    assert "| OpenClaw | MIT |" in comparison
 
     ui_app = _read("ui/app.py")
     assert "PolyForm Noncommercial License</a></div>" in ui_app

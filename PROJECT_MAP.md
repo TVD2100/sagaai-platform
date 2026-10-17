@@ -2,18 +2,17 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-10-17T12:43:16+00:00`
-- Файлов: **347**
+- Обновлено: `2026-10-17T19:27:52+00:00`
+- Файлов: **349**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **4566**
-- Отпечаток содержимого: `sha256:006517c087034f752b780262b15433a014139201259f4ccc6376f71a995eec55` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 1, JSON: 21, Markdown: 37, PEM certificate: 1, Python: 290, Text: 1
+- Python-символов: **4590**
+- Отпечаток содержимого: `sha256:0841ec68ea81ccb7a238493ad4ae5ce22fc7014d7b5ab8f871c3991e080cd690` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 1, JSON: 21, Markdown: 36, PEM certificate: 1, Python: 293, Text: 1
 
 ## Файлы и назначение
 
 | Файл | Язык | Назначение | Зависит от |
 | --- | --- | --- | --- |
-| `COMPARISON.md` | Markdown | _(описание не задано)_ | - |
 | `__init__.py` | Python | Package marker | - |
 | `app.py` | Python | Entry point for the platform | - |
 | `pytest.ini` | Config | Pytest configuration | - |
@@ -21,6 +20,7 @@
 | `ui/__init__.py` | Python | Package marker | - |
 | `ui/app.py` | Python | Main Streamlit app: sidebar navigation and page dispatch; assistants use assistant terminology; one-time workspace-meta migration on startup | - |
 | `ui/components/__init__.py` | Python | Package marker | - |
+| `ui/components/flash.py` | Python | Deferred UI notifications: a page queues a message in session_state (flash/flash_success/flash_error/flash_warning/flash_info) and render_flash() paints and clears the queue on the NEXT render pass, so a confirmation shown right before st.rerun() is not discarded with the current pass | - |
 | `ui/components/workspace_picker.py` | Python | Workspace picker component | - |
 | `ui/pages/__init__.py` | Python | Package marker | - |
 | `ui/pages/access.py` | Python | _(описание не задано)_ | - |
@@ -212,6 +212,7 @@
 | `tests/test_tool_result_storage_summary.py` | Python | Storage-summary tests: verbatim small documents (wire==stored), batch splitter, both persist paths | storage |
 | `tests/test_tools_utils.py` | Python | _(описание не задано)_ | - |
 | `tests/test_ui_connectors_ssh.py` | Python | UI tests for the connectors page SSH support | - |
+| `tests/test_ui_flash.py` | Python | Unit tests for ui.components.flash: queueing of every kind, missing/garbage session state tolerated, render_flash paints once and clears, pending queue capped | - |
 | `tests/test_ui_pages.py` | Python | UI page tests | - |
 | `tests/test_ui_tooltips.py` | Python | _(описание не задано)_ | - |
 | `tests/test_ui_tooltips_orchestrator.py` | Python | _(описание не задано)_ | - |
@@ -250,7 +251,7 @@
 | `tests/scenarios/test_incomplete_responses_recovery_scenario.py` | Python | Scenarios: incomplete-responses recovery - truncation then success, partial text kept, persistent truncation terminates | - |
 | `tests/scenarios/test_inline_chat_upload_scenario.py` | Python | Scenario tests for the inline file upload built into st.chat_input (given->when->then): text+file together, files-only submission, plain text creates no files, oversized attachment rejected | - |
 | `tests/scenarios/test_json_repair_scenarios.py` | Python | _(описание не задано)_ | - |
-| `tests/scenarios/test_license_consistency_scenario.py` | Python | Scenario: license migration to PolyForm Noncommercial 1.0.0 - canonical LICENSE text, no MIT SPDX identifier among published files, README/COMPARISON/UI/AGENT.md agreement, 2.x version and manifest consistency, documented licensing history | - |
+| `tests/scenarios/test_license_consistency_scenario.py` | Python | Scenario: license migration to PolyForm Noncommercial 1.0.0 - canonical LICENSE text, no MIT SPDX identifier among published files, README/UI/AGENT.md agreement, 2.x version and manifest consistency, documented licensing history | - |
 | `tests/scenarios/test_loop_stuck_protection_scenarios.py` | Python | Loop-stuck protection scenarios: per-tool failure counter hints, duplicate-call flood compaction, prose loop_status continue | - |
 | `tests/scenarios/test_multimodal_scenarios.py` | Python | Scenario tests for the multimodal tools (vision analysis, not_assigned, generation, provider hint) | - |
 | `tests/scenarios/test_new_dialog_empty_workspace_scenario.py` | Python | Scenario tests: a new dialog starts with no folder and never inherits a neighbour's workspace | storage |
@@ -258,7 +259,7 @@
 | `tests/scenarios/test_orchestrator_devagent_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_orchestrator_other_settings_scenario.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_orchestrator_thread_files.py` | Python | Scenario tests: uploads land in thread files; legacy workspace manifests still re-announced | storage |
-| `tests/scenarios/test_orchestrator_tool_gating.py` | Python | Gating scenarios: system-prompt version pins (v3.21/v2.11), empty-state prompt invariants, generated-document rule, Stage 0 recent-folders menu and thread-search tool invariants | storage |
+| `tests/scenarios/test_orchestrator_tool_gating.py` | Python | Gating scenarios: system-prompt version pins (v3.23/v2.11), empty-state prompt invariants, generated-document rule, Stage 0 recent-folders menu and thread-search tool invariants | storage |
 | `tests/scenarios/test_project_map_freshness_scenario.py` | Python | Scenario: PROJECT_MAP regeneration - GitHub-published scope only, recorded fingerprint and staleness detection, reproducible output | storage |
 | `tests/scenarios/test_provider_economy_settings_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_assistant_dialog.py` | Python | _(описание не задано)_ | - |
@@ -268,6 +269,7 @@
 | `tests/scenarios/test_rag_search_quality_scenario.py` | Python | Scenarios: search quality - morphology across word forms, repeated-header IDF, stop-words/coordination, transparent upgrade of a previous-release index, and multi-product ranking where the product name lives only in the header (BM25F) | - |
 | `tests/scenarios/test_recent_workspace_scopes_scenario.py` | Python | Scenario tests: per-orchestrator recent-folder menu (isolation, platform paths hidden, scoped writes) | storage |
 | `tests/scenarios/test_resume_identity_scenarios.py` | Python | Scenario: resume identity - stored thread messages round-trip byte-for-byte after reload | storage |
+| `tests/scenarios/test_save_confirmation_scenario.py` | Python | Scenario tests for save confirmations (given->when->then): clicking Save on the prompt, connector, skill and employee pages paints nothing in the saving pass and shows the queued confirmation exactly once on the next pass (render_flash) | - |
 | `tests/scenarios/test_search_in_files_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_skills_adaptation_scenario.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_ssh_connector_scenarios.py` | Python | Scenario tests for the SSH connector feature | storage |
@@ -351,7 +353,7 @@
 | `dev_agent/config.py` | Python | DevAgent runtime config and protected path policy; empty-state neutral root (NEUTRAL_ROOT / WORKSPACE_SELECTED / ensure_neutral_root, apply_paths selected flag) | - |
 | `dev_agent/llm_utils.py` | Python | Unified LLM-call helper (assistant dict contract, legacy skill alias) | - |
 | `dev_agent/safe_writer.py` | Python | Safe full-file rewrite with diff/verification | backup_manager |
-| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.21 Stage 0 recent-folders menu for a concrete project and the chat folder selector; v3.20 AGENT.md docs-first (legacy SPEC.md removed); v3.18 generated-PROJECT_MAP rule; v3.17 compact task-state digest, read_file windows, PRAGMA-first; v3.16 empty-state Stage 0, task-journal and thread-files rules) | - |
+| `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.23 self-sufficiency rule for comments/docs/tests (no origin attribution); v3.21 Stage 0 recent-folders menu for a concrete project and the chat folder selector; v3.20 AGENT.md docs-first (legacy SPEC.md removed); v3.18 generated-PROJECT_MAP rule; v3.17 compact task-state digest, read_file windows, PRAGMA-first; v3.16 empty-state Stage 0, task-journal and thread-files rules) | - |
 | `dev_agent/task_state.py` | Python | Per-thread task-state journal (plan/progress/handoff) with the thread-files fallback folder when no workspace is selected; compact digest (read_task_state compact=True) and budgeted injection | backup_manager |
 | `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools, legacy skill aliases, skills-library and multimodal tools; empty-state workspace guard (workspace_not_selected, neutral cwd for code=) | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
 | `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace + orchestrator tools, incl. thread search: search_in_threads / list_threads / read_thread; empty-state guard and thread workspace-meta persistence) | storage, tool_executor |
@@ -370,38 +372,47 @@
 ## Структура Python-модулей
 
 ### `ui/app.py`
-- `_build_orch_nav` (func, строка 67)
-- `_build_assistants_nav` (func, строка 98)
-- `_apply_theme` (func, строка 128)
-- `_sync_saved_theme` (func, строка 164)
-- `_sync_saved_theme_once` (func, строка 203)
-- `_build_ui_restore_payload` (func, строка 217)
-- `_restore_ui_reload_state` (func, строка 252)
-- `_handle_thread_deeplink` (func, строка 301)
-- `_run_dependency_check_once` (func, строка 340)
-- `main` (func, строка 365)
-- `main._render_orch_button` (func, строка 628)
-- `main._matches_search` (func, строка 712)
+- `_build_orch_nav` (func, строка 68)
+- `_build_assistants_nav` (func, строка 99)
+- `_apply_theme` (func, строка 129)
+- `_sync_saved_theme` (func, строка 165)
+- `_sync_saved_theme_once` (func, строка 204)
+- `_build_ui_restore_payload` (func, строка 218)
+- `_restore_ui_reload_state` (func, строка 253)
+- `_handle_thread_deeplink` (func, строка 302)
+- `_run_dependency_check_once` (func, строка 341)
+- `main` (func, строка 366)
+- `main._render_orch_button` (func, строка 629)
+- `main._matches_search` (func, строка 713)
+
+### `ui/components/flash.py`
+- `_queue` (func, строка 38)
+- `flash` (func, строка 47)
+- `flash_success` (func, строка 64)
+- `flash_error` (func, строка 69)
+- `flash_warning` (func, строка 74)
+- `flash_info` (func, строка 79)
+- `render_flash` (func, строка 84)
 
 ### `ui/components/workspace_picker.py`
-- `_picker_state_keys` (func, строка 26)
-- `_init_picker_state` (func, строка 36)
-- `_resolve_path` (func, строка 50)
-- `render_workspace_picker` (func, строка 66)
+- `_picker_state_keys` (func, строка 27)
+- `_init_picker_state` (func, строка 37)
+- `_resolve_path` (func, строка 51)
+- `render_workspace_picker` (func, строка 67)
 
 ### `ui/pages/access.py`
 - `page_access` (func, строка 28)
 
 ### `ui/pages/assistants.py`
-- `_get_show_form` (func, строка 37)
-- `_set_show_form` (func, строка 44)
-- `_get_edit_id` (func, строка 49)
-- `_set_edit_id` (func, строка 53)
-- `_format_tools_badge` (func, строка 58)
-- `_get_model_max_tokens_limit` (func, строка 77)
-- `_temperature_bounds` (func, строка 97)
-- `_clamp_temperature` (func, строка 111)
-- `page_assistants` (func, строка 117)
+- `_get_show_form` (func, строка 38)
+- `_set_show_form` (func, строка 45)
+- `_get_edit_id` (func, строка 50)
+- `_set_edit_id` (func, строка 54)
+- `_format_tools_badge` (func, строка 59)
+- `_get_model_max_tokens_limit` (func, строка 78)
+- `_temperature_bounds` (func, строка 98)
+- `_clamp_temperature` (func, строка 112)
+- `page_assistants` (func, строка 118)
 
 ### `ui/pages/chat.py`
 - `_get_preselected` (func, строка 38)
@@ -412,14 +423,14 @@
 - `page_run_query._on_tokens` (func, строка 399)
 
 ### `ui/pages/connectors.py`
-- `_service_options` (func, строка 30)
-- `_test_connection` (func, строка 40)
-- `_ssh_stored_fields` (func, строка 67)
-- `_render_ssh_fields` (func, строка 75)
-- `_render_create_form` (func, строка 131)
-- `_render_edit_form` (func, строка 184)
-- `_render_connection_card` (func, строка 225)
-- `page_connectors` (func, строка 307)
+- `_service_options` (func, строка 31)
+- `_test_connection` (func, строка 41)
+- `_ssh_stored_fields` (func, строка 68)
+- `_render_ssh_fields` (func, строка 76)
+- `_render_create_form` (func, строка 132)
+- `_render_edit_form` (func, строка 185)
+- `_render_connection_card` (func, строка 226)
+- `page_connectors` (func, строка 308)
 
 ### `ui/pages/history.py`
 - `_active_orch_thread_id` (func, строка 29)
@@ -431,81 +442,81 @@
 - `_last_reply` (func, строка 362)
 
 ### `ui/pages/orchestrator.py`
-- `_chat_pref_config_keys` (func, строка 86)
-- `_chat_prefs` (func, строка 93)
-- `_save_chat_pref` (func, строка 101)
-- `_make_state_keys` (func, строка 117)
-- `_init_orch_state` (func, строка 155)
-- `_sk` (func, строка 162)
-- `_ss` (func, строка 167)
-- `_set_ss` (func, строка 172)
-- `_pop_ss` (func, строка 176)
-- `_save_economy_cache` (func, строка 180)
-- `_load_economy_cache` (func, строка 199)
-- `_attachments_manifest_path` (func, строка 206)
-- `_load_attachments_manifest` (func, строка 210)
-- `_folder_picker_key` (func, строка 228)
-- `_reset_folder_choice` (func, строка 239)
-- `_thread_folder` (func, строка 246)
-- `_apply_folder_choice` (func, строка 271)
-- `_render_folder_picker` (func, строка 311)
-- `_render_folder_picker._label` (func, строка 331)
-- `_make_send_adapter` (func, строка 379)
-- `_make_send_adapter._adapter` (func, строка 392)
-- `_make_dispatcher` (func, строка 411)
-- `_assistant_has_api_key` (func, строка 436)
-- `_strip_html_details_tags` (func, строка 451)
-- `_strip_empty_fenced_blocks` (func, строка 467)
-- `_strip_tool_calls` (func, строка 524)
-- `_strip_tool_calls_for_message` (func, строка 590)
-- `_first_two_lines` (func, строка 617)
-- `_format_call_args_preview` (func, строка 630)
-- `_extract_result_body` (func, строка 648)
-- `_render_generated_image` (func, строка 662)
-- `_render_tool_result` (func, строка 690)
-- `_render_events` (func, строка 772)
-- `_render_event` (func, строка 792)
-- `_attach_events` (func, строка 855)
-- `_do_step` (func, строка 884)
-- `_do_step.on_event` (func, строка 896)
-- `_reset_dialog` (func, строка 1029)
-- `_load_thread` (func, строка 1056)
-- `_persist_thread_workspace_meta` (func, строка 1097)
-- `_chat_toolbar_widget_key` (func, строка 1124)
-- `_sync_chat_pref_checkbox` (func, строка 1134)
-- `_chat_toolbar_pref_changed` (func, строка 1152)
-- `_render_chat_toolbar` (func, строка 1162)
-- `_token_line_cache_key` (func, строка 1220)
-- `_render_token_line` (func, строка 1270)
-- `_split_chat_prompt` (func, строка 1355)
-- `_render_chat_tab` (func, строка 1376)
-- `_render_chat_tab.on_event` (func, строка 1566)
-- `_render_chat_tab.on_event` (func, строка 1591)
-- `_render_chat_tab.on_event` (func, строка 1635)
-- `_render_chat_tab.on_event` (func, строка 1658)
-- `_services_with_web_search` (func, строка 1795)
-- `_temp_slider` (func, строка 1807)
-- `_get_max_tokens_limit` (func, строка 1816)
-- `_render_optional_model_section` (func, строка 1836)
-- `_render_models_settings` (func, строка 1900)
-- `_render_prompt_settings` (func, строка 2100)
-- `_render_economy_settings` (func, строка 2134)
-- `_render_orch_system_tools` (func, строка 2187)
-- `_render_orchestrator_functions_settings` (func, строка 2227)
-- `_render_orchestrator_instructions_settings` (func, строка 2306)
-- `_render_orch_skills_settings` (func, строка 2379)
-- `_render_orch_rag_bases` (func, строка 2421)
-- `_render_orch_connections` (func, строка 2474)
-- `_render_other_settings` (func, строка 2518)
-- `page_orchestrator` (func, строка 2555)
-- `page_devagent` (func, строка 2570)
+- `_chat_pref_config_keys` (func, строка 87)
+- `_chat_prefs` (func, строка 94)
+- `_save_chat_pref` (func, строка 102)
+- `_make_state_keys` (func, строка 118)
+- `_init_orch_state` (func, строка 156)
+- `_sk` (func, строка 163)
+- `_ss` (func, строка 168)
+- `_set_ss` (func, строка 173)
+- `_pop_ss` (func, строка 177)
+- `_save_economy_cache` (func, строка 181)
+- `_load_economy_cache` (func, строка 200)
+- `_attachments_manifest_path` (func, строка 207)
+- `_load_attachments_manifest` (func, строка 211)
+- `_folder_picker_key` (func, строка 229)
+- `_reset_folder_choice` (func, строка 240)
+- `_thread_folder` (func, строка 247)
+- `_apply_folder_choice` (func, строка 272)
+- `_render_folder_picker` (func, строка 312)
+- `_render_folder_picker._label` (func, строка 332)
+- `_make_send_adapter` (func, строка 380)
+- `_make_send_adapter._adapter` (func, строка 393)
+- `_make_dispatcher` (func, строка 412)
+- `_assistant_has_api_key` (func, строка 437)
+- `_strip_html_details_tags` (func, строка 452)
+- `_strip_empty_fenced_blocks` (func, строка 468)
+- `_strip_tool_calls` (func, строка 525)
+- `_strip_tool_calls_for_message` (func, строка 591)
+- `_first_two_lines` (func, строка 618)
+- `_format_call_args_preview` (func, строка 631)
+- `_extract_result_body` (func, строка 649)
+- `_render_generated_image` (func, строка 663)
+- `_render_tool_result` (func, строка 691)
+- `_render_events` (func, строка 773)
+- `_render_event` (func, строка 793)
+- `_attach_events` (func, строка 856)
+- `_do_step` (func, строка 885)
+- `_do_step.on_event` (func, строка 897)
+- `_reset_dialog` (func, строка 1030)
+- `_load_thread` (func, строка 1057)
+- `_persist_thread_workspace_meta` (func, строка 1098)
+- `_chat_toolbar_widget_key` (func, строка 1125)
+- `_sync_chat_pref_checkbox` (func, строка 1135)
+- `_chat_toolbar_pref_changed` (func, строка 1153)
+- `_render_chat_toolbar` (func, строка 1163)
+- `_token_line_cache_key` (func, строка 1221)
+- `_render_token_line` (func, строка 1271)
+- `_split_chat_prompt` (func, строка 1356)
+- `_render_chat_tab` (func, строка 1377)
+- `_render_chat_tab.on_event` (func, строка 1567)
+- `_render_chat_tab.on_event` (func, строка 1592)
+- `_render_chat_tab.on_event` (func, строка 1636)
+- `_render_chat_tab.on_event` (func, строка 1659)
+- `_services_with_web_search` (func, строка 1796)
+- `_temp_slider` (func, строка 1808)
+- `_get_max_tokens_limit` (func, строка 1817)
+- `_render_optional_model_section` (func, строка 1837)
+- `_render_models_settings` (func, строка 1901)
+- `_render_prompt_settings` (func, строка 2101)
+- `_render_economy_settings` (func, строка 2135)
+- `_render_orch_system_tools` (func, строка 2188)
+- `_render_orchestrator_functions_settings` (func, строка 2228)
+- `_render_orchestrator_instructions_settings` (func, строка 2307)
+- `_render_orch_skills_settings` (func, строка 2380)
+- `_render_orch_rag_bases` (func, строка 2422)
+- `_render_orch_connections` (func, строка 2475)
+- `_render_other_settings` (func, строка 2519)
+- `page_orchestrator` (func, строка 2556)
+- `page_devagent` (func, строка 2571)
 
 ### `ui/pages/orchestrator_settings.py`
 - `page_orchestrator_settings` (func, строка 28)
 
 ### `ui/pages/orchestrators.py`
-- `_go_to_page` (func, строка 23)
-- `page_orchestrators` (func, строка 28)
+- `_go_to_page` (func, строка 24)
+- `page_orchestrators` (func, строка 29)
 
 ### `ui/pages/settings.py`
 - `_resolve_label` (func, строка 37)
@@ -517,22 +528,22 @@
 - `page_settings` (func, строка 327)
 
 ### `ui/pages/skills_library.py`
-- `page_skills_library` (func, строка 28)
-- `_render_import_section` (func, строка 48)
-- `_request_skill_adaptation` (func, строка 172)
-- `_render_skills_list` (func, строка 192)
-- `_render_edit_form` (func, строка 231)
+- `page_skills_library` (func, строка 29)
+- `_render_import_section` (func, строка 49)
+- `_request_skill_adaptation` (func, строка 173)
+- `_render_skills_list` (func, строка 193)
+- `_render_edit_form` (func, строка 232)
 
 ### `ui/pages/stats.py`
 - `page_stats` (func, строка 25)
 
 ### `ui/pages/storage.py`
-- `_status_label` (func, строка 37)
-- `_render_test_search` (func, строка 42)
-- `_render_chunk_editor` (func, строка 68)
-- `_render_chunks_section` (func, строка 108)
-- `_render_base_card` (func, строка 217)
-- `page_storage` (func, строка 319)
+- `_status_label` (func, строка 38)
+- `_render_test_search` (func, строка 43)
+- `_render_chunk_editor` (func, строка 69)
+- `_render_chunks_section` (func, строка 109)
+- `_render_base_card` (func, строка 218)
+- `page_storage` (func, строка 320)
 
 ### `ui/pages/updates.py`
 - `_cached_manifest` (func, строка 39)
@@ -2757,10 +2768,10 @@
 - `_button_rendered` (func, строка 56)
 - `test_prompt_text_area_rendered_for_stored_text` (func, строка 74)
 - `test_save_persists_edited_prompt` (func, строка 87)
-- `test_edited_builtin_shows_notice_and_reset` (func, строка 96)
-- `test_plain_builtin_has_no_reset` (func, строка 103)
-- `test_custom_orchestrator_has_no_reset` (func, строка 108)
-- `test_reset_button_calls_reset_builtin_prompt` (func, строка 113)
+- `test_edited_builtin_shows_notice_and_reset` (func, строка 111)
+- `test_plain_builtin_has_no_reset` (func, строка 118)
+- `test_custom_orchestrator_has_no_reset` (func, строка 123)
+- `test_reset_button_calls_reset_builtin_prompt` (func, строка 128)
 
 ### `tests/test_orchestrator_system_tools_ui.py`
 - `st` (func, строка 27)
@@ -3897,11 +3908,23 @@
 - `test_create_form_renders_ssh_fields_when_ssh_selected` (func, строка 87)
 - `test_create_form_keeps_github_token_by_default` (func, строка 102)
 - `test_create_ssh_connection_passes_config_and_secrets` (func, строка 114)
-- `test_create_github_connection_keeps_token_flow` (func, строка 143)
-- `test_ssh_card_shows_target_and_masked_secrets` (func, строка 167)
-- `test_edit_ssh_form_renders_fields_and_saves` (func, строка 183)
-- `test_ssh_test_button_routes_to_ssh_connector` (func, строка 217)
-- `test_ssh_test_button_reports_failure` (func, строка 239)
+- `test_create_github_connection_keeps_token_flow` (func, строка 148)
+- `test_ssh_card_shows_target_and_masked_secrets` (func, строка 172)
+- `test_edit_ssh_form_renders_fields_and_saves` (func, строка 188)
+- `test_ssh_test_button_routes_to_ssh_connector` (func, строка 222)
+- `test_ssh_test_button_reports_failure` (func, строка 244)
+
+### `tests/test_ui_flash.py`
+- `st_env` (func, строка 19)
+- `_flash_module` (func, строка 28)
+- `_painted` (func, строка 34)
+- `test_queued_message_is_painted_once` (func, строка 43)
+- `test_kind_selects_the_painter` (func, строка 58)
+- `test_unknown_kind_falls_back_to_success` (func, строка 72)
+- `test_empty_and_malformed_entries_are_skipped` (func, строка 81)
+- `test_queue_is_capped` (func, строка 93)
+- `test_render_without_queue_is_a_noop` (func, строка 104)
+- `test_malformed_queue_value_is_reset` (func, строка 111)
 
 ### `tests/test_ui_pages.py`
 - `_apply_all` (func, строка 80)
@@ -4613,14 +4636,14 @@
 - `test_scenario_error_state_unrepairable_truncation_stops_loop` (func, строка 103)
 
 ### `tests/scenarios/test_license_consistency_scenario.py`
-- `_manifest` (func, строка 38)
-- `_published_paths` (func, строка 43)
-- `_read` (func, строка 54)
-- `test_license_file_is_canonical_polyform` (func, строка 59)
-- `test_no_published_file_keeps_the_mit_spdx_identifier` (func, строка 87)
-- `test_user_facing_surfaces_agree_with_the_license` (func, строка 113)
-- `test_version_and_manifest_announce_the_change` (func, строка 139)
-- `test_licensing_history_stays_documented` (func, строка 163)
+- `_manifest` (func, строка 37)
+- `_published_paths` (func, строка 42)
+- `_read` (func, строка 53)
+- `test_license_file_is_canonical_polyform` (func, строка 58)
+- `test_no_published_file_keeps_the_mit_spdx_identifier` (func, строка 86)
+- `test_user_facing_surfaces_agree_with_the_license` (func, строка 112)
+- `test_version_and_manifest_announce_the_change` (func, строка 131)
+- `test_licensing_history_stays_documented` (func, строка 155)
 
 ### `tests/scenarios/test_loop_stuck_protection_scenarios.py`
 - `_make_skill` (func, строка 24)
@@ -4797,6 +4820,15 @@
 - `_run_batch.fake_send` (func, строка 102)
 - `test_scenario_wire_survives_append_reload` (func, строка 129)
 - `test_scenario_wire_survives_full_save` (func, строка 167)
+
+### `tests/scenarios/test_save_confirmation_scenario.py`
+- `st_env` (func, строка 25)
+- `_painted` (func, строка 35)
+- `_render` (func, строка 44)
+- `test_prompt_save_confirmation_survives_the_rerun` (func, строка 52)
+- `test_connector_save_confirmation_survives_the_rerun` (func, строка 86)
+- `test_skill_save_confirmation_survives_the_rerun` (func, строка 106)
+- `test_orchestrator_delete_confirmation_survives_the_rerun` (func, строка 128)
 
 ### `tests/scenarios/test_search_in_files_scenarios.py`
 - `project` (func, строка 23)

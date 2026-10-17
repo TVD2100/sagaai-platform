@@ -171,7 +171,7 @@ _AUTO_CONTINUE_PREFIX = "AUTO_CONTINUE:"
 #     replaced by a bounded head+tail preview carrying ``spill_path`` (the
 #     full payload stays readable with the read_file tool). The model never
 #     saw the untruncated version, so from the cache viewpoint the
-#     replacement is append-only (DSH principle P6: budget the tail, keep
+#     replacement is append-only (budget the tail, keep
 #     truncation recoverable).
 #   * MAX_TOOL_RESULT_CHARS - hard emergency fallback for the case when the
 #     spill cannot be written: results up to this size pass through

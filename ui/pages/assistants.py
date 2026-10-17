@@ -16,6 +16,7 @@ from core.assistants import (
 )
 from core.prompt_improver import improve_prompt_with_main_model
 from core.i18n import t
+from ui.components.flash import flash_error, flash_success
 from core.services import get_services, service_supports_reasoning_effort, default_reasoning_effort, get_model_reasoning_effort_options
 from core.tools_utils import (
     list_tool_definitions, service_supported_tools, build_rag_search_tool,
@@ -186,7 +187,7 @@ def page_assistants() -> None:
                 except Exception:
                     default_ws_settings = {}
             else:
-                st.error(t("skill_not_found", lang=lang))
+                flash_error(t("skill_not_found", lang=lang))
                 _set_show_form(False)
                 _set_edit_id(None)
                 st.rerun()
@@ -246,7 +247,7 @@ def page_assistants() -> None:
                                and k != f"assistant_prompt_text_{new_rev}"]:
                         st.session_state.pop(_k, None)
                     st.session_state["assistant_prompt_revision"] = new_rev
-                    st.success(t("improve_prompt_ok", lang=lang))
+                    flash_success(t("improve_prompt_ok", lang=lang))
                     st.rerun()
 
         st.markdown("---")
@@ -442,7 +443,7 @@ def page_assistants() -> None:
                     with c2:
                         if st.button(t("delete_file", lang=lang), key=f"del_assistant_file_{fname}"):
                             delete_assistant_file(edit_id, fname)
-                            st.success(t("deleted_ok", lang=lang))
+                            flash_success(t("deleted_ok", lang=lang))
                             st.rerun()
             else:
                 st.caption(t("no_files", lang=lang))
@@ -455,16 +456,26 @@ def page_assistants() -> None:
             if uploaded_files:
                 if st.button(t("btn_add_files", lang=lang), key="assistant_add_files"):
                     added = 0
+                    failures = []
                     for uf in uploaded_files:
                         try:
                             content = uf.getvalue().decode("utf-8")
                             save_assistant_file(edit_id, uf.name, content)
                             added += 1
                         except Exception as e:
-                            st.error(t("skill_file_error", lang=lang, name=uf.name, error=str(e)))
+                            failures.append(
+                                t("skill_file_error", lang=lang,
+                                  name=uf.name, error=str(e)))
                     if added:
-                        st.success(t("files_added", lang=lang, count=added))
+                        # Queued: the rerun below would discard a plain st.*
+                        # call, so both the confirmations and the per-file
+                        # failures are painted on the next render pass.
+                        for msg in failures:
+                            flash_error(msg)
+                        flash_success(t("files_added", lang=lang, count=added))
                         st.rerun()
+                    for msg in failures:
+                        st.error(msg)
         else:
             st.info(t("save_skill_first", lang=lang))
 
@@ -542,7 +553,7 @@ def page_assistants() -> None:
                                 )
                     _set_show_form(False)
                     _set_edit_id(None)
-                    st.success(t("skills_saved", lang=lang))
+                    flash_success(t("skills_saved", lang=lang))
                     st.rerun()
         with c2:
             if st.button(t("btn_cancel", lang=lang), key="assistant_cancel_btn"):
@@ -613,7 +624,7 @@ def page_assistants() -> None:
                                  type="primary", use_container_width=True):
                         delete_assistant(p["id"])
                         st.session_state["assistant_confirm_delete"] = None
-                        st.success(t("skills_deleted", lang=lang))
+                        flash_success(t("skills_deleted", lang=lang))
                         st.rerun()
                 with c_no:
                     if st.button(t("btn_cancel", lang=lang),

@@ -275,7 +275,7 @@ class TestIncrementalHooks:
 
 class TestStemming:
     def test_russian_word_forms_share_one_stem(self):
-        """The audit defect: 'бренд'/'бренда'/'брендов' must merge."""
+        """Word forms of one lemma must share a stem: 'бренд'/'бренда'/'брендов'."""
         forms = [rag_bm25.stem_token(w)
                  for w in ("бренд", "бренда", "брендов")]
         assert len(set(forms)) == 1

@@ -12,6 +12,7 @@ ui/pages/skills_library.py - страница управления библио�
 import streamlit as st
 
 from core.i18n import t
+from ui.components.flash import flash_error, flash_success
 from core.skills_library import (
     list_skills,
     get_skill,
@@ -86,7 +87,7 @@ def _render_import_section(lang: str) -> None:
                         description=zip_desc,
                     )
                     if result.get("ok"):
-                        st.success(t("slib_installed", lang=lang,
+                        flash_success(t("slib_installed", lang=lang,
                                        name=result["skill"]["name"]))
                         st.rerun()
                 except SkillsLibraryError as e:
@@ -125,7 +126,7 @@ def _render_import_section(lang: str) -> None:
                             description=gh_desc,
                         )
                         if result.get("ok"):
-                            st.success(t("slib_installed", lang=lang,
+                            flash_success(t("slib_installed", lang=lang,
                                            name=result["skill"]["name"]))
                             st.rerun()
                     except SkillsLibraryError as e:
@@ -162,7 +163,7 @@ def _render_import_section(lang: str) -> None:
                         description=local_desc,
                     )
                     if result.get("ok"):
-                        st.success(t("slib_installed", lang=lang,
+                        flash_success(t("slib_installed", lang=lang,
                                        name=result["skill"]["name"]))
                         st.rerun()
                 except SkillsLibraryError as e:
@@ -233,7 +234,7 @@ def _render_edit_form(lang: str) -> None:
     skill_id = st.session_state.get("slib_edit_id")
     skill = get_skill(skill_id)
     if skill is None:
-        st.error(t("slib_not_found", lang=lang))
+        flash_error(t("slib_not_found", lang=lang))
         st.session_state["slib_edit_id"] = None
         st.rerun()
 
@@ -276,7 +277,7 @@ def _render_edit_form(lang: str) -> None:
                         )
                         if ok:
                             st.session_state["slib_edit_id"] = None
-                            st.success(t("slib_saved", lang=lang))
+                            flash_success(t("slib_saved", lang=lang))
                             st.rerun()
                         else:
                             st.error(t("slib_save_error", lang=lang))
@@ -305,7 +306,7 @@ def _render_edit_form(lang: str) -> None:
                         delete_skill(skill_id)
                         st.session_state["slib_edit_id"] = None
                         st.session_state["slib_confirm_delete"] = False
-                        st.success(t("slib_deleted", lang=lang))
+                        flash_success(t("slib_deleted", lang=lang))
                         st.rerun()
                 with c_no:
                     if st.button(t("btn_cancel", lang=lang),
