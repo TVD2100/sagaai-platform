@@ -1225,6 +1225,69 @@ def _coerce_dsml_param(value: str, attrs: str) -> Any:
     return text_val
 
 
+# Marker prefix of the DeepSeek tool-call dialect. Models emit the reserved
+# token before EVERY tag (``<｜｜DSML｜｜ parameter ...>``, U+FF5C fullwidth
+# vertical bars), so a parser expecting a bare ``<parameter`` sees nothing.
+_DSML_MARK = r"(?:[\s\u2502\uFF5C|:]*DSML[\s\u2502\uFF5C|:]*)?"
+
+# Parameter names models use to wrap the whole argument object as JSON.
+_DSML_ARGS_WRAPPERS = ("args", "arguments", "parameters", "kwargs")
+
+
+def _parse_dsml_json_value(raw: str) -> Optional[Any]:
+    """Parse a DSML parameter value that carries JSON, tolerating stray braces.
+
+    Models often duplicate the closing brace of the argument object
+    (``{"path": "a.py"}}``), which breaks ``json.loads``. Repair order: exact
+    parse, then trim trailing ``}``/``]`` one at a time, then decode the first
+    complete JSON value and ignore the trailing garbage.
+    """
+    text = (raw or "").strip()
+    if not text:
+        return None
+    try:
+        return json.loads(text)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        pass
+    trimmed = text
+    while trimmed and trimmed[-1] in "}]":
+        trimmed = trimmed[:-1]
+        try:
+            return json.loads(trimmed)
+        except (json.JSONDecodeError, TypeError, ValueError):
+            continue
+    if text[:1] in "{[":
+        try:
+            value, _end = json.JSONDecoder().raw_decode(text)
+            return value
+        except (json.JSONDecodeError, TypeError, ValueError):
+            pass
+    return None
+
+
+def _unwrap_dsml_args(args: Dict[str, Any]) -> Dict[str, Any]:
+    """Flatten a single ``args``/``arguments``-style wrapper parameter.
+
+    Models usually emit the whole call as one JSON parameter
+    (``<parameter name="args" string="false">{...}</parameter>``). Without
+    unwrapping the tool would receive ``{"args": {...}}`` and reject the call
+    as missing its required arguments.
+    """
+    if not isinstance(args, dict) or len(args) != 1:
+        return args
+    key = next(iter(args))
+    if str(key).strip().lower() not in _DSML_ARGS_WRAPPERS:
+        return args
+    value = args[key]
+    if isinstance(value, dict):
+        return dict(value)
+    if isinstance(value, str):
+        parsed = _parse_dsml_json_value(value)
+        if isinstance(parsed, dict):
+            return parsed
+    return args
+
+
 def _extract_dsml_calls(text: str) -> List[Dict[str, Any]]:
     results: List[Dict[str, Any]] = []
     invoke_pat = re.compile(
@@ -1232,7 +1295,7 @@ def _extract_dsml_calls(text: str) -> List[Dict[str, Any]]:
         re.IGNORECASE,
     )
     param_pat = re.compile(
-        r"<parameter\s+([^>]*)>(.*?)</\s*parameter\s*>",
+        rf"<\s*{_DSML_MARK}\s*parameter\s+([^>]*)>(.*?)<\s*/\s*{_DSML_MARK}\s*parameter\s*>",
         re.IGNORECASE | re.DOTALL,
     )
     attr_pat = re.compile(
@@ -1251,7 +1314,7 @@ def _extract_dsml_calls(text: str) -> List[Dict[str, Any]]:
             if not name_m:
                 continue
             args[name_m.group(1)] = _coerce_dsml_param(pm.group(2), attrs)
-        results.append({"tool": tool_name, "args": args, "_dsml": True})
+        results.append({"tool": tool_name, "args": _unwrap_dsml_args(args), "_dsml": True})
     return results
 
 
@@ -1316,7 +1379,9 @@ def _dsml_json_hint(tool: str, params: str) -> str:
     """Build the JSON-format guidance message for an invalid DSML call."""
     return (
         f"Invalid DSML/XML tool call for '{tool}': required parameter(s) "
-        f"missing or empty: {params}. DSML/XML/HTML tags are never parsed. "
+        f"missing or empty: {params}. DSML/XML is a fallback format: it needs "
+        f"every argument present (own <parameter> tags or one JSON object "
+        f"under name='args'). "
         f"Emit the call as a single fenced JSON block instead, for example:\n"
         f"```json\n{{\"tool\": \"{tool}\", \"args\": {{...}}}}\n```"
     )
@@ -1463,7 +1528,18 @@ def parse_tool_calls(text: str) -> List[Dict[str, Any]]:
         if call is not None:
             results.append(call)
     if not results:
-        results.extend(_extract_dsml_calls(text))
+        dsml_calls = _extract_dsml_calls(text)
+        if dsml_calls and not any(call.get("args") for call in dsml_calls):
+            # DSML markup was recognised but no argument could be recovered
+            # (e.g. a truncated parameter block). Give the JSON repair cascade
+            # a chance before handing the validator a call with empty args -
+            # otherwise the whole step is lost to a format complaint.
+            repaired = _repair_unclosed_tool_json(text)
+            if not repaired:
+                repaired = _cascade_recover_tool_calls(text)
+            results.extend(repaired or dsml_calls)
+        else:
+            results.extend(dsml_calls)
     if not results:
         results = _repair_unclosed_tool_json(text)
     if not results:

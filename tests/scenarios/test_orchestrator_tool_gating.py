@@ -289,17 +289,17 @@ def test_canonical_prompts_do_not_duplicate_the_tool_catalog():
     when  they are inspected,
     then  each prompt delegates the full tool list to the auto-added
           '## Available tools' block, keeps its tool-usage rules in-line
-          and contains no duplicated tool-catalog table; dev_agent is v3.21
+          and contains no duplicated tool-catalog table; dev_agent is v3.22
           and ya_agent is v2.11. The batch-calls rule, the verbatim
-          user-supplied-plan branch, the generated-PROJECT_MAP rule and the
-          Stage 0 recent-workspaces menu (v3.21) are pinned here as
-          invariants.
+          user-supplied-plan branch, the generated-PROJECT_MAP rule, the
+          Stage 0 recent-workspaces menu (v3.21) and the DSML-fallback
+          contract (v3.22) are pinned here as invariants.
     """
     dev = CANONICAL_PROMPT_FILES["dev_agent"].read_text(encoding="utf-8")
     ya = CANONICAL_PROMPT_FILES["ya_agent"].read_text(encoding="utf-8")
 
     # Version headers carry the bumped versions.
-    assert dev.splitlines()[0].endswith("(v3.21)"), dev.splitlines()[0]
+    assert dev.splitlines()[0].endswith("(v3.22)"), dev.splitlines()[0]
     assert ya.splitlines()[0].endswith("(v2.11)"), ya.splitlines()[0]
 
     # RAG context-restore invariant (v3.14): hits carry ids and the
@@ -351,6 +351,11 @@ def test_canonical_prompts_do_not_duplicate_the_tool_catalog():
     # of a plain-prose request for a typed path.
     assert "A concrete existing project is implied" in dev
     assert "IMMEDIATELY offer the numbered list of recent workspaces" in dev
+
+    # DSML-fallback contract invariant (v3.22): the reserved-token dialect is
+    # documented as a working tolerance fallback instead of being denied.
+    assert "JSON-first, DSML fallback" in dev
+    assert "DSML/XML/HTML tags are never parsed" not in dev
 
     # Stale single-call wording is gone from both prompts.
     assert "One tool call per message" not in dev

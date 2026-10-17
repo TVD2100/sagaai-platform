@@ -515,6 +515,12 @@ def _strip_empty_fenced_blocks(text: str) -> str:
     return "\n".join(out)
 
 
+# Reserved DSML token models emit before every tag of the fallback tool-call
+# dialect (``<｜｜DSML｜｜ parameter ...>``, U+FF5C fullwidth vertical bars).
+# The UI must strip such markup together with the plain XML wrappers.
+_DSML_TAG_MARK = r"(?:[\s\u2502\uFF5C|:]*DSML[\s\u2502\uFF5C|:]*)?"
+
+
 def _strip_tool_calls(text: str) -> str:
     """Return assistant text with machine artifacts removed for display.
 
@@ -543,17 +549,26 @@ def _strip_tool_calls(text: str) -> str:
     for name in ("tool_calls", "function_calls", "invoke", "parameter",
                  "json", "question"):
         text = re.sub(
-            rf"<\s*{name}(?:\s[^>]*?)?\s*>.*?<\s*/\s*{name}\s*>",
+            rf"<\s*{_DSML_TAG_MARK}{name}(?:\s[^>]*?)?\s*>.*?<\s*/\s*{_DSML_TAG_MARK}{name}\s*>",
             "",
             text,
             flags=re.IGNORECASE | re.DOTALL,
         )
         text = re.sub(
-            rf"<\s*/?\s*{name}\b[^>]*?>",
+            rf"<\s*/?\s*{_DSML_TAG_MARK}{name}\b[^>]*?>",
             "",
             text,
             flags=re.IGNORECASE,
         )
+
+    # Bare DSML marker tags left over (e.g. a stray ``<|DSML| calls>`` without
+    # a closing partner): drop any tag that mentions the reserved token.
+    text = re.sub(
+        rf"<\s*/?\s*{_DSML_TAG_MARK}[^>]*?>",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
 
     # One-line empty blocks left by removed JSON (```json```, ```json ```).
     text = re.sub(

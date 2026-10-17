@@ -268,8 +268,12 @@
           "sha256": "db2e313abe2dd0a76081c0c9b9b2dfb4d3dc3b16dfbfbb833328c4a6d8d42216"
         },
         "dev_agent/agent_loop.py": {
-          "version": "1.13.1",
-          "sha256": "3820f05265536a50eda0b9de187d5da08765d6acbbf5c03633c77da0b372dba8"
+          "version": "1.14.0",
+          "sha256": "1772ea246da13fd9afba7e1fac110d21c698c479257a8e759f2e23b41d8bbabe",
+          "note": {
+            "ru": "DSML fallback: маркер-толерантный разбор (<｜｜DSML｜｜ parameter>), разворачивание обёртки args, ремонт лишней закрывающей скобки; при нераспознанных аргументах вызов уходит в JSON-ремонт, а не теряется; подсказка больше не отрицает fallback.",
+            "en": "DSML fallback: marker-tolerant parsing (<｜｜DSML｜｜ parameter>), unwrapping of the args wrapper, repair of a duplicated closing brace; when no arguments are recovered the call goes through JSON repair instead of being lost; the guidance no longer denies the fallback."
+          }
         },
         "dev_agent/assistant_detector.py": {
           "version": "1.0.2",
@@ -500,8 +504,12 @@
           "sha256": "a3884d194a0683edf530315627a7e80c5fc3fb01a0b44f7b22a67d3d974b136c"
         },
         "tests/scenarios/test_orchestrator_tool_gating.py": {
-          "version": "1.2.9",
-          "sha256": "722492500b6b0cccd7d746404b8a02c6d12b905bf4d1642bedcd6d076a2dfe6d"
+          "version": "1.2.10",
+          "sha256": "91691bffee75f6c7c45967f163c0e247d070dfac23848d337f8585b19922573a",
+          "note": {
+            "ru": "Пин промпта DevAgent v3.22 и инвариант DSML-fallback (резервный формат описан как работающий).",
+            "en": "Pins the DevAgent v3.22 prompt and the DSML-fallback invariant (the fallback format is documented as working)."
+          }
         },
         "tests/scenarios/test_project_map_freshness_scenario.py": {
           "version": "1.0.0",
@@ -856,8 +864,12 @@
           "sha256": "79033dd1f0c8aecf91320b9098ebdadd6308fdf3ea64c5ee601c5f0290a7548c"
         },
         "tests/test_phase1_agent_loop.py": {
-          "version": "1.3.0",
-          "sha256": "cbc119e25e281dd749c761fbfdf370b8369eeb11efae136333c098e4097a0c5d"
+          "version": "1.3.1",
+          "sha256": "edd17622a7eb04b49c9587938f1c52dc9763f90a82ae98911f49facfa36e9fd5",
+          "note": {
+            "ru": "Тесты маркерного DSML-диалекта: разворачивание args, ремонт скобки, батч, валидация, UI-strip.",
+            "en": "Tests for the marker DSML dialect: args unwrapping, brace repair, batch, validation, UI strip."
+          }
         },
         "tests/test_phase1_core_pure.py": {
           "version": "1.0.0",
@@ -1160,8 +1172,12 @@
           "sha256": "9b4054227ddd01bef1c3efb3c8135c1fa8b49d4d6b26d9aa4e15e93e08e34807"
         },
         "ui/pages/orchestrator.py": {
-          "version": "1.15.1",
-          "sha256": "69e53432ed72d560d22ff912d993f5e2a17b013334a4cdf2b87cf4f5fc1701b0"
+          "version": "1.15.2",
+          "sha256": "a881f5d046bed574f161a6ebe3c438ff289edadd38d8dd9a17423631b8476437",
+          "note": {
+            "ru": "Чат: DSML-разметка с резервным токеном (｜｜DSML｜｜) вычищается из текста ответа.",
+            "en": "Chat: DSML markup with the reserved token (｜｜DSML｜｜) is stripped from the rendered answer text."
+          }
         },
         "ui/pages/orchestrator_settings.py": {
           "version": "1.1.1",
@@ -1198,6 +1214,14 @@
         "ui/pages/welcome.py": {
           "version": "1.0.1",
           "sha256": "457f99f30bc68a00c5d0be77afa7ba0123b5c3c3eb59e5f0bdfd10924658d811"
+        },
+        "tests/scenarios/test_dsml_fallback_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "271ffeb90a666fc69dcffc4f5b0f438cf50596e60fedf4dbec0c8912bae82bb5",
+          "note": {
+            "ru": "Сценарные тесты DSML-fallback: исполнение вызова с реальными аргументами, батч, усечённая разметка без пустых args, чистый чат.",
+            "en": "DSML fallback scenarios: a call executes with real arguments, batch order, truncated markup never executes with empty args, clean chat rendering."
+          }
         }
       }
     }
@@ -1228,8 +1252,8 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.35.4",
-      "sha256": "caedf5be9d6753a2cad1955e9376d148dbb55fc432833c69d1c9fe1b5f462f77",
+      "version": "1.35.5",
+      "sha256": "2bcc428602b8843e937849c150dcccbb5c2efd3a5d5e68311e22fe8d1e7137dc",
       "note": {
         "ru": "Перегенерирована карта проекта (фикс пустого label у st.file_uploader в ui/pages/chat.py, обновление Streamlit 1.66.0).",
         "en": "Project map regenerated (empty-label fix for st.file_uploader in ui/pages/chat.py, Streamlit 1.66.0 update)."
@@ -1572,11 +1596,11 @@
       }
     },
     "dev_agent/system_prompt.md": {
-      "version": "3.21",
-      "sha256": "16fb16aa9535cabb89b0363cb71c59ec1f0df9e77b325554fa67319c33a39e03",
+      "version": "3.22",
+      "sha256": "5fe4b571cb691138004aad41cb01fc97b8d576d60415b5fe81e351d0f6fe8b3d",
       "note": {
-        "ru": "DevAgent v3.21: Stage 0 - при явном конкретном проекте без папки агент сразу предлагает нумерованный список последних папок; упомянут UI-селектор «Выбор папки».",
-        "en": "DevAgent v3.21: Stage 0 - with no folder but a concrete project, the agent immediately offers the numbered recent-folders menu; the chat folder selector is mentioned."
+        "ru": "DevAgent v3.22: §5.1 - DSML описан как реально работающий резервный формат (маркерный диалект, разворачивание args), а не как «никогда не парсится».",
+        "en": "DevAgent v3.22: §5.1 describes DSML as a working tolerance fallback (marker dialect, args unwrapping) instead of claiming it is never parsed."
       }
     },
     "langs/en.json": {
@@ -1652,11 +1676,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.8.4",
-      "sha256": "e935d7f8641b163bfece91526a3f7f4a562f918eaaacf7f289fe086faabfba39",
+      "version": "1.8.5",
+      "sha256": "908a9f73b0b29489fc523b5de75751b522ee74706806c172d129f2921e3557bb",
       "note": {
-        "ru": "AGENT.md: FR8 дополнен блоком «Выбор папки» в чате (селектор «Авто» + недавние папки + нативный диалог, применение при отправке); список базовых файлов - 93 (core/folder_dialog.py).",
-        "en": "AGENT.md: FR8 extended with the chat folder picker (Auto + recent folders + native dialog, applied on send); base-file list is 93 (core/folder_dialog.py)."
+        "ru": "AGENT.md FR7: конвенция форматов вызова инструментов - фенс-JSON основной, DSML-диалект с зарезервированным токеном как резерв (толерантный парсинг, разворачивание args, ремонт скобки, чистый чат).",
+        "en": "AGENT.md FR7: tool-call format convention - fenced JSON primary, reserved-token DSML dialect as fallback (tolerant parsing, args unwrapping, brace repair, clean chat)."
       }
     }
   }

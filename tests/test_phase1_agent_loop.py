@@ -500,6 +500,76 @@ class TestDSML:
         assert args["offset"] == 30 and isinstance(args["offset"], int)
         assert args["limit"] == 30 and isinstance(args["limit"], int)
 
+    # ── DeepSeek marker dialect: <｜｜DSML｜｜ tag ...> ─────────────────────
+    # A real failing shape captured from a dialog: the reserved token is
+    # emitted before EVERY tag, the whole argument object is wrapped in one
+    # ``name="args"`` parameter and its closing brace is duplicated.
+
+    _MARK = "\uff5c\uff5cDSML\uff5c\uff5c"
+
+    def _marker_text(self, tool: str, args_json: str) -> str:
+        m = self._MARK
+        return (
+            f'<{m} calls>\n<{m} invoke name="{tool}">\n'
+            f'<{m} parameter name="args" string="false">{args_json}</{m} parameter>\n'
+            f'</{m} invoke>\n</{m} calls>'
+        )
+
+    def test_marker_dialect_args_wrapper_is_unwrapped(self):
+        text = self._marker_text("read_file", '{"path": "tests/conftest.py"}')
+        calls = parse_tool_calls(text)
+        assert len(calls) == 1
+        assert calls[0]["tool"] == "read_file"
+        assert calls[0]["args"] == {"path": "tests/conftest.py"}
+
+    def test_marker_dialect_duplicate_closing_brace_is_repaired(self):
+        text = self._marker_text("read_file", '{"path": "tests/conftest.py"}}')
+        calls = parse_tool_calls(text)
+        assert len(calls) == 1
+        assert calls[0]["args"] == {"path": "tests/conftest.py"}
+
+    def test_marker_dialect_multiple_invokes_keep_all_arguments(self):
+        text = self._marker_text("read_file", '{"path": "a.py", "limit": 120}')
+        text += self._marker_text("run_test", '{"path": "tests/test_ui_pages.py"}')
+        calls = parse_tool_calls(text)
+        assert [c["tool"] for c in calls] == ["read_file", "run_test"]
+        assert calls[1]["args"] == {"path": "tests/test_ui_pages.py"}
+
+    def test_marker_dialect_per_parameter_tags(self):
+        from dev_agent.agent_loop import _extract_dsml_calls
+
+        m = self._MARK
+        text = (
+            f'<{m} invoke name="run_test">'
+            f'<{m} parameter name="path" string="true">tests/x.py</{m} parameter>'
+            f'</{m} invoke>'
+        )
+        calls = _extract_dsml_calls(text)
+        assert calls and calls[0]["args"] == {"path": "tests/x.py"}
+
+    def test_marker_dialect_is_validated_as_complete(self):
+        from dev_agent.agent_loop import _dsml_validation_error
+
+        text = self._marker_text("read_file", '{"path": "a.py"}')
+        call = parse_tool_calls(text)[0]
+        assert call.get("_dsml") is True
+        assert _dsml_validation_error(call["tool"], call["args"]) is None
+
+    def test_dsml_hint_does_not_deny_the_fallback(self):
+        from dev_agent.agent_loop import _dsml_json_hint
+
+        hint = _dsml_json_hint("read_file", "path")
+        assert "never parsed" not in hint
+        assert "fallback" in hint
+
+    def test_ui_strip_removes_marker_markup(self):
+        from ui.pages.orchestrator import _strip_tool_calls
+
+        text = "Готово.\n\n" + self._marker_text("run_test", '{"path": "tests/x.py"}')
+        stripped = _strip_tool_calls(text)
+        assert "DSML" not in stripped
+        assert stripped.strip() == "Готово."
+
     def test_parse_dsml_with_tool_calls_wrapper(self):
         from dev_agent.agent_loop import _extract_dsml_calls
         text = (
