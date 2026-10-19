@@ -1455,10 +1455,25 @@ def _fallback_parse_propose_file(text: str) -> Optional[Dict[str, Any]]:
     if not m:
         return None
     string_start = content_start + m.end()
-    string_match = re.search(r'("(?:[^"\\]|\\.)*")', text[string_start:])
-    if not string_match:
+    # Scan forward from the opening quote, honouring backslash escapes, to
+    # find the UNESCAPED quote that closes the content value. The previous
+    # regex started at the same place but matched the first internal quote
+    # and silently trimmed the file head.
+    value_start = string_start - 1
+    i = value_start + 1
+    bs = chr(92)
+    q = chr(34)
+    while i < len(text):
+        ch = text[i]
+        if ch == bs:
+            i += 2
+            continue
+        if ch == q:
+            break
+        i += 1
+    else:
         return None
-    raw_string = string_match.group(1)
+    raw_string = text[value_start : i + 1]
     try:
         content_val = json.loads(raw_string)
     except json.JSONDecodeError:

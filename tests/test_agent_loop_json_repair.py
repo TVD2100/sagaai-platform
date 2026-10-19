@@ -18,6 +18,7 @@ from dev_agent.agent_loop import (
     parse_tool_calls,
     _repair_unclosed_braces,
     _repair_unclosed_tool_json,
+    _fallback_parse_propose_file,
 )
 
 
@@ -215,3 +216,45 @@ def test_identical_broken_call_stops_the_loop(monkeypatch):
     assert 'SAME broken tool-call JSON' in result.text
     assert disp.calls == []
 
+
+
+# --- _fallback_parse_propose_file must not truncate the file head -----------
+
+def _pf_payload(content, path="x.md"):
+    """Build a valid propose_file tool-call payload with JSON-escaped content."""
+    q = chr(34)
+    bs = chr(92)
+    escaped = content.replace(bs, bs + bs).replace(q, bs + q)
+    return ("{" + q + "tool" + q + ": " + q + "propose_file" + q + ", "
+            + q + "args" + q + ": {" + q + "path" + q + ": " + q + path + q + ", "
+            + q + "content" + q + ": " + q + escaped + q + "}}")
+
+
+def test_fallback_preserves_content_with_inner_quotes():
+    """The legacy fallback must not silently trim content at the first
+    internal quote (the production symptom lost the file head and wrote
+    'type": "function"...' on disk)."""
+    q = chr(34)
+    nl = chr(10)
+    content = ("# ADR" + nl + nl
+               + "{" + q + "type" + q + ": " + q + "function" + q + ", "
+               + q + "name" + q + ": " + q + "x" + q + "}" + nl
+               + "TAIL" + nl)
+    call = _fallback_parse_propose_file(_pf_payload(content))
+    assert call is not None
+    assert call["args"]["content"] == content
+    assert call["args"]["path"] == "x.md"
+
+
+def test_fallback_preserves_content_with_fences_and_box_drawing():
+    """Content with markdown fences and box-drawing chars survives intact."""
+    fb = chr(96) * 3
+    q = chr(34)
+    nl = chr(10)
+    content = ("# ADR" + nl + nl + fb + "json" + nl
+               + "{" + q + "a" + q + ": 1}" + nl + fb + nl
+               + "Diagram: " + chr(0x2500) + " " + chr(0x2502) + nl
+               + "Tail" + nl)
+    call = _fallback_parse_propose_file(_pf_payload(content))
+    assert call is not None
+    assert call["args"]["content"] == content
