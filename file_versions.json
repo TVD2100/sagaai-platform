@@ -1284,11 +1284,11 @@
       }
     },
     "README.md": {
-      "version": "1.25.8",
-      "sha256": "ff09991f16e177554d3500137a3bacf4ddf70eb93f6f18532fa42f6b49a378d4",
+      "version": "1.27.0",
+      "sha256": "17f8f2cae851bbcbd927a98a65b09786144cef20ef517a14a5ecd1bdfe3b7cab",
       "note": {
-        "ru": "README.md: статус версии обновлён под релиз 2.1.0, добавлен пункт про блок «Выбор папки» в чате.",
-        "en": "README.md: the status line is updated for release 2.1.0 and a bullet about the chat folder picker is added."
+        "ru": "README.md: раздел «Кому подходит» расширен - некоммерческие сценарии (учёба, наука, НКО, личные проекты) идут первыми, добавлен блок о сотрудниках под конкретные роли (маркетолог, финансист, исследователь, секретарь, аналитик, юрист-ассистент) и способах их создания.",
+        "en": "README.md: the audience section is expanded - non-commercial scenarios (study, research, non-profits, personal projects) come first, and a block about role-specific employees (marketer, finance, researcher, secretary, analyst, legal assistant) and how to create them is added."
       }
     },
     "defaults/README.md": {
