@@ -1459,6 +1459,61 @@ class TestDsmlStepLoop:
         else:
             assert first[0] == "read_file" and first[1]["path"] == "x.py"
 
+    def test_valid_dsml_success_appends_json_notice(self):
+        from dev_agent.agent_loop import _DSML_STOP_NOTICE
+
+        class RecDispatcher(FakeDispatcher):
+            def dispatch_json(self, call):
+                return {"ok": True, "read": True}
+
+            def dispatch(self, tool, args):
+                return {"ok": True, "read": True}
+
+        state = AgentLoopState()
+        state.phase = "executing"
+        state.parsed_calls = [{"tool": "read_file", "args": {"path": "x.py"}, "_dsml": True}]
+        step_agent_loop(state, dispatcher=RecDispatcher())
+        assert _DSML_STOP_NOTICE in state.user_message
+        assert '"notice"' in state.user_message
+
+    def test_plain_json_success_gets_no_dsml_notice(self):
+        from dev_agent.agent_loop import _DSML_STOP_NOTICE
+
+        class RecDispatcher(FakeDispatcher):
+            def dispatch_json(self, call):
+                return {"ok": True}
+
+            def dispatch(self, tool, args):
+                return {"ok": True}
+
+        state = AgentLoopState()
+        state.phase = "executing"
+        state.parsed_calls = [{"tool": "read_file", "args": {"path": "x.py"}}]
+        step_agent_loop(state, dispatcher=RecDispatcher())
+        assert _DSML_STOP_NOTICE not in state.user_message
+
+    def test_mixed_json_with_dsml_tail_success_gets_notice(self):
+        from dev_agent.agent_loop import _DSML_STOP_NOTICE
+
+        class RecDispatcher(FakeDispatcher):
+            def dispatch_json(self, call):
+                return dict(ok=True)
+
+            def dispatch(self, tool, args):
+                return dict(ok=True)
+
+        NL = chr(10)
+        call_json = '```json' + NL + '{"tool": "read_file", "args": {"path": "a.py"}}' + NL + '```' + NL
+        dsml_tail = '<｜｜DSML｜｜ invoke name="read_file">' + NL + '</｜｜DSML｜｜ invoke>'
+        text = 'Reading file.' + NL + call_json + dsml_tail
+        state = AgentLoopState()
+        state.phase = 'executing'
+        state.assistant_text = text
+        state.parsed_calls = parse_tool_calls(text)
+        step_agent_loop(state, dispatcher=RecDispatcher())
+        assert state.parsed_calls
+        assert _DSML_STOP_NOTICE in state.user_message
+
 
 # ── Per-tool consecutive-failure counter (loop-stuck protection) ─────────────
 

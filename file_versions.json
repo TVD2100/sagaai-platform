@@ -272,11 +272,11 @@
           "sha256": "db2e313abe2dd0a76081c0c9b9b2dfb4d3dc3b16dfbfbb833328c4a6d8d42216"
         },
         "dev_agent/agent_loop.py": {
-          "version": "1.14.3",
-          "sha256": "afb368eb4405ddd441c776fc5b19cfe5c134ea0654cc09906f23ed7bfa4f0e56",
+          "version": "1.15.0",
+          "sha256": "487e8497fcfe4409a931a6c6fc0dfddeef63e04b51b5644f96cbb1798e0d198f",
           "note": {
-            "ru": "DSML: JSON-объект в аргументах распознаётся после мусорного фрагмента атрибута (string=\"false\">false\">{...}); дважды обёрнутая JSON-строка в args разворачивается в словарь. Fallback-извлечение content теперь идёт посимвольно от открывающей кавычки с учётом экранирования и не обрезает голову файла на первой внутренней кавычке.",
-            "en": "DSML: the argument JSON object is found after a stray attribute fragment (string=\"false\">false\">{...}); a double-wrapped JSON string in args is unwrapped into a dict. The fallback content extraction now scans char-by-char from the opening quote honouring escapes, so it no longer trims the file head at the first internal quote."
+            "ru": "DSML: JSON-объект в аргументах распознаётся после мусорного фрагмента атрибута (string=\"false\">false\">{...}); дважды обёрнутая JSON-строка в args разворачивается в словарь. Fallback-извлечение content теперь идёт посимвольно от открывающей кавычки с учётом экранирования и не обрезает голову файла на первой внутренней кавычке. После успешно исполненного шага, использовавшего DSML-разметку, модель получает напоминание о переходе на чистый JSON.",
+            "en": "DSML: the argument JSON object is found after a stray attribute fragment (string=\"false\">false\">{...}); a double-wrapped JSON string in args is unwrapped into a dict. The fallback content extraction now scans char-by-char from the opening quote honouring escapes, so it no longer trims the file head at the first internal quote. A successfully executed DSML step gets a reminder to switch to plain JSON."
           }
         },
         "dev_agent/assistant_detector.py": {
@@ -868,11 +868,11 @@
           "sha256": "79033dd1f0c8aecf91320b9098ebdadd6308fdf3ea64c5ee601c5f0290a7548c"
         },
         "tests/test_phase1_agent_loop.py": {
-          "version": "1.3.2",
-          "sha256": "7be2671915f9334adffbd3485ad0d3df72ca6776947fc32d214450bfae6e9d34",
+          "version": "1.3.3",
+          "sha256": "e0ee456a52212c0161648df371a209c6cd78a567d43093edf39efa6fcb7f62de",
           "note": {
-            "ru": "Тесты маркерного DSML-диалекта: разворачивание args, ремонт скобки, батч, валидация, UI-strip, мусорный префикс перед JSON, двойная обёртка JSON-строкой.",
-            "en": "Marker DSML dialect tests: args unwrapping, brace repair, batch, validation, UI strip, stray prefix before JSON, double wrapping in a JSON string."
+            "ru": "Тесты маркерного DSML-диалекта: разворачивание args, ремонт скобки, батч, валидация, UI-strip, мусорный префикс перед JSON, двойная обёртка JSON-строкой, напоминание о JSON после успешного DSML-шага.",
+            "en": "Marker DSML dialect tests: args unwrapping, brace repair, batch, validation, UI strip, stray prefix before JSON, double wrapping in a JSON string, the JSON-only reminder after a successful DSML step."
           }
         },
         "tests/test_phase1_core_pure.py": {
@@ -1280,8 +1280,8 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.37.0",
-      "sha256": "ce25fec957f7eff1e05a6a20abc376f4097d68b1a3e40465675276a03488bbba",
+      "version": "1.37.1",
+      "sha256": "3084ec3eae0dc8e6e690567adc3b33bf825bcf4567dc568141c14c0016ff21df",
       "note": {
         "ru": "Карта проекта перегенерирована: два новых файла коннекторов, описания ролей обновлены.",
         "en": "Project map regenerated: two new connector files, role descriptions updated."
@@ -1704,11 +1704,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.9.0",
-      "sha256": "22d0b66a4a9fd2e726b8689f2236623515e93e29723a23a5235c2e20eb10aebb",
+      "version": "1.9.1",
+      "sha256": "c1abe0bf2c0d7b46c0b900b7a154958a802c7168a5c7463e805941d96db36ab4",
       "note": {
-        "ru": "AGENT.md FR11: создание подключений через DevAgent - черновики pending без секретов, 11 инструментов коннекторов, файл памяти подключения, инструкция connector_creator.",
-        "en": "AGENT.md FR11: connector creation through DevAgent - pending drafts without secrets, 11 connector tools, the connection memory file, the connector_creator instruction."
+        "ru": "AGENT.md FR11: создание подключений через DevAgent - черновики pending без секретов, 11 инструментов коннекторов, файл памяти подключения, инструкция connector_creator; FR7 дополнена: напоминание о JSON после успешного DSML-шага.",
+        "en": "AGENT.md FR11: connector creation through DevAgent - pending drafts without secrets, 11 connector tools, the connection memory file, the connector_creator instruction; FR7 updated: JSON-only reminder after a successful DSML step."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/connector_creator.md": {

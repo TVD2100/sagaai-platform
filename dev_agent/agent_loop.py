@@ -1233,6 +1233,25 @@ _DSML_MARK = r"(?:[\s\u2502\uFF5C|:]*DSML[\s\u2502\uFF5C|:]*)?"
 # Parameter names models use to wrap the whole argument object as JSON.
 _DSML_ARGS_WRAPPERS = ("args", "arguments", "parameters", "kwargs")
 
+# Raw-markup detector for the mixed JSON+DSML case: the fenced JSON part of a
+# message parses and executes while DSML tags remain beside it. Fenced JSON is
+# masked first, so DSML-looking text inside string arguments is not counted.
+_JSON_FENCE_RE = re.compile(r"```[a-zA-Z0-9_\-]*\s*.*?```", re.DOTALL)
+_DSML_USAGE_RE = re.compile(r"<\s*/?\s*[^<>]*DSML[^<>]*>", re.IGNORECASE)
+
+
+def _uses_dsml_markup(text: str) -> bool:
+    """Return True when *text* carries DSML tag markup outside JSON fences."""
+    if not text:
+        return False
+    return bool(_DSML_USAGE_RE.search(_JSON_FENCE_RE.sub("", text)))
+
+# Contract guidance returned to the model after a successfully executed
+# fallback-dialect (DSML or mixed DSML+JSON) step: the call worked, but the
+# only supported tool-call format is fenced JSON. The reminder travels with
+# the tool results until the model switches to plain JSON.
+_DSML_STOP_NOTICE = "Don't use DSML anymore, use only JSON for tool calling"
+
 
 def _parse_dsml_json_value(raw: str, _depth: int = 0) -> Optional[Any]:
     """Parse a DSML parameter value that carries JSON, tolerating stray braces.
@@ -2993,6 +3012,12 @@ def _step_agent_loop_impl(
         tool_results_parts: List[str] = []
         _USER_GATED = {"apply_edit", "discard_edit"}
         all_ok = True
+        # Whether this step used the fallback DSML dialect (a _dsml-marked
+        # call or raw DSML markup beside parsed JSON) and whether any of its
+        # calls actually executed: a successful fallback step still gets the
+        # JSON-only reminder appended to its tool results.
+        dsml_in_step = any(call.get("_dsml") for call in state.parsed_calls) or _uses_dsml_markup(state.assistant_text)
+        any_call_ok = False
 
         for call in state.parsed_calls:
             tool = call["tool"]
@@ -3047,6 +3072,7 @@ def _step_agent_loop_impl(
                     if applied:
                         state.last_failed_signature = ""
                         _reset_tool_failures(state)
+                        any_call_ok = True
                         emit({"type": "applied", "tool": tool, "result": result, "path": result.get("path", ""), "step": state.steps})
                         tool_results_parts.append(
                             json.dumps({"tool_result": result}, ensure_ascii=False)
@@ -3103,6 +3129,7 @@ def _step_agent_loop_impl(
                     if applied:
                         state.last_failed_signature = ""
                         _reset_tool_failures(state)
+                        any_call_ok = True
                         emit({"type": "applied", "tool": tool, "result": result, "path": result.get("path", ""), "step": state.steps})
                         tool_results_parts.append(
                             json.dumps({"tool_result": result}, ensure_ascii=False)
@@ -3222,6 +3249,7 @@ def _step_agent_loop_impl(
                 else:
                     state.last_failed_signature = ""
                     _reset_tool_failures(state)
+                    any_call_ok = True
                 if tool in _WORKSPACE_TOOLS:
                     _update_workspace_info(state, result)
                 if tool in _READ_TOOLS:
@@ -3235,6 +3263,18 @@ def _step_agent_loop_impl(
 
         if all_ok:
             state.consecutive_errors = 0
+
+        # DSML-discipline reminder: a successfully executed fallback-dialect
+        # call still means the step used DSML - append the one-line contract
+        # guidance so the model switches to plain fenced JSON. Sent once per
+        # step, alongside the tool results of that step.
+        if dsml_in_step and any_call_ok:
+            notice_result = {"ok": True, "notice": _DSML_STOP_NOTICE}
+            emit({"type": "tool_result", "tool": "parse_tool_calls",
+                  "result": notice_result, "step": state.steps})
+            tool_results_parts.append(
+                json.dumps({"tool_result": notice_result}, ensure_ascii=False)
+            )
 
         # Report blocks of this batch that failed to parse next to the
         # results of the calls that DID execute (one-shot, then cleared).
