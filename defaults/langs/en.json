@@ -70,6 +70,7 @@
   "connectors_empty": "No connections yet. Create the first one!",
   "connectors_has_token": "token set",
   "connectors_has_secrets": "secrets set: {fields}",
+  "connectors_needs_credentials": "credentials required",
   "connectors_host": "Host",
   "connectors_key_passphrase": "Key passphrase",
   "connectors_password": "Password",

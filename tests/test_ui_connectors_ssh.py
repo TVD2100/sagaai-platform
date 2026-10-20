@@ -258,3 +258,28 @@ def test_ssh_test_button_reports_failure(st_mock):
     assert "auth failed" in st_mock.errors[0]
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
+
+# ── pending (credentials required) badge ──────────────────────────────────────
+
+
+def test_pending_card_shows_credentials_warning(st_mock):
+    page = _page()
+    pending_conn = dict(SSH_CONN)
+    pending_conn["has_secrets"] = False
+    pending_conn["secrets_masked"] = {}
+    pending_conn["credentials_status"] = "pending"
+    _render_page(page, [pending_conn])
+
+    warnings = [c[1][0] for c in st_mock.calls if c[0] == "warning"]
+    assert any("credentials required" in w for w in warnings)
+
+
+def test_active_card_shows_no_credentials_warning(st_mock):
+    page = _page()
+    active_conn = dict(SSH_CONN)
+    active_conn["credentials_status"] = "active"
+    _render_page(page, [active_conn])
+
+    warnings = [c[1][0] for c in st_mock.calls if c[0] == "warning"]
+    assert not any("credentials required" in w for w in warnings)

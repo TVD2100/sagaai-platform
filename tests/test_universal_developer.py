@@ -460,3 +460,90 @@ def test_read_file_window_reports_remaining_and_hint(code_ws):
     assert res["remaining"] == 7
     assert "hint" in res
     assert "10 lines" in res["hint"]
+
+
+# ── connector management tools (dispatch) ─────────────────────────────────────
+
+
+def test_connector_tools_in_catalog_and_extra():
+    agent = UniversalDevAgent()
+    names = {t["name"] for t in agent.tool_catalog}
+    for tool in ("list_connections", "get_connection", "list_connector_services",
+                 "create_connection", "update_connection", "delete_connection",
+                 "test_connection", "get_enabled_connections",
+                 "set_enabled_connections", "get_connection_memory",
+                 "set_connection_memory"):
+        assert tool in names, tool
+        assert tool in agent._extra, tool
+
+
+def test_connector_tools_reject_unknown_args(code_ws):
+    agent = UniversalDevAgent()
+    res = agent.dispatch("list_connections", {"bogus": 1})
+    assert res.get("ok") is False
+    assert res.get("unknown_args") == ["bogus"]
+    assert "Usage:" in res.get("suggestion", "")
+
+
+def test_create_connection_via_dispatch_keeps_secrets_out(tmp_path):
+    import json
+    import core.paths
+    agent = UniversalDevAgent()
+    # Sandbox: connectors live inside core.paths.DATA_DIR/connectors.
+    # The dispatch result must be a PUBLIC manifest with no secret material.
+    res = agent.dispatch("create_connection", {
+        "service": "github_rest", "name": "Secret GH", "token": "ghp_secret_never_leak",
+    })
+    assert res.get("ok") is True, res
+    dumped = json.dumps(res)
+    assert "ghp_secret_never_leak" not in dumped
+    assert "token_encrypted" not in dumped
+    conn = res["connection"]
+    # Clean up the sandboxed connection so real DATA_DIR stays untouched.
+    path = os.path.join(core.paths.DATA_DIR, "connectors", str(conn["id"]))
+    if os.path.isdir(path):
+        import shutil
+        shutil.rmtree(path, ignore_errors=True)
+
+
+def test_pending_draft_via_dispatch(code_ws, tmp_path):
+    import core.paths
+    agent = UniversalDevAgent()
+    res = agent.dispatch("create_connection", {
+        "service": "ssh", "name": "Draft SSH", "pending": True,
+        "config": {"host": "srv.example", "username": "deploy"},
+    })
+    assert res.get("ok") is True, res
+    conn = res["connection"]
+    assert conn["credentials_status"] == "pending"
+    assert conn["has_secrets"] is False
+    # A pending draft rejects decryption with a clean error.
+    mem = agent.dispatch("get_connection", {"conn_id": conn["id"]})
+    assert mem.get("ok") is True
+    # Cleanup the sandboxed folder.
+    path = os.path.join(core.paths.DATA_DIR, "connectors", str(conn["id"]))
+    if os.path.isdir(path):
+        import shutil
+        shutil.rmtree(path, ignore_errors=True)
+
+
+def test_connection_memory_tools_via_dispatch(code_ws, tmp_path):
+    import core.paths
+    agent = UniversalDevAgent()
+    created = agent.dispatch("create_connection", {
+        "service": "github_rest", "name": "Mem GH", "token": "ghp_mem",
+    })
+    conn = created["connection"]
+    empty = agent.dispatch("get_connection_memory", {"conn_id": conn["id"]})
+    assert empty.get("ok") is True and empty["content"] == ""
+    saved = agent.dispatch("set_connection_memory", {
+        "conn_id": conn["id"], "content": "shared hosting\nno ports > 1024",
+    })
+    assert saved.get("ok") is True
+    read = agent.dispatch("get_connection_memory", {"conn_id": conn["id"]})
+    assert read.get("ok") is True
+    assert "no ports > 1024" in read["content"]
+    path = os.path.join(core.paths.DATA_DIR, "connectors", str(conn["id"]))
+    if os.path.isdir(path):
+        import shutil
+        shutil.rmtree(path, ignore_errors=True)

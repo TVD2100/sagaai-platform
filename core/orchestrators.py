@@ -641,6 +641,8 @@ def _extend_prompt_with_connections(prompt: str, orchestrator_slug: str = DEVAGE
         line = f"- `{conn_id}` - {service} ({name})"
         if account:
             line += f", account: {account}"
+        if str(conn.get("credentials_status") or "") == "pending":
+            line += " (credentials pending - fill them on the Connectors page)"
         conn_lines.append(line)
 
     lines = [
@@ -673,6 +675,7 @@ def _extend_prompt_with_connections(prompt: str, orchestrator_slug: str = DEVAGE
     lines.append("")
     lines.append("Quick usage notes:")
     lines.append("- Always pass `connector_id` (from the list above) as the first argument.")
+    lines.append("- Each connection keeps a memory notes file: read it with `get_connection_memory` (and load the matching connector instruction) before working with the connection; after finishing a task, offer to update that memory with `set_connection_memory` (newly discovered limits, paths, rules - never secrets).")
     if "github_rest" in services:
         lines.append("- `repo` accepts `owner/repo` or a bare repo name of the authenticated user.")
         lines.append("- New repo names must be lowercase, without spaces.")

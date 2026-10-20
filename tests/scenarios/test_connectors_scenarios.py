@@ -9,6 +9,9 @@ Walk the feature through its public entry points the way a user would use it:
   4. Orchestrator binding: enabled_connections round-trip and prompt extension.
   5. GitHub REST tools: list-repos tool returns repo metadata; errors become ok=False dicts.
   6. Dispatcher integration: the LLM-facing tool names resolve through UniversalDevAgent.
+  7. Draft flow: a pending draft holds no credential, fills into an active
+     connection on the Connectors page and is then advertised in the prompt
+     without secrets.
 
 These scenarios run without network access: the REST HTTP layer is mocked.
 """
@@ -247,3 +250,58 @@ def test_scenario_github_tool_available_through_dispatcher(isolated_data_dir):
     result = agent.dispatch("ghr_list_repos", {"connector_id": conn["id"]})
     assert result["ok"] is False
     assert "unknown tool" in result.get("error", "").lower()
+
+
+# 7. Draft flow: pending -> fill -> enable -> prompt block --------------------
+def test_scenario_draft_connection_flow(isolated_data_dir):
+    """A DevAgent-created draft keeps no credential and its public views never
+    leak one; after the user fills the credentials on the Connectors page the
+    active connection appears in the prompt without any secret material."""
+    from core.orchestrators import (
+        create_orchestrator,
+        set_enabled_connections,
+        _extend_prompt_with_connections,
+    )
+
+    secret = 'ghp_draft_secret_never_leaks'
+    slug = 'scenario_draft_orch'
+    create_orchestrator(slug, 'Draft Scenario', 'Test')
+
+    draft = connectors.create_connection('github_rest', 'Draft GH', pending=True)
+    conn_id = draft['id']
+    assert draft['credentials_status'] == 'pending'
+    assert draft['has_token'] is False
+
+    # The on-disk manifest stores no token field at all.
+    manifest_path = Path(isolated_data_dir) / 'connectors' / conn_id / 'manifest.json'
+    assert 'token_encrypted' not in manifest_path.read_text(encoding='utf-8')
+
+    # The memory file works in the draft phase and carries no secret.
+    assert connectors.set_connection_memory(conn_id, 'shared hosting / no daemons') is True
+    assert secret not in connectors.get_connection_memory(conn_id)
+
+    # While pending, the prompt marks the connection and leaks nothing.
+    fake_tools = [{'name': 'ghr_list_repos', 'desc': 'List repositories.'}]
+    set_enabled_connections(slug, [conn_id])
+    with mock.patch('core.connectors.get_connection', return_value=draft), mock.patch(
+        'core.github_tools_rest.get_tools', return_value=fake_tools
+    ):
+        pending_prompt = _extend_prompt_with_connections('Base prompt', slug)
+    assert '(credentials pending' in pending_prompt
+    assert secret not in pending_prompt
+
+    updated = connectors.update_connection(conn_id, token=secret)
+    assert updated['credentials_status'] == 'active'
+    assert connectors.decrypt_token(conn_id) == secret
+
+    with mock.patch('core.connectors.get_connection', return_value=updated), mock.patch(
+        'core.github_tools_rest.get_tools', return_value=fake_tools
+    ):
+        prompt = _extend_prompt_with_connections('Base prompt', slug)
+    assert '## Available service connections' in prompt
+    assert conn_id in prompt and 'Draft GH' in prompt
+    assert secret not in prompt
+    assert 'credentials pending' not in prompt
+    assert 'get_connection_memory' in prompt
+
+    set_enabled_connections(slug, [])

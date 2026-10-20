@@ -23,6 +23,17 @@ persisting. Read functions never return secrets; they expose masked views
 ``decrypt_token`` / ``decrypt_secret`` / ``get_connection_secrets`` for the
 service connectors.
 
+Draft connections (``pending=True``) store only the non-secret config and
+carry ``credentials_status: "pending"``; they appear on the Connectors page
+waiting for credentials. Filling credentials later (``update_connection``,
+``set_connection_token``, ``set_connection_secret``) moves the status to
+"active".
+
+Each connection folder may also hold a free-form ``memory.md`` file - the
+agent-maintained notes about the server/account (already discovered limits,
+paths, gotchas). It is managed with ``get_connection_memory`` and
+``set_connection_memory`` and must never contain secrets.
+
 No streamlit imports; errors raise ValueError with a user-facing message.
 """
 from __future__ import annotations
@@ -62,6 +73,10 @@ _VALID_ID_RE = re.compile(r"^[a-z0-9_-]+$")
 
 # Secret field names inside a connection manifest (password, private_key, ...).
 _SECRET_FIELD_RE = re.compile(r"^[a-z0-9_]+$")
+
+# Agent-maintained per-connection notes file; never stores credentials.
+CONNECTION_MEMORY_FILE: str = "memory.md"
+CONNECTION_MEMORY_MAX_BYTES: int = 64 * 1024
 
 
 def _now() -> str:
@@ -219,6 +234,10 @@ def public_manifest(data: Dict[str, Any]) -> Dict[str, Any]:
     config = data.get("config")
     if isinstance(config, dict) and config:
         out["config"] = dict(config)
+    if not out.get("credentials_status"):
+        out["credentials_status"] = (
+            "active" if (out["has_token"] or out["has_secrets"]) else "pending"
+        )
     return out
 
 
@@ -266,7 +285,8 @@ def get_connection_full(conn_id: str) -> Optional[Dict[str, Any]]:
 def create_connection(service: str, name: str, token: str = "",
                       account: str = "",
                       config: Optional[Dict[str, Any]] = None,
-                      secrets: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+                      secrets: Optional[Dict[str, Any]] = None,
+                      pending: bool = False) -> Dict[str, Any]:
     """Create a new connection.
 
     Args:
@@ -279,6 +299,9 @@ def create_connection(service: str, name: str, token: str = "",
             username).
         secrets: per-field plaintext secrets (SSH: password, private_key,
             key_passphrase); each value is encrypted before storage.
+        pending: when True, create a draft connection without credentials
+            (``credentials_status="pending"``); the non-secret ``config`` is
+            still validated and stored, secrets/token are ignored.
 
     Returns the created public manifest.
     """
@@ -298,17 +321,27 @@ def create_connection(service: str, name: str, token: str = "",
         "updated_at": now,
     }
     if svc == "ssh":
-        normalized_secrets = _normalize_secrets(svc, secrets)
-        _validate_ssh_auth(normalized_secrets)
+        # Config is validated and stored in both modes (a draft still
+        # needs host/username to become useful once credentials arrive).
         manifest["config"] = _normalize_config(svc, config)
-        manifest["secrets_encrypted"] = {
-            key: encrypt(val) for key, val in normalized_secrets.items()
-        }
+        if pending:
+            manifest["credentials_status"] = "pending"
+        else:
+            normalized_secrets = _normalize_secrets(svc, secrets)
+            _validate_ssh_auth(normalized_secrets)
+            manifest["secrets_encrypted"] = {
+                key: encrypt(val) for key, val in normalized_secrets.items()
+            }
+            manifest["credentials_status"] = "active"
     else:
-        token = token or ""
-        if not token.strip():
-            raise ValueError("Token cannot be empty")
-        manifest["token_encrypted"] = encrypt(token.strip())
+        if pending:
+            manifest["credentials_status"] = "pending"
+        else:
+            token = token or ""
+            if not token.strip():
+                raise ValueError("Token cannot be empty")
+            manifest["token_encrypted"] = encrypt(token.strip())
+            manifest["credentials_status"] = "active"
     _manifest_write(conn_id, manifest)
     return public_manifest(manifest)
 
@@ -339,6 +372,7 @@ def update_connection(conn_id: str, name: str = "", account: str = "",
         data["account"] = account.strip()
     if (token or "").strip():
         data["token_encrypted"] = encrypt(token.strip())
+        data["credentials_status"] = "active"
     if service == "ssh":
         if isinstance(config, dict) and config:
             merged_cfg = dict(data.get("config") or {})
@@ -354,6 +388,7 @@ def update_connection(conn_id: str, name: str = "", account: str = "",
                     "SSH connection requires either a password or a private key"
                 )
             data["secrets_encrypted"] = merged_enc
+            data["credentials_status"] = "active"
     data["updated_at"] = _now()
     _manifest_write(conn_id, data)
     return public_manifest(data)
@@ -365,6 +400,7 @@ def set_connection_token(conn_id: str, token: str) -> bool:
         raise ValueError("Token cannot be empty")
     data = _manifest_read(conn_id)
     data["token_encrypted"] = encrypt(token.strip())
+    data["credentials_status"] = "active"
     data["updated_at"] = _now()
     _manifest_write(conn_id, data)
     return True
@@ -388,6 +424,8 @@ def decrypt_token(conn_id: str) -> str:
         ValueError: if the connection is missing or decryption fails.
     """
     data = _manifest_read(conn_id)
+    if data.get("credentials_status") == "pending":
+        raise ValueError("Connection credentials have not been set yet")
     token_enc = data.get("token_encrypted", "")
     if not token_enc:
         raise ValueError("Connection has no token")
@@ -408,6 +446,8 @@ def get_connection_secrets(conn_id: str) -> Dict[str, str]:
         ValueError: if the connection is missing or has no secret fields.
     """
     data = _manifest_read(conn_id)
+    if data.get("credentials_status") == "pending":
+        raise ValueError("Connection credentials have not been set yet")
     secrets_enc = data.get("secrets_encrypted")
     if not isinstance(secrets_enc, dict) or not secrets_enc:
         raise ValueError("Connection has no secret fields")
@@ -432,6 +472,8 @@ def decrypt_secret(conn_id: str, field: str) -> str:
     if not field_name:
         raise ValueError("Secret field name cannot be empty")
     data = _manifest_read(conn_id)
+    if data.get("credentials_status") == "pending":
+        raise ValueError("Connection credentials have not been set yet")
     secrets_enc = data.get("secrets_encrypted")
     if not isinstance(secrets_enc, dict) or field_name not in secrets_enc:
         raise ValueError(f"Connection has no secret field: {field_name}")
@@ -471,8 +513,51 @@ def set_connection_secret(conn_id: str, field: str, value: str) -> bool:
     secrets_enc = dict(data.get("secrets_encrypted") or {})
     secrets_enc[field_name] = encrypt(val)
     data["secrets_encrypted"] = secrets_enc
+    data["credentials_status"] = "active"
     data["updated_at"] = _now()
     _manifest_write(conn_id, data)
+    return True
+
+
+def _memory_path(conn_id: str) -> str:
+    """Return the memory.md path for a connection folder."""
+    return os.path.join(_connectors_root(), conn_id, CONNECTION_MEMORY_FILE)
+
+
+def get_connection_memory(conn_id: str) -> str:
+    """Return the agent-maintained memory notes of a connection ('' when absent).
+
+    Best effort: read errors yield an empty string so a missing memory file
+    never breaks a workflow.
+    """
+    try:
+        with open(_memory_path(conn_id), "r", encoding="utf-8") as f:
+            return f.read()
+    except (FileNotFoundError, OSError):
+        return ""
+
+
+def set_connection_memory(conn_id: str, content: str) -> bool:
+    """Replace the memory notes of a connection. Returns True on success.
+
+    The content is capped at ``CONNECTION_MEMORY_MAX_BYTES``. It must never
+    contain credentials - the caller (DevAgent instruction) is responsible
+    for keeping secrets out.
+
+    Raises:
+        ValueError: when the connection is missing or the content is too large.
+    """
+    _manifest_read(conn_id)  # validates that the connection exists
+    data = str(content if content is not None else "")
+    encoded = data.encode("utf-8")
+    if len(encoded) > CONNECTION_MEMORY_MAX_BYTES:
+        raise ValueError(
+            f"Connection memory is too large: {len(encoded)} bytes "
+            f"(max {CONNECTION_MEMORY_MAX_BYTES})"
+        )
+    ensure_dir(os.path.join(_connectors_root(), conn_id))
+    with open(_memory_path(conn_id), "w", encoding="utf-8") as f:
+        f.write(data)
     return True
 
 

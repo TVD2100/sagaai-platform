@@ -336,5 +336,24 @@ roles.update({
 })
 
 
+roles.update({
+    "core/connectors.py": "Connector storage & CRUD: encrypted credential manifest per connection (DATA_DIR/connectors/<id>/manifest.json), pending drafts without credentials (credentials_status), per-field SSH secrets, per-connection memory file (64 KiB cap), services registry",
+    "core/orchestrators.py": "Orchestrator API; _extend_prompt_with_connections advertises enabled connections (per-service tool catalogs, credentials-pending marker, connection-memory quick notes); enabled_connections binding; disabled_tools blacklist; save keeps the DB write when the folder mirror fails",
+    "dev_agent/universal_agent.py": "Universal dispatcher (core + workspace + orchestrator tools, incl. thread search and connection tools: list/get/create/update/delete/test connections, enabled bindings, connector services, per-connection memory); empty-state guard and thread workspace-meta persistence",
+    "ui/pages/connectors.py": "Connectors page: list/create/update/delete connections, test them, fill credentials, pending-draft warning; per-service forms (GitHub REST token, SSH host/port/username + secrets)",
+    "tests/test_connectors.py": "Unit tests for core.connectors: CRUD, encrypted token/secrets storage, public-view leak guard, pending drafts, connection memory",
+    "tests/test_orchestrator_connections.py": "Unit tests for the connection prompt extension: enabled binding, per-service tool catalogs, credentials-pending marker, memory quick notes",
+    "tests/test_ui_connectors_ssh.py": "UI tests for the connectors page SSH support and the pending-credentials warning",
+    "tests/test_universal_developer.py": "UniversalDevAgent tests incl. connection-tool dispatch and disabled_tools gating",
+    "tests/scenarios/test_connectors_scenarios.py": "Scenario tests for the connectors feature: lifecycle, token safety, validation, orchestrator binding/prompt, GitHub tools, dispatcher integration, draft flow",
+    "tests/test_devagent_instructions.py": "Invariant tests for the canonical DevAgent instruction files (connector_creator, ssh_connector, github_connector): structure, draft flow, memory discipline, no-secrets rules",
+    "defaults/orchestrators/dev_agent/instructions/connector_creator.md": "DevAgent instruction: creating service connections via pending drafts (no credentials in the chat), Connectors page fill, verification, enabling for orchestrators, memory seeding",
+    "defaults/orchestrators/dev_agent/instructions/ssh_connector.md": "DevAgent instruction for the ssh_* tools: first-connection server identification, tool usage, mandatory per-connection memory file",
+    "defaults/orchestrators/dev_agent/instructions/github_connector.md": "DevAgent orchestrator copy of the github_connector instruction (kept identical to the global one)",
+    "defaults/instructions/ssh_connector.md": "Global ssh_connector instruction (identical to the DevAgent copy): ssh_* tools, first-connection rules, connection memory file",
+    "defaults/instructions/github_connector.md": "Global github_connector instruction: ghr_* REST tool usage, batch publishing, the mandatory pre-publish secret & personal-data check (STOP and ask the user on a hit), connection memory file",
+})
+
+
 if __name__ == "__main__":
     main()

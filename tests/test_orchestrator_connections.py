@@ -85,9 +85,14 @@ def test_prompt_extended_with_connections(orch_slug):
     assert "## Available service connections" in prompt
     assert "conn_github" in prompt
     assert "alice" in prompt
+    # No credentials_status -> no pending marker.
+    assert "credentials pending" not in prompt
     assert "ghr_list_repos" in prompt
     assert "Quick usage notes" in prompt
     assert "Always pass `connector_id`" in prompt
+    assert "get_connection_memory" in prompt
+    assert "set_connection_memory" in prompt
+    assert "never secrets" in prompt
     assert "`ghr_upload_file` creates a NEW file" in prompt
     assert "`ghr_read_file` first" in prompt
     assert "Prefer `ghr_batch_commit` / `ghr_batch_commit_paths` / `ghr_batch_upsert`" in prompt
@@ -168,3 +173,21 @@ def test_ssh_notes_absent_without_ssh_connection(orch_slug):
     assert "ghr_list_repos" in prompt
     assert "ssh_exec" not in prompt
     assert "ssh_write_file" not in prompt
+
+
+def test_prompt_marks_pending_credentials(orch_slug):
+    """A connection with credentials_status='pending' gets an explicit marker."""
+    from core.orchestrators import _extend_prompt_with_connections, set_enabled_connections
+    set_enabled_connections(orch_slug, ["conn_pending"])
+    conn = {
+        "service": "github_rest", "name": "Pending GH", "account": "",
+        "credentials_status": "pending",
+    }
+    with mock.patch("core.connectors.get_connection", return_value=conn), mock.patch(
+        "core.github_tools_rest.get_tools", return_value=FAKE_TOOLS
+    ):
+        prompt = _extend_prompt_with_connections("Base prompt", orch_slug)
+
+    assert "## Available service connections" in prompt
+    assert "conn_pending" in prompt
+    assert "(credentials pending - fill them on the Connectors page)" in prompt

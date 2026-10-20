@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-10-19T07:57:06+00:00`
-- Файлов: **352**
+- Обновлено: `2026-10-20T13:17:05+00:00`
+- Файлов: **354**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **4622**
-- Отпечаток содержимого: `sha256:7e4942357102df123253615f15c76b6654bf9b4e92ba192f894b7b31918f98a0` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 1, JSON: 21, Markdown: 36, PEM certificate: 1, Python: 296, Text: 1
+- Python-символов: **4664**
+- Отпечаток содержимого: `sha256:abe73c31556af5f8b165345eb4e53ab182f046a3a813a127478c417c86bc84d4` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 1, JSON: 21, Markdown: 37, PEM certificate: 1, Python: 297, Text: 1
 
 ## Файлы и назначение
 
@@ -26,7 +26,7 @@
 | `ui/pages/access.py` | Python | _(описание не задано)_ | - |
 | `ui/pages/assistants.py` | Python | Assistants management page (create/edit/delete assistant profiles, files, tools) | - |
 | `ui/pages/chat.py` | Python | Chat page for AI assistants: selector, history, send form | - |
-| `ui/pages/connectors.py` | Python | _(описание не задано)_ | - |
+| `ui/pages/connectors.py` | Python | Connectors page: list/create/update/delete connections, test them, fill credentials, pending-draft warning; per-service forms (GitHub REST token, SSH host/port/username + secrets) | - |
 | `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | - |
 | `ui/pages/orchestrator.py` | Python | Reusable orchestrator page (chat/history/settings incl. skills tab; no employee export/import UI; step events attach to the user message when the first LLM call fails; per-message download/copy controls on plain-prose answers; generated image visible immediately in the feed, outside the collapsed tool-result block; empty-state reset on new/reset dialog; thread workspace meta persistence; chat folder picker (Выбор папки): Авто + recent folders + native dialog, applied on send; file upload built into st.chat_input(accept_file="multiple") - no separate dropzone; uploads live only in history/<tid>/files) | storage |
 | `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings page: tabbed sections, the active tab is kept across reruns and pinned after a save | - |
@@ -49,7 +49,7 @@
 | `core/auth.py` | Python | Optional password authentication gate | - |
 | `core/bootstrap.py` | Python | First-run provisioning: Assistant/Employee Creator instructions, DevAgent settings, legacy skill_creator migration | - |
 | `core/config.py` | Python | Configuration load/save with secret encryption and env overlay | storage |
-| `core/connectors.py` | Python | _(описание не задано)_ | - |
+| `core/connectors.py` | Python | Connector storage & CRUD: encrypted credential manifest per connection (DATA_DIR/connectors/<id>/manifest.json), pending drafts without credentials (credentials_status), per-field SSH secrets, per-connection memory file (64 KiB cap), services registry | - |
 | `core/context_guard.py` | Python | Pre-flight context guard (M4/M5/B4): unified input budget input_ceiling=window-max_out and input_budget=0.75*ceiling-prompt, soft trim at 0.75 window, hard cap 0.9, capped output reserve min(max_out, max(4096, 0.25*window)), economy head protection, history_cap() delegates to input_budget | - |
 | `core/crypto.py` | Python | Encryption key handling and Fernet helpers | - |
 | `core/dangerous.py` | Python | Dangerous-code assessment for run_code/run_test | - |
@@ -70,7 +70,7 @@
 | `core/orchestrator_folders.py` | Python | Per-orchestrator folders: bundles, functions, instructions | storage |
 | `core/orchestrator_nav.py` | Python | _(описание не задано)_ | - |
 | `core/orchestrator_tools.py` | Python | _(описание не задано)_ | - |
-| `core/orchestrators.py` | Python | Orchestrator API; build_assistant_dicts (legacy alias build_skill_dicts); enabled_skills for orchestrator skills; save keeps DB write when folder mirror fails | storage |
+| `core/orchestrators.py` | Python | Orchestrator API; _extend_prompt_with_connections advertises enabled connections (per-service tool catalogs, credentials-pending marker, connection-memory quick notes); enabled_connections binding; disabled_tools blacklist; save keeps the DB write when the folder mirror fails | storage |
 | `core/paths.py` | Python | Base directories and thread paths | - |
 | `core/prompt_guard.py` | Python | Prompt-injection protection and sanitization | - |
 | `core/prompt_improver.py` | Python | _(описание не задано)_ | - |
@@ -118,7 +118,7 @@
 | `tests/test_backup_and_safewriter.py` | Python | Backup/safe-writer tests | - |
 | `tests/test_chat_pagination.py` | Python | _(описание не задано)_ | - |
 | `tests/test_cold_start_deps.py` | Python | UI tests for the cold-start dependency warning in ui.app: missing/outdated reports render deps_missing/deps_outdated, no warning when up to date, audit runs once per session, probe errors are swallowed | - |
-| `tests/test_connectors.py` | Python | _(описание не задано)_ | - |
+| `tests/test_connectors.py` | Python | Unit tests for core.connectors: CRUD, encrypted token/secrets storage, public-view leak guard, pending drafts, connection memory | - |
 | `tests/test_context_window_guard.py` | Python | Context-guard tests: output-reserve formula, 32k window, economy head protection, unified input_ceiling/input_budget/history_cap (B4) | - |
 | `tests/test_core_api_json_schema.py` | Python | _(описание не задано)_ | - |
 | `tests/test_core_api_layer.py` | Python | Pure api_layer unit tests | - |
@@ -131,6 +131,7 @@
 | `tests/test_default_imports.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_default_rag_bases.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_dependency_check.py` | Python | Unit tests for core.dependency_check: version parsing/comparison, registry contract, check report with stubbed importlib.metadata, and registry<->requirements.txt consistency | - |
+| `tests/test_devagent_instructions.py` | Python | Invariant tests for the canonical DevAgent instruction files (connector_creator, ssh_connector, github_connector): structure, draft flow, memory discipline, no-secrets rules | - |
 | `tests/test_devagent_thread_workspace.py` | Python | DevAgent thread workspace persistence tests | storage |
 | `tests/test_dispatcher_connections.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_dispatcher_tool_gating.py` | Python | _(описание не задано)_ | storage |
@@ -151,7 +152,7 @@
 | `tests/test_multimodal_tools.py` | Python | Unit tests for the analyze_image/generate_image tools | - |
 | `tests/test_numeric_arg_coercion.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_chat_prefs.py` | Python | _(описание не задано)_ | - |
-| `tests/test_orchestrator_connections.py` | Python | _(описание не задано)_ | storage |
+| `tests/test_orchestrator_connections.py` | Python | Unit tests for the connection prompt extension: enabled binding, per-service tool catalogs, credentials-pending marker, memory quick notes | storage |
 | `tests/test_orchestrator_economy_cache.py` | Python | Orchestrator economy-cache tests: cache-friendly prefix and anchor behaviour | - |
 | `tests/test_orchestrator_folders.py` | Python | Orchestrator folder tests | storage |
 | `tests/test_orchestrator_image_result.py` | Python | UI tests: generated image shown in the chat with a download button | - |
@@ -213,14 +214,14 @@
 | `tests/test_tool_result_size_cap.py` | Python | Tool-result spill policy tests: head+tail preview, hard-cap fallback, UniversalDevAgent path | - |
 | `tests/test_tool_result_storage_summary.py` | Python | Storage-summary tests: verbatim small documents (wire==stored), batch splitter, both persist paths | storage |
 | `tests/test_tools_utils.py` | Python | _(описание не задано)_ | - |
-| `tests/test_ui_connectors_ssh.py` | Python | UI tests for the connectors page SSH support | - |
+| `tests/test_ui_connectors_ssh.py` | Python | UI tests for the connectors page SSH support and the pending-credentials warning | - |
 | `tests/test_ui_flash.py` | Python | Unit tests for ui.components.flash: queueing of every kind, missing/garbage session state tolerated, render_flash paints once and clears, pending queue capped | - |
 | `tests/test_ui_pages.py` | Python | UI page tests | - |
 | `tests/test_ui_tooltips.py` | Python | _(описание не задано)_ | - |
 | `tests/test_ui_tooltips_orchestrator.py` | Python | _(описание не задано)_ | - |
 | `tests/test_universal_agent_thread_files.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_universal_agent_thread_search.py` | Python | Unit tests for the thread-search tools in the universal dispatcher: defaults, access control, argument coercion | storage |
-| `tests/test_universal_developer.py` | Python | UniversalDevAgent tests | storage |
+| `tests/test_universal_developer.py` | Python | UniversalDevAgent tests incl. connection-tool dispatch and disabled_tools gating | storage |
 | `tests/test_updater.py` | Python | _(описание не задано)_ | - |
 | `tests/test_updater_apply.py` | Python | _(описание не задано)_ | - |
 | `tests/test_updater_ui.py` | Python | _(описание не задано)_ | - |
@@ -237,7 +238,7 @@
 | `tests/scenarios/test_assistant_sidebar_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_batch_tool_calls_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_connection_retry_scenarios.py` | Python | _(описание не задано)_ | - |
-| `tests/scenarios/test_connectors_scenarios.py` | Python | _(описание не задано)_ | storage |
+| `tests/scenarios/test_connectors_scenarios.py` | Python | Scenario tests for the connectors feature: lifecycle, token safety, validation, orchestrator binding/prompt, GitHub tools, dispatcher integration, draft flow | storage |
 | `tests/scenarios/test_context_overflow_protection.py` | Python | Scenario: context-overflow protection - spill of a huge tool result and the failed-spill hard error | - |
 | `tests/scenarios/test_dsml_fallback_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_employees_sidebar_scenarios.py` | Python | _(описание не задано)_ | storage |
@@ -299,9 +300,9 @@
 | `storage/repository.py` | Python | High-level CRUD for assistants/threads/config/orchestrators + legacy repo_*_skill wrappers | storage |
 | `storage/repository_devagent.py` | Python | DevAgent thread CRUD (devagent.db) plus thread-search query helpers (filtered listing, message counts, batched/window message loads); thread workspace-meta clearing for the legacy-meta cleanup migration | storage |
 | `defaults/README.md` | Markdown | _(описание не задано)_ | - |
-| `defaults/instructions/github_connector.md` | Markdown | Global github_connector instruction: ghr_* REST tool usage, batch publishing, and the mandatory pre-publish secret & personal-data check (STOP and ask the user on a hit) | - |
+| `defaults/instructions/github_connector.md` | Markdown | Global github_connector instruction: ghr_* REST tool usage, batch publishing, the mandatory pre-publish secret & personal-data check (STOP and ask the user on a hit), connection memory file | - |
 | `defaults/instructions/multimodal_mode.md` | Markdown | Global multimodal_mode instruction: analyze_image/generate_image usage rules and fallbacks | - |
-| `defaults/instructions/ssh_connector.md` | Markdown | _(описание не задано)_ | - |
+| `defaults/instructions/ssh_connector.md` | Markdown | Global ssh_connector instruction (identical to the DevAgent copy): ssh_* tools, first-connection rules, connection memory file | - |
 | `defaults/settings/global.json` | JSON | _(описание не задано)_ | - |
 | `defaults/rag_bases/yaagentai_2020/manifest.json` | JSON | _(описание не задано)_ | - |
 | `defaults/assistants/README.md` | Markdown | _(описание не задано)_ | - |
@@ -320,12 +321,13 @@
 | `defaults/orchestrators/ya_agent/instructions/rag_search_embeddings.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/ya_agent/instructions/yandex_models_reference.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/dev_agent/instructions/assistant_creator.md` | Markdown | _(описание не задано)_ | - |
+| `defaults/orchestrators/dev_agent/instructions/connector_creator.md` | Markdown | DevAgent instruction: creating service connections via pending drafts (no credentials in the chat), Connectors page fill, verification, enabling for orchestrators, memory seeding | - |
 | `defaults/orchestrators/dev_agent/instructions/employee_creator.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/dev_agent/instructions/github_connector.md` | Markdown | DevAgent orchestrator copy of the github_connector instruction (kept identical to the global one) | - |
 | `defaults/orchestrators/dev_agent/instructions/prompt_improver.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/dev_agent/instructions/self_reflection.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/dev_agent/instructions/skill_developer.md` | Markdown | _(описание не задано)_ | - |
-| `defaults/orchestrators/dev_agent/instructions/ssh_connector.md` | Markdown | _(описание не задано)_ | - |
+| `defaults/orchestrators/dev_agent/instructions/ssh_connector.md` | Markdown | DevAgent instruction for the ssh_* tools: first-connection server identification, tool usage, mandatory per-connection memory file | - |
 | `defaults/langs/en.json` | JSON | UI strings (English, incl. token_line_* keys) | - |
 | `defaults/langs/en_guide.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/langs/ru.json` | JSON | UI strings (Russian, incl. token_line_* keys) | - |
@@ -359,7 +361,7 @@
 | `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.23 self-sufficiency rule for comments/docs/tests (no origin attribution); v3.21 Stage 0 recent-folders menu for a concrete project and the chat folder selector; v3.20 AGENT.md docs-first (legacy SPEC.md removed); v3.18 generated-PROJECT_MAP rule; v3.17 compact task-state digest, read_file windows, PRAGMA-first; v3.16 empty-state Stage 0, task-journal and thread-files rules) | - |
 | `dev_agent/task_state.py` | Python | Per-thread task-state journal (plan/progress/handoff) with the thread-files fallback folder when no workspace is selected; compact digest (read_task_state compact=True) and budgeted injection | backup_manager |
 | `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools, legacy skill aliases, skills-library and multimodal tools; empty-state workspace guard (workspace_not_selected, neutral cwd for code=) | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
-| `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace + orchestrator tools, incl. thread search: search_in_threads / list_threads / read_thread; empty-state guard and thread workspace-meta persistence) | storage, tool_executor |
+| `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace + orchestrator tools, incl. thread search and connection tools: list/get/create/update/delete/test connections, enabled bindings, connector services, per-connection memory); empty-state guard and thread workspace-meta persistence | storage, tool_executor |
 | `dev_agent/workspace_binding.py` | Python | Per-thread workspace binding registry (RLock, thread_context, ensure_thread_active) with the empty-state neutral root | - |
 | `dev_agent/workspace_tools.py` | Python | Workspace layer: folders, project map (AST symbols, content fingerprint, GitHub-published scope filter), docs, snapshots; workspace_selected reporting and per-orchestrator recent workspaces (top 10) | backup_manager |
 | `services/deepseek.json` | JSON | DeepSeek service definition (vision_base_url + vision_models catalog) | - |
@@ -433,7 +435,7 @@
 - `_render_create_form` (func, строка 132)
 - `_render_edit_form` (func, строка 185)
 - `_render_connection_card` (func, строка 226)
-- `page_connectors` (func, строка 308)
+- `page_connectors` (func, строка 311)
 
 ### `ui/pages/history.py`
 - `_active_orch_thread_id` (func, строка 29)
@@ -773,32 +775,35 @@
 - `save_devagent_config` (func, строка 452)
 
 ### `core/connectors.py`
-- `_now` (func, строка 67)
-- `_connectors_root` (func, строка 71)
-- `_manifest_path` (func, строка 78)
-- `_manifest_read` (func, строка 84)
-- `_manifest_write` (func, строка 99)
-- `_validate_service` (func, строка 107)
-- `_unique_conn_id` (func, строка 114)
-- `_service_field_names` (func, строка 122)
-- `_secret_field_names` (func, строка 129)
-- `_normalize_config` (func, строка 134)
-- `_normalize_secrets` (func, строка 163)
-- `_validate_ssh_auth` (func, строка 185)
-- `public_manifest` (func, строка 197)
-- `list_connections` (func, строка 225)
-- `get_connection` (func, строка 249)
-- `get_connection_full` (func, строка 258)
-- `create_connection` (func, строка 266)
-- `update_connection` (func, строка 316)
-- `set_connection_token` (func, строка 362)
-- `delete_connection` (func, строка 373)
-- `decrypt_token` (func, строка 384)
-- `get_connection_secrets` (func, строка 400)
-- `decrypt_secret` (func, строка 425)
-- `set_connection_secret` (func, строка 449)
-- `list_services` (func, строка 479)
-- `get_service` (func, строка 489)
+- `_now` (func, строка 82)
+- `_connectors_root` (func, строка 86)
+- `_manifest_path` (func, строка 93)
+- `_manifest_read` (func, строка 99)
+- `_manifest_write` (func, строка 114)
+- `_validate_service` (func, строка 122)
+- `_unique_conn_id` (func, строка 129)
+- `_service_field_names` (func, строка 137)
+- `_secret_field_names` (func, строка 144)
+- `_normalize_config` (func, строка 149)
+- `_normalize_secrets` (func, строка 178)
+- `_validate_ssh_auth` (func, строка 200)
+- `public_manifest` (func, строка 212)
+- `list_connections` (func, строка 244)
+- `get_connection` (func, строка 268)
+- `get_connection_full` (func, строка 277)
+- `create_connection` (func, строка 285)
+- `update_connection` (func, строка 349)
+- `set_connection_token` (func, строка 397)
+- `delete_connection` (func, строка 409)
+- `decrypt_token` (func, строка 420)
+- `get_connection_secrets` (func, строка 438)
+- `decrypt_secret` (func, строка 465)
+- `set_connection_secret` (func, строка 491)
+- `_memory_path` (func, строка 522)
+- `get_connection_memory` (func, строка 527)
+- `set_connection_memory` (func, строка 540)
+- `list_services` (func, строка 564)
+- `get_service` (func, строка 574)
 
 ### `core/context_guard.py`
 - `input_ceiling` (func, строка 50)
@@ -1127,38 +1132,38 @@
 - `get_enabled_connections` (func, строка 577)
 - `set_enabled_connections` (func, строка 591)
 - `_extend_prompt_with_connections` (func, строка 614)
-- `get_disabled_tools` (func, строка 699)
-- `set_disabled_tools` (func, строка 719)
-- `_extend_prompt_with_tools` (func, строка 743)
-- `get_orchestrator_rag_bases` (func, строка 767)
-- `set_orchestrator_rag_bases` (func, строка 784)
-- `_extend_prompt_with_rag_bases` (func, строка 810)
-- `_extend_prompt_with_skills` (func, строка 861)
-- `_extend_prompt_with_instructions` (func, строка 883)
-- `build_assistant_dicts` (func, строка 950)
-- `build_assistant_dicts._resolve_effort` (func, строка 989)
-- `get_web_search_prompt` (func, строка 1015)
-- `get_web_search_config` (func, строка 1030)
-- `get_economy_tail_messages` (func, строка 1058)
-- `get_economy_cache_enabled` (func, строка 1076)
-- `get_economy_cache_multiplier` (func, строка 1094)
-- `get_economy_config` (func, строка 1113)
-- `export_orchestrator` (func, строка 1127)
-- `_validate_imported_tools` (func, строка 1173)
-- `import_orchestrator` (func, строка 1199)
-- `_import_instructions` (func, строка 1318)
-- `_import_functions` (func, строка 1345)
-- `orch_list_instructions` (func, строка 1363)
-- `orch_get_instruction` (func, строка 1368)
-- `orch_save_instruction` (func, строка 1373)
-- `orch_delete_instruction` (func, строка 1384)
-- `orch_list_functions` (func, строка 1391)
-- `orch_get_function` (func, строка 1396)
-- `orch_save_function` (func, строка 1401)
-- `orch_delete_function` (func, строка 1406)
-- `ensure_builtin_orchestrators` (func, строка 1415)
-- `load_devagent_config` (func, строка 1617)
-- `save_devagent_config` (func, строка 1656)
+- `get_disabled_tools` (func, строка 702)
+- `set_disabled_tools` (func, строка 722)
+- `_extend_prompt_with_tools` (func, строка 746)
+- `get_orchestrator_rag_bases` (func, строка 770)
+- `set_orchestrator_rag_bases` (func, строка 787)
+- `_extend_prompt_with_rag_bases` (func, строка 813)
+- `_extend_prompt_with_skills` (func, строка 864)
+- `_extend_prompt_with_instructions` (func, строка 886)
+- `build_assistant_dicts` (func, строка 953)
+- `build_assistant_dicts._resolve_effort` (func, строка 992)
+- `get_web_search_prompt` (func, строка 1018)
+- `get_web_search_config` (func, строка 1033)
+- `get_economy_tail_messages` (func, строка 1061)
+- `get_economy_cache_enabled` (func, строка 1079)
+- `get_economy_cache_multiplier` (func, строка 1097)
+- `get_economy_config` (func, строка 1116)
+- `export_orchestrator` (func, строка 1130)
+- `_validate_imported_tools` (func, строка 1176)
+- `import_orchestrator` (func, строка 1202)
+- `_import_instructions` (func, строка 1321)
+- `_import_functions` (func, строка 1348)
+- `orch_list_instructions` (func, строка 1366)
+- `orch_get_instruction` (func, строка 1371)
+- `orch_save_instruction` (func, строка 1376)
+- `orch_delete_instruction` (func, строка 1387)
+- `orch_list_functions` (func, строка 1394)
+- `orch_get_function` (func, строка 1399)
+- `orch_save_function` (func, строка 1404)
+- `orch_delete_function` (func, строка 1409)
+- `ensure_builtin_orchestrators` (func, строка 1418)
+- `load_devagent_config` (func, строка 1620)
+- `save_devagent_config` (func, строка 1659)
 
 ### `core/paths.py`
 - `ensure_data_dirs` (func, строка 35)
@@ -1986,6 +1991,16 @@
 - `test_ssh_create_validation` (func, строка 195)
 - `test_update_ssh_connection_rotates_secret_and_config` (func, строка 220)
 - `test_set_connection_secret_and_decrypt` (func, строка 239)
+- `test_create_pending_github_connection_stores_no_credential` (func, строка 263)
+- `test_create_pending_ssh_connection_keeps_config` (func, строка 274)
+- `test_fill_token_activates_pending_connection` (func, строка 287)
+- `test_set_connection_token_activates_pending_connection` (func, строка 295)
+- `test_fill_ssh_secrets_activates_pending_connection` (func, строка 302)
+- `test_set_connection_secret_activates_pending_connection` (func, строка 313)
+- `test_public_manifest_credentials_status_fallback` (func, строка 323)
+- `test_connection_memory_roundtrip` (func, строка 340)
+- `test_connection_memory_size_limit` (func, строка 350)
+- `test_connection_memory_unknown_connection` (func, строка 359)
 
 ### `tests/test_context_window_guard.py`
 - `_calls` (func, строка 13)
@@ -2241,6 +2256,17 @@
 - `test_requirements_pins_streamlit_minimum_not_exact` (func, строка 190)
 - `test_registry_matches_requirements` (func, строка 197)
 - `test_dev_dependencies_match_requirements` (func, строка 210)
+
+### `tests/test_devagent_instructions.py`
+- `_read` (func, строка 19)
+- `_front_matter_matches` (func, строка 24)
+- `test_connector_creator_structure` (func, строка 31)
+- `test_connector_creator_draft_flow` (func, строка 42)
+- `test_connector_creator_memory_discipline` (func, строка 54)
+- `test_connector_creator_forbids_secrets_in_chat_and_reporting` (func, строка 61)
+- `test_ssh_connector_documents_first_connection` (func, строка 73)
+- `test_ssh_connector_documents_memory_file` (func, строка 85)
+- `test_github_connector_documents_memory_file` (func, строка 97)
 
 ### `tests/test_devagent_thread_workspace.py`
 - `isolated_data` (func, строка 23)
@@ -2646,12 +2672,13 @@
 - `test_set_get_enabled_connections` (func, строка 68)
 - `test_set_enabled_connections_missing_orchestrator` (func, строка 74)
 - `test_prompt_extended_with_connections` (func, строка 79)
-- `test_prompt_unchanged_when_no_connections` (func, строка 96)
-- `test_build_assistant_dicts_includes_connections_block` (func, строка 101)
-- `test_devagent_default_config_has_key` (func, строка 111)
-- `test_prompt_extended_with_github_rest_connections` (func, строка 115)
-- `test_prompt_extended_with_ssh_connections` (func, строка 136)
-- `test_ssh_notes_absent_without_ssh_connection` (func, строка 161)
+- `test_prompt_unchanged_when_no_connections` (func, строка 101)
+- `test_build_assistant_dicts_includes_connections_block` (func, строка 106)
+- `test_devagent_default_config_has_key` (func, строка 116)
+- `test_prompt_extended_with_github_rest_connections` (func, строка 120)
+- `test_prompt_extended_with_ssh_connections` (func, строка 141)
+- `test_ssh_notes_absent_without_ssh_connection` (func, строка 166)
+- `test_prompt_marks_pending_credentials` (func, строка 178)
 
 ### `tests/test_orchestrator_economy_cache.py`
 - `_FakeCore` (class, строка 25)
@@ -3945,6 +3972,8 @@
 - `test_edit_ssh_form_renders_fields_and_saves` (func, строка 188)
 - `test_ssh_test_button_routes_to_ssh_connector` (func, строка 222)
 - `test_ssh_test_button_reports_failure` (func, строка 244)
+- `test_pending_card_shows_credentials_warning` (func, строка 266)
+- `test_active_card_shows_no_credentials_warning` (func, строка 278)
 
 ### `tests/test_ui_flash.py`
 - `st_env` (func, строка 19)
@@ -4110,6 +4139,11 @@
 - `test_run_code_missing_path_returns_structured_error` (func, строка 435)
 - `test_run_test_missing_path_returns_structured_error` (func, строка 443)
 - `test_read_file_window_reports_remaining_and_hint` (func, строка 451)
+- `test_connector_tools_in_catalog_and_extra` (func, строка 468)
+- `test_connector_tools_reject_unknown_args` (func, строка 480)
+- `test_create_connection_via_dispatch_keeps_secrets_out` (func, строка 488)
+- `test_pending_draft_via_dispatch` (func, строка 509)
+- `test_connection_memory_tools_via_dispatch` (func, строка 530)
 
 ### `tests/test_updater.py`
 - `_sha` (func, строка 25)
@@ -4436,14 +4470,15 @@
 - `test_scenario_provider_http_error_fails_fast` (func, строка 161)
 
 ### `tests/scenarios/test_connectors_scenarios.py`
-- `isolated_data_dir` (func, строка 29)
-- `_github_connection` (func, строка 61)
-- `test_scenario_connection_lifecycle` (func, строка 67)
-- `test_scenario_token_never_leaks_to_public_views` (func, строка 106)
-- `test_scenario_validation_rejects_bad_input` (func, строка 125)
-- `test_scenario_orchestrator_binding` (func, строка 137)
-- `test_scenario_github_tools_return_clean_dicts` (func, строка 169)
-- `test_scenario_github_tool_available_through_dispatcher` (func, строка 203)
+- `isolated_data_dir` (func, строка 32)
+- `_github_connection` (func, строка 64)
+- `test_scenario_connection_lifecycle` (func, строка 70)
+- `test_scenario_token_never_leaks_to_public_views` (func, строка 109)
+- `test_scenario_validation_rejects_bad_input` (func, строка 128)
+- `test_scenario_orchestrator_binding` (func, строка 140)
+- `test_scenario_github_tools_return_clean_dicts` (func, строка 172)
+- `test_scenario_github_tool_available_through_dispatcher` (func, строка 206)
+- `test_scenario_draft_connection_flow` (func, строка 256)
 
 ### `tests/scenarios/test_context_overflow_protection.py`
 - `sandbox` (func, строка 33)
@@ -5460,56 +5495,67 @@
 
 ### `dev_agent/universal_agent.py`
 - `load_system_prompt` (func, строка 31)
-- `_workspace_usage` (func, строка 159)
-- `build_assistant_dict_from_config` (func, строка 171)
-- `build_assistant_dict_from_config._make_assistant` (func, строка 183)
-- `UniversalDevAgent` (class, строка 212)
-- `UniversalDevAgent.__init__` (func, строка 215)
-- `UniversalDevAgent.system_prompt` (func, строка 275)
-- `UniversalDevAgent.tool_catalog` (func, строка 280)
-- `UniversalDevAgent.dispatch` (func, строка 286)
-- `UniversalDevAgent._current_orchestrator_slug` (func, строка 298)
-- `UniversalDevAgent._is_disabled_for_orchestrator` (func, строка 307)
-- `UniversalDevAgent._disabled_tool_error` (func, строка 323)
-- `UniversalDevAgent._dispatch_impl` (func, строка 335)
-- `UniversalDevAgent.attach_orchestrator` (func, строка 379)
-- `UniversalDevAgent._attach_connection_tools` (func, строка 424)
-- `UniversalDevAgent.attach_orchestrator_catalog` (func, строка 468)
-- `UniversalDevAgent.dispatch_json` (func, строка 487)
-- `UniversalDevAgent._recreate_core_preserving_history` (func, строка 499)
-- `UniversalDevAgent.set_thread_id` (func, строка 521)
-- `UniversalDevAgent._persist_thread_workspace` (func, строка 543)
-- `UniversalDevAgent._sync_binding_after_switch` (func, строка 564)
-- `UniversalDevAgent._set_workspace` (func, строка 570)
-- `UniversalDevAgent._set_target_file` (func, строка 579)
-- `UniversalDevAgent._write_project_map` (func, строка 588)
-- `UniversalDevAgent._write_doc` (func, строка 591)
-- `UniversalDevAgent._read_doc` (func, строка 594)
-- `UniversalDevAgent._snapshot_all` (func, строка 597)
-- `UniversalDevAgent._restore_all` (func, строка 600)
-- `UniversalDevAgent._active_thread_id` (func, строка 606)
-- `UniversalDevAgent._list_thread_files` (func, строка 611)
-- `UniversalDevAgent._read_thread_file` (func, строка 619)
-- `UniversalDevAgent._thread_access_slugs` (func, строка 637)
-- `UniversalDevAgent._normalize_orchestrator_arg` (func, строка 655)
-- `UniversalDevAgent._as_bool` (func, строка 673)
-- `UniversalDevAgent._search_in_threads` (func, строка 686)
-- `UniversalDevAgent._list_threads` (func, строка 750)
-- `UniversalDevAgent._read_thread` (func, строка 772)
-- `UniversalDevAgent._list_orchestrators` (func, строка 796)
-- `UniversalDevAgent._get_orchestrator` (func, строка 801)
-- `UniversalDevAgent._create_orchestrator` (func, строка 810)
-- `UniversalDevAgent._update_orchestrator` (func, строка 833)
-- `UniversalDevAgent._delete_orchestrator` (func, строка 845)
-- `UniversalDevAgent._reload_orchestrator` (func, строка 854)
-- `UniversalDevAgent._list_orchestrator_functions` (func, строка 863)
-- `UniversalDevAgent._get_orchestrator_function` (func, строка 870)
-- `UniversalDevAgent._save_orchestrator_function` (func, строка 879)
-- `UniversalDevAgent._delete_orchestrator_function` (func, строка 888)
-- `UniversalDevAgent._list_orchestrator_instructions` (func, строка 897)
-- `UniversalDevAgent._get_orchestrator_instruction` (func, строка 904)
-- `UniversalDevAgent._save_orchestrator_instruction` (func, строка 913)
-- `UniversalDevAgent._delete_orchestrator_instruction` (func, строка 926)
+- `_workspace_usage` (func, строка 188)
+- `build_assistant_dict_from_config` (func, строка 200)
+- `build_assistant_dict_from_config._make_assistant` (func, строка 212)
+- `UniversalDevAgent` (class, строка 241)
+- `UniversalDevAgent.__init__` (func, строка 244)
+- `UniversalDevAgent.system_prompt` (func, строка 316)
+- `UniversalDevAgent.tool_catalog` (func, строка 321)
+- `UniversalDevAgent.dispatch` (func, строка 327)
+- `UniversalDevAgent._current_orchestrator_slug` (func, строка 339)
+- `UniversalDevAgent._is_disabled_for_orchestrator` (func, строка 348)
+- `UniversalDevAgent._disabled_tool_error` (func, строка 364)
+- `UniversalDevAgent._dispatch_impl` (func, строка 376)
+- `UniversalDevAgent.attach_orchestrator` (func, строка 420)
+- `UniversalDevAgent._attach_connection_tools` (func, строка 465)
+- `UniversalDevAgent.attach_orchestrator_catalog` (func, строка 509)
+- `UniversalDevAgent.dispatch_json` (func, строка 528)
+- `UniversalDevAgent._recreate_core_preserving_history` (func, строка 540)
+- `UniversalDevAgent.set_thread_id` (func, строка 562)
+- `UniversalDevAgent._persist_thread_workspace` (func, строка 584)
+- `UniversalDevAgent._sync_binding_after_switch` (func, строка 605)
+- `UniversalDevAgent._set_workspace` (func, строка 611)
+- `UniversalDevAgent._set_target_file` (func, строка 620)
+- `UniversalDevAgent._write_project_map` (func, строка 629)
+- `UniversalDevAgent._write_doc` (func, строка 632)
+- `UniversalDevAgent._read_doc` (func, строка 635)
+- `UniversalDevAgent._snapshot_all` (func, строка 638)
+- `UniversalDevAgent._restore_all` (func, строка 641)
+- `UniversalDevAgent._active_thread_id` (func, строка 647)
+- `UniversalDevAgent._list_thread_files` (func, строка 652)
+- `UniversalDevAgent._read_thread_file` (func, строка 660)
+- `UniversalDevAgent._thread_access_slugs` (func, строка 678)
+- `UniversalDevAgent._normalize_orchestrator_arg` (func, строка 696)
+- `UniversalDevAgent._as_bool` (func, строка 714)
+- `UniversalDevAgent._search_in_threads` (func, строка 727)
+- `UniversalDevAgent._list_threads` (func, строка 791)
+- `UniversalDevAgent._read_thread` (func, строка 813)
+- `UniversalDevAgent._list_orchestrators` (func, строка 837)
+- `UniversalDevAgent._get_orchestrator` (func, строка 842)
+- `UniversalDevAgent._create_orchestrator` (func, строка 851)
+- `UniversalDevAgent._update_orchestrator` (func, строка 874)
+- `UniversalDevAgent._delete_orchestrator` (func, строка 886)
+- `UniversalDevAgent._reload_orchestrator` (func, строка 895)
+- `UniversalDevAgent._list_orchestrator_functions` (func, строка 904)
+- `UniversalDevAgent._get_orchestrator_function` (func, строка 911)
+- `UniversalDevAgent._save_orchestrator_function` (func, строка 920)
+- `UniversalDevAgent._delete_orchestrator_function` (func, строка 929)
+- `UniversalDevAgent._list_orchestrator_instructions` (func, строка 938)
+- `UniversalDevAgent._get_orchestrator_instruction` (func, строка 945)
+- `UniversalDevAgent._save_orchestrator_instruction` (func, строка 954)
+- `UniversalDevAgent._delete_orchestrator_instruction` (func, строка 967)
+- `UniversalDevAgent._list_connections` (func, строка 978)
+- `UniversalDevAgent._get_connection` (func, строка 983)
+- `UniversalDevAgent._list_connector_services` (func, строка 992)
+- `UniversalDevAgent._create_connection` (func, строка 996)
+- `UniversalDevAgent._update_connection` (func, строка 1014)
+- `UniversalDevAgent._delete_connection` (func, строка 1026)
+- `UniversalDevAgent._test_connection` (func, строка 1035)
+- `UniversalDevAgent._get_enabled_connections` (func, строка 1057)
+- `UniversalDevAgent._set_enabled_connections` (func, строка 1062)
+- `UniversalDevAgent._get_connection_memory` (func, строка 1073)
+- `UniversalDevAgent._set_connection_memory` (func, строка 1079)
 
 ### `dev_agent/workspace_binding.py`
 - `_norm_tid` (func, строка 47)

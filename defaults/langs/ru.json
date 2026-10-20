@@ -70,6 +70,7 @@
   "connectors_empty": "Подключений пока нет. Создайте первое!",
   "connectors_has_token": "токен задан",
   "connectors_has_secrets": "секреты заданы: {fields}",
+  "connectors_needs_credentials": "требуются учётные данные",
   "connectors_host": "Хост",
   "connectors_key_passphrase": "Парольная фраза ключа",
   "connectors_password": "Пароль",

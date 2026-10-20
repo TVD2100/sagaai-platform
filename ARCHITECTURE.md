@@ -518,6 +518,25 @@ vector/hybrid). Базы хранятся в `DATA_DIR/rag_bases/`.
 - **UI**: `ui/pages/connectors.py` (раздел после «Хранилища») - создание
   соединений GitHub (REST), тест соединения через `github_connector_rest`;
   таб «Подключения» в настройках оркестратора.
+- **Черновики подключений (draft/pending):** `create_connection(...,
+  pending=True)` сохраняет конфиг без секретов и ставит
+  `credentials_status=pending`; заполнение секрета (токен/пароль/ключ)
+  через `update_connection` / `set_connection_token` /
+  `set_connection_secret` переводит соединение в `active`. Промпт-блок
+  `_extend_prompt_with_connections` помечает pending-соединения и добавляет
+  quick note о файле памяти.
+- **Файл памяти подключения:** `DATA_DIR/connectors/<id>/memory.md`
+  (лимит 64 КиБ), API `get_connection_memory` / `set_connection_memory`.
+- **Инструменты коннекторов в диспетчере:** 11 общих инструментов
+  (`list_connections`, `get_connection`, `list_connector_services`,
+  `create_connection`, `update_connection`, `delete_connection`,
+  `test_connection`, `get_enabled_connections`, `set_enabled_connections`,
+  `get_connection_memory`, `set_connection_memory`) в
+  `dev_agent/universal_agent.py`; инструменты сервисов (`ghr_*`, `ssh_*`) -
+  только для включённых соединений.
+- **Инструкция `connector_creator`** (встроенная DevAgent) - полный флоу
+  создания подключения; `ssh_connector` / `github_connector` дополнены
+  правилами первого входа на неизвестный сервер и файлом памяти.
 
 ### Загрузка ключей из shell-профилей
 `env_loader` читает ~/.zshrc и др., не перезаписывает существующие.

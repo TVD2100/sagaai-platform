@@ -70,6 +70,7 @@
   "connectors_empty": "还没有连接。创建第一个吧！",
   "connectors_has_token": "已设置令牌",
   "connectors_has_secrets": "已设置密钥：{fields}",
+  "connectors_needs_credentials": "需要凭据",
   "connectors_host": "主机",
   "connectors_key_passphrase": "密钥口令",
   "connectors_password": "密码",

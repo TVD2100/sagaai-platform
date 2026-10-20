@@ -509,6 +509,31 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   выполняет реальное подключение.
 - Инструкция `ssh_connector` (глобальная и встроенная у DevAgent) описывает
   работу с SSH-подключениями.
+- **Черновики подключений (draft/pending).** DevAgent создаёт подключение
+  по запросу в чате через `create_connection(..., pending=True)` БЕЗ
+  каких-либо секретов: `credentials_status=pending`, секрет отсутствует
+  даже в зашифрованном виде. Учётные данные пользователь заполняет на
+  странице «Коннекторы» (поля-пароли); подключение переходит в `active`.
+  В блоке `Available service connections` промпта pending-подключения
+  помечаются предупреждением о невведённых учётных данных.
+- **Общие инструменты коннекторов** в диспетчере
+  (`dev_agent/universal_agent.py`, 11 штук): `list_connections`,
+  `get_connection`, `list_connector_services`, `create_connection`,
+  `update_connection`, `delete_connection`, `test_connection`,
+  `get_enabled_connections`, `set_enabled_connections`,
+  `get_connection_memory`, `set_connection_memory`. Публичные манифесты
+  секретов не содержат.
+- **Файл памяти подключения:** у каждого соединения - агентские заметки
+  `DATA_DIR/connectors/<id>/memory.md` (лимит 64 КиБ), читаются
+  `get_connection_memory`, обновляются `set_connection_memory`; хранят
+  факты о сервере/лимитах/путях, НИКОГДА - секреты. Промпт-блок
+  Quick usage notes напоминает читать память до работы и предлагать
+  обновление после.
+- **Инструкция `connector_creator`** (встроенная DevAgent) ведёт весь флоу
+  создания: черновик без секретов → заполнение на странице → проверка →
+  включение для оркестраторов → посев памяти. Инструкции `ssh_connector` /
+  `github_connector` дополнены правилами первого входа на неизвестный
+  сервер и обязательным файлом памяти.
 
 ### FR12 - Библиотека навыков (Skills)
 - Навыки лежат в `DATA_DIR/skills/<folder>/`, реестр - `skills/skills.json`;

@@ -230,6 +230,7 @@ def _render_connection_card(conn: dict, lang: str) -> None:
     svc_id = str(conn.get("service") or "?")
     account = str(conn.get("account") or "")
     has_token = bool(conn.get("has_token"))
+    pending = str(conn.get("credentials_status") or "") == "pending"
     svc_label = t(f"connectors_service_{svc_id}", lang=lang) or svc_id
 
     masked = conn.get("secrets_masked")
@@ -248,6 +249,8 @@ def _render_connection_card(conn: dict, lang: str) -> None:
 
     with st.expander(header, expanded=False):
         st.caption(f"id: `{conn_id}`")
+        if pending:
+            st.warning(t("connectors_needs_credentials", lang=lang))
         cfg = conn.get("config")
         if isinstance(cfg, dict) and cfg:
             host = str(cfg.get("host") or "")

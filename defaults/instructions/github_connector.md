@@ -26,6 +26,19 @@ files from the workspace disk), never via shell.
 
 ---
 
+## Connection memory file (mandatory)
+
+Every GitHub connection keeps an agent-maintained memory notes file. Before
+working with a connection, read its memory with `get_connection_memory` and
+load this instruction; after finishing a task, when you discovered facts
+worth keeping (managed repos, naming and release conventions, gotchas such
+as token scopes or branch policies), OFFER to update the memory with
+`set_connection_memory` and do it after the user agrees. Keep it factual
+and concise. Never store secrets (tokens, credentials) or personal data in
+the memory file.
+
+---
+
 ## Pre-publish secret & personal-data check (MANDATORY)
 
 Before ANY publishing call - `ghr_upload_file`, `ghr_update_file`,

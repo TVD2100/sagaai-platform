@@ -45,7 +45,15 @@
 # A failed save now reports an error instead of silently doing nothing, and
 # a failing folder mirror no longer discards a successful database write.
 
-__version__ = "2.1.6"
+# 2.2.0 adds the connector-creation architecture through DevAgent: draft
+# connections (credentials_status=pending) are created in the chat without
+# any secret, filled on the Connectors page, then verified and enabled for
+# orchestrators; every connection keeps an agent-maintained memory notes
+# file. The connector_creator instruction, the ssh/github instruction
+# updates and the credentials-pending marker in the prompt block complete
+# the flow.
+
+__version__ = "2.2.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

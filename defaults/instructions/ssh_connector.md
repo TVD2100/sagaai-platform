@@ -17,6 +17,49 @@ connection.
 
 ---
 
+## First connection to an unknown server
+
+Before working on a server you have never touched before, understand WHAT
+the server is. Ask the user when the information is not obvious:
+
+- What kind of server is it: shared hosting, VPS / dedicated, cloud
+  instance, or an on-premise machine? Which provider/hosting company
+  manages it?
+- Which control panel (if any) does it use and what is the real deployment
+  layout (web root, home directory, CGI vs daemons, port policy)?
+- Are there provider-documented restrictions? Shared hostings commonly
+  forbid long-running daemons, listening on ports above 1024,
+  resource-heavy processes and outgoing network access; violating the
+  rules can trigger AUTOMATIC BLOCKING of the account. Check the
+  provider's rules (help pages, terms) BEFORE choosing an approach and
+  BEFORE running anything.
+- Is there existing documentation for this server (README, runbook, notes
+  in the project)? Read it first.
+
+Do not guess. Identify the server (provider, panel, restrictions,
+documentation) before the first command that could trigger a block or break
+a production service.
+
+---
+
+## Connection memory file (mandatory)
+
+Every SSH connection keeps an agent-maintained memory notes file. Before
+working with a connection:
+
+1. Read its memory with `get_connection_memory` and load this instruction.
+2. Treat the facts stored there as required reading: limits, paths and
+   gotchas must not be re-discovered the hard way.
+
+After finishing a task that used the connection: when you discovered facts
+worth keeping (server type, restrictions, important paths, deployment
+layout, gotchas), OFFER to update the memory with `set_connection_memory`
+and do it after the user agrees. Keep it factual and concise. Never store
+secrets (passwords, private keys, passphrases) or personal data in the
+memory file.
+
+---
+
 ## Tool signatures
 
 Every tool returns a plain JSON dict:

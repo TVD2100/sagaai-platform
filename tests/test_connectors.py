@@ -255,3 +255,109 @@ def test_set_connection_secret_and_decrypt(isolated_data_dir):
         c.set_connection_secret(conn_id, "api_key", "x")
     with pytest.raises(ValueError):
         c.set_connection_secret(conn_id, "password", "   ")
+
+
+# ─── Draft (pending) connections ─────────────────────────────────────────────
+
+
+def test_create_pending_github_connection_stores_no_credential(isolated_data_dir):
+    import core.connectors as c
+    created = c.create_connection("github_rest", "Pending GH", pending=True)
+    assert created["credentials_status"] == "pending"
+    assert created["has_token"] is False
+    raw = _load_raw(created["id"])
+    assert "token_encrypted" not in raw
+    with pytest.raises(ValueError):
+        c.decrypt_token(created["id"])
+
+
+def test_create_pending_ssh_connection_keeps_config(isolated_data_dir):
+    import core.connectors as c
+    created = c.create_connection(
+        "ssh", "Draft SSH", pending=True,
+        config={"host": "srv.example", "username": "deploy", "port": 2222},
+    )
+    assert created["credentials_status"] == "pending"
+    assert created["has_secrets"] is False
+    assert created["config"]["host"] == "srv.example"
+    with pytest.raises(ValueError):
+        c.get_connection_secrets(created["id"])
+
+
+def test_fill_token_activates_pending_connection(isolated_data_dir):
+    import core.connectors as c
+    created = c.create_connection("github_rest", "Fill GH", pending=True)
+    updated = c.update_connection(created["id"], token="ghp_new")
+    assert updated["credentials_status"] == "active"
+    assert c.decrypt_token(created["id"]) == "ghp_new"
+
+
+def test_set_connection_token_activates_pending_connection(isolated_data_dir):
+    import core.connectors as c
+    created = c.create_connection("github_rest", "Fill GH 2", pending=True)
+    assert c.set_connection_token(created["id"], "ghp_new2") is True
+    assert c.get_connection(created["id"])["credentials_status"] == "active"
+
+
+def test_fill_ssh_secrets_activates_pending_connection(isolated_data_dir):
+    import core.connectors as c
+    created = c.create_connection(
+        "ssh", "Fill SSH", pending=True,
+        config={"host": "srv.example", "username": "deploy"},
+    )
+    updated = c.update_connection(created["id"], secrets={"password": "pw"})
+    assert updated["credentials_status"] == "active"
+    assert c.get_connection_secrets(created["id"]) == {"password": "pw"}
+
+
+def test_set_connection_secret_activates_pending_connection(isolated_data_dir):
+    import core.connectors as c
+    created = c.create_connection(
+        "ssh", "Sec SSH", pending=True,
+        config={"host": "s", "username": "u"},
+    )
+    assert c.set_connection_secret(created["id"], "password", "pw2") is True
+    assert c.get_connection(created["id"])["credentials_status"] == "active"
+
+
+def test_public_manifest_credentials_status_fallback(isolated_data_dir):
+    import core.connectors as c
+    created = c.create_connection("github_rest", "Tmp GH", token="ghp_x")
+    raw = _load_raw(created["id"])
+    # Explicit status wins over the derived fallback.
+    raw["credentials_status"] = "pending"
+    from core.connectors import public_manifest
+    assert public_manifest(raw)["credentials_status"] == "pending"
+    # Legacy manifests (no status) derive from credential presence.
+    raw2 = dict(raw)
+    raw2.pop("credentials_status")
+    assert public_manifest(raw2)["credentials_status"] == "active"
+
+
+# ─── Connection memory file ──────────────────────────────────────────────────
+
+
+def test_connection_memory_roundtrip(isolated_data_dir):
+    import core.connectors as c
+    created = c.create_connection("github_rest", "Mem GH", token="ghp_m")
+    assert c.get_connection_memory(created["id"]) == ""
+    assert c.set_connection_memory(created["id"], "shared hosting\nno ports") is True
+    assert c.get_connection_memory(created["id"]) == "shared hosting\nno ports"
+    assert c.set_connection_memory(created["id"], "replaced") is True
+    assert c.get_connection_memory(created["id"]) == "replaced"
+
+
+def test_connection_memory_size_limit(isolated_data_dir):
+    import core.connectors as c
+    created = c.create_connection("github_rest", "Big Mem", token="ghp_m2")
+    with pytest.raises(ValueError):
+        c.set_connection_memory(
+            created["id"], "x" * (c.CONNECTION_MEMORY_MAX_BYTES + 1)
+        )
+
+
+def test_connection_memory_unknown_connection(isolated_data_dir):
+    import core.connectors as c
+    assert c.get_connection_memory("missing") == ""
+    with pytest.raises(FileNotFoundError):
+        c.set_connection_memory("missing", "notes")

@@ -79,6 +79,18 @@ WORKSPACE_TOOL_CATALOG: List[Dict[str, str]] = [
     {"name": "search_in_threads", "desc": "Search the message history of dialog threads. Args: query, [thread_id], [scope], [orchestrator], [date_from], [date_to], [date_field], [role], [regex], [include_tool_results], [max_results]. Targets: an explicit thread_id; by default the CURRENT dialog thread (no listing needed); scope='orchestrator' searches the given orchestrator slug(s) or the active orchestrator, scope='all' - every accessible dialog. date_from/date_to (YYYY-MM-DD or ISO) filter by dialog activity date (date_field='updated'|'created'). Returns hits with thread_id, title, orchestrator, message_index, role, ts and a snippet around the match."},
     {"name": "list_threads", "desc": "List dialog threads (newest first by default) with message counts. Args: [orchestrator], [date_from], [date_to], [date_field], [limit], [offset], [order]. Use it to discover dialog ids, then read_thread to view one. Non-DevAgent orchestrators see only their own dialogs."},
     {"name": "read_thread", "desc": "Read a window of one dialog's messages. Args: [thread_id], [offset], [limit], [include_tool_results]. Without thread_id reads the CURRENT dialog; each message carries its absolute index (pair it with search_in_threads hits to view around a match). Returns total/remaining/has_more for pagination."},
+    # ── Connector management tools ────────────────────────────────────────
+    {"name": "list_connections", "desc": "List all external service connections (public view, no secrets). No args."},
+    {"name": "get_connection", "desc": "Return one connection's public manifest (no secrets). Args: conn_id."},
+    {"name": "list_connector_services", "desc": "List known connector services (id, name, config/secret fields). No args."},
+    {"name": "create_connection", "desc": "Create an external service connection. Args: service, name, [token], [account], [config], [secrets], [pending]. With pending=true a draft is saved without credentials (the user fills them on the Connectors page)."},
+    {"name": "update_connection", "desc": "Update a connection (name/account/config/token/secrets); filling credentials activates a pending draft. Args: conn_id, [name], [account], [token], [config], [secrets]."},
+    {"name": "delete_connection", "desc": "Delete a connection. Args: conn_id."},
+    {"name": "test_connection", "desc": "Validate a connection against its service and refresh account info. Args: conn_id."},
+    {"name": "get_enabled_connections", "desc": "List connection ids enabled for an orchestrator (default: the active one). Args: [orchestrator]."},
+    {"name": "set_enabled_connections", "desc": "Replace the enabled connection ids of an orchestrator (default: the active one). Args: connection_ids, [orchestrator]."},
+    {"name": "get_connection_memory", "desc": "Read the agent-maintained memory notes of a connection ('' when absent). Args: conn_id."},
+    {"name": "set_connection_memory", "desc": "Replace the memory notes of a connection (64 KB cap; never store secrets). Args: conn_id, content."},
 ]
 
 
@@ -147,6 +159,23 @@ WORKSPACE_TOOL_ARGS: Dict[str, Dict[str, set]] = {
         "optional": {"instruction_id", "description", "prompt_text"},
     },
     "delete_orchestrator_instruction": {"required": {"slug", "instruction_id"}, "optional": set()},
+    "list_connections": {"required": set(), "optional": set()},
+    "get_connection": {"required": {"conn_id"}, "optional": set()},
+    "list_connector_services": {"required": set(), "optional": set()},
+    "create_connection": {
+        "required": {"service", "name"},
+        "optional": {"token", "account", "config", "secrets", "pending"},
+    },
+    "update_connection": {
+        "required": {"conn_id"},
+        "optional": {"name", "account", "token", "config", "secrets"},
+    },
+    "delete_connection": {"required": {"conn_id"}, "optional": set()},
+    "test_connection": {"required": {"conn_id"}, "optional": set()},
+    "get_enabled_connections": {"required": set(), "optional": {"orchestrator"}},
+    "set_enabled_connections": {"required": {"connection_ids"}, "optional": {"orchestrator"}},
+    "get_connection_memory": {"required": {"conn_id"}, "optional": set()},
+    "set_connection_memory": {"required": {"conn_id", "content"}, "optional": set()},
 }
 
 _UNKNOWN_ARGS_ERROR = (
@@ -268,6 +297,18 @@ class UniversalDevAgent:
             "get_orchestrator_instruction": lambda **kw: self._get_orchestrator_instruction(**kw),
             "save_orchestrator_instruction": lambda **kw: self._save_orchestrator_instruction(**kw),
             "delete_orchestrator_instruction": lambda **kw: self._delete_orchestrator_instruction(**kw),
+            # Connector management tools
+            "list_connections": lambda **kw: self._list_connections(**kw),
+            "get_connection": lambda **kw: self._get_connection(**kw),
+            "list_connector_services": lambda **kw: self._list_connector_services(**kw),
+            "create_connection": lambda **kw: self._create_connection(**kw),
+            "update_connection": lambda **kw: self._update_connection(**kw),
+            "delete_connection": lambda **kw: self._delete_connection(**kw),
+            "test_connection": lambda **kw: self._test_connection(**kw),
+            "get_enabled_connections": lambda **kw: self._get_enabled_connections(**kw),
+            "set_enabled_connections": lambda **kw: self._set_enabled_connections(**kw),
+            "get_connection_memory": lambda **kw: self._get_connection_memory(**kw),
+            "set_connection_memory": lambda **kw: self._set_connection_memory(**kw),
         }
 
     # ─── system prompt = single file ────────────────────────────────────────
@@ -931,5 +972,119 @@ class UniversalDevAgent:
         if not ok:
             return {"ok": False, "error": f"Failed to delete instruction: {slug}/{instruction_id}"}
         return {"ok": True, "slug": slug, "instruction_id": instruction_id, "deleted": True}
+
+    # ─── connector tool wrappers ───────────────────────────────────────────
+
+    def _list_connections(self, **kwargs) -> Dict[str, Any]:
+        from core.connectors import list_connections
+        conns = list_connections()
+        return {"ok": True, "count": len(conns), "connections": conns}
+
+    def _get_connection(self, conn_id: str = "", **kwargs) -> Dict[str, Any]:
+        from core.connectors import get_connection
+        if not conn_id:
+            return {"ok": False, "error": "Missing required argument 'conn_id'."}
+        conn = get_connection(conn_id)
+        if not conn:
+            return {"ok": False, "error": f"Connection not found: {conn_id}"}
+        return {"ok": True, "connection": conn}
+
+    def _list_connector_services(self, **kwargs) -> Dict[str, Any]:
+        from core.connectors import list_services
+        return {"ok": True, "services": list_services()}
+
+    def _create_connection(self, service: str = "", name: str = "", token: str = "",
+                           account: str = "", config: dict = None, secrets: dict = None,
+                           pending: bool = False, **kwargs) -> Dict[str, Any]:
+        from core.connectors import create_connection
+        if not service or not name:
+            return {"ok": False, "error": "Both 'service' and 'name' are required."}
+        try:
+            created = create_connection(
+                service, name, token,
+                account=account or "",
+                config=config if isinstance(config, dict) else None,
+                secrets=secrets if isinstance(secrets, dict) else None,
+                pending=self._as_bool(pending, False),
+            )
+        except Exception as e:
+            return {"ok": False, "error": str(e) or "Connection was not created"}
+        return {"ok": True, "connection": created}
+
+    def _update_connection(self, conn_id: str = "", **kwargs) -> Dict[str, Any]:
+        from core.connectors import update_connection
+        if not conn_id:
+            return {"ok": False, "error": "Missing required argument 'conn_id'."}
+        allowed = {"name", "account", "token", "config", "secrets"}
+        update_kwargs = {k: v for k, v in kwargs.items() if k in allowed and v is not None}
+        try:
+            updated = update_connection(conn_id, **update_kwargs)
+        except Exception as e:
+            return {"ok": False, "error": str(e) or "Connection was not updated"}
+        return {"ok": True, "connection": updated}
+
+    def _delete_connection(self, conn_id: str = "", **kwargs) -> Dict[str, Any]:
+        from core.connectors import delete_connection
+        if not conn_id:
+            return {"ok": False, "error": "Missing required argument 'conn_id'."}
+        deleted = delete_connection(conn_id)
+        if not deleted:
+            return {"ok": False, "error": f"Failed to delete connection: {conn_id}"}
+        return {"ok": True, "conn_id": conn_id, "deleted": True}
+
+    def _test_connection(self, conn_id: str = "", **kwargs) -> Dict[str, Any]:
+        from core import connectors
+        if not conn_id:
+            return {"ok": False, "error": "Missing required argument 'conn_id'."}
+        try:
+            conn = connectors.get_connection(conn_id)
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+        service = str((conn or {}).get("service") or "")
+        try:
+            if service == "ssh":
+                from core.ssh_connector import test_connection as _ssh_test
+                result = _ssh_test(conn_id)
+            elif service == "github_rest":
+                from core.github_connector_rest import test_connection as _gh_test
+                result = _gh_test(conn_id)
+            else:
+                return {"ok": False, "error": f"Unsupported service for testing: {service or '?'}"}
+        except Exception as e:
+            return {"ok": False, "error": str(e) or "Connection test failed"}
+        return {"ok": True, "result": result}
+
+    def _get_enabled_connections(self, orchestrator: str = "", **kwargs) -> Dict[str, Any]:
+        from core.orchestrators import get_enabled_connections
+        slug = str(orchestrator or "").strip() or self._current_orchestrator_slug()
+        return {"ok": True, "orchestrator": slug, "connection_ids": get_enabled_connections(slug)}
+
+    def _set_enabled_connections(self, connection_ids, orchestrator: str = "", **kwargs) -> Dict[str, Any]:
+        from core.orchestrators import set_enabled_connections
+        slug = str(orchestrator or "").strip() or self._current_orchestrator_slug()
+        ids = list(connection_ids) if isinstance(connection_ids, (list, tuple)) else []
+        if connection_ids and not ids:
+            return {"ok": False, "error": "'connection_ids' must be a list of connection ids."}
+        ok = set_enabled_connections(slug, ids)
+        if not ok:
+            return {"ok": False, "error": f"Failed to update enabled connections for orchestrator: {slug}"}
+        return {"ok": True, "orchestrator": slug, "connection_ids": ids}
+
+    def _get_connection_memory(self, conn_id: str = "", **kwargs) -> Dict[str, Any]:
+        from core.connectors import get_connection_memory
+        if not conn_id:
+            return {"ok": False, "error": "Missing required argument 'conn_id'."}
+        return {"ok": True, "conn_id": conn_id, "content": get_connection_memory(conn_id)}
+
+    def _set_connection_memory(self, conn_id: str = "", content: str = "", **kwargs) -> Dict[str, Any]:
+        from core.connectors import set_connection_memory
+        if not conn_id:
+            return {"ok": False, "error": "Missing required argument 'conn_id'."}
+        try:
+            ok = set_connection_memory(conn_id, str(content if content is not None else ""))
+        except Exception as e:
+            return {"ok": False, "error": str(e) or "Memory was not saved"}
+        return {"ok": True, "conn_id": conn_id, "saved": ok}
+
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
