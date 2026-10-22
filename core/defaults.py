@@ -19,6 +19,7 @@ which entities are imported on first boot:
     │   ├── prompt.md                 -   system prompt text
     │   └── files/                    -   optional attachment files
     ├── services/*.json               - LLM provider definitions
+    ├── connectors/<service>/*.json   - connection presets (MCP servers, ...)
     ├── langs/*.json, *_guide.md      - UI languages
     └── skills/                       - default standardized skills
 
@@ -87,6 +88,11 @@ def skills_dir() -> str:
 def rag_bases_dir() -> str:
     """Return defaults/rag_bases (bundled RAG knowledge bases)."""
     return os.path.join(defaults_root(), "rag_bases")
+
+
+def connector_presets_dir() -> str:
+    """Return defaults/connectors (bundled connection presets)."""
+    return os.path.join(defaults_root(), "connectors")
 
 
 def list_default_rag_base_slugs() -> List[str]:

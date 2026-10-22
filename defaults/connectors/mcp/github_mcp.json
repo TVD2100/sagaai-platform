@@ -1,0 +1,21 @@
+{
+  "name": "GitHub MCP (remote)",
+  "icon": "🐙",
+  "description": "Официальный GitHub MCP-сервер: репозитории, issues, пул-реквесты, поиск кода. Требует fine-grained Personal Access Token.",
+  "hidden": true,
+  "sort_order": 20,
+  "config": {
+    "transport": "http",
+    "url": "https://api.githubcopilot.com/mcp/",
+    "auth_header": "Bearer {GITHUB_TOKEN}",
+    "secret_env_fields": {
+      "token": {
+        "env": "GITHUB_TOKEN",
+        "label": "GitHub Personal Access Token",
+        "help": "Fine-grained PAT (github_pat_*) с правами Contents/Issues/Pull requests/Metadata (Read). Copilot-эндпоинты не принимают классические ghp_*-токены.",
+        "password": true
+      }
+    }
+  },
+  "memory_seed": "Эндпоинт: https://api.githubcopilot.com/mcp/ (HTTP). Требуется заголовок Authorization: Bearer <PAT>. Поддерживаются только fine-grained PAT (github_pat_*) с правами Contents/Issues/Pull requests/Metadata (Read); классические ghp_* отклоняются (HTTP 403 forbidden: access denied), также нужен доступ аккаунта к Copilot-эндпоинтам. GET /_ping без авторизации тоже отвечает 403 - это нормально."
+}

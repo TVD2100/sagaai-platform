@@ -16,7 +16,10 @@ The same name-resolution helpers are reused by
 """
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict, List, Optional, Set
+
+log = logging.getLogger("core.orchestrator_tools")
 
 
 # ─── Name resolution (legacy aliases + disabled-tool checks) ────────────────
@@ -107,8 +110,11 @@ def _connection_catalog(orchestrator_slug: str) -> List[Dict[str, str]]:
     """Return connection tools for the services the orchestrator enabled.
 
     Only tools of enabled services are returned: GitHub REST tools (ghr_*)
-    for github_rest connections and SSH tools (ssh_*) for ssh connections.
-    Missing or unknown services yield no entries.
+    for github_rest connections, SSH tools (ssh_*) for ssh connections and
+    MCP tools (static mcp_list_tools / mcp_call_tool plus the dynamic
+    ``mcp__<conn_id>__<tool_name>`` tools) for mcp connections. A broken or
+    unavailable MCP server contributes no dynamic tools (a warning is
+    logged); missing or unknown services yield no entries at all.
     """
     try:
         from core.orchestrators import get_enabled_connections
@@ -125,6 +131,15 @@ def _connection_catalog(orchestrator_slug: str) -> List[Dict[str, str]]:
         if "ssh" in services:
             from core.ssh_tools import get_tools as get_ssh_tools
             out.extend(dict(t) for t in get_ssh_tools())
+        if "mcp" in services:
+            try:
+                from core.mcp_tools import collect_catalog_entries
+                out.extend(collect_catalog_entries(orchestrator_slug))
+            except Exception as e:
+                log.warning(
+                    "MCP catalog skipped for orchestrator %s: %s",
+                    orchestrator_slug, e,
+                )
         return out
     except Exception:
         return []

@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-10-20T21:13:25+00:00`
-- Файлов: **354**
+- Обновлено: `2026-10-22T06:07:55+00:00`
+- Файлов: **367**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **4677**
-- Отпечаток содержимого: `sha256:596e85398e486918027ac5ce70dee25bd3d72fb5bb3ca4cfd499c4130ff83084` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 1, JSON: 21, Markdown: 37, PEM certificate: 1, Python: 297, Text: 1
+- Python-символов: **4896**
+- Отпечаток содержимого: `sha256:dd5c802eca3094c6702793d3824c0fd7f9b654b0fd768d1a0fd966311a1d8ac3` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 1, JSON: 23, Markdown: 38, PEM certificate: 1, Python: 307, Text: 1
 
 ## Файлы и назначение
 
@@ -26,7 +26,7 @@
 | `ui/pages/access.py` | Python | _(описание не задано)_ | - |
 | `ui/pages/assistants.py` | Python | Assistants management page (create/edit/delete assistant profiles, files, tools) | - |
 | `ui/pages/chat.py` | Python | Chat page for AI assistants: selector, history, send form | - |
-| `ui/pages/connectors.py` | Python | Connectors page: list/create/update/delete connections, test them, fill credentials, pending-draft warning; per-service forms (GitHub REST token, SSH host/port/username + secrets) | - |
+| `ui/pages/connectors.py` | Python | Connectors page built as list <-> form (the assistants-page pattern): a page-level view key connectors_view = list | create | edit, and the form REPLACES the list instead of opening in an expander or on another tab. Tiles only open the create form - a GitHub/SSH service tile, an MCP preset tile (rows of three, preset icon) or the '+ Custom MCP server' tile write nothing; the connection is persisted solely by the Create button through create_connection / instantiate_preset(pending=False) with the typed credentials, so it is active from the start, and Cancel / back return to the list without writing (a failed save keeps the form open). The edit form is a full page too and resolves the preset by id (catalogue first, then resolve_preset), so a connection created from a preset hidden from the tile list keeps its preset fields; pending chat-created drafts are completed through it with a Fill credentials button. The tab strip is stateful - st.tabs(on_change='rerun', key=..., default=<label>) - because without on_change='rerun' the widget keeps no state at all, so the stored tab was ignored and every rerun fell back to the first tab; after a save the list reopens on Connections. Connections holds a card per saved connection (service icon, credential state, pending warning, test, edit, delete); test connection shows the server tools | - |
 | `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | - |
 | `ui/pages/orchestrator.py` | Python | Reusable orchestrator page (chat/history/settings incl. skills tab; no employee export/import UI; step events attach to the user message when the first LLM call fails; per-message download/copy controls on plain-prose answers; generated image visible immediately in the feed, outside the collapsed tool-result block; empty-state reset on new/reset dialog; thread workspace meta persistence; chat folder picker (Выбор папки): Авто + recent folders + native dialog, applied on send; file upload built into st.chat_input(accept_file="multiple") - no separate dropzone; uploads live only in history/<tid>/files) | storage |
 | `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings page: tabbed sections, the active tab is kept across reruns and pinned after a save | - |
@@ -49,12 +49,13 @@
 | `core/auth.py` | Python | Optional password authentication gate | - |
 | `core/bootstrap.py` | Python | First-run provisioning: Assistant/Employee Creator instructions, DevAgent settings, legacy skill_creator migration | - |
 | `core/config.py` | Python | Configuration load/save with secret encryption and env overlay | storage |
-| `core/connectors.py` | Python | Connector storage & CRUD: encrypted credential manifest per connection (DATA_DIR/connectors/<id>/manifest.json), pending drafts without credentials (credentials_status), per-field SSH secrets, per-connection memory file (64 KiB cap), services registry | - |
+| `core/connector_presets.py` | Python | MCP connection presets: list_presets/resolve_preset/instantiate_preset over secret-free templates from defaults/connectors/mcp/*.json plus the per-user preset dir; the required icon renders on the MCP-tab tiles and sort_order orders them (vkusvill shipped, github_mcp kept with hidden=true); the optional hidden flag drops a preset from the catalogue while list_presets(include_hidden=True) and resolve_preset still find it by id (invalid values mean visible), so connections created from a hidden preset keep their preset fields and the tile returns once the flag is cleared; instantiate_preset takes account/secrets/pending - the default pending=True snaps the preset config into a credential-less draft and seeds the connection memory from memory_seed, while the Connectors page passes pending=False with the typed credentials so a user-created connection is active at once | - |
+| `core/connectors.py` | Python | Connector storage & CRUD: encrypted credential manifest per connection (DATA_DIR/connectors/<id>/manifest.json), pending drafts without credentials (credentials_status), per-field SSH secrets, mcp service (transport stdio/http, command whitelist, args, url scheme check, auth_header, preset, secret_env_fields; env_json secret plus env_pairs merge), per-connection memory file (64 KiB cap), services registry | - |
 | `core/context_guard.py` | Python | Pre-flight context guard (M4/M5/B4): unified input budget input_ceiling=window-max_out and input_budget=0.75*ceiling-prompt, soft trim at 0.75 window, hard cap 0.9, capped output reserve min(max_out, max(4096, 0.25*window)), economy head protection, history_cap() delegates to input_budget | - |
 | `core/crypto.py` | Python | Encryption key handling and Fernet helpers | - |
 | `core/dangerous.py` | Python | Dangerous-code assessment for run_code/run_test | - |
 | `core/default_imports.py` | Python | _(описание не задано)_ | storage |
-| `core/defaults.py` | Python | _(описание не задано)_ | storage |
+| `core/defaults.py` | Python | Defaults layout helpers: paths of the shipped defaults tree, incl. connector_presets_dir() for the bundled connector presets (defaults/connectors) | storage |
 | `core/dependency_check.py` | Python | Cold-start dependency audit: DEPENDENCIES registry (import name -> pip name, minimum version, required flag) kept in sync with requirements.txt; parse_version/version_lt; check_dependencies() probes importlib.metadata and reports missing/outdated packages | - |
 | `core/entity_sync.py` | Python | _(описание не задано)_ | storage |
 | `core/env_loader.py` | Python | Loads API keys from shell profiles | - |
@@ -66,10 +67,12 @@
 | `core/github_tools_rest.py` | Python | _(описание не задано)_ | - |
 | `core/i18n.py` | Python | Language discovery and translation helper t() | - |
 | `core/instructions.py` | Python | CRUD for internal instructions (Assistant Creator, Employee Creator) | - |
+| `core/mcp_client.py` | Python | MCP client, dual transport (stdlib only, no official SDK): McpClient (stdio) - Popen without shell, initialize/initialized handshake, per-process tools/list cache, text-only tools/call, 30/60s timeouts with termination and connection lockout, process registry, stderr to log; McpHttpClient (http) - POST requests with JSON or SSE responses, Mcp-Session-Id replay, Authorization header from an auth_header template resolved with the decrypted secrets per request (empty secrets skip the header), client cache dropped after secret updates; shared inputSchema translation into platform tool parameters | - |
+| `core/mcp_tools.py` | Python | MCP tools for orchestrators: static mcp_list_tools/mcp_call_tool and dynamic mcp__<conn>__<tool> tools with a reverse registry and a 60s discovery cache; env_json decrypted only for the server process; http transport branches; untrusted server data sanitized | - |
 | `core/multimodal.py` | Python | Vision/image model resolution + analyze_image/generate_image wrappers (core.multimodal) | - |
 | `core/orchestrator_folders.py` | Python | Per-orchestrator folders: bundles, functions, instructions | storage |
 | `core/orchestrator_nav.py` | Python | _(описание не задано)_ | - |
-| `core/orchestrator_tools.py` | Python | _(описание не задано)_ | - |
+| `core/orchestrator_tools.py` | Python | Tool catalog helpers: _connection_catalog builds per-service catalogs (github_rest ghr_*, ssh ssh_*, mcp mcp_list_tools/mcp_call_tool + dynamic per-tool mcp__ entries) from enabled connections; collect_catalog_entries(slug) | - |
 | `core/orchestrators.py` | Python | Orchestrator API; _extend_prompt_with_connections advertises enabled connections (per-service tool catalogs, credentials-pending marker, connection-memory quick notes); enabled_connections binding; disabled_tools blacklist; save keeps the DB write when the folder mirror fails | storage |
 | `core/paths.py` | Python | Base directories and thread paths | - |
 | `core/prompt_guard.py` | Python | Prompt-injection protection and sanitization | - |
@@ -95,7 +98,7 @@
 | `core/tools_utils.py` | Python | Tool definitions list for the Skills/Assistants pages; RAG tool descriptions carry the per-base search mode | - |
 | `core/updater.py` | Python | _(описание не задано)_ | - |
 | `core/updater_apply.py` | Python | _(описание не задано)_ | - |
-| `core/version.py` | Python | _(описание не задано)_ | - |
+| `core/version.py` | Python | Single source of truth for the SagaAI platform version (semver __version__ plus a documented release history) | - |
 | `tests/__init__.py` | Python | Package marker | - |
 | `tests/_st_mock.py` | Python | Streamlit mock for tests (records widget calls, controllable session_state; chat_input returns a seeded ChatInputValue-like object with .text/.files) | - |
 | `tests/_test_isolation.py` | Python | _(описание не задано)_ | - |
@@ -131,7 +134,7 @@
 | `tests/test_default_imports.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_default_rag_bases.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_dependency_check.py` | Python | Unit tests for core.dependency_check: version parsing/comparison, registry contract, check report with stubbed importlib.metadata, and registry<->requirements.txt consistency | - |
-| `tests/test_devagent_instructions.py` | Python | Invariant tests for the canonical DevAgent instruction files (connector_creator, ssh_connector, github_connector): structure, draft flow, memory discipline, no-secrets rules | - |
+| `tests/test_devagent_instructions.py` | Python | Invariant tests for the canonical DevAgent instruction files (connector_creator, ssh_connector, github_connector, mcp_connector): structure, draft flow, memory discipline, no-secrets rules | - |
 | `tests/test_devagent_thread_workspace.py` | Python | DevAgent thread workspace persistence tests | storage |
 | `tests/test_dispatcher_connections.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_dispatcher_tool_gating.py` | Python | _(описание не задано)_ | storage |
@@ -147,6 +150,8 @@
 | `tests/test_i18n_sync.py` | Python | _(описание не задано)_ | - |
 | `tests/test_list_files.py` | Python | _(описание не задано)_ | - |
 | `tests/test_llm_utils_json_schema.py` | Python | _(описание не задано)_ | - |
+| `tests/test_mcp_catalog.py` | Python | MCP catalog tests: the catalog branch with an enabled connection, disabled_tools gating on mcp__ tools, a startup/list failure keeps the catalog healthy, secrets do not leak | storage |
+| `tests/test_mcp_client.py` | Python | MCP client tests with a stdlib mini JSON-RPC server fixture: handshake and bad-version start, tools/list with caching, call success/isError/rpc-error, non-text result rejection, broken command, dead process, timeout with termination and lockout, process registry, stderr, schema translation, http auth-header resolution (empty placeholders skip the header), HTTP code hints and a 403 message that exposes no secrets | - |
 | `tests/test_multimodal.py` | Python | Unit tests for core.multimodal and the image request transports | - |
 | `tests/test_multimodal_instruction.py` | Python | Tests for the multimodal_mode instruction seeding and content | - |
 | `tests/test_multimodal_tools.py` | Python | Unit tests for the analyze_image/generate_image tools | - |
@@ -214,6 +219,7 @@
 | `tests/test_tool_result_size_cap.py` | Python | Tool-result spill policy tests: head+tail preview, hard-cap fallback, UniversalDevAgent path | - |
 | `tests/test_tool_result_storage_summary.py` | Python | Storage-summary tests: verbatim small documents (wire==stored), batch splitter, both persist paths | storage |
 | `tests/test_tools_utils.py` | Python | _(описание не задано)_ | - |
+| `tests/test_ui_connectors_mcp.py` | Python | UI tests for the Connectors page: stateful tabs (on_change='rerun' + default), preset tiles with icons, a tile click opens the full-page create form and writes nothing, submitting that form creates an already-active connection with the typed token, Cancel creates nothing, a preset-based edit form shows only the credential fields and saves env_pairs, MCP cards render on the Connections tab, mcp is excluded from the general service tiles, and a preset hidden from the catalogue offers no tile while its connection keeps the preset edit form (resolved by id) | - |
 | `tests/test_ui_connectors_ssh.py` | Python | UI tests for the connectors page SSH support and the pending-credentials warning | - |
 | `tests/test_ui_flash.py` | Python | Unit tests for ui.components.flash: queueing of every kind, missing/garbage session state tolerated, render_flash paints once and clears, pending queue capped | - |
 | `tests/test_ui_pages.py` | Python | UI page tests | - |
@@ -256,6 +262,9 @@
 | `tests/scenarios/test_json_repair_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_license_consistency_scenario.py` | Python | Scenario: license migration to PolyForm Noncommercial 1.0.0 - canonical LICENSE text, no MIT SPDX identifier among published files, README/UI/AGENT.md agreement, 2.x version and manifest consistency, documented licensing history | - |
 | `tests/scenarios/test_loop_stuck_protection_scenarios.py` | Python | Loop-stuck protection scenarios: per-tool failure counter hints, duplicate-call flood compaction, prose loop_status continue | - |
+| `tests/scenarios/test_mcp_e2e_scenario.py` | Python | Scenario: MCP e2e demo - a connector (python + stdlib server) is created and enabled, mcp_list_tools lists its tools, the dynamic mcp__conn__echo tool dispatches and returns echo:hello, a failing tool surfaces is_error | storage |
+| `tests/scenarios/test_mcp_preset_e2e_scenario.py` | Python | Scenario: MCP preset e2e - a local fake Vkusvill HTTP MCP server on 127.0.0.1; the user path preset -> pending draft -> token via env_pairs -> private HTTP tool call; asserts the Authorization header reaches the server, session-id replay, tokenless public tools and a clean auth error without credentials | storage |
+| `tests/scenarios/test_mcp_tab_ui_scenario.py` | Python | Scenario tests for the Connectors page user path (given->when->then): three tabs render, an MCP preset tile opens the create form without touching the DB, submitting it stores an ACTIVE connection whose token is decrypted on read and lands on the Connections tab, a GitHub service tile opens the form, Cancel writes nothing and a repeated open + create stores an active connection while the token never renders | - |
 | `tests/scenarios/test_multimodal_scenarios.py` | Python | Scenario tests for the multimodal tools (vision analysis, not_assigned, generation, provider hint) | - |
 | `tests/scenarios/test_new_dialog_empty_workspace_scenario.py` | Python | Scenario tests: a new dialog starts with no folder and never inherits a neighbour's workspace | storage |
 | `tests/scenarios/test_orchestrator_chat_prefs_scenario.py` | Python | _(описание не задано)_ | - |
@@ -290,6 +299,7 @@
 | `tests/scenarios/test_workspace_binding_scenario.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_yandex_models_catalog_scenario.py` | Python | Scenario tests for the YandexAI model catalog update | - |
 | `tests/scenarios/test_yandex_responses_failures_scenario.py` | Python | Scenario: Responses API failure handling (failed-status surfacing, blank input filtering) | - |
+| `tests/fixtures/mcp_demo_server.py` | Python | Stdlib MCP demo server fixture for tests: one-line JSON-RPC 2.0 over stdio with echo/fail/sleep tools | - |
 | `tests/fixtures/rag_eval/corpus.json` | JSON | Benchmark corpus for rag_eval: Russian marketing chunks carrying the RAG Base Creator header (reproduces the IDF-collapse defect) | - |
 | `tests/fixtures/rag_eval/multiproduct_corpus.json` | JSON | Benchmark corpus for the BM25F fielded index: several products whose bodies all mention the generic term while the product name lives ONLY in the header block | - |
 | `tests/fixtures/rag_eval/multiproduct_queries.json` | JSON | Ground-truth queries for multiproduct_corpus.json: product-scoped queries that a body-only index cannot resolve | - |
@@ -300,6 +310,8 @@
 | `storage/repository.py` | Python | High-level CRUD for assistants/threads/config/orchestrators + legacy repo_*_skill wrappers | storage |
 | `storage/repository_devagent.py` | Python | DevAgent thread CRUD (devagent.db) plus thread-search query helpers (filtered listing, message counts, batched/window message loads); thread workspace-meta clearing for the legacy-meta cleanup migration | storage |
 | `defaults/README.md` | Markdown | _(описание не задано)_ | - |
+| `defaults/connectors/mcp/github_mcp.json` | JSON | GitHub MCP preset (http, https://api.githubcopilot.com/mcp/, icon for the MCP tab tile) shipped with hidden=true: the Copilot endpoint rejects classic ghp_* PATs with 403 access denied and requires a fine-grained github_pat_* token carrying the account permission Copilot Requests, sent as Authorization Bearer; the preset is off the tile list while staying resolvable by id | - |
+| `defaults/connectors/mcp/vkusvill.json` | JSON | Vkusvill MCP preset (http, https://mcp.vkusvill.ru/mcp, icon for the MCP tab tile): catalog and recipe tools work without credentials, the optional VKUSVILL_TOKEN unlocks personal data; secret_env_fields describe the token field | - |
 | `defaults/instructions/github_connector.md` | Markdown | Global github_connector instruction: ghr_* REST tool usage, batch publishing, the mandatory pre-publish secret & personal-data check (STOP and ask the user on a hit), connection memory file | - |
 | `defaults/instructions/multimodal_mode.md` | Markdown | Global multimodal_mode instruction: analyze_image/generate_image usage rules and fallbacks | - |
 | `defaults/instructions/ssh_connector.md` | Markdown | Global ssh_connector instruction (identical to the DevAgent copy): ssh_* tools, first-connection rules, connection memory file | - |
@@ -324,6 +336,7 @@
 | `defaults/orchestrators/dev_agent/instructions/connector_creator.md` | Markdown | DevAgent instruction: creating service connections via pending drafts (no credentials in the chat), Connectors page fill, verification, enabling for orchestrators, memory seeding | - |
 | `defaults/orchestrators/dev_agent/instructions/employee_creator.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/dev_agent/instructions/github_connector.md` | Markdown | DevAgent orchestrator copy of the github_connector instruction (kept identical to the global one) | - |
+| `defaults/orchestrators/dev_agent/instructions/mcp_connector.md` | Markdown | DevAgent instruction for the mcp connector: preset flow (tiles on the MCP tab open the create form with the preset config applied and write nothing until Create, so a page-created connection is active at once; the agent itself keeps the draft-first flow and the user fills only the credentials via the Fill credentials button), why GitHub is not offered as an MCP preset (Copilot endpoint needs a fine-grained PAT with Copilot Requests; github_rest is the supported path, a local GitHub MCP server goes through the custom tile), the '+ Custom MCP server' tile, stdio and http transports, authorization errors 401/403 (token type incl. the ghp_*/github_pat_* distinction, auth_header template, no retry loops), mcp_list_tools/mcp_call_tool and dynamic tool names, error/timeout behaviour and disabling, security rules for untrusted server data | - |
 | `defaults/orchestrators/dev_agent/instructions/prompt_improver.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/dev_agent/instructions/self_reflection.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/dev_agent/instructions/skill_developer.md` | Markdown | _(описание не задано)_ | - |
@@ -361,7 +374,7 @@
 | `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.23 self-sufficiency rule for comments/docs/tests (no origin attribution); v3.21 Stage 0 recent-folders menu for a concrete project and the chat folder selector; v3.20 AGENT.md docs-first (legacy SPEC.md removed); v3.18 generated-PROJECT_MAP rule; v3.17 compact task-state digest, read_file windows, PRAGMA-first; v3.16 empty-state Stage 0, task-journal and thread-files rules) | - |
 | `dev_agent/task_state.py` | Python | Per-thread task-state journal (plan/progress/handoff) with the thread-files fallback folder when no workspace is selected; compact digest (read_task_state compact=True) and budgeted injection | backup_manager |
 | `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools, legacy skill aliases, skills-library and multimodal tools; empty-state workspace guard (workspace_not_selected, neutral cwd for code=) | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
-| `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace + orchestrator tools, incl. thread search and connection tools: list/get/create/update/delete/test connections, enabled bindings, connector services, per-connection memory); empty-state guard and thread workspace-meta persistence | storage, tool_executor |
+| `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace + orchestrator tools, incl. thread search and connection tools: list/get/create/update/delete/test connections, enabled bindings, connector services, per-connection memory; list_connection_presets and the preset kwarg of create_connection; MCP static and dynamic tools attach for enabled mcp connections and detach when disabled); empty-state guard and thread workspace-meta persistence | storage, tool_executor |
 | `dev_agent/workspace_binding.py` | Python | Per-thread workspace binding registry (RLock, thread_context, ensure_thread_active) with the empty-state neutral root | - |
 | `dev_agent/workspace_tools.py` | Python | Workspace layer: folders, project map (AST symbols, content fingerprint, GitHub-published scope filter), docs, snapshots; workspace_selected reporting and per-orchestrator recent workspaces (top 10) | backup_manager |
 | `services/deepseek.json` | JSON | DeepSeek service definition (vision_base_url + vision_models catalog) | - |
@@ -428,14 +441,39 @@
 - `page_run_query._on_tokens` (func, строка 399)
 
 ### `ui/pages/connectors.py`
-- `_service_options` (func, строка 31)
-- `_test_connection` (func, строка 41)
-- `_ssh_stored_fields` (func, строка 68)
-- `_render_ssh_fields` (func, строка 76)
-- `_render_create_form` (func, строка 132)
-- `_render_edit_form` (func, строка 185)
-- `_render_connection_card` (func, строка 226)
-- `page_connectors` (func, строка 311)
+- `_conn_tab_labels` (func, строка 81)
+- `_reset_create_widgets` (func, строка 90)
+- `_start_create` (func, строка 97)
+- `_start_edit` (func, строка 106)
+- `_back_to_list` (func, строка 113)
+- `_apply_target_tab` (func, строка 124)
+- `_general_service_tiles` (func, строка 147)
+- `_service_label` (func, строка 166)
+- `_render_general_service_tiles` (func, строка 171)
+- `_service_icon` (func, строка 193)
+- `_test_connection` (func, строка 205)
+- `_ssh_stored_fields` (func, строка 236)
+- `_render_ssh_fields` (func, строка 244)
+- `_mcp_stored_env_json` (func, строка 300)
+- `_mcp_stored_env_names` (func, строка 308)
+- `_mcp_preset_options` (func, строка 319)
+- `_mcp_preset_by_id` (func, строка 327)
+- `_mcp_preset_for` (func, строка 348)
+- `_mcp_field_help` (func, строка 355)
+- `_render_mcp_preset_credential_fields` (func, строка 363)
+- `_render_custom_mcp_transport` (func, строка 398)
+- `_render_custom_mcp_transport_body` (func, строка 416)
+- `_form_header` (func, строка 479)
+- `_create_target` (func, строка 490)
+- `_render_create_view` (func, строка 503)
+- `_render_edit_view` (func, строка 568)
+- `_render_connection_card` (func, строка 641)
+- `_render_connections` (func, строка 731)
+- `_render_preset_tile` (func, строка 738)
+- `_render_custom_tile` (func, строка 750)
+- `_render_mcp_tab` (func, строка 758)
+- `_render_list_view` (func, строка 772)
+- `page_connectors` (func, строка 797)
 
 ### `ui/pages/history.py`
 - `_active_orch_thread_id` (func, строка 29)
@@ -774,36 +812,62 @@
 - `load_devagent_config` (func, строка 423)
 - `save_devagent_config` (func, строка 452)
 
+### `core/connector_presets.py`
+- `_preset_root` (func, строка 42)
+- `_service_dir` (func, строка 49)
+- `_is_valid_id` (func, строка 53)
+- `list_preset_ids` (func, строка 62)
+- `_coerce_hidden` (func, строка 78)
+- `_validate_preset` (func, строка 93)
+- `load_preset` (func, строка 157)
+- `find_preset` (func, строка 181)
+- `_public_view` (func, строка 187)
+- `list_presets` (func, строка 192)
+- `resolve_preset` (func, строка 215)
+- `instantiate_preset` (func, строка 223)
+
 ### `core/connectors.py`
-- `_now` (func, строка 82)
-- `_connectors_root` (func, строка 86)
-- `_manifest_path` (func, строка 93)
-- `_manifest_read` (func, строка 99)
-- `_manifest_write` (func, строка 114)
-- `_validate_service` (func, строка 122)
-- `_unique_conn_id` (func, строка 129)
-- `_service_field_names` (func, строка 137)
-- `_secret_field_names` (func, строка 144)
-- `_normalize_config` (func, строка 149)
-- `_normalize_secrets` (func, строка 178)
-- `_validate_ssh_auth` (func, строка 200)
-- `public_manifest` (func, строка 212)
-- `list_connections` (func, строка 244)
-- `get_connection` (func, строка 268)
-- `get_connection_full` (func, строка 277)
-- `create_connection` (func, строка 285)
-- `update_connection` (func, строка 349)
-- `set_connection_token` (func, строка 397)
-- `delete_connection` (func, строка 409)
-- `decrypt_token` (func, строка 420)
-- `get_connection_secrets` (func, строка 438)
-- `decrypt_secret` (func, строка 465)
-- `set_connection_secret` (func, строка 491)
-- `_memory_path` (func, строка 522)
-- `get_connection_memory` (func, строка 527)
-- `set_connection_memory` (func, строка 540)
-- `list_services` (func, строка 564)
-- `get_service` (func, строка 574)
+- `_validate_mcp_url` (func, строка 96)
+- `_validate_mcp_auth_header` (func, строка 116)
+- `_normalize_mcp_secret_fields` (func, строка 140)
+- `_normalize_mcp_config` (func, строка 181)
+- `_normalize_mcp_env_pairs` (func, строка 247)
+- `_mcp_env_json_to_pairs` (func, строка 268)
+- `_read_saved_mcp_env` (func, строка 293)
+- `_current_mcp_env` (func, строка 312)
+- `_normalize_mcp_secrets` (func, строка 323)
+- `_now` (func, строка 361)
+- `_connectors_root` (func, строка 365)
+- `_manifest_path` (func, строка 372)
+- `_manifest_read` (func, строка 378)
+- `_manifest_write` (func, строка 393)
+- `_validate_service` (func, строка 401)
+- `_unique_conn_id` (func, строка 408)
+- `_service_field_names` (func, строка 416)
+- `_secret_field_names` (func, строка 423)
+- `_normalize_config` (func, строка 428)
+- `_normalize_secrets` (func, строка 460)
+- `_validate_ssh_auth` (func, строка 488)
+- `public_manifest` (func, строка 500)
+- `list_connections` (func, строка 532)
+- `get_connection` (func, строка 556)
+- `get_connection_full` (func, строка 565)
+- `create_connection` (func, строка 573)
+- `update_connection` (func, строка 659)
+- `set_connection_token` (func, строка 750)
+- `delete_connection` (func, строка 762)
+- `decrypt_token` (func, строка 781)
+- `get_connection_secrets` (func, строка 799)
+- `decrypt_secret` (func, строка 826)
+- `set_connection_secret` (func, строка 852)
+- `get_mcp_env_field_names` (func, строка 886)
+- `get_mcp_env_var_names` (func, строка 904)
+- `set_mcp_env_pairs` (func, строка 914)
+- `_memory_path` (func, строка 964)
+- `get_connection_memory` (func, строка 969)
+- `set_connection_memory` (func, строка 982)
+- `list_services` (func, строка 1006)
+- `get_service` (func, строка 1016)
 
 ### `core/context_guard.py`
 - `input_ceiling` (func, строка 50)
@@ -848,26 +912,27 @@
 - `ensure_all_defaults` (func, строка 468)
 
 ### `core/defaults.py`
-- `defaults_root` (func, строка 52)
-- `settings_dir` (func, строка 57)
-- `orchestrators_dir` (func, строка 62)
-- `assistants_dir` (func, строка 67)
-- `services_dir` (func, строка 72)
-- `langs_dir` (func, строка 77)
-- `skills_dir` (func, строка 82)
-- `rag_bases_dir` (func, строка 87)
-- `list_default_rag_base_slugs` (func, строка 92)
-- `exists` (func, строка 112)
-- `read_json` (func, строка 119)
-- `parse_front_matter` (func, строка 133)
-- `list_default_orchestrator_slugs` (func, строка 182)
-- `_load_orchestrator_new_format` (func, строка 205)
-- `_load_orchestrator_old_format` (func, строка 299)
-- `load_default_orchestrator` (func, строка 377)
-- `list_default_assistant_folders` (func, строка 398)
-- `load_default_rag_base` (func, строка 418)
-- `load_default_assistant` (func, строка 429)
-- `load_global_settings` (func, строка 497)
+- `defaults_root` (func, строка 53)
+- `settings_dir` (func, строка 58)
+- `orchestrators_dir` (func, строка 63)
+- `assistants_dir` (func, строка 68)
+- `services_dir` (func, строка 73)
+- `langs_dir` (func, строка 78)
+- `skills_dir` (func, строка 83)
+- `rag_bases_dir` (func, строка 88)
+- `connector_presets_dir` (func, строка 93)
+- `list_default_rag_base_slugs` (func, строка 98)
+- `exists` (func, строка 118)
+- `read_json` (func, строка 125)
+- `parse_front_matter` (func, строка 139)
+- `list_default_orchestrator_slugs` (func, строка 188)
+- `_load_orchestrator_new_format` (func, строка 211)
+- `_load_orchestrator_old_format` (func, строка 305)
+- `load_default_orchestrator` (func, строка 383)
+- `list_default_assistant_folders` (func, строка 404)
+- `load_default_rag_base` (func, строка 424)
+- `load_default_assistant` (func, строка 435)
+- `load_global_settings` (func, строка 503)
 
 ### `core/dependency_check.py`
 - `parse_version` (func, строка 55)
@@ -1042,6 +1107,84 @@
 - `update_instruction` (func, строка 249)
 - `delete_instruction` (func, строка 258)
 
+### `core/mcp_client.py`
+- `McpClientError` (class, строка 71)
+- `McpServerStartError` (class, строка 75)
+- `McpTimeoutError` (class, строка 79)
+- `McpProtocolError` (class, строка 84)
+- `_type_dialect` (func, строка 91)
+- `_expected_types` (func, строка 101)
+- `_has_control_chars` (func, строка 120)
+- `translate_schema_parameters` (func, строка 125)
+- `_parse_line` (func, строка 174)
+- `_parse_sse_messages` (func, строка 189)
+- `_resolve_http_auth_header` (func, строка 216)
+- `_http_error_hint` (func, строка 247)
+- `McpHttpClient` (class, строка 275)
+- `McpHttpClient.__init__` (func, строка 287)
+- `McpHttpClient._new_id` (func, строка 307)
+- `McpHttpClient._build_headers` (func, строка 313)
+- `McpHttpClient._capture_session` (func, строка 328)
+- `McpHttpClient._read_response` (func, строка 342)
+- `McpHttpClient._send_request` (func, строка 367)
+- `McpHttpClient._request` (func, строка 420)
+- `McpHttpClient._notify` (func, строка 425)
+- `McpHttpClient._initialize` (func, строка 432)
+- `McpHttpClient.start` (func, строка 465)
+- `McpHttpClient._ensure_started` (func, строка 481)
+- `McpHttpClient.list_tools` (func, строка 490)
+- `McpHttpClient.call_tool` (func, строка 512)
+- `McpHttpClient.close` (func, строка 563)
+- `McpClient` (class, строка 569)
+- `McpClient.__init__` (func, строка 592)
+- `McpClient._resolve_executable` (func, строка 617)
+- `McpClient._server_env` (func, строка 633)
+- `McpClient.start` (func, строка 650)
+- `McpClient._register_self` (func, строка 691)
+- `McpClient._unregister_self` (func, строка 700)
+- `McpClient._start_stdout_drain` (func, строка 706)
+- `McpClient._drain_stdout` (func, строка 717)
+- `McpClient._drain_stderr` (func, строка 737)
+- `McpClient._initialize` (func, строка 763)
+- `McpClient._new_id` (func, строка 800)
+- `McpClient._send` (func, строка 806)
+- `McpClient._notify` (func, строка 819)
+- `McpClient._request` (func, строка 823)
+- `McpClient._read_response_line` (func, строка 868)
+- `McpClient._ensure_alive` (func, строка 876)
+- `McpClient.list_tools` (func, строка 885)
+- `McpClient.call_tool` (func, строка 913)
+- `McpClient._ensure_started` (func, строка 968)
+- `McpClient._terminate` (func, строка 977)
+- `McpClient.close` (func, строка 994)
+- `_format_error` (func, строка 1015)
+- `get_client` (func, строка 1033)
+- `get_http_client` (func, строка 1061)
+- `_drop_http_client` (func, строка 1086)
+- `drop_client` (func, строка 1095)
+
+### `core/mcp_tools.py`
+- `McpToolError` (class, строка 81)
+- `_get_conn_id` (func, строка 88)
+- `_enabled_mcp_conn_ids` (func, строка 96)
+- `_load_connection` (func, строка 115)
+- `_client_for` (func, строка 158)
+- `_sanitize_desc` (func, строка 189)
+- `_dynamic_tool_name` (func, строка 196)
+- `_normalize_tools` (func, строка 203)
+- `_discover_tools` (func, строка 240)
+- `_describe_dynamic_tool` (func, строка 276)
+- `_make_dynamic_fn` (func, строка 293)
+- `_make_dynamic_fn._invoke` (func, строка 296)
+- `_call_server_tool` (func, строка 304)
+- `get_static_tools` (func, строка 328)
+- `mcp_list_tools` (func, строка 333)
+- `mcp_call_tool` (func, строка 368)
+- `test_connection` (func, строка 405)
+- `collect_catalog_entries` (func, строка 435)
+- `build_dynamic_tools` (func, строка 460)
+- `clear_discovery_cache` (func, строка 488)
+
 ### `core/multimodal.py`
 - `MultimodalError` (class, строка 44)
 - `MultimodalError.__init__` (func, строка 55)
@@ -1092,18 +1235,18 @@
 - `sort_orchestrators.key` (func, строка 51)
 
 ### `core/orchestrator_tools.py`
-- `_legacy_aliases` (func, строка 25)
-- `resolve_tool_name` (func, строка 34)
-- `normalize_disabled` (func, строка 44)
-- `is_tool_disabled` (func, строка 63)
-- `_core_catalog` (func, строка 88)
-- `_workspace_catalog` (func, строка 97)
-- `_connection_catalog` (func, строка 106)
-- `_custom_function_catalog` (func, строка 133)
-- `build_tool_catalog` (func, строка 155)
-- `build_tool_catalog._add` (func, строка 170)
-- `list_system_tools` (func, строка 193)
-- `render_available_tools_block` (func, строка 214)
+- `_legacy_aliases` (func, строка 28)
+- `resolve_tool_name` (func, строка 37)
+- `normalize_disabled` (func, строка 47)
+- `is_tool_disabled` (func, строка 66)
+- `_core_catalog` (func, строка 91)
+- `_workspace_catalog` (func, строка 100)
+- `_connection_catalog` (func, строка 109)
+- `_custom_function_catalog` (func, строка 148)
+- `build_tool_catalog` (func, строка 170)
+- `build_tool_catalog._add` (func, строка 185)
+- `list_system_tools` (func, строка 208)
+- `render_available_tools_block` (func, строка 229)
 
 ### `core/orchestrators.py`
 - `_ensure_default_orchestrators` (func, строка 102)
@@ -1983,24 +2126,24 @@
 - `test_delete_connection` (func, строка 86)
 - `test_validation` (func, строка 94)
 - `test_services_registry` (func, строка 104)
-- `test_create_github_rest_connection_encrypted_token` (func, строка 116)
-- `test_public_manifest_never_leaks_token` (func, строка 132)
-- `test_create_ssh_connection_roundtrip` (func, строка 144)
-- `test_ssh_manifest_on_disk_keeps_secrets_encrypted` (func, строка 162)
-- `test_ssh_public_view_never_leaks_secrets` (func, строка 180)
-- `test_ssh_create_validation` (func, строка 195)
-- `test_update_ssh_connection_rotates_secret_and_config` (func, строка 220)
-- `test_set_connection_secret_and_decrypt` (func, строка 239)
-- `test_create_pending_github_connection_stores_no_credential` (func, строка 263)
-- `test_create_pending_ssh_connection_keeps_config` (func, строка 274)
-- `test_fill_token_activates_pending_connection` (func, строка 287)
-- `test_set_connection_token_activates_pending_connection` (func, строка 295)
-- `test_fill_ssh_secrets_activates_pending_connection` (func, строка 302)
-- `test_set_connection_secret_activates_pending_connection` (func, строка 313)
-- `test_public_manifest_credentials_status_fallback` (func, строка 323)
-- `test_connection_memory_roundtrip` (func, строка 340)
-- `test_connection_memory_size_limit` (func, строка 350)
-- `test_connection_memory_unknown_connection` (func, строка 359)
+- `test_create_github_rest_connection_encrypted_token` (func, строка 121)
+- `test_public_manifest_never_leaks_token` (func, строка 137)
+- `test_create_ssh_connection_roundtrip` (func, строка 149)
+- `test_ssh_manifest_on_disk_keeps_secrets_encrypted` (func, строка 167)
+- `test_ssh_public_view_never_leaks_secrets` (func, строка 185)
+- `test_ssh_create_validation` (func, строка 200)
+- `test_update_ssh_connection_rotates_secret_and_config` (func, строка 225)
+- `test_set_connection_secret_and_decrypt` (func, строка 244)
+- `test_create_pending_github_connection_stores_no_credential` (func, строка 268)
+- `test_create_pending_ssh_connection_keeps_config` (func, строка 279)
+- `test_fill_token_activates_pending_connection` (func, строка 292)
+- `test_set_connection_token_activates_pending_connection` (func, строка 300)
+- `test_fill_ssh_secrets_activates_pending_connection` (func, строка 307)
+- `test_set_connection_secret_activates_pending_connection` (func, строка 318)
+- `test_public_manifest_credentials_status_fallback` (func, строка 328)
+- `test_connection_memory_roundtrip` (func, строка 345)
+- `test_connection_memory_size_limit` (func, строка 355)
+- `test_connection_memory_unknown_connection` (func, строка 364)
 
 ### `tests/test_context_window_guard.py`
 - `_calls` (func, строка 13)
@@ -2267,6 +2410,9 @@
 - `test_ssh_connector_documents_first_connection` (func, строка 73)
 - `test_ssh_connector_documents_memory_file` (func, строка 85)
 - `test_github_connector_documents_memory_file` (func, строка 97)
+- `test_mcp_connector_structure` (func, строка 108)
+- `test_mcp_connector_documents_memory_file` (func, строка 120)
+- `test_mcp_connector_security_rules` (func, строка 128)
 
 ### `tests/test_devagent_thread_workspace.py`
 - `isolated_data` (func, строка 23)
@@ -2559,6 +2705,45 @@
 - `test_no_json_schema_field_when_not_requested` (func, строка 43)
 - `test_adapter_form_call_unchanged` (func, строка 51)
 - `test_adapter_form_call_unchanged.adapter` (func, строка 56)
+
+### `tests/test_mcp_catalog.py`
+- `isolated_data_dir` (func, строка 37)
+- `orch_slug` (func, строка 90)
+- `_make_connection` (func, строка 97)
+- `test_catalog_contains_static_mcp_tools_without_connections` (func, строка 121)
+- `test_catalog_contains_static_and_dynamic_mcp_tools` (func, строка 128)
+- `test_catalog_description_does_not_include_env_suffix` (func, строка 143)
+- `test_connection_catalog_returns_empty_without_enabled_mcp` (func, строка 152)
+- `test_disabled_static_tools_vanish_from_catalog_and_block` (func, строка 166)
+- `test_disabled_dynamic_tool_vanish_from_catalog_and_block` (func, строка 177)
+- `test_env_json_secret_never_appears_in_catalog_or_payload` (func, строка 192)
+
+### `tests/test_mcp_client.py`
+- `_start` (func, строка 41)
+- `_cleanup_process_registry` (func, строка 55)
+- `test_start_handshake_and_list_tools` (func, строка 65)
+- `test_start_wrong_protocol_version` (func, строка 78)
+- `test_start_broken_command_does_not_crash_platform` (func, строка 89)
+- `test_tools_list_cache_does_not_hit_server_twice` (func, строка 101)
+- `test_call_tool_success` (func, строка 116)
+- `test_call_tool_is_error_flag` (func, строка 125)
+- `test_call_tool_unknown_tool_rpc_error` (func, строка 135)
+- `test_call_tool_rejects_non_text_result` (func, строка 148)
+- `test_call_tool_rejects_non_object_arguments` (func, строка 160)
+- `test_call_to_dead_process_fails` (func, строка 170)
+- `test_call_tool_after_server_crash_is_isolated` (func, строка 177)
+- `test_timeout_kills_process_and_disables_connection` (func, строка 194)
+- `test_process_registry_replacement_kills_previous_process` (func, строка 215)
+- `test_no_process_leaks_after_close` (func, строка 227)
+- `test_get_client_reuses_live_and_recreates_after_drop` (func, строка 234)
+- `test_stderr_is_forwarded_to_handler` (func, строка 253)
+- `test_translate_schema_parameters` (func, строка 266)
+- `test_translate_schema_no_properties` (func, строка 289)
+- `test_translate_schema_untrusted_shapes_do_not_crash` (func, строка 295)
+- `test_resolve_http_auth_header_empty_placeholders_yield_none` (func, строка 315)
+- `test_resolve_http_auth_header_filled_placeholders` (func, строка 326)
+- `test_http_error_hint_covers_auth_failures` (func, строка 340)
+- `test_http_403_error_message_carries_hint_without_secrets` (func, строка 351)
 
 ### `tests/test_multimodal.py`
 - `_jpeg` (func, строка 32)
@@ -3971,21 +4156,50 @@
 - `test_build_rag_chunks_tool_hint_mentions_bound_slug` (func, строка 63)
 - `test_build_rag_search_tool_mentions_chunks_followup` (func, строка 69)
 
+### `tests/test_ui_connectors_mcp.py`
+- `st_mock` (func, строка 79)
+- `_page` (func, строка 93)
+- `_render_page` (func, строка 99)
+- `_keys` (func, строка 110)
+- `_tabs_calls` (func, строка 115)
+- `_button_labels` (func, строка 120)
+- `_open_create` (func, строка 125)
+- `test_page_renders_stateful_tabs` (func, строка 134)
+- `test_return_targets_connections_tab_through_default` (func, строка 149)
+- `test_mcp_tab_renders_preset_and_custom_tiles` (func, строка 164)
+- `test_preset_tile_click_only_opens_form` (func, строка 175)
+- `test_preset_create_form_prefills_preset` (func, строка 195)
+- `test_preset_create_form_prefills_preset._capture` (func, строка 203)
+- `test_preset_create_submit_creates_active_connection` (func, строка 220)
+- `test_create_cancel_returns_without_writing` (func, строка 246)
+- `test_custom_tile_click_opens_create_form` (func, строка 268)
+- `test_custom_create_submit_creates_stdio_connection` (func, строка 286)
+- `test_preset_mcp_edit_view_saves_env_pairs` (func, строка 316)
+- `test_edit_view_cancel_returns_without_saving` (func, строка 357)
+- `test_mcp_connection_card_renders_on_connections_tab` (func, строка 381)
+- `test_general_tab_uses_service_tiles_without_mcp` (func, строка 394)
+- `test_hidden_preset_offers_no_tile` (func, строка 445)
+- `test_connection_from_hidden_preset_keeps_preset_edit_form` (func, строка 456)
+
 ### `tests/test_ui_connectors_ssh.py`
-- `st_mock` (func, строка 46)
-- `_page` (func, строка 65)
-- `_render_page` (func, строка 71)
-- `_keys` (func, строка 80)
-- `test_create_form_renders_ssh_fields_when_ssh_selected` (func, строка 87)
-- `test_create_form_keeps_github_token_by_default` (func, строка 102)
-- `test_create_ssh_connection_passes_config_and_secrets` (func, строка 114)
-- `test_create_github_connection_keeps_token_flow` (func, строка 148)
-- `test_ssh_card_shows_target_and_masked_secrets` (func, строка 172)
-- `test_edit_ssh_form_renders_fields_and_saves` (func, строка 188)
-- `test_ssh_test_button_routes_to_ssh_connector` (func, строка 222)
-- `test_ssh_test_button_reports_failure` (func, строка 244)
-- `test_pending_card_shows_credentials_warning` (func, строка 266)
-- `test_active_card_shows_no_credentials_warning` (func, строка 278)
+- `st_mock` (func, строка 48)
+- `_page` (func, строка 67)
+- `_render_page` (func, строка 73)
+- `_keys` (func, строка 82)
+- `_open_create` (func, строка 87)
+- `_open_edit` (func, строка 94)
+- `test_create_form_renders_ssh_fields_for_ssh_service` (func, строка 102)
+- `test_create_form_keeps_github_token_by_default` (func, строка 119)
+- `test_create_ssh_connection_passes_config_and_secrets` (func, строка 132)
+- `test_create_github_connection_keeps_token_flow` (func, строка 169)
+- `test_failed_create_keeps_the_form_open` (func, строка 192)
+- `test_ssh_card_shows_target_and_masked_secrets` (func, строка 213)
+- `test_card_edit_button_opens_the_full_page_form` (func, строка 229)
+- `test_edit_ssh_form_renders_fields_and_saves` (func, строка 240)
+- `test_ssh_test_button_routes_to_ssh_connector` (func, строка 277)
+- `test_ssh_test_button_reports_failure` (func, строка 299)
+- `test_pending_card_shows_credentials_warning` (func, строка 318)
+- `test_active_card_shows_no_credentials_warning` (func, строка 333)
 
 ### `tests/test_ui_flash.py`
 - `st_env` (func, строка 19)
@@ -4737,6 +4951,37 @@
 - `test_scenario_duplicate_call_flood_yields_one_compact_error` (func, строка 114)
 - `test_scenario_prose_with_continue_keeps_loop_alive` (func, строка 150)
 
+### `tests/scenarios/test_mcp_e2e_scenario.py`
+- `isolated_data_dir` (func, строка 33)
+- `test_mcp_e2e_demo_scenario` (func, строка 82)
+
+### `tests/scenarios/test_mcp_preset_e2e_scenario.py`
+- `_FakeVkusvillServer` (class, строка 37)
+- `_FakeVkusvillServer.__init__` (func, строка 43)
+- `_FakeVkusvillServer.__init__.Handler` (class, строка 46)
+- `_FakeVkusvillServer.__init__.Handler.log_message` (func, строка 49)
+- `_FakeVkusvillServer.__init__.Handler.do_POST` (func, строка 52)
+- `_FakeVkusvillServer.__init__.Handler._reply` (func, строка 147)
+- `_FakeVkusvillServer.__init__.Handler._reply_bytes` (func, строка 153)
+- `_FakeVkusvillServer.start` (func, строка 168)
+- `_FakeVkusvillServer.stop` (func, строка 178)
+- `isolated_data_dir` (func, строка 186)
+- `test_mcp_preset_draft_credentials_call_scenario` (func, строка 237)
+
+### `tests/scenarios/test_mcp_tab_ui_scenario.py`
+- `st_mock` (func, строка 47)
+- `isolated_data_dir` (func, строка 62)
+- `_page` (func, строка 82)
+- `_render` (func, строка 87)
+- `_tab_labels` (func, строка 94)
+- `_errors` (func, строка 103)
+- `_flash_queue` (func, строка 107)
+- `_mcp_connections` (func, строка 112)
+- `_vkusvill_token` (func, строка 118)
+- `test_mcp_preset_and_custom_server_scenario` (func, строка 125)
+- `test_general_service_tile_scenario` (func, строка 202)
+- `conns_of` (func, строка 262)
+
 ### `tests/scenarios/test_multimodal_scenarios.py`
 - `_services` (func, строка 55)
 - `_resp` (func, строка 93)
@@ -4906,8 +5151,8 @@
 - `_render` (func, строка 44)
 - `test_prompt_save_confirmation_survives_the_rerun` (func, строка 52)
 - `test_connector_save_confirmation_survives_the_rerun` (func, строка 86)
-- `test_skill_save_confirmation_survives_the_rerun` (func, строка 106)
-- `test_orchestrator_delete_confirmation_survives_the_rerun` (func, строка 128)
+- `test_skill_save_confirmation_survives_the_rerun` (func, строка 114)
+- `test_orchestrator_delete_confirmation_survives_the_rerun` (func, строка 136)
 
 ### `tests/scenarios/test_search_in_files_scenarios.py`
 - `project` (func, строка 23)
@@ -5067,6 +5312,11 @@
 - `test_test_connection_reports_failed_body_yandex` (func, строка 253)
 - `test_test_connection_reports_failed_body_deepseek` (func, строка 272)
 - `test_tool_loop_raises_on_failed_status` (func, строка 289)
+
+### `tests/fixtures/mcp_demo_server.py`
+- `send` (func, строка 49)
+- `bump` (func, строка 54)
+- `main` (func, строка 70)
 
 ### `storage/db.py`
 - `_is_file_db` (func, строка 24)
@@ -5508,67 +5758,69 @@
 
 ### `dev_agent/universal_agent.py`
 - `load_system_prompt` (func, строка 31)
-- `_workspace_usage` (func, строка 188)
-- `build_assistant_dict_from_config` (func, строка 200)
-- `build_assistant_dict_from_config._make_assistant` (func, строка 212)
-- `UniversalDevAgent` (class, строка 241)
-- `UniversalDevAgent.__init__` (func, строка 244)
-- `UniversalDevAgent.system_prompt` (func, строка 316)
-- `UniversalDevAgent.tool_catalog` (func, строка 321)
-- `UniversalDevAgent.dispatch` (func, строка 327)
-- `UniversalDevAgent._current_orchestrator_slug` (func, строка 339)
-- `UniversalDevAgent._is_disabled_for_orchestrator` (func, строка 348)
-- `UniversalDevAgent._disabled_tool_error` (func, строка 364)
-- `UniversalDevAgent._dispatch_impl` (func, строка 376)
-- `UniversalDevAgent.attach_orchestrator` (func, строка 420)
-- `UniversalDevAgent._attach_connection_tools` (func, строка 465)
-- `UniversalDevAgent.attach_orchestrator_catalog` (func, строка 509)
-- `UniversalDevAgent.dispatch_json` (func, строка 528)
-- `UniversalDevAgent._recreate_core_preserving_history` (func, строка 540)
-- `UniversalDevAgent.set_thread_id` (func, строка 562)
-- `UniversalDevAgent._persist_thread_workspace` (func, строка 584)
-- `UniversalDevAgent._sync_binding_after_switch` (func, строка 605)
-- `UniversalDevAgent._set_workspace` (func, строка 611)
-- `UniversalDevAgent._set_target_file` (func, строка 620)
-- `UniversalDevAgent._write_project_map` (func, строка 629)
-- `UniversalDevAgent._write_doc` (func, строка 632)
-- `UniversalDevAgent._read_doc` (func, строка 635)
-- `UniversalDevAgent._snapshot_all` (func, строка 638)
-- `UniversalDevAgent._restore_all` (func, строка 641)
-- `UniversalDevAgent._active_thread_id` (func, строка 647)
-- `UniversalDevAgent._list_thread_files` (func, строка 652)
-- `UniversalDevAgent._read_thread_file` (func, строка 660)
-- `UniversalDevAgent._thread_access_slugs` (func, строка 678)
-- `UniversalDevAgent._normalize_orchestrator_arg` (func, строка 696)
-- `UniversalDevAgent._as_bool` (func, строка 714)
-- `UniversalDevAgent._search_in_threads` (func, строка 727)
-- `UniversalDevAgent._list_threads` (func, строка 791)
-- `UniversalDevAgent._read_thread` (func, строка 813)
-- `UniversalDevAgent._list_orchestrators` (func, строка 837)
-- `UniversalDevAgent._get_orchestrator` (func, строка 842)
-- `UniversalDevAgent._create_orchestrator` (func, строка 851)
-- `UniversalDevAgent._update_orchestrator` (func, строка 874)
-- `UniversalDevAgent._delete_orchestrator` (func, строка 886)
-- `UniversalDevAgent._reload_orchestrator` (func, строка 895)
-- `UniversalDevAgent._list_orchestrator_functions` (func, строка 904)
-- `UniversalDevAgent._get_orchestrator_function` (func, строка 911)
-- `UniversalDevAgent._save_orchestrator_function` (func, строка 920)
-- `UniversalDevAgent._delete_orchestrator_function` (func, строка 929)
-- `UniversalDevAgent._list_orchestrator_instructions` (func, строка 938)
-- `UniversalDevAgent._get_orchestrator_instruction` (func, строка 945)
-- `UniversalDevAgent._save_orchestrator_instruction` (func, строка 954)
-- `UniversalDevAgent._delete_orchestrator_instruction` (func, строка 967)
-- `UniversalDevAgent._list_connections` (func, строка 978)
-- `UniversalDevAgent._get_connection` (func, строка 983)
-- `UniversalDevAgent._list_connector_services` (func, строка 992)
-- `UniversalDevAgent._create_connection` (func, строка 996)
-- `UniversalDevAgent._update_connection` (func, строка 1014)
-- `UniversalDevAgent._delete_connection` (func, строка 1026)
-- `UniversalDevAgent._test_connection` (func, строка 1035)
-- `UniversalDevAgent._get_enabled_connections` (func, строка 1057)
-- `UniversalDevAgent._set_enabled_connections` (func, строка 1062)
-- `UniversalDevAgent._get_connection_memory` (func, строка 1073)
-- `UniversalDevAgent._set_connection_memory` (func, строка 1079)
+- `_workspace_usage` (func, строка 190)
+- `build_assistant_dict_from_config` (func, строка 202)
+- `build_assistant_dict_from_config._make_assistant` (func, строка 214)
+- `UniversalDevAgent` (class, строка 243)
+- `UniversalDevAgent.__init__` (func, строка 246)
+- `UniversalDevAgent.system_prompt` (func, строка 319)
+- `UniversalDevAgent.tool_catalog` (func, строка 324)
+- `UniversalDevAgent.dispatch` (func, строка 330)
+- `UniversalDevAgent._current_orchestrator_slug` (func, строка 342)
+- `UniversalDevAgent._is_disabled_for_orchestrator` (func, строка 351)
+- `UniversalDevAgent._disabled_tool_error` (func, строка 367)
+- `UniversalDevAgent._dispatch_impl` (func, строка 379)
+- `UniversalDevAgent.attach_orchestrator` (func, строка 423)
+- `UniversalDevAgent._pop_mcp_tools` (func, строка 473)
+- `UniversalDevAgent._attach_connection_tools` (func, строка 484)
+- `UniversalDevAgent.attach_orchestrator_catalog` (func, строка 539)
+- `UniversalDevAgent.dispatch_json` (func, строка 558)
+- `UniversalDevAgent._recreate_core_preserving_history` (func, строка 570)
+- `UniversalDevAgent.set_thread_id` (func, строка 592)
+- `UniversalDevAgent._persist_thread_workspace` (func, строка 614)
+- `UniversalDevAgent._sync_binding_after_switch` (func, строка 635)
+- `UniversalDevAgent._set_workspace` (func, строка 641)
+- `UniversalDevAgent._set_target_file` (func, строка 650)
+- `UniversalDevAgent._write_project_map` (func, строка 659)
+- `UniversalDevAgent._write_doc` (func, строка 662)
+- `UniversalDevAgent._read_doc` (func, строка 665)
+- `UniversalDevAgent._snapshot_all` (func, строка 668)
+- `UniversalDevAgent._restore_all` (func, строка 671)
+- `UniversalDevAgent._active_thread_id` (func, строка 677)
+- `UniversalDevAgent._list_thread_files` (func, строка 682)
+- `UniversalDevAgent._read_thread_file` (func, строка 690)
+- `UniversalDevAgent._thread_access_slugs` (func, строка 708)
+- `UniversalDevAgent._normalize_orchestrator_arg` (func, строка 726)
+- `UniversalDevAgent._as_bool` (func, строка 744)
+- `UniversalDevAgent._search_in_threads` (func, строка 757)
+- `UniversalDevAgent._list_threads` (func, строка 821)
+- `UniversalDevAgent._read_thread` (func, строка 843)
+- `UniversalDevAgent._list_orchestrators` (func, строка 867)
+- `UniversalDevAgent._get_orchestrator` (func, строка 872)
+- `UniversalDevAgent._create_orchestrator` (func, строка 881)
+- `UniversalDevAgent._update_orchestrator` (func, строка 904)
+- `UniversalDevAgent._delete_orchestrator` (func, строка 916)
+- `UniversalDevAgent._reload_orchestrator` (func, строка 925)
+- `UniversalDevAgent._list_orchestrator_functions` (func, строка 934)
+- `UniversalDevAgent._get_orchestrator_function` (func, строка 941)
+- `UniversalDevAgent._save_orchestrator_function` (func, строка 950)
+- `UniversalDevAgent._delete_orchestrator_function` (func, строка 959)
+- `UniversalDevAgent._list_orchestrator_instructions` (func, строка 968)
+- `UniversalDevAgent._get_orchestrator_instruction` (func, строка 975)
+- `UniversalDevAgent._save_orchestrator_instruction` (func, строка 984)
+- `UniversalDevAgent._delete_orchestrator_instruction` (func, строка 997)
+- `UniversalDevAgent._list_connections` (func, строка 1008)
+- `UniversalDevAgent._get_connection` (func, строка 1013)
+- `UniversalDevAgent._list_connector_services` (func, строка 1022)
+- `UniversalDevAgent._list_connection_presets` (func, строка 1026)
+- `UniversalDevAgent._create_connection` (func, строка 1038)
+- `UniversalDevAgent._update_connection` (func, строка 1077)
+- `UniversalDevAgent._delete_connection` (func, строка 1089)
+- `UniversalDevAgent._test_connection` (func, строка 1098)
+- `UniversalDevAgent._get_enabled_connections` (func, строка 1120)
+- `UniversalDevAgent._set_enabled_connections` (func, строка 1125)
+- `UniversalDevAgent._get_connection_memory` (func, строка 1136)
+- `UniversalDevAgent._set_connection_memory` (func, строка 1142)
 
 ### `dev_agent/workspace_binding.py`
 - `_norm_tid` (func, строка 47)

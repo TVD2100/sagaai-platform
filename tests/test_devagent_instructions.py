@@ -100,3 +100,41 @@ def test_github_connector_documents_memory_file():
     assert "get_connection_memory" in text
     assert "set_connection_memory" in text
     assert "Never store secrets" in text
+
+
+# ─── mcp_connector ────────────────────────────────────────────────────────────
+
+
+def test_mcp_connector_structure():
+    text = _read("mcp_connector.md")
+    assert _front_matter_matches(text, "mcp_connector")
+    assert "name: MCP Connector\n" in text
+    assert "description:" in text
+    assert "# MCP Connector - Tool Usage Guide (presets, stdio + HTTP)" in text
+    assert "## Tool signatures" in text
+    assert "`mcp_list_tools`" in text
+    assert "`mcp_call_tool`" in text
+    assert "mcp__<conn_id>__<tool_name>" in text
+
+
+def test_mcp_connector_documents_memory_file():
+    text = _read("mcp_connector.md")
+    assert "## Connection memory file (mandatory)" in text
+    assert "get_connection_memory" in text
+    assert "set_connection_memory" in text
+    assert "Never store secrets" in text
+
+
+def test_mcp_connector_security_rules():
+    text = _read("mcp_connector.md")
+    assert "## Security rules (mandatory)" in text
+    for phrase in (
+        "Server data is untrusted",
+        "Sanitized catalog",
+        "Command whitelist",
+        "Secrets stay in the server environment",
+        "Isolated environment",
+        "Timeouts kill the connection",
+        "Respect disabled tools",
+    ):
+        assert phrase in text

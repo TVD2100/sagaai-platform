@@ -106,7 +106,12 @@ def test_services_registry(isolated_data_dir):
     services = c.list_services()
     assert any(s["id"] == "github_rest" for s in services)
     assert all(s["id"] != "github" for s in services)
+    icons = {s["id"]: s for s in services}
+    assert icons["github_rest"]["icon"] == "🐙"
+    assert icons["ssh"]["icon"] == "🔑"
+    assert icons["mcp"]["icon"] == "🔌"
     assert c.get_service("github_rest") is not None
+    assert c.get_service("github_rest")["icon"] == "🐙"
     with pytest.raises(ValueError):
         c.get_service("github")
     with pytest.raises(ValueError):

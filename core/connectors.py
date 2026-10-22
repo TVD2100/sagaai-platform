@@ -6,7 +6,7 @@ Each connection lives in ``DATA_DIR/connectors/<id>/manifest.json``:
 
     {
         "id": "<uuid8>",
-        "service": "github_rest" | "ssh",
+        "service": "github_rest" | "ssh" | "mcp",
         "name": "GitHub-TVD2100",          # user-visible name
         "account": "TVD2100",              # display info about the account
         "token_encrypted": "<fernet>",     # token-style services (github_rest)
@@ -60,14 +60,293 @@ CONNECTOR_SERVICES: Dict[str, Dict[str, Any]] = {
     "github_rest": {
         "name": "GitHub REST API (direct)",
         "description": "Direct GitHub REST API v3 connection (requests, batch publishing via Git Data API)",
+        "icon": "\U0001f419",
     },
     "ssh": {
         "name": "SSH Server",
         "description": "SSH/SFTP connection to a remote server (paramiko): run commands, list/read/write files",
+        "icon": "\U0001f511",
         "config_fields": ["host", "port", "username"],
         "secret_fields": ["password", "private_key", "key_passphrase"],
     },
+    "mcp": {
+        "name": "MCP Server",
+        "description": "Model Context Protocol server (local stdio process or HTTP endpoint); its tools appear in the orchestrator tool catalog",
+        "icon": "\U0001f50c",
+        "config_fields": ["transport", "command", "args", "url", "auth_header", "preset", "description"],
+        "secret_fields": ["env_json"],
+    },
 }
+
+# Interpreter whitelist for the mcp service: bare executable names only,
+# paths and arbitrary binaries are never accepted (no shell, no surprises).
+MCP_ALLOWED_COMMANDS = ("python", "python3", "node", "npx", "uvx", "uv")
+
+
+# URL rules for the http transport: remote servers must use https; plain
+# http is accepted only for local development addresses (SSRF protection).
+_LOCAL_HTTP_HOSTS = ("localhost", "127.0.0.1", "::1")
+_MAX_MCP_URL_LEN = 500
+_MAX_MCP_AUTH_HEADER_LEN = 300
+_AUTH_HEADER_PLACEHOLDER_RE = re.compile(r"\{([^}]*)\}")
+_MCP_PRESET_RE = re.compile(r"^[a-z0-9_-]{1,64}$")
+_MCP_ENV_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _validate_mcp_url(url: str) -> None:
+    """Validate the http-transport url (untrusted input, SSRF-safe)."""
+    if len(url) > _MAX_MCP_URL_LEN:
+        raise ValueError("MCP url is too long")
+    from urllib.parse import urlsplit
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        raise ValueError("MCP url is invalid")
+    scheme = (parts.scheme or "").lower()
+    host = (parts.hostname or "").lower()
+    if scheme == "https" and host:
+        return
+    if scheme == "http" and host in _LOCAL_HTTP_HOSTS:
+        return
+    raise ValueError(
+        "MCP url must be https:// (or http:// for localhost only)"
+    )
+
+
+def _validate_mcp_auth_header(template: str) -> None:
+    """Validate an Authorization header template (no real secrets inside).
+
+    Placeholders like ``{GITHUB_TOKEN}`` are resolved at request time from
+    the decrypted env_json pairs; the template itself must be a single line
+    without control characters (header injection) and use uppercase
+    placeholder names only.
+    """
+    if len(template) > _MAX_MCP_AUTH_HEADER_LEN:
+        raise ValueError("MCP auth_header is too long")
+    if any(ord(ch) < 32 for ch in template):
+        raise ValueError("MCP auth_header must be a single header line")
+    groups = _AUTH_HEADER_PLACEHOLDER_RE.findall(template)
+    stripped = _AUTH_HEADER_PLACEHOLDER_RE.sub("", template)
+    if "{" in stripped or "}" in stripped:
+        raise ValueError("MCP auth_header has malformed placeholder braces")
+    for name in groups:
+        if not re.fullmatch(r"[A-Z][A-Z0-9_]*", name):
+            raise ValueError(
+                "MCP auth_header placeholders must be uppercase env names: "
+                f"{{{name}}}"
+            )
+
+
+def _normalize_mcp_secret_fields(raw: Any) -> Dict[str, Dict[str, Any]]:
+    """Validate the optional 'secret_env_fields' metadata of an mcp config.
+
+    Maps a user-friendly field id ('token', 'login', ...) to the env var the
+    server expects ('env') plus UI metadata (label/help/password). No secret
+    values live here - only the mapping. Entry specs may be plain env-name
+    strings or {env, label, help, password} objects.
+    """
+    if not isinstance(raw, dict):
+        raise ValueError("MCP secret_env_fields must be a JSON object")
+    if len(raw) > 8:
+        raise ValueError("MCP secret_env_fields: at most 8 fields")
+    out: Dict[str, Dict[str, Any]] = {}
+    for field_id, spec in raw.items():
+        fid = str(field_id or "").strip().lower()
+        if not _MCP_PRESET_RE.fullmatch(fid):
+            raise ValueError("MCP secret field id must be [a-z0-9_-]")
+        if isinstance(spec, str):
+            env_name = spec
+            meta: Dict[str, Any] = {}
+        elif isinstance(spec, dict):
+            env_name = str(spec.get("env") or "")
+            meta = {
+                "label": str(spec.get("label") or "").strip()[:100],
+                "help": str(spec.get("help") or "").strip()[:300],
+                "password": bool(spec.get("password", True)),
+            }
+        else:
+            raise ValueError(
+                "MCP secret field entry must be a string or an object"
+            )
+        env_name = (env_name or "").strip()
+        if not _MCP_ENV_NAME_RE.fullmatch(env_name):
+            raise ValueError(
+                f"Invalid MCP env var name in secret field '{fid}': "
+                f"{env_name!r}"
+            )
+        out[fid] = {"env": env_name, **meta}
+    return out
+
+
+def _normalize_mcp_config(config: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Validate the mcp config: stdio (whitelisted command + args) or http (url).
+
+    Optional metadata keys (``preset``, ``description``) are validated and
+    stored for the UI and for preset instantiation; they carry no secrets.
+    """
+    cfg = config if isinstance(config, dict) else {}
+    transport = str(cfg.get("transport") or "").strip().lower() or "stdio"
+    if transport == "http":
+        url = str(cfg.get("url") or "").strip()
+        if not url:
+            raise ValueError("MCP url cannot be empty for the http transport")
+        _validate_mcp_url(url)
+        if str(cfg.get("command") or "").strip():
+            raise ValueError("MCP http transport does not use command/args")
+        norm: Dict[str, Any] = {"transport": "http", "url": url}
+        template = str(cfg.get("auth_header") or "").strip()
+        if template:
+            _validate_mcp_auth_header(template)
+            norm["auth_header"] = template
+    elif transport == "stdio":
+        command = str(cfg.get("command") or "").strip()
+        if not command:
+            raise ValueError("MCP command cannot be empty")
+        if command.lower() not in MCP_ALLOWED_COMMANDS:
+            if os.path.isabs(command) and os.path.basename(command).lower() in MCP_ALLOWED_COMMANDS:
+                if not (os.path.isfile(command) and os.access(command, os.X_OK)):
+                    raise ValueError(
+                        "MCP command path is not an executable interpreter"
+                    )
+            else:
+                raise ValueError(
+                    "MCP command is not allowed; whitelist: "
+                    + ", ".join(MCP_ALLOWED_COMMANDS)
+                )
+        args_raw = cfg.get("args")
+        if args_raw in (None, ""):
+            args: List[str] = []
+        elif isinstance(args_raw, list):
+            args = [str(a) for a in args_raw]
+            if any(not a or not str(a).strip() for a in args_raw):
+                raise ValueError("MCP args entries must be non-empty strings")
+        else:
+            raise ValueError("MCP args must be a list of strings")
+        norm = {"transport": "stdio", "command": command, "args": args}
+    else:
+        raise ValueError("MCP transport must be 'stdio' or 'http'")
+    preset = str(cfg.get("preset") or "").strip()
+    if preset:
+        if not _MCP_PRESET_RE.fullmatch(preset):
+            raise ValueError("MCP preset id must be [a-z0-9_-], up to 64 chars")
+        norm["preset"] = preset
+    secret_fields_raw = cfg.get("secret_env_fields")
+    if secret_fields_raw not in (None, {}):
+        norm["secret_env_fields"] = _normalize_mcp_secret_fields(
+            secret_fields_raw
+        )
+    description = str(cfg.get("description") or "").strip()
+    if description:
+        norm["description"] = description[:500]
+    return norm
+
+
+_MCP_SECRET_KEY_NAMES = ("env_json", "env_pairs")
+
+
+def _normalize_mcp_env_pairs(pairs: Any,
+                             env_names: Optional[set] = None) -> Dict[str, str]:
+    """Validate plain env-var pairs ({NAME: value}); keep non-empty only.
+
+    Names must match the env-var pattern and, when ``env_names`` is given,
+    must be listed there (the connection's declared secret fields).
+    """
+    data = pairs if isinstance(pairs, dict) else {}
+    out: Dict[str, str] = {}
+    for raw_key, raw_val in data.items():
+        key = str(raw_key or "").strip()
+        if not _MCP_ENV_NAME_RE.fullmatch(key):
+            raise ValueError(f"Invalid MCP env var name: {raw_key!r}")
+        if env_names is not None and key not in env_names:
+            raise ValueError(f"Unknown MCP env var for this connection: {key}")
+        val = str(raw_val or "")
+        if val.strip():
+            out[key] = val
+    return out
+
+
+def _mcp_env_json_to_pairs(env_json: str,
+                           env_names: Optional[set] = None) -> Dict[str, str]:
+    """Parse a user-submitted env_json string into validated pairs."""
+    text = str(env_json or "").strip()
+    if not text:
+        return {}
+    try:
+        parsed = json.loads(text)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        raise ValueError("MCP env_json must be valid JSON")
+    if not isinstance(parsed, dict):
+        raise ValueError("MCP env_json must be a JSON object")
+    out: Dict[str, str] = {}
+    for raw_key, raw_val in parsed.items():
+        key = str(raw_key or "").strip()
+        if not key:
+            raise ValueError("MCP env_json keys cannot be empty")
+        if env_names is not None and key not in env_names:
+            raise ValueError(f"Unknown MCP env var for this connection: {key}")
+        if isinstance(raw_val, (dict, list)):
+            raise ValueError("MCP env_json values must be scalars")
+        out[key] = str(raw_val)
+    return out
+
+
+def _read_saved_mcp_env(env_json: str) -> Dict[str, str]:
+    """Parse a stored env_json string leniently (bad data yields {})."""
+    text = str(env_json or "").strip()
+    if not text:
+        return {}
+    try:
+        parsed = json.loads(text)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    out: Dict[str, str] = {}
+    for key, val in parsed.items():
+        key_str = str(key or "").strip()
+        if key_str and not isinstance(val, (dict, list)):
+            out[key_str] = str(val)
+    return out
+
+
+def _current_mcp_env(data: Dict[str, Any]) -> Dict[str, str]:
+    """Return the decrypted env pairs currently stored on an mcp manifest."""
+    secrets_enc = data.get("secrets_encrypted")
+    if not isinstance(secrets_enc, dict) or not secrets_enc.get("env_json"):
+        return {}
+    try:
+        return _read_saved_mcp_env(decrypt(secrets_enc["env_json"]))
+    except InvalidToken:
+        return {}
+
+
+def _normalize_mcp_secrets(secrets: Optional[Dict[str, Any]],
+                           env_names: Optional[set] = None) -> Dict[str, str]:
+    """Validate the mcp secrets: ``env_json`` (full JSON object) and/or
+    ``env_pairs`` (plain {NAME: value} dict).
+
+    Both keys may be given: env_pairs entries then override the env_json
+    entries of the same name. The result is always a single
+    ``{"env_json": "<one-line json>"}`` entry with the merged values; empty
+    input yields no secrets.
+    """
+    data = secrets if isinstance(secrets, dict) else {}
+    for key in data:
+        if str(key) not in _MCP_SECRET_KEY_NAMES:
+            raise ValueError(f"Unknown secret field for service 'mcp': {key}")
+    raw = data.get("env_json")
+    pairs_db: Dict[str, str] = {}
+    if raw not in (None, ""):
+        pairs_db = _mcp_env_json_to_pairs(raw, env_names)
+    pairs_extra = _normalize_mcp_env_pairs(data.get("env_pairs"), env_names)
+    if not pairs_db and not pairs_extra:
+        return {}
+    merged = dict(pairs_db)
+    merged.update(pairs_extra)
+    return {
+        "env_json": json.dumps(merged, ensure_ascii=False, separators=(",", ":"))
+    }
+
 
 _VALID_ID_RE = re.compile(r"^[a-z0-9_-]+$")
 
@@ -150,9 +429,12 @@ def _normalize_config(service: str, config: Optional[Dict[str, Any]]) -> Dict[st
     """Validate and normalize the non-secret config of a connection.
 
     SSH: host and username are required; port defaults to 22 and must be an
-    integer in 1..65535. Other services have no declared config fields and
-    yield an empty dict.
+    integer in 1..65535. MCP: whitelisted ``command`` and an ``args`` string
+    list. Other services have no declared config fields and yield an empty
+    dict.
     """
+    if service == "mcp":
+        return _normalize_mcp_config(config)
     if service != "ssh":
         return {}
     cfg = config if isinstance(config, dict) else {}
@@ -175,11 +457,17 @@ def _normalize_config(service: str, config: Optional[Dict[str, Any]]) -> Dict[st
     return {"host": host, "port": port, "username": username}
 
 
-def _normalize_secrets(service: str, secrets: Optional[Dict[str, Any]]) -> Dict[str, str]:
+def _normalize_secrets(service: str, secrets: Optional[Dict[str, Any]],
+                       env_names: Optional[set] = None) -> Dict[str, str]:
     """Validate secret fields of a connection; unknown fields are rejected.
 
     Only non-empty values are kept, so empty inputs mean "keep existing".
+    MCP validates the ``env_json`` / ``env_pairs`` secrets through its own
+    normalizer (``env_names`` optionally restricts the accepted env var
+    names to the connection's declared secret fields).
     """
+    if service == "mcp":
+        return _normalize_mcp_secrets(secrets, env_names=env_names)
     if service != "ssh":
         return {}
     allowed = set(_secret_field_names(service))
@@ -296,9 +584,10 @@ def create_connection(service: str, name: str, token: str = "",
             github_rest); encrypted before storage.
         account: display account/login info, optional.
         config: non-secret settings of the service (SSH: host, port,
-            username).
+            username; MCP: command, args).
         secrets: per-field plaintext secrets (SSH: password, private_key,
-            key_passphrase); each value is encrypted before storage.
+            key_passphrase; MCP: env_json, optional); each value is
+            encrypted before storage.
         pending: when True, create a draft connection without credentials
             (``credentials_status="pending"``); the non-secret ``config`` is
             still validated and stored, secrets/token are ignored.
@@ -320,7 +609,28 @@ def create_connection(service: str, name: str, token: str = "",
         "created_at": now,
         "updated_at": now,
     }
-    if svc == "ssh":
+    if svc == "mcp":
+        # Config is validated and stored in both modes (a draft still
+        # needs the transport config to become useful). Secrets are
+        # merged into the existing stored environment (env_pairs form).
+        manifest["config"] = _normalize_config(svc, config)
+        if pending:
+            manifest["credentials_status"] = "pending"
+        else:
+            env_names = None
+            declared = manifest["config"].get("secret_env_fields", {})
+            if isinstance(declared, dict) and declared:
+                env_names = {
+                    str(v.get("env") or "") for v in declared.values()
+                    if isinstance(v, dict) and v.get("env")
+                } or None
+            normalized_secrets = _normalize_secrets(svc, secrets,
+                                                    env_names=env_names)
+            manifest["secrets_encrypted"] = {
+                key: encrypt(val) for key, val in normalized_secrets.items()
+            }
+            manifest["credentials_status"] = "active"
+    elif svc == "ssh":
         # Config is validated and stored in both modes (a draft still
         # needs host/username to become useful once credentials arrive).
         manifest["config"] = _normalize_config(svc, config)
@@ -358,7 +668,8 @@ def update_connection(conn_id: str, name: str = "", account: str = "",
         account: new account display string (empty = keep unless token set).
         token: when non-empty, replaces the stored encrypted token
             (token-style services).
-        config: non-secret settings to merge (SSH: host, port, username).
+        config: non-secret settings to merge (SSH: host, port, username;
+            MCP: command, args).
         secrets: per-field plaintext secrets to replace; empty values keep
             the stored secret.
 
@@ -373,6 +684,48 @@ def update_connection(conn_id: str, name: str = "", account: str = "",
     if (token or "").strip():
         data["token_encrypted"] = encrypt(token.strip())
         data["credentials_status"] = "active"
+    if service == "mcp":
+        if isinstance(config, dict) and config:
+            merged_cfg = dict(data.get("config") or {})
+            merged_cfg.update(config)
+            data["config"] = _normalize_config(service, merged_cfg)
+            # Command/args changed: kill the cached server process so the
+            # next call starts a fresh one.
+            conn_id_now = data.get("id")
+            if conn_id_now:
+                try:
+                    from core.mcp_client import drop_client as _drop_client
+                    _drop_client(str(conn_id_now))
+                except Exception:
+                    pass
+        normalized_secrets = _normalize_secrets(service, secrets,
+                                                env_names=get_mcp_env_field_names(conn_id) or None)
+        if normalized_secrets:
+            if secrets and isinstance(secrets, dict) and "env_pairs" in secrets:
+                # env_pairs merges key-by-key into the currently stored
+                # environment; env_json (full object) replaces it wholesale.
+                merged_env = _current_mcp_env(data)
+                incoming = _mcp_env_json_to_pairs(normalized_secrets["env_json"])
+                merged_env.update(incoming)
+                data["secrets_encrypted"] = {
+                    "env_json": encrypt(json.dumps(
+                        merged_env, ensure_ascii=False, separators=(",", ":")))
+                }
+            else:
+                merged_enc = dict(data.get("secrets_encrypted") or {})
+                for key, val in normalized_secrets.items():
+                    merged_enc[key] = encrypt(val)
+                data["secrets_encrypted"] = merged_enc
+            data["credentials_status"] = "active"
+            conn_id_now = data.get("id")
+            if conn_id_now:
+                # The cached client snapshots the decrypted env at start;
+                # secrets changed, so drop it and let the next call rebuild.
+                try:
+                    from core.mcp_client import drop_client as _drop_client
+                    _drop_client(str(conn_id_now))
+                except Exception:
+                    pass
     if service == "ssh":
         if isinstance(config, dict) and config:
             merged_cfg = dict(data.get("config") or {})
@@ -407,7 +760,15 @@ def set_connection_token(conn_id: str, token: str) -> bool:
 
 
 def delete_connection(conn_id: str) -> bool:
-    """Delete a connection folder. Returns True on success."""
+    """Delete a connection folder. Returns True on success.
+
+    Also drops the cached MCP server process of the connection (when any),
+    so a deleted connector never leaves a live server behind."""
+    try:
+        from core.mcp_client import drop_client as _drop_client
+        _drop_client(str(conn_id))
+    except Exception:
+        pass
     d = os.path.join(_connectors_root(), conn_id)
     try:
         if os.path.isdir(d):
@@ -510,6 +871,9 @@ def set_connection_secret(conn_id: str, field: str, value: str) -> bool:
         raise ValueError(
             f"Unknown secret field for service '{service}': {field_name}"
         )
+    if service == "mcp" and field_name == "env_json":
+        normalized = _normalize_mcp_secrets({"env_json": val})
+        val = normalized["env_json"]
     secrets_enc = dict(data.get("secrets_encrypted") or {})
     secrets_enc[field_name] = encrypt(val)
     data["secrets_encrypted"] = secrets_enc
@@ -517,6 +881,84 @@ def set_connection_secret(conn_id: str, field: str, value: str) -> bool:
     data["updated_at"] = _now()
     _manifest_write(conn_id, data)
     return True
+
+
+def get_mcp_env_field_names(conn_id: str) -> set:
+    """Return the env var names of the MCP connection's secret fields.
+
+    Built from the stored ``secret_env_fields`` mapping (keys: field ids;
+    ``env`` values: the env var names). Returns a set of env names, never
+    their values.
+    """
+    data = get_connection_full(conn_id)
+    if not isinstance(data, dict):
+        return set()
+    cfg = data.get("config")
+    fields = cfg.get("secret_env_fields") if isinstance(cfg, dict) else None
+    if not isinstance(fields, dict):
+        return set()
+    return {str(v.get("env") or "") for v in fields.values()
+            if isinstance(v, dict) and v.get("env")}
+
+
+def get_mcp_env_var_names(conn_id: str) -> List[str]:
+    """Return the env variable names stored on an MCP connection (no values)."""
+    data = get_connection_full(conn_id)
+    if not isinstance(data, dict):
+        raise ValueError(f"Connection not found: {conn_id}")
+    if str(data.get("service") or "") != "mcp":
+        raise ValueError(f"Connection '{conn_id}' is not an MCP connection")
+    return sorted(_current_mcp_env(data).keys())
+
+
+def set_mcp_env_pairs(conn_id: str, *,
+                      env_json: Optional[str] = None,
+                      env_pairs: Optional[Dict[str, str]] = None,
+                      replace: bool = False) -> int:
+    """Merge (or replace) env pairs on an MCP connection (encrypted).
+
+    ``env_json`` replaces the whole stored environment with a validated JSON
+    object; ``env_pairs`` (plain dict) merges into the stored pairs. When
+    ``replace`` is true the stored environment is cleared first. Returns the
+    number of stored pairs and drops the cached server client so the next
+    call rebuilds the server environment.
+    """
+    data = _manifest_read(conn_id)
+    if str(data.get("service") or "") != "mcp":
+        raise ValueError(f"Connection '{conn_id}' is not an MCP connection")
+    env_names = get_mcp_env_field_names(conn_id) or None
+    stored = {} if replace else _current_mcp_env(data)
+    payload: Dict[str, Any] = {}
+    if env_json is not None:
+        payload["env_json"] = env_json
+    if env_pairs is not None:
+        payload["env_pairs"] = env_pairs
+    normalized = _normalize_mcp_secrets(payload, env_names=env_names)
+    if normalized:
+        incoming = _mcp_env_json_to_pairs(normalized["env_json"])
+        if env_json is not None:
+            stored = incoming
+        else:
+            stored.update(incoming)
+    merged = json.dumps(
+        stored, ensure_ascii=False, separators=(",", ":")
+    ) if stored else ""
+    secrets_enc = dict(data.get("secrets_encrypted") or {})
+    if merged:
+        secrets_enc["env_json"] = encrypt(merged)
+        data["credentials_status"] = "active"
+    else:
+        secrets_enc.pop("env_json", None)
+        data["credentials_status"] = "pending"
+    data["secrets_encrypted"] = secrets_enc
+    data["updated_at"] = _now()
+    _manifest_write(conn_id, data)
+    try:
+        from core.mcp_client import drop_client as _drop_client
+        _drop_client(str(conn_id))
+    except Exception:
+        pass
+    return len(stored)
 
 
 def _memory_path(conn_id: str) -> str:

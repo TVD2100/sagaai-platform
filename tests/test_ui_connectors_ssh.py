@@ -2,15 +2,17 @@
 """tests/test_ui_connectors_ssh.py - Connectors page: SSH support tests.
 
 Renders ui.pages.connectors under the Streamlit mock and verifies that:
-  - the create form switches to SSH-specific fields (host/port/username +
-    password / private key / passphrase) when the ssh service is selected,
-    and keeps the GitHub token flow otherwise;
-  - submitting the SSH form passes config + non-empty secrets to
-    core.connectors.create_connection;
-  - the edit form of an SSH connection renders its config fields and the
-    save handler calls update_connection with config/secrets;
-  - SSH connection cards show the user@host:port target and the masked
-    secret field names;
+  - the full-page create form renders SSH-specific fields (host, port,
+    username + password / private key / passphrase) when the form targets
+    the ssh service drafted from a tile, and keeps the GitHub token field
+    for the token service;
+  - submitting the create form passes config + non-empty secrets to
+    core.connectors.create_connection and returns to the list;
+  - the full-page edit form of an SSH connection renders its config fields
+    and the save handler calls update_connection with config/secrets;
+  - the edit form is reachable from the card's Edit button;
+  - SSH cards show the masked secret field names, and the pending badge
+    shows the credentials warning;
   - the "test connection" button routes ssh connections through
     core.ssh_connector.test_connection on both the success and the failure
     path.
@@ -82,11 +84,24 @@ def _keys(st, widget_name):
     return [c[2].get("key") for c in st.calls if c[0] == widget_name]
 
 
+def _open_create(page, st, service):
+    """Put the page into the create view for *service*."""
+    st.session_state[page.VIEW_KEY] = page.VIEW_CREATE
+    st.session_state[page._CREATE_SERVICE_KEY] = service
+    st.session_state[page._CREATE_PRESET_KEY] = ""
+
+
+def _open_edit(page, st, conn_id):
+    """Put the page into the edit view for *conn_id*."""
+    st.session_state[page.VIEW_KEY] = page.VIEW_EDIT
+    st.session_state[page._EDIT_ID_KEY] = conn_id
+
+
 # ── create form: service-specific fields ──────────────────────────────────────
 
-def test_create_form_renders_ssh_fields_when_ssh_selected(st_mock):
+def test_create_form_renders_ssh_fields_for_ssh_service(st_mock):
     page = _page()
-    st_mock._selectbox_returns["conn_new_service"] = "ssh"
+    _open_create(page, st_mock, "ssh")
     _render_page(page, [])
 
     text_keys = _keys(st_mock, "text_input")
@@ -97,10 +112,13 @@ def test_create_form_renders_ssh_fields_when_ssh_selected(st_mock):
     assert "conn_new_port" in _keys(st_mock, "number_input")
     # The GitHub token field must not be rendered for the ssh service.
     assert "conn_new_token" not in text_keys
+    # The full page replaces the tab list while the form is open.
+    assert not [c for c in st_mock.calls if c[0] == "tabs"]
 
 
 def test_create_form_keeps_github_token_by_default(st_mock):
     page = _page()
+    _open_create(page, st_mock, "github_rest")
     _render_page(page, [])
 
     text_keys = _keys(st_mock, "text_input")
@@ -113,7 +131,7 @@ def test_create_form_keeps_github_token_by_default(st_mock):
 
 def test_create_ssh_connection_passes_config_and_secrets(st_mock):
     page = _page()
-    st_mock._selectbox_returns["conn_new_service"] = "ssh"
+    _open_create(page, st_mock, "ssh")
     st_mock._text_returns.update({
         "conn_new_name": "Prod SSH",
         "conn_new_host": "203.0.113.10",
@@ -143,10 +161,14 @@ def test_create_ssh_connection_passes_config_and_secrets(st_mock):
     assert not any(c[0] == "success" for c in st_mock.calls)
     queued = st_mock.session_state.get(FLASH_KEY) or []
     assert [m["kind"] for m in queued] == ["success"]
+    # After a successful create the list is back on the Connections tab.
+    assert st_mock.session_state.get(page.VIEW_KEY) == page.VIEW_LIST
+    assert st_mock.session_state.get(page._TARGET_TAB_KEY) == 2
 
 
 def test_create_github_connection_keeps_token_flow(st_mock):
     page = _page()
+    _open_create(page, st_mock, "github_rest")
     st_mock._text_returns.update({
         "conn_new_name": "My GitHub",
         "conn_new_token": "ghp_secret",
@@ -167,6 +189,25 @@ def test_create_github_connection_keeps_token_flow(st_mock):
     )
 
 
+def test_failed_create_keeps_the_form_open(st_mock):
+    page = _page()
+    _open_create(page, st_mock, "ssh")
+    st_mock._text_returns.update({"conn_new_name": "Prod SSH"})
+    st_mock.click("conn_new_submit")
+
+    create = MagicMock(side_effect=ValueError("bad host"))
+    with patch.object(page, "list_connections", return_value=[]), \
+         patch.object(page, "create_connection", create):
+        try:
+            page.page_connectors()
+        except StopRerun:
+            pass
+
+    assert st_mock.errors and "bad host" in st_mock.errors[0]
+    # The user keeps the entered values: the view stays on the form.
+    assert st_mock.session_state.get(page.VIEW_KEY) == page.VIEW_CREATE
+
+
 # ── connection card ───────────────────────────────────────────────────────────
 
 def test_ssh_card_shows_target_and_masked_secrets(st_mock):
@@ -181,21 +222,34 @@ def test_ssh_card_shows_target_and_masked_secrets(st_mock):
     assert any("Prod server" in h and "secrets set: password" in h
                for h in headers)
     assert not any("token set" in h for h in headers)
+    # The edit form is not inlined into the card any more.
+    assert "conn_edit_ssh00001_host" not in _keys(st_mock, "text_input")
+
+
+def test_card_edit_button_opens_the_full_page_form(st_mock):
+    page = _page()
+    st_mock.click("conn_edit_btn_ssh00001")
+    _render_page(page, [dict(SSH_CONN)])
+
+    assert st_mock.session_state.get(page.VIEW_KEY) == page.VIEW_EDIT
+    assert st_mock.session_state.get(page._EDIT_ID_KEY) == "ssh00001"
 
 
 # ── edit form ─────────────────────────────────────────────────────────────────
 
 def test_edit_ssh_form_renders_fields_and_saves(st_mock):
     page = _page()
-    st_mock.session_state["conn_edit_ssh00001"] = True
+    _open_edit(page, st_mock, "ssh00001")
     st_mock._text_returns.update({
         "conn_edit_ssh00001_host": "203.0.113.20",
         "conn_edit_ssh00001_username": "deploy",
     })
-    st_mock.click("Save")
+    st_mock.click("conn_edit_submit_ssh00001")
 
     update = MagicMock()
     with patch.object(page, "list_connections", return_value=[dict(SSH_CONN)]), \
+         patch.object(page.connectors, "get_connection",
+                      return_value=dict(SSH_CONN)), \
          patch.object(page, "update_connection", update):
         try:
             page.page_connectors()
@@ -215,6 +269,7 @@ def test_edit_ssh_form_renders_fields_and_saves(st_mock):
         config={"host": "203.0.113.20", "port": 2222, "username": "deploy"},
         secrets={},
     )
+    assert st_mock.session_state.get(page.VIEW_KEY) == page.VIEW_LIST
 
 
 # ── test-connection button routing ────────────────────────────────────────────
@@ -256,12 +311,9 @@ def test_ssh_test_button_reports_failure(st_mock):
 
     assert st_mock.errors, "expected an st.error for the failed ssh test"
     assert "auth failed" in st_mock.errors[0]
-# SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
-# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
 
 # ── pending (credentials required) badge ──────────────────────────────────────
-
 
 def test_pending_card_shows_credentials_warning(st_mock):
     page = _page()
@@ -273,6 +325,9 @@ def test_pending_card_shows_credentials_warning(st_mock):
 
     warnings = [c[1][0] for c in st_mock.calls if c[0] == "warning"]
     assert any("credentials required" in w for w in warnings)
+    # A pending connection offers to complete the credentials right away.
+    labels = [c[1][0] for c in st_mock.calls if c[0] == "button"]
+    assert "Fill credentials" in labels
 
 
 def test_active_card_shows_no_credentials_warning(st_mock):
@@ -283,3 +338,7 @@ def test_active_card_shows_no_credentials_warning(st_mock):
 
     warnings = [c[1][0] for c in st_mock.calls if c[0] == "warning"]
     assert not any("credentials required" in w for w in warnings)
+    labels = [c[1][0] for c in st_mock.calls if c[0] == "button"]
+    assert "Edit" in labels
+# SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -83,7 +83,8 @@ WORKSPACE_TOOL_CATALOG: List[Dict[str, str]] = [
     {"name": "list_connections", "desc": "List all external service connections (public view, no secrets). No args."},
     {"name": "get_connection", "desc": "Return one connection's public manifest (no secrets). Args: conn_id."},
     {"name": "list_connector_services", "desc": "List known connector services (id, name, config/secret fields). No args."},
-    {"name": "create_connection", "desc": "Create an external service connection. Args: service, name, [token], [account], [config], [secrets], [pending]. With pending=true a draft is saved without credentials (the user fills them on the Connectors page)."},
+    {"name": "list_connection_presets", "desc": "List bundled connection presets (bundled MCP servers and other templates) that can be instantiated as drafts. Args: [service]."},
+    {"name": "create_connection", "desc": "Create an external service connection. Args: service, name, [token], [account], [config], [secrets], [pending], [preset]. preset creates a draft connection from a bundled preset (no credentials); with pending=true a draft is saved without credentials (the user fills them on the Connectors page)."},
     {"name": "update_connection", "desc": "Update a connection (name/account/config/token/secrets); filling credentials activates a pending draft. Args: conn_id, [name], [account], [token], [config], [secrets]."},
     {"name": "delete_connection", "desc": "Delete a connection. Args: conn_id."},
     {"name": "test_connection", "desc": "Validate a connection against its service and refresh account info. Args: conn_id."},
@@ -162,9 +163,10 @@ WORKSPACE_TOOL_ARGS: Dict[str, Dict[str, set]] = {
     "list_connections": {"required": set(), "optional": set()},
     "get_connection": {"required": {"conn_id"}, "optional": set()},
     "list_connector_services": {"required": set(), "optional": set()},
+    "list_connection_presets": {"required": set(), "optional": {"service"}},
     "create_connection": {
         "required": {"service", "name"},
-        "optional": {"token", "account", "config", "secrets", "pending"},
+        "optional": {"token", "account", "config", "secrets", "pending", "preset"},
     },
     "update_connection": {
         "required": {"conn_id"},
@@ -301,6 +303,7 @@ class UniversalDevAgent:
             "list_connections": lambda **kw: self._list_connections(**kw),
             "get_connection": lambda **kw: self._get_connection(**kw),
             "list_connector_services": lambda **kw: self._list_connector_services(**kw),
+            "list_connection_presets": lambda **kw: self._list_connection_presets(**kw),
             "create_connection": lambda **kw: self._create_connection(**kw),
             "update_connection": lambda **kw: self._update_connection(**kw),
             "delete_connection": lambda **kw: self._delete_connection(**kw),
@@ -462,6 +465,22 @@ class UniversalDevAgent:
         "ssh_write_file",
     )
 
+    _CONNECTION_TOOL_NAMES_MCP = (
+        "mcp_list_tools",
+        "mcp_call_tool",
+    )
+
+    def _pop_mcp_tools(self) -> None:
+        """Remove the static MCP tools and every dynamic ``mcp__*`` tool.
+
+        The ``mcp__`` prefix is reserved for MCP dynamic tools (ADR-001
+        rev. 2 p. 5), so prefix-based cleanup is safe here.
+        """
+        for name in self._CONNECTION_TOOL_NAMES_MCP:
+            self._extra.pop(name, None)
+        for name in [n for n in self._extra if n.startswith("mcp__")]:
+            self._extra.pop(name, None)
+
     def _attach_connection_tools(self, slug: str) -> None:
         """Register/unregister built-in connection tools for an orchestrator.
 
@@ -478,6 +497,7 @@ class UniversalDevAgent:
                 for name in (self._CONNECTION_TOOL_NAMES_REST +
                              self._CONNECTION_TOOL_NAMES_SSH):
                     self._extra.pop(name, None)
+                self._pop_mcp_tools()
                 return
             services = set()
             for conn_id in enabled:
@@ -502,6 +522,16 @@ class UniversalDevAgent:
             else:
                 for name in self._CONNECTION_TOOL_NAMES_SSH:
                     self._extra.pop(name, None)
+            if "mcp" in services:
+                from core import mcp_tools
+                for name in self._CONNECTION_TOOL_NAMES_MCP:
+                    fn = getattr(mcp_tools, name, None)
+                    if callable(fn):
+                        self._extra[name] = fn
+                for name, fn in mcp_tools.build_dynamic_tools(slug).items():
+                    self._extra[name] = fn
+            else:
+                self._pop_mcp_tools()
         except Exception:
             # Best effort: never break orchestrator attachment on library errors.
             pass
@@ -993,9 +1023,42 @@ class UniversalDevAgent:
         from core.connectors import list_services
         return {"ok": True, "services": list_services()}
 
+    def _list_connection_presets(self, service: str = "mcp",
+                                 **kwargs) -> Dict[str, Any]:
+        """List bundled connection presets (public views, no secrets)."""
+        try:
+            from core import connector_presets
+            presets = connector_presets.list_presets(
+                str(service or "mcp").strip().lower()
+            )
+            return {"ok": True, "presets": presets}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     def _create_connection(self, service: str = "", name: str = "", token: str = "",
                            account: str = "", config: dict = None, secrets: dict = None,
-                           pending: bool = False, **kwargs) -> Dict[str, Any]:
+                           pending: bool = False, preset: str = "",
+                           **kwargs) -> Dict[str, Any]:
+        if preset:
+            # A preset instantiates a DRAFT (pending) connection with the
+            # preset config and memory seed; credentials are left to the user.
+            try:
+                from core import connector_presets
+                result = connector_presets.instantiate_preset(
+                    str(preset).strip(),
+                    service=str(service or "mcp").strip().lower(),
+                    name=name or "",
+                )
+            except Exception as e:
+                return {
+                    "ok": False,
+                    "error": str(e) or "Preset was not instantiated",
+                }
+            return {
+                "ok": True,
+                "connection": result["connection"],
+                "preset": result["preset"],
+            }
         from core.connectors import create_connection
         if not service or not name:
             return {"ok": False, "error": "Both 'service' and 'name' are required."}

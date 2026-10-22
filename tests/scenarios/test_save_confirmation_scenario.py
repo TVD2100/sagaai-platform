@@ -89,15 +89,23 @@ def test_connector_save_confirmation_survives_the_rerun(st_env):
     from ui.pages import connectors as conn_mod
 
     conn_mod.st = st_env
-    st_env.click("connectors_save")
+    # The edit form is a full-page view: session_state selects it and names
+    # the connection it edits.
+    st_env.session_state[conn_mod.VIEW_KEY] = conn_mod.VIEW_EDIT
+    st_env.session_state[conn_mod._EDIT_ID_KEY] = "c1"
+    st_env.click("conn_edit_submit_c1")
 
     conn = {"id": "c1", "name": "GitHub", "service": "github_rest",
             "account": "user", "config": {}}
-    with patch.object(conn_mod, "update_connection", return_value=True), \
+    with patch.object(conn_mod.connectors, "get_connection", return_value=conn), \
+         patch.object(conn_mod, "update_connection", return_value=True), \
          patch.object(conn_mod, "t", side_effect=lambda key, **k: key):
-        _render(lambda: conn_mod._render_edit_form(conn, "English"))
+        _render(lambda: conn_mod._render_edit_view("English"))
 
+    # The save pass queued the confirmation and left the form for the list.
     assert _painted(st_env, "success") == []
+    assert st_env.rerun_count == 1
+    assert st_env.session_state.get(conn_mod.VIEW_KEY) == conn_mod.VIEW_LIST
 
     render_flash()
     assert _painted(st_env, "success") == ["connectors_saved"]
