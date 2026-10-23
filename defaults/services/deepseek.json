@@ -4,6 +4,7 @@
   "base_url": "https://api.deepseek.com/responses",
   "web_search_base_url": "https://api.deepseek.com/anthropic/v1/messages",
   "vision_base_url": "https://api.deepseek.com/chat/completions",
+  "fetch_base_url": "https://api.deepseek.com/v1/tools/fetch",
   "auth_type": "deepseek_responses",
   "temp_min": 0.1,
   "temp_max": 2.0,
@@ -61,6 +62,22 @@
       "label": {
         "ru": "DeepSeek V4.1 Flash - распознавание изображений (текст и изображения на входе)",
         "en": "DeepSeek V4.1 Flash - image analysis (text and images as input)"
+      }
+    }
+  ],
+  "fetch_models": [
+    {
+      "id": "deepseek-flash",
+      "label": {
+        "ru": "DeepSeek V4.1 Flash - загрузка страниц (Search/Fetch API)",
+        "en": "DeepSeek V4.1 Flash - page fetch (Search/Fetch API)"
+      }
+    },
+    {
+      "id": "deepseek-v4-pro",
+      "label": {
+        "ru": "DeepSeek V4 Pro - загрузка страниц (Search/Fetch API)",
+        "en": "DeepSeek V4 Pro - page fetch (Search/Fetch API)"
       }
     }
   ],

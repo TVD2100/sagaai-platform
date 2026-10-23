@@ -184,16 +184,16 @@ def ensure_devagent_settings() -> dict:
                 prompt = "You are DevAgent, the embedded developer of SagaAI."
             save_devagent_config(
                 service=cfg.get("service", "DeepSeek"),
-                model=cfg.get("model", "deepseek-v4-pro"),
+                model=cfg.get("model", "deepseek-flash"),
                 temperature=float(cfg.get("temperature", 0.2)),
                 prompt_text=prompt,
                 strong_service=cfg.get("strong_service", "DeepSeek"),
-                strong_model=cfg.get("strong_model", "deepseek-v4-pro"),
+                strong_model=cfg.get("strong_model", "deepseek-flash"),
                 strong_temperature=float(cfg.get("strong_temperature", 0.4)),
-                search_service=cfg.get("search_service", "YandexAI"),
-                search_model=cfg.get("search_model", "aliceai-llm-flash"),
-                search_temperature=float(cfg.get("search_temperature", 0.3)),
-                search_max_tool_calls=int(cfg.get("search_max_tool_calls", 1)),
+                search_service=cfg.get("search_service", "DeepSeek"),
+                search_model=cfg.get("search_model", "deepseek-flash"),
+                search_temperature=float(cfg.get("search_temperature", 0.4)),
+                search_max_tool_calls=int(cfg.get("search_max_tool_calls", 3)),
                 economy_tail_messages=int(cfg.get("economy_tail_messages", get_default_economy_tail_messages())),
             )
             return {"devagent_prompt": "seeded"}

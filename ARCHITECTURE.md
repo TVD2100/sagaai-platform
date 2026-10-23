@@ -28,6 +28,11 @@ SagaAI построена по модульной архитектуре с чё
   (`default_imports.ensure_all_defaults` / `ensure_builtin_orchestrators`),
   проверяет опциональные зависимости, рендерит боковую панель с навигацией
   (страницы + динамический список оркестраторов) и выбором языка.
+- После диспетчеризации страницы `main()` вызывает `render_flash()`
+  (`ui/components/flash.py`): очередь уведомлений рисуется ОДИН раз за проход и
+  именно в конце, поэтому подтверждение сохранения появляется под содержимым
+  страницы, а не над её заголовком. Очередь живёт в `session_state` и переживает
+  `st.rerun()`, который страница вызывает сразу после сохранения.
 
 ### 2. Бизнес-логика (`core/`)
 Каждый модуль - самодостаточный, без Streamlit:
@@ -315,6 +320,18 @@ system_prompt.md), переводов, сервисов, помощников, �
 назначены `vision_service`/`vision_model` (распознавание изображений) и
 `image_service`/`image_model` (генерация изображений); пустые значения -
 «не назначена». Legacy-ключи `weak_*` читаются как алиасы основной модели.
+Поставляемые дефолты DevAgent (канонический бандл
+`orchestrators/dev_agent/orchestrator.json` → фолбэк
+`_DEVAGENT_FALLBACK_DEFAULTS` в `core/config.py`, дублируется в
+`_devagent_default_config()` и первом запуске `ensure_builtin_orchestrators()`):
+основная модель DeepSeek/`deepseek-flash` с `strong_reasoning_effort`
+`xhigh` и лимитом вывода 384 000 токенов, распознавание изображений
+DeepSeek/`deepseek-flash`, генерация изображений не назначена
+(`image_service`/`image_model` пусты), поисковая модель
+DeepSeek/`deepseek-flash` с `search_temperature` 0.4,
+`search_max_tool_calls` 3 и `search_reasoning_effort` `high`. Бэкфилл на
+старте заполняет только поля без значения, поэтому уже выбранные
+пользователем модели и настройки экономии не перезаписываются.
 Назначенные модели используются системными инструментами `analyze_image`
 (файлы проекта и вложения диалога; JPEG/PNG/WebP, до 5 изображений и
 10 МБ каждое; каталоги `vision_models`: YandexAI - `qwen3.6-35b-a3b` и `deepseek-v4.1-flash`, DeepSeek - `deepseek-flash` через выделенный `vision_base_url` с `detail="original"`) и `generate_image` (синхронный OpenAI-совместимый Images API
@@ -383,6 +400,50 @@ Responses (`core/assistant_tools.py`) обёрнуты тем же механи�
 `https://api.deepseek.com/anthropic/v1/messages`) с моделью
 `deepseek-flash`; ветка выбирается в `tool_executor.web_search()` по
 `auth_type == "deepseek_responses"`.
+
+### Fetch-модель (fetch_service/fetch_model) и url_fetch
+Необязательная пара service/model для загрузки веб-страниц, хранится в
+конфигурации оркестратора. Поддержку объявляет сам профиль сервиса:
+каталог `fetch_models` плюс endpoint `fetch_base_url`
+(`https://api.deepseek.com/v1/tools/fetch` в `defaults/services/deepseek.json`).
+Транспорт - `core/url_fetch.py::fetch_page_content()`: POST `{"url": ...}`
+с Bearer-ключом сервиса, ответ `{"title", "content"}` (Markdown), ошибки -
+через контракт `APIError` (`ApiKeyMissingError`, `ProviderHTTPError`,
+`RequestTimeoutError`, `NetworkError`, `ProviderResponseError`), проверка TLS
+по общей политике платформы.
+
+Второй, независимый источник возможности - флаг `fetch_selenium`
+(чек-бокс «Использовать Selenium»): страница открывается в headless-браузере,
+собирается её видимый текст, а Markdown формирует основная модель
+оркестратора (`llm_service` / `llm_model` из `get_fetch_config()`).
+Selenium - опциональная зависимость: при её отсутствии ветка возвращает
+структурированную ошибку `SeleniumUnavailableError` с подсказкой об установке.
+На вкладке «Модели» чек-бокс рисуется первым: пока он включён, селекторы
+пары `fetch_service` / `fetch_model` скрыты (подпись
+`orch_fetch_selenium_main_model` объясняет, что Markdown формирует основная
+модель), а сохранённая пара не сбрасывается и возвращается на место после
+снятия флажка.
+
+Инструмент называется `url_fetch` (`dev_agent/tool_executor.py`), прежнее имя
+`page_fetch` сохранено как legacy-алиас (с ним же резолвятся `disabled_tools`).
+Ветки выбора: адрес с PDF-расширением или `application/pdf` в ответе -
+скачивание с лимитом размера и извлечение текста через `pypdf`/`pdfplumber`
+с разбивкой `### Page N`; иначе при включённом Selenium - рендер браузером;
+иначе - Search/Fetch API провайдера. Прямые загрузки проходят SSRF-гард
+`validate_fetch_url()`: схема http/https, длина до 8192 символов, без
+логина и пароля, локальные и приватные адреса запрещены (loopback, частные
+диапазоны, link-local, служебные суффиксы `.local`/`.internal`/`.lan`) - без
+DNS-резолвинга, поэтому проверка детерминирована и работает офлайн.
+
+Каталог `core/orchestrator_tools.py` помечает инструмент как capability-gated
+(`_CONDITIONAL_TOOLS`) и включает его в `build_tool_catalog()`,
+`list_system_tools()` и блок `## Available tools`, когда
+`core.orchestrators.get_fetch_config()` вернул `configured=True` - то есть
+назначена модель либо включён Selenium. Снятие обоих источников (или
+исчезновение модели из каталога провайдера) убирает инструмент из промпта и
+из диспетчера; UI-секция «Модель для загрузки страниц» на вкладке «Модели»
+предлагает только сервисы с `fetch_models` (при включённом Selenium секция
+заменена подписью об основной модели - см. выше).
 
 ### Assistant Creator
 Внутренняя инструкция с id `assistant_creator`. Содержит правила генерации

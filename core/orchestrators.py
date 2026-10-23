@@ -50,7 +50,9 @@ from core.config import (
 )
 from core.services import (
     get_services as _get_services,
+    get_fetch_models,
     service_supports_reasoning_effort,
+    svc_supports_fetch,
     default_reasoning_effort,
 )
 from core.orchestrator_folders import (
@@ -137,6 +139,17 @@ def _devagent_default_config() -> Dict[str, Any]:
         except (TypeError, ValueError):
             return fallback
 
+    def _truthy(key, fallback=False):
+        """Normalize a boolean flag stored as bool, string or number."""
+        val = defaults.get(key)
+        if isinstance(val, bool):
+            return val
+        if isinstance(val, (int, float)):
+            return bool(val)
+        if isinstance(val, str):
+            return val.strip().lower() in ("1", "true", "yes", "on")
+        return fallback
+
     def _lst(key):
         val = defaults.get(key)
         if isinstance(val, list):
@@ -152,21 +165,27 @@ def _devagent_default_config() -> Dict[str, Any]:
 
     return {
         "strong_service": _str1("strong_service", "DeepSeek"),
-        "strong_model": _str1("strong_model", "deepseek-v4-pro"),
+        "strong_model": _str1("strong_model", "deepseek-flash"),
         "strong_temperature": _num("strong_temperature", 0.4, float),
         "strong_max_tokens": _num("strong_max_tokens", 384000, int),
-        "strong_reasoning_effort": _str1("strong_reasoning_effort", "max"),
+        "strong_reasoning_effort": _str1("strong_reasoning_effort", "xhigh"),
         # Optional multimodal models (single-model mode): "" = not assigned.
-        "vision_service": _str1("vision_service", ""),
-        "vision_model": _str1("vision_model", ""),
+        "vision_service": _str1("vision_service", "DeepSeek"),
+        "vision_model": _str1("vision_model", "deepseek-flash"),
         "image_service": _str1("image_service", ""),
         "image_model": _str1("image_model", ""),
-        "search_service": _str1("search_service", "YandexAI"),
-        "search_model": _str1("search_model", "aliceai-llm-flash"),
-        "search_temperature": _num("search_temperature", 0.3, float),
-        "search_max_tool_calls": _num("search_max_tool_calls", 1, int),
+        "search_service": _str1("search_service", "DeepSeek"),
+        "search_model": _str1("search_model", "deepseek-flash"),
+        "search_temperature": _num("search_temperature", 0.4, float),
+        "search_max_tool_calls": _num("search_max_tool_calls", 3, int),
         "search_reasoning_effort": _str1("search_reasoning_effort", "high"),
         "web_search_prompt": _str1("web_search_prompt", DEFAULT_WEB_SEARCH_PROMPT),
+        # Optional url-fetch model: "" = not assigned (tool absent).
+        "fetch_service": _str1("fetch_service", ""),
+        "fetch_model": _str1("fetch_model", ""),
+        # Selenium rendering of pages: an alternative to the provider fetch
+        # API. Either the model or this flag keeps url_fetch available.
+        "fetch_selenium": _truthy("fetch_selenium", False),
         "economy_tail_messages": get_default_economy_tail_messages(),
         "economy_cache_enabled": get_default_economy_cache_enabled(),
         "economy_cache_multiplier": get_default_economy_cache_multiplier(),
@@ -982,7 +1001,7 @@ def build_assistant_dicts(orchestrator_slug: str = DEVAGENT_SLUG) -> Tuple[dict,
     prompt = _extend_prompt_with_tools(prompt, orchestrator_slug)
 
     strong_svc = cfg.get("strong_service", "") or cfg.get("service", "DeepSeek")
-    strong_mdl = cfg.get("strong_model", "") or cfg.get("model", "deepseek-v4-pro")
+    strong_mdl = cfg.get("strong_model", "") or cfg.get("model", "deepseek-flash")
     strong_temp = float(cfg.get("strong_temperature", 0.2) or 0.2)
     strong_max_tokens = int(cfg.get("strong_max_tokens", 0) or 0)
 
@@ -1051,11 +1070,68 @@ def get_web_search_config(orchestrator_slug: str = DEVAGENT_SLUG) -> Dict[str, A
     return {
         "service": search_svc,
         "model": cfg.get("search_model", "") or "",
-        "temperature": float(cfg.get("search_temperature", 0.3) or 0.3),
-        "max_tool_calls": int(cfg.get("search_max_tool_calls", 1) or 1),
+        "temperature": float(cfg.get("search_temperature", 0.4) or 0.4),
+        "max_tool_calls": int(cfg.get("search_max_tool_calls", 3) or 3),
         "reasoning_effort": str(search_effort).strip().lower() if search_effort else "",
         "prompt": get_web_search_prompt(orchestrator_slug),
     }
+
+
+def get_fetch_config(orchestrator_slug: str = DEVAGENT_SLUG) -> Dict[str, Any]:
+    """Return the url-fetch config of an orchestrator.
+
+    Two independent switches keep the ``url_fetch`` tool available:
+
+    * a page-fetch model - pages are downloaded through the provider's
+      Search/Fetch API (the entry is valid only when both the service and
+      its catalog still contain the model, so a removed provider or model
+      silently switches this branch off);
+    * ``fetch_selenium`` - pages are rendered in a real browser by
+      Selenium and the visible text is converted to Markdown by the
+      orchestrator's main model.
+
+    A direct PDF link works with either switch: the file is downloaded and
+    its text is extracted locally.
+
+    Returns:
+        {"service": str, "model": str, "configured": bool,
+        "selenium": bool, "llm_service": str, "llm_model": str}.
+        ``service``/``model`` are "" when no usable fetch pair is assigned;
+        ``selenium`` mirrors the checkbox; ``llm_service``/``llm_model``
+        name the main model used for Markdown conversion ("" when the
+        orchestrator has none). ``configured`` is True when url_fetch is
+        usable at all - a fetch pair or Selenium.
+    """
+    orch = get_orchestrator(orchestrator_slug)
+    cfg = orch.get("config", {}) if orch else {}
+    svc_name = str(cfg.get("fetch_service", "") or "").strip()
+    model = str(cfg.get("fetch_model", "") or "").strip()
+    selenium = bool(cfg.get("fetch_selenium"))
+    llm_service = str(cfg.get("strong_service", "") or "").strip()
+    llm_model = str(cfg.get("strong_model", "") or "").strip()
+
+    def _result(pair_service: str, pair_model: str, configured: bool):
+        return {
+            "service": pair_service,
+            "model": pair_model,
+            "configured": configured,
+            "selenium": selenium,
+            "llm_service": llm_service,
+            "llm_model": llm_model,
+        }
+
+    if not svc_name or not model:
+        return _result("", "", selenium)
+    svc_def = _get_services().get(svc_name) or {}
+    if not svc_supports_fetch(svc_def):
+        return _result("", "", selenium)
+    available = [
+        str(m.get("id") if isinstance(m, dict) else m)
+        for m in get_fetch_models(svc_def)
+    ]
+    if model not in available:
+        return _result("", "", selenium)
+    return _result(svc_name, model, True)
 
 
 def get_economy_tail_messages(orchestrator_slug: str = DEVAGENT_SLUG) -> int:
@@ -1453,20 +1529,22 @@ def ensure_builtin_orchestrators() -> Dict[str, str]:
         legacy = load_legacy_dev_cfg()
         config = {
             "strong_service": legacy.get("strong_service", "") or "DeepSeek",
-            "strong_model": legacy.get("strong_model", "") or "deepseek-v4-pro",
+            "strong_model": legacy.get("strong_model", "") or "deepseek-flash",
             "strong_temperature": float(legacy.get("strong_temperature", 0.4) or 0.4),
             "strong_max_tokens": int(legacy.get("strong_max_tokens") or get_default_strong_max_tokens()) or get_default_strong_max_tokens(),
-            "strong_reasoning_effort": "max",
-            "vision_service": legacy.get("vision_service", "") or "",
-            "vision_model": legacy.get("vision_model", "") or "",
+            "strong_reasoning_effort": "xhigh",
+            "vision_service": legacy.get("vision_service", "") or "DeepSeek",
+            "vision_model": legacy.get("vision_model", "") or "deepseek-flash",
             "image_service": legacy.get("image_service", "") or "",
             "image_model": legacy.get("image_model", "") or "",
-            "search_service": legacy.get("search_service", "") or "YandexAI",
-            "search_model": legacy.get("search_model", "") or "aliceai-llm-flash",
-            "search_temperature": float(legacy.get("search_temperature", 0.3) or 0.3),
-            "search_max_tool_calls": int(legacy.get("search_max_tool_calls", 1) or 1),
+            "search_service": legacy.get("search_service", "") or "DeepSeek",
+            "search_model": legacy.get("search_model", "") or "deepseek-flash",
+            "search_temperature": float(legacy.get("search_temperature", 0.4) or 0.4),
+            "search_max_tool_calls": int(legacy.get("search_max_tool_calls", 3) or 3),
             "search_reasoning_effort": "high",
             "web_search_prompt": str(legacy.get("web_search_prompt", "") or DEFAULT_WEB_SEARCH_PROMPT),
+            "fetch_service": legacy.get("fetch_service", "") or "",
+            "fetch_model": legacy.get("fetch_model", "") or "",
             "economy_tail_messages": int(legacy.get("economy_tail_messages", _default_economy_tail_messages())
                                          or _default_economy_tail_messages()),
             "economy_cache_enabled": _default_economy_cache_enabled(),
@@ -1515,20 +1593,23 @@ def ensure_builtin_orchestrators() -> Dict[str, str]:
     # Do NOT overwrite existing user-chosen values.
     config_defaults = {
         "strong_service": "DeepSeek",
-        "strong_model": "deepseek-v4-pro",
+        "strong_model": "deepseek-flash",
         "strong_temperature": 0.4,
         "strong_max_tokens": get_default_strong_max_tokens(),
-        "strong_reasoning_effort": "max",
-        "vision_service": "",
-        "vision_model": "",
+        "strong_reasoning_effort": "xhigh",
+        "vision_service": "DeepSeek",
+        "vision_model": "deepseek-flash",
         "image_service": "",
         "image_model": "",
-        "search_service": "YandexAI",
-        "search_model": "aliceai-llm-flash",
-        "search_temperature": 0.3,
-        "search_max_tool_calls": 1,
+        "search_service": "DeepSeek",
+        "search_model": "deepseek-flash",
+        "search_temperature": 0.4,
+        "search_max_tool_calls": 3,
         "search_reasoning_effort": "high",
         "web_search_prompt": DEFAULT_WEB_SEARCH_PROMPT,
+        "fetch_service": "",
+        "fetch_model": "",
+        "fetch_selenium": False,
         "economy_tail_messages": _default_economy_tail_messages(),
         "economy_cache_enabled": _default_economy_cache_enabled(),
         "economy_cache_multiplier": _default_economy_cache_multiplier(),
@@ -1627,27 +1708,27 @@ def load_devagent_config(orch_slug: str = DEVAGENT_SLUG) -> Dict[str, str]:
     cfg = orch.get("config", {}) if orch else {}
     return {
         "service": cfg.get("strong_service", "") or "DeepSeek",
-        "model": cfg.get("strong_model", "") or "deepseek-v4-pro",
+        "model": cfg.get("strong_model", "") or "deepseek-flash",
         "temperature": str(cfg.get("strong_temperature", 0.2) or 0.2),
         "prompt_text": orch.get("prompt_text", "") if orch else "",
         "strong_service": cfg.get("strong_service", "") or "DeepSeek",
-        "strong_model": cfg.get("strong_model", "") or "deepseek-v4-pro",
+        "strong_model": cfg.get("strong_model", "") or "deepseek-flash",
         "strong_temperature": str(cfg.get("strong_temperature", 0.4) or 0.4),
         "strong_max_tokens": str(cfg.get("strong_max_tokens", 0) or 0),
         # Single-model mode: the weak_* keys are legacy READ aliases of the
         # main model (tolerant read; never written back).
         "weak_service": cfg.get("strong_service", "") or "DeepSeek",
-        "weak_model": cfg.get("strong_model", "") or "deepseek-v4-pro",
+        "weak_model": cfg.get("strong_model", "") or "deepseek-flash",
         "weak_temperature": str(cfg.get("strong_temperature", 0.4) or 0.4),
         "weak_max_tokens": str(cfg.get("strong_max_tokens", 0) or 0),
         "vision_service": cfg.get("vision_service", "") or "",
         "vision_model": cfg.get("vision_model", "") or "",
         "image_service": cfg.get("image_service", "") or "",
         "image_model": cfg.get("image_model", "") or "",
-        "search_service": cfg.get("search_service", "") or "YandexAI",
-        "search_model": cfg.get("search_model", "") or "aliceai-llm-flash",
-        "search_temperature": str(cfg.get("search_temperature", 0.3) or 0.3),
-        "search_max_tool_calls": str(cfg.get("search_max_tool_calls", 1) or 1),
+        "search_service": cfg.get("search_service", "") or "DeepSeek",
+        "search_model": cfg.get("search_model", "") or "deepseek-flash",
+        "search_temperature": str(cfg.get("search_temperature", 0.4) or 0.4),
+        "search_max_tool_calls": str(cfg.get("search_max_tool_calls", 3) or 3),
         "web_search_prompt": get_web_search_prompt(orch_slug),
         "economy_tail_messages": str(get_economy_tail_messages(orch_slug)),
         "economy_cache_enabled": str(get_economy_cache_enabled(orch_slug)),

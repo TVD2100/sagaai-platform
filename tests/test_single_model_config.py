@@ -173,7 +173,8 @@ def test_legacy_weak_config_is_tolerated_and_single_model(isolated_data_dir):
     assert flat["weak_service"] == flat["strong_service"]
     assert flat["weak_model"] == flat["strong_model"]
     assert flat["weak_model"] != "weak-model"
-    assert flat["vision_service"] == ""
+    assert flat["vision_service"] == "DeepSeek"
+    assert flat["vision_model"] == "deepseek-flash"
     assert flat["image_model"] == ""
 
     strong, weak = build_assistant_dicts(DEVAGENT_SLUG)
@@ -188,7 +189,7 @@ def test_legacy_weak_config_is_tolerated_and_single_model(isolated_data_dir):
 
 def test_defaults_and_bootstrap_have_no_weak_keys(isolated_data_dir):
     """DevAgent defaults and first-boot seeding produce no weak_* keys and
-    expose the multimodal keys as empty strings."""
+    assign the built-in multimodal models."""
     from core.config import reload_devagent_defaults
     from core.orchestrators import DEVAGENT_SLUG, _devagent_default_config, get_orchestrator
 
@@ -197,8 +198,8 @@ def test_defaults_and_bootstrap_have_no_weak_keys(isolated_data_dir):
     for legacy_key in ("weak_service", "weak_model", "weak_temperature",
                        "weak_max_tokens", "weak_reasoning_effort"):
         assert legacy_key not in defaults
-    assert defaults["vision_service"] == ""
-    assert defaults["vision_model"] == ""
+    assert defaults["vision_service"] == "DeepSeek"
+    assert defaults["vision_model"] == "deepseek-flash"
     assert defaults["image_service"] == ""
     assert defaults["image_model"] == ""
 
@@ -206,8 +207,8 @@ def test_defaults_and_bootstrap_have_no_weak_keys(isolated_data_dir):
     cfg = get_orchestrator(DEVAGENT_SLUG)["config"]
     assert "weak_service" not in cfg
     assert "weak_max_tokens" not in cfg
-    assert cfg["vision_service"] == ""
-    assert cfg["vision_model"] == ""
+    assert cfg["vision_service"] == "DeepSeek"
+    assert cfg["vision_model"] == "deepseek-flash"
 
     import core.config as config_mod
     assert not hasattr(config_mod, "get_default_weak_max_tokens")

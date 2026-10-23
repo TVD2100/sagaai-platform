@@ -13,9 +13,11 @@ boundary (core.api_layer.requests):
                exact file bytes as base64 with gpt://folder/model
                addressing and the tool reports the description + model.
 
-  Scenario 2 - fresh install: no vision/image model is assigned (the
-               default config). Both tools answer not_assigned with an
-               actionable message and no provider request is made.
+  Scenario 2 - fresh install: the shipped defaults keep image analysis
+               on DeepSeek deepseek-flash and leave image generation
+               unassigned. generate_image answers not_assigned with an
+               actionable message and no provider request is made, and so
+               does analyze_image once the assignment is cleared.
 
   Scenario 3 - the user assigned a model that the provider catalog does
                not declare. The tool answers model_not_declared and makes
@@ -155,18 +157,23 @@ def test_scenario_1_dialog_upload_analyzed_end_to_end(env):
 
 
 def test_scenario_2_fresh_install_reports_unassigned_models(env):
-    """Given the default (fresh) DevAgent settings with no vision/image
-    model assigned, when both multimodal tools are dispatched, then each
-    answers not_assigned with an actionable message and no provider
-    request is made."""
+    """Given the shipped DevAgent defaults, when both multimodal tools are
+    dispatched against a configuration whose assignment was cleared, then
+    each answers not_assigned with an actionable message and no provider
+    request is made; the defaults themselves keep image analysis on
+    DeepSeek deepseek-flash and leave image generation unassigned."""
     from core.config import _DEVAGENT_FALLBACK_DEFAULTS
     from dev_agent.tool_executor import ToolExecutor
 
-    assert _DEVAGENT_FALLBACK_DEFAULTS.get("vision_service", "") in ("", None)
-    assert _DEVAGENT_FALLBACK_DEFAULTS.get("image_service", "") in ("", None)
+    assert _DEVAGENT_FALLBACK_DEFAULTS.get("vision_service") == "DeepSeek"
+    assert _DEVAGENT_FALLBACK_DEFAULTS.get("vision_model") == "deepseek-flash"
+    assert _DEVAGENT_FALLBACK_DEFAULTS.get("image_service") in ("", None)
+    assert _DEVAGENT_FALLBACK_DEFAULTS.get("image_model") in ("", None)
 
     te = ToolExecutor()
-    with patch("core.multimodal.load_devagent_config", return_value={}), \
+    cleared = {"vision_service": "", "vision_model": "",
+               "image_service": "", "image_model": ""}
+    with patch("core.multimodal.load_devagent_config", return_value=cleared), \
          patch("core.api_layer.requests.post") as post:
         vision = te.dispatch("analyze_image", {"images": "photo.jpeg"})
         image = te.dispatch("generate_image", {"prompt": "A blue square"})

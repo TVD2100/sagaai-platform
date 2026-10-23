@@ -164,6 +164,29 @@ def sanitize_tool_result_content(text: str, source: str = "tool_result",
 
 
 # ─── Web-search specific helpers ─────────────────────────────────────────────
+#: Size cap of a fetched page handed back to the model, in characters.
+MAX_FETCHED_PAGE_CHARS: int = 30000
+
+
+def sanitize_fetched_page(text: str, max_len: int = MAX_FETCHED_PAGE_CHARS) -> str:
+    """Sanitize a fetched web page and label it as untrusted data.
+
+    A fetched URL is external content exactly like a search result:
+    control and format characters are removed, the text is truncated to
+    *max_len* (with an explicit truncation marker) and a visible
+    ``[DATA_FROM_URL_FETCH]`` label is prepended so the model treats the
+    body as data, never as instructions. Empty input yields an empty
+    string.
+    """
+    if not text:
+        return text or ""
+    raw = sanitize_text(text, max_len=max_len)
+    raw = re.sub(r"\n{3,}", "\n\n", raw).strip()
+    if not raw:
+        return ""
+    return f"[DATA_FROM_URL_FETCH]\n{raw}"
+
+
 def sanitize_search_result(text: str, max_len: int = 6000) -> str:
     """Sanitize and optionally truncate a web-search response.
 

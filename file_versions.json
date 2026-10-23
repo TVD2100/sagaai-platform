@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "2.7.1",
+  "app_version": "2.9.1",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Релиз 2.7.1 - пресет GitHub MCP убран с вкладки «MCP-серверы»: удалённый сервер Copilot принимает только fine-grained токен с правом Copilot Requests и на остальные отвечает 403, поэтому плитка вела в тупик. В формате пресетов появился флаг hidden: скрытый пресет не показывается плиткой, но остаётся доступным по id - уже созданное из него подключение по-прежнему открывается формой пресета, а снятие флага возвращает плитку. Работа с GitHub идёт через подключение github_rest (инструменты ghr_*), сторонний или локальный MCP-сервер добавляется плиткой «Свой MCP-сервер».",
-    "en": "Release 2.7.1 - the GitHub MCP preset is gone from the MCP servers tab: the remote Copilot server accepts only a fine-grained token carrying the Copilot Requests permission and answers 403 to anything else, so the tile led to a dead end. Presets gained an optional hidden flag: a hidden preset shows no tile but stays resolvable by id, so a connection created from it earlier still opens its preset form, and clearing the flag brings the tile back. GitHub work goes through the github_rest connection (ghr_* tools); a third-party or local MCP server is added via the + Custom MCP server tile."
+    "ru": "Релиз 2.9.1 - обновлены поставляемые настройки DevAgent: основная модель DeepSeek deepseek-flash с уровнем рассуждений xhigh, та же модель для распознавания изображений, поисковая модель с температурой 0.4, тремя вызовами инструментов и уровнем high; генерация изображений по-прежнему не назначена. Вкладка «Модели» рисует чек-бокс «Использовать Selenium» первым и скрывает селекторы модели загрузки страниц, пока он включён - сохранённая пара возвращается после снятия флажка. Подтверждения сохранения теперь появляются под содержимым страницы, а не над её заголовком.",
+    "en": "Release 2.9.1 - DevAgent shipped defaults are refreshed: the main model is DeepSeek deepseek-flash with the xhigh reasoning effort, the same model handles image analysis, and web search runs with temperature 0.4, three tool calls and the high effort; image generation stays unassigned. The Models tab draws the Use Selenium checkbox first and hides the page-fetch model selectors while it is on - the stored pair comes back once the box is cleared. Save confirmations are now painted below the page body instead of above the page title."
   },
-  "updated": "2026-10-21T21:30:00Z",
+  "updated": "2026-10-22T22:45:00Z",
   "units": {
     "core": {
-      "version": "1.41.0",
+      "version": "1.43.0",
       "note": {
-        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py. 1.15.0: SSH-коннектор - инструмент ssh_upload_file (потоковая публикация локальных файлов на сервер, sha256-верификация, до 50 МиБ); подсказка create_dirs в ошибке ssh_write_file. 1.15.1: сценарный тест каталога моделей YandexAI (tests/scenarios), пин промпта YaAgent v2.9, регенерация PROJECT_MAP.md; версия платформы 1.3.2. 1.16.0: единая модель оркестраторов - слабая модель удалена из настроек, добавлены опциональные vision/image настройки и каталоги у сервисов, рантайм на основной модели, tolerant legacy weak_*; документация и манифест обновлены; версия платформы 1.4.0. 1.17.0: мультимодальные инструменты analyze_image/generate_image (вложения диалога и файлы проекта; генерация сохраняется файлом), транспорты send_vision_request/send_image_generation_request в api_layer, глобальная инструкция multimodal_mode; версия платформы 1.5.0. 1.18.0: синхронный Images API для generate_image (единственная модель aliceai-image-art-3.0, удаление async-ветки YandexART), показ сгенерированного изображения в чате с кнопкой скачивания; версия платформы 1.6.0. 1.19.0: распознавание изображений на DeepSeek - vision_base_url и каталог vision_models (deepseek-flash) в профиле сервиса, ветка deepseek_responses с detail=original в send_vision_request, deepseek-v4.1-flash в vision-каталоге YandexAI; версия платформы 1.7.0. 1.19.1: сгенерированное изображение generate_image показывается сразу в ленте чата - блок с картинкой и кнопкой скачивания вынесен из свёрнутого блока результата (ui/pages/orchestrator.py); сценарные тесты ленты; версия платформы 1.7.1. 1.20.0: поиск по диалогам - инструменты search_in_threads/list_threads/read_thread (текущий диалог по умолчанию, scope/период) с контролем доступа к тредам; промпт DevAgent v3.15; версия платформы 1.8.0. 1.21.0: изоляция рабочей папки - пустое состояние и guard файловых инструментов, мета «последняя папка» треда с миграцией легаси-меты, недавние папки по оркестраторам, журналы/вложения при пустой папке; промпты DevAgent v3.16 / YaAgent v2.10; версия платформы 1.9.0. 1.21.1: авторетрай GET GitHub-коннектора при сетевых сбоях; компактный дайджест журнала задач; промпт DevAgent v3.17; версия платформы 1.9.1. 1.21.2: устойчивые ошибки Responses API (failed-статус -> ProviderResponseError) и фильтрация пустых сообщений input. 1.22.1: отмена эконом-профиля DeepSeek - объявленный лимит вывода возвращён к 384000, тест каталогов синхронизирован. 1.23.0: генерируемая карта проекта - AST-символы (методы/async/вложенные, реальные строки) с regex-фолбэком и лимитом 200 символов на файл, sha256-отпечаток содержимого в шапке, фильтр состава include_paths/scope_note по публикуемому набору; канонический генератор карты (publish set + main); промпт DevAgent v3.18 (правило «карта только регенерацией»); версия платформы 1.11.0. 1.24.0: AGENT.md - управляемый документ ключевой информации для агентов: AGENT_FILE и легаси-осведомлённые PROJECT_DOC_NAMES в конфиге, вид \"agent\" (алиас \"spec\") у write_doc/read_doc, скаффолд default_agent_markdown с тремя обязательными конвенциями, assess_workspace по AGENT.md|ARCHITECTURE.md; тесты обновлены, добавлен сценарный тест AGENT.md; версия платформы 1.12.0. В релизе 1.12.0 inline-лимит результатов инструментов поднят до 35 000 символов (_TOOL_RESULT_INLINE_LIMIT в agent_loop.py; сценарий переполнения контекста берёт константу из модуля). 1.25.0: RAG-режимы поиска bm25/vector/hybrid (собственный BM25-индекс, hybrid RRF). 1.26.0: create_base принимает явный slug (нормализация к [a-z0-9_.-], отказ без латиницы); навык Rag Base Creator пробрасывает --slug и ведёт --replace по нему. 1.27.0: качество лексического поиска RAG - консервативный русский стеммер, русский/английский стоп-список, вывод служебной шапки чанка из индексируемого текста (заголовок с бустом), координация терминов и ускорение отбора top-k; схема BM25 v2 с ленивым пересбором старых индексов; скрипт оценки качества scripts/rag_eval.py (Recall@k/MRR/nDCG@k). 1.30.0: единый бюджет контекста (B4) - общая формула input_ceiling=окно-лимит вывода и input_budget=0.75xceiling-промпт для эконом-режима и pre-flight guard; мягкий трим 0.75 окна, жёсткий предел 0.9; эконом-срез при переполнении по токенам сбрасывает фронт до tail (единый триггер с переполнением окна). 1.32.0: публикация GitHub ref/тегов - create_ref/create_tag в коннекторе github_rest (лёгкий и аннотированный тег через POST /git/tags, force, резолв сокращённого SHA через GET /repos/{owner}/{repo}/commits) и инструменты ghr_create_ref/ghr_create_tag для оркестраторов; версия пакета core. 1.32.1: исправлен резолв сокращённого SHA (эндпоинт GET /repos/{owner}/{repo}/commits вместо /git/commits); тест и сценарий обновлены. 1.33.0: блок «Выбор папки» в чате - core/folder_dialog.py (нативный выбор папки: tkinter в дочернем процессе с откатом на osascript на macOS, таймаут, деградация без GUI), селектор в ui/pages/orchestrator.py («Авто» + до 10 недавних папок, применение выбранной папки при отправке), лимит недавних папок 10 в core/recent_workspaces.py; промпт DevAgent v3.21 1.33.1: возвращена авто-прокрутка ленты чата - core/feed_autoscroll.py (слежение за выводом, пауза при ручной прокрутке вверх через sessionStorage, возобновление у низа, резерв высоты нижней панели), интеграция в ui/pages/orchestrator.py (флаг scroll_bottom форсирует прокрут на отправке) 1.33.2: core/feed_autoscroll.py не задаёт padding-bottom (Streamlit 1.66 сам резервирует место под st.bottom) - устранён двойной отступ и пустота между последним сообщением и блоком выбора папки.  1.35.0: коннекторы - создание подключений через DevAgent (черновики pending без секретов, файл памяти подключения), 11 инструментов коннекторов в диспетчере, маркер pending и quick-note памяти в промпт-блоке. 1.36.0: MCP-поддержка - собственный JSON-RPC 2.0 stdio клиент (core/mcp_client.py), сервис mcp в реестре коннекторов (белый список команд, env_json), инструменты mcp_list_tools/mcp_call_tool и динамические mcp__-инструменты с санированием недоверенных данных. 1.37.0: пресеты MCP-подключений (core/connector_presets.py + defaults/connectors/mcp/, без секретов) и HTTP-транспорт MCP (McpHttpClient: POST + SSE, Mcp-Session-Id, auth_header из секретов), поля секретов secret_env_fields/env_pairs и расширенный режим на странице «Коннекторы»; версия платформы 2.4.0. 1.38.0: вкладка MCP на странице «Коннекторы» - плитки пресетов с иконками (клик - черновик) и плитка «+ Свой MCP-сервер», удаление демо-пресета everything_demo; обязательное поле icon у пресетов; версия платформы 2.5.0. 1.39.0: страница «Коннекторы» - три вкладки со стабильным key и пином выбора, вкладка «Подключения» с карточками всех подключений, плитки общих сервисов с мгновенным раскрытием формы создания, MCP-пресет создаёт подключение и сразу открывает форму учётных данных, переходы вынесены из try/except; подсказки 401/403 для MCP HTTP (fine-grained github_pat_*); версия платформы 2.6.0. 1.40.0: страница «Коннекторы» - модель «список ↔ форма» (connectors_view = list | create | edit): форма заменяет список, плитки только открывают её, «Создать» сохраняет сразу активное подключение с введёнными секретами, «Отмена»/«Назад» ничего не пишут, ошибка оставляет форму открытой; полноэкранное редактирование; устойчивые вкладки st.tabs(on_change='rerun', key, default) - без on_change виджет не хранит состояние; instantiate_preset получил account/secrets/pending; версия платформы 2.7.0. 1.41.0: скрытые MCP-пресеты - флаг hidden в формате пресета (list_presets его не отдаёт, resolve_preset находит по id), пресет github_mcp помечен hidden и снят с плиток, форма редактирования такого подключения по-прежнему резолвит пресет; версия платформы 2.7.1.",
-        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py. 1.15.0: SSH connector - ssh_upload_file tool (streamed publishing of local files to a server, sha256 verification, up to 50 MB); create_dirs hint in the ssh_write_file error. 1.15.1: YandexAI model catalog scenario test (tests/scenarios), YaAgent v2.9 prompt pin, PROJECT_MAP.md regenerated; platform version 1.3.2. 1.16.0: single-model orchestrators - the weak model removed from settings, optional vision/image settings and service catalogs added, runtime on the main model, tolerant legacy weak_*; docs and manifest updated; platform version 1.4.0. 1.17.0: multimodal tools analyze_image/generate_image (dialog uploads and project files; generation saved to a file), send_vision_request/send_image_generation_request transports in api_layer, the global multimodal_mode instruction; platform version 1.5.0. 1.18.0: synchronous Images API for generate_image (the single model aliceai-image-art-3.0, the YandexART async branch removed), the generated image shown in the chat with a download button; platform version 1.6.0. 1.19.0: DeepSeek image analysis - vision_base_url and the vision_models catalog (deepseek-flash) in the service profile, the deepseek_responses branch with detail=original in send_vision_request, deepseek-v4.1-flash in the YandexAI vision catalog; platform version 1.7.0. 1.19.1: the generate_image picture is shown immediately in the chat feed - the image block with the download button moved out of the collapsed tool-result block (ui/pages/orchestrator.py); feed scenario tests; platform version 1.7.1. 1.20.0: dialog thread search - the search_in_threads/list_threads/read_thread tools (current dialog by default, scope/period) with thread access control; DevAgent prompt v3.15; platform version 1.8.0. 1.21.0: workspace isolation - the no-folder-selected empty state and the file-tool guard, thread last-folder meta with the legacy-meta migration, per-orchestrator recent folders, journals/uploads in the empty state; DevAgent v3.16 / YaAgent v2.10 prompts; platform version 1.9.0. 1.21.1: GitHub REST GET retries on network errors; compact task-state digest; DevAgent prompt v3.17; platform version 1.9.1. 1.21.2: resilient Responses API failures (failed status -> ProviderResponseError) and blank input filtering. 1.22.1: reverted the DeepSeek economy profile - the declared output limit is back to 384000 and the catalog test is aligned. 1.23.0: generated project map - AST symbols (methods/async/nested, real line ranges) with a regex fallback and a 200-symbol cap per file, a content sha256 fingerprint in the header, include_paths/scope_note scope filtering by the published set; the canonical map generator (publish set + main); DevAgent v3.18 prompt (map-is-generated-only rule); platform version 1.11.0. 1.24.0: AGENT.md managed key-information document: AGENT_FILE and legacy-aware PROJECT_DOC_NAMES in config, the \"agent\" doc kind (legacy \"spec\" alias) in write_doc/read_doc, the default_agent_markdown scaffold with three mandatory conventions, assess_workspace via AGENT.md|ARCHITECTURE.md; tests updated, AGENT.md scenario test added; platform version 1.12.0. In release 1.12.0 the tool-result inline limit was raised to 35,000 characters (_TOOL_RESULT_INLINE_LIMIT in agent_loop.py; the context-overflow scenario reads the constant from the module). 1.25.0: RAG search modes bm25/vector/hybrid (own BM25 index, hybrid RRF). 1.26.0: create_base accepts an explicit slug (normalised to [a-z0-9_.-], refused without Latin); the Rag Base Creator skill forwards --slug and scopes --replace to it. 1.27.0: RAG lexical search quality - conservative Russian stemmer, ru/en stop-words, chunk-header metadata removed from the indexed text (title boosted), term coordination and faster top-k; BM25 schema v2 with lazy rebuild of older indexes; the quality harness scripts/rag_eval.py (Recall@k/MRR/nDCG@k). 1.30.0: unified context budget (B4) - the shared formula input_ceiling=window-output_limit and input_budget=0.75xceiling-prompt for economy mode and the pre-flight guard; soft trim at 0.75 window, hard cap 0.9; the economy trim on token overflow resets the front to tail (one trigger with a window overflow). 1.32.0: GitHub ref/tag publishing - create_ref/create_tag in the github_rest connector (lightweight and annotated tags via POST /git/tags, force, abbreviated-SHA resolution via GET /repos/{owner}/{repo}/commits) and the ghr_create_ref/ghr_create_tag tools for orchestrators; core package version. 1.32.1: fixed abbreviated-SHA resolution (the /repos/{owner}/{repo}/commits endpoint instead of /git/commits); its test and scenario updated. 1.33.0: the chat folder picker - core/folder_dialog.py (native OS folder dialog: tkinter in a child process with an osascript fallback on macOS, timeout, graceful degradation without a GUI), the selector in ui/pages/orchestrator.py (\"Auto\" + up to 10 recent folders, the picked folder applied on send), the recent-folder limit of 10 in core/recent_workspaces.py; DevAgent prompt v3.21 1.33.1: chat feed auto-scroll restored - core/feed_autoscroll.py (follow the agent output, pause on a manual scroll-up via sessionStorage, resume at the bottom, reserve the bottom-bar height), wired into ui/pages/orchestrator.py (the scroll_bottom flag forces a scroll on send) 1.33.2: core/feed_autoscroll.py sets no padding-bottom (Streamlit 1.66 reserves room for st.bottom itself) - the doubled inset and the empty gap above the folder-picker bar are gone.  1.35.0: connectors - creation through DevAgent (pending drafts without secrets, per-connection memory file), 11 connector tools in the dispatcher, the pending marker and the memory quick note in the prompt block. 1.36.0: MCP support - a from-scratch JSON-RPC 2.0 stdio client (core/mcp_client.py), the mcp connector service (command whitelist, env_json secret), mcp_list_tools/mcp_call_tool and dynamic mcp__ tools with untrusted-data sanitization. 1.37.0: MCP connection presets (core/connector_presets.py + defaults/connectors/mcp/, secret-free) and the http MCP transport (McpHttpClient: POST + SSE, Mcp-Session-Id, auth_header resolved from secrets), secret_env_fields/env_pairs credential fields and the advanced mode on the Connectors page; platform version 2.4.0. 1.38.0: the MCP tab on the Connectors page - icon preset tiles (click-for-draft) and a '+ Custom MCP server' tile, the everything_demo preset removed; the required preset icon field; platform version 2.5.0. 1.39.0: the Connectors page - three tabs with a stable key and an explicit selection pin, a Connections tab with a card per saved connection, general-service tiles that open the create form at once, an MCP preset creating the connection and opening its credential form right away, rerun transitions moved out of try/except; 401/403 hints for MCP HTTP (fine-grained github_pat_*); platform version 2.6.0. 1.40.0: the Connectors page - list <-> form model (connectors_view = list | create | edit): the form replaces the list, tiles only open it, Create stores an already-active connection with the typed secrets, Cancel/back write nothing, a failed save keeps the form open; full-page editing; persistent tabs via st.tabs(on_change='rerun', key, default) since without on_change the widget keeps no state; instantiate_preset gained account/secrets/pending; platform version 2.7.0. 1.41.0: hidden MCP presets - an optional hidden flag in the preset format (list_presets drops it, resolve_preset still finds it by id), the github_mcp preset is marked hidden and leaves the tiles while its connections keep the preset edit form; platform version 2.7.1."
+        "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py. 1.15.0: SSH-коннектор - инструмент ssh_upload_file (потоковая публикация локальных файлов на сервер, sha256-верификация, до 50 МиБ); подсказка create_dirs в ошибке ssh_write_file. 1.15.1: сценарный тест каталога моделей YandexAI (tests/scenarios), пин промпта YaAgent v2.9, регенерация PROJECT_MAP.md; версия платформы 1.3.2. 1.16.0: единая модель оркестраторов - слабая модель удалена из настроек, добавлены опциональные vision/image настройки и каталоги у сервисов, рантайм на основной модели, tolerant legacy weak_*; документация и манифест обновлены; версия платформы 1.4.0. 1.17.0: мультимодальные инструменты analyze_image/generate_image (вложения диалога и файлы проекта; генерация сохраняется файлом), транспорты send_vision_request/send_image_generation_request в api_layer, глобальная инструкция multimodal_mode; версия платформы 1.5.0. 1.18.0: синхронный Images API для generate_image (единственная модель aliceai-image-art-3.0, удаление async-ветки YandexART), показ сгенерированного изображения в чате с кнопкой скачивания; версия платформы 1.6.0. 1.19.0: распознавание изображений на DeepSeek - vision_base_url и каталог vision_models (deepseek-flash) в профиле сервиса, ветка deepseek_responses с detail=original в send_vision_request, deepseek-v4.1-flash в vision-каталоге YandexAI; версия платформы 1.7.0. 1.19.1: сгенерированное изображение generate_image показывается сразу в ленте чата - блок с картинкой и кнопкой скачивания вынесен из свёрнутого блока результата (ui/pages/orchestrator.py); сценарные тесты ленты; версия платформы 1.7.1. 1.20.0: поиск по диалогам - инструменты search_in_threads/list_threads/read_thread (текущий диалог по умолчанию, scope/период) с контролем доступа к тредам; промпт DevAgent v3.15; версия платформы 1.8.0. 1.21.0: изоляция рабочей папки - пустое состояние и guard файловых инструментов, мета «последняя папка» треда с миграцией легаси-меты, недавние папки по оркестраторам, журналы/вложения при пустой папке; промпты DevAgent v3.16 / YaAgent v2.10; версия платформы 1.9.0. 1.21.1: авторетрай GET GitHub-коннектора при сетевых сбоях; компактный дайджест журнала задач; промпт DevAgent v3.17; версия платформы 1.9.1. 1.21.2: устойчивые ошибки Responses API (failed-статус -> ProviderResponseError) и фильтрация пустых сообщений input. 1.22.1: отмена эконом-профиля DeepSeek - объявленный лимит вывода возвращён к 384000, тест каталогов синхронизирован. 1.23.0: генерируемая карта проекта - AST-символы (методы/async/вложенные, реальные строки) с regex-фолбэком и лимитом 200 символов на файл, sha256-отпечаток содержимого в шапке, фильтр состава include_paths/scope_note по публикуемому набору; канонический генератор карты (publish set + main); промпт DevAgent v3.18 (правило «карта только регенерацией»); версия платформы 1.11.0. 1.24.0: AGENT.md - управляемый документ ключевой информации для агентов: AGENT_FILE и легаси-осведомлённые PROJECT_DOC_NAMES в конфиге, вид \"agent\" (алиас \"spec\") у write_doc/read_doc, скаффолд default_agent_markdown с тремя обязательными конвенциями, assess_workspace по AGENT.md|ARCHITECTURE.md; тесты обновлены, добавлен сценарный тест AGENT.md; версия платформы 1.12.0. В релизе 1.12.0 inline-лимит результатов инструментов поднят до 35 000 символов (_TOOL_RESULT_INLINE_LIMIT в agent_loop.py; сценарий переполнения контекста берёт константу из модуля). 1.25.0: RAG-режимы поиска bm25/vector/hybrid (собственный BM25-индекс, hybrid RRF). 1.26.0: create_base принимает явный slug (нормализация к [a-z0-9_.-], отказ без латиницы); навык Rag Base Creator пробрасывает --slug и ведёт --replace по нему. 1.27.0: качество лексического поиска RAG - консервативный русский стеммер, русский/английский стоп-список, вывод служебной шапки чанка из индексируемого текста (заголовок с бустом), координация терминов и ускорение отбора top-k; схема BM25 v2 с ленивым пересбором старых индексов; скрипт оценки качества scripts/rag_eval.py (Recall@k/MRR/nDCG@k). 1.30.0: единый бюджет контекста (B4) - общая формула input_ceiling=окно-лимит вывода и input_budget=0.75xceiling-промпт для эконом-режима и pre-flight guard; мягкий трим 0.75 окна, жёсткий предел 0.9; эконом-срез при переполнении по токенам сбрасывает фронт до tail (единый триггер с переполнением окна). 1.32.0: публикация GitHub ref/тегов - create_ref/create_tag в коннекторе github_rest (лёгкий и аннотированный тег через POST /git/tags, force, резолв сокращённого SHA через GET /repos/{owner}/{repo}/commits) и инструменты ghr_create_ref/ghr_create_tag для оркестраторов; версия пакета core. 1.32.1: исправлен резолв сокращённого SHA (эндпоинт GET /repos/{owner}/{repo}/commits вместо /git/commits); тест и сценарий обновлены. 1.33.0: блок «Выбор папки» в чате - core/folder_dialog.py (нативный выбор папки: tkinter в дочернем процессе с откатом на osascript на macOS, таймаут, деградация без GUI), селектор в ui/pages/orchestrator.py («Авто» + до 10 недавних папок, применение выбранной папки при отправке), лимит недавних папок 10 в core/recent_workspaces.py; промпт DevAgent v3.21 1.33.1: возвращена авто-прокрутка ленты чата - core/feed_autoscroll.py (слежение за выводом, пауза при ручной прокрутке вверх через sessionStorage, возобновление у низа, резерв высоты нижней панели), интеграция в ui/pages/orchestrator.py (флаг scroll_bottom форсирует прокрут на отправке) 1.33.2: core/feed_autoscroll.py не задаёт padding-bottom (Streamlit 1.66 сам резервирует место под st.bottom) - устранён двойной отступ и пустота между последним сообщением и блоком выбора папки.  1.35.0: коннекторы - создание подключений через DevAgent (черновики pending без секретов, файл памяти подключения), 11 инструментов коннекторов в диспетчере, маркер pending и quick-note памяти в промпт-блоке. 1.36.0: MCP-поддержка - собственный JSON-RPC 2.0 stdio клиент (core/mcp_client.py), сервис mcp в реестре коннекторов (белый список команд, env_json), инструменты mcp_list_tools/mcp_call_tool и динамические mcp__-инструменты с санированием недоверенных данных. 1.37.0: пресеты MCP-подключений (core/connector_presets.py + defaults/connectors/mcp/, без секретов) и HTTP-транспорт MCP (McpHttpClient: POST + SSE, Mcp-Session-Id, auth_header из секретов), поля секретов secret_env_fields/env_pairs и расширенный режим на странице «Коннекторы»; версия платформы 2.4.0. 1.38.0: вкладка MCP на странице «Коннекторы» - плитки пресетов с иконками (клик - черновик) и плитка «+ Свой MCP-сервер», удаление демо-пресета everything_demo; обязательное поле icon у пресетов; версия платформы 2.5.0. 1.39.0: страница «Коннекторы» - три вкладки со стабильным key и пином выбора, вкладка «Подключения» с карточками всех подключений, плитки общих сервисов с мгновенным раскрытием формы создания, MCP-пресет создаёт подключение и сразу открывает форму учётных данных, переходы вынесены из try/except; подсказки 401/403 для MCP HTTP (fine-grained github_pat_*); версия платформы 2.6.0. 1.40.0: страница «Коннекторы» - модель «список ↔ форма» (connectors_view = list | create | edit): форма заменяет список, плитки только открывают её, «Создать» сохраняет сразу активное подключение с введёнными секретами, «Отмена»/«Назад» ничего не пишут, ошибка оставляет форму открытой; полноэкранное редактирование; устойчивые вкладки st.tabs(on_change='rerun', key, default) - без on_change виджет не хранит состояние; instantiate_preset получил account/secrets/pending; версия платформы 2.7.0. 1.41.0: скрытые MCP-пресеты - флаг hidden в формате пресета (list_presets его не отдаёт, resolve_preset находит по id), пресет github_mcp помечен hidden и снят с плиток, форма редактирования такого подключения по-прежнему резолвит пресет; версия платформы 2.7.1. 1.43.0: дефолты DevAgent - DeepSeek deepseek-flash с xhigh для основной модели и распознавания изображений, поиск с температурой 0.4, тремя вызовами инструментов и high; вкладка «Модели» скрывает селекторы модели загрузки при включённом Selenium и сохраняет прежнюю пару; подтверждения сохранения рисуются после тела страницы (ui/app.py); версия платформы 2.9.1.",
+        "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py. 1.15.0: SSH connector - ssh_upload_file tool (streamed publishing of local files to a server, sha256 verification, up to 50 MB); create_dirs hint in the ssh_write_file error. 1.15.1: YandexAI model catalog scenario test (tests/scenarios), YaAgent v2.9 prompt pin, PROJECT_MAP.md regenerated; platform version 1.3.2. 1.16.0: single-model orchestrators - the weak model removed from settings, optional vision/image settings and service catalogs added, runtime on the main model, tolerant legacy weak_*; docs and manifest updated; platform version 1.4.0. 1.17.0: multimodal tools analyze_image/generate_image (dialog uploads and project files; generation saved to a file), send_vision_request/send_image_generation_request transports in api_layer, the global multimodal_mode instruction; platform version 1.5.0. 1.18.0: synchronous Images API for generate_image (the single model aliceai-image-art-3.0, the YandexART async branch removed), the generated image shown in the chat with a download button; platform version 1.6.0. 1.19.0: DeepSeek image analysis - vision_base_url and the vision_models catalog (deepseek-flash) in the service profile, the deepseek_responses branch with detail=original in send_vision_request, deepseek-v4.1-flash in the YandexAI vision catalog; platform version 1.7.0. 1.19.1: the generate_image picture is shown immediately in the chat feed - the image block with the download button moved out of the collapsed tool-result block (ui/pages/orchestrator.py); feed scenario tests; platform version 1.7.1. 1.20.0: dialog thread search - the search_in_threads/list_threads/read_thread tools (current dialog by default, scope/period) with thread access control; DevAgent prompt v3.15; platform version 1.8.0. 1.21.0: workspace isolation - the no-folder-selected empty state and the file-tool guard, thread last-folder meta with the legacy-meta migration, per-orchestrator recent folders, journals/uploads in the empty state; DevAgent v3.16 / YaAgent v2.10 prompts; platform version 1.9.0. 1.21.1: GitHub REST GET retries on network errors; compact task-state digest; DevAgent prompt v3.17; platform version 1.9.1. 1.21.2: resilient Responses API failures (failed status -> ProviderResponseError) and blank input filtering. 1.22.1: reverted the DeepSeek economy profile - the declared output limit is back to 384000 and the catalog test is aligned. 1.23.0: generated project map - AST symbols (methods/async/nested, real line ranges) with a regex fallback and a 200-symbol cap per file, a content sha256 fingerprint in the header, include_paths/scope_note scope filtering by the published set; the canonical map generator (publish set + main); DevAgent v3.18 prompt (map-is-generated-only rule); platform version 1.11.0. 1.24.0: AGENT.md managed key-information document: AGENT_FILE and legacy-aware PROJECT_DOC_NAMES in config, the \"agent\" doc kind (legacy \"spec\" alias) in write_doc/read_doc, the default_agent_markdown scaffold with three mandatory conventions, assess_workspace via AGENT.md|ARCHITECTURE.md; tests updated, AGENT.md scenario test added; platform version 1.12.0. In release 1.12.0 the tool-result inline limit was raised to 35,000 characters (_TOOL_RESULT_INLINE_LIMIT in agent_loop.py; the context-overflow scenario reads the constant from the module). 1.25.0: RAG search modes bm25/vector/hybrid (own BM25 index, hybrid RRF). 1.26.0: create_base accepts an explicit slug (normalised to [a-z0-9_.-], refused without Latin); the Rag Base Creator skill forwards --slug and scopes --replace to it. 1.27.0: RAG lexical search quality - conservative Russian stemmer, ru/en stop-words, chunk-header metadata removed from the indexed text (title boosted), term coordination and faster top-k; BM25 schema v2 with lazy rebuild of older indexes; the quality harness scripts/rag_eval.py (Recall@k/MRR/nDCG@k). 1.30.0: unified context budget (B4) - the shared formula input_ceiling=window-output_limit and input_budget=0.75xceiling-prompt for economy mode and the pre-flight guard; soft trim at 0.75 window, hard cap 0.9; the economy trim on token overflow resets the front to tail (one trigger with a window overflow). 1.32.0: GitHub ref/tag publishing - create_ref/create_tag in the github_rest connector (lightweight and annotated tags via POST /git/tags, force, abbreviated-SHA resolution via GET /repos/{owner}/{repo}/commits) and the ghr_create_ref/ghr_create_tag tools for orchestrators; core package version. 1.32.1: fixed abbreviated-SHA resolution (the /repos/{owner}/{repo}/commits endpoint instead of /git/commits); its test and scenario updated. 1.33.0: the chat folder picker - core/folder_dialog.py (native OS folder dialog: tkinter in a child process with an osascript fallback on macOS, timeout, graceful degradation without a GUI), the selector in ui/pages/orchestrator.py (\"Auto\" + up to 10 recent folders, the picked folder applied on send), the recent-folder limit of 10 in core/recent_workspaces.py; DevAgent prompt v3.21 1.33.1: chat feed auto-scroll restored - core/feed_autoscroll.py (follow the agent output, pause on a manual scroll-up via sessionStorage, resume at the bottom, reserve the bottom-bar height), wired into ui/pages/orchestrator.py (the scroll_bottom flag forces a scroll on send) 1.33.2: core/feed_autoscroll.py sets no padding-bottom (Streamlit 1.66 reserves room for st.bottom itself) - the doubled inset and the empty gap above the folder-picker bar are gone.  1.35.0: connectors - creation through DevAgent (pending drafts without secrets, per-connection memory file), 11 connector tools in the dispatcher, the pending marker and the memory quick note in the prompt block. 1.36.0: MCP support - a from-scratch JSON-RPC 2.0 stdio client (core/mcp_client.py), the mcp connector service (command whitelist, env_json secret), mcp_list_tools/mcp_call_tool and dynamic mcp__ tools with untrusted-data sanitization. 1.37.0: MCP connection presets (core/connector_presets.py + defaults/connectors/mcp/, secret-free) and the http MCP transport (McpHttpClient: POST + SSE, Mcp-Session-Id, auth_header resolved from secrets), secret_env_fields/env_pairs credential fields and the advanced mode on the Connectors page; platform version 2.4.0. 1.38.0: the MCP tab on the Connectors page - icon preset tiles (click-for-draft) and a '+ Custom MCP server' tile, the everything_demo preset removed; the required preset icon field; platform version 2.5.0. 1.39.0: the Connectors page - three tabs with a stable key and an explicit selection pin, a Connections tab with a card per saved connection, general-service tiles that open the create form at once, an MCP preset creating the connection and opening its credential form right away, rerun transitions moved out of try/except; 401/403 hints for MCP HTTP (fine-grained github_pat_*); platform version 2.6.0. 1.40.0: the Connectors page - list <-> form model (connectors_view = list | create | edit): the form replaces the list, tiles only open it, Create stores an already-active connection with the typed secrets, Cancel/back write nothing, a failed save keeps the form open; full-page editing; persistent tabs via st.tabs(on_change='rerun', key, default) since without on_change the widget keeps no state; instantiate_preset gained account/secrets/pending; platform version 2.7.0. 1.41.0: hidden MCP presets - an optional hidden flag in the preset format (list_presets drops it, resolve_preset still finds it by id), the github_mcp preset is marked hidden and leaves the tiles while its connections keep the preset edit form; platform version 2.7.1. 1.43.0: DevAgent defaults - DeepSeek deepseek-flash with xhigh for the main model and image analysis, web search at temperature 0.4 with three tool calls and high effort; the Models tab hides the page-fetch selectors while Selenium is on and keeps the stored pair; save confirmations are painted after the page body (ui/app.py); platform version 2.9.1."
       },
       "files": {
         "__init__.py": {
@@ -68,12 +68,12 @@
           "sha256": "a9ea064ddce0afeb42b32b5fd7845e8858b817670d2be9ddb8f0ef480d8ea200"
         },
         "core/bootstrap.py": {
-          "version": "1.0.2",
-          "sha256": "e9fdac8939a399b5f02080432abcf3b00a83663822b724e2a3e0384b4ee6c3f9"
+          "version": "1.0.3",
+          "sha256": "a7c66746d74d191e14307d202987a5692b075cb9f6289d5ed62d4e20a29f5e8d"
         },
         "core/config.py": {
-          "version": "1.3.1",
-          "sha256": "839444d49cde3b228416845d51871ff59ed00dfe43131eb7e6cc3fa6d6811fa8"
+          "version": "1.4.0",
+          "sha256": "dc1759f0fd96ee055f0289e00b6f7014e994e3b4e6f36f531bd45ae81116c524"
         },
         "core/connectors.py": {
           "version": "1.7.0",
@@ -104,8 +104,8 @@
           "sha256": "52f7a8595c456dd0c4f81e99c606cac3c7763ceb5f49befe26748ea78e9998c7"
         },
         "core/dependency_check.py": {
-          "version": "1.0.0",
-          "sha256": "227bd011012a181da0a80f7de68162572badc614490c84bfe2c50331a70b485f"
+          "version": "1.0.1",
+          "sha256": "729e762a683fbab99b178764fcf2396ae120c3f945f5fa22491ed7fcd49fe3d1"
         },
         "core/entity_sync.py": {
           "version": "1.0.1",
@@ -160,12 +160,12 @@
           "sha256": "4f40a4acf45a15107cbe8ac2ed62d34e2ff12658a42fdd2c980a860c8b76108b"
         },
         "core/orchestrator_tools.py": {
-          "version": "1.3.0",
-          "sha256": "293cfcc90ca7270bc72cd56e1b12b76d800a3dbf5b2c3dff01b4125f2479fa9e"
+          "version": "1.4.0",
+          "sha256": "8d4bb547dc6fe1e82d45d31da539c1ac3065e53cb0cbe03c08356af50301fb61"
         },
         "core/orchestrators.py": {
-          "version": "1.9.0",
-          "sha256": "3eb4edfd8375ca682c76c631ecacd6ba9185ce554346ee0892e8ea14ae2f301f",
+          "version": "1.11.0",
+          "sha256": "035973cf4808d8175cdad2566a87a42cd61511a0e9ec17fbac1a25dd3a5bba3f",
           "note": {
             "ru": "Сохранение оркестратора: сбой зеркалирования папки больше не отменяет успешную запись в БД.",
             "en": "Orchestrator save: a folder-mirror failure no longer discards a successful database write."
@@ -176,8 +176,8 @@
           "sha256": "6bba744c0edf6e2694ee646943d7157a24a64b0639c9d374cf636baf86618ccf"
         },
         "core/prompt_guard.py": {
-          "version": "1.0.1",
-          "sha256": "fe4e2195c6f89391e7b1e4378525b5080c9754bae924dc36aa1ff843ef420727"
+          "version": "1.1.0",
+          "sha256": "124c1c219fdf86adb13824763cfbc210792c5cee7130d78b855f51b69f7d69a4"
         },
         "core/prompt_improver.py": {
           "version": "1.1.1",
@@ -224,8 +224,8 @@
           "sha256": "4462a66d9122b84b93263cfde04cfdaf8436f9bfa12954c29cc28ddc3b6aa944"
         },
         "core/services.py": {
-          "version": "1.1.1",
-          "sha256": "bd1b8e7f30e3637b77232e2dbe6a7b38bd8d6b7fbc9c673320effe8875a31b2b"
+          "version": "1.2.0",
+          "sha256": "ba557348bc578ce21835518e84a8c9c6b5c0c48aba9f2e979b1e518311b71001"
         },
         "core/skills.py": {
           "version": "1.0.1",
@@ -268,8 +268,8 @@
           "sha256": "fff605ff8fa7117dc22552f28343490df4ba11b154176b6862abdb2a97fa5f86"
         },
         "core/version.py": {
-          "version": "1.0.51",
-          "sha256": "3d7b558eb2ed2b076b8ac83e8d3a4cfb1638f600aab5c96a747641db56f84c3b"
+          "version": "1.43.0",
+          "sha256": "645b691ebb7b3e47e68f98f65ea5d22186c203c5aec704756ade931e79ff6d70"
         },
         "dev_agent/__init__.py": {
           "version": "1.0.1",
@@ -312,8 +312,8 @@
           "sha256": "348bb1d63034cc24d51a8f0da30f69a3814e919f3fa98781c02098c65555dcc6"
         },
         "dev_agent/tool_executor.py": {
-          "version": "1.12.1",
-          "sha256": "c202d1b1317c4243030ffbbbf7355717f92f8b6a4248e55114a6ae9619f97600"
+          "version": "1.13.0",
+          "sha256": "2ab681b90d6d929d574930ded38b5e188a19072eeb3ee17d1931d508f1b62869"
         },
         "dev_agent/universal_agent.py": {
           "version": "1.16.0",
@@ -332,16 +332,16 @@
           "sha256": "208d0f9e48700f367ab579de3a91d02a259c8e0322dbfae0758d0cb90cefddb1"
         },
         "requirements.txt": {
-          "version": "1.2.2",
-          "sha256": "41be25be7f0102940ffefc95191d55492201043d213f428efe9b049c5c3871e6"
+          "version": "1.2.3",
+          "sha256": "eb7d2f976f1453c19309c047228ecea0b068f1b9233c0bf6f016e8cfc72b53e0"
         },
         "scripts/rag_eval.py": {
           "version": "1.0.1",
           "sha256": "d243711998803755df65bf05630e6ce2c22ec031241399bcf5788dfc32d0dddf"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.12.1",
-          "sha256": "1cf75c2f2f42120693e628db4daf213ce3d42b73f33f155e942793ba37bcc743",
+          "version": "1.13.0",
+          "sha256": "745fe3f6b0a11d058a56137be7a267d27def1703a0ba777232b971c622df2785",
           "note": "descriptions for the hidden preset, the mcp_connector instruction and README updated"
         },
         "scripts/verify_manifest.py": {
@@ -489,8 +489,8 @@
           "sha256": "b1d500f175b3ddedc8b9dd0376988f90af5e2ff18f72496a3a0e3f89111d9dcb"
         },
         "tests/scenarios/test_multimodal_scenarios.py": {
-          "version": "1.2.0",
-          "sha256": "08772731711c2eb631fcf075ce7ce41d3fbc0231e0830d45ebb300812669f896"
+          "version": "1.3.0",
+          "sha256": "a12ae88f2f4bcdf88f9d9b2c266f89f1008a43f11088146fce7811547a41e66c"
         },
         "tests/scenarios/test_new_dialog_empty_workspace_scenario.py": {
           "version": "1.0.0",
@@ -745,8 +745,8 @@
           "sha256": "6e3ff5c8ba9afa25cdc1bf688c7547825be9a171416e9e8e655c43a245527d8b"
         },
         "tests/test_dependency_check.py": {
-          "version": "1.0.0",
-          "sha256": "a3c175b0bd17d7a040d96c82511930473e88763a5837c64e8ff333075b31a365"
+          "version": "1.0.1",
+          "sha256": "b85c11522622982f09ed4949ce46562099764592d7140fd5ff990eac1a94b00f"
         },
         "tests/test_devagent_thread_workspace.py": {
           "version": "1.1.0",
@@ -889,8 +889,8 @@
           "sha256": "6d892fecf57b015d338044eb85df114414f6923dfbb34a8afced8dc026c9b1df"
         },
         "tests/test_platform_bootstrap.py": {
-          "version": "1.2.1",
-          "sha256": "c41306ed877cf41baecb763ba644fb38d8363c5ed967d72ce75f7c79bf2250de"
+          "version": "1.2.2",
+          "sha256": "b86cb71b2d91c966f227c36ac8698c319114c1b0a36b3a0f813ed9fbf39e0bce"
         },
         "tests/test_platform_scenarios.py": {
           "version": "1.1.2",
@@ -985,8 +985,8 @@
           "sha256": "cd44dcb5661ad3e4ed465a8c9c0ba322335b90510c3f962c9bc9304e7494eaae"
         },
         "tests/test_single_model_config.py": {
-          "version": "1.1.0",
-          "sha256": "a567419354ac1bf5e1ac93eaf16a82d2748fcef95e2bd1bcc374ed50a810e183"
+          "version": "1.1.1",
+          "sha256": "495ba772b534bcdd55ca80026dac4cba876d5a1279065a96d1705491136d2c61"
         },
         "tests/test_skill_build_base.py": {
           "version": "1.0.2",
@@ -1145,8 +1145,8 @@
           "sha256": "0581f0ba70632a8048a3f161f15377f719d5a5dfc339412bf5a19a2ee39f54c6"
         },
         "ui/app.py": {
-          "version": "1.5.3",
-          "sha256": "9992eecb25692cb4061ae3cba6c93edd1344eb953152abed2630b8a851d81500"
+          "version": "1.6.0",
+          "sha256": "aaf1d45a706730675c9515f4a35eb862ad737379eed24391ef133f769a81016a"
         },
         "ui/components/__init__.py": {
           "version": "1.0.1",
@@ -1182,8 +1182,8 @@
           "sha256": "9b4054227ddd01bef1c3efb3c8135c1fa8b49d4d6b26d9aa4e15e93e08e34807"
         },
         "ui/pages/orchestrator.py": {
-          "version": "1.16.0",
-          "sha256": "214e6542f420096e868a5b44e4098c172a12e48dc868ba97592416f0293f461f",
+          "version": "1.18.0",
+          "sha256": "f9f1bb37abdbd33645f317e008ff4fe9d741c31bf3c15f7635130acca6d411f3",
           "note": {
             "ru": "Настройки: сохранение удерживает открытую секцию и показывает подтверждение или ошибку рядом с ней.",
             "en": "Settings: a save keeps the open section and shows its confirmation or error next to it."
@@ -1238,8 +1238,8 @@
           }
         },
         "ui/components/flash.py": {
-          "version": "1.0.0",
-          "sha256": "eb2dfccd4dd7d8767529592450d9eee42cbb1115d69260d08cb2a0030e11e9d7"
+          "version": "1.0.1",
+          "sha256": "424673517cc34a5dad52cc1b3168e5a1a8b627446a4b40ce6212f20799ceeea3"
         },
         "tests/test_ui_flash.py": {
           "version": "1.0.0",
@@ -1321,14 +1321,34 @@
         "tests/test_connector_presets.py": {
           "version": "1.0.0",
           "sha256": "494104e3361adf9f9261b483b229ca8102be5a86e876ebb841ad622ebfbe1d3e"
+        },
+        "core/url_fetch.py": {
+          "version": "1.0.0",
+          "sha256": "bf94b1c6477c87cf8c45f404dec28609203af2253218ba5b42a16c2145edae57"
+        },
+        "tests/test_url_fetch.py": {
+          "version": "1.0.0",
+          "sha256": "6bc6480118d139a2656d81d4e8a0eecf21df80d0773ae31a7bf7c7e6404ff23f"
+        },
+        "tests/scenarios/test_url_fetch_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "bf32e96c03538047cb3d6167c252126d058c4455b1ea2f5f99f787c4159179fb"
+        },
+        "tests/test_url_fetch_transport.py": {
+          "version": "1.0.0",
+          "sha256": "f5ae7e5600a6096a925a5bfc7cef75ec07c80e1eb35fd880062ce788ce341f67"
+        },
+        "tests/scenarios/test_devagent_defaults_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "31473a68c6731d19641c4e38478ab36ea653a509b273cb890918e2761d1db282"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.38.1",
-      "sha256": "6f9081e81ef275bf1edf82bbb8dbc52bc78934a70338418339e969ee4feebd32",
+      "version": "1.40.0",
+      "sha256": "f253d01f1231defe2a2d9ddfaa64d0f837d58bd81fd3bdf562b90917808fd7f2",
       "note": {
         "ru": "ARCHITECTURE.md: подсистема пресетов - list_presets(include_hidden), флаг hidden и resolve_preset для формы редактирования",
         "en": "ARCHITECTURE.md: the preset subsystem - list_presets(include_hidden), the hidden flag and resolve_preset for the edit form"
@@ -1343,16 +1363,16 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.41.1",
-      "sha256": "50f05ebc7740bb00ad7c39247d37e6d96fdb54fe213609b4c60afd04d07d96a2",
+      "version": "1.43.0",
+      "sha256": "14e56b03d3b1a48c5d5dcef32ec4117e3135f45a6988aadbe67e5b280d409da3",
       "note": {
         "ru": "PROJECT_MAP.md: регенерация после релиза 2.7.1 - флаг hidden в пресетах, скрытый github_mcp и форма редактирования с резолвом по id",
         "en": "PROJECT_MAP.md: regeneration after release 2.7.1 - the hidden preset flag, the hidden github_mcp and the resolve-by-id edit form"
       }
     },
     "README.md": {
-      "version": "1.33.1",
-      "sha256": "04c71f1f2cb71144e982a694c5b92e48aa54a04b24f9a4c2ce3ebc85368eee88",
+      "version": "1.35.0",
+      "sha256": "4212d638e22c0d623890cb097f401b44c6e15599872c0e4c81f71c48bb664dda",
       "note": {
         "ru": "README.md: релиз v2.7.1 - на вкладке MCP плитка ВкусВилл и плитка «Свой MCP-сервер», GitHub подключается через github_rest",
         "en": "README.md: release v2.7.1 - the MCP tab offers the Vkusvill tile and the custom-server tile, GitHub goes through the github_rest connection"
@@ -1431,8 +1451,8 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.15.0",
-      "sha256": "95daa4d6e75d39343b49e546efe97c35a98ba8b43d34f28dcde6193f69cb7cd6",
+      "version": "1.17.0",
+      "sha256": "8a9b8065704fcea642852c6f2bf3cc9b15b3deb596815d4f41a23b0a4c92fa65",
       "note": {
         "ru": "Локализация: ключ connectors_tab_connections, описания плиток общих сервисов (connectors_service_desc_github_rest/ssh) и переформулированный текст connectors_mcp_preset_created.",
         "en": "Localization: the connectors_tab_connections key, general-service tile descriptions (connectors_service_desc_github_rest/ssh) and the reworded connectors_mcp_preset_created text."
@@ -1447,8 +1467,8 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.15.0",
-      "sha256": "1edd8ee08ecdfaf64987f43cb0e095ea1d17d40c1ecd63b7775841fef60864fa",
+      "version": "1.17.0",
+      "sha256": "6f88be82acc6f5e079223db91b58206d1ec0fad3c08584abe39e7f2ff261498d",
       "note": {
         "ru": "Локализация: ключ connectors_tab_connections, описания плиток общих сервисов (connectors_service_desc_github_rest/ssh) и переформулированный текст connectors_mcp_preset_created.",
         "en": "Localization: the connectors_tab_connections key, general-service tile descriptions (connectors_service_desc_github_rest/ssh) and the reworded connectors_mcp_preset_created text."
@@ -1463,8 +1483,8 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.15.0",
-      "sha256": "00a0713ff6efc21fada7801cbe471f2e29f1da894e01a2a170eb8a038513dce2",
+      "version": "1.17.0",
+      "sha256": "db53000ca9c6f949e1ddb9f559c39c8106d5350c15630f780cd48a200fbaae90",
       "note": {
         "ru": "Локализация: ключ connectors_tab_connections, описания плиток общих сервисов (connectors_service_desc_github_rest/ssh) и переформулированный текст connectors_mcp_preset_created.",
         "en": "Localization: the connectors_tab_connections key, general-service tile descriptions (connectors_service_desc_github_rest/ssh) and the reworded connectors_mcp_preset_created text."
@@ -1631,8 +1651,8 @@
       }
     },
     "defaults/services/deepseek.json": {
-      "version": "1.3.1",
-      "sha256": "fbbf10bdce825c2f0adfde3d7fe2a0f0696fb5809d74bd88c821ea48e470b786",
+      "version": "1.4.0",
+      "sha256": "f2c1423fdece1bfbfc568fd8fc48a2241caf0eed259d93b174c05d02554ae523",
       "note": {
         "ru": "Каталог vision_models (deepseek-flash) и vision_base_url для распознавания изображений; max_tokens моделей - 384000.",
         "en": "vision_models catalog (deepseek-flash) and vision_base_url for image analysis; model max_tokens is 384000."
@@ -1695,8 +1715,8 @@
       }
     },
     "langs/en.json": {
-      "version": "1.15.0",
-      "sha256": "8ce898017b578082fc90701cec6c5a313d65b525f56f7409435b934c86532544",
+      "version": "1.17.0",
+      "sha256": "735b4b820e363fa931ad90336a3951018e9c958694cb20daa14540fe498da300",
       "note": {
         "ru": "Локализация: ключ connectors_tab_connections, описания плиток общих сервисов (connectors_service_desc_github_rest/ssh) и переформулированный текст connectors_mcp_preset_created.",
         "en": "Localization: the connectors_tab_connections key, general-service tile descriptions (connectors_service_desc_github_rest/ssh) and the reworded connectors_mcp_preset_created text."
@@ -1711,8 +1731,8 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.15.0",
-      "sha256": "3149379415dc5dd45ab59de4eeb2598c99e57cb8fa5bb293b350b07bf916b00c",
+      "version": "1.17.0",
+      "sha256": "c48c073abdd7f0e9421b9723a0da4fc37efaf37b96b32d757e60b4d831fb84b6",
       "note": {
         "ru": "Локализация: ключ connectors_tab_connections, описания плиток общих сервисов (connectors_service_desc_github_rest/ssh) и переформулированный текст connectors_mcp_preset_created.",
         "en": "Localization: the connectors_tab_connections key, general-service tile descriptions (connectors_service_desc_github_rest/ssh) and the reworded connectors_mcp_preset_created text."
@@ -1727,8 +1747,8 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.15.0",
-      "sha256": "67e3c4b8cfac1e750eaf0aaa733b12d8b9b6009093ecc71d4032f4ab5a6edc7f",
+      "version": "1.17.0",
+      "sha256": "35b8774944228882ded9882bbd4a8f007130c1ae7e5758f1dc63d7cefdb57d6e",
       "note": {
         "ru": "Локализация: ключ connectors_tab_connections, описания плиток общих сервисов (connectors_service_desc_github_rest/ssh) и переформулированный текст connectors_mcp_preset_created.",
         "en": "Localization: the connectors_tab_connections key, general-service tile descriptions (connectors_service_desc_github_rest/ssh) and the reworded connectors_mcp_preset_created text."
@@ -1743,8 +1763,8 @@
       }
     },
     "services/deepseek.json": {
-      "version": "1.3.1",
-      "sha256": "fbbf10bdce825c2f0adfde3d7fe2a0f0696fb5809d74bd88c821ea48e470b786",
+      "version": "1.4.0",
+      "sha256": "f2c1423fdece1bfbfc568fd8fc48a2241caf0eed259d93b174c05d02554ae523",
       "note": {
         "ru": "Каталог vision_models (deepseek-flash) и vision_base_url для распознавания изображений; max_tokens моделей - 384000.",
         "en": "vision_models catalog (deepseek-flash) and vision_base_url for image analysis; model max_tokens is 384000."
@@ -1767,8 +1787,8 @@
       }
     },
     "AGENT.md": {
-      "version": "1.14.1",
-      "sha256": "61540950d156289b3b44e1d4e103c88b7babc61f6e9fce2f61f3cae4f1e7d30f",
+      "version": "1.16.0",
+      "sha256": "8a26a955168b38c92839b700e785ff6acee06757c7de72da139faabb2479642f",
       "note": {
         "ru": "AGENT.md: реестр MCP-пресетов - флаг hidden, скрытый пресет github_mcp и путь github_rest для работы с GitHub",
         "en": "AGENT.md: the MCP preset registry - the hidden flag, the hidden github_mcp preset and the github_rest path for GitHub work"

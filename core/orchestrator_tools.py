@@ -85,6 +85,39 @@ def is_tool_disabled(tool_name: str, disabled: Optional[Set[str]]) -> bool:
     return any(resolve_tool_name(dn) == canon for dn in disabled)
 
 
+# ─── Capability-gated tools ─────────────────────────────────────────────────
+
+#: Tools that exist only while the orchestrator has the matching capability
+#: switched on. ``url_fetch`` downloads a web page or a PDF through a
+#: provider's Search/Fetch API, or renders the page with Selenium, so it
+#: appears in the catalog (and in the prompt block and the system-functions
+#: list) only after a url-fetch model is assigned or Selenium is enabled.
+_CONDITIONAL_TOOLS = {"url_fetch": "fetch"}
+
+
+def is_conditional_tool_enabled(tool_name: str,
+                                orchestrator_slug: str = "dev_agent") -> bool:
+    """Return True when a capability-gated tool may be offered.
+
+    Tools outside :data:`_CONDITIONAL_TOOLS` are always enabled. For
+    ``url_fetch`` the answer follows the orchestrator's url-fetch
+    configuration: the tool is offered when a fetch model is assigned OR
+    the Selenium option is enabled, because either switch can download a
+    page. A configuration read failure hides the tool instead of exposing
+    an unusable entry.
+    """
+    capability = _CONDITIONAL_TOOLS.get((tool_name or "").strip())
+    if capability is None:
+        return True
+    if capability == "fetch":
+        try:
+            from core.orchestrators import get_fetch_config
+            return bool(get_fetch_config(orchestrator_slug).get("configured"))
+        except Exception:
+            return False
+    return True
+
+
 # ─── Catalog sources ────────────────────────────────────────────────────────
 
 
@@ -202,6 +235,8 @@ def build_tool_catalog(
 
     if disabled:
         order = [n for n in order if not is_tool_disabled(n, disabled)]
+    order = [n for n in order
+             if is_conditional_tool_enabled(n, orchestrator_slug)]
     return [entries[n] for n in order]
 
 
@@ -217,6 +252,8 @@ def list_system_tools(orchestrator_slug: str = "dev_agent") -> List[Dict[str, st
     for t in _core_catalog() + _workspace_catalog() + _connection_catalog(orchestrator_slug):
         name = (t.get("name") or "").strip()
         if not name or name in entries:
+            continue
+        if not is_conditional_tool_enabled(name, orchestrator_slug):
             continue
         order.append(name)
         entries[name] = dict(t)

@@ -19,6 +19,7 @@ from core.services import (
     get_services,
     get_vision_models,
     get_image_models,
+    get_fetch_models,
     service_supports_reasoning_effort,
     get_model_reasoning_effort_options,
     default_reasoning_effort,
@@ -54,7 +55,8 @@ from storage.models import DEFAULT_MAX_STEPS
 
 from core.orchestrators import (
     get_orchestrator, save_orchestrator,
-    build_assistant_dicts, get_web_search_config, get_economy_config,
+    build_assistant_dicts, get_web_search_config, get_fetch_config,
+    get_economy_config,
     get_economy_tail_messages,
     orch_list_functions, orch_get_function, orch_save_function, orch_delete_function,
     orch_list_instructions, orch_get_instruction, orch_save_instruction, orch_delete_instruction,
@@ -386,7 +388,7 @@ def _make_send_adapter(lang: str, slug: str) -> Callable:
         strong_assistant = {
             "text": orch.get("prompt_text", "") if orch else "",
             "service": cfg.get("strong_service", "DeepSeek"),
-            "model": cfg.get("strong_model", "deepseek-v4-pro"),
+            "model": cfg.get("strong_model", "deepseek-flash"),
             "temperature": float(cfg.get("strong_temperature", 0.2) or 0.2),
         }
 
@@ -424,6 +426,7 @@ def _make_dispatcher(slug: str) -> UniversalDevAgent:
         dispatcher.set_thread_id(tid)
     dispatcher.core._web_search_enabled = _ss(slug, "web_search") or False
     dispatcher.core._web_search_config = get_web_search_config(slug)
+    dispatcher.core._url_fetch_config = get_fetch_config(slug)
     safety_mode = _ss(slug, "safety_mode")
     if safety_mode is None:
         safety_mode = True
@@ -1935,9 +1938,9 @@ def settings_save_failed(slug: str, section: str, message_key: str,
                          lang: str) -> None:
     """Report a failed settings save and keep the user in *section*.
 
-    The flash queue for the current pass was already painted at the top of
-    the page, so the message is queued and the page is rerun: the next pass
-    shows the error above the very section whose save failed.
+    The message is queued and the page is rerun: the next pass paints it
+    below the page content, so the error is visible together with the very
+    section whose save failed.
     """
     pin_settings_section(slug, section)
     flash_error(t(message_key, lang=lang))
@@ -2033,6 +2036,30 @@ def _render_models_settings(slug: str, lang: str) -> None:
         slug, lang, cfg, service_names, services, get_image_models,
         "orch_image_model_section", "orch_no_image_services", "image",
         help_key="orch_image_model_help")
+    # Selenium is an alternative transport: the page is rendered in a real
+    # browser and the visible text is converted to Markdown by the main
+    # model. While it is on, the page-fetch model selectors are hidden -
+    # the main model does the conversion - but the stored pair is kept
+    # untouched and comes back when the checkbox is cleared.
+    sel_fetch_selenium = st.checkbox(
+        t("orch_fetch_selenium_label", lang=lang),
+        value=bool(cfg.get("fetch_selenium")),
+        key=f"orch_set_fetch_selenium_{slug}",
+        help=t("orch_fetch_selenium_help", lang=lang),
+    )
+
+    # Page fetch is a per-provider Search/Fetch API: only services that
+    # declare a fetch catalog are offered. An unassigned pair keeps the
+    # url_fetch tool absent from the orchestrator's tool set.
+    if sel_fetch_selenium:
+        st.caption(t("orch_fetch_selenium_main_model", lang=lang))
+        sel_fetch_svc = str(cfg.get("fetch_service", "") or "")
+        sel_fetch_mdl = str(cfg.get("fetch_model", "") or "")
+    else:
+        sel_fetch_svc, sel_fetch_mdl = _render_optional_model_section(
+            slug, lang, cfg, service_names, services, get_fetch_models,
+            "orch_fetch_model_section", "orch_no_fetch_services", "fetch",
+            help_key="orch_fetch_model_help")
 
     # Web-search model
     st.markdown(t("orch_search_model_section", lang=lang))
@@ -2130,6 +2157,9 @@ def _render_models_settings(slug: str, lang: str) -> None:
         new_cfg["vision_model"] = sel_vision_mdl
         new_cfg["image_service"] = sel_image_svc
         new_cfg["image_model"] = sel_image_mdl
+        new_cfg["fetch_service"] = sel_fetch_svc
+        new_cfg["fetch_model"] = sel_fetch_mdl
+        new_cfg["fetch_selenium"] = bool(sel_fetch_selenium)
         # Single-model mode: drop legacy weak_* leftovers on save.
         for _legacy_key in ("weak_service", "weak_model", "weak_temperature",
                             "weak_max_tokens", "weak_reasoning_effort"):

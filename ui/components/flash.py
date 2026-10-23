@@ -16,10 +16,11 @@ Usage inside a page::
         flash_success(t("saved_ok", lang=lang))
         st.rerun()
 
-``ui.app.main()`` calls :func:`render_flash` right before the page dispatch,
-so a queued message appears at the top of the page the user lands on. Calls
-that are NOT followed by a rerun keep using plain ``st.success()`` - those
-are painted by the current pass anyway.
+``ui.app.main()`` calls :func:`render_flash` right after the page dispatch,
+so a queued message appears below the content of the page the user lands on
+(including a settings page) instead of above its title. Calls that are NOT
+followed by a rerun keep using plain ``st.success()`` - those are painted by
+the current pass anyway.
 """
 from __future__ import annotations
 

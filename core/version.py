@@ -130,7 +130,39 @@
 # connection (ghr_* tools); any third-party MCP server is still added via
 # the "+ Custom MCP server" tile.
 
-__version__ = "2.7.1"
+# 2.8.0 adds the optional url-fetch model to employee settings: the
+# employee can be given a page-fetch model, and only providers that declare
+# a fetch_models catalog are offered (DeepSeek ships one with
+# deepseek-flash and deepseek-v4-pro over its Search/Fetch API at
+# https://api.deepseek.com/v1/tools/fetch). The page is downloaded by
+# core.url_fetch (POST {"url"}) and its Markdown body is sanitized and
+# labelled [DATA_FROM_URL_FETCH] as untrusted data, capped at 30,000
+# characters. While the model is assigned, the tool appears in the
+# employee's tool catalog, its '## Available tools' prompt block and the
+# system-functions list; clearing the model - or the provider dropping it
+# from the catalog - removes the tool again.
+
+# 2.9.0 renames that tool to url_fetch (page_fetch stays a legacy alias)
+# and widens what it can fetch. Two new sources join the provider API: a
+# PDF link is downloaded directly and its text extracted page by page
+# (pdfplumber with a pypdf fallback), and a 'Use Selenium' checkbox lets
+# the tool render any page in a headless browser and hand the visible text
+# to the employee's main model for Markdown conversion. Direct downloads
+# pass an SSRF guard that rejects loopback, private, link-local and
+# service-discovery hosts. url_fetch is offered when a fetch model is
+# assigned OR Selenium is enabled, and disappears once both are gone.
+
+# 2.9.1 refreshes DevAgent's shipped defaults and tidies two settings
+# behaviours. The employee now starts on DeepSeek/deepseek-flash for the
+# main model with the xhigh reasoning effort, for image analysis and for
+# web search (temperature 0.4, three tool calls, the high effort); image
+# generation stays unassigned, so a fresh install needs no extra setup.
+# The Models tab draws the Selenium checkbox first and hides the
+# page-fetch model selectors while it is on, keeping the stored pair for
+# when it is cleared; save confirmations are now painted below the page
+# body instead of above the page title.
+
+__version__ = "2.9.1"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

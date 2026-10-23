@@ -179,12 +179,12 @@ def test_ensure_devagent_settings_seeds_config_and_tools(isolated_data_dir):
     cfg = orch["config"]
     assert cfg.get("strong_service")
     assert cfg.get("strong_model")
-    # Single-model mode: no weak_* keys are seeded; the optional multimodal
-    # models start unassigned.
+    # Single-model mode: no weak_* keys are seeded; the vision model is
+    # assigned by default, image generation is not.
     assert "weak_service" not in cfg
     assert "weak_model" not in cfg
-    assert cfg.get("vision_service") == ""
-    assert cfg.get("vision_model") == ""
+    assert cfg.get("vision_service") == "DeepSeek"
+    assert cfg.get("vision_model") == "deepseek-flash"
     assert cfg.get("image_service") == ""
     assert cfg.get("image_model") == ""
     # The main model defaults to 384000 output tokens.

@@ -41,6 +41,8 @@ DEPENDENCIES = {
     "tiktoken":     {"pip": "tiktoken",     "min": "0.5",    "required": False},
     "markdown":     {"pip": "markdown",     "min": "3.0",    "required": False},
     "reportlab":    {"pip": "reportlab",    "min": "4.0",    "required": False},
+    # Optional Selenium rendering of web pages (url_fetch tool).
+    "selenium":     {"pip": "selenium",     "min": "4.10",   "required": False},
     # Optional SSH connector.
     "paramiko":     {"pip": "paramiko",     "min": "3.0",    "required": False},
 }

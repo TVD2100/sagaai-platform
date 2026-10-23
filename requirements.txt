@@ -13,6 +13,9 @@ tiktoken>=0.5
 markdown>=3.0
 reportlab>=4.0
 
+# Optional Selenium rendering of web pages (url_fetch tool)
+selenium>=4.10
+
 # Optional SSH connector (external servers)
 paramiko>=3.0
 

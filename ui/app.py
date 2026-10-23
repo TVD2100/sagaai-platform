@@ -1002,11 +1002,6 @@ def main():
         )
 
     # ── Page dispatch ─────────────────────────────────────────────────────────
-    # Queued notifications are painted here, once, before the page body: a
-    # page that saves something and calls st.rerun() keeps its confirmation
-    # visible on the next pass instead of losing it with the discarded render.
-    render_flash()
-
     if page == "welcome":
         page_welcome()
     elif page == "run":
@@ -1040,5 +1035,11 @@ def main():
     else:
         # Fallback for legacy "devagent" page value.
         page_orchestrator(DEVAGENT_SLUG)
+
+    # Queued notifications are painted here, once, AFTER the page body: a
+    # page that saves something and calls st.rerun() keeps its confirmation
+    # visible on the next pass, below the content of the page it belongs to
+    # instead of above its title. The queue survives the discarded render.
+    render_flash()
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

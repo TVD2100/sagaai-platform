@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-10-22T06:07:55+00:00`
-- Файлов: **367**
+- Обновлено: `2026-10-22T19:40:39+00:00`
+- Файлов: **373**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **4896**
-- Отпечаток содержимого: `sha256:dd5c802eca3094c6702793d3824c0fd7f9b654b0fd768d1a0fd966311a1d8ac3` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 1, JSON: 23, Markdown: 38, PEM certificate: 1, Python: 307, Text: 1
+- Python-символов: **4994**
+- Отпечаток содержимого: `sha256:584d4eecc0a8ef8ecd4bd1bfeca00d25bed84f7652def52c26b1c5835dec2fa8` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 1, JSON: 23, Markdown: 38, PEM certificate: 1, Python: 313, Text: 1
 
 ## Файлы и назначение
 
@@ -28,7 +28,7 @@
 | `ui/pages/chat.py` | Python | Chat page for AI assistants: selector, history, send form | - |
 | `ui/pages/connectors.py` | Python | Connectors page built as list <-> form (the assistants-page pattern): a page-level view key connectors_view = list | create | edit, and the form REPLACES the list instead of opening in an expander or on another tab. Tiles only open the create form - a GitHub/SSH service tile, an MCP preset tile (rows of three, preset icon) or the '+ Custom MCP server' tile write nothing; the connection is persisted solely by the Create button through create_connection / instantiate_preset(pending=False) with the typed credentials, so it is active from the start, and Cancel / back return to the list without writing (a failed save keeps the form open). The edit form is a full page too and resolves the preset by id (catalogue first, then resolve_preset), so a connection created from a preset hidden from the tile list keeps its preset fields; pending chat-created drafts are completed through it with a Fill credentials button. The tab strip is stateful - st.tabs(on_change='rerun', key=..., default=<label>) - because without on_change='rerun' the widget keeps no state at all, so the stored tab was ignored and every rerun fell back to the first tab; after a save the list reopens on Connections. Connections holds a card per saved connection (service icon, credential state, pending warning, test, edit, delete); test connection shows the server tools | - |
 | `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | - |
-| `ui/pages/orchestrator.py` | Python | Reusable orchestrator page (chat/history/settings incl. skills tab; no employee export/import UI; step events attach to the user message when the first LLM call fails; per-message download/copy controls on plain-prose answers; generated image visible immediately in the feed, outside the collapsed tool-result block; empty-state reset on new/reset dialog; thread workspace meta persistence; chat folder picker (Выбор папки): Авто + recent folders + native dialog, applied on send; file upload built into st.chat_input(accept_file="multiple") - no separate dropzone; uploads live only in history/<tid>/files) | storage |
+| `ui/pages/orchestrator.py` | Python | Orchestrator page: chat feed, history and settings sections (models incl. the optional url-fetch selector fed only by fetch-capable providers and the 'Use Selenium' checkbox, prompt, economy, functions, instructions, skills, RAG bases, connections, other); builds the dispatcher and hands it the web-search and url-fetch configs | storage |
 | `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings page: tabbed sections, the active tab is kept across reruns and pinned after a save | - |
 | `ui/pages/orchestrators.py` | Python | Employees (orchestrators) management page (create/open/settings/delete; export/import deferred) | - |
 | `ui/pages/settings.py` | Python | LLM provider settings page | - |
@@ -72,8 +72,8 @@
 | `core/multimodal.py` | Python | Vision/image model resolution + analyze_image/generate_image wrappers (core.multimodal) | - |
 | `core/orchestrator_folders.py` | Python | Per-orchestrator folders: bundles, functions, instructions | storage |
 | `core/orchestrator_nav.py` | Python | _(описание не задано)_ | - |
-| `core/orchestrator_tools.py` | Python | Tool catalog helpers: _connection_catalog builds per-service catalogs (github_rest ghr_*, ssh ssh_*, mcp mcp_list_tools/mcp_call_tool + dynamic per-tool mcp__ entries) from enabled connections; collect_catalog_entries(slug) | - |
-| `core/orchestrators.py` | Python | Orchestrator API; _extend_prompt_with_connections advertises enabled connections (per-service tool catalogs, credentials-pending marker, connection-memory quick notes); enabled_connections binding; disabled_tools blacklist; save keeps the DB write when the folder mirror fails | storage |
+| `core/orchestrator_tools.py` | Python | Tool catalog for orchestrators: core + workspace + connection + custom functions, the English '## Available tools' prompt block and the system-functions list; capability-gated tools (_CONDITIONAL_TOOLS, is_conditional_tool_enabled) keep url_fetch out of the catalog, the prompt block and the settings list until a fetch model is assigned or Selenium is enabled, while disabled_tools stays a plain blacklist | - |
+| `core/orchestrators.py` | Python | Orchestrator API: CRUD, assistant dicts, get_web_search_config/get_fetch_config (service, model, selenium flag, main-model fallback for the Selenium branch), economy config, export/import, prompt extension with skills, instructions, connections, RAG bases and the tool catalog | storage |
 | `core/paths.py` | Python | Base directories and thread paths | - |
 | `core/prompt_guard.py` | Python | Prompt-injection protection and sanitization | - |
 | `core/prompt_improver.py` | Python | _(описание не задано)_ | - |
@@ -87,7 +87,7 @@
 | `core/recent_assistants.py` | Python | Tracks recently used assistant IDs in session_state | - |
 | `core/recent_workspaces.py` | Python | Recent workspaces tracking, scoped per orchestrator (slug-keyed dict seeded from own threads; up to 10 entries with an optional limit; platform paths hidden; legacy flat list read as dev_agent) | storage |
 | `core/render.py` | Python | Markdown rendering / clipboard helpers | - |
-| `core/services.py` | Python | Service definitions discovery (services/*.json) | - |
+| `core/services.py` | Python | Service definitions discovery (services/*.json, defaults win) plus capability catalogs: reasoning-effort options (service-wide and per-model), embedding/rag models, vision and image-generation models and the URL-fetch models (get_fetch_models / svc_supports_fetch); a profile without fetch_models does not support provider-side fetching | - |
 | `core/skills.py` | Python | DEPRECATED shim -> core/assistants.py (legacy aliases) | - |
 | `core/skills_library.py` | Python | Standardized skills library: registry skills.json, ZIP/GitHub/folder imports, metadata for orchestrator system prompts | - |
 | `core/ssh_connector.py` | Python | SSH/SFTP service layer for the ssh connector (paramiko, lazy import) | - |
@@ -98,6 +98,7 @@
 | `core/tools_utils.py` | Python | Tool definitions list for the Skills/Assistants pages; RAG tool descriptions carry the per-base search mode | - |
 | `core/updater.py` | Python | _(описание не задано)_ | - |
 | `core/updater_apply.py` | Python | _(описание не задано)_ | - |
+| `core/url_fetch.py` | Python | URL-fetch transport: fetch_endpoint resolves fetch_base_url (or derives the sibling /v1/tools/fetch from base_url, never duplicating the version segment), validate_fetch_url enforces http/https, the 8192-character cap, no embedded credentials and no local/private hosts (SSRF guard, literal addresses only), fetch_page_content posts {url} with the provider bearer key and returns {title, content} in Markdown, extract_pdf_markdown turns PDF bytes into '### Page N' sections via pdfplumber with a pypdf fallback, selenium_page_text renders a page in headless Chrome and returns its visible text; every failure is raised through the APIError contract (ApiKeyMissing/ProviderHTTP/RequestTimeout/Network/ProviderResponse) or SeleniumUnavailableError | - |
 | `core/version.py` | Python | Single source of truth for the SagaAI platform version (semver __version__ plus a documented release history) | - |
 | `tests/__init__.py` | Python | Package marker | - |
 | `tests/_st_mock.py` | Python | Streamlit mock for tests (records widget calls, controllable session_state; chat_input returns a seeded ChatInputValue-like object with .text/.files) | - |
@@ -121,6 +122,7 @@
 | `tests/test_backup_and_safewriter.py` | Python | Backup/safe-writer tests | - |
 | `tests/test_chat_pagination.py` | Python | _(описание не задано)_ | - |
 | `tests/test_cold_start_deps.py` | Python | UI tests for the cold-start dependency warning in ui.app: missing/outdated reports render deps_missing/deps_outdated, no warning when up to date, audit runs once per session, probe errors are swallowed | - |
+| `tests/test_connector_presets.py` | Python | Preset catalogue tests: hidden presets drop out of list_presets but stay resolvable by id (and with include_hidden=True), the hidden flag coerces booleans/strings/numbers and treats unknown values as visible, an invalid flag never breaks loading, instantiate_preset still works for a hidden preset, and the bundled catalogue ships vkusvill only while github_mcp stays resolvable with hidden=true | - |
 | `tests/test_connectors.py` | Python | Unit tests for core.connectors: CRUD, encrypted token/secrets storage, public-view leak guard, pending drafts, connection memory | - |
 | `tests/test_context_window_guard.py` | Python | Context-guard tests: output-reserve formula, 32k window, economy head protection, unified input_ceiling/input_budget/history_cap (B4) | - |
 | `tests/test_core_api_json_schema.py` | Python | _(описание не задано)_ | - |
@@ -231,6 +233,8 @@
 | `tests/test_updater.py` | Python | _(описание не задано)_ | - |
 | `tests/test_updater_apply.py` | Python | _(описание не задано)_ | - |
 | `tests/test_updater_ui.py` | Python | _(описание не задано)_ | - |
+| `tests/test_url_fetch.py` | Python | Unit tests for the optional URL-fetch capability: catalog helpers and the shipped DeepSeek profile, endpoint derivation, URL validation, the transport (request shape, bearer key, nested envelopes, APIError mapping), sanitizer labelling and cap, the tool gate and its restricted arguments, get_fetch_config resolution, the catalog/prompt/system-tools gate and the Models tab UI | - |
+| `tests/test_url_fetch_transport.py` | Python | Unit tests for the URL-fetch transport extras: PDF text extraction (page sections, empty scans, pdfplumber-to-pypdf fallback), the SSRF guard on literal private addresses, Selenium text rendering with a mocked driver and the unavailable-dependency error | - |
 | `tests/test_usability_fixes.py` | Python | UI regression tests for the usability fixes (two-step delete confirmations, neutral employee caption, datetime captions, inline chat-input file upload: accept_file="multiple", raw-byte persistence, size cap) | - |
 | `tests/test_verify_manifest.py` | Python | _(описание не задано)_ | - |
 | `tests/test_web_search_prompt.py` | Python | _(описание не задано)_ | - |
@@ -246,6 +250,7 @@
 | `tests/scenarios/test_connection_retry_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_connectors_scenarios.py` | Python | Scenario tests for the connectors feature: lifecycle, token safety, validation, orchestrator binding/prompt, GitHub tools, dispatcher integration, draft flow | storage |
 | `tests/scenarios/test_context_overflow_protection.py` | Python | Scenario: context-overflow protection - spill of a huge tool result and the failed-spill hard error | - |
+| `tests/scenarios/test_devagent_defaults_scenario.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_dsml_fallback_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_employees_sidebar_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_empty_state_artifacts_scenario.py` | Python | Scenario tests: task journal and uploads never create files in a foreign project (empty state); files arrive via st.chat_input | storage |
@@ -295,6 +300,7 @@
 | `tests/scenarios/test_thread_workspace_meta_scenario.py` | Python | Scenario tests: thread 'last folder' meta (restore, missing folder opens empty, neighbour isolation) | storage |
 | `tests/scenarios/test_unified_context_budget_scenario.py` | Python | Scenario: unified context budget (B4) - economy payload passes the guard unchanged, token overflow resets the front to tail, worst case stays below the hard cap | - |
 | `tests/scenarios/test_updater_runtime_flow.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_url_fetch_scenario.py` | Python | Scenario tests (given->when->then) for the URL-fetch user path: no source means no tool and a structured refusal, saving DeepSeek/deepseek-flash or enabling Selenium alone switches url_fetch on in the prompt and dispatch (page labelled as untrusted data), a PDF link is downloaded and extracted, clearing both sources or a vanished catalog entry switches it off, and the Models tab offers only fetch-capable providers while persisting the pair | storage |
 | `tests/scenarios/test_welcome_page_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_workspace_binding_scenario.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_yandex_models_catalog_scenario.py` | Python | Scenario tests for the YandexAI model catalog update | - |
@@ -350,7 +356,7 @@
 | `defaults/skills/README.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/skills/rag_base_creator/SKILL.md` | Markdown | Rag Base Creator skill: create and index RAG bases; Search modes section (bm25 default without keys - fielded BM25F over body+header, vector, hybrid), --search-mode | - |
 | `defaults/skills/rag_base_creator/scripts/build_base.py` | Python | Rag Base Creator helper: builds a base offline (default bm25, no embedding calls) or with embeddings for vector/hybrid | - |
-| `defaults/services/deepseek.json` | JSON | DeepSeek service definition (defaults copy; vision_base_url + vision_models catalog; declared default output limit ~32k) | - |
+| `defaults/services/deepseek.json` | JSON | DeepSeek service profile (defaults): responses endpoint, the Anthropic web-search endpoint, the vision chat/completions endpoint, the URL-fetch endpoint fetch_base_url (https://api.deepseek.com/v1/tools/fetch) with the fetch_models catalog (deepseek-flash, deepseek-v4-pro), models and reasoning-effort options | - |
 | `defaults/services/gigachat.json` | JSON | _(описание не задано)_ | - |
 | `defaults/services/yandex.json` | JSON | _(описание не задано)_ | - |
 | `langs/en.json` | JSON | English UI strings | - |
@@ -373,7 +379,7 @@
 | `dev_agent/safe_writer.py` | Python | Safe full-file rewrite with diff/verification | backup_manager |
 | `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.23 self-sufficiency rule for comments/docs/tests (no origin attribution); v3.21 Stage 0 recent-folders menu for a concrete project and the chat folder selector; v3.20 AGENT.md docs-first (legacy SPEC.md removed); v3.18 generated-PROJECT_MAP rule; v3.17 compact task-state digest, read_file windows, PRAGMA-first; v3.16 empty-state Stage 0, task-journal and thread-files rules) | - |
 | `dev_agent/task_state.py` | Python | Per-thread task-state journal (plan/progress/handoff) with the thread-files fallback folder when no workspace is selected; compact digest (read_task_state compact=True) and budgeted injection | backup_manager |
-| `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools, legacy skill aliases, skills-library and multimodal tools; empty-state workspace guard (workspace_not_selected, neutral cwd for code=) | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
+| `dev_agent/tool_executor.py` | Python | DevAgent tool dispatcher: file/patch/verify tools, run_code/run_test with the danger gate, assistant and skill tools, web_search with the DeepSeek Anthropic route, url_fetch (PDF download and page extraction, Selenium render plus main-model Markdown conversion, or the provider Search/Fetch API; URL validation, [DATA_FROM_URL_FETCH] labelling, 30k-char cap, configuration gate, page_fetch legacy alias), multimodal analyze_image/generate_image, RAG and history tools | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
 | `dev_agent/universal_agent.py` | Python | Universal dispatcher (core + workspace + orchestrator tools, incl. thread search and connection tools: list/get/create/update/delete/test connections, enabled bindings, connector services, per-connection memory; list_connection_presets and the preset kwarg of create_connection; MCP static and dynamic tools attach for enabled mcp connections and detach when disabled); empty-state guard and thread workspace-meta persistence | storage, tool_executor |
 | `dev_agent/workspace_binding.py` | Python | Per-thread workspace binding registry (RLock, thread_context, ensure_thread_active) with the empty-state neutral root | - |
 | `dev_agent/workspace_tools.py` | Python | Workspace layer: folders, project map (AST symbols, content fingerprint, GitHub-published scope filter), docs, snapshots; workspace_selected reporting and per-orchestrator recent workspaces (top 10) | backup_manager |
@@ -404,13 +410,13 @@
 - `main._matches_search` (func, строка 713)
 
 ### `ui/components/flash.py`
-- `_queue` (func, строка 38)
-- `flash` (func, строка 47)
-- `flash_success` (func, строка 64)
-- `flash_error` (func, строка 69)
-- `flash_warning` (func, строка 74)
-- `flash_info` (func, строка 79)
-- `render_flash` (func, строка 84)
+- `_queue` (func, строка 39)
+- `flash` (func, строка 48)
+- `flash_success` (func, строка 65)
+- `flash_error` (func, строка 70)
+- `flash_warning` (func, строка 75)
+- `flash_info` (func, строка 80)
+- `render_flash` (func, строка 85)
 
 ### `ui/components/workspace_picker.py`
 - `_picker_state_keys` (func, строка 27)
@@ -485,78 +491,78 @@
 - `_last_reply` (func, строка 362)
 
 ### `ui/pages/orchestrator.py`
-- `_chat_pref_config_keys` (func, строка 87)
-- `_chat_prefs` (func, строка 94)
-- `_save_chat_pref` (func, строка 102)
-- `_make_state_keys` (func, строка 118)
-- `_init_orch_state` (func, строка 156)
-- `_sk` (func, строка 163)
-- `_ss` (func, строка 168)
-- `_set_ss` (func, строка 173)
-- `_pop_ss` (func, строка 177)
-- `_save_economy_cache` (func, строка 181)
-- `_load_economy_cache` (func, строка 200)
-- `_attachments_manifest_path` (func, строка 207)
-- `_load_attachments_manifest` (func, строка 211)
-- `_folder_picker_key` (func, строка 229)
-- `_reset_folder_choice` (func, строка 240)
-- `_thread_folder` (func, строка 247)
-- `_apply_folder_choice` (func, строка 272)
-- `_render_folder_picker` (func, строка 312)
-- `_render_folder_picker._label` (func, строка 332)
-- `_make_send_adapter` (func, строка 380)
-- `_make_send_adapter._adapter` (func, строка 393)
-- `_make_dispatcher` (func, строка 412)
-- `_assistant_has_api_key` (func, строка 437)
-- `_strip_html_details_tags` (func, строка 452)
-- `_strip_empty_fenced_blocks` (func, строка 468)
-- `_strip_tool_calls` (func, строка 525)
-- `_strip_tool_calls_for_message` (func, строка 591)
-- `_first_two_lines` (func, строка 618)
-- `_format_call_args_preview` (func, строка 631)
-- `_extract_result_body` (func, строка 649)
-- `_render_generated_image` (func, строка 663)
-- `_render_tool_result` (func, строка 691)
-- `_render_events` (func, строка 773)
-- `_render_event` (func, строка 793)
-- `_attach_events` (func, строка 856)
-- `_do_step` (func, строка 885)
-- `_do_step.on_event` (func, строка 897)
-- `_reset_dialog` (func, строка 1030)
-- `_load_thread` (func, строка 1057)
-- `_persist_thread_workspace_meta` (func, строка 1098)
-- `_chat_toolbar_widget_key` (func, строка 1125)
-- `_sync_chat_pref_checkbox` (func, строка 1135)
-- `_chat_toolbar_pref_changed` (func, строка 1153)
-- `_render_chat_toolbar` (func, строка 1163)
-- `_token_line_cache_key` (func, строка 1221)
-- `_render_token_line` (func, строка 1271)
-- `_split_chat_prompt` (func, строка 1356)
-- `_render_chat_tab` (func, строка 1377)
-- `_render_chat_tab.on_event` (func, строка 1567)
-- `_render_chat_tab.on_event` (func, строка 1592)
-- `_render_chat_tab.on_event` (func, строка 1636)
-- `_render_chat_tab.on_event` (func, строка 1659)
-- `_services_with_web_search` (func, строка 1796)
-- `_temp_slider` (func, строка 1808)
-- `_get_max_tokens_limit` (func, строка 1817)
-- `_render_optional_model_section` (func, строка 1837)
-- `settings_tabs_key` (func, строка 1912)
-- `settings_section_key` (func, строка 1917)
-- `pin_settings_section` (func, строка 1922)
-- `settings_save_failed` (func, строка 1934)
-- `_render_models_settings` (func, строка 1947)
-- `_render_prompt_settings` (func, строка 2151)
-- `_render_economy_settings` (func, строка 2193)
-- `_render_orch_system_tools` (func, строка 2250)
-- `_render_orchestrator_functions_settings` (func, строка 2292)
-- `_render_orchestrator_instructions_settings` (func, строка 2373)
-- `_render_orch_skills_settings` (func, строка 2450)
-- `_render_orch_rag_bases` (func, строка 2494)
-- `_render_orch_connections` (func, строка 2549)
-- `_render_other_settings` (func, строка 2595)
-- `page_orchestrator` (func, строка 2634)
-- `page_devagent` (func, строка 2649)
+- `_chat_pref_config_keys` (func, строка 89)
+- `_chat_prefs` (func, строка 96)
+- `_save_chat_pref` (func, строка 104)
+- `_make_state_keys` (func, строка 120)
+- `_init_orch_state` (func, строка 158)
+- `_sk` (func, строка 165)
+- `_ss` (func, строка 170)
+- `_set_ss` (func, строка 175)
+- `_pop_ss` (func, строка 179)
+- `_save_economy_cache` (func, строка 183)
+- `_load_economy_cache` (func, строка 202)
+- `_attachments_manifest_path` (func, строка 209)
+- `_load_attachments_manifest` (func, строка 213)
+- `_folder_picker_key` (func, строка 231)
+- `_reset_folder_choice` (func, строка 242)
+- `_thread_folder` (func, строка 249)
+- `_apply_folder_choice` (func, строка 274)
+- `_render_folder_picker` (func, строка 314)
+- `_render_folder_picker._label` (func, строка 334)
+- `_make_send_adapter` (func, строка 382)
+- `_make_send_adapter._adapter` (func, строка 395)
+- `_make_dispatcher` (func, строка 414)
+- `_assistant_has_api_key` (func, строка 440)
+- `_strip_html_details_tags` (func, строка 455)
+- `_strip_empty_fenced_blocks` (func, строка 471)
+- `_strip_tool_calls` (func, строка 528)
+- `_strip_tool_calls_for_message` (func, строка 594)
+- `_first_two_lines` (func, строка 621)
+- `_format_call_args_preview` (func, строка 634)
+- `_extract_result_body` (func, строка 652)
+- `_render_generated_image` (func, строка 666)
+- `_render_tool_result` (func, строка 694)
+- `_render_events` (func, строка 776)
+- `_render_event` (func, строка 796)
+- `_attach_events` (func, строка 859)
+- `_do_step` (func, строка 888)
+- `_do_step.on_event` (func, строка 900)
+- `_reset_dialog` (func, строка 1033)
+- `_load_thread` (func, строка 1060)
+- `_persist_thread_workspace_meta` (func, строка 1101)
+- `_chat_toolbar_widget_key` (func, строка 1128)
+- `_sync_chat_pref_checkbox` (func, строка 1138)
+- `_chat_toolbar_pref_changed` (func, строка 1156)
+- `_render_chat_toolbar` (func, строка 1166)
+- `_token_line_cache_key` (func, строка 1224)
+- `_render_token_line` (func, строка 1274)
+- `_split_chat_prompt` (func, строка 1359)
+- `_render_chat_tab` (func, строка 1380)
+- `_render_chat_tab.on_event` (func, строка 1570)
+- `_render_chat_tab.on_event` (func, строка 1595)
+- `_render_chat_tab.on_event` (func, строка 1639)
+- `_render_chat_tab.on_event` (func, строка 1662)
+- `_services_with_web_search` (func, строка 1799)
+- `_temp_slider` (func, строка 1811)
+- `_get_max_tokens_limit` (func, строка 1820)
+- `_render_optional_model_section` (func, строка 1840)
+- `settings_tabs_key` (func, строка 1915)
+- `settings_section_key` (func, строка 1920)
+- `pin_settings_section` (func, строка 1925)
+- `settings_save_failed` (func, строка 1937)
+- `_render_models_settings` (func, строка 1950)
+- `_render_prompt_settings` (func, строка 2181)
+- `_render_economy_settings` (func, строка 2223)
+- `_render_orch_system_tools` (func, строка 2280)
+- `_render_orchestrator_functions_settings` (func, строка 2322)
+- `_render_orchestrator_instructions_settings` (func, строка 2403)
+- `_render_orch_skills_settings` (func, строка 2480)
+- `_render_orch_rag_bases` (func, строка 2524)
+- `_render_orch_connections` (func, строка 2579)
+- `_render_other_settings` (func, строка 2625)
+- `page_orchestrator` (func, строка 2664)
+- `page_devagent` (func, строка 2679)
 
 ### `ui/pages/orchestrator_settings.py`
 - `page_orchestrator_settings` (func, строка 34)
@@ -935,13 +941,13 @@
 - `load_global_settings` (func, строка 503)
 
 ### `core/dependency_check.py`
-- `parse_version` (func, строка 55)
-- `version_lt` (func, строка 78)
-- `_installed_version` (func, строка 92)
-- `_importable` (func, строка 100)
-- `check_dependencies` (func, строка 108)
-- `missing_packages` (func, строка 147)
-- `outdated_lines` (func, строка 152)
+- `parse_version` (func, строка 57)
+- `version_lt` (func, строка 80)
+- `_installed_version` (func, строка 94)
+- `_importable` (func, строка 102)
+- `check_dependencies` (func, строка 110)
+- `missing_packages` (func, строка 149)
+- `outdated_lines` (func, строка 154)
 
 ### `core/entity_sync.py`
 - `ensure_entity_folders_sync` (func, строка 39)
@@ -1239,74 +1245,78 @@
 - `resolve_tool_name` (func, строка 37)
 - `normalize_disabled` (func, строка 47)
 - `is_tool_disabled` (func, строка 66)
-- `_core_catalog` (func, строка 91)
-- `_workspace_catalog` (func, строка 100)
-- `_connection_catalog` (func, строка 109)
-- `_custom_function_catalog` (func, строка 148)
-- `build_tool_catalog` (func, строка 170)
-- `build_tool_catalog._add` (func, строка 185)
-- `list_system_tools` (func, строка 208)
-- `render_available_tools_block` (func, строка 229)
+- `is_conditional_tool_enabled` (func, строка 98)
+- `_core_catalog` (func, строка 124)
+- `_workspace_catalog` (func, строка 133)
+- `_connection_catalog` (func, строка 142)
+- `_custom_function_catalog` (func, строка 181)
+- `build_tool_catalog` (func, строка 203)
+- `build_tool_catalog._add` (func, строка 218)
+- `list_system_tools` (func, строка 243)
+- `render_available_tools_block` (func, строка 266)
 
 ### `core/orchestrators.py`
-- `_ensure_default_orchestrators` (func, строка 102)
-- `_devagent_default_config` (func, строка 117)
-- `_devagent_default_config._str1` (func, строка 128)
-- `_devagent_default_config._num` (func, строка 134)
-- `_devagent_default_config._lst` (func, строка 140)
-- `_default_economy_tail_messages` (func, строка 183)
-- `_default_economy_cache_enabled` (func, строка 190)
-- `_default_economy_cache_multiplier` (func, строка 195)
-- `_get_known_tool_names` (func, строка 209)
-- `_invalidate_known_tool_names` (func, строка 248)
-- `list_orchestrators` (func, строка 262)
-- `get_orchestrator` (func, строка 267)
-- `get_orchestrator_by_slug` (func, строка 272)
-- `create_orchestrator` (func, строка 280)
-- `_mark_prompt_edited` (func, строка 318)
-- `reset_builtin_prompt` (func, строка 346)
-- `save_orchestrator` (func, строка 379)
-- `delete_orchestrator` (func, строка 404)
-- `_sync_orchestrator_folder` (func, строка 424)
-- `reload_orchestrator_from_folder` (func, строка 455)
-- `sync_all_orchestrator_folders` (func, строка 519)
-- `get_enabled_skills` (func, строка 537)
-- `set_enabled_skills` (func, строка 551)
-- `get_enabled_connections` (func, строка 577)
-- `set_enabled_connections` (func, строка 591)
-- `_extend_prompt_with_connections` (func, строка 614)
-- `get_disabled_tools` (func, строка 702)
-- `set_disabled_tools` (func, строка 722)
-- `_extend_prompt_with_tools` (func, строка 746)
-- `get_orchestrator_rag_bases` (func, строка 770)
-- `set_orchestrator_rag_bases` (func, строка 787)
-- `_extend_prompt_with_rag_bases` (func, строка 813)
-- `_extend_prompt_with_skills` (func, строка 864)
-- `_extend_prompt_with_instructions` (func, строка 886)
-- `build_assistant_dicts` (func, строка 953)
-- `build_assistant_dicts._resolve_effort` (func, строка 992)
-- `get_web_search_prompt` (func, строка 1018)
-- `get_web_search_config` (func, строка 1033)
-- `get_economy_tail_messages` (func, строка 1061)
-- `get_economy_cache_enabled` (func, строка 1079)
-- `get_economy_cache_multiplier` (func, строка 1097)
-- `get_economy_config` (func, строка 1116)
-- `export_orchestrator` (func, строка 1130)
-- `_validate_imported_tools` (func, строка 1176)
-- `import_orchestrator` (func, строка 1202)
-- `_import_instructions` (func, строка 1321)
-- `_import_functions` (func, строка 1348)
-- `orch_list_instructions` (func, строка 1366)
-- `orch_get_instruction` (func, строка 1371)
-- `orch_save_instruction` (func, строка 1376)
-- `orch_delete_instruction` (func, строка 1387)
-- `orch_list_functions` (func, строка 1394)
-- `orch_get_function` (func, строка 1399)
-- `orch_save_function` (func, строка 1404)
-- `orch_delete_function` (func, строка 1409)
-- `ensure_builtin_orchestrators` (func, строка 1418)
-- `load_devagent_config` (func, строка 1620)
-- `save_devagent_config` (func, строка 1659)
+- `_ensure_default_orchestrators` (func, строка 104)
+- `_devagent_default_config` (func, строка 119)
+- `_devagent_default_config._str1` (func, строка 130)
+- `_devagent_default_config._num` (func, строка 136)
+- `_devagent_default_config._truthy` (func, строка 142)
+- `_devagent_default_config._lst` (func, строка 153)
+- `_default_economy_tail_messages` (func, строка 202)
+- `_default_economy_cache_enabled` (func, строка 209)
+- `_default_economy_cache_multiplier` (func, строка 214)
+- `_get_known_tool_names` (func, строка 228)
+- `_invalidate_known_tool_names` (func, строка 267)
+- `list_orchestrators` (func, строка 281)
+- `get_orchestrator` (func, строка 286)
+- `get_orchestrator_by_slug` (func, строка 291)
+- `create_orchestrator` (func, строка 299)
+- `_mark_prompt_edited` (func, строка 337)
+- `reset_builtin_prompt` (func, строка 365)
+- `save_orchestrator` (func, строка 398)
+- `delete_orchestrator` (func, строка 423)
+- `_sync_orchestrator_folder` (func, строка 443)
+- `reload_orchestrator_from_folder` (func, строка 474)
+- `sync_all_orchestrator_folders` (func, строка 538)
+- `get_enabled_skills` (func, строка 556)
+- `set_enabled_skills` (func, строка 570)
+- `get_enabled_connections` (func, строка 596)
+- `set_enabled_connections` (func, строка 610)
+- `_extend_prompt_with_connections` (func, строка 633)
+- `get_disabled_tools` (func, строка 721)
+- `set_disabled_tools` (func, строка 741)
+- `_extend_prompt_with_tools` (func, строка 765)
+- `get_orchestrator_rag_bases` (func, строка 789)
+- `set_orchestrator_rag_bases` (func, строка 806)
+- `_extend_prompt_with_rag_bases` (func, строка 832)
+- `_extend_prompt_with_skills` (func, строка 883)
+- `_extend_prompt_with_instructions` (func, строка 905)
+- `build_assistant_dicts` (func, строка 972)
+- `build_assistant_dicts._resolve_effort` (func, строка 1011)
+- `get_web_search_prompt` (func, строка 1037)
+- `get_web_search_config` (func, строка 1052)
+- `get_fetch_config` (func, строка 1080)
+- `get_fetch_config._result` (func, строка 1113)
+- `get_economy_tail_messages` (func, строка 1137)
+- `get_economy_cache_enabled` (func, строка 1155)
+- `get_economy_cache_multiplier` (func, строка 1173)
+- `get_economy_config` (func, строка 1192)
+- `export_orchestrator` (func, строка 1206)
+- `_validate_imported_tools` (func, строка 1252)
+- `import_orchestrator` (func, строка 1278)
+- `_import_instructions` (func, строка 1397)
+- `_import_functions` (func, строка 1424)
+- `orch_list_instructions` (func, строка 1442)
+- `orch_get_instruction` (func, строка 1447)
+- `orch_save_instruction` (func, строка 1452)
+- `orch_delete_instruction` (func, строка 1463)
+- `orch_list_functions` (func, строка 1470)
+- `orch_get_function` (func, строка 1475)
+- `orch_save_function` (func, строка 1480)
+- `orch_delete_function` (func, строка 1485)
+- `ensure_builtin_orchestrators` (func, строка 1494)
+- `load_devagent_config` (func, строка 1701)
+- `save_devagent_config` (func, строка 1740)
 
 ### `core/paths.py`
 - `ensure_data_dirs` (func, строка 35)
@@ -1320,7 +1330,8 @@
 - `detect_injection_signatures` (func, строка 107)
 - `is_tool_result_text` (func, строка 130)
 - `sanitize_tool_result_content` (func, строка 135)
-- `sanitize_search_result` (func, строка 167)
+- `sanitize_fetched_page` (func, строка 171)
+- `sanitize_search_result` (func, строка 190)
 
 ### `core/prompt_improver.py`
 - `get_improver_instruction` (func, строка 35)
@@ -1495,6 +1506,8 @@
 - `service_supports_embeddings` (func, строка 180)
 - `get_vision_models` (func, строка 192)
 - `get_image_models` (func, строка 205)
+- `svc_supports_fetch` (func, строка 218)
+- `get_fetch_models` (func, строка 228)
 
 ### `core/skills_library.py`
 - `SkillsLibraryError` (class, строка 52)
@@ -1706,6 +1719,20 @@
 - `apply_pending.note` (func, строка 268)
 - `rollback` (func, строка 425)
 - `main` (func, строка 513)
+
+### `core/url_fetch.py`
+- `SeleniumUnavailableError` (class, строка 68)
+- `_is_private_host` (func, строка 77)
+- `fetch_endpoint` (func, строка 103)
+- `validate_fetch_url` (func, строка 129)
+- `_page_from_payload` (func, строка 164)
+- `fetch_page_content` (func, строка 191)
+- `looks_like_pdf_url` (func, строка 280)
+- `is_pdf_response` (func, строка 286)
+- `_pdf_page_section` (func, строка 291)
+- `extract_pdf_markdown` (func, строка 299)
+- `download_bytes` (func, строка 348)
+- `selenium_page_text` (func, строка 420)
 
 ### `tests/_st_mock.py`
 - `StopRerun` (class, строка 15)
@@ -2115,6 +2142,18 @@
 - `test_check_runs_only_once_per_session._fake` (func, строка 114)
 - `test_probe_error_never_blocks_start` (func, строка 131)
 
+### `tests/test_connector_presets.py`
+- `_write_preset` (func, строка 33)
+- `preset_root` (func, строка 51)
+- `test_list_presets_hides_hidden` (func, строка 59)
+- `test_list_presets_include_hidden` (func, строка 65)
+- `test_hidden_preset_is_resolvable` (func, строка 71)
+- `test_visible_preset_reports_hidden_false` (func, строка 79)
+- `test_hidden_flag_coercion` (func, строка 97)
+- `test_invalid_hidden_does_not_break_load` (func, строка 106)
+- `test_instantiate_hidden_preset_still_works` (func, строка 116)
+- `test_bundled_github_preset_is_hidden` (func, строка 123)
+
 ### `tests/test_connectors.py`
 - `isolated_data_dir` (func, строка 17)
 - `_load_raw` (func, строка 23)
@@ -2385,20 +2424,20 @@
 - `test_streamlit_is_required_with_min_1_66` (func, строка 65)
 - `test_core_runtime_packages_are_required` (func, строка 72)
 - `test_doc_and_ssh_packages_are_optional` (func, строка 77)
-- `_stub_versions` (func, строка 85)
-- `_stub_versions._version` (func, строка 87)
-- `test_check_all_up_to_date` (func, строка 94)
-- `test_check_detects_outdated` (func, строка 103)
-- `test_check_detects_missing` (func, строка 114)
-- `test_importable_without_metadata_is_not_missing` (func, строка 125)
-- `test_check_report_is_sorted` (func, строка 137)
-- `test_missing_packages_helper` (func, строка 148)
-- `test_outdated_lines_helper` (func, строка 155)
-- `test_default_registry_returns_report_shape` (func, строка 161)
-- `_parse_requirements` (func, строка 172)
-- `test_requirements_pins_streamlit_minimum_not_exact` (func, строка 190)
-- `test_registry_matches_requirements` (func, строка 197)
-- `test_dev_dependencies_match_requirements` (func, строка 210)
+- `_stub_versions` (func, строка 86)
+- `_stub_versions._version` (func, строка 88)
+- `test_check_all_up_to_date` (func, строка 95)
+- `test_check_detects_outdated` (func, строка 104)
+- `test_check_detects_missing` (func, строка 115)
+- `test_importable_without_metadata_is_not_missing` (func, строка 126)
+- `test_check_report_is_sorted` (func, строка 138)
+- `test_missing_packages_helper` (func, строка 149)
+- `test_outdated_lines_helper` (func, строка 156)
+- `test_default_registry_returns_report_shape` (func, строка 162)
+- `_parse_requirements` (func, строка 173)
+- `test_requirements_pins_streamlit_minimum_not_exact` (func, строка 191)
+- `test_registry_matches_requirements` (func, строка 198)
+- `test_dev_dependencies_match_requirements` (func, строка 211)
 
 ### `tests/test_devagent_instructions.py`
 - `_read` (func, строка 19)
@@ -3743,9 +3782,9 @@
 - `test_save_accepts_weak_args_but_does_not_persist` (func, строка 98)
 - `test_multimodal_fields_set_and_clear` (func, строка 120)
 - `test_legacy_weak_config_is_tolerated_and_single_model` (func, строка 154)
-- `test_defaults_and_bootstrap_have_no_weak_keys` (func, строка 189)
-- `test_export_import_roundtrip_keeps_multimodal_fields` (func, строка 216)
-- `test_dev_agent_build_assistant_dict_from_config_single_model` (func, строка 248)
+- `test_defaults_and_bootstrap_have_no_weak_keys` (func, строка 190)
+- `test_export_import_roundtrip_keeps_multimodal_fields` (func, строка 217)
+- `test_dev_agent_build_assistant_dict_from_config_single_model` (func, строка 249)
 
 ### `tests/test_skill_build_base.py`
 - `isolated_data_dir` (func, строка 35)
@@ -4455,6 +4494,54 @@
 - `test_checkboxes_default_to_checked` (func, строка 489)
 - `test_stage_with_default_checkmarks_selects_all_files` (func, строка 507)
 
+### `tests/test_url_fetch.py`
+- `_response` (func, строка 46)
+- `test_fetch_catalog_helpers` (func, строка 61)
+- `test_bundled_deepseek_profile_declares_fetch` (func, строка 72)
+- `test_fetch_endpoint_resolution` (func, строка 83)
+- `test_invalid_urls_are_rejected` (func, строка 108)
+- `test_valid_url_is_stripped` (func, строка 114)
+- `test_fetch_posts_url_and_returns_page` (func, строка 123)
+- `test_fetch_accepts_nested_envelope` (func, строка 141)
+- `test_fetch_requires_api_key` (func, строка 153)
+- `test_fetch_rejects_unknown_service` (func, строка 162)
+- `test_fetch_maps_transport_failures` (func, строка 169)
+- `test_sanitize_fetched_page_labels_and_caps` (func, строка 200)
+- `_executor` (func, строка 215)
+- `test_tool_requires_fetch_model` (func, строка 222)
+- `test_tool_validates_url_before_fetching` (func, строка 232)
+- `test_tool_returns_labelled_page` (func, строка 241)
+- `test_tool_reports_provider_error` (func, строка 255)
+- `test_tool_runs_a_pdf_url_through_the_local_extractor` (func, строка 265)
+- `test_tool_uses_selenium_and_the_model_for_markdown` (func, строка 284)
+- `test_tool_keeps_plain_text_when_the_model_fails` (func, строка 299)
+- `test_tool_reports_missing_selenium_dependency` (func, строка 312)
+- `test_tool_works_with_selenium_alone` (func, строка 323)
+- `test_tool_runs_the_provider_branch_when_selenium_is_off` (func, строка 333)
+- `test_tool_arguments_are_restricted` (func, строка 345)
+- `test_get_fetch_config_resolves_only_usable_pairs` (func, строка 356)
+- `test_catalog_offers_url_fetch_only_with_a_model` (func, строка 381)
+- `test_catalog_offers_url_fetch_with_selenium_alone` (func, строка 408)
+- `test_models_tab_offers_only_fetch_capable_services` (func, строка 429)
+- `test_dispatcher_receives_fetch_config` (func, строка 485)
+
+### `tests/test_url_fetch_transport.py`
+- `test_pdf_url_is_detected_by_path_extension` (func, строка 36)
+- `test_pdf_response_is_detected_by_content_type` (func, строка 44)
+- `test_private_targets_are_rejected` (func, строка 66)
+- `test_public_targets_pass_validation` (func, строка 77)
+- `_fake_pdf` (func, строка 85)
+- `test_download_returns_bytes_and_content_type` (func, строка 99)
+- `test_download_rejects_oversized_body_while_streaming` (func, строка 111)
+- `test_download_maps_http_errors_to_the_api_contract` (func, строка 120)
+- `test_pdf_text_is_rendered_as_markdown_sections` (func, строка 130)
+- `test_scanned_pdf_returns_empty_text` (func, строка 149)
+- `_fake_selenium_modules` (func, строка 167)
+- `test_selenium_returns_visible_text_and_closes_the_browser` (func, строка 215)
+- `test_selenium_missing_package_raises_a_clear_error` (func, строка 228)
+- `test_selenium_rejects_private_targets_before_starting_a_browser` (func, строка 235)
+- `test_download_limit_is_25_megabytes` (func, строка 245)
+
 ### `tests/test_usability_fixes.py`
 - `ui_env` (func, строка 20)
 - `_rerender` (func, строка 32)
@@ -4716,6 +4803,20 @@
 - `test_scenario_long_history_is_trimmed_before_request._fake_do_request` (func, строка 120)
 - `test_scenario_impossible_payload_raises_clear_error` (func, строка 144)
 - `test_scenario_impossible_payload_raises_clear_error._fake_do_request` (func, строка 154)
+
+### `tests/scenarios/test_devagent_defaults_scenario.py`
+- `isolated_env` (func, строка 37)
+- `_bootstrap` (func, строка 96)
+- `test_scenario_1_fresh_install_uses_deepseek_flash_everywhere` (func, строка 105)
+- `test_scenario_1b_search_config_reaches_the_search_agent` (func, строка 134)
+- `test_scenario_2_backfill_keeps_user_chosen_models` (func, строка 152)
+- `test_scenario_2b_backfill_fills_fields_that_were_never_set` (func, строка 172)
+- `_render_models` (func, строка 194)
+- `_keys` (func, строка 211)
+- `test_scenario_3_selenium_hides_the_fetch_model_selectors` (func, строка 220)
+- `test_scenario_4_clearing_selenium_restores_the_selectors` (func, строка 253)
+- `test_scenario_5_save_confirmation_is_painted_below_the_page` (func, строка 276)
+- `test_scenario_5_save_confirmation_is_painted_below_the_page._fake_page` (func, строка 290)
 
 ### `tests/scenarios/test_dsml_fallback_scenarios.py`
 - `_dsml_call` (func, строка 46)
@@ -4983,15 +5084,15 @@
 - `conns_of` (func, строка 262)
 
 ### `tests/scenarios/test_multimodal_scenarios.py`
-- `_services` (func, строка 55)
-- `_resp` (func, строка 93)
-- `env` (func, строка 104)
-- `test_scenario_1_dialog_upload_analyzed_end_to_end` (func, строка 123)
-- `test_scenario_2_fresh_install_reports_unassigned_models` (func, строка 157)
-- `test_scenario_3_model_not_declared_by_provider` (func, строка 186)
-- `test_scenario_4_generate_image_saves_to_dialog_then_project` (func, строка 205)
-- `test_scenario_5_generation_permission_denied_role_hint` (func, строка 251)
-- `test_scenario_6_deepseek_vision_dedicated_endpoint` (func, строка 275)
+- `_services` (func, строка 57)
+- `_resp` (func, строка 95)
+- `env` (func, строка 106)
+- `test_scenario_1_dialog_upload_analyzed_end_to_end` (func, строка 125)
+- `test_scenario_2_fresh_install_reports_unassigned_models` (func, строка 159)
+- `test_scenario_3_model_not_declared_by_provider` (func, строка 193)
+- `test_scenario_4_generate_image_saves_to_dialog_then_project` (func, строка 212)
+- `test_scenario_5_generation_permission_denied_role_hint` (func, строка 258)
+- `test_scenario_6_deepseek_vision_dedicated_endpoint` (func, строка 282)
 
 ### `tests/scenarios/test_new_dialog_empty_workspace_scenario.py`
 - `isolated_data_dir` (func, строка 40)
@@ -5273,6 +5374,18 @@
 - `test_force_apply_from_live_ui` (func, строка 148)
 - `test_force_rollback_from_live_ui` (func, строка 194)
 - `test_refusal_is_visible_and_restart_applies` (func, строка 245)
+
+### `tests/scenarios/test_url_fetch_scenario.py`
+- `isolated_env` (func, строка 61)
+- `_make_employee` (func, строка 103)
+- `_prompt` (func, строка 114)
+- `_dispatcher` (func, строка 121)
+- `test_scenario_1_no_model_no_tool` (func, строка 131)
+- `test_scenario_2_assigning_model_switches_the_tool_on` (func, строка 149)
+- `test_scenario_3_clearing_the_model_switches_the_tool_off` (func, строка 188)
+- `test_scenario_4_models_tab_lists_only_fetch_capable_providers` (func, строка 225)
+- `test_scenario_5_selenium_alone_switches_the_tool_on` (func, строка 279)
+- `test_scenario_6_pdf_link_is_downloaded_and_extracted` (func, строка 314)
 
 ### `tests/scenarios/test_welcome_page_scenarios.py`
 - `isolated_data` (func, строка 35)
@@ -5684,77 +5797,80 @@
 - `task_state_for_context._render_section_body` (func, строка 1159)
 
 ### `dev_agent/tool_executor.py`
-- `_strip_line_numbers` (func, строка 79)
-- `_normalize_line_endings` (func, строка 99)
-- `_ws_tolerant_pattern` (func, строка 104)
-- `_norm_to_orig_map` (func, строка 130)
-- `_fuzzy_find_matches` (func, строка 144)
-- `_exact_spans` (func, строка 160)
-- `_line_of` (func, строка 173)
-- `_suggest_anchor_lines` (func, строка 178)
-- `_unknown_args` (func, строка 257)
-- `_usage_string` (func, строка 282)
-- `_coerce_numeric_args` (func, строка 307)
-- `workspace_guard_error` (func, строка 388)
-- `_subprocess_cwd` (func, строка 418)
-- `_validate_python_syntax` (func, строка 433)
-- `ToolExecutor` (class, строка 456)
-- `ToolExecutor.__init__` (func, строка 457)
-- `ToolExecutor.set_send_request` (func, строка 485)
-- `ToolExecutor.dispatch` (func, строка 490)
-- `ToolExecutor.dispatch_json` (func, строка 550)
-- `ToolExecutor.read_file` (func, строка 560)
-- `ToolExecutor.list_files` (func, строка 635)
-- `ToolExecutor.list_files._entry_rel` (func, строка 677)
-- `ToolExecutor.list_files._sort_key` (func, строка 688)
-- `ToolExecutor.list_files._visible_children` (func, строка 691)
-- `ToolExecutor.list_files._make_file_entry` (func, строка 697)
-- `ToolExecutor.list_files._walk` (func, строка 708)
-- `ToolExecutor.propose_file` (func, строка 764)
-- `ToolExecutor.apply_patch` (func, строка 941)
-- `ToolExecutor.apply_edit` (func, строка 1161)
-- `ToolExecutor.verify_file` (func, строка 1197)
-- `ToolExecutor.discard_edit` (func, строка 1249)
-- `ToolExecutor.create_backup` (func, строка 1256)
-- `ToolExecutor.restore_backup` (func, строка 1264)
-- `ToolExecutor.show_history` (func, строка 1272)
-- `ToolExecutor.run_test` (func, строка 1276)
-- `ToolExecutor.run_code` (func, строка 1371)
-- `ToolExecutor.web_search` (func, строка 1479)
-- `ToolExecutor._run_deepseek_web_search` (func, строка 1664)
-- `ToolExecutor._resolve_image_path` (func, строка 1749)
-- `ToolExecutor._save_generated_image` (func, строка 1781)
-- `ToolExecutor.analyze_image` (func, строка 1818)
-- `ToolExecutor.generate_image` (func, строка 1878)
-- `ToolExecutor._rag_slug` (func, строка 1945)
-- `ToolExecutor._rag_access_allowed` (func, строка 1949)
-- `ToolExecutor.list_rag_bases` (func, строка 1966)
-- `ToolExecutor.rag_search` (func, строка 2012)
-- `ToolExecutor.rag_get_chunks` (func, строка 2104)
-- `ToolExecutor.set_history` (func, строка 2192)
-- `ToolExecutor._ensure_history_indexed` (func, строка 2202)
-- `ToolExecutor.get_history_index` (func, строка 2209)
-- `ToolExecutor.get_history_messages` (func, строка 2245)
-- `ToolExecutor.list_skills_library` (func, строка 2294)
-- `ToolExecutor.get_skill_folder` (func, строка 2308)
-- `ToolExecutor.get_skill_prompt` (func, строка 2343)
-- `ToolExecutor.get_skill_file` (func, строка 2388)
-- `ToolExecutor.mark_skill_adapted` (func, строка 2422)
-- `ToolExecutor.list_assistants` (func, строка 2439)
-- `ToolExecutor.get_assistant_by_id` (func, строка 2449)
-- `ToolExecutor.update_assistant_by_id` (func, строка 2456)
-- `ToolExecutor.list_instructions` (func, строка 2516)
-- `ToolExecutor.get_instruction` (func, строка 2531)
-- `ToolExecutor.detect_and_select_assistant` (func, строка 2547)
-- `ToolExecutor._orchestrator_instruction_text` (func, строка 2580)
-- `ToolExecutor._create_assistant_with_auto_model` (func, строка 2596)
-- `ToolExecutor.create_assistant_for_task` (func, строка 2755)
-- `ToolExecutor.list_recent_workspaces` (func, строка 2782)
-- `ToolExecutor.task_state_init` (func, строка 2806)
-- `ToolExecutor.task_state_read` (func, строка 2823)
-- `ToolExecutor.task_state_update` (func, строка 2836)
-- `ToolExecutor.task_state_mark_step` (func, строка 2844)
-- `ToolExecutor.task_state_clear` (func, строка 2863)
+- `_strip_line_numbers` (func, строка 80)
+- `_normalize_line_endings` (func, строка 100)
+- `_ws_tolerant_pattern` (func, строка 105)
+- `_norm_to_orig_map` (func, строка 131)
+- `_fuzzy_find_matches` (func, строка 145)
+- `_exact_spans` (func, строка 161)
+- `_line_of` (func, строка 174)
+- `_suggest_anchor_lines` (func, строка 179)
+- `_unknown_args` (func, строка 260)
+- `_usage_string` (func, строка 285)
+- `_coerce_numeric_args` (func, строка 310)
+- `workspace_guard_error` (func, строка 391)
+- `_subprocess_cwd` (func, строка 421)
+- `_validate_python_syntax` (func, строка 436)
+- `ToolExecutor` (class, строка 459)
+- `ToolExecutor.__init__` (func, строка 460)
+- `ToolExecutor.set_send_request` (func, строка 493)
+- `ToolExecutor.dispatch` (func, строка 498)
+- `ToolExecutor.dispatch_json` (func, строка 558)
+- `ToolExecutor.read_file` (func, строка 568)
+- `ToolExecutor.list_files` (func, строка 643)
+- `ToolExecutor.list_files._entry_rel` (func, строка 685)
+- `ToolExecutor.list_files._sort_key` (func, строка 696)
+- `ToolExecutor.list_files._visible_children` (func, строка 699)
+- `ToolExecutor.list_files._make_file_entry` (func, строка 705)
+- `ToolExecutor.list_files._walk` (func, строка 716)
+- `ToolExecutor.propose_file` (func, строка 772)
+- `ToolExecutor.apply_patch` (func, строка 949)
+- `ToolExecutor.apply_edit` (func, строка 1169)
+- `ToolExecutor.verify_file` (func, строка 1205)
+- `ToolExecutor.discard_edit` (func, строка 1257)
+- `ToolExecutor.create_backup` (func, строка 1264)
+- `ToolExecutor.restore_backup` (func, строка 1272)
+- `ToolExecutor.show_history` (func, строка 1280)
+- `ToolExecutor.run_test` (func, строка 1284)
+- `ToolExecutor.run_code` (func, строка 1379)
+- `ToolExecutor.web_search` (func, строка 1487)
+- `ToolExecutor._run_deepseek_web_search` (func, строка 1672)
+- `ToolExecutor._html_text_to_markdown` (func, строка 1757)
+- `ToolExecutor._url_fetch_result` (func, строка 1818)
+- `ToolExecutor.url_fetch` (func, строка 1855)
+- `ToolExecutor._resolve_image_path` (func, строка 1983)
+- `ToolExecutor._save_generated_image` (func, строка 2015)
+- `ToolExecutor.analyze_image` (func, строка 2052)
+- `ToolExecutor.generate_image` (func, строка 2112)
+- `ToolExecutor._rag_slug` (func, строка 2179)
+- `ToolExecutor._rag_access_allowed` (func, строка 2183)
+- `ToolExecutor.list_rag_bases` (func, строка 2200)
+- `ToolExecutor.rag_search` (func, строка 2246)
+- `ToolExecutor.rag_get_chunks` (func, строка 2338)
+- `ToolExecutor.set_history` (func, строка 2426)
+- `ToolExecutor._ensure_history_indexed` (func, строка 2436)
+- `ToolExecutor.get_history_index` (func, строка 2443)
+- `ToolExecutor.get_history_messages` (func, строка 2479)
+- `ToolExecutor.list_skills_library` (func, строка 2528)
+- `ToolExecutor.get_skill_folder` (func, строка 2542)
+- `ToolExecutor.get_skill_prompt` (func, строка 2577)
+- `ToolExecutor.get_skill_file` (func, строка 2622)
+- `ToolExecutor.mark_skill_adapted` (func, строка 2656)
+- `ToolExecutor.list_assistants` (func, строка 2673)
+- `ToolExecutor.get_assistant_by_id` (func, строка 2683)
+- `ToolExecutor.update_assistant_by_id` (func, строка 2690)
+- `ToolExecutor.list_instructions` (func, строка 2750)
+- `ToolExecutor.get_instruction` (func, строка 2765)
+- `ToolExecutor.detect_and_select_assistant` (func, строка 2781)
+- `ToolExecutor._orchestrator_instruction_text` (func, строка 2814)
+- `ToolExecutor._create_assistant_with_auto_model` (func, строка 2830)
+- `ToolExecutor.create_assistant_for_task` (func, строка 2989)
+- `ToolExecutor.list_recent_workspaces` (func, строка 3016)
+- `ToolExecutor.task_state_init` (func, строка 3040)
+- `ToolExecutor.task_state_read` (func, строка 3057)
+- `ToolExecutor.task_state_update` (func, строка 3070)
+- `ToolExecutor.task_state_mark_step` (func, строка 3078)
+- `ToolExecutor.task_state_clear` (func, строка 3097)
 
 ### `dev_agent/universal_agent.py`
 - `load_system_prompt` (func, строка 31)

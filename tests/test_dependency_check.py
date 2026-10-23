@@ -76,7 +76,8 @@ def test_core_runtime_packages_are_required():
 
 def test_doc_and_ssh_packages_are_optional():
     for name in ("docx", "pptx", "openpyxl", "pypdf", "pdfplumber",
-                 "markdown", "reportlab", "paramiko", "tiktoken"):
+                 "markdown", "reportlab", "paramiko", "tiktoken",
+                 "selenium"):
         assert dc.DEPENDENCIES[name]["required"] is False, name
 
 

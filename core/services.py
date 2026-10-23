@@ -215,5 +215,29 @@ def get_image_models(svc: dict) -> list:
     return [m for m in models if isinstance(m, dict)]
 
 
+def svc_supports_fetch(svc: dict) -> bool:
+    """Return True when a service declares url-fetch models.
+
+    Page fetching is a per-provider Search/Fetch API; a profile that lists
+    no ``fetch_models`` cannot fetch pages, so the orchestrator settings
+    page never offers it for that provider.
+    """
+    return bool(get_fetch_models(svc))
+
+
+def get_fetch_models(svc: dict) -> list:
+    """Return url-fetch models declared by a service (if any).
+
+    Each entry: {"id", "label"} - matching the ``fetch_models`` block in
+    the service JSON file. A service without this block does not support
+    page fetching; assigning one of its models switches the ``url_fetch``
+    tool on for the orchestrator.
+    """
+    if not isinstance(svc, dict):
+        return []
+    models = svc.get("fetch_models", []) or []
+    return [m for m in models if isinstance(m, dict)]
+
+
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
