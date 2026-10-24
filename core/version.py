@@ -162,7 +162,27 @@
 # when it is cleared; save confirmations are now painted below the page
 # body instead of above the page title.
 
-__version__ = "2.9.1"
+# 2.10.0 adds multi-agent orchestration: an employee can spawn another
+# employee (spawn_agent) and call an assistant once (invoke_assistant)
+# through the core/orchestration package - a versioned run contract,
+# an orchestration service with a run tree, a slot pool, six delegation
+# limits (depth, active children, steps, total runs, timeout, token
+# budget), cascade cancellation and fan-out of independent spawns in the
+# executing phase. Children work in the parent's folder with their own
+# derived thread and task journal; the Delegation settings tab hands out
+# the allowlists and limits.
+
+# 2.11.0 makes documents readable without code: core/document_text
+# extracts text from PDF, DOCX, PPTX, XLSX, XLS, RTF, ODT, HTML and plain
+# text, the new read_document tool opens a file on disk by absolute path
+# with a line window, and read_thread_file returns attachment text the same
+# way; run_code is marked as a last resort. Delegation gets explicit
+# contexts: spawn_agent carries the absolute paths of the parent workspace
+# and its dialog files folder, invoke_assistant reads a document as one
+# call, and the system prompt lists the available agents and assistants
+# with their ids.
+
+__version__ = "2.11.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

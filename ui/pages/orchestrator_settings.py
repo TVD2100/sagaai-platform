@@ -27,6 +27,7 @@ from ui.pages.orchestrator import (
     _render_orch_skills_settings,
     _render_orch_rag_bases,
     _render_orch_connections,
+    _render_delegation_settings,
     _render_other_settings,
 )
 
@@ -67,6 +68,7 @@ def page_orchestrator_settings(slug: str) -> None:
         t("orch_tab_skills", lang=lang),
         t("orch_tab_rag_bases", lang=lang),
         t("orch_tab_connections", lang=lang),
+        t("orch_tab_delegation", lang=lang),
         t("orch_tab_other", lang=lang),
     ]
 
@@ -104,6 +106,8 @@ def page_orchestrator_settings(slug: str) -> None:
     with sub_tabs[7]:
         _render_orch_connections(slug, lang)
     with sub_tabs[8]:
+        _render_delegation_settings(slug, lang)
+    with sub_tabs[9]:
         _render_other_settings(slug, lang)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

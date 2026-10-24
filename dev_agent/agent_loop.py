@@ -96,6 +96,7 @@ _WEAK_TOOLS: Set[str] = {
     "read_file",
     "list_files",
     "read_doc",
+    "read_document",
     "verify_file",
     "current_workspace",
     "set_workspace",
@@ -626,6 +627,220 @@ def classify_step_strength(parsed_calls: List[Dict[str, Any]],
     if assistant_text and not _prose_looks_weak(assistant_text):
         return "strong"
     return "weak"
+
+# ── Delegation fan-out (ADR-003) ─────────────────────────────────────────
+# The two delegation tools are NOT dispatched: a child started inside
+# ``dispatch`` would wait for the workspace binding lock while the parent
+# holds it. The loop therefore handles them itself, outside dispatch, and
+# runs them in parallel with a plain thread pool. The service (not the loop)
+# owns the pool semaphore, the tree counter and cancellation; the loop only
+# turns tool-call arguments into requests and maps results back.
+
+_DELEGATION_CALL_NAMES = ("spawn_agent", "invoke_assistant")
+
+
+def _agent_brief_from_args(args: Dict[str, Any]):
+    """Build an ``AgentBrief`` from tool-call arguments, or None.
+
+    The model sends ``request`` as a JSON object; the contract layer wants an
+    ``AgentBrief``. An already-built brief passes through unchanged, and a
+    malformed one returns None so the refusal is produced by the tool layer
+    (which owns the wording) rather than here.
+    """
+    raw = (args or {}).get("request")
+    if raw is None:
+        return None
+    try:
+        from core.orchestration.contracts import AgentBrief
+    except Exception:
+        return None
+    if isinstance(raw, AgentBrief):
+        return raw
+    if not isinstance(raw, dict):
+        return None
+    goal = str(raw.get("goal") or "").strip()
+    if not goal:
+        return None
+    raw_artifacts = raw.get("artifacts_in")
+    artifacts_in: Dict[str, str] = {}
+    if isinstance(raw_artifacts, dict):
+        for name, path in raw_artifacts.items():
+            key = str(name or "").strip()
+            value = str(path or "").strip()
+            if key and value:
+                artifacts_in[key] = value
+    elif isinstance(raw_artifacts, (list, tuple)):
+        # A bare list of paths is accepted and named by its basename: the
+        # contract wants a name -> path map, and the model often sends the
+        # files it was given without inventing names for them.
+        for item in raw_artifacts:
+            value = str(item or "").strip()
+            if value:
+                artifacts_in[os.path.basename(value) or value] = value
+    elif raw_artifacts:
+        value = str(raw_artifacts).strip()
+        if value:
+            artifacts_in[os.path.basename(value) or value] = value
+    return AgentBrief(goal=goal, brief=str(raw.get("brief") or ""),
+                      artifacts_in=artifacts_in)
+
+
+def _delegation_parent_context(state: "AgentLoopState", dispatcher: Any):
+    """Return (orchestrator slug, config, run id, thread id) for a step.
+
+    The slug comes from the dispatcher when it knows its orchestrator; the
+    config is read once per batch, not per call, so a batch of twenty calls
+    does not hit the database twenty times. ``run_id`` falls back to the
+    thread id, which makes limits work for a dialog that never registered a
+    run of its own.
+    """
+    slug = "dev_agent"
+    try:
+        getter = getattr(dispatcher, "_current_orchestrator_slug", None)
+        if callable(getter):
+            slug = getter() or slug
+    except Exception:
+        slug = "dev_agent"
+    cfg: Optional[Dict[str, Any]] = None
+    try:
+        from core.orchestrators import get_orchestrator
+        orch = get_orchestrator(slug)
+        if orch:
+            cfg = orch.get("config") or {}
+    except Exception:
+        cfg = None
+    return slug, cfg, (state.run_id or state.thread_id or ""), (state.thread_id or "")
+
+
+def _delegation_job(tool: str, args: Dict[str, Any], *,
+                    parent_slug: str, parent_run_id: str, thread_id: str,
+                    parent_config: Optional[Dict[str, Any]],
+                    base_dir: Optional[str], lang: Optional[str],
+                    service: Any) -> Dict[str, Any]:
+    """Execute ONE delegation call and return its tool-shaped result."""
+    if tool == "spawn_agent":
+        from core.orchestration.tools import spawn_agent
+        return spawn_agent(
+            agent_slug=args.get("agent_slug"),
+            request=_agent_brief_from_args(args),
+            inline_orchestrator=args.get("inline_orchestrator"),
+            parent_slug=parent_slug,
+            parent_run_id=parent_run_id or None,
+            thread_id=thread_id,
+            parent_config=parent_config,
+            base_dir=base_dir,
+            lang=lang,
+            service=service,
+        )
+    from core.orchestration.tools import invoke_assistant
+    return invoke_assistant(
+        assistant_id=args.get("assistant_id"),
+        user=str(args.get("user") or ""),
+        context_files=args.get("context_files") or [],
+        system=args.get("system"),
+        model=args.get("model"),
+        max_tokens=args.get("max_tokens"),
+        parent_slug=parent_slug,
+        parent_run_id=parent_run_id or None,
+        parent_config=parent_config,
+        base_dir=base_dir,
+        lang=lang,
+        service=service,
+    )
+
+
+def execute_delegation_calls(calls: List[Dict[str, Any]], *,
+                             state: "AgentLoopState", dispatcher: Any,
+                             lang: Optional[str] = None,
+                             on_event: Optional[Callable[[dict], None]] = None,
+                             service: Any = None) -> List[Dict[str, Any]]:
+    """Run a step's delegation calls in parallel; results in call order.
+
+    Two phases, deliberately separated:
+
+    1. **Validate the WHOLE batch first.** Every call is checked against
+       ``disabled_tools``, the argument names and the rights before a single
+       pool slot is taken. A malformed or forbidden call therefore costs no
+       provider round-trip, and the model receives every complaint in one
+       turn instead of discovering them one refusal at a time.
+    2. **Run the valid calls in parallel.** A refusal does NOT cancel its
+       neighbours - the batch is a fan-out, and one bad branch must not
+       discard the work of the others.
+
+    Results are returned positionally, matching the order of the model's
+    calls, so the parent can pair a result with the brief it sent.
+    """
+    if not calls:
+        return []
+    emit = on_event or (lambda _e: None)
+    try:
+        from dev_agent.universal_agent import validate_tool_call
+    except Exception:  # pragma: no cover - import cycle guard
+        validate_tool_call = None
+
+    slug, cfg, parent_run_id, thread_id = _delegation_parent_context(state, dispatcher)
+    base_dir = None
+    try:
+        from dev_agent import config as _dagent_config
+        base_dir = str(_dagent_config.WORKSPACE_ROOT) if _dagent_config.WORKSPACE_ROOT else None
+    except Exception:
+        base_dir = None
+    if service is None:
+        from core.orchestration.service import get_service
+        service = get_service()
+
+    extra_disabled = getattr(dispatcher, "child_disabled_tools", None)
+    jobs: List[Optional[Dict[str, Any]]] = [None] * len(calls)
+    runnable: List[Tuple[int, str, Dict[str, Any]]] = []
+
+    for idx, call in enumerate(calls):
+        tool = (call.get("tool") or "").strip()
+        args = call.get("args") or {}
+        refusal = None
+        if validate_tool_call is not None:
+            refusal = validate_tool_call(tool, args, slug,
+                                         extra_disabled=extra_disabled)
+        if refusal is not None:
+            jobs[idx] = refusal
+            emit({"type": "tool_result", "tool": tool, "result": refusal,
+                  "step": state.steps})
+            continue
+        runnable.append((idx, tool, args))
+
+    if runnable:
+        results: Dict[int, Dict[str, Any]] = {}
+
+        def _work(idx: int, tool: str, args: Dict[str, Any]) -> None:
+            try:
+                results[idx] = _delegation_job(
+                    tool, args, parent_slug=slug, parent_run_id=parent_run_id,
+                    thread_id=thread_id, parent_config=cfg, base_dir=base_dir,
+                    lang=lang, service=service)
+            except Exception as exc:  # pragma: no cover - defensive
+                results[idx] = {"ok": False,
+                                "error": "delegation failed: " + str(exc),
+                                "error_code": "provider_error"}
+
+        if len(runnable) == 1:
+            idx, tool, args = runnable[0]
+            _work(idx, tool, args)
+        else:
+            import concurrent.futures as _futures
+            with _futures.ThreadPoolExecutor(max_workers=len(runnable)) as pool:
+                futures = [pool.submit(_work, idx, tool, args)
+                           for idx, tool, args in runnable]
+                for future in futures:
+                    future.result()
+        for idx, _tool, _args in runnable:
+            jobs[idx] = results.get(idx) or {
+                "ok": False, "error": "delegation produced no result",
+                "error_code": "provider_error"}
+
+    return [j if j is not None else {"ok": False,
+                                     "error": "delegation produced no result",
+                                     "error_code": "provider_error"}
+            for j in jobs]
+
 
 # parse_tool_calls
 
@@ -1624,6 +1839,20 @@ class AgentResult:
     staged_tool: Optional[str] = None
     applied: bool = False
     discarded: bool = False
+    # Pending dangerous-operation confirmation, carried out of the loop so the
+    # UI can render Allow/Deny without reaching into the state object. The
+    # reasons list defaults to a fresh list (never None) so callers can iterate
+    # it unconditionally.
+    pending_confirmation_tool: Optional[str] = None
+    pending_confirmation_args: Optional[Dict[str, Any]] = None
+    pending_confirmation_reasons: List[str] = field(default_factory=list)
+    pending_confirmation_code: str = ""
+    pending_confirmation_result: Optional[Dict[str, Any]] = None
+    # Machine-readable failure cause and its human-readable counterpart.
+    # The delegation contract maps these onto status/stop_reason/error_code
+    # instead of re-deriving a cause from free text.
+    error_code: Optional[str] = None
+    error_message: str = ""
 
 # ── Task-state external memory (per-thread journal) ───────────────────────────
 # For every task the agent keeps a per-thread task-state journal
@@ -2225,6 +2454,15 @@ class AgentLoopState:
     # injected into the LLM context on every step.
     thread_id: str = ""
 
+    # ── Delegation identity ────────────────────────────────────────────────
+    # run_id identifies THIS loop in the run registry; parent_run_id is set
+    # for a child run and drives cascade cancellation and event delivery;
+    # depth is the distance from the root run ("О-2" starts at 1). All three
+    # are empty/zero for a plain dialog that never delegates.
+    run_id: str = ""
+    parent_run_id: str = ""
+    depth: int = 0
+
     # Cache-friendly economy mode settings.
     economy_cache_enabled: bool = False
     economy_cache_multiplier: int = 1
@@ -2298,6 +2536,12 @@ class AgentLoopState:
     pending_confirmation_reasons: List[str] = field(default_factory=list)
     pending_confirmation_code: str = ""
     pending_confirmation_result: Optional[Dict[str, Any]] = None
+
+    # Machine-readable failure cause for the delegation contract. ``error``
+    # phase text stays human-facing; ``error_code`` lets the service map the
+    # outcome onto stop_reason/error_code without parsing prose.
+    error_code: Optional[str] = None
+    error_message: str = ""
 
     # Pending sanitization confirmation.
     # When prompt-injection protection substitutes a tool-result payload
@@ -2542,6 +2786,17 @@ def _step_agent_loop_impl(
         pass
 
     def emit(event: dict) -> None:
+        # Stamp the delegation identity onto every event: the UI groups the
+        # feed by run and draws the parent-child tree from these two fields,
+        # and a subscriber needs to tell a step of its own run from a
+        # forwarded event of a descendant. Plain dialogs carry empty values,
+        # so the stamping is a no-op for them.
+        if state.run_id and "run_id" not in event:
+            event["run_id"] = state.run_id
+        if state.parent_run_id and "parent_run_id" not in event:
+            event["parent_run_id"] = state.parent_run_id
+        if state.depth and "depth" not in event:
+            event["depth"] = state.depth
         if on_event:
             on_event(event)
 
@@ -3019,8 +3274,46 @@ def _step_agent_loop_impl(
         dsml_in_step = any(call.get("_dsml") for call in state.parsed_calls) or _uses_dsml_markup(state.assistant_text)
         any_call_ok = False
 
-        for call in state.parsed_calls:
+        # ── Delegation fan-out (ADR-003) ──────────────────────────────────
+        # Delegation calls run BEFORE the per-call loop: the whole batch is
+        # validated first, then the valid calls run in parallel. Handling
+        # them inside the loop would serialise the children, and starting a
+        # child inside dispatch would deadlock against the binding lock the
+        # parent holds for the duration of the step.
+        delegation_results: Dict[int, Dict[str, Any]] = {}
+        delegation_calls = [(i, c) for i, c in enumerate(state.parsed_calls)
+                            if (c.get("tool") or "") in _DELEGATION_CALL_NAMES
+                            and not c.get("_dsml")]
+        if delegation_calls:
+            for _i, _c in delegation_calls:
+                emit({"type": "phase", "phase": "executing",
+                      "tool": _c.get("tool"), "step": state.steps})
+                emit({"type": "tool_call", "tool": _c.get("tool"),
+                      "args": _c.get("args") or {}, "step": state.steps})
+            _batch = execute_delegation_calls(
+                [c for _i, c in delegation_calls], state=state,
+                dispatcher=dispatcher, lang=lang, on_event=on_event)
+            for (_i, _c), _result in zip(delegation_calls, _batch):
+                delegation_results[_i] = _result
+
+        for call_index, call in enumerate(state.parsed_calls):
             tool = call["tool"]
+            if call_index in delegation_results:
+                # Result already produced by the fan-out phase; append it in
+                # call order so the model pairs each result with its brief.
+                result = delegation_results[call_index]
+                if result.get("ok"):
+                    any_call_ok = True
+                    state.last_failed_signature = ""
+                else:
+                    all_ok = False
+                    result = _mark_tool_failure(state, tool, result)
+                emit({"type": "tool_result", "tool": tool, "result": result,
+                      "step": state.steps})
+                tool_results_parts.append(
+                    json.dumps({"tool_result": result}, ensure_ascii=False)
+                )
+                continue
             if call.get("_dsml"):
                 # DSML fallback call: validate it against the real tool
                 # signature BEFORE dispatch. Invalid calls are NOT executed;
@@ -3507,7 +3800,20 @@ def run_agent_loop(
     staged_tool: Optional[str] = None,
     file_context: str = "",
     file_name: str = "",
+    thread_id: str = "",
+    run_id: str = "",
+    parent_run_id: str = "",
+    depth: int = 0,
 ) -> AgentResult:
+    """Run the agent loop until it stops, and return the structured result.
+
+    The last four keyword arguments carry the delegation identity: a root
+    dialog passes ``thread_id`` and lets the orchestration service fill the
+    run fields, while a child run passes all four so cascade cancellation,
+    event delivery and the feed tree know where the run belongs. They are
+    plain values on purpose - a child never shares an object with its parent,
+    and the loop stays the same function for both.
+    """
     base_history = history if history is not None else []
     # Normalise the resumed history: _index/_category are runtime-only and
     # are NOT persisted, so after a UI round-trip the entries come back
@@ -3535,6 +3841,10 @@ def run_agent_loop(
         pending_staged_path=pending_staged_path,
         staged_new_text=staged_new_text,
         staged_tool=staged_tool,
+        thread_id=thread_id,
+        run_id=run_id,
+        parent_run_id=parent_run_id,
+        depth=depth,
     )
 
     while state.phase not in ("done", "error"):
@@ -3550,6 +3860,8 @@ def run_agent_loop(
             text=state.error_message,
             history=state.history,
             steps=state.steps,
+            error_code=state.error_code or "provider_error",
+            error_message=state.error_message,
         )
 
     return AgentResult(
@@ -3563,6 +3875,16 @@ def run_agent_loop(
         staged_tool=state.final_staged_tool,
         applied=state.final_applied,
         discarded=state.final_discarded,
+        # A pending dangerous operation must survive the loop: the UI renders
+        # Allow/Deny from the result, and the service maps this status onto
+        # ``awaiting_confirmation`` without reaching into the state object.
+        pending_confirmation_tool=state.pending_confirmation_tool,
+        pending_confirmation_args=state.pending_confirmation_args,
+        pending_confirmation_reasons=list(state.pending_confirmation_reasons or []),
+        pending_confirmation_code=state.pending_confirmation_code or "",
+        pending_confirmation_result=state.pending_confirmation_result,
+        error_code=state.error_code,
+        error_message=state.error_message or "",
     )
 
 

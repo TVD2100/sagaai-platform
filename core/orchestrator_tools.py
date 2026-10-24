@@ -94,6 +94,35 @@ def is_tool_disabled(tool_name: str, disabled: Optional[Set[str]]) -> bool:
 #: list) only after a url-fetch model is assigned or Selenium is enabled.
 _CONDITIONAL_TOOLS = {"url_fetch": "fetch"}
 
+#: Delegation tools and their availability rule. ``spawn_agent`` is always
+#: registered: self-delegation needs no configuration, and hiding it behind
+#: an allowlist would require the user to add an agent to its OWN list to
+#: switch on the standard scenario. ``invoke_assistant`` is registered only
+#: when ``allowed_assistants`` is non-empty - there are no assistants by
+#: default, unlike the right to call yourself.
+_DELEGATION_TOOLS = ("spawn_agent", "invoke_assistant")
+
+
+def _delegation_tool_enabled(tool_name: str,
+                             orchestrator_slug: str = "dev_agent") -> bool:
+    """Return True when a delegation tool may be offered to this orchestrator.
+
+    ``spawn_agent`` - always. ``invoke_assistant`` - only with a non-empty
+    ``allowed_assistants``. A config read failure hides ``invoke_assistant``
+    (nobody is allowed by default) and keeps ``spawn_agent`` (self-
+    delegation is structural).
+    """
+    name = (tool_name or "").strip()
+    if name == "spawn_agent":
+        return True
+    if name == "invoke_assistant":
+        try:
+            from core.orchestrators import get_allowed_assistants
+            return bool(get_allowed_assistants(orchestrator_slug))
+        except Exception:
+            return False
+    return True
+
 
 def is_conditional_tool_enabled(tool_name: str,
                                 orchestrator_slug: str = "dev_agent") -> bool:
@@ -106,7 +135,10 @@ def is_conditional_tool_enabled(tool_name: str,
     page. A configuration read failure hides the tool instead of exposing
     an unusable entry.
     """
-    capability = _CONDITIONAL_TOOLS.get((tool_name or "").strip())
+    name = (tool_name or "").strip()
+    if name in _DELEGATION_TOOLS:
+        return _delegation_tool_enabled(name, orchestrator_slug)
+    capability = _CONDITIONAL_TOOLS.get(name)
     if capability is None:
         return True
     if capability == "fetch":
@@ -135,6 +167,23 @@ def _workspace_catalog() -> List[Dict[str, str]]:
     try:
         from dev_agent.universal_agent import WORKSPACE_TOOL_CATALOG
         return [dict(t) for t in WORKSPACE_TOOL_CATALOG]
+    except Exception:
+        return []
+
+
+def _delegation_catalog() -> List[Dict[str, str]]:
+    """Return the delegation tools (``spawn_agent``, ``invoke_assistant``).
+
+    Descriptions come from ``core.orchestration.tools`` so the boundary text
+    lives next to the implementation: the one-shot assistant call must state
+    that tools and knowledge bases are not applied, and ``spawn_agent`` must
+    state that the child gets a clean history. Availability is decided later
+    by :func:`is_conditional_tool_enabled`; this function only supplies the
+    entries.
+    """
+    try:
+        from core.orchestration.tools import spawn_tool_entry, invoke_tool_entry
+        return [spawn_tool_entry(), invoke_tool_entry()]
     except Exception:
         return []
 
@@ -227,6 +276,8 @@ def build_tool_catalog(
         _add(t)
     for t in _workspace_catalog():
         _add(t)
+    for t in _delegation_catalog():
+        _add(t)
     if include_connections:
         for t in _connection_catalog(orchestrator_slug):
             _add(t)
@@ -249,7 +300,8 @@ def list_system_tools(orchestrator_slug: str = "dev_agent") -> List[Dict[str, st
     """
     entries: Dict[str, Dict[str, str]] = {}
     order: List[str] = []
-    for t in _core_catalog() + _workspace_catalog() + _connection_catalog(orchestrator_slug):
+    for t in (_core_catalog() + _workspace_catalog() + _delegation_catalog()
+              + _connection_catalog(orchestrator_slug)):
         name = (t.get("name") or "").strip()
         if not name or name in entries:
             continue

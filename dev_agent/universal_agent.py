@@ -59,8 +59,9 @@ WORKSPACE_TOOL_CATALOG: List[Dict[str, str]] = [
     {"name": "snapshot_all", "desc": "Full-system backup of every project file. In single-file mode backs up only the target file. Args: [note]."},
     {"name": "list_snapshots", "desc": "List full-system snapshots. No args."},
     {"name": "restore_all", "desc": "Restore the whole system from a snapshot. Args: snapshot_id (str)."},
-    {"name": "list_thread_files", "desc": "List dialog uploads of this thread (history/<tid>/files). No args; uses the active thread. Reports names, absolute paths, sizes, text/binary kind - facts only, no content extraction."},
-    {"name": "read_thread_file", "desc": "Read a dialog upload as TEXT with an optional line window. Args: file_name, [offset], [limit]. Binary files are reported as is_text=false with a hint to process them via run_code."},
+    {"name": "list_thread_files", "desc": "List dialog uploads of this thread (history/<tid>/files). No args; uses the active thread. Reports names, absolute paths, sizes, text/binary kind and extractable (whether read_thread_file can return text)."},
+    {"name": "read_thread_file", "desc": "Read a dialog upload as TEXT with an optional line window. Args: file_name, [offset], [limit]. Plain text and documents (DOCX, PDF, PPTX, XLSX, RTF, ODT, HTML) are returned as text; an image or archive is reported as is_text=false with a hint."},
+    {"name": "read_document", "desc": "Extract text from a document file on disk by ABSOLUTE path and return a line window. Args: path, [offset], [limit], [max_chars]. Supports PDF, DOCX, DOC, PPTX, XLSX, XLS, RTF, ODT, HTML and plain text. Use it instead of run_code for documents; use read_file for source code and other project text files."},
     # ── Orchestrator management tools ──────────────────────────────────────
     {"name": "list_orchestrators", "desc": "List all orchestrators (slug, name, description). No args."},
     {"name": "get_orchestrator", "desc": "Return a single orchestrator including prompt_text. Args: slug."},
@@ -120,6 +121,7 @@ WORKSPACE_TOOL_ARGS: Dict[str, Dict[str, set]] = {
     "restore_all": {"required": {"snapshot_id"}, "optional": set()},
     "list_thread_files": {"required": set(), "optional": set()},
     "read_thread_file": {"required": {"file_name"}, "optional": {"offset", "limit"}},
+    "read_document": {"required": {"path"}, "optional": {"offset", "limit", "max_chars"}},
     "search_in_threads": {
         "required": {"query"},
         "optional": {"thread_id", "scope", "orchestrator", "date_from",
@@ -178,6 +180,19 @@ WORKSPACE_TOOL_ARGS: Dict[str, Dict[str, set]] = {
     "set_enabled_connections": {"required": {"connection_ids"}, "optional": {"orchestrator"}},
     "get_connection_memory": {"required": {"conn_id"}, "optional": set()},
     "set_connection_memory": {"required": {"conn_id", "content"}, "optional": set()},
+    # ── Delegation tools (executed by the agent loop, not by dispatch) ─────
+    # Without these specs the argument check would silently pass for the two
+    # new tools: the dictionary is the only source of truth for accepted
+    # keyword names.
+    "spawn_agent": {
+        "required": {"agent_slug", "request"},
+        "optional": {"inline_orchestrator", "background"},
+    },
+    "invoke_assistant": {
+        "required": set(),
+        "optional": {"assistant_id", "user", "context_files", "system",
+                     "model", "max_tokens"},
+    },
 }
 
 _UNKNOWN_ARGS_ERROR = (
@@ -196,7 +211,101 @@ def _workspace_usage(tool_name: str, spec: Dict[str, set]) -> str:
     return f"Usage: {tool_name}({', '.join(parts)})."
 
 
+def validate_tool_call(tool_name: str, args: Dict[str, Any],
+                       orchestrator_slug: str = "dev_agent",
+                       extra_disabled: Optional[set] = None) -> Optional[Dict[str, Any]]:
+    """Return a refusal payload for a tool call, or None when it may run.
+
+    Three checks in a fixed order (cheap local ones first, rights last):
+
+    1. ``disabled_tools`` of the orchestrator, plus *extra_disabled* - the set
+       a parent imposes on a child;
+    2. argument names against ``WORKSPACE_TOOL_ARGS``;
+    3. rights on the executor: ``allowed_agents`` for ``spawn_agent`` and
+       ``allowed_assistants`` for ``invoke_assistant``, including
+       self-delegation and the ``self_only`` hint.
+
+    None of the three reads a module-level global, which is what makes the
+    function safe to call from the agent-loop branch that runs OUTSIDE
+    ``thread_context``. ``workspace_guard_error`` is deliberately not part of
+    it: that check reads ``config.WORKSPACE_SELECTED``, which is only reliable
+    inside ``thread_context``. Orchestration tools do not touch project files,
+    so they never need it - the two concerns are separated by nature, not
+    collected into one function.
+
+    The rights check is the last one because its outcome depends on an
+    argument (``agent_slug``/``assistant_id``) that is already validated by
+    name and type at that point.
+    """
+    name = (tool_name or "").strip()
+    if not name:
+        return {"ok": False, "error": "Tool name is empty.",
+                "error_code": "invalid_args"}
+    safe_args = args if isinstance(args, dict) else {}
+
+    # 1. disabled_tools (plus the ban a parent imposes on its children).
+    try:
+        from core.orchestrators import get_disabled_tools
+        from core.orchestrator_tools import is_tool_disabled
+        disabled = set(get_disabled_tools(orchestrator_slug))
+    except Exception:
+        disabled = set()
+    if extra_disabled:
+        disabled |= set(extra_disabled)
+    if is_tool_disabled(name, disabled):
+        return {
+            "ok": False,
+            "error": (
+                f"Tool '{name}' is disabled for orchestrator "
+                f"'{orchestrator_slug}' via its 'disabled_tools' setting. "
+                "Do not call it."
+            ),
+            "disabled": True,
+        }
+
+    # 2. argument names.
+    spec = WORKSPACE_TOOL_ARGS.get(name)
+    if spec is not None:
+        allowed = spec["required"] | spec["optional"]
+        unknown = sorted(k for k in safe_args if k not in allowed)
+        if unknown:
+            return {
+                "ok": False,
+                "error": _UNKNOWN_ARGS_ERROR.format(
+                    tool=name, unknown=", ".join(unknown)
+                ),
+                "unknown_args": unknown,
+                "suggestion": _workspace_usage(name, spec),
+            }
+
+    # 3. rights on the executor.
+    if name == "spawn_agent":
+        try:
+            from core.orchestration.tools import check_agent_allowed
+            return check_agent_allowed(
+                orchestrator_slug, str(safe_args.get("agent_slug") or ""))
+        except Exception:
+            return None
+    if name == "invoke_assistant":
+        aid = str(safe_args.get("assistant_id") or "").strip()
+        if not aid:
+            # Ephemeral form: no assistant is addressed, so no assistant
+            # rights are involved. Passing a ``system`` prompt cannot be used
+            # to reach another assistant's prompt.
+            return None
+        try:
+            from core.orchestration.tools import check_assistant_allowed
+            return check_assistant_allowed(orchestrator_slug, aid)
+        except Exception:
+            return None
+    return None
+
+
 ORCHESTRATOR_TOOL_NAMES = {t["name"] for t in WORKSPACE_TOOL_CATALOG if t["name"].startswith("orchestrator") or t["name"] in ("list_orchestrators", "get_orchestrator", "create_orchestrator", "update_orchestrator", "delete_orchestrator", "reload_orchestrator")}
+
+#: Delegation tools. They are catalog entries, but the agent loop executes
+#: them OUTSIDE dispatch - see the concurrency note in core.orchestration.service.
+DELEGATION_TOOL_NAMES = ("spawn_agent", "invoke_assistant")
 
 
 def build_assistant_dict_from_config() -> Tuple[dict, dict]:
@@ -281,6 +390,7 @@ class UniversalDevAgent:
             "restore_all": lambda **kw: self._restore_all(**kw),
             "list_thread_files": lambda **kw: self._list_thread_files(**kw),
             "read_thread_file": lambda **kw: self._read_thread_file(**kw),
+            "read_document": lambda **kw: self._read_document(**kw),
             "search_in_threads": lambda **kw: self._search_in_threads(**kw),
             "list_threads": lambda **kw: self._list_threads(**kw),
             "read_thread": lambda **kw: self._read_thread(**kw),
@@ -384,24 +494,30 @@ class UniversalDevAgent:
         ``suggestion``) telling the caller to use only the standard arguments
         from the system prompt. Custom orchestrator functions are NOT listed
         there and keep their arbitrary-kwargs contract.
+
+        The two delegation tools are NOT executed here: ``spawn_agent`` and
+        ``invoke_assistant`` are run by the agent loop BEFORE entering this
+        method, because a child started inside ``dispatch`` would wait for the
+        binding lock while the parent holds it. A dispatch call for them only
+        happens when the loop did not intercept the call (e.g. an external
+        caller) - then the call is refused with a pointer to the loop.
         """
         if not isinstance(args, dict):
             return {"ok": False, "error": f"args must be a dict, got {type(args).__name__}"}
-        if self._is_disabled_for_orchestrator(tool_name):
-            return self._disabled_tool_error(tool_name)
-        spec = WORKSPACE_TOOL_ARGS.get(tool_name)
-        if spec is not None:
-            allowed = spec["required"] | spec["optional"]
-            unknown = sorted(k for k in args if k not in allowed)
-            if unknown:
-                return {
-                    "ok": False,
-                    "error": _UNKNOWN_ARGS_ERROR.format(
-                        tool=tool_name, unknown=", ".join(unknown)
-                    ),
-                    "unknown_args": unknown,
-                    "suggestion": _workspace_usage(tool_name, spec),
-                }
+        refusal = validate_tool_call(tool_name, args, self._current_orchestrator_slug(),
+                                     extra_disabled=getattr(self, "child_disabled_tools", None))
+        if refusal is not None:
+            return refusal
+        if tool_name in DELEGATION_TOOL_NAMES:
+            return {
+                "ok": False,
+                "error": (
+                    f"Tool '{tool_name}' is executed by the agent loop, not by "
+                    "the dispatcher. Re-issue the call through the loop."
+                ),
+                "error_code": "invalid_args",
+                "loop_only": True,
+            }
         guard = workspace_guard_error(tool_name, args)
         if guard is not None:
             return guard
@@ -702,6 +818,76 @@ class UniversalDevAgent:
         if limit is not None and not isinstance(limit, int):
             limit = int(str(limit))
         return read_thread_file(tid, str(file_name), offset=offset, limit=limit)
+
+    def _read_document(self, path: str = "", offset: Optional[int] = None,
+                       limit: Optional[int] = None,
+                       max_chars: Optional[int] = None, **kwargs) -> Dict[str, Any]:
+        """Extract a document from disk by path and return a line window.
+
+        The path may be absolute or relative to the active workspace. The
+        extractor (``core.document_text``) covers PDF, DOCX, DOC, PPTX, XLSX,
+        XLS, RTF, ODT, HTML and plain text, so the orchestrator never needs
+        ``run_code`` for a document. Single-file mode is honoured: only the
+        active target file may be read there.
+        """
+        from core.document_text import read_document_path
+        target = str(path or "").strip()
+        if not target:
+            return {"ok": False, "error": "Missing required argument 'path'."}
+        for name, value in (("offset", offset), ("limit", limit),
+                            ("max_chars", max_chars)):
+            if value is not None and not isinstance(value, int):
+                try:
+                    if name == "offset":
+                        offset = int(str(value))
+                    elif name == "limit":
+                        limit = int(str(value))
+                    else:
+                        max_chars = int(str(value))
+                except (TypeError, ValueError):
+                    return {"ok": False, "error": "%s must be an integer" % name}
+        resolved = self._resolve_document_path(target)
+        if resolved.get("ok") is False:
+            return resolved
+        result = read_document_path(
+            resolved["path"], offset=offset or 0, limit=limit, max_chars=max_chars,
+        )
+        result["requested_path"] = target
+        return result
+
+    def _resolve_document_path(self, target: str) -> Dict[str, Any]:
+        """Resolve a document path argument to an absolute path inside the scope.
+
+        An absolute path is used as is (``read_document`` is meant for files
+        the model already knows, including dialog uploads outside the project
+        folder). A relative path is resolved against the active workspace.
+        Single-file mode restricts the read to the active target file.
+        """
+        import os
+
+        from dev_agent import config as dagent_config
+        expanded = os.path.expanduser(target)
+        if not os.path.isabs(expanded):
+            root = str(getattr(dagent_config, "PROJECT_ROOT", "") or "")
+            if not root:
+                return {
+                    "ok": False,
+                    "error": "Relative path %r needs an active workspace; pass an "
+                             "absolute path or select a workspace first." % target,
+                }
+            expanded = os.path.join(root, expanded)
+        resolved = os.path.abspath(expanded)
+        allowed = str(getattr(dagent_config, "TARGET_FILE", "") or "")
+        if allowed:
+            allowed = os.path.abspath(allowed)
+            if resolved != allowed:
+                return {
+                    "ok": False,
+                    "error": "Single-file mode: only the active target file may "
+                             "be read (%s)." % allowed,
+                    "path": resolved,
+                }
+        return {"ok": True, "path": resolved}
 
     # ─── thread-search tool wrappers (dialog history) ──────────────────────
 

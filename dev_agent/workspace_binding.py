@@ -175,6 +175,54 @@ def _apply_state_unlocked(tid: str, state: Dict[str, Optional[str]]) -> None:
                            create_dirs=False, selected=False)
 
 
+def bind_child_thread(child_thread_id: str, parent_thread_id: str = "",
+                      workspace: Optional[str] = None,
+                      target_file: Optional[str] = None) -> Dict[str, Optional[str]]:
+    """Bind a child run's thread: parent's WORKSPACE, its OWN journal.
+
+    A child run needs an isolation entry, otherwise its tool dispatches run
+    against whatever globals happen to be live and two children of one parent
+    could observe each other's paths. The workspace is inherited (a child
+    works in the project it was spawned for), while the thread id stays
+    distinct - the journal is keyed by the thread id, and sharing the parent's
+    would make the child write into the parent's Active Task and archive it.
+
+    Inheritance order: the explicit *workspace* argument, then the parent's
+    binding, then the live config root. *target_file* is NOT inherited: a
+    child starts in full-workspace mode even when the parent is pinned to
+    one file, because a child that cannot see the tree cannot do its part.
+
+    No DB write happens here: a derived thread has no dialog row, and its
+    binding lives for the duration of the run (``unbind_thread`` on exit).
+    """
+    tid = _norm_tid(child_thread_id)
+    if not tid:
+        return {"workspace": None, "target_file": None}
+    parent = _norm_tid(parent_thread_id)
+    resolved = workspace
+    if not resolved and parent:
+        with _BINDING_LOCK:
+            parent_state = _REGISTRY.get(parent) or {}
+            resolved = parent_state.get("workspace")
+    if not resolved:
+        resolved = str(config.PROJECT_ROOT) if getattr(config, "WORKSPACE_SELECTED", True) else None
+    state = {"workspace": resolved or None, "target_file": target_file or None}
+    with _BINDING_LOCK:
+        _REGISTRY[tid] = dict(state)
+    return dict(state)
+
+
+def unbind_thread(thread_id: str) -> None:
+    """Drop a child thread binding after its run finished.
+
+    Alias of :func:`clear_thread` with the name the orchestration service
+    uses. Kept explicit because the two call sites mean different things: a
+    dialog reset forgets a user thread, a finished child releases a derived
+    one - and a reader should not have to guess which one a call is.
+    """
+    clear_thread(thread_id)
+
+
 def ensure_thread_active(thread_id: str) -> bool:
     """Apply the thread's bound state to the live config once (if bound).
 

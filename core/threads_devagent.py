@@ -461,12 +461,54 @@ def _try_decode_text(raw: bytes, name: str = "") -> tuple:
     return None, None
 
 
+def _extract_document(name: str, raw: bytes) -> tuple:
+    """Return ``(text, warnings)`` for a binary document upload.
+
+    Delegates to ``core.document_text``. A parser failure is reported as an
+    empty text plus warnings, never as an exception, so the caller can fall
+    back to the binary hint instead of failing the whole read.
+    """
+    try:
+        from core.document_text import extract_text
+        return extract_text(name, raw)
+    except Exception as exc:  # pragma: no cover - defensive
+        return "", ["document extraction failed: %s" % exc]
+
+
+def _document_format(name: str) -> str:
+    """Return the lowercase extension the extractor used for *name*."""
+    try:
+        from core.document_text import detect_format
+        return detect_format(name)
+    except Exception:  # pragma: no cover - defensive
+        return os.path.splitext(str(name or ""))[1].lower()
+
+
+def _is_extractable(name: str, is_plain_text: bool) -> bool:
+    """Return True when ``read_thread_file`` can return text for this upload.
+
+    A plain-text upload is always readable. A binary one is readable when the
+    document extractor knows its format (DOCX/PDF/PPTX/XLSX/RTF/ODT/HTML), so
+    the listing can tell the model which files need no run_code at all.
+    """
+    if is_plain_text:
+        return True
+    try:
+        from core.document_text import is_supported
+        return bool(is_supported(name))
+    except Exception:  # pragma: no cover - defensive
+        return False
+
+
 def list_thread_files(tid: str) -> List[Dict[str, Any]]:
     """Return the dialog upload records of a thread (sorted by name).
 
-    Each record: ``{name, path, bytes, is_text, probe}`` where ``probe`` is
-    the first characters of the decoded text (empty for binary files). The
-    platform only reports facts - it never extracts or interprets content.
+    Each record: ``{name, path, bytes, is_text, extractable, probe}`` where
+    ``probe`` is the first characters of the decoded text (empty for binary
+    files) and ``extractable`` says whether ``read_thread_file`` can return
+    text for the upload (plain text, or a document format the extractor
+    knows). The platform never interprets content here - it only reports
+    facts the orchestrator can act on.
     """
     files_dir = _thread_files_dir(tid)
     records = []
@@ -491,6 +533,7 @@ def list_thread_files(tid: str) -> List[Dict[str, Any]]:
             "path": fpath,
             "bytes": size,
             "is_text": text is not None,
+            "extractable": _is_extractable(name, text is not None),
             "probe": (text or "")[:200],
         })
     return records
@@ -500,12 +543,16 @@ def read_thread_file(tid: str, file_name: str,
                      offset: int = 0, limit: Optional[int] = None) -> dict:
     """Read a dialog upload as TEXT with an optional line window.
 
-    Binary files (neither utf-8 nor cp1251) are reported as ``is_text=False``
-    with an empty ``content`` and a hint to process them via run_code - the
-    platform never guesses extraction logic.
+    Plain text is decoded directly (utf-8, then cp1251). A binary document
+    (DOCX, PDF, PPTX, XLSX, RTF, ODT, HTML, ...) is run through
+    ``core.document_text``, so a single call returns the readable text and the
+    caller does not need ``run_code``. When no text can be extracted (an
+    image, an archive, a corrupt file) the result keeps ``is_text=False``,
+    carries the extractor warnings and points at the dedicated tool.
 
     Returns ``{ok, ...}``; on success includes name, path, bytes, content,
-    decoded_as, offset, limit, total_lines and remaining. Errors (missing
+    decoded_as, offset, limit, total_lines and remaining. Extracted documents
+    add ``extracted=True``, ``format`` and ``warnings``. Errors (missing
     file, traversal attempt, oversized file) return ``{ok: False, error}``.
     """
     try:
@@ -529,6 +576,34 @@ def read_thread_file(tid: str, file_name: str,
         return {"ok": False, "error": f"Cannot read file: {exc}", "name": str(file_name)}
     text, enc = _try_decode_text(raw, file_name)
     if text is None:
+        # A binary container may still hold readable text: DOCX/PPTX/XLSX are
+        # ZIP packages, PDF and DOC have their own parsers. Extraction happens
+        # here so the orchestrator gets the document text from ONE tool call
+        # instead of reaching for run_code.
+        extracted, warnings = _extract_document(file_name, raw)
+        if extracted.strip():
+            lines = extracted.split("\n")
+            total_lines = len(lines)
+            offset_int = max(0, int(offset or 0))
+            limit_int = None if limit is None else max(1, int(limit))
+            window = (lines[offset_int:] if limit_int is None
+                      else lines[offset_int:offset_int + limit_int])
+            return {
+                "ok": True,
+                "name": os.path.basename(fpath),
+                "path": fpath,
+                "bytes": size,
+                "is_text": True,
+                "extracted": True,
+                "format": _document_format(file_name),
+                "content": "\n".join(window),
+                "decoded_as": None,
+                "offset": offset_int,
+                "limit": limit_int,
+                "total_lines": total_lines,
+                "remaining": max(0, total_lines - (offset_int + len(window))),
+                "warnings": warnings,
+            }
         return {
             "ok": True,
             "name": os.path.basename(fpath),
@@ -536,7 +611,13 @@ def read_thread_file(tid: str, file_name: str,
             "bytes": size,
             "is_text": False,
             "content": "",
-            "hint": "Binary file: use run_code to process it (e.g. zipfile for archives, PIL for images).",
+            "format": _document_format(file_name),
+            "warnings": warnings,
+            "hint": (
+                "No text could be extracted from this file. Images are read "
+                "with analyze_image; archives and other binaries need "
+                "run_code as a last resort."
+            ),
         }
     lines = text.split("\n")
     total_lines = len(lines)

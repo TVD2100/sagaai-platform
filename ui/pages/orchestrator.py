@@ -64,6 +64,10 @@ from core.orchestrators import (
     get_enabled_connections, set_enabled_connections,
     get_orchestrator_rag_bases, set_orchestrator_rag_bases,
     get_disabled_tools, set_disabled_tools,
+    list_orchestrators,
+    get_allowed_agents, set_allowed_agents,
+    get_allowed_assistants, set_allowed_assistants,
+    get_delegation_limits, set_delegation_limits,
     reset_builtin_prompt,
     DEVAGENT_SLUG,
 )
@@ -707,12 +711,25 @@ def _render_tool_result(ev: dict, lang: str, call_ev: Optional[dict] = None) -> 
     ok_val = result_data.get("ok")
     path = result_data.get("path", "")
 
+    # An invoke_assistant result carries the assistant card: the feed names
+    # WHO answered instead of showing an eight-character id, which is the
+    # only way a reader can tell two one-shot calls apart.
+    assistant_meta = {}
+    inner_result = result_data.get("result")
+    if isinstance(inner_result, dict) and isinstance(inner_result.get("assistant"), dict):
+        assistant_meta = inner_result["assistant"]
+
     header_lines = []
     if path:
         status_icon = "✅" if ok_val else "❌"
         header_lines.append(f"{status_icon} **tool_result**: {tool} → `{path}`")
     else:
         header_lines.append(f"{'\u2705' if ok_val else '\u274c'} **tool_result**: {tool}")
+    if assistant_meta:
+        name = str(assistant_meta.get("name") or "").strip()
+        aid = str(assistant_meta.get("id") or "").strip()
+        header_lines.append(t("event_tool_result_assistant", lang=lang,
+                              name=name or aid or "?", id=aid or "?"))
     if ok_val is False:
         error = result_data.get("error", "")
         if error:
@@ -773,8 +790,8 @@ def _render_tool_result(ev: dict, lang: str, call_ev: Optional[dict] = None) -> 
         _render_generated_image(result_data, path, lang)
 
 
-def _render_events(events: list, lang: str) -> None:
-    """Render tool events, pairing each tool_call with its tool_result.
+def _render_event_group(events: list, lang: str) -> None:
+    """Render the events of ONE run, pairing tool_call with tool_result.
 
     A tool_call that has no following tool_result (e.g. interrupted loop)
     is rendered standalone by ``_render_event``.
@@ -791,6 +808,61 @@ def _render_events(events: list, lang: str) -> None:
             _render_event(ev, lang)
     if pending_call is not None:
         _render_event(pending_call, lang)
+
+
+def _split_events_by_run(events: list) -> list:
+    """Group events by ``run_id``, first-seen order preserved.
+
+    Returns ``[(run_id, depth, agent_slug, [events])]``. A fan-out emits the
+    events of several runs into one step feed; grouping keeps each child's
+    output together and labels it, so a line can be attributed to the branch
+    that produced it instead of reading as one interleaved stream.
+    """
+    order: list = []
+    groups: dict = {}
+    for ev in events:
+        if not isinstance(ev, dict):
+            continue
+        rid = str(ev.get("run_id") or "")
+        if rid not in groups:
+            groups[rid] = []
+            order.append(rid)
+        groups[rid].append(ev)
+    result = []
+    for rid in order:
+        chunk = groups[rid]
+        depth = min(int(ev.get("depth") or 0) for ev in chunk)
+        slug = ""
+        for ev in chunk:
+            slug = str(ev.get("agent_slug") or "")
+            if slug:
+                break
+        result.append((rid, depth, slug, chunk))
+    return result
+
+
+def _render_events(events: list, lang: str) -> None:
+    """Render the step feed, one block per run.
+
+    Events of a single run (the normal case) are rendered inline exactly as
+    before. When a step fanned out, the dialog's own events stay inline and
+    every child run is folded into its own expander: the parent must not
+    lose its place in the feed, and a running child must stay collapsible
+    rather than pushing the dialog's own output off screen.
+    """
+    groups = _split_events_by_run(events)
+    if len(groups) <= 1:
+        _render_event_group(events, lang)
+        return
+    min_depth = min(depth for _rid, depth, _slug, _chunk in groups)
+    for rid, depth, agent_slug, chunk in groups:
+        if depth == min_depth:
+            _render_event_group(chunk, lang)
+            continue
+        label = t("orch_child_run_header", lang=lang,
+                  agent=agent_slug or "?", run=rid[:8], depth=depth)
+        with st.expander(label, expanded=False):
+            _render_event_group(chunk, lang)
 
 
 def _render_event(ev: dict, lang: str) -> None:
@@ -959,11 +1031,53 @@ def _do_step(slug: str, lang: str) -> None:
 
     dispatcher.core.set_history(state.history)
 
+    # Register the dialog as the ROOT run of this step. The record gives a
+    # spawned child its parent (depth and tree limits), and the subscription
+    # is what carries child events into this step's feed: service.publish
+    # delivers descendants' events to the subscribers of their ancestors.
+    orchestration = None
+    unsubscribe = None
+    root_run_id = (getattr(state, "run_id", "") or _ss(slug, "thread_id") or "").strip()
+    if root_run_id:
+        try:
+            from core.orchestration.service import get_service
+            _orch_now = get_orchestrator(slug)
+            orchestration = get_service()
+            orchestration.ensure_run(
+                root_run_id,
+                thread_id=str(_ss(slug, "thread_id") or ""),
+                agent_slug=slug,
+                config=(_orch_now.get("config") or {}) if _orch_now else None,
+            )
+
+            def _forward_child_event(ev: dict) -> None:
+                """Collect a published event into the step feed."""
+                if isinstance(ev, dict):
+                    events.append(ev)
+
+            unsubscribe = orchestration.subscribe(root_run_id, _forward_child_event)
+        except Exception:
+            orchestration = None
+            unsubscribe = None
+
     if _ss(slug, "stop_requested"):
         state.phase = "done"
         state.final_status = "stopped_by_user"
         state.final_text = t("devagent_stopped_by_user", lang=lang)
         _save_economy_cache(slug, state)
+        # The step returns before the normal cleanup below, so the listener
+        # and the tree are released here: a stale subscriber would keep the
+        # finished step's event list alive and the tree would leak a pool.
+        if unsubscribe is not None:
+            try:
+                unsubscribe()
+            except Exception:
+                pass
+        if orchestration is not None:
+            try:
+                orchestration.release_tree(root_run_id)
+            except Exception:
+                pass
         _set_ss(slug, "loop_state", None)
         _set_ss(slug, "stop_requested", False)
         return
@@ -989,6 +1103,21 @@ def _do_step(slug: str, lang: str) -> None:
     # call) attaches its error to the user request instead, so the failure
     # stays visible in the chat feed even without an active thread.
     _attach_events(state.history, events)
+
+    # The subscription is per step: the next step subscribes again, so a
+    # listener can never accumulate. The tree itself is per dialog run and
+    # is released only on a terminal phase - releasing it earlier would drop
+    # the records a later step still needs for its children.
+    if unsubscribe is not None:
+        try:
+            unsubscribe()
+        except Exception:
+            pass
+    if orchestration is not None and state.phase in ("done", "error"):
+        try:
+            orchestration.release_tree(root_run_id)
+        except Exception:
+            pass
 
     tid = _ss(slug, "thread_id")
     if tid and state.history:
@@ -1785,6 +1914,16 @@ def _render_chat_tab(slug: str, lang: str) -> None:
     if agent_is_active:
         if st.button(t("orch_stop_btn", lang=lang), key=f"orch_stop_{slug}",
                      type="secondary", use_container_width=True):
+            # Cancel the whole tree first: child runs never see the dialog's
+            # stop flag, so without this cascade they would keep working
+            # after the user pressed Stop and burn provider tokens.
+            try:
+                from core.orchestration.service import get_service
+                _root = (getattr(loop_state, "run_id", "") or _ss(slug, "thread_id") or "").strip()
+                if _root:
+                    get_service().cancel(_root, cascade=True)
+            except Exception:
+                pass
             _set_ss(slug, "stop_requested", True)
             st.rerun()
         with st.spinner(t("orch_thinking", lang=lang)):
@@ -1908,7 +2047,7 @@ def _render_optional_model_section(slug: str, lang: str, cfg: dict, service_name
 #: label only at render time.
 SETTINGS_SECTIONS = (
     "models", "prompt", "economy", "functions", "instructions",
-    "skills", "rag_bases", "connections", "other",
+    "skills", "rag_bases", "connections", "delegation", "other",
 )
 
 
@@ -2620,6 +2759,134 @@ def _render_orch_connections(slug: str, lang: str) -> None:
             st.rerun()
         else:
             settings_save_failed(slug, "connections", "orch_connections_save_error", lang)
+
+
+def _render_delegation_settings(slug: str, lang: str) -> None:
+    """Manage the delegation allowlists and the six runtime limits.
+
+    The agent list is built from LIVE orchestrators and the assistant list
+    from LIVE cards, so a deleted entity never lingers as a stale checkbox
+    value; ids that are already stored but no longer resolve are shown with
+    an explicit warning instead of disappearing silently, because the agent
+    would otherwise keep a config entry it can never satisfy at call time.
+    """
+    from core.assistants import load_assistants_index
+
+    orch = get_orchestrator(slug)
+    if orch is None:
+        st.error(t("orch_not_found", lang=lang))
+        return
+
+    st.markdown(t("orch_delegation_section", lang=lang))
+    st.markdown(t("orch_delegation_section_desc", lang=lang))
+
+    # ── Spawnable orchestrators ──────────────────────────────────────────
+    st.markdown(t("orch_delegation_agents", lang=lang))
+    allowed_agents = set(get_allowed_agents(slug))
+    try:
+        live_orch = list_orchestrators()
+    except Exception:
+        live_orch = []
+    live_agent_slugs = set()
+    selected_agents: List[str] = []
+    for entry in live_orch:
+        other = str(entry.get("slug") or "")
+        if not other or other == slug:
+            continue
+        live_agent_slugs.add(other)
+        name = str(entry.get("name") or other)
+        checked = st.checkbox(f"**{name}** `{other}`", value=(other in allowed_agents),
+                              key=f"orch_allowed_agent_{slug}_{other}")
+        if checked:
+            selected_agents.append(other)
+    for stale in sorted(allowed_agents - live_agent_slugs):
+        st.warning(t("orch_delegation_stale_agent", lang=lang, slug=stale))
+        if st.checkbox(f"**{stale}**", value=True,
+                       key=f"orch_allowed_agent_stale_{slug}_{stale}"):
+            selected_agents.append(stale)
+    st.caption(t("orch_delegation_self_hint", lang=lang))
+
+    # ── Callable assistants ──────────────────────────────────────────────
+    st.markdown(t("orch_delegation_assistants", lang=lang))
+    allowed_assistants = set(get_allowed_assistants(slug))
+    try:
+        live_assistants = load_assistants_index() or []
+    except Exception:
+        live_assistants = []
+    live_assistant_ids = set()
+    selected_assistants: List[str] = []
+    if not live_assistants:
+        st.info(t("orch_delegation_no_assistants", lang=lang))
+    for card in live_assistants:
+        aid = str(card.get("id") or "")
+        if not aid:
+            continue
+        live_assistant_ids.add(aid)
+        name = str(card.get("name") or aid)
+        checked = st.checkbox(f"**{name}** `{aid}`", value=(aid in allowed_assistants),
+                              key=f"orch_allowed_assistant_{slug}_{aid}")
+        if checked:
+            selected_assistants.append(aid)
+    for stale in sorted(allowed_assistants - live_assistant_ids):
+        st.warning(t("orch_delegation_stale_assistant", lang=lang, ident=stale))
+    st.caption(t("orch_delegation_assistants_hint", lang=lang))
+
+    # ── Limits ───────────────────────────────────────────────────────────
+    st.markdown(t("orch_delegation_limits", lang=lang))
+    limits = get_delegation_limits(slug)
+    col_a, col_b = st.columns(2)
+    with col_a:
+        sel_depth = st.number_input(
+            t("orch_delegation_max_depth", lang=lang),
+            min_value=0, max_value=10, value=int(limits["max_depth"]), step=1,
+            key=f"orch_delegation_max_depth_{slug}",
+            help=t("orch_delegation_max_depth_help", lang=lang))
+        sel_pool = st.number_input(
+            t("orch_delegation_max_active", lang=lang),
+            min_value=1, max_value=64, value=int(limits["max_active_subagents"]), step=1,
+            key=f"orch_delegation_max_active_{slug}",
+            help=t("orch_delegation_max_active_help", lang=lang))
+        sel_steps = st.number_input(
+            t("orch_delegation_max_steps", lang=lang),
+            min_value=1, max_value=1000, value=int(limits["subagent_max_steps"]), step=1,
+            key=f"orch_delegation_max_steps_{slug}",
+            help=t("orch_delegation_max_steps_help", lang=lang))
+    with col_b:
+        sel_total = st.number_input(
+            t("orch_delegation_total_runs", lang=lang),
+            min_value=1, max_value=1000, value=int(limits["total_subagent_runs"]), step=1,
+            key=f"orch_delegation_total_runs_{slug}",
+            help=t("orch_delegation_total_runs_help", lang=lang))
+        sel_timeout = st.number_input(
+            t("orch_delegation_timeout", lang=lang),
+            min_value=1, max_value=3600, value=int(limits["subagent_timeout_seconds"]), step=30,
+            key=f"orch_delegation_timeout_{slug}",
+            help=t("orch_delegation_timeout_help", lang=lang))
+        sel_budget = st.number_input(
+            t("orch_delegation_budget", lang=lang),
+            min_value=0, max_value=10000000, value=int(limits["subagent_budget_tokens"]),
+            step=1000, key=f"orch_delegation_budget_{slug}",
+            help=t("orch_delegation_budget_help", lang=lang))
+
+    st.markdown("---")
+    if st.button(t("orch_delegation_save_btn", lang=lang),
+                 key=f"orch_save_delegation_{slug}", type="primary"):
+        ok_agents = set_allowed_agents(slug, selected_agents)
+        ok_assistants = set_allowed_assistants(slug, selected_assistants)
+        ok_limits = set_delegation_limits(slug, {
+            "max_depth": int(sel_depth),
+            "max_active_subagents": int(sel_pool),
+            "subagent_max_steps": int(sel_steps),
+            "total_subagent_runs": int(sel_total),
+            "subagent_timeout_seconds": int(sel_timeout),
+            "subagent_budget_tokens": int(sel_budget),
+        })
+        if ok_agents and ok_assistants and ok_limits:
+            pin_settings_section(slug, "delegation")
+            flash_success(t("orch_delegation_saved", lang=lang))
+            st.rerun()
+        else:
+            settings_save_failed(slug, "delegation", "orch_delegation_save_error", lang)
 
 
 def _render_other_settings(slug: str, lang: str) -> None:

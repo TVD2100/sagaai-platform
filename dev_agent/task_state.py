@@ -61,9 +61,11 @@ preceded by a best-effort backup via BackupManager.
 from __future__ import annotations
 
 import re
+import threading
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 from . import config
 from .backup_manager import BackupManager
@@ -119,31 +121,75 @@ class TaskStateError(Exception):
 
 # ─── Thread id & paths ─────────────────────────────────────────────────────────
 
-def current_thread_id() -> str:
-    """Return the current dialog thread id (from config.ACTIVE_THREAD_ID).
+#: Per-Python-thread journal scope. A child run executes on its own Python
+#: thread while ``config.ACTIVE_THREAD_ID`` still points at the dialog the
+#: process is serving; the scope pins the child's id without touching the
+#: global, so parallel children cannot overwrite each other's journal path.
+_SCOPE = threading.local()
 
-    Falls back to ``nothread`` when no thread is set (single-file mode / no
-    dialog attached), so the journal is still written for every task.
+
+def current_thread_id(thread_id: Optional[str] = None) -> str:
+    """Return a journal thread id, normalised to the file-name form.
+
+    Resolution order: the explicit *thread_id*, then the id pinned by
+    :func:`thread_scope` for this Python thread, then the live
+    ``config.ACTIVE_THREAD_ID``. The first two are what make a child run safe:
+    a child executes on its own Python thread while the global still points at
+    whichever dialog the process is serving, so a global-only lookup would
+    write the child's journal into the parent's file. Falls back to
+    ``nothread`` when no source has a value (single-file mode / no dialog
+    attached), so a journal is always written.
     """
-    tid = (getattr(config, "ACTIVE_THREAD_ID", "") or "").strip()
+    tid = (thread_id or "").strip() or (getattr(_SCOPE, "thread_id", "") or "").strip()
+    if not tid:
+        tid = (getattr(config, "ACTIVE_THREAD_ID", "") or "").strip()
     if not tid:
         return "nothread"
     safe = re.sub(r"[^A-Za-z0-9_-]+", "_", tid).strip("_")
     return safe or "nothread"
 
 
-def _empty_state_states_dir() -> Optional[Path]:
+@contextmanager
+def thread_scope(thread_id: str) -> Iterator[None]:
+    """Pin *thread_id* as the journal thread for the current Python thread.
+
+    Used by a child run: every journal call inside the block resolves to the
+    child's file even though the process-wide active thread id belongs to a
+    dialog. Restores the previous value on exit, so nesting is safe and a
+    thread never keeps a stale id after its run finished.
+    """
+    previous = getattr(_SCOPE, "thread_id", "")
+    _SCOPE.thread_id = (thread_id or "").strip()
+    try:
+        yield
+    finally:
+        _SCOPE.thread_id = previous
+
+
+def _empty_state_states_dir(thread_id: Optional[str] = None) -> Optional[Path]:
     """Journal directory of a dialog without a selected workspace.
 
-    With no folder selected (workspace isolation v2) the journal belongs
-    to the dialog itself: it is stored next to the dialog's uploads in
+    With no folder selected (workspace isolation v2) the journal belongs to
+    the dialog itself: it is stored next to the dialog's uploads in
     ``<DATA_DIR>/history/<tid>/task_states`` instead of the shared neutral
-    placeholder root. Returns None when a workspace IS selected (the
-    project runtime dir is used) or when no dialog thread is attached.
+    placeholder root. Returns None when a workspace IS selected (the project
+    runtime dir is used) or when no dialog thread is attached.
+
+    With an explicit *thread_id* the binding registry decides first: a child
+    run owns a bound workspace, and its journal belongs in that project even
+    when the process-wide ``WORKSPACE_SELECTED`` happens to describe another
+    dialog. Without it the historical global check applies unchanged.
     """
+    if thread_id:
+        try:
+            from dev_agent import workspace_binding as _wb
+            if _wb.get_thread_workspace(thread_id):
+                return None
+        except Exception:
+            pass
     if getattr(config, "WORKSPACE_SELECTED", True):
         return None
-    tid = current_thread_id()
+    tid = current_thread_id(thread_id)
     if not tid or tid == "nothread":
         return None
     try:
@@ -153,27 +199,27 @@ def _empty_state_states_dir() -> Optional[Path]:
         return None
 
 
-def _ensure_state_dir() -> Path:
+def _ensure_state_dir(thread_id: Optional[str] = None) -> Path:
     """Create (if needed) and return the directory holding this journal."""
-    base = _empty_state_states_dir()
+    base = _empty_state_states_dir(thread_id)
     if base is None:
         base = config.TASK_STATES_DIR
     base.mkdir(parents=True, exist_ok=True)
     return base
 
 
-def task_state_path() -> Path:
-    """Absolute path of THIS thread's journal file."""
-    base = _empty_state_states_dir() or config.TASK_STATES_DIR
-    return base / f"{TASK_STATE_PREFIX}{current_thread_id()}{TASK_STATE_SUFFIX}"
+def task_state_path(thread_id: Optional[str] = None) -> Path:
+    """Absolute path of a thread's journal file (explicit id wins)."""
+    base = _empty_state_states_dir(thread_id) or config.TASK_STATES_DIR
+    return base / f"{TASK_STATE_PREFIX}{current_thread_id(thread_id)}{TASK_STATE_SUFFIX}"
 
 
-def thread_states_dir() -> Path:
-    """Absolute path of THIS thread's per-task folders directory."""
-    base = _empty_state_states_dir()
+def thread_states_dir(thread_id: Optional[str] = None) -> Path:
+    """Absolute path of a thread's per-task folders directory."""
+    base = _empty_state_states_dir(thread_id)
     if base is not None:
         return base
-    return config.TASK_STATES_DIR / current_thread_id()
+    return config.TASK_STATES_DIR / current_thread_id(thread_id)
 
 
 def _clear_current_marker(base: Path) -> None:
@@ -231,15 +277,16 @@ def _plain_task_dir_path(path: Path) -> Path:
     return path.parent / f"task_{n}"
 
 
-def _allocate_next_task_dir() -> Path:
+def _allocate_next_task_dir(thread_id: Optional[str] = None) -> Path:
     """Create and return the next numbered CURRENT-task folder for this thread.
 
     Scans ``task_states/<thread_id>/`` for existing ``task_NN`` folders and
     creates ``task_<max+1>`` (renamed to ``task_<max+1> (current)``). The
     ``(current)`` marker is moved off the previous folder. Numbering only
-    grows within one thread.
+    grows within one thread - and *thread_id* selects WHICH thread, so a
+    child run's folders never mix with its parent's.
     """
-    base = thread_states_dir()
+    base = thread_states_dir(thread_id)
     base.mkdir(parents=True, exist_ok=True)
     _clear_current_marker(base)
     max_n = 0
@@ -255,7 +302,7 @@ def _allocate_next_task_dir() -> Path:
     return marked
 
 
-def current_task_dir() -> Optional[Path]:
+def current_task_dir(thread_id: Optional[str] = None) -> Optional[Path]:
     """Return the on-disk folder of the CURRENT Active Task, or None.
 
     The journal stores the plain path (no marker), e.g. ``.../task_1``; the
@@ -263,7 +310,7 @@ def current_task_dir() -> Optional[Path]:
     resolve to the same folder here. Returns None when the journal has no
     task_dir meta or the folder does not exist.
     """
-    path = task_state_path()
+    path = task_state_path(thread_id)
     if not path.exists():
         return None
     try:
@@ -583,10 +630,10 @@ def _archive_active_task(
     }
 
 
-def _write_raw(text: str) -> Path:
+def _write_raw(text: str, thread_id: Optional[str] = None) -> Path:
     """Backup + write *text* to the journal file. Returns the path."""
-    _ensure_state_dir()
-    path = task_state_path()
+    _ensure_state_dir(thread_id)
+    path = task_state_path(thread_id)
     _backup_if_exists(path)
     path.write_text(text, encoding=config.DEFAULT_ENCODING)
     return path
@@ -597,6 +644,7 @@ def _write_journal(
     history: List[Dict[str, str]],
     started: str = "",
     task_dir: str = "",
+    thread_id: Optional[str] = None,
 ) -> str:
     """Render + write the journal; returns the rendered text.
 
@@ -604,6 +652,9 @@ def _write_journal(
     an empty value means this write carries no per-task folder (no new
     folder is ever allocated here - allocation happens only when a task
     starts, see archive_and_start_task()).
+
+    *thread_id* selects the journal file explicitly; without it the live
+    dialog thread is used, which is right for every UI-driven call.
     """
     text = build_task_state(
         task=active.get("task", ""),
@@ -617,11 +668,11 @@ def _write_journal(
         started=started,
         task_dir=(task_dir or "").strip(),
     )
-    _write_raw(text)
+    _write_raw(text, thread_id)
     return text
 
 
-def _migrate_legacy_file() -> bool:
+def _migrate_legacy_file(thread_id: Optional[str] = None) -> bool:
     """One-time migration of a legacy project-root TASK_STATE.md.
 
     The old file is archived as the first Completed task in the new journal
@@ -629,7 +680,7 @@ def _migrate_legacy_file() -> bool:
     when a migration actually happened.
     """
     legacy = config.PROJECT_ROOT / TASK_STATE_FILENAME
-    target = task_state_path()
+    target = task_state_path(thread_id)
     if not legacy.exists() or target.exists():
         return False
     try:
@@ -645,7 +696,7 @@ def _migrate_legacy_file() -> bool:
             "completed_steps": "",
             "summary": _summarize_active(sections),
         }
-        _write_raw(build_task_state(history=[entry], started=""))
+        _write_raw(build_task_state(history=[entry], started=""), thread_id)
         legacy.rename(legacy.with_suffix(".md.legacy"))
         return True
     except Exception:

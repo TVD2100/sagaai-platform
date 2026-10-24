@@ -159,7 +159,7 @@ def test_read_thread_file_offset_limit_window(tmp_path):
 
 
 def test_read_thread_file_binary_reports_hint(tmp_path):
-    """Binary files: ok=True, empty content, is_text=False and a run_code hint."""
+    """A non-extractable binary: ok=True, empty content, is_text=False, a hint."""
     from core.threads_devagent import save_thread_file_data, read_thread_file
 
     save_thread_file_data(EXPECTED_TID, "photo.jpg", b"\xff\xd8\xff\xe0")
@@ -168,6 +168,87 @@ def test_read_thread_file_binary_reports_hint(tmp_path):
     assert res["is_text"] is False
     assert res["content"] == ""
     assert "run_code" in res["hint"]
+    assert "analyze_image" in res["hint"]
+
+
+def _docx_bytes(paragraphs, tables=None) -> bytes:
+    """Build a small DOCX payload for the extraction tests."""
+    import io
+
+    docx = pytest.importorskip("docx")
+    document = docx.Document()
+    for text in paragraphs:
+        document.add_paragraph(text)
+    for rows in tables or []:
+        table = document.add_table(rows=len(rows), cols=len(rows[0]))
+        for r, row in enumerate(rows):
+            for c, value in enumerate(row):
+                table.cell(r, c).text = str(value)
+    buffer = io.BytesIO()
+    document.save(buffer)
+    return buffer.getvalue()
+
+
+def test_read_thread_file_extracts_docx_text(tmp_path):
+    """A DOCX upload is returned as text by the same call - no run_code needed."""
+    from core.threads_devagent import save_thread_file_data, read_thread_file
+
+    data = _docx_bytes(["Балльно-рейтинговая система"], tables=[[['Раздел', 'Баллы']]])
+    save_thread_file_data(EXPECTED_TID, "program.docx", data)
+    res = read_thread_file(EXPECTED_TID, "program.docx")
+
+    assert res["ok"] is True
+    assert res["is_text"] is True
+    assert res["extracted"] is True
+    assert res["format"] == ".docx"
+    assert "Балльно-рейтинговая система" in res["content"]
+    assert "[TABLE 1 as CSV]" in res["content"]
+    assert res["total_lines"] >= 1
+    assert res["remaining"] == 0
+
+
+def test_read_thread_file_extracted_docx_supports_a_window(tmp_path):
+    """The extracted text honours offset/limit and reports remaining lines."""
+    from core.threads_devagent import save_thread_file_data, read_thread_file
+
+    data = _docx_bytes(["строка %d" % i for i in range(1, 11)])
+    save_thread_file_data(EXPECTED_TID, "long.docx", data)
+    res = read_thread_file(EXPECTED_TID, "long.docx", offset=2, limit=3)
+
+    assert res["extracted"] is True
+    assert res["offset"] == 2
+    assert res["limit"] == 3
+    assert res["content"].split("\n") == ["строка 3", "строка 4", "строка 5"]
+    assert res["remaining"] == res["total_lines"] - 5
+
+
+def test_read_thread_file_broken_docx_keeps_warnings(tmp_path):
+    """A corrupt document does not raise: warnings explain what happened."""
+    from core.threads_devagent import save_thread_file_data, read_thread_file
+
+    save_thread_file_data(EXPECTED_TID, "broken.docx", b"not a zip at all")
+    res = read_thread_file(EXPECTED_TID, "broken.docx")
+
+    assert res["ok"] is True
+    assert res["is_text"] is False
+    assert res["warnings"]
+    assert any("DOCX" in w for w in res["warnings"])
+
+
+def test_list_thread_files_marks_documents_extractable(tmp_path):
+    """The listing tells which uploads need no run_code to become text."""
+    from core.threads_devagent import save_thread_file_data, list_thread_files
+
+    save_thread_file_data(EXPECTED_TID, "report.docx", _docx_bytes(["текст"]))
+    save_thread_file_data(EXPECTED_TID, "notes.txt", b"plain")
+    save_thread_file_data(EXPECTED_TID, "photo.jpg", b"\xff\xd8\xff\xe0")
+
+    by_name = {r["name"]: r for r in list_thread_files(EXPECTED_TID)}
+
+    assert by_name["report.docx"]["extractable"] is True
+    assert by_name["report.docx"]["is_text"] is False
+    assert by_name["notes.txt"]["extractable"] is True
+    assert by_name["photo.jpg"]["extractable"] is False
 
 
 def test_read_thread_file_missing_returns_error(tmp_path):

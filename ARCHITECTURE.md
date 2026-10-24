@@ -48,7 +48,7 @@ SagaAI построена по модульной архитектуре с чё
 | `assistants` / `assistant_folders` | CRUD для помощников и их файлов, folder-based хранение, экспорт/импорт |
 | `entity_sync` | Синхронизация «папки - источник истины» → БД-кэш |
 | `threads` | Управление тредами помощников: создание, чтение, сообщения, удаление |
-| `threads_devagent` | Управление тредами оркестраторов (отдельная БД `devagent.db`); поиск по сообщениям (`search_thread_messages`), список диалогов (`list_threads_filtered`) и окно чтения (`read_thread_window`) с контролем доступа (`allowed_slugs`); мета рабочей папки треда и одноразовая миграция легаси-меты |
+| `threads_devagent` | Управление тредами оркестраторов (отдельная БД `devagent.db`); поиск по сообщениям (`search_thread_messages`), список диалогов (`list_threads_filtered`) и окно чтения (`read_thread_window`) с контролем доступа (`allowed_slugs`); мета рабочей папки треда и одноразовая миграция легаси-меты; `read_thread_file` извлекает текст документов вложений через `core.document_text` |
 | `assistant_nav` / `orchestrator_nav` | Сортировка и разбиение списков помощников/сотрудников для сайдбара (5 видимых + «Все (N)»; сортировка сотрудников по последнему диалогу) |
 | `services` | Обнаружение доступных AI-сервисов из `services/` (фолбэк на `defaults/services/`); RAG-модели; каталоги vision/image-моделей (`get_vision_models` / `get_image_models`) |
 | `config` | Чтение и запись конфигурации (SQLite KV); DevAgent-настройки проксируются через оркестраторы |
@@ -56,8 +56,10 @@ SagaAI построена по модульной архитектуре с чё
 | `render` | Рендеринг сообщений: Markdown → HTML, кнопка копирования |
 | `bootstrap` | Первичная инициализация: встроенный оркестратор `dev_agent`, инструкции, устаревшие миграции |
 | `instructions` | CRUD для внутренних инструкций (Assistant Creator, Employee Creator) |
-| `orchestrators` | **Ядро оркестраторов**: CRUD, `build_assistant_dicts()`, `get_web_search_config()`, `get_economy_config()`, `export_orchestrator()` / `import_orchestrator()` (формат `sagaai_orchestrator/v1`), `ensure_builtin_orchestrators()` |
+| `orchestrators` | **Ядро оркестраторов**: CRUD, `build_assistant_dicts()`, `get_web_search_config()`, `get_economy_config()`, `export_orchestrator()` / `import_orchestrator()` (формат `sagaai_orchestrator/v1`), `ensure_builtin_orchestrators()`; права делегирования - `get_allowed_agents` / `set_allowed_agents`, `get_allowed_assistants` / `set_allowed_assistants` (список помощников сверяется с живыми карточками) и `get_delegation_limits` / `set_delegation_limits` (шесть лимитов с клампом на записи) |
+| `document_text` | Извлечение текста из документов на диске и во вложениях: PDF, DOCX, DOC, PPTX, XLSX, XLS, RTF, ODT, HTML и plain text через `extract_text(filename, data)`, плюс `read_document_path(path, offset, limit, max_chars)` - чтение файла с окном строк. Неизвестный формат или отсутствующая библиотека возвращаются предупреждением, а не исключением, поэтому вызывающий инструмент всегда отвечает текстом |
 | `orchestrator_tools` | Каталог инструментов оркестраторов: core + workspace + подключения + кастомные функции; англоязычный блок `## Available tools` для системного промпта (без отключённых инструментов); `disabled_tools` blacklist, разрешение legacy-алиасов, `list_system_tools()` для UI |
+| `orchestration/*` | Мультиагентная оркестрация запусков: контракты конвейера (`contracts` - `AgentBrief`, `SpawnRequest`, `InvokeRequest`, `AgentRunResult`, `CancelReport`, `Artifact`, сериализация в dict), одноразовый вызов помощника без цикла инструментов (`invoke` - `invoke_once`), реестр запусков с деревом, пулом, лимитами, таймаутами и каскадной отменой (`service` - `OrchestrationService`), обёртки инструментов `spawn_agent` / `invoke_assistant` с правами доступа (`tools`) |
 | `orchestrator_folders` | Папки оркестраторов: `orchestrator.json`, функции, инструкции (front-matter), экспорт/импорт папок |
 | `defaults` / `default_imports` | Чтение `defaults/` и импорт встроенных сущностей «из коробки» (оркестраторы, инструкции, навыки, RAG-базы) |
 | `prompt_guard` | Защита от prompt-injection: data-fences и санитизация |
@@ -114,7 +116,11 @@ SagaAI построена по модульной архитектуре с чё
 - `agent_loop.py` - парсинг вызовов инструментов, цикл с единой основной
   моделью, эконом-режим, approval-гейты (план, применение, подтверждение опасных
   операций); в режиме pre-approved autonomous mode фаза утверждения плана
-  пропускается по явному выбору пользователя.
+  пропускается по явному выбору пользователя. Цикл несёт идентичность запуска
+  (`run_id`/`parent_run_id`/`depth` в `state`) и умеет fan-out в фазе
+  `executing`: независимые вызовы `spawn_agent` проверяются на права и
+  аргументы ДО захвата пула, затем выполняются параллельно, а их события
+  уходят в ленту с `run_id` ребёнка.
 - `assistant_detector.py` - `detect_and_select_assistant()` **всегда
   возвращает пустой результат** (assistant detection отключён).
 - `assistant_model_resolver.py` - автоматический подбор сервиса/модели для
@@ -128,11 +134,19 @@ SagaAI построена по модульной архитектуре с чё
   (`history/<tid>/task_states/`). Компактный дайджест
   (`read_task_state(compact=True)`) и бюджеты секций ограничивают
   инъекцию `CURRENT TASK STATE`; полное чтение - по требованию.
+  Идентификатор треда передаётся явно (`current_thread_id(thread_id)`,
+  `ensure_task_state_file`/`archive_and_start_task`), а `config.ACTIVE_THREAD_ID`
+  остаётся фолбэком; контекст-менеджер `thread_scope` пинит тред в текущем
+  потоке Python, чтобы параллельные дочерние запуски не перезаписывали журнал
+  друг друга.
 - `tool_executor.py` - диспетчер инструментов DevAgent: `propose_file`,
-  `apply_patch`, `verify_file`, `run_code`/`run_test`, инструменты
-  помощников/оркестраторов/навыков, `web_search()`, RAG-инструменты
+  `apply_patch`, `verify_file`, `run_code`/`run_test`, `read_document`
+  (текст документа по пути с окном строк, через `core.document_text`),
+  инструменты помощников/оркестраторов/навыков, `web_search()`, RAG-инструменты
   (`list_rag_bases`/`rag_search`), мультимодальные инструменты
-  (`analyze_image`/`generate_image`), history-инструменты.
+  (`analyze_image`/`generate_image`), history-инструменты. Описание `run_code`
+  помечено как средство последней очереди: для документов, исходников, текста,
+  изображений и вложений диалога есть специализированные инструменты.
 - `safe_writer.py` - безопасная запись файлов (проверка защищённых файлов,
   staging, бэкап, верификация).
 - `backup_manager.py` - управление версиями файлов на основе SHA-256.
@@ -145,7 +159,10 @@ SagaAI построена по модульной архитектуре с чё
   per-thread реестр состояний под RLock, контекст-менеджер
   `thread_context` (снапшот конфига -> применение состояния потока ->
   восстановление), `ensure_thread_active`; персистентность привязок
-  делегирована `core.threads_devagent`.
+  делегирована `core.threads_devagent`. Дочерний запуск получает
+  собственное связывание через `bind_child_thread` (рабочая папка родителя,
+  свой производный тред `{parent}__s{run_id[:8]}`, без `target_file`) и
+  освобождает его `unbind_thread` по завершении.
 - `universal_agent.py` - `load_system_prompt()` (единый файл
   `dev_agent/system_prompt.md`), `build_assistant_dict_from_config()`,
   `UniversalDevAgent` (core + workspace + orchestrator tools).
@@ -515,6 +532,13 @@ ID и путь передаются мета-блоком системного �
 нет, задачей становится i18n-строка `orch_attach_only_message` с именами
 вложений.
 
+Чтение вложений штатное, без обхода через `run_code`: `read_thread_file`
+извлекает текст документов через `core.document_text` (PDF, DOCX, PPTX,
+XLSX, XLS, RTF, ODT, HTML), а `read_document` делает то же самое для любого
+файла на диске по абсолютному пути с окном строк. `run_code` помечен в
+каталоге как средство последней очереди - текстовые и документные форматы
+читаются специализированными инструментами.
+
 ### Авто-прокрутка ленты чата
 Лента истории растёт под липкой нижней панелью (блок «Выбор папки» + поле
 ввода + тулбар, `st.bottom`). Пока агент работает, `ui/pages/orchestrator.py`
@@ -714,6 +738,80 @@ sha256-отпечаток шапки сигнализирует об устар�
 а диспетчер (`dev_agent/universal_agent.py`) блокирует их вызов ошибкой
 `disabled: true` (гейт до выполнения; legacy-алиасы в обе стороны). Вкладка
 Функции показывает системные функции с чекбоксами и кнопкой Сохранить.
+
+### Мультиагентная оркестрация (`core/orchestration/`)
+Запуск агента из агента описан единым контрактом, отделённым от UI и от
+цикла оркестратора. Пакет `core/orchestration/` держит четыре слоя:
+
+- **`contracts.py`** - типы конвейера: `AgentBrief` (цель, ограничения,
+  входные артефакты `Dict[str, str]`, критерии готовности), `SpawnRequest`
+  (`agent_slug`, `brief`, `parent_run_id`, `depth`), `InvokeRequest`
+  (`system`, `user`, `context_files`, `parent_run_id`), `Artifact`,
+  `AgentRunResult` (`run_id`, `status`, `stop_reason`, `summary`,
+  `artifacts_out`, `steps_used`, `error_code`) и `CancelReport`. Все
+  структуры сериализуются в dict: результат инструмента уходит в ленту как
+  данные, а не как объект.
+- **`invoke.py`** - `invoke_once()`: один вызов модели без цикла
+  инструментов, без RAG и без доступа к файлам. Контекст передаётся
+  вызывающим явно (`context_files` -> блоки `### File: <name>`); документ
+  (PDF, DOCX, PPTX, XLSX, RTF, ODT, HTML) читается через
+  `core.document_text`, поэтому один файл - это один вызов, без дробления
+  текста на части. Нечитаемый файл попадает в `skipped_files`, а не
+  срывает вызов. Сервис и модель резолвятся по конфигурации родителя.
+- **`service.py`** - `OrchestrationService`: реестр запусков и их дерево.
+  `ensure_run()` регистрирует корневой запуск диалога, `run()` запускает
+  ребёнка, `cancel(cascade=True)` отменяет поддерево, `subscribe()` отдаёт
+  события в ленту, `release_tree()` освобождает записи и семафоры после
+  завершения диалога. Идентификаторы: `run_id` - уникальный, тред ребёнка -
+  производный `{parent}__s{run_id[:8]}` (свой журнал, рабочая папка
+  родителя).
+- **`tools.py`** - обёртки инструментов `spawn_agent` и `invoke_assistant`
+  с правами доступа: `agent_not_allowed`, `unknown_agent`,
+  `assistant_not_allowed`, `unknown_assistant`, `invalid_args`,
+  `not_implemented`. Права проверяются до захвата ресурсов, поэтому
+  отклонённый вызов не занимает слот пула.
+
+**Лимиты делегирования** хранятся в конфигурации оркестратора и читаются
+через `get_delegation_limits(slug)` (шесть ключей): `max_depth` - глубина
+дерева от диалога (0 - делегирование запрещено, по умолчанию 1),
+`max_active_subagents` - одновременные дети и одноразовые вызовы (семафор
+дерева), `subagent_max_steps` - шагов на ребёнка, `total_subagent_runs` -
+суммарное число запусков в дереве, `subagent_timeout_seconds` - предел
+одного запуска, `subagent_budget_tokens` - потолок токенов ребёнка
+(0 - без потолка). Сеттер кламп-ит значения к допустимому диапазону:
+нулевой пул защёлкнул бы первый же запуск.
+
+**Права.** `spawn_agent` доступен всегда (делегирование самому себе
+структурно), `invoke_assistant` появляется в каталоге только при непустом
+`allowed_assistants`; `allowed_agents` перечисляет сотрудников, которым
+разрешён запуск. Само-слаг в списке не хранится, а список помощников
+сверяется с живыми карточками при записи, поэтому удалённый помощник не
+остаётся в правах. Каталог инструментов и диспетчер читают один и тот же
+источник, так что модель не получает инструмент, который будет отклонён.
+
+**Fan-out.** В фазе `executing` цикл группирует независимые вызовы
+`spawn_agent`: сначала проверяются права и аргументы всего набора, затем
+захватываются слоты пула и дети выполняются параллельно; события
+помечаются `run_id` ребёнка, и лента группирует их по запускам. Дочерний
+запуск получает собственное связывание рабочей папки и собственный журнал
+задач, а по завершении освобождает и то, и другое.
+
+**Задание субагенту.** `_build_child_task_text()` собирает текст запуска из
+цели, брифа и входных артефактов и добавляет блок «Контекст запуска» с
+АБСОЛЮТНЫМИ путями: рабочая папка родителя и папка файлов диалога родителя
+(`history/<thread_id>/files`). Субагент стартует с чистым контекстом, его
+собственный диалог не содержит вложений родителя, поэтому относительный путь
+или имя файла без каталога для него - тупик; описание `spawn_agent` требует
+абсолютные пути прямо в контракте.
+
+**Блок делегирования в промпте.** `_extend_prompt_with_delegation()` в
+`core/orchestrators.py` добавляет в системный промпт два раздела:
+`## Available agents (spawn_agent)` - сам сотрудник (самоделегирование
+разрешено всегда) плюс `allowed_agents` с именами, и
+`## Available assistants (invoke_assistant)` - `allowed_assistants` с id и
+именами карточек и напоминанием передавать документ файлом в `context_files`.
+Раздел помощников появляется только при непустом списке, поэтому промпт не
+обещает вызов, который среда отклонит.
 
 ### Поиск по диалогам (thread-search tools)
 Три инструмента оркестраторов открывают историю диалогов: `search_in_threads`

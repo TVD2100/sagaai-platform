@@ -715,6 +715,169 @@ def _extend_prompt_with_connections(prompt: str, orchestrator_slug: str = DEVAGE
     return block
 
 
+# ─── Delegation: allowlist and limits ──────────────────────────────────
+
+def get_allowed_agents(orchestrator_slug: str = DEVAGENT_SLUG) -> List[str]:
+    """Return the orchestrator slugs this orchestrator may spawn.
+
+    Stored in the config under ``allowed_agents``. The orchestrator's OWN
+    slug is always allowed (self-delegation needs no configuration), so it
+    is not required in this list. Missing or invalid values yield an empty
+    list - which still means "self only", never "nothing".
+    """
+    orch = get_orchestrator(orchestrator_slug)
+    cfg = orch.get("config", {}) if orch else {}
+    agents = cfg.get("allowed_agents") or []
+    if not isinstance(agents, list):
+        return []
+    out: List[str] = []
+    for a in agents:
+        if isinstance(a, str) and a.strip() and a.strip() not in out:
+            out.append(a.strip())
+    return out
+
+
+def set_allowed_agents(orchestrator_slug: str, agent_slugs: List[str]) -> bool:
+    """Store the allowlist of spawnable orchestrators; syncs the folder.
+
+    The orchestrator's own slug is dropped from the stored list: it is
+    allowed by definition, and keeping it would confuse the settings UI
+    (a checkbox for yourself next to the boxes for other agents).
+    """
+    normalized: List[str] = []
+    for a in (agent_slugs or []):
+        if not isinstance(a, str):
+            continue
+        val = a.strip()
+        if not val or val == orchestrator_slug or val in normalized:
+            continue
+        normalized.append(val)
+    orch = get_orchestrator(orchestrator_slug)
+    if orch is None:
+        return False
+    cfg = orch.get("config", {})
+    if not isinstance(cfg, dict):
+        cfg = {}
+    cfg = dict(cfg)
+    cfg["allowed_agents"] = normalized
+    ok = repo_update_orchestrator(orch["id"], config=cfg)
+    if ok:
+        _sync_orchestrator_folder(orchestrator_slug)
+    return ok
+
+
+def get_allowed_assistants(orchestrator_slug: str = DEVAGENT_SLUG) -> List[str]:
+    """Return the assistant ids this orchestrator may call one-shot.
+
+    Stored in the config under ``allowed_assistants``. Unlike ``spawn_agent``
+    there is no default right to call an assistant: an empty list means
+    ``invoke_assistant`` is not registered at all.
+    """
+    orch = get_orchestrator(orchestrator_slug)
+    cfg = orch.get("config", {}) if orch else {}
+    ids = cfg.get("allowed_assistants") or []
+    if not isinstance(ids, list):
+        return []
+    out: List[str] = []
+    for a in ids:
+        if isinstance(a, str) and a.strip() and a.strip() not in out:
+            out.append(a.strip())
+    return out
+
+
+def set_allowed_assistants(orchestrator_slug: str, assistant_ids: List[str]) -> bool:
+    """Store the allowlist of callable assistants; syncs the folder.
+
+    Two safeguards live here rather than in the settings UI, because any
+    caller (import, API) must get the same protection: ids are normalised
+    and, when the assistants table is readable, an id that matches no live
+    card is dropped. A stale id would otherwise sit in the config and turn
+    every call of that assistant into ``unknown_assistant``.
+    """
+    normalized: List[str] = []
+    for a in (assistant_ids or []):
+        if isinstance(a, str) and a.strip() and a.strip() not in normalized:
+            normalized.append(a.strip())
+    try:
+        from core.assistants import get_assistant_by_id
+        normalized = [aid for aid in normalized if get_assistant_by_id(aid)]
+    except Exception:
+        pass
+    orch = get_orchestrator(orchestrator_slug)
+    if orch is None:
+        return False
+    cfg = orch.get("config", {})
+    if not isinstance(cfg, dict):
+        cfg = {}
+    cfg = dict(cfg)
+    cfg["allowed_assistants"] = normalized
+    ok = repo_update_orchestrator(orch["id"], config=cfg)
+    if ok:
+        _sync_orchestrator_folder(orchestrator_slug)
+    return ok
+
+
+#: Delegation limit keys with their documented defaults. The defaults live
+#: in core.orchestration.contracts; this table is the UI-facing order.
+DELEGATION_LIMIT_KEYS = (
+    ("max_depth", 1),
+    ("max_active_subagents", 3),
+    ("subagent_max_steps", 20),
+    ("subagent_budget_tokens", 0),
+    ("subagent_timeout_seconds", 600),
+    ("total_subagent_runs", 32),
+)
+
+
+def get_delegation_limits(orchestrator_slug: str = DEVAGENT_SLUG) -> Dict[str, int]:
+    """Return the six delegation limits of an orchestrator.
+
+    Values come from the config (``max_depth``, ``max_active_subagents``,
+    ``subagent_max_steps``, ``subagent_budget_tokens``,
+    ``subagent_timeout_seconds``, ``total_subagent_runs``) and fall back to
+    the documented defaults. Read-only: the runtime uses the same resolver,
+    ``core.orchestration.service.read_limits``, so UI and runtime cannot
+    disagree about a missing key.
+    """
+    orch = get_orchestrator(orchestrator_slug)
+    cfg = orch.get("config", {}) if orch else {}
+    if not isinstance(cfg, dict):
+        cfg = {}
+    try:
+        from core.orchestration.service import read_limits
+        return read_limits(cfg)
+    except Exception:
+        return {key: default for key, default in DELEGATION_LIMIT_KEYS}
+
+
+def set_delegation_limits(orchestrator_slug: str, limits: Dict[str, Any]) -> bool:
+    """Store the six delegation limits; syncs the folder.
+
+    Only known keys are written, values are clamped to their safe ranges
+    (a non-positive pool or timeout is meaningless and would break spawning),
+    and unknown keys are ignored so a caller cannot smuggle arbitrary config
+    through this helper.
+    """
+    from core.orchestration.service import read_limits
+    orch = get_orchestrator(orchestrator_slug)
+    if orch is None:
+        return False
+    cfg = orch.get("config", {})
+    if not isinstance(cfg, dict):
+        cfg = {}
+    cfg = dict(cfg)
+    incoming = limits if isinstance(limits, dict) else {}
+    merged = {key: incoming.get(key, cfg.get(key, default))
+              for key, default in DELEGATION_LIMIT_KEYS}
+    resolved = read_limits(merged)
+    for key, _default in DELEGATION_LIMIT_KEYS:
+        cfg[key] = int(resolved[key])
+    ok = repo_update_orchestrator(orch["id"], config=cfg)
+    if ok:
+        _sync_orchestrator_folder(orchestrator_slug)
+    return ok
+
+
 # ─── Disabled tools (blacklist) ─────────────────────────────────────────
 
 
@@ -880,6 +1043,99 @@ def _extend_prompt_with_rag_bases(prompt: str, orchestrator_slug: str = DEVAGENT
         return prompt
 
 
+def _extend_prompt_with_delegation(prompt: str, orchestrator_slug: str = DEVAGENT_SLUG) -> str:
+    """Append a block listing the agents and assistants this orchestrator may call.
+
+    The block answers the question the model otherwise spends a step probing:
+    "who exactly can I delegate to, and under what name?". Every entry carries
+    the call argument (``agent_slug`` or ``assistant_id``) next to the human
+    name, because the tool contract wants the identifier while the model
+    reasons about the name.
+
+    Self-delegation is always listed: an orchestrator may always spawn itself,
+    so the list is never empty even with no other agent configured.
+
+    Returns the original prompt on error or when neither delegation tool is
+    available (best effort - the orchestrator still works without the block).
+    """
+    try:
+        from core.orchestrator_tools import is_conditional_tool_enabled
+    except Exception:
+        return prompt
+
+    lines: List[str] = []
+    agents_available = True
+    try:
+        agents_available = bool(is_conditional_tool_enabled("spawn_agent", orchestrator_slug))
+    except Exception:
+        agents_available = True
+    assistants_available = False
+    try:
+        assistants_available = bool(
+            is_conditional_tool_enabled("invoke_assistant", orchestrator_slug))
+    except Exception:
+        assistants_available = False
+
+    if agents_available:
+        entries: List[str] = []
+        own_name = ""
+        try:
+            own = get_orchestrator(orchestrator_slug)
+            own_name = str((own or {}).get("name") or "")
+        except Exception:
+            own_name = ""
+        entries.append("- `%s` - %s (you; self-delegation is always allowed)"
+                       % (orchestrator_slug, own_name or "this orchestrator"))
+        try:
+            live = {str(o.get("slug") or ""): str(o.get("name") or "")
+                    for o in list_orchestrators()}
+        except Exception:
+            live = {}
+        for slug in get_allowed_agents(orchestrator_slug):
+            if slug == orchestrator_slug:
+                continue
+            entries.append("- `%s` - %s" % (slug, live.get(slug) or "name unknown"))
+        lines.extend([
+            "## Available agents (spawn_agent)",
+            "",
+            "You may delegate a full agent task to these orchestrators. Pass "
+            "the slug in `agent_slug` and describe the task in `request.goal` "
+            "plus `request.brief`; every path you mention must be absolute:",
+            "",
+        ])
+        lines.extend(entries)
+
+    if assistants_available:
+        a_entries: List[str] = []
+        try:
+            from core.assistants import load_assistants_index
+            cards = {str(c.get("id") or ""): str(c.get("name") or "")
+                     for c in (load_assistants_index() or [])}
+        except Exception:
+            cards = {}
+        for aid in get_allowed_assistants(orchestrator_slug):
+            a_entries.append("- `%s` - %s" % (aid, cards.get(aid) or "name unknown"))
+        if lines:
+            lines.append("")
+        lines.extend([
+            "## Available assistants (invoke_assistant)",
+            "",
+            "One-shot model calls, no tools and no agent loop. Pass the id in "
+            "`assistant_id`. Send a document as a file in `context_files` with "
+            "an absolute path - one file, one call - instead of pasting its "
+            "text or splitting it into several calls:",
+            "",
+        ])
+        lines.extend(a_entries)
+
+    if not lines:
+        return prompt
+    block = "\n".join(lines)
+    if prompt.strip():
+        return f"{prompt}\n\n{block}"
+    return block
+
+
 def _extend_prompt_with_skills(prompt: str, enabled_skills: List[str]) -> str:
     """Append the metadata block of enabled skills to a system prompt.
 
@@ -996,6 +1252,8 @@ def build_assistant_dicts(orchestrator_slug: str = DEVAGENT_SLUG) -> Tuple[dict,
     prompt = _extend_prompt_with_connections(prompt, orchestrator_slug)
     # Append assigned RAG knowledge bases (DevAgent: all; others: assigned).
     prompt = _extend_prompt_with_rag_bases(prompt, orchestrator_slug)
+    # Append the agents and assistants this orchestrator may delegate to.
+    prompt = _extend_prompt_with_delegation(prompt, orchestrator_slug)
     # Append the available-tools catalog (system + custom functions),
     # excluding disabled tools.
     prompt = _extend_prompt_with_tools(prompt, orchestrator_slug)
