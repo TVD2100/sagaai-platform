@@ -404,9 +404,11 @@ roles.update({
     "tests/test_orchestration_service.py": "Unit tests for OrchestrationService: run registry and tree, slot pool, depth and total-run limits, timeout, cascade cancellation, child tool bans, invoke slot accounting",
     "tests/test_orchestration_tools.py": "Unit tests for the spawn_agent/invoke_assistant wrappers: rights checks, unknown targets, argument validation and catalog entries",
     "tests/test_delegation_fanout.py": "Unit tests for fan-out in the executing phase: whole-batch validation before the pool, parallel child runs, per-run event attribution and journal/binding isolation",
+    "tests/test_delegation_injection_inheritance.py": "Unit tests for the inherited prompt-injection protection mode: the SpawnRequest field, the value frozen in the run record, the resolve order (explicit request, else the resumed run, else protected), the runner hand-off with a legacy fixed signature, and that the one-step viewing bypass is never inherited",
     "tests/test_orchestrator_delegation_settings.py": "UI tests for the Delegation settings tab: per-entity checkboxes, stale ids shown with a warning, six limit inputs with real tooltips, save/failure paths",
     "tests/scenarios/test_delegation_catalog_scenario.py": "Scenario tests for what the model sees: spawn_agent always offered, invoke_assistant only with a live assistant, disabled tools removed, limits clamped, catalog and runtime rights read the same allowlist",
     "tests/scenarios/test_delegation_run_scenario.py": "Scenario tests for one delegated run: two children reporting into the dialog feed, distinct threads and journals, Stop cascading to children, the run budget with a readable refusal, tree release at dialog end",
+    "tests/scenarios/test_delegation_injection_inheritance_scenario.py": "Scenario tests for the safety mode a user actually creates: Safety off gives an unprotected child, the default dialog keeps it protected, a resume keeps the mode of the run it continues, an explicit mode wins, and the loop hands the dialog mode down to the tool without a gap",
 })
 
 roles.update({

@@ -811,7 +811,8 @@ def _delegation_job(tool: str, args: Dict[str, Any], *,
                     parent_slug: str, parent_run_id: str, thread_id: str,
                     parent_config: Optional[Dict[str, Any]],
                     base_dir: Optional[str], lang: Optional[str],
-                    service: Any) -> Dict[str, Any]:
+                    service: Any,
+                    enable_injection_protection: Optional[bool] = None) -> Dict[str, Any]:
     """Execute ONE delegation call and return its tool-shaped result."""
     if tool == "spawn_agent":
         from core.orchestration.tools import spawn_agent
@@ -828,6 +829,7 @@ def _delegation_job(tool: str, args: Dict[str, Any], *,
             base_dir=base_dir,
             lang=lang,
             service=service,
+            enable_injection_protection=enable_injection_protection,
         )
     if tool == "subagent_status":
         from core.orchestration.tools import subagent_status
@@ -857,6 +859,7 @@ def _delegation_job(tool: str, args: Dict[str, Any], *,
             base_dir=base_dir,
             lang=lang,
             service=service,
+            enable_injection_protection=enable_injection_protection,
         )
     from core.orchestration.tools import invoke_assistant
     return invoke_assistant(
@@ -905,6 +908,16 @@ def execute_delegation_calls(calls: List[Dict[str, Any]], *,
         validate_tool_call = None
 
     slug, cfg, parent_run_id, thread_id = _delegation_parent_context(state, dispatcher)
+    # A child inherits the prompt-injection gate of the run that started it.
+    # The one-step bypass created by approve_sanitized_content() is NOT
+    # inherited: it grants the dialog permission to view ONE withheld payload,
+    # not a permanent mode, and a child has no user to approve anything. While
+    # the bypass is active the state flag reads False, so the bypass flag
+    # itself decides: a bypassed step always hands a protected child.
+    if getattr(state, "injection_protection_bypassed", False):
+        inherited_protection = True
+    else:
+        inherited_protection = bool(getattr(state, "enable_injection_protection", True))
     base_dir = None
     try:
         from dev_agent import config as _dagent_config
@@ -941,7 +954,8 @@ def execute_delegation_calls(calls: List[Dict[str, Any]], *,
                 results[idx] = _delegation_job(
                     tool, args, parent_slug=slug, parent_run_id=parent_run_id,
                     thread_id=thread_id, parent_config=cfg, base_dir=base_dir,
-                    lang=lang, service=service)
+                    lang=lang, service=service,
+                    enable_injection_protection=inherited_protection)
             except Exception as exc:  # pragma: no cover - defensive
                 results[idx] = {"ok": False,
                                 "error": "delegation failed: " + str(exc),

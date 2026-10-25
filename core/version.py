@@ -196,7 +196,17 @@
 # a call that needs confirmation is refused with confirmation_required
 # instead of hanging the run.
 
-__version__ = "2.12.0"
+# 2.13.0 makes the prompt-injection protection mode follow a delegated child.
+# A child used to start protected on its own, and a launch that explicitly
+# asked for less could be lost on the way to the runner - the dialog's Safety
+# setting applied to the parent and not to the child. The mode is now resolved
+# once at spawn (an explicit request, else the mode of the run being resumed,
+# else protected) and frozen in the run record, so a background child never
+# reads the setting of a dialog that may already be gone. A one-step viewing
+# permission approved for a single withheld payload is not a mode and is not
+# inherited, and the model cannot change any of this from a tool argument.
+
+__version__ = "2.13.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

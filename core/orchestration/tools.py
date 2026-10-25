@@ -152,6 +152,7 @@ def spawn_agent(
     base_dir: Optional[str] = None,
     lang: Optional[str] = None,
     service=None,
+    enable_injection_protection: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """Launch a child orchestrator and return its structured result.
 
@@ -170,6 +171,12 @@ def spawn_agent(
     ``inline_orchestrator`` is reserved for phase 2 and answers
     ``not_implemented``; the parameter exists so the phase-2 contract does
     not change the call shape.
+
+    ``enable_injection_protection`` is the parent's prompt-injection gate
+    setting. It is an internal caller argument, not a model-facing one: the
+    agent loop reads it from the live parent state and passes it here, so a
+    child inherits the mode of the run that started it. ``None`` leaves the
+    decision to the service (resume inheritance or the safe default).
     """
     if inline_orchestrator is not None:
         return error_result(
@@ -210,6 +217,7 @@ def spawn_agent(
         parent_run_id=parent_run_id,
         background=bool(background),
         resume_run_id=(resume_run_id or "").strip() or None,
+        enable_injection_protection=enable_injection_protection,
     )
     if background:
         # ``start`` validates synchronously and only then moves the child to
@@ -431,7 +439,9 @@ def resume_subagent(run_id: Optional[str] = None, *,
                     parent_config: Optional[Dict[str, Any]] = None,
                     base_dir: Optional[str] = None,
                     lang: Optional[str] = None,
-                    service=None) -> Dict[str, Any]:
+                    service=None,
+                    enable_injection_protection: Optional[bool] = None,
+                    ) -> Dict[str, Any]:
     """Continue a finished child run from its own journal.
 
     The new run inherits the tree of the original (see ``resume_run_id`` in the
@@ -498,6 +508,7 @@ def resume_subagent(run_id: Optional[str] = None, *,
         base_dir=base_dir,
         lang=lang,
         service=service,
+        enable_injection_protection=enable_injection_protection,
     )
 
 

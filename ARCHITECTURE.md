@@ -120,7 +120,10 @@ SagaAI построена по модульной архитектуре с чё
   (`run_id`/`parent_run_id`/`depth` в `state`) и умеет fan-out в фазе
   `executing`: независимые вызовы `spawn_agent` проверяются на права и
   аргументы ДО захвата пула, затем выполняются параллельно, а их события
-  уходят в ленту с `run_id` ребёнка.
+  уходят в ленту с `run_id` ребёнка. Режим prompt-injection защиты ребёнок
+  наследует от диалога: fan-out читает `state.enable_injection_protection` и
+  передаёт его в `spawn_agent`/`resume_subagent`, сервис замораживает
+  значение в записи запуска (одноразовый bypass просмотра не наследуется).
 - `assistant_detector.py` - `detect_and_select_assistant()` **всегда
   возвращает пустой результат** (assistant detection отключён).
 - `assistant_model_resolver.py` - автоматический подбор сервиса/модели для

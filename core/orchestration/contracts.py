@@ -221,6 +221,16 @@ class SpawnRequest:
 
     ``inline_orchestrator`` is reserved for phase 2 and answers
     ``not_implemented``.
+
+    ``enable_injection_protection`` carries the parent's prompt-injection
+    protection setting into the child: a child inherits the mode of the run
+    that started it instead of falling back to the loop default. ``None``
+    means "the service decides" - an explicit argument wins, a resume takes
+    the value frozen in the source run, and a fresh spawn without an
+    argument uses the safe default (protection ON). A background child
+    cannot read the parent's live setting at start-up: the process-wide
+    config belongs to whichever dialog happens to run, so the value is
+    resolved at spawn time and frozen into the run record.
     """
 
     agent_slug: Optional[str]
@@ -231,6 +241,7 @@ class SpawnRequest:
     inline_orchestrator: Optional[dict] = None
     workspace: str = ""
     resume_run_id: Optional[str] = None
+    enable_injection_protection: Optional[bool] = None
 
 
 @dataclass(frozen=True)

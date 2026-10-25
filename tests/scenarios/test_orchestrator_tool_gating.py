@@ -299,7 +299,7 @@ def test_canonical_prompts_do_not_duplicate_the_tool_catalog():
     ya = CANONICAL_PROMPT_FILES["ya_agent"].read_text(encoding="utf-8")
 
     # Version headers carry the bumped versions.
-    assert dev.splitlines()[0].endswith("(v3.24)"), dev.splitlines()[0]
+    assert dev.splitlines()[0].endswith("(v3.25)"), dev.splitlines()[0]
     assert ya.splitlines()[0].endswith("(v2.11)"), ya.splitlines()[0]
 
     # RAG context-restore invariant (v3.14): hits carry ids and the

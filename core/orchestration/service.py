@@ -173,6 +173,11 @@ class RunRecord:
     workspace: str = ""
     journal_path: str = ""
     goal: str = ""
+    # Prompt-injection protection mode inherited from the parent run at spawn
+    # time. Frozen here for the same reason as ``workspace``: a background
+    # child starts long after the parent step that launched it, and the live
+    # setting belongs to whichever dialog happens to be active then.
+    enable_injection_protection: bool = True
     background: bool = False
     resumed_from: Optional[str] = None
     resume_depth: int = 0
@@ -225,6 +230,7 @@ class RunRecord:
             "background": self.background,
             "resumed_from": self.resumed_from,
             "resume_depth": self.resume_depth,
+            "enable_injection_protection": bool(self.enable_injection_protection),
             "cancel_requested": self.cancel_requested,
             "timeout_seconds": self.timeout_seconds,
             "heartbeat_at": self.heartbeat_at or time.time(),
@@ -790,12 +796,15 @@ class OrchestrationService:
                    parent_run_id: Optional[str], depth: int,
                    limits: Dict[str, int], deadline: float,
                    base_dir: Optional[str], lang: Optional[str],
-                   parent_thread_id: str = "") -> AgentRunResult:
+                   parent_thread_id: str = "",
+                   enable_injection_protection: bool = True) -> AgentRunResult:
         """Execute one child run through the configured runner.
 
-        ``parent_thread_id`` is passed only to a runner that declares it: the
-        runner is a test seam, and an existing fake with the old signature
-        must keep working instead of failing on an unexpected keyword.
+        ``parent_thread_id`` and ``enable_injection_protection`` reach a
+        runner that declares them OR accepts ``**kwargs``; a runner with a
+        FIXED old signature does not receive them. The runner is a test seam,
+        and an existing fake must keep working instead of failing on an
+        unexpected keyword.
         """
         runner = self._child_runner or _default_child_runner
         kwargs = dict(
@@ -813,8 +822,16 @@ class OrchestrationService:
         )
         try:
             import inspect as _inspect
-            if "parent_thread_id" in _inspect.signature(runner).parameters:
+            parameters = _inspect.signature(runner).parameters
+            # A runner with **kwargs accepts both keys by definition; a runner
+            # with a FIXED old signature must not receive them (the seam keeps
+            # working for every existing fake).
+            accepts_extra = any(p.kind is _inspect.Parameter.VAR_KEYWORD
+                                for p in parameters.values())
+            if "parent_thread_id" in parameters or accepts_extra:
                 kwargs["parent_thread_id"] = parent_thread_id
+            if "enable_injection_protection" in parameters or accepts_extra:
+                kwargs["enable_injection_protection"] = bool(enable_injection_protection)
         except (TypeError, ValueError):  # pragma: no cover - exotic callables
             pass
         return runner(**kwargs)
@@ -949,6 +966,19 @@ class OrchestrationService:
                               depth=depth)
         rec.workspace = str(req.workspace or "")
         rec.goal = str(getattr(req.request, "goal", "") or "")
+        # Injection protection is inherited, not defaulted: the child runs with
+        # the mode of the run that started it. A resume continues the SAME unit
+        # of work, so it takes the mode frozen in the source run unless the
+        # caller states a different one explicitly; a fresh spawn without an
+        # argument keeps the safe default. Resolving it here (once, before the
+        # child thread exists) is what makes the inheritance reliable for a
+        # background run.
+        if req.enable_injection_protection is not None:
+            rec.enable_injection_protection = bool(req.enable_injection_protection)
+        elif source is not None and source.get("enable_injection_protection") is not None:
+            rec.enable_injection_protection = bool(source.get("enable_injection_protection"))
+        else:
+            rec.enable_injection_protection = True
         rec.timeout_seconds = int(limits["subagent_timeout_seconds"])
         rec.created_at = time.time()
         rec.heartbeat_at = rec.created_at
@@ -1018,6 +1048,8 @@ class OrchestrationService:
                 base_dir=base_dir,
                 lang=lang,
                 parent_thread_id=parent_thread,
+                enable_injection_protection=bool(
+                    getattr(prep.get("rec"), "enable_injection_protection", True)),
             )
         except Exception as exc:  # pragma: no cover - defensive
             log.warning("child run %s failed: %s", run_id, exc)
@@ -1375,7 +1407,8 @@ def _default_child_runner(*, child_slug: str, brief: AgentBrief,
                           limits: Dict[str, int], deadline: float,
                           base_dir: Optional[str], lang: Optional[str],
                           service: "OrchestrationService",
-                          parent_thread_id: str = "") -> AgentRunResult:
+                          parent_thread_id: str = "",
+                          enable_injection_protection: bool = True) -> AgentRunResult:
     """Run one child orchestrator through the real agent loop.
 
     The child is a full agent: its own dispatcher, its own journal thread and
@@ -1462,6 +1495,11 @@ def _default_child_runner(*, child_slug: str, brief: AgentBrief,
             # A delegated child has no interactive user: the loop must not stop
             # on a confirmation request or on a question nobody will answer.
             child_mode=True,
+            # Prompt-injection protection follows the run that started this
+            # child: a dialog with the safety gate off gets a child without it
+            # too. The value was frozen on the run record at spawn time, so a
+            # background child never reads another dialog's live setting.
+            enable_injection_protection=bool(enable_injection_protection),
             # The child drains the mailbox of the whole tree, not of its own
             # run: a worker posts a notice to the root that owns the pool.
             root_run_id=_tree_root_of(service, run_id),
