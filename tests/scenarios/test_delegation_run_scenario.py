@@ -31,8 +31,9 @@ from core.orchestration.contracts import (  # noqa: E402
 
 
 @pytest.fixture
-def service():
+def service(tmp_path):
     svc = OrchestrationService()
+    svc.set_store_root(str(tmp_path / "runs"))
 
     def _runner(**kwargs):
         return AgentRunResult(run_id=kwargs["run_id"], status=STATUS_DONE,

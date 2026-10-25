@@ -26,6 +26,7 @@ dispatch. The rule set is small and explicit:
 
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, List, Optional
 
 from core.orchestration.contracts import (
@@ -35,12 +36,23 @@ from core.orchestration.contracts import (
     ERR_INVALID_ARGS,
     ERR_INVALID_BRIEF,
     ERR_NOT_IMPLEMENTED,
+    ERR_PROVIDER_ERROR,
+    ERR_RESUME_UNAVAILABLE,
+    ERR_RUN_NOT_FOUND,
     ERR_UNKNOWN_AGENT,
     ERR_UNKNOWN_ASSISTANT,
     InvokeRequest,
     SpawnRequest,
     error_result,
 )
+from core.orchestration.resume import RESUMABLE_STATUSES
+
+#: Hard cap of ``subagent_status(wait_seconds=...)``. A tool call that blocks
+#: for minutes looks like a hung dialog and spends the parent's steps waiting.
+MAX_STATUS_WAIT_SECONDS = 30.0
+
+#: How much journal text one ``read_subagent_state`` call may return.
+MAX_STATE_CHARS = 6000
 
 
 def _allowlist_context(parent_slug: str) -> Dict[str, Any]:
@@ -131,6 +143,8 @@ def spawn_agent(
     request: Optional[AgentBrief] = None,
     inline_orchestrator: Optional[dict] = None,
     *,
+    background: bool = False,
+    resume_run_id: Optional[str] = None,
     parent_slug: str = "dev_agent",
     parent_run_id: Optional[str] = None,
     thread_id: str = "",
@@ -141,11 +155,17 @@ def spawn_agent(
 ) -> Dict[str, Any]:
     """Launch a child orchestrator and return its structured result.
 
-    Blocking: the call returns once the child finishes, so the parent sees a
-    predictable result in the same step. ``background`` is not accepted in
-    v1 - there is no job registry; a caller that needs several children
-    simply issues several calls in one message and the loop runs them in
-    parallel.
+    Blocking by default: the call returns once the child finishes, so the
+    parent sees a predictable result in the same step. With ``background=True``
+    the child runs on its own thread and the call returns its ``run_id`` at
+    once; the finish reaches the dialog later as a mailbox notice, and the
+    caller observes it through ``subagent_status``. Either way the refusals
+    (depth, tree total, pool slot) are raised synchronously, so a caller never
+    receives a run id for work that will not happen.
+
+    ``resume_run_id`` turns the call into a continuation of that run: the child
+    inherits the tree, the depth and the budget of the original, and continues
+    from the handoff in its own journal instead of starting over.
 
     ``inline_orchestrator`` is reserved for phase 2 and answers
     ``not_implemented``; the parameter exists so the phase-2 contract does
@@ -188,7 +208,14 @@ def spawn_agent(
         request=brief,
         thread_id=thread_id or "",
         parent_run_id=parent_run_id,
+        background=bool(background),
+        resume_run_id=(resume_run_id or "").strip() or None,
     )
+    if background:
+        # ``start`` validates synchronously and only then moves the child to
+        # its own thread, so a refusal still reaches the caller in this step.
+        return service.start(spawn, parent_config=parent_config,
+                             base_dir=base_dir, lang=lang)
     return service.run(spawn, parent_config=parent_config,
                        base_dir=base_dir, lang=lang)
 
@@ -262,12 +289,224 @@ def invoke_assistant(
                           lang=lang, invoke_fn=invoke_fn)
 
 
+def subagent_status(run_id: Optional[str] = None, *,
+                    root_run_id: Optional[str] = None,
+                    wait_seconds: float = 0.0,
+                    service=None) -> Dict[str, Any]:
+    """Report the state of one run, of a tree, or wait briefly for it.
+
+    One tool covers three questions the model actually asks, because three
+    tools with overlapping answers would make it guess:
+
+    * ``run_id`` alone - what is happening with that child (live record first,
+      durable record second, so a child that outlived its tree is still
+      answered);
+    * ``root_run_id`` alone - every run of that tree, newest first;
+    * ``run_id`` with ``wait_seconds`` - block up to that many seconds for a
+      terminal status. Waiting is capped by ``MAX_STATUS_WAIT_SECONDS`` on
+      purpose: a tool call that blocks for minutes looks like a hung dialog
+      and burns the parent's step budget while it waits.
+
+    A timeout is not an error: the run comes back with ``timed_out: True`` so
+    the model can decide to wait again, do something else, or report progress.
+    """
+    if service is None:
+        from core.orchestration.service import get_service
+        service = get_service()
+
+    rid = str(run_id or "").strip()
+    tree = str(root_run_id or "").strip()
+    if not rid and not tree:
+        return error_result(
+            "", "subagent_status needs run_id (one run) or root_run_id (a tree).",
+            ERR_INVALID_ARGS, missing=["run_id|root_run_id"])
+
+    if rid and not tree:
+        wait_for = max(0.0, min(float(wait_seconds or 0.0), MAX_STATUS_WAIT_SECONDS))
+        if wait_for > 0:
+            items = service.wait([rid], timeout=wait_for)
+            item = dict(items[0]) if items else {}
+        else:
+            item = service.poll(rid)
+        run = dict(item.get("run") or {})
+        if not item.get("ok"):
+            # A refusal from poll is the documented run_not_found payload.
+            return item if item.get("error_code") else error_result(
+                "", str(item.get("error") or "Unknown run."), ERR_RUN_NOT_FOUND)
+        return {"ok": True, "run": run, "status": str(run.get("status") or ""),
+                "background": bool(run.get("background")),
+                "resumable": str(run.get("status") or "") in RESUMABLE_STATUSES}
+
+    runs = service.list_runs(tree or None)
+    tree = tree or (str((runs[0] or {}).get("root_run_id") or "") if runs else "")
+    if rid:
+        runs = [r for r in runs if str(r.get("run_id") or "") == rid]
+    return {"ok": True, "root_run_id": tree, "count": len(runs), "runs": runs}
+
+
+def read_subagent_state(run_id: Optional[str] = None, *,
+                        section: Optional[str] = None,
+                        service=None) -> Dict[str, Any]:
+    """Read the journal of a finished (or running) child run.
+
+    Without this the parent can only see a summary string: the steps the
+    child took, what it decided and what it left open live in the child's own
+    journal, whose path the record carries. Reading it by absolute path is
+    the whole point - the ordinary journal reader resolves the file from the
+    process-wide active thread id and would hand back the PARENT's journal.
+
+    ``section`` narrows the answer to one of task/architecture/plan/progress/
+    handoff/analysis/requests; without it the sections are returned whole,
+    trimmed to ``MAX_STATE_CHARS`` so a grown journal cannot flood the
+    parent's context.
+    """
+    if service is None:
+        from core.orchestration.service import get_service
+        service = get_service()
+    rid = str(run_id or "").strip()
+    if not rid:
+        return error_result("", "read_subagent_state needs run_id: the run whose "
+                            "journal you want to read.", ERR_INVALID_ARGS,
+                            missing=["run_id"])
+    record = None
+    live = service.get_record(rid)
+    if live is not None:
+        record = live.to_record()
+    if record is None:
+        record = service.record_from_store(rid)
+    if record is None:
+        return error_result(rid, "Unknown run: " + rid + ".", ERR_RUN_NOT_FOUND)
+
+    path = str(record.get("journal_path") or "").strip()
+    if not path or not os.path.isfile(path):
+        return error_result(
+            rid, "Run " + rid + " has no journal yet: a background child writes "
+            "it while it works, so read it once it has produced something.",
+            ERR_RESUME_UNAVAILABLE, journal_path=path)
+
+    try:
+        from dev_agent.task_state import read_task_state_at
+        state = read_task_state_at(path)
+    except Exception as exc:
+        return error_result(rid, "Journal read failed: " + str(exc),
+                            ERR_PROVIDER_ERROR, journal_path=path)
+    if not state.get("ok"):
+        return error_result(rid, str(state.get("error") or "Journal unreadable."),
+                            ERR_PROVIDER_ERROR, journal_path=path)
+
+    sections = dict(state.get("sections") or {})
+    wanted = str(section or "").strip().lower()
+    if wanted:
+        if wanted not in sections:
+            return error_result(
+                "", "Unknown journal section: " + wanted + ".",
+                ERR_INVALID_ARGS, section=wanted,
+                available=sorted(sections.keys()))
+        return {"ok": True, "run_id": rid, "journal_path": path,
+                "section": wanted, "text": sections.get(wanted, "")}
+
+    trimmed: Dict[str, str] = {}
+    budget = MAX_STATE_CHARS
+    for name in ("task", "architecture", "plan", "progress", "handoff",
+                 "analysis", "requests"):
+        text = str(sections.get(name) or "")
+        if not text:
+            continue
+        take = min(len(text), max(0, budget))
+        trimmed[name] = text[:take]
+        budget -= take
+        if budget <= 0:
+            break
+    return {"ok": True, "run_id": rid, "journal_path": path,
+            "sections": trimmed, "step_ids": list(state.get("step_ids") or []),
+            "status": str(record.get("status") or "")}
+
+
+def resume_subagent(run_id: Optional[str] = None, *,
+                    request: Optional[AgentBrief] = None,
+                    background: bool = False,
+                    parent_slug: str = "dev_agent",
+                    parent_run_id: Optional[str] = None,
+                    thread_id: str = "",
+                    parent_config: Optional[Dict[str, Any]] = None,
+                    base_dir: Optional[str] = None,
+                    lang: Optional[str] = None,
+                    service=None) -> Dict[str, Any]:
+    """Continue a finished child run from its own journal.
+
+    The new run inherits the tree of the original (see ``resume_run_id`` in the
+    service), so resuming never resets the depth or the total-run counter, and
+    the chain is capped by ``MAX_RESUME_CHAIN``. ``request`` is optional: a
+    caller that supplies nothing continues the original goal with the built
+    continuation hint, which is the common case ("the child stopped at a
+    question, let it continue").
+    """
+    from core.orchestration.resume import build_resume
+
+    if service is None:
+        from core.orchestration.service import get_service
+        service = get_service()
+    rid = str(run_id or "").strip()
+    if not rid:
+        return error_result("", "resume_subagent needs run_id: the run to continue.",
+                            ERR_INVALID_ARGS, missing=["run_id"])
+
+    record = None
+    live = service.get_record(rid)
+    if live is not None:
+        record = live.to_record()
+    if record is None:
+        record = service.record_from_store(rid)
+    if record is None:
+        return error_result(rid, "Nothing to resume: run " + rid + " is unknown.",
+                            ERR_RESUME_UNAVAILABLE)
+
+    try:
+        from dev_agent.task_state import read_task_state_at
+        built = build_resume(record, read_state=read_task_state_at)
+    except Exception as exc:  # pragma: no cover - defensive
+        return error_result(rid, "Resume planning failed: " + str(exc),
+                            ERR_PROVIDER_ERROR)
+    if not built.get("ok"):
+        payload = error_result(rid,
+                               str(built.get("error") or "Nothing to resume."),
+                               str(built.get("error_code") or ERR_RESUME_UNAVAILABLE))
+        payload.update({k: v for k, v in built.items()
+                        if k not in ("ok", "error", "error_code")})
+        return payload
+
+    agent = str((request.goal if request else "") or "").strip()
+    if request is not None and agent:
+        brief = request
+    else:
+        original = request or AgentBrief(goal=str(built.get("goal") or ""))
+        brief = AgentBrief(
+            goal=str(original.goal or built.get("goal") or "Continue the task."),
+            brief=str(built.get("resume_hint") or ""),
+            artifacts_in=dict(getattr(original, "artifacts_in", {}) or {}),
+        )
+
+    return spawn_agent(
+        agent_slug=str(record.get("agent_slug") or "") or parent_slug,
+        request=brief,
+        background=background,
+        resume_run_id=rid,
+        parent_slug=parent_slug,
+        parent_run_id=parent_run_id,
+        thread_id=thread_id,
+        parent_config=parent_config,
+        base_dir=base_dir,
+        lang=lang,
+        service=service,
+    )
+
+
 def spawn_tool_entry() -> Dict[str, str]:
     """Return the catalog entry of ``spawn_agent``.
 
     The description states the boundaries the model must know: the child is a
-    full agent (unlike a one-shot assistant call), the call is blocking, and
-    self-delegation needs no configuration.
+    full agent (unlike a one-shot assistant call), the call is blocking unless
+    ``background`` is set, and self-delegation needs no configuration.
     """
     return {
         "name": "spawn_agent",
@@ -275,14 +514,62 @@ def spawn_tool_entry() -> Dict[str, str]:
             "Launch a subagent (a full agent with its own tools, "
             "thread and journal) and get its structured result. Args: "
             "agent_slug (the orchestrator slug; your own slug is always "
-            "allowed), request {goal, brief, artifacts_in}. Blocking: returns "
-            "once the subagent finishes. Several calls in ONE message run in "
-            "parallel. The subagent gets a CLEAN history - put everything it "
-            "needs into goal and brief, and give it ABSOLUTE paths: the "
-            "subagent starts in your workspace and its own dialog has no "
-            "uploads, so a relative path or a bare file name is a dead end. "
-            "Limits (max_depth, max_active_subagents, total_subagent_runs) "
-            "are read from your config, not from the call."
+            "allowed), request {goal, brief, artifacts_in}, "
+            "[background], [resume_run_id]. Blocking by default: returns "
+            "once the subagent finishes. With background=true it returns a "
+            "run_id at once and the outcome arrives as a "
+            "[SUBAGENT_NOTICE:run:status] message - use subagent_status to "
+            "poll it. Several calls in ONE message run in parallel. The "
+            "subagent gets a CLEAN history - put everything it needs into "
+            "goal and brief, and give it ABSOLUTE paths: the subagent "
+            "starts in your workspace and its own dialog has no uploads, so "
+            "a relative path or a bare file name is a dead end. Limits "
+            "(max_depth, max_active_subagents, total_subagent_runs) are read "
+            "from your config, not from the call."
+        ),
+    }
+
+
+def subagent_status_tool_entry() -> Dict[str, str]:
+    """Return the catalog entry of ``subagent_status``."""
+    return {
+        "name": "subagent_status",
+        "desc": (
+            "Check a subagent run. Args: [run_id] (one run), "
+            "[root_run_id] (every run of a tree), [wait_seconds] (block up "
+            "to 30s for a terminal status when run_id is given). A timeout "
+            "is not an error: the run comes back with timed_out=true. Use "
+            "this for background children instead of calling spawn_agent "
+            "again."
+        ),
+    }
+
+
+def read_subagent_state_tool_entry() -> Dict[str, str]:
+    """Return the catalog entry of ``read_subagent_state``."""
+    return {
+        "name": "read_subagent_state",
+        "desc": (
+            "Read the task journal of a subagent run: what it planned, what "
+            "it finished, what it left open. Args: run_id, [section] "
+            "(task/architecture/plan/progress/handoff/analysis/requests). "
+            "Read it before resuming a child or when its summary is not "
+            "enough detail - it is the child's own record, not a guess."
+        ),
+    }
+
+
+def resume_subagent_tool_entry() -> Dict[str, str]:
+    """Return the catalog entry of ``resume_subagent``."""
+    return {
+        "name": "resume_subagent",
+        "desc": (
+            "Continue a finished subagent run from its own journal instead "
+            "of starting over: already-finished work is not redone. Args: "
+            "run_id, [request {goal, brief}] (omit to continue the original "
+            "goal), [background]. The new run keeps the original tree, depth "
+            "and run counters; a resume chain is capped, so repeated "
+            "resuming is refused with resume_chain_limit."
         ),
     }
 

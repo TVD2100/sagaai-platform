@@ -409,6 +409,8 @@
   "orch_attach_only_message": "Attached files: {names}",
   "orch_awaiting_approval": "Waiting for edit approval.",
   "orch_awaiting_user": "Waiting for user response.",
+  "orch_subagents_running": "🤖 Subagents running: {count} - {agents}",
+  "orch_subagent_notice": "📬 Subagent report",
   "orch_cancel": "Cancel",
   "orch_confirm_desc": "The agent wants to perform an operation that may be dangerous:",
   "orch_confirm_reasons_title": "**ℹ️ Why this is considered dangerous:**",

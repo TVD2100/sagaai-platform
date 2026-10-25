@@ -85,21 +85,56 @@ def test_final_status_map_covers_every_documented_status():
 
 
 def test_run_result_to_dict_is_compact():
-    """The parent gets a summary, never the child transcript."""
+    """The parent gets a summary, never the child transcript.
+
+    The background/resume extras are part of the compact shape now, so the
+    old guard (no history, no transcript, no events, no messages) is checked
+    together with them - and the whole payload stays under 2 KB, because it
+    travels back into the parent model on every delegated call.
+    """
     result = C.AgentRunResult(
         run_id="r1", status=C.STATUS_DONE, stop_reason=C.STOP_COMPLETED,
         summary="short summary",
         artifacts=[C.Artifact(path="out.txt", kind="file", digest="1-2")],
         steps_used=3, tokens_used={"in": 10, "out": 5},
+        child_thread_id="t1__sabcdef12",
+        pending=["Step 3 - write tests", "Step 4 - document"],
+        resume_hint="completed; resume_subagent(run_id=r1) to continue",
     )
     payload = result.to_dict()
     assert payload["run_id"] == "r1"
     assert payload["status"] == C.STATUS_DONE
     assert payload["summary"] == "short summary"
     assert payload["artifacts"] == [{"path": "out.txt", "kind": "file", "digest": "1-2"}]
+    assert payload["child_thread_id"] == "t1__sabcdef12"
+    assert payload["pending"] == ["Step 3 - write tests", "Step 4 - document"]
+    assert payload["resume_hint"].startswith("completed")
     for forbidden in ("history", "transcript", "events", "messages"):
         assert forbidden not in payload
     assert result.is_terminal is True
+
+
+def test_run_result_to_dict_extras_default_to_empty():
+    """A plain synchronous result keeps the old shape and only grows keys."""
+    payload = C.AgentRunResult(run_id="r2").to_dict()
+    assert payload["child_thread_id"] == ""
+    assert payload["pending"] == []
+    assert payload["resume_hint"] == ""
+
+
+def test_run_result_to_dict_stays_small():
+    """The dict reaches the parent model - a runaway hint must not inflate it."""
+    import json
+
+    result = C.AgentRunResult(
+        run_id="r3", status=C.STATUS_AWAITING_INPUT,
+        summary="awaiting" * 40,
+        pending=["Step %d" % i for i in range(12)],
+        resume_hint="h" * 400,
+        child_thread_id="t3__sdeadbeef",
+    )
+    encoded = json.dumps(result.to_dict(), ensure_ascii=False)
+    assert len(encoded.encode("utf-8")) < 2048
 
 
 def test_run_result_running_is_not_terminal():
@@ -168,6 +203,15 @@ def test_error_codes_are_stable_strings():
         C.ERR_CONTEXT_TOO_LARGE: "context_too_large",
         C.ERR_NOT_IMPLEMENTED: "not_implemented",
         C.ERR_LIMIT_EXCEEDED: "limit_exceeded",
+        # Background runs and resume (v2).
+        C.ERR_RUN_NOT_FOUND: "run_not_found",
+        C.ERR_RESUME_UNAVAILABLE: "resume_unavailable",
+        C.ERR_NOT_YOUR_RUN: "not_your_run",
+        C.ERR_CONFIRMATION_REQUIRED: "confirmation_required",
+        C.ERR_NO_RUN_IDENTITY: "no_run_identity",
+        C.ERR_STALE_RUN: "stale_run",
+        C.ERR_RESUME_CHAIN_LIMIT: "resume_chain_limit",
+        C.ERR_BACKGROUND_UNSUPPORTED: "background_unsupported",
     }
     for actual, expected in codes.items():
         assert actual == expected

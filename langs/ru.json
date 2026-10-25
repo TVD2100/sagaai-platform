@@ -409,6 +409,8 @@
   "orch_attach_only_message": "Прикреплены файлы: {names}",
   "orch_awaiting_approval": "Ожидание подтверждения правки.",
   "orch_awaiting_user": "Ожидание ответа пользователя.",
+  "orch_subagents_running": "🤖 Работают субагенты: {count} - {agents}",
+  "orch_subagent_notice": "📬 Отчёт субагента",
   "orch_cancel": "Отмена",
   "orch_confirm_desc": "Агент хочет выполнить операцию, которая может быть опасной:",
   "orch_confirm_reasons_title": "**ℹ️ Почему это считается опасным:**",

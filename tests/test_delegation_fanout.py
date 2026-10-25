@@ -277,5 +277,13 @@ def test_brief_passes_through_unchanged(delegation_env):
     assert L._agent_brief_from_args({"request": original}) is original
 
 
-def test_delegation_call_names_are_the_documented_pair():
-    assert L._DELEGATION_CALL_NAMES == ("spawn_agent", "invoke_assistant")
+def test_delegation_call_names_are_the_documented_set():
+    """The fan-out phase recognizes every call that touches the run tree.
+
+    Launching is not the only delegation call: observing and resuming a
+    child also belongs to the tree, so all five names have to be routed by
+    the same phase instead of falling into the plain tool path.
+    """
+    assert L._DELEGATION_CALL_NAMES == (
+        "spawn_agent", "invoke_assistant", "subagent_status",
+        "read_subagent_state", "resume_subagent")

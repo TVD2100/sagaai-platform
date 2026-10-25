@@ -742,6 +742,46 @@ def ensure_task_state_file(force: bool = False) -> Dict[str, Any]:
     }
 
 
+def read_task_state_at(path: str) -> Dict[str, Any]:
+    """Read and parse ONE journal file by its absolute path.
+
+    The regular :func:`read_task_state` resolves the file from the process-wide
+    active thread id, which is right for a dialog and wrong for anything that
+    works on ANOTHER thread's journal - a resume of a finished child, for
+    example. That caller knows the exact file and must not be able to end up
+    reading its own journal by accident, so the path is the only input here.
+
+    Returns the same shape as :func:`read_task_state`; a missing or unreadable
+    file answers ``exists: False`` (or ``ok: False``) instead of raising, as a
+    journal is an aid and never a hard dependency.
+    """
+    target = Path(str(path or "").strip())
+    if not str(path or "").strip() or not target.is_file():
+        return {"ok": True, "path": str(target), "thread_id": "",
+                "exists": False, "content": "", "sections": {},
+                "step_ids": [], "task_dir": "", "history": [], "size_bytes": 0}
+    try:
+        content = target.read_text(encoding=config.DEFAULT_ENCODING)
+    except OSError as e:
+        return {"ok": False, "error": str(e), "path": str(target)}
+    top = _split_top_sections(content)
+    active = _split_active_sections(top.get("active_task", ""))
+    meta = _read_active_meta(top.get("active_task", ""))
+    entries = _parse_history_entries(top.get("task_history", ""))
+    return {
+        "ok": True,
+        "path": str(target),
+        "thread_id": "",
+        "exists": True,
+        "content": content,
+        "sections": active,
+        "task_dir": (meta.get("task_dir") or "").strip(),
+        "step_ids": extract_step_ids(active.get("plan", "")),
+        "history": entries,
+        "size_bytes": len(content.encode(config.DEFAULT_ENCODING)),
+    }
+
+
 def read_task_state(compact: bool = False) -> Dict[str, Any]:
     """Read and parse this thread's journal.
 

@@ -182,7 +182,21 @@
 # call, and the system prompt lists the available agents and assistants
 # with their ids.
 
-__version__ = "2.11.0"
+# 2.12.0 makes delegation asynchronous and resumable. A child can be
+# launched with background=true: the dialog gets its run_id at once, keeps
+# working, and learns about the finish from the tree mailbox delivered as a
+# hidden system notice on the next step, never as a visible user line. Runs
+# are stored durably (atomic records, heartbeat, heal of a dead claim by
+# stale heartbeat / foreign boot id / missing pid) and observed through
+# subagent_status (one run, a whole tree, or a bounded wait),
+# read_subagent_state (the child's own journal by absolute path) and
+# resume_subagent, which continues from the journal: finished steps and the
+# files they produced are not redone, the run keeps its tree and counters,
+# and a resume chain is capped. A child has no human to confirm anything, so
+# a call that needs confirmation is refused with confirmation_required
+# instead of hanging the run.
+
+__version__ = "2.12.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

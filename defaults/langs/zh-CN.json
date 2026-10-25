@@ -409,6 +409,8 @@
   "orch_attach_only_message": "已附加文件：{names}",
   "orch_awaiting_approval": "等待编辑批准。",
   "orch_awaiting_user": "等待用户响应。",
+  "orch_subagents_running": "🤖 运行中的子代理：{count} - {agents}",
+  "orch_subagent_notice": "📬 子代理报告",
   "orch_cancel": "取消",
   "orch_confirm_desc": "代理想要执行可能危险的操作：",
   "orch_confirm_reasons_title": "**ℹ️ 为什么这被认为是危险的：**",

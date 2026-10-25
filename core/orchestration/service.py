@@ -37,6 +37,7 @@ import os
 import threading
 import time
 import uuid
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
@@ -56,9 +57,16 @@ from core.orchestration.contracts import (  # noqa: E402
     ERR_CANCELLED_BY_PARENT,
     ERR_LIMIT_EXCEEDED,
     ERR_MAX_STEPS,
+    ERR_NO_RUN_IDENTITY,
+    ERR_NOT_IMPLEMENTED,
+    ERR_NOT_YOUR_RUN,
     ERR_PROVIDER_ERROR,
+    ERR_RESUME_CHAIN_LIMIT,
+    ERR_RESUME_UNAVAILABLE,
+    ERR_RUN_NOT_FOUND,
     ERR_TIMEOUT,
     InvokeRequest,
+    MAX_RESUME_CHAIN,
     STATUS_CANCELLED,
     STATUS_DONE,
     STATUS_FAILED,
@@ -68,8 +76,10 @@ from core.orchestration.contracts import (  # noqa: E402
     STOP_ERROR,
     STOP_MAX_TOKENS,
     SpawnRequest,
+    TERMINAL_STATUSES,
     map_final_status,
 )
+from core.orchestration import runs as run_store  # noqa: E402
 
 #: Tools a child must NOT see in v1: a child never creates platform entities
 #: (orchestrators, assistants). The parent keeps whatever it had.
@@ -77,8 +87,20 @@ CHILD_DISABLED_TOOLS = (
     "create_orchestrator",
     "update_orchestrator",
     "delete_orchestrator",
+    "reload_orchestrator",
     "create_assistant_for_task",
     "update_assistant_by_id",
+    "save_orchestrator_function",
+    "delete_orchestrator_function",
+    "save_orchestrator_instruction",
+    "delete_orchestrator_instruction",
+    "create_connection",
+    "update_connection",
+    "delete_connection",
+    "set_enabled_connections",
+    "resume_subagent",
+    "subagent_status",
+    "read_subagent_state",
 )
 
 
@@ -121,7 +143,14 @@ def read_limits(config: Optional[Dict[str, Any]]) -> Dict[str, int]:
 
 @dataclass
 class RunRecord:
-    """In-memory state of one run (the dialog itself or a spawned child)."""
+    """State of one run (the dialog itself or a spawned child).
+
+    The record is the single in-memory truth about a run. The fields below the
+    identity block exist because a BACKGROUND run outlives the step that
+    started it: the workspace, the child journal path and the timeout are
+    frozen here at spawn time, so nothing later has to re-read the process-wide
+    config (which belongs to whichever dialog happens to run).
+    """
 
     run_id: str
     thread_id: str = ""
@@ -139,6 +168,23 @@ class RunRecord:
     cancel_requested: bool = False
     children: List[str] = field(default_factory=list)
 
+    # ── Frozen launch context (background and resume) ──────────────────────
+    child_thread_id: str = ""
+    workspace: str = ""
+    journal_path: str = ""
+    goal: str = ""
+    background: bool = False
+    resumed_from: Optional[str] = None
+    resume_depth: int = 0
+    timeout_seconds: int = DEFAULT_SUBAGENT_TIMEOUT_SECONDS
+    heartbeat_at: float = 0.0
+    created_at: float = 0.0
+
+    @property
+    def is_terminal(self) -> bool:
+        """True when the run reached one of the terminal statuses."""
+        return self.status in TERMINAL_STATUSES
+
     def to_result(self) -> AgentRunResult:
         """Freeze the current record into an ``AgentRunResult``."""
         return AgentRunResult(
@@ -150,14 +196,78 @@ class RunRecord:
             error_code=self.error_code,
             steps_used=self.steps_used,
             tokens_used=dict(self.tokens_used),
+            child_thread_id=self.child_thread_id,
         )
+
+    def to_record(self) -> Dict[str, Any]:
+        """Return the durable-store form of this record.
+
+        ``summary`` is truncated here on purpose: the store serves status and
+        resume, and a runaway child summary would otherwise grow the file that
+        is rewritten on every heartbeat.
+        """
+        return {
+            "run_id": self.run_id,
+            "parent_run_id": self.parent_run_id,
+            "root_run_id": self.root_run_id,
+            "depth": self.depth,
+            "agent_slug": self.agent_slug,
+            "child_thread_id": self.child_thread_id,
+            "workspace": self.workspace,
+            "journal_path": self.journal_path,
+            "goal": self.goal,
+            "status": self.status,
+            "stop_reason": self.stop_reason,
+            "error_code": self.error_code,
+            "summary": (self.summary or "")[:2000],
+            "steps_used": self.steps_used,
+            "tokens_used": dict(self.tokens_used),
+            "background": self.background,
+            "resumed_from": self.resumed_from,
+            "resume_depth": self.resume_depth,
+            "cancel_requested": self.cancel_requested,
+            "timeout_seconds": self.timeout_seconds,
+            "heartbeat_at": self.heartbeat_at or time.time(),
+            "created_at": self.created_at or time.time(),
+            "pid": os.getpid(),
+            "boot_id": run_store.current_boot_id(),
+        }
+
+
+class _PoolSlot:
+    """Outcome of one pool acquisition: was it granted, and by which tree.
+
+    ``bool(slot)`` answers the old question ("may this call proceed?") while
+    ``slot.tree`` answers the new one ("which pool must be credited back?").
+    A slot granted without a tree means the call is outside the delegated-limits
+    system: it may proceed and releasing it is a no-op.
+    """
+
+    __slots__ = ("tree", "granted")
+
+    def __init__(self, tree: Optional["_TreeState"] = None,
+                 granted: bool = True):
+        self.tree = tree
+        self.granted = bool(granted)
+
+    def __bool__(self) -> bool:
+        return self.granted
+
+    def __repr__(self) -> str:  # pragma: no cover - diagnostics only
+        return "_PoolSlot(granted=%r, tree=%r)" % (self.granted, self.tree)
 
 
 class _TreeState:
-    """Per-tree bookkeeping: one pool, one run counter, all subscribers."""
+    """Per-tree bookkeeping: one pool, one run counter, all subscribers.
+
+    The mailbox is part of the tree because a notification belongs to the
+    dialog that owns the children: when the tree is released its pending
+    notices are dropped with it, and a fresh dialog never inherits stale
+    ``finished`` messages from a previous run of the same thread id.
+    """
 
     __slots__ = ("lock", "pool", "pool_size", "total_used", "total_limit",
-                 "subscribers")
+                 "subscribers", "mailbox", "held_slots", "release_pending")
 
     def __init__(self, pool_size: int, total_limit: int):
         self.lock = threading.RLock()
@@ -168,6 +278,14 @@ class _TreeState:
         self.total_limit = max(1, int(total_limit))
         # run_id -> list of callbacks (ancestors included at delivery time).
         self.subscribers: Dict[str, List[Callable[[dict], None]]] = {}
+        # Drained by the loop or the UI; the worker only appends.
+        self.mailbox: deque = deque(maxlen=200)
+        # Slots currently granted by THIS object: released against it, never
+        # against a tree looked up by id (which may be a newer object).
+        self.held_slots = 0
+        # Set when the dialog asked to release the tree while a background
+        # child was still running; the last finish performs the release.
+        self.release_pending = False
 
 
 class OrchestrationService:
@@ -238,35 +356,207 @@ class OrchestrationService:
         with self._lock:
             return self._runs.get((run_id or "").strip())
 
-    def finish_run(self, run_id: str, result: AgentRunResult) -> None:
-        """Store the terminal state of a run and drop its tree when empty."""
+    def finish_run(self, run_id: str, result: AgentRunResult) -> AgentRunResult:
+        """Store the terminal state of a run and return the EFFECTIVE result.
+
+        The compare-and-set on ``cancel_requested`` lives here, not in ``run``:
+        a cancellation that lands while the child is still finishing would
+        otherwise be overwritten by the child's own ``done`` - the loop already
+        passed its ``is_cancelled`` check, and the assignment below is
+        unconditional. A background worker finishes long after ``cancel`` was
+        accepted, so the protection has to sit in the one place both paths
+        share.
+
+        Returns the result that was actually stored: the caller publishes THAT,
+        so a cancelled run never reports ``done`` to the feed.
+        """
         rid = (run_id or "").strip()
         with self._lock:
             rec = self._runs.get(rid)
             if rec is None:
-                return
-            rec.status = result.status
-            rec.stop_reason = result.stop_reason
-            rec.summary = result.summary
-            rec.error_code = result.error_code
-            rec.artifacts = list(result.artifacts)
-            rec.steps_used = result.steps_used
-            rec.tokens_used = dict(result.tokens_used)
+                return result
+            effective = result
+            if rec.cancel_requested and result.status in (STATUS_RUNNING, STATUS_DONE):
+                effective = AgentRunResult(
+                    run_id=result.run_id,
+                    status=STATUS_CANCELLED,
+                    stop_reason=STOP_ABORTED,
+                    summary=result.summary,
+                    artifacts=list(result.artifacts),
+                    error_code=ERR_CANCELLED_BY_PARENT,
+                    steps_used=result.steps_used,
+                    tokens_used=dict(result.tokens_used),
+                    child_thread_id=result.child_thread_id,
+                    pending=list(result.pending),
+                    resume_hint=result.resume_hint,
+                )
+            rec.status = effective.status
+            rec.stop_reason = effective.stop_reason
+            rec.summary = effective.summary
+            rec.error_code = effective.error_code
+            rec.artifacts = list(effective.artifacts)
+            rec.steps_used = effective.steps_used
+            rec.tokens_used = dict(effective.tokens_used)
+            rec.heartbeat_at = time.time()
+        self.save_record(rid)
+        return effective
 
-    def release_tree(self, root_run_id: str) -> None:
-        """Forget a finished tree (records, pool, subscribers).
+    def release_tree(self, root_run_id: str) -> Dict[str, Any]:
+        """Forget a finished tree (records, pool, subscribers, mailbox).
 
-        Called when the dialog finishes its loop: the tree exists only while
-        the dialog runs, and keeping it would leak one semaphore per dialog.
+        Called when the dialog finishes a step, but a BACKGROUND child may
+        still be running: wiping the records then would make it uncancellable
+        (``is_cancelled`` finds no record) and its ``run_finished`` would be
+        dropped silently on the floor. So the release is DEFERRED while any
+        record of the tree is still ``running``; the worker performs it on the
+        last finish.
+
+        Returns ``{released, deferred}`` so the caller can tell the two cases
+        apart instead of assuming the tree is gone.
         """
         rid = (root_run_id or "").strip()
         if not rid:
-            return
+            return {"released": False, "deferred": False}
         with self._lock:
+            alive = [r for r in self._runs.values()
+                     if r.root_run_id == rid and r.run_id != rid
+                     and r.status == STATUS_RUNNING]
+            if alive:
+                tree = self._trees.get(rid)
+                if tree is not None:
+                    # Remember the request: the last background worker of this
+                    # tree will perform the release once nothing is running.
+                    tree.release_pending = True
+                return {"released": False, "deferred": True}
             doomed = [r for r in self._runs.values() if r.root_run_id == rid]
             for rec in doomed:
                 self._runs.pop(rec.run_id, None)
             self._trees.pop(rid, None)
+        return {"released": True, "deferred": False}
+
+    # ── Durable records ────────────────────────────────────────────────────
+
+    def store_root(self) -> str:
+        """Return the durable store root of this service.
+
+        Read once from the installation config, never from the workspace: the
+        live workspace belongs to whichever dialog is running, while records
+        describe the whole installation.
+        """
+        root = getattr(self, "_store_root", "")
+        return root or run_store.default_store_root()
+
+    def set_store_root(self, path: str) -> None:
+        """Point this service at another store root (tests and tooling)."""
+        self._store_root = str(path or "")
+
+    def save_record(self, run_id: str) -> bool:
+        """Persist the current state of one run; never raises."""
+        rec = self.get_record(run_id)
+        if rec is None:
+            return False
+        try:
+            return run_store.save(rec.to_record(), self.store_root())
+        except Exception as exc:  # pragma: no cover - observability is best effort
+            log.warning("run record save failed for %s: %s", run_id, exc)
+            return False
+
+    def refresh_heartbeat(self, run_id: str) -> None:
+        """Touch the heartbeat of a run and its record on disk.
+
+        A background run may sit inside one long tool call, so its heartbeat
+        is what tells ``runs.heal`` that the process is alive; without it a
+        slow-but-healthy child would be declared stale and un-resumable.
+        """
+        rec = self.get_record(run_id)
+        if rec is None:
+            return
+        rec.heartbeat_at = time.time()
+        self.save_record(run_id)
+
+    def record_from_store(self, run_id: str) -> Optional[Dict[str, Any]]:
+        """Return a durable record even when the in-memory one is gone.
+
+        This is what makes a background run observable after ``release_tree``
+        or a restart: the registry is a cache, the store is the truth.
+        """
+        try:
+            return run_store.load(run_id, self.store_root())
+        except Exception as exc:  # pragma: no cover - unreadable store
+            log.warning("run record load failed for %s: %s", run_id, exc)
+            return None
+
+    def list_records(self, root_run_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Merge live records with durable ones, newest first, one per run.
+
+        Live state wins over the stored copy (the store lags a heartbeat); a
+        run known only to the store - a background child from a previous
+        process - is still reported instead of silently disappearing.
+        """
+        merged: Dict[str, Dict[str, Any]] = {}
+        try:
+            for item in run_store.list_runs(root_run_id, self.store_root()):
+                rid = str(item.get("run_id") or "")
+                if rid:
+                    merged[rid] = item
+        except Exception as exc:  # pragma: no cover - unreadable store
+            log.warning("run record list failed: %s", exc)
+        with self._lock:
+            live = [r for r in self._runs.values()
+                    if not root_run_id or r.root_run_id == root_run_id]
+        for rec in live:
+            merged[rec.run_id] = rec.to_record()
+        items = list(merged.values())
+        items.sort(key=lambda d: float(d.get("created_at") or 0.0), reverse=True)
+        return items
+
+    # ── Notification mailbox ───────────────────────────────────────────────
+
+    def post_notification(self, root_run_id: str, notice: Dict[str, Any]) -> bool:
+        """Drop one notice into the mailbox of a tree (worker side).
+
+        The worker never writes into the dialog thread: that structure is
+        owned by Streamlit's script run, and a background thread touching it
+        is a race at best and a lost message at worst. It posts here and the
+        loop or the UI moves the notice into the history exactly once.
+        """
+        rid = (root_run_id or "").strip()
+        if not rid or not isinstance(notice, dict):
+            return False
+        with self._lock:
+            tree = self._trees.get(rid)
+        if tree is None:
+            return False
+        with tree.lock:
+            tree.mailbox.append(dict(notice))
+        return True
+
+    def take_notifications(self, root_run_id: str) -> List[Dict[str, Any]]:
+        """Drain and return the notices of a tree, oldest first."""
+        rid = (root_run_id or "").strip()
+        if not rid:
+            return []
+        with self._lock:
+            tree = self._trees.get(rid)
+        if tree is None:
+            return []
+        out: List[Dict[str, Any]] = []
+        with tree.lock:
+            while tree.mailbox:
+                out.append(tree.mailbox.popleft())
+        return out
+
+    def has_notifications(self, root_run_id: str) -> bool:
+        """Return True when the tree mailbox holds at least one notice."""
+        rid = (root_run_id or "").strip()
+        if not rid:
+            return False
+        with self._lock:
+            tree = self._trees.get(rid)
+        if tree is None:
+            return False
+        with tree.lock:
+            return bool(tree.mailbox)
 
     # ── Limits ─────────────────────────────────────────────────────────────
 
@@ -305,24 +595,70 @@ class OrchestrationService:
                 tree.total_used += 1
                 return None
 
-    def acquire_pool(self, root_id: str, timeout: float = 0.0) -> bool:
-        """Take one concurrency slot of the tree pool (non-blocking by default)."""
+    def acquire_pool(self, root_id: str, timeout: float = 0.0) -> "_PoolSlot":
+        """Take one concurrency slot and return the slot token.
+
+        The token carries BOTH the outcome and the owning tree. A bare
+        ``Optional[tree]`` could not do this: ``None`` would mean "no tree, no
+        limit to enforce" (allowed) and "pool exhausted" (refused) at the same
+        time, and the two are opposites.
+
+        The owner matters because the dialog may release and re-create the tree
+        (a fresh ``_TreeState`` under the same id) while a background child
+        still holds a slot. Releasing by id would then either hit the new pool -
+        letting it admit one child too many - or raise ``ValueError`` on an
+        over-release, which the old guard swallowed silently. The token pins the
+        slot to the exact pool it came from.
+        """
         with self._lock:
             tree = self._trees.get(root_id)
         if tree is None:
-            return True
-        return bool(tree.pool.acquire(timeout=timeout)) if timeout > 0 else bool(tree.pool.acquire(blocking=False))
+            # No tree: the caller is outside the delegated-limits system and
+            # the call is allowed without consuming anything.
+            return _PoolSlot(tree=None, granted=True)
+        taken = (tree.pool.acquire(timeout=timeout) if timeout > 0
+                 else tree.pool.acquire(blocking=False))
+        if not taken:
+            return _PoolSlot(tree=None, granted=False)
+        with tree.lock:
+            tree.held_slots += 1
+        return _PoolSlot(tree=tree, granted=True)
 
-    def release_pool(self, root_id: str) -> None:
-        """Return one concurrency slot to the tree pool."""
-        with self._lock:
-            tree = self._trees.get(root_id)
+    def release_pool(self, root_id: str,
+                     token: Optional[object] = None) -> None:
+        """Return one concurrency slot to the pool that granted it.
+
+        ``token`` is what :meth:`acquire_pool` returned. When it is omitted the
+        tree is looked up by id for backward compatibility, but callers that
+        hold a slot must pass the token: only then is the release guaranteed to
+        reach the pool that was actually taken from.
+
+        A token that carries no tree means the acquisition was granted outside
+        the limits system - there is nothing to credit back, so the call is a
+        no-op rather than a lookup that could release a foreign slot.
+        """
+        tree: Optional[_TreeState]
+        if token is None:
+            with self._lock:
+                tree = self._trees.get(root_id)
+        elif isinstance(token, _PoolSlot):
+            tree = token.tree
+            if tree is None:
+                return
+        elif isinstance(token, _TreeState):
+            tree = token
+        else:  # pragma: no cover - a foreign token must not release anything
+            return
         if tree is None:
             return
-        try:
-            tree.pool.release()
-        except ValueError:  # pragma: no cover - over-release guard
-            pass
+        with tree.lock:
+            if tree.held_slots <= 0:
+                return
+            try:
+                tree.pool.release()
+            except ValueError:  # pragma: no cover - defensive double-release
+                return
+            tree.held_slots -= 1
 
     def pool_active(self, root_id: str) -> int:
         """Return how many slots of the tree pool are taken right now."""
@@ -419,6 +755,7 @@ class OrchestrationService:
             rec.cancel_requested = True
             rec.status = STATUS_CANCELLED
             rec.stop_reason = STOP_ABORTED
+            rec.error_code = ERR_CANCELLED_BY_PARENT
             cancelled_ids.append(rec.run_id)
             if cascade:
                 stack = list(rec.children)
@@ -496,13 +833,85 @@ class OrchestrationService:
         involved - an over-limit spawn fails immediately so the model can see
         the cause and narrow the task.
         """
+        prep = self._prepare_child(req, parent_config=parent_config)
+        if prep.get("ok") is False:
+            return prep
+        return self._execute_child(prep, req=req, base_dir=base_dir, lang=lang)
+
+    def _prepare_child(self, req: SpawnRequest, *,
+                       parent_config: Optional[Dict[str, Any]] = None,
+                       block_pool: bool = True,
+                       caller_root_run_id: Optional[str] = None) -> Dict[str, Any]:
+        """Validate a spawn and reserve its identity, record and pool slot.
+
+        Everything that can REFUSE the call happens here, synchronously, so the
+        caller learns about a limit in the same turn it asked - a background
+        launch must not accept work it can never run.
+
+        ``block_pool=False`` makes the concurrency check non-blocking. That is
+        what a background launch needs: waiting up to ``subagent_timeout_seconds``
+        inside a tool call would freeze the dialog for the whole timeout while
+        looking like a hang. A blocking spawn keeps the old waiting behaviour.
+
+        ``req.resume_run_id`` turns the call into a CONTINUATION: the new run
+        inherits the tree of the original (same root, same depth, same parent)
+        instead of starting a fresh one. Without that inheritance every resume
+        would reset ``max_depth`` and ``total_subagent_runs``, so a caller could
+        delegate downwards indefinitely by resuming. The chain length is capped
+        by ``MAX_RESUME_CHAIN`` for the same reason, and ``caller_root_run_id``
+        confines resumes to the caller's own tree.
+        """
+        if req.inline_orchestrator:
+            return {"ok": False,
+                    "error": "inline_orchestrator is not implemented yet.",
+                    "error_code": ERR_NOT_IMPLEMENTED}
+
+        source: Optional[Dict[str, Any]] = None
+        if req.resume_run_id and not caller_root_run_id:
+            # Fail closed: confinement must not depend on the caller
+            # remembering to pass its own root. A blocked spawn derives it from
+            # the parent run record; a dialog-level call is its own root.
+            caller_parent = (self.get_record(req.parent_run_id or "")
+                             if req.parent_run_id else None)
+            caller_root_run_id = (caller_parent.root_run_id
+                                  if caller_parent is not None
+                                  else (req.thread_id or None))
+        if req.resume_run_id:
+            rid_source = (req.resume_run_id or "").strip()
+            live = self.get_record(rid_source)
+            source = live.to_record() if live is not None else self.record_from_store(rid_source)
+            if source is None:
+                return {"ok": False,
+                        "error": "Nothing to resume: run " + rid_source + " is unknown.",
+                        "error_code": ERR_RESUME_UNAVAILABLE}
+            if (caller_root_run_id
+                    and str(source.get("root_run_id") or "") != str(caller_root_run_id)):
+                return {"ok": False,
+                        "error": "Run " + rid_source + " belongs to another tree.",
+                        "error_code": ERR_NOT_YOUR_RUN}
+            chain = int(source.get("resume_depth") or 0)
+            if chain >= MAX_RESUME_CHAIN:
+                return {"ok": False,
+                        "error": ("Resume chain limit reached (" + str(MAX_RESUME_CHAIN)
+                                  + "): start a new delegation instead."),
+                        "error_code": ERR_RESUME_CHAIN_LIMIT,
+                        "limit": "resume_chain", "value": chain}
+
         parent = self.get_record(req.parent_run_id or "") if req.parent_run_id else None
+        if parent is None and source is not None and source.get("parent_run_id"):
+            parent = self.get_record(str(source.get("parent_run_id")))
         if parent is None and req.thread_id:
             # The dialog registered no explicit run for this thread: treat the
             # thread itself as the root so limits still apply.
             parent = self.ensure_run(req.thread_id, thread_id=req.thread_id,
                                      config=parent_config)
         root_id = parent.root_run_id if parent else req.thread_id or ""
+        if source is not None:
+            root_id = str(source.get("root_run_id") or root_id)
+        if not root_id:
+            return {"ok": False,
+                    "error": "A spawn needs a root run or thread: limits cannot be enforced.",
+                    "error_code": ERR_NO_RUN_IDENTITY}
         limits = read_limits(parent_config if parent_config is not None
                              else getattr(self, "_last_config", None))
 
@@ -515,12 +924,20 @@ class OrchestrationService:
 
         run_id = uuid.uuid4().hex[:12]
         depth = (parent.depth if parent else 0) + 1
+        if source is not None:
+            # A resume continues the SAME depth: it is the same unit of work,
+            # not one level deeper.
+            depth = int(source.get("depth") or depth)
         parent_thread = (parent.thread_id if parent and parent.thread_id
                          else req.thread_id or "")
+        if not parent_thread and source is not None:
+            parent_thread = str(source.get("thread_id") or "")
         child_thread_id = derive_child_thread_id(parent_thread, run_id)
 
-        if not self.acquire_pool(root_id,
-                                  timeout=float(limits["subagent_timeout_seconds"])):
+        slot = self.acquire_pool(
+            root_id,
+            timeout=(float(limits["subagent_timeout_seconds"]) if block_pool else 0.0))
+        if not slot:
             self._release_run_slot(root_id)
             return self._limit_error("max_active_subagents",
                                      limits["max_active_subagents"],
@@ -530,9 +947,62 @@ class OrchestrationService:
                               agent_slug=req.agent_slug or "",
                               parent_run_id=parent.run_id if parent else None,
                               depth=depth)
+        rec.workspace = str(req.workspace or "")
+        rec.goal = str(getattr(req.request, "goal", "") or "")
+        rec.timeout_seconds = int(limits["subagent_timeout_seconds"])
+        rec.created_at = time.time()
+        rec.heartbeat_at = rec.created_at
+        if source is not None:
+            rec.resumed_from = str(source.get("run_id") or "") or None
+            rec.resume_depth = int(source.get("resume_depth") or 0) + 1
+        # Always the NEW child's own journal: a resumed run writes its own
+        # record of what it did, and a later resume of THAT run reads this path.
+        rec.journal_path = self._child_journal_path(child_thread_id)
         self.publish({"type": "run_started", "run_id": run_id,
                       "parent_run_id": req.parent_run_id, "thread_id": child_thread_id,
                       "agent_slug": req.agent_slug, "depth": depth, "payload": {}})
+        return {"ok": True, "run_id": run_id, "depth": depth,
+                "child_thread_id": child_thread_id, "parent_thread": parent_thread,
+                "root_id": root_id, "limits": limits, "slot": slot, "rec": rec}
+
+    def _child_journal_path(self, child_thread_id: str) -> str:
+        """Return the absolute journal path of a child thread, best effort.
+
+        Frozen on the record at spawn time so a resume can read the journal of
+        a run whose thread is no longer the active one - resolving it later
+        would depend on process-wide state that may already belong to another
+        dialog.
+        """
+        tid = str(child_thread_id or "").strip()
+        if not tid:
+            return ""
+        try:
+            from dev_agent.task_state import task_state_path
+            return str(task_state_path(tid))
+        except Exception as exc:  # pragma: no cover - journal is best effort
+            log.debug("child journal path resolution failed: %s", exc)
+            return ""
+
+    def _execute_child(self, prep: Dict[str, Any], *, req: SpawnRequest,
+                       base_dir: Optional[str] = None,
+                       lang: Optional[str] = None) -> Dict[str, Any]:
+        """Run one prepared child to completion and publish its outcome.
+
+        Shared by the blocking ``run`` and the background ``start``: the only
+        difference between them is which thread calls this method. The pool slot
+        reserved by :meth:`_prepare_child` is released in ``finally``, so a crash
+        inside the child cannot leak a concurrency slot.
+
+        The event published at the end carries the EFFECTIVE result: a run that
+        was cancelled while finishing must not announce ``done``.
+        """
+        run_id = prep["run_id"]
+        depth = prep["depth"]
+        child_thread_id = prep["child_thread_id"]
+        parent_thread = prep["parent_thread"]
+        root_id = prep["root_id"]
+        limits = prep["limits"]
+        slot = prep["slot"]
 
         deadline = time.monotonic() + limits["subagent_timeout_seconds"]
         try:
@@ -556,7 +1026,7 @@ class OrchestrationService:
                                     summary=str(exc),
                                     error_code=ERR_PROVIDER_ERROR)
         finally:
-            self.release_pool(root_id)
+            self.release_pool(root_id, slot)
 
         if self.is_cancelled(run_id) and result.status == STATUS_RUNNING:
             result = AgentRunResult(run_id=run_id, status=STATUS_CANCELLED,
@@ -566,13 +1036,164 @@ class OrchestrationService:
                                     error_code=ERR_CANCELLED_BY_PARENT,
                                     steps_used=result.steps_used,
                                     tokens_used=result.tokens_used)
-        self.finish_run(run_id, result)
+        effective = self.finish_run(run_id, result)
         self.publish({"type": "run_finished", "run_id": run_id,
                       "parent_run_id": req.parent_run_id,
                       "thread_id": child_thread_id,
                       "agent_slug": req.agent_slug, "depth": depth,
-                      "payload": result.to_dict()})
-        return {"ok": True, "result": result.to_dict()}
+                      "payload": effective.to_dict()})
+        return {"ok": True, "result": effective.to_dict()}
+
+    # ── Background runs ────────────────────────────────────────────────────
+
+    def start(self, req: SpawnRequest, *,
+              parent_config: Optional[Dict[str, Any]] = None,
+              base_dir: Optional[str] = None,
+              lang: Optional[str] = None) -> Dict[str, Any]:
+        """Launch a child on its own thread and return at once.
+
+        Everything that can refuse the call - depth, tree total, pool slot -
+        is checked HERE, synchronously, so the caller never receives a
+        ``running`` run id for work that will not happen. Only the child's own
+        execution moves to the background.
+
+        The worker owns the run from then on: it finishes the record, claims
+        the notice and performs a deferred tree release. The caller of ``start``
+        must not touch the record afterwards - it observes through ``poll``,
+        ``wait`` or the mailbox.
+        """
+        prep = self._prepare_child(req, parent_config=parent_config,
+                                   block_pool=False)
+        if prep.get("ok") is False:
+            return prep
+
+        run_id = prep["run_id"]
+        rec = prep["rec"]
+        rec.background = True
+        self.save_record(run_id)
+
+        worker = threading.Thread(
+            target=self._background_worker,
+            args=(prep, req, base_dir, lang),
+            name="orch-run-" + str(run_id),
+            daemon=True,
+        )
+        worker.start()
+        return {"ok": True, "run_id": run_id, "status": STATUS_RUNNING,
+                "background": True, "child_thread_id": prep["child_thread_id"],
+                "depth": prep["depth"]}
+
+    def _background_worker(self, prep: Dict[str, Any], req: SpawnRequest,
+                           base_dir: Optional[str],
+                           lang: Optional[str]) -> None:
+        """Run one prepared child off-thread and publish exactly one notice.
+
+        A daemon thread cannot be joined by the interpreter, so every step here
+        is written to leave a consistent record behind even when the process
+        exits mid-run: the record is already on disk from ``start`` and
+        ``runs.heal`` will turn a dead ``running`` claim into ``failed``.
+
+        The notice is claimed with ``O_EXCL`` instead of being marked inside the
+        message text: two writers would both see no marker and both write, so
+        only a filesystem primitive gives exactly-once delivery.
+        """
+        run_id = prep["run_id"]
+        root_id = prep["root_id"]
+        try:
+            payload = self._execute_child(prep, req=req, base_dir=base_dir, lang=lang)
+        except Exception as exc:  # pragma: no cover - defensive
+            log.warning("background run %s crashed: %s", run_id, exc)
+            payload = {"ok": False,
+                       "error": "background run failed: " + str(exc),
+                       "error_code": ERR_PROVIDER_ERROR}
+            rec = self.get_record(run_id)
+            if rec is not None and not rec.is_terminal:
+                self.finish_run(run_id, AgentRunResult(
+                    run_id=run_id, status=STATUS_FAILED, stop_reason=STOP_ERROR,
+                    summary=str(exc), error_code=ERR_PROVIDER_ERROR))
+
+        result = dict((payload or {}).get("result") or {})
+        status = str(result.get("status") or STATUS_FAILED)
+        notice = {
+            "type": "run_finished",
+            "run_id": run_id,
+            "root_run_id": root_id,
+            "parent_run_id": req.parent_run_id,
+            "agent_slug": req.agent_slug,
+            "status": status,
+            "child_thread_id": prep.get("child_thread_id", ""),
+            "payload": result,
+        }
+        if run_store.claim_notice(run_id, status, self.store_root()):
+            self.post_notification(root_id, notice)
+        else:
+            log.info("background notice for %s/%s was already claimed", run_id, status)
+
+        try:
+            with self._lock:
+                tree = self._trees.get(root_id)
+            if tree is not None and getattr(tree, "release_pending", False):
+                self.release_tree(root_id)
+        except Exception as exc:  # pragma: no cover - release is best effort
+            log.warning("deferred tree release failed for %s: %s", root_id, exc)
+
+    def poll(self, run_id: str, **_: object) -> Dict[str, Any]:
+        """Return the current status of one run, live or durable.
+
+        The in-memory record is preferred because it is never behind, but a
+        child that outlived ``release_tree`` or a process restart is answered
+        from the store instead of a misleading ``run_not_found``.
+        """
+        rid = (run_id or "").strip()
+        rec = self.get_record(rid)
+        if rec is not None:
+            payload = rec.to_record()
+            payload["live"] = True
+            return {"ok": True, "run": payload}
+        stored = self.record_from_store(rid)
+        if stored is not None:
+            stored["live"] = False
+            return {"ok": True, "run": stored}
+        return {"ok": False, "run_id": rid,
+                "error": "Unknown run: " + rid,
+                "error_code": ERR_RUN_NOT_FOUND}
+
+    def wait(self, run_ids: List[str], timeout: float = 0.0,
+             **_: object) -> List[Dict[str, Any]]:
+        """Block until every run is terminal or the timeout expires.
+
+        Positions are preserved, so the caller can map results back to the ids
+        it passed. A timeout does not raise: the runs that are still working
+        come back with ``status: running`` and a ``timed_out: True`` marker.
+        """
+        ids = [str(r or "").strip() for r in (run_ids or [])]
+        if not ids:
+            return []
+        deadline = time.monotonic() + max(0.0, float(timeout or 0.0))
+        interval = 0.05
+        while True:
+            out: List[Dict[str, Any]] = []
+            pending = 0
+            for rid in ids:
+                item = self.poll(rid)
+                run = dict(item.get("run") or {})
+                if str(run.get("status") or "") == STATUS_RUNNING:
+                    pending += 1
+                out.append(item)
+            if pending == 0 or (timeout and time.monotonic() >= deadline):
+                if pending:
+                    for item in out:
+                        run = item.get("run") or {}
+                        if str(run.get("status") or "") == STATUS_RUNNING:
+                            run["timed_out"] = True
+                return out
+            time.sleep(min(interval, max(0.0, deadline - time.monotonic())))
+            interval = min(0.5, interval * 2)
+
+    def list_runs(self, root_run_id: Optional[str] = None,
+                  **_: object) -> List[Dict[str, Any]]:
+        """Return the runs of one tree (or of all trees), newest first."""
+        return self.list_records(root_run_id)
 
     def _release_run_slot(self, root_id: str) -> None:
         """Return one unit of the tree total counter (after a failed claim)."""
@@ -603,8 +1224,9 @@ class OrchestrationService:
         parent = self.get_record(req.parent_run_id or "") if req.parent_run_id else None
         root_id = parent.root_run_id if parent else ""
         limits = read_limits(parent_config)
-        if not self.acquire_pool(root_id,
-                                  timeout=float(limits["subagent_timeout_seconds"])):
+        slot = self.acquire_pool(root_id,
+                                 timeout=float(limits["subagent_timeout_seconds"]))
+        if not slot:
             return self._limit_error("max_active_subagents",
                                      limits["max_active_subagents"],
                                      active=self.pool_active(root_id))
@@ -613,7 +1235,7 @@ class OrchestrationService:
                 from core.orchestration.invoke import invoke_once as invoke_fn
             return invoke_fn(req, parent_slug=parent_slug, base_dir=base_dir, lang=lang)
         finally:
-            self.release_pool(root_id)
+            self.release_pool(root_id, slot)
 
     # ── Fan-out ────────────────────────────────────────────────────────────
 
@@ -728,6 +1350,25 @@ def _build_child_task_text(brief: AgentBrief, base_dir: Optional[str],
     return task_text
 
 
+def _tree_root_of(service: "OrchestrationService", run_id: str) -> str:
+    """Return the root run id of the tree that owns ``run_id``.
+
+    The mailbox hangs off the ROOT run: a worker posts a notice to the tree
+    that owns the concurrency pool, not to its own record. When the record is
+    already gone the run's own id is the best available answer - it at least
+    keeps the drain from reading a foreign tree.
+    """
+    rid = (run_id or "").strip()
+    if not rid:
+        return ""
+    try:
+        rec = service.get_record(rid)
+    except Exception:  # pragma: no cover - registry is best effort
+        rec = None
+    root = str(getattr(rec, "root_run_id", "") or "").strip()
+    return root or rid
+
+
 def _default_child_runner(*, child_slug: str, brief: AgentBrief,
                           child_thread_id: str, run_id: str,
                           parent_run_id: Optional[str], depth: int,
@@ -818,6 +1459,12 @@ def _default_child_runner(*, child_slug: str, brief: AgentBrief,
             run_id=run_id,
             parent_run_id=parent_run_id or "",
             depth=depth,
+            # A delegated child has no interactive user: the loop must not stop
+            # on a confirmation request or on a question nobody will answer.
+            child_mode=True,
+            # The child drains the mailbox of the whole tree, not of its own
+            # run: a worker posts a notice to the root that owns the pool.
+            root_run_id=_tree_root_of(service, run_id),
         )
 
         def _child_event(event: dict) -> None:

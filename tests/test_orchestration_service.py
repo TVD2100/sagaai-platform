@@ -25,6 +25,7 @@ from core.orchestration.contracts import (  # noqa: E402
     ERR_LIMIT_EXCEEDED,
     SpawnRequest,
     STATUS_CANCELLED,
+    STATUS_RUNNING,
     STATUS_DONE,
     STOP_ABORTED,
     STOP_COMPLETED,
@@ -32,9 +33,10 @@ from core.orchestration.contracts import (  # noqa: E402
 
 
 @pytest.fixture
-def svc():
+def svc(tmp_path):
     """A private service whose children return immediately."""
     service = S.OrchestrationService()
+    service.set_store_root(str(tmp_path / "runs"))
     service.set_child_runner(_fast_runner)
     return service
 
@@ -121,15 +123,36 @@ def test_finish_run_stores_the_terminal_state(svc):
     assert record.tokens_used == {"in": 1}
 
 
-def test_release_tree_forgets_records_and_tree(svc):
+def test_release_tree_forgets_a_finished_tree(svc):
+    """A tree with no running run is dropped completely."""
     svc.ensure_run("root")
     svc.ensure_run("child", parent_run_id="root", depth=1)
+    svc.finish_run("root", AgentRunResult(run_id="root", status=STATUS_DONE))
+    svc.finish_run("child", AgentRunResult(run_id="child", status=STATUS_DONE))
 
-    svc.release_tree("root")
+    report = svc.release_tree("root")
 
+    assert report == {"released": True, "deferred": False}
     assert svc.get_record("root") is None
     assert svc.get_record("child") is None
     assert svc.pool_active("root") == 0
+
+
+def test_release_tree_is_deferred_while_a_child_still_runs(svc):
+    """A background child must stay cancellable after the dialog finishes.
+
+    This is the whole reason the release is conditional: wiping the records of
+    a running child would make ``is_cancelled`` find nothing, and the child
+    would become unkillable until the process exits.
+    """
+    svc.ensure_run("root")
+    svc.ensure_run("child", parent_run_id="root", depth=1)
+
+    report = svc.release_tree("root")
+
+    assert report == {"released": False, "deferred": True}
+    assert svc.get_record("child") is not None
+    assert svc.get_record("child").status == STATUS_RUNNING
 
 
 def test_derive_child_thread_id_is_unique_per_run():
@@ -191,11 +214,12 @@ def test_pool_slot_refusal_reports_max_active_subagents(svc):
     """An exhausted pool refuses immediately instead of queueing."""
     config = {"max_active_subagents": 1, "subagent_timeout_seconds": 1}
     svc.ensure_run("root", config=config)
-    assert svc.acquire_pool("root") is True
+    slot = svc.acquire_pool("root")
+    assert slot is not None and bool(slot) is True
     try:
         refused = _spawn(svc, parent_run_id="root", config=config)
     finally:
-        svc.release_pool("root")
+        svc.release_pool("root", slot)
 
     assert refused["ok"] is False
     assert refused["limit"] == "max_active_subagents"
@@ -328,9 +352,10 @@ def test_spawn_many_keeps_call_order(svc):
         assert result["result"]["summary"] == "done by agent_" + str(i)
 
 
-def test_spawn_many_runs_children_in_parallel():
+def test_spawn_many_runs_children_in_parallel(tmp_path):
     """N children with a common barrier finish only if they truly overlap."""
     service = S.OrchestrationService()
+    service.set_store_root(str(tmp_path / "runs"))
     barrier = threading.Barrier(3, timeout=5)
 
     def _runner(**kwargs):
@@ -367,7 +392,8 @@ def test_invoke_takes_a_pool_slot(svc):
 
     config = {"max_active_subagents": 1, "subagent_timeout_seconds": 1}
     svc.ensure_run("root", config=config)
-    assert svc.acquire_pool("root") is True
+    slot = svc.acquire_pool("root")
+    assert bool(slot) is True
 
     calls = []
     try:
@@ -376,7 +402,7 @@ def test_invoke_takes_a_pool_slot(svc):
             parent_config=config,
             invoke_fn=lambda req, **kw: calls.append(req) or {"ok": True})
     finally:
-        svc.release_pool("root")
+        svc.release_pool("root", slot)
 
     assert result["error_code"] == ERR_LIMIT_EXCEEDED
     assert result["limit"] == "max_active_subagents"

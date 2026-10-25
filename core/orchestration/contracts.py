@@ -65,6 +65,37 @@ ERR_CONTEXT_TOO_LARGE = "context_too_large"
 ERR_NOT_IMPLEMENTED = "not_implemented"
 ERR_LIMIT_EXCEEDED = "limit_exceeded"
 
+# ─── Background runs and resume (v2) ────────────────────────────────────────
+
+#: A run id is unknown to the in-memory registry AND to the durable store.
+ERR_RUN_NOT_FOUND = "run_not_found"
+#: Neither a durable record nor a child journal exists, so resume cannot say
+#: what was done and what remains.
+ERR_RESUME_UNAVAILABLE = "resume_unavailable"
+#: The run belongs to another root tree: a caller may only resume its own
+#: descendants. Also used when the caller has no identity at all (fail closed).
+ERR_NOT_YOUR_RUN = "not_your_run"
+#: A child asked for an operation that needs a human confirmation. A child has
+#: no interactive user, so the call is refused and the child rewrites it.
+ERR_CONFIRMATION_REQUIRED = "confirmation_required"
+#: A spawn arrived with an empty root identity: limits cannot be enforced, so
+#: the call is refused instead of silently running without them.
+ERR_NO_RUN_IDENTITY = "no_run_identity"
+#: A durable record still claims ``running`` but its heartbeat is stale or its
+#: process is gone: the run is healed to ``failed`` with this code.
+ERR_STALE_RUN = "stale_run"
+#: The resume chain reached its hard ceiling: resuming a resumed run would
+#: otherwise walk around ``total_subagent_runs`` one link at a time.
+ERR_RESUME_CHAIN_LIMIT = "resume_chain_limit"
+ERR_BACKGROUND_UNSUPPORTED = "background_unsupported"
+
+#: Hard ceiling of a resume chain. ``resume_subagent`` starts a NEW run, so
+#: without a ceiling a caller could walk around ``total_subagent_runs`` one
+#: link at a time by resuming its own resumes. Two links cover the real case
+#: (a run failed half-way, was resumed, and that resume failed too) and stop
+#: the loophole before it becomes a loop.
+MAX_RESUME_CHAIN = 2
+
 # ─── Defaults of the delegation limits ───────────────────────────────────────
 
 DEFAULT_MAX_DEPTH = 1
@@ -111,6 +142,16 @@ class AgentRunResult:
     steps_used: int = 0
     tokens_used: Dict[str, int] = field(default_factory=dict)
 
+    # ── Background and resume extras ───────────────────────────────────────
+    # ``child_thread_id`` lets the parent address the child journal and the
+    # derived thread without parsing the run id. ``pending`` is the short list
+    # of unfinished plan items (the primary resume signal) and ``resume_hint``
+    # the single-line continuation text. All three default to empty, so a plain
+    # synchronous result keeps its old shape and only grows new keys.
+    child_thread_id: str = ""
+    pending: List[str] = field(default_factory=list)
+    resume_hint: str = ""
+
     def to_dict(self) -> Dict[str, object]:
         """Return the compact dict form sent back to the parent model.
 
@@ -128,6 +169,9 @@ class AgentRunResult:
             "error_code": self.error_code,
             "steps_used": self.steps_used,
             "tokens_used": dict(self.tokens_used),
+            "child_thread_id": self.child_thread_id,
+            "pending": list(self.pending),
+            "resume_hint": self.resume_hint,
         }
 
     @property
@@ -157,8 +201,25 @@ class SpawnRequest:
 
     ``thread_id`` is the PARENT thread: the child gets a derived thread id
     and its own journal, so delegated work never writes into the parent's
-    Active Task. ``background`` is accepted and ignored in v1 (always
-    blocking); ``inline_orchestrator`` is reserved for phase 2 and answers
+    Active Task.
+
+    ``background`` starts the child on its own daemon thread and returns a
+    ``running`` result immediately; the caller learns the outcome from
+    ``poll``/``list_runs`` or from the notification the worker drops into the
+    parent thread. Blocking stays the default so an existing call keeps its
+    meaning.
+
+    ``workspace`` is the ABSOLUTE project folder captured when the spawn is
+    issued. It is frozen into the run record instead of being re-read from
+    the process-wide config later: the live config belongs to whichever
+    dialog happens to run, so a background worker that re-read it could work
+    in another project's folder.
+
+    ``resume_run_id`` marks the request as a continuation of an earlier run;
+    the service then inherits that run's tree (root, depth) instead of
+    starting a fresh one - otherwise every resume would reset the limits.
+
+    ``inline_orchestrator`` is reserved for phase 2 and answers
     ``not_implemented``.
     """
 
@@ -168,6 +229,8 @@ class SpawnRequest:
     parent_run_id: Optional[str] = None
     background: bool = False
     inline_orchestrator: Optional[dict] = None
+    workspace: str = ""
+    resume_run_id: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -218,13 +281,36 @@ class CancelReport:
 class RunService(Protocol):
     """Public contract of the orchestration runtime.
 
-    ``run`` is blocking in v1 and returns the child result. ``cancel``
-    cascades over ``parent_run_id`` by default and is idempotent.
+    ``run`` is blocking and returns the child result. ``start`` launches the
+    same child on its own thread and returns a ``running`` result at once;
+    ``poll``, ``wait`` and ``list_runs`` report what happened afterwards.
+    ``cancel`` cascades over ``parent_run_id`` by default and is idempotent.
     ``subscribe`` returns an unsubscribe callable; events of descendants are
     delivered to every ancestor subscriber automatically.
+
+    ``take_notifications`` drains the per-tree mailbox: the worker never
+    writes into the (Streamlit-owned) thread itself, it drops a notice here
+    and the loop or the UI persists it exactly once.
     """
 
     def run(self, req: SpawnRequest) -> AgentRunResult:  # pragma: no cover - protocol
+        ...
+
+    def start(self, req: SpawnRequest, **kwargs: object) -> Dict[str, object]:  # pragma: no cover - protocol
+        ...
+
+    def poll(self, run_id: str, **kwargs: object) -> Dict[str, object]:  # pragma: no cover - protocol
+        ...
+
+    def wait(self, run_ids: List[str], timeout: float = 0.0,
+             **kwargs: object) -> List[Dict[str, object]]:  # pragma: no cover - protocol
+        ...
+
+    def list_runs(self, root_run_id: Optional[str] = None,
+                  **kwargs: object) -> List[Dict[str, object]]:  # pragma: no cover - protocol
+        ...
+
+    def take_notifications(self, root_run_id: str) -> List[Dict[str, object]]:  # pragma: no cover - protocol
         ...
 
     def cancel(self, run_id: str, *, cascade: bool = True) -> CancelReport:  # pragma: no cover - protocol

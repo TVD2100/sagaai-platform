@@ -957,6 +957,58 @@ def _attach_events(history: list, events: list) -> None:
     history[target_idx]["_events"] = events
 
 
+def _live_subagent_runs(slug: str) -> list:
+    """Return the runs of this dialog's tree that are still running.
+
+    The list is read from the durable registry, so a child started in a
+    previous script run is still visible. An empty list means the dialog has
+    nothing to poll and the auto-refresh fragment is not rendered at all -
+    an idle dialog must not hold a background timer.
+    """
+    try:
+        from core.orchestration.service import get_service
+        root = (_ss(slug, "active_root_run_id") or "").strip()
+        if not root:
+            return []
+        runs = get_service().list_runs(root) or []
+    except Exception:
+        return []
+    alive = []
+    for rec in runs:
+        if not isinstance(rec, dict):
+            continue
+        if str(rec.get("status") or "") == "running" and str(rec.get("run_id") or "") != root:
+            alive.append(rec)
+    return alive
+
+
+def _render_subagent_status(slug: str, lang: str) -> None:
+    """Render the live-subagent line and keep the dialog refreshed.
+
+    Two rules shape this function. The line is shown only while a child is
+    running, and the auto-refresh fragment exists only in that same window:
+    rendering it unconditionally would leave every idle dialog polling the
+    registry forever.
+    """
+    alive = _live_subagent_runs(slug)
+    if not alive:
+        return
+    names = ", ".join(sorted({str(r.get("agent_slug") or "?") for r in alive}))
+    st.caption(t("orch_subagents_running", lang=lang, count=len(alive), agents=names))
+
+    @st.fragment(run_every=3)
+    def _poll_children() -> None:
+        """Re-render while children run; stop as soon as all of them finish."""
+        still = _live_subagent_runs(slug)
+        if still:
+            return
+        # Nothing is running any more: the notices are already in the mailbox
+        # or in the history. Continue the dialog so the parent reads them.
+        st.rerun()
+
+    _poll_children()
+
+
 def _do_step(slug: str, lang: str) -> None:
     """Run one agent loop step and update session state.
 
@@ -1008,6 +1060,10 @@ def _do_step(slug: str, lang: str) -> None:
             economy_cache_multiplier=int(economy_config.get("cache_multiplier", 1)),
             economy_tail_messages=int(economy_config.get("tail_messages", 0)) or None,
             enable_injection_protection=bool(safety_mode),
+            # The mailbox of the tree is keyed by its ROOT run, and the
+            # registration below uses the same id: the drain in the loop and
+            # the notice publisher in the worker meet in one place.
+            root_run_id=(getattr(prev_state, "run_id", "") or _ss(slug, "thread_id") or "").strip(),
         )
         # The economy window anchor must survive loop-state clearing.
         # carry_over handles the case when the previous loop state was kept
@@ -1049,6 +1105,11 @@ def _do_step(slug: str, lang: str) -> None:
                 agent_slug=slug,
                 config=(_orch_now.get("config") or {}) if _orch_now else None,
             )
+            # Remember the tree for the live status line: the dialog itself
+            # no longer holds the run record between script runs, and the
+            # mailbox is addressed by this id.
+            _set_ss(slug, "active_root_run_id", root_run_id)
+            state.root_run_id = root_run_id
 
             def _forward_child_event(ev: dict) -> None:
                 """Collect a published event into the step feed."""
@@ -1593,6 +1654,11 @@ def _render_chat_tab(slug: str, lang: str) -> None:
 
     _offset = max(0, len(history) - show_count)
     for idx, msg in enumerate(history[_offset:], start=_offset):
+        if msg.get("_notice"):
+            # A finished child reports back as a hidden system message: the
+            # model reads it silently, the user sees a compact banner.
+            st.info("📬 " + str(msg.get("content") or ""))
+            continue
         if msg.get("hidden"):
             continue
         role = msg.get("role")
@@ -1802,6 +1868,8 @@ def _render_chat_tab(slug: str, lang: str) -> None:
                         _set_ss(slug, "history", new_state.history)
                         _do_step(slug=slug, lang=lang)
                         st.rerun()
+
+    _render_subagent_status(slug, lang)
 
     if not agent_is_active:
         with st.bottom:

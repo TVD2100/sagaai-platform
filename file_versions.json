@@ -1,15 +1,15 @@
 {
   "schema": 1,
-  "app_version": "2.11.0",
+  "app_version": "2.12.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Релиз 2.11.0 - работа с документами и делегирование. Документы читаются штатными инструментами: новый read_document открывает файл по абсолютному пути (PDF, DOCX, PPTX, XLSX, RTF, ODT, HTML и текст) с окном строк, read_thread_file извлекает текст вложений диалога, а run_code остаётся средством последней очереди. Делегирование получает явные контексты: задание субагенту несёт абсолютные пути рабочей папки родителя и его файлов диалога, один документ уходит помощнику одним вызовом invoke_assistant, а в системный промпт добавляются списки доступных сотрудников и помощников с id. В интерфейсе и текстах для модели используется термин «субагент».",
-    "en": "Release 2.11.0 - documents and delegation. Documents are readable with dedicated tools: the new read_document opens a file by absolute path (PDF, DOCX, PPTX, XLSX, RTF, ODT, HTML and plain text) with a line window, read_thread_file extracts dialog attachment text the same way, and run_code stays a last resort. Delegation gains explicit contexts: a subagent task carries the absolute paths of the parent workspace and its dialog files folder, a document goes to an assistant as one invoke_assistant call, and the system prompt lists the available agents and assistants with their ids. The UI and model-facing texts call a child run a subagent."
+    "ru": "Фоновые субагенты: запуск spawn_agent(background=true) возвращает run_id сразу, диалог узнаёт о завершении скрытым system-извещением; долговечные записи запусков переживают перезапуск, статус и журнал ребёнка читаются инструментами subagent_status и read_subagent_state, а resume_subagent продолжает работу без переделки готового. Субагент, которому нужно подтверждение, получает отказ и продолжает автономно.",
+    "en": "Background subagents: spawn_agent(background=true) returns a run_id at once and the dialog learns about the finish from a hidden system notice; durable run records survive a restart, subagent_status and read_subagent_state expose the child state and journal, and resume_subagent continues without redoing finished work. A subagent that needs a human confirmation gets a refusal and keeps working autonomously."
   },
-  "updated": "2026-10-24T18:10:00Z",
+  "updated": "2026-10-25T11:17:17Z",
   "units": {
     "core": {
-      "version": "1.46.0",
+      "version": "1.47.0",
       "note": {
         "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py. 1.15.0: SSH-коннектор - инструмент ssh_upload_file (потоковая публикация локальных файлов на сервер, sha256-верификация, до 50 МиБ); подсказка create_dirs в ошибке ssh_write_file. 1.15.1: сценарный тест каталога моделей YandexAI (tests/scenarios), пин промпта YaAgent v2.9, регенерация PROJECT_MAP.md; версия платформы 1.3.2. 1.16.0: единая модель оркестраторов - слабая модель удалена из настроек, добавлены опциональные vision/image настройки и каталоги у сервисов, рантайм на основной модели, tolerant legacy weak_*; документация и манифест обновлены; версия платформы 1.4.0. 1.17.0: мультимодальные инструменты analyze_image/generate_image (вложения диалога и файлы проекта; генерация сохраняется файлом), транспорты send_vision_request/send_image_generation_request в api_layer, глобальная инструкция multimodal_mode; версия платформы 1.5.0. 1.18.0: синхронный Images API для generate_image (единственная модель aliceai-image-art-3.0, удаление async-ветки YandexART), показ сгенерированного изображения в чате с кнопкой скачивания; версия платформы 1.6.0. 1.19.0: распознавание изображений на DeepSeek - vision_base_url и каталог vision_models (deepseek-flash) в профиле сервиса, ветка deepseek_responses с detail=original в send_vision_request, deepseek-v4.1-flash в vision-каталоге YandexAI; версия платформы 1.7.0. 1.19.1: сгенерированное изображение generate_image показывается сразу в ленте чата - блок с картинкой и кнопкой скачивания вынесен из свёрнутого блока результата (ui/pages/orchestrator.py); сценарные тесты ленты; версия платформы 1.7.1. 1.20.0: поиск по диалогам - инструменты search_in_threads/list_threads/read_thread (текущий диалог по умолчанию, scope/период) с контролем доступа к тредам; промпт DevAgent v3.15; версия платформы 1.8.0. 1.21.0: изоляция рабочей папки - пустое состояние и guard файловых инструментов, мета «последняя папка» треда с миграцией легаси-меты, недавние папки по оркестраторам, журналы/вложения при пустой папке; промпты DevAgent v3.16 / YaAgent v2.10; версия платформы 1.9.0. 1.21.1: авторетрай GET GitHub-коннектора при сетевых сбоях; компактный дайджест журнала задач; промпт DevAgent v3.17; версия платформы 1.9.1. 1.21.2: устойчивые ошибки Responses API (failed-статус -> ProviderResponseError) и фильтрация пустых сообщений input. 1.22.1: отмена эконом-профиля DeepSeek - объявленный лимит вывода возвращён к 384000, тест каталогов синхронизирован. 1.23.0: генерируемая карта проекта - AST-символы (методы/async/вложенные, реальные строки) с regex-фолбэком и лимитом 200 символов на файл, sha256-отпечаток содержимого в шапке, фильтр состава include_paths/scope_note по публикуемому набору; канонический генератор карты (publish set + main); промпт DevAgent v3.18 (правило «карта только регенерацией»); версия платформы 1.11.0. 1.24.0: AGENT.md - управляемый документ ключевой информации для агентов: AGENT_FILE и легаси-осведомлённые PROJECT_DOC_NAMES в конфиге, вид \"agent\" (алиас \"spec\") у write_doc/read_doc, скаффолд default_agent_markdown с тремя обязательными конвенциями, assess_workspace по AGENT.md|ARCHITECTURE.md; тесты обновлены, добавлен сценарный тест AGENT.md; версия платформы 1.12.0. В релизе 1.12.0 inline-лимит результатов инструментов поднят до 35 000 символов (_TOOL_RESULT_INLINE_LIMIT в agent_loop.py; сценарий переполнения контекста берёт константу из модуля). 1.25.0: RAG-режимы поиска bm25/vector/hybrid (собственный BM25-индекс, hybrid RRF). 1.26.0: create_base принимает явный slug (нормализация к [a-z0-9_.-], отказ без латиницы); навык Rag Base Creator пробрасывает --slug и ведёт --replace по нему. 1.27.0: качество лексического поиска RAG - консервативный русский стеммер, русский/английский стоп-список, вывод служебной шапки чанка из индексируемого текста (заголовок с бустом), координация терминов и ускорение отбора top-k; схема BM25 v2 с ленивым пересбором старых индексов; скрипт оценки качества scripts/rag_eval.py (Recall@k/MRR/nDCG@k). 1.30.0: единый бюджет контекста (B4) - общая формула input_ceiling=окно-лимит вывода и input_budget=0.75xceiling-промпт для эконом-режима и pre-flight guard; мягкий трим 0.75 окна, жёсткий предел 0.9; эконом-срез при переполнении по токенам сбрасывает фронт до tail (единый триггер с переполнением окна). 1.32.0: публикация GitHub ref/тегов - create_ref/create_tag в коннекторе github_rest (лёгкий и аннотированный тег через POST /git/tags, force, резолв сокращённого SHA через GET /repos/{owner}/{repo}/commits) и инструменты ghr_create_ref/ghr_create_tag для оркестраторов; версия пакета core. 1.32.1: исправлен резолв сокращённого SHA (эндпоинт GET /repos/{owner}/{repo}/commits вместо /git/commits); тест и сценарий обновлены. 1.33.0: блок «Выбор папки» в чате - core/folder_dialog.py (нативный выбор папки: tkinter в дочернем процессе с откатом на osascript на macOS, таймаут, деградация без GUI), селектор в ui/pages/orchestrator.py («Авто» + до 10 недавних папок, применение выбранной папки при отправке), лимит недавних папок 10 в core/recent_workspaces.py; промпт DevAgent v3.21 1.33.1: возвращена авто-прокрутка ленты чата - core/feed_autoscroll.py (слежение за выводом, пауза при ручной прокрутке вверх через sessionStorage, возобновление у низа, резерв высоты нижней панели), интеграция в ui/pages/orchestrator.py (флаг scroll_bottom форсирует прокрут на отправке) 1.33.2: core/feed_autoscroll.py не задаёт padding-bottom (Streamlit 1.66 сам резервирует место под st.bottom) - устранён двойной отступ и пустота между последним сообщением и блоком выбора папки.  1.35.0: коннекторы - создание подключений через DevAgent (черновики pending без секретов, файл памяти подключения), 11 инструментов коннекторов в диспетчере, маркер pending и quick-note памяти в промпт-блоке. 1.36.0: MCP-поддержка - собственный JSON-RPC 2.0 stdio клиент (core/mcp_client.py), сервис mcp в реестре коннекторов (белый список команд, env_json), инструменты mcp_list_tools/mcp_call_tool и динамические mcp__-инструменты с санированием недоверенных данных. 1.37.0: пресеты MCP-подключений (core/connector_presets.py + defaults/connectors/mcp/, без секретов) и HTTP-транспорт MCP (McpHttpClient: POST + SSE, Mcp-Session-Id, auth_header из секретов), поля секретов secret_env_fields/env_pairs и расширенный режим на странице «Коннекторы»; версия платформы 2.4.0. 1.38.0: вкладка MCP на странице «Коннекторы» - плитки пресетов с иконками (клик - черновик) и плитка «+ Свой MCP-сервер», удаление демо-пресета everything_demo; обязательное поле icon у пресетов; версия платформы 2.5.0. 1.39.0: страница «Коннекторы» - три вкладки со стабильным key и пином выбора, вкладка «Подключения» с карточками всех подключений, плитки общих сервисов с мгновенным раскрытием формы создания, MCP-пресет создаёт подключение и сразу открывает форму учётных данных, переходы вынесены из try/except; подсказки 401/403 для MCP HTTP (fine-grained github_pat_*); версия платформы 2.6.0. 1.40.0: страница «Коннекторы» - модель «список ↔ форма» (connectors_view = list | create | edit): форма заменяет список, плитки только открывают её, «Создать» сохраняет сразу активное подключение с введёнными секретами, «Отмена»/«Назад» ничего не пишут, ошибка оставляет форму открытой; полноэкранное редактирование; устойчивые вкладки st.tabs(on_change='rerun', key, default) - без on_change виджет не хранит состояние; instantiate_preset получил account/secrets/pending; версия платформы 2.7.0. 1.41.0: скрытые MCP-пресеты - флаг hidden в формате пресета (list_presets его не отдаёт, resolve_preset находит по id), пресет github_mcp помечен hidden и снят с плиток, форма редактирования такого подключения по-прежнему резолвит пресет; версия платформы 2.7.1. 1.43.0: дефолты DevAgent - DeepSeek deepseek-flash с xhigh для основной модели и распознавания изображений, поиск с температурой 0.4, тремя вызовами инструментов и high; вкладка «Модели» скрывает селекторы модели загрузки при включённом Selenium и сохраняет прежнюю пару; подтверждения сохранения рисуются после тела страницы (ui/app.py); версия платформы 2.9.1. 1.44.0: multi-agent orchestration (core/orchestration) - run contract, OrchestrationService with the run tree, slot pool and six delegation limits, cascade cancellation, spawn_agent/invoke_assistant wrappers, fan-out in the agent loop, child threads and journals, the Delegation settings tab; platform version 2.10.0.",
         "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py. 1.15.0: SSH connector - ssh_upload_file tool (streamed publishing of local files to a server, sha256 verification, up to 50 MB); create_dirs hint in the ssh_write_file error. 1.15.1: YandexAI model catalog scenario test (tests/scenarios), YaAgent v2.9 prompt pin, PROJECT_MAP.md regenerated; platform version 1.3.2. 1.16.0: single-model orchestrators - the weak model removed from settings, optional vision/image settings and service catalogs added, runtime on the main model, tolerant legacy weak_*; docs and manifest updated; platform version 1.4.0. 1.17.0: multimodal tools analyze_image/generate_image (dialog uploads and project files; generation saved to a file), send_vision_request/send_image_generation_request transports in api_layer, the global multimodal_mode instruction; platform version 1.5.0. 1.18.0: synchronous Images API for generate_image (the single model aliceai-image-art-3.0, the YandexART async branch removed), the generated image shown in the chat with a download button; platform version 1.6.0. 1.19.0: DeepSeek image analysis - vision_base_url and the vision_models catalog (deepseek-flash) in the service profile, the deepseek_responses branch with detail=original in send_vision_request, deepseek-v4.1-flash in the YandexAI vision catalog; platform version 1.7.0. 1.19.1: the generate_image picture is shown immediately in the chat feed - the image block with the download button moved out of the collapsed tool-result block (ui/pages/orchestrator.py); feed scenario tests; platform version 1.7.1. 1.20.0: dialog thread search - the search_in_threads/list_threads/read_thread tools (current dialog by default, scope/period) with thread access control; DevAgent prompt v3.15; platform version 1.8.0. 1.21.0: workspace isolation - the no-folder-selected empty state and the file-tool guard, thread last-folder meta with the legacy-meta migration, per-orchestrator recent folders, journals/uploads in the empty state; DevAgent v3.16 / YaAgent v2.10 prompts; platform version 1.9.0. 1.21.1: GitHub REST GET retries on network errors; compact task-state digest; DevAgent prompt v3.17; platform version 1.9.1. 1.21.2: resilient Responses API failures (failed status -> ProviderResponseError) and blank input filtering. 1.22.1: reverted the DeepSeek economy profile - the declared output limit is back to 384000 and the catalog test is aligned. 1.23.0: generated project map - AST symbols (methods/async/nested, real line ranges) with a regex fallback and a 200-symbol cap per file, a content sha256 fingerprint in the header, include_paths/scope_note scope filtering by the published set; the canonical map generator (publish set + main); DevAgent v3.18 prompt (map-is-generated-only rule); platform version 1.11.0. 1.24.0: AGENT.md managed key-information document: AGENT_FILE and legacy-aware PROJECT_DOC_NAMES in config, the \"agent\" doc kind (legacy \"spec\" alias) in write_doc/read_doc, the default_agent_markdown scaffold with three mandatory conventions, assess_workspace via AGENT.md|ARCHITECTURE.md; tests updated, AGENT.md scenario test added; platform version 1.12.0. In release 1.12.0 the tool-result inline limit was raised to 35,000 characters (_TOOL_RESULT_INLINE_LIMIT in agent_loop.py; the context-overflow scenario reads the constant from the module). 1.25.0: RAG search modes bm25/vector/hybrid (own BM25 index, hybrid RRF). 1.26.0: create_base accepts an explicit slug (normalised to [a-z0-9_.-], refused without Latin); the Rag Base Creator skill forwards --slug and scopes --replace to it. 1.27.0: RAG lexical search quality - conservative Russian stemmer, ru/en stop-words, chunk-header metadata removed from the indexed text (title boosted), term coordination and faster top-k; BM25 schema v2 with lazy rebuild of older indexes; the quality harness scripts/rag_eval.py (Recall@k/MRR/nDCG@k). 1.30.0: unified context budget (B4) - the shared formula input_ceiling=window-output_limit and input_budget=0.75xceiling-prompt for economy mode and the pre-flight guard; soft trim at 0.75 window, hard cap 0.9; the economy trim on token overflow resets the front to tail (one trigger with a window overflow). 1.32.0: GitHub ref/tag publishing - create_ref/create_tag in the github_rest connector (lightweight and annotated tags via POST /git/tags, force, abbreviated-SHA resolution via GET /repos/{owner}/{repo}/commits) and the ghr_create_ref/ghr_create_tag tools for orchestrators; core package version. 1.32.1: fixed abbreviated-SHA resolution (the /repos/{owner}/{repo}/commits endpoint instead of /git/commits); its test and scenario updated. 1.33.0: the chat folder picker - core/folder_dialog.py (native OS folder dialog: tkinter in a child process with an osascript fallback on macOS, timeout, graceful degradation without a GUI), the selector in ui/pages/orchestrator.py (\"Auto\" + up to 10 recent folders, the picked folder applied on send), the recent-folder limit of 10 in core/recent_workspaces.py; DevAgent prompt v3.21 1.33.1: chat feed auto-scroll restored - core/feed_autoscroll.py (follow the agent output, pause on a manual scroll-up via sessionStorage, resume at the bottom, reserve the bottom-bar height), wired into ui/pages/orchestrator.py (the scroll_bottom flag forces a scroll on send) 1.33.2: core/feed_autoscroll.py sets no padding-bottom (Streamlit 1.66 reserves room for st.bottom itself) - the doubled inset and the empty gap above the folder-picker bar are gone.  1.35.0: connectors - creation through DevAgent (pending drafts without secrets, per-connection memory file), 11 connector tools in the dispatcher, the pending marker and the memory quick note in the prompt block. 1.36.0: MCP support - a from-scratch JSON-RPC 2.0 stdio client (core/mcp_client.py), the mcp connector service (command whitelist, env_json secret), mcp_list_tools/mcp_call_tool and dynamic mcp__ tools with untrusted-data sanitization. 1.37.0: MCP connection presets (core/connector_presets.py + defaults/connectors/mcp/, secret-free) and the http MCP transport (McpHttpClient: POST + SSE, Mcp-Session-Id, auth_header resolved from secrets), secret_env_fields/env_pairs credential fields and the advanced mode on the Connectors page; platform version 2.4.0. 1.38.0: the MCP tab on the Connectors page - icon preset tiles (click-for-draft) and a '+ Custom MCP server' tile, the everything_demo preset removed; the required preset icon field; platform version 2.5.0. 1.39.0: the Connectors page - three tabs with a stable key and an explicit selection pin, a Connections tab with a card per saved connection, general-service tiles that open the create form at once, an MCP preset creating the connection and opening its credential form right away, rerun transitions moved out of try/except; 401/403 hints for MCP HTTP (fine-grained github_pat_*); platform version 2.6.0. 1.40.0: the Connectors page - list <-> form model (connectors_view = list | create | edit): the form replaces the list, tiles only open it, Create stores an already-active connection with the typed secrets, Cancel/back write nothing, a failed save keeps the form open; full-page editing; persistent tabs via st.tabs(on_change='rerun', key, default) since without on_change the widget keeps no state; instantiate_preset gained account/secrets/pending; platform version 2.7.0. 1.41.0: hidden MCP presets - an optional hidden flag in the preset format (list_presets drops it, resolve_preset still finds it by id), the github_mcp preset is marked hidden and leaves the tiles while its connections keep the preset edit form; platform version 2.7.1. 1.43.0: DevAgent defaults - DeepSeek deepseek-flash with xhigh for the main model and image analysis, web search at temperature 0.4 with three tool calls and high effort; the Models tab hides the page-fetch selectors while Selenium is on and keeps the stored pair; save confirmations are painted after the page body (ui/app.py); platform version 2.9.1. 1.44.0: multi-agent orchestration (core/orchestration) - run contract, OrchestrationService with the run tree, slot pool and six delegation limits, cascade cancellation, spawn_agent/invoke_assistant wrappers, fan-out in the agent loop, child threads and journals, the Delegation settings tab; platform version 2.10.0."
@@ -160,16 +160,16 @@
           "sha256": "4f40a4acf45a15107cbe8ac2ed62d34e2ff12658a42fdd2c980a860c8b76108b"
         },
         "core/orchestrator_tools.py": {
-          "version": "1.5.0",
-          "sha256": "ad09095b7dc4412d6aa62d2ea0ad5a41238d4a25dcb255d9260b37ed73894983",
+          "version": "1.5.1",
+          "sha256": "13227acc5a76a940f90b768801113d4ddeefddf3b0eee825444702941effb58c",
           "note": {
             "ru": "Каталог: spawn_agent предлагается всегда, invoke_assistant - только при непустом списке помощников; делегирование добавлено в каталог.",
             "en": "Catalog: spawn_agent is always offered, invoke_assistant only with a non-empty assistant allowlist; the delegation entries joined the catalog."
           }
         },
         "core/orchestrators.py": {
-          "version": "1.13.0",
-          "sha256": "9e3e63cb18bff62d483040ad28e945b90dc95a6256b11a5ef41167c4947ecb9f",
+          "version": "1.13.1",
+          "sha256": "471ffe7c879dc34a2d19185cf9eb8d1a42725f8a1139607fa37ef775bbd5c0f6",
           "note": {
             "ru": "Права делегирования: get/set_allowed_agents (свой slug не хранится), get/set_allowed_assistants (сверка с живыми карточками) и get/set_delegation_limits (шесть лимитов с клампом на записи).",
             "en": "Delegation rights: get/set_allowed_agents (the own slug is never stored), get/set_allowed_assistants (validated against live cards) and get/set_delegation_limits (six limits clamped on write)."
@@ -256,7 +256,7 @@
           "sha256": "37f384e9fd692cbce12b8c651217453baf9efb1fff470f7c81632d1c6f863ac3"
         },
         "core/threads_devagent.py": {
-          "version": "1.6.0",
+          "version": "1.6.1",
           "sha256": "b0c489003a802b50c327e3a3c46930e7461cdf65f7f532a184fcf37e0c0f5e7d"
         },
         "core/tools_utils.py": {
@@ -272,8 +272,8 @@
           "sha256": "fff605ff8fa7117dc22552f28343490df4ba11b154176b6862abdb2a97fa5f86"
         },
         "core/version.py": {
-          "version": "1.45.0",
-          "sha256": "5ce950b9179178fd8feb0613e5c00bc0344082f2b7e104ebb9e5a3e0344c978e",
+          "version": "1.45.1",
+          "sha256": "b11e35dfda924e62ac8d1e5b527d810d37afd7a13b2d1f63ad0ba2fe20886463",
           "note": {
             "ru": "Версия платформы 2.11.0 - работа с документами и делегирование: извлечение текста документов, инструмент read_document, абсолютные пути в задании субагенту, блоки агентов и помощников в промпте.",
             "en": "Platform version 2.11.0 - documents and delegation: document text extraction, the read_document tool, absolute paths in the subagent task, agent and assistant blocks in the prompt."
@@ -284,8 +284,8 @@
           "sha256": "db2e313abe2dd0a76081c0c9b9b2dfb4d3dc3b16dfbfbb833328c4a6d8d42216"
         },
         "dev_agent/agent_loop.py": {
-          "version": "1.16.0",
-          "sha256": "7fa6316d02d93f558137efb026d5341615eebd74d7d0ef1c67756a1b2f5dcc37",
+          "version": "1.16.1",
+          "sha256": "36c3be93ba3e31d29e88de44756f6e7ee91b1a72b5f50d2194dfcd60ea650f24",
           "note": {
             "ru": "Идентичность запуска (run_id/parent_run_id/depth) в состоянии и fan-out независимых spawn_agent в фазе executing: проверка всего набора до пула, параллельное исполнение, события с run_id.",
             "en": "Run identity (run_id/parent_run_id/depth) in state and fan-out of independent spawn_agent calls in the executing phase: whole-batch validation before the pool, parallel runs, events tagged with run_id."
@@ -316,27 +316,27 @@
           "sha256": "a304d6276e2f2d4b00ad2f41492dfaff59f69fa765494a26822dfea9af58a948"
         },
         "dev_agent/task_state.py": {
-          "version": "1.5.0",
-          "sha256": "3959b5cb24b988681bba1dd617c4ec710f3508eb4d3d237aae8846528b2498a7",
+          "version": "1.5.1",
+          "sha256": "98e4a96ed376cc7598de4735826a800ebc58e16a2c963bbc7dee077a7a1991cd",
           "note": {
             "ru": "Тред журнала передаётся явным параметром с фолбэком на config.ACTIVE_THREAD_ID; thread_scope пинит тред ребёнка в текущем потоке Python.",
             "en": "The journal thread is an explicit parameter with a config.ACTIVE_THREAD_ID fallback; thread_scope pins a child thread in the current Python thread."
           }
         },
         "dev_agent/tool_executor.py": {
-          "version": "1.14.0",
+          "version": "1.14.1",
           "sha256": "f08f96181ea2a4a1298825f44303b245078aeefff9fad648f4899629c7cabfa1"
         },
         "dev_agent/universal_agent.py": {
-          "version": "1.18.0",
-          "sha256": "2b3f6dddc0c79d8b919a7e2ee30fcfffdcea38a9ef31b85a0e3d96fc56386bec",
+          "version": "1.18.1",
+          "sha256": "41834f064eeeae74f6c703ed4b32c8b2adcbc0ccb15e2d5e586bba49594ab943",
           "note": {
             "ru": "validate_tool_call: disabled_tools -> аргументы -> права, без глобалов; спеки аргументов spawn_agent и invoke_assistant.",
             "en": "validate_tool_call: disabled_tools -> arguments -> rights, no globals; argument specs for spawn_agent and invoke_assistant."
           }
         },
         "dev_agent/workspace_binding.py": {
-          "version": "1.2.0",
+          "version": "1.2.1",
           "sha256": "cfeaf2b6f016b8921528dac4e4146ccfc22f9eebec64a74f66fa86f780feb829",
           "note": {
             "ru": "bind_child_thread/unbind_thread: ребёнок наследует рабочую папку родителя, получает производный тред {parent}__s{run_id[:8]} без target_file и освобождает связывание по завершении.",
@@ -360,8 +360,8 @@
           "sha256": "d243711998803755df65bf05630e6ce2c22ec031241399bcf5788dfc32d0dddf"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.15.1",
-          "sha256": "bbd33ffd9baafb85bba7bb8ffeffe963f852959b6da9dda6e9490c499db83e8a",
+          "version": "1.15.2",
+          "sha256": "450c33002ca9d6d9defe3197f0e222e6d4b95479a99e73cf33ca2cb50a4a1799",
           "note": {
             "ru": "Генератор PROJECT_MAP.md: описания пакета core/orchestration, тестов этого пакета, core/document_text и инструмента read_document, обновлённых модулей делегирования; убрано дублирующее описание core/version.py.",
             "en": "PROJECT_MAP.md generator: descriptions for the core/orchestration package, its tests, core/document_text and the read_document tool, the updated delegation modules; a duplicate core/version.py entry removed."
@@ -536,8 +536,8 @@
           "sha256": "a3884d194a0683edf530315627a7e80c5fc3fb01a0b44f7b22a67d3d974b136c"
         },
         "tests/scenarios/test_orchestrator_tool_gating.py": {
-          "version": "1.2.11",
-          "sha256": "9f8694b9cea0469ba48087ee828f6b115ebdd9344e8765069ace9d7e074fc8c2",
+          "version": "1.2.12",
+          "sha256": "7724e91d0255c1a97eb171603c90e154ef612dac4751e7065d27eaf4275fb2f3",
           "note": {
             "ru": "Пин промпта DevAgent v3.23, инвариант DSML-fallback и инвариант правила о самодостаточности формулировок.",
             "en": "Pins the DevAgent v3.23 prompt, the DSML-fallback invariant and the self-sufficiency rule invariant."
@@ -628,7 +628,7 @@
           "sha256": "87017b52c6d47655eac12c4d38070583f4a9a63e2ef2bc525d6eda39bfbdab59"
         },
         "tests/scenarios/test_welcome_page_scenarios.py": {
-          "version": "1.1.0",
+          "version": "1.1.1",
           "sha256": "a17e63bfbd4580076998db34917b17d4ca07115c9448c4757eca13430f2f41d7",
           "note": {
             "ru": "Ожидание сценарного теста настроек: 10 нативных вкладок.",
@@ -1072,7 +1072,7 @@
           "sha256": "71df05e2bc9ed2fc43a6174a678a4c69fafaa9ff227fca8344f867c9132adfcb"
         },
         "tests/test_threads_devagent_files.py": {
-          "version": "1.1.0",
+          "version": "1.1.1",
           "sha256": "09181d15f9bbd332546850d3c627488f71f938009382bb9ec722f692c4455d55"
         },
         "tests/test_threads_devagent_search.py": {
@@ -1209,15 +1209,15 @@
           "sha256": "9b4054227ddd01bef1c3efb3c8135c1fa8b49d4d6b26d9aa4e15e93e08e34807"
         },
         "ui/pages/orchestrator.py": {
-          "version": "1.20.0",
-          "sha256": "90856cbddad2eb983a0455a078e7d08b938f92d09679249e49712b10e2396b0d",
+          "version": "1.20.1",
+          "sha256": "1def42c4b65e5e2d82967326006ed785a0a4b595d7cb6288418cb2d191db5a19",
           "note": {
             "ru": "Вкладка «Делегирование»: чек-боксы сотрудников и помощников (устаревшие id с предупреждением) и шесть лимитов; события группируются по run_id, остановка отменяет дерево.",
             "en": "Delegation tab: employee and assistant checkboxes (stale ids warned) plus six limits; events are grouped by run_id and Stop cancels the run tree."
           }
         },
         "ui/pages/orchestrator_settings.py": {
-          "version": "1.3.0",
+          "version": "1.3.1",
           "sha256": "5b9b1bbecf923436be1f193e130201fcb867e87eafb31edd36501d03e32a42d6",
           "note": {
             "ru": "Десятая вкладка настроек - «Делегирование»; открытая секция удерживается после сохранения.",
@@ -1281,7 +1281,7 @@
           "sha256": "29631a0886ad05f2b0698a9602ca78c735ebb3051855a8008354dd7c74d3acdd"
         },
         "tests/test_orchestrator_settings_tabs.py": {
-          "version": "1.1.0",
+          "version": "1.1.1",
           "sha256": "e3e222794fd3b939805ea07c7d45da5e567b9e5c53527aa4553ae74c6f9646cf",
           "note": {
             "ru": "Ожидания числа вкладок настроек: 10 секций вместо 9.",
@@ -1382,8 +1382,8 @@
           }
         },
         "core/orchestration/contracts.py": {
-          "version": "1.0.0",
-          "sha256": "ebef1bd904e47ba1c3d142367c44bfbfa9a4bdb0025076b16055cf9b5313c4dc",
+          "version": "1.1.0",
+          "sha256": "c99f2c34cca044e631f23a3fd3f2ffe91915a6ac10e2b9a11ea42acb24e3053e",
           "note": {
             "ru": "Мультиагентная оркестрация: spawn_agent и invoke_assistant, права делегирования и шесть лимитов, каскадная отмена, fan-out.",
             "en": "Multi-agent orchestration: spawn_agent and invoke_assistant, delegation rights and six limits, cascade cancellation, fan-out."
@@ -1398,24 +1398,24 @@
           }
         },
         "core/orchestration/service.py": {
-          "version": "1.1.0",
-          "sha256": "f8177250e15c10b8a4bfbc4dfbfe7d0234e956d261d19cffb58c856863af05d1",
+          "version": "1.2.0",
+          "sha256": "e35e5736b624d562dd63cb7c5797a87872610d9e414201312229084e80128fa8",
           "note": {
             "ru": "Мультиагентная оркестрация: spawn_agent и invoke_assistant, права делегирования и шесть лимитов, каскадная отмена, fan-out.",
             "en": "Multi-agent orchestration: spawn_agent and invoke_assistant, delegation rights and six limits, cascade cancellation, fan-out."
           }
         },
         "core/orchestration/tools.py": {
-          "version": "1.1.0",
-          "sha256": "fd0412bb4847c33ab73e57223f557c8099925c44c11fea28df92b5a1d49c7396",
+          "version": "1.2.0",
+          "sha256": "5eee6b0b3129389ee4259279f642e079cdb609a14bd98e509674e252f205da0f",
           "note": {
             "ru": "Мультиагентная оркестрация: spawn_agent и invoke_assistant, права делегирования и шесть лимитов, каскадная отмена, fan-out.",
             "en": "Multi-agent orchestration: spawn_agent and invoke_assistant, delegation rights and six limits, cascade cancellation, fan-out."
           }
         },
         "tests/test_orchestration_contracts.py": {
-          "version": "1.0.0",
-          "sha256": "7c5dc4b8405e4b4c079b8e0d1d015218ec86891e043c1df97c25d61bdecf5067",
+          "version": "1.0.1",
+          "sha256": "8c2ddb63af52ed329b02182cfea73c577557789d1b58c4b6e973bf6d71d31e64",
           "note": {
             "ru": "Тесты ADR-003: Contract types: defaults, serialization, status vocabulary.",
             "en": "ADR-003 tests: Contract types: defaults, serialization, status vocabulary."
@@ -1430,8 +1430,8 @@
           }
         },
         "tests/test_orchestration_service.py": {
-          "version": "1.1.0",
-          "sha256": "9efbfd8b795a14a39bf97a454de957f666fa1181f58e6efdf4766dcf6f350692",
+          "version": "1.1.1",
+          "sha256": "9285923e8035d5ce2f79a48f232f449546c32ddcac282faa208c58261eefa962",
           "note": {
             "ru": "Тесты ADR-003: Run tree, pool, limits, timeout, cascade cancel, child tool bans.",
             "en": "ADR-003 tests: Run tree, pool, limits, timeout, cascade cancel, child tool bans."
@@ -1446,8 +1446,8 @@
           }
         },
         "tests/test_delegation_fanout.py": {
-          "version": "1.0.0",
-          "sha256": "fd5b094f83048bb255ad0ae4ffa491ee1126d1c62d81741f5e0f8392829f1d1b",
+          "version": "1.0.1",
+          "sha256": "7aadde1fe6791e3c89e322c0d6049e2d401855dfc20af9007ff08ef31f62a319",
           "note": {
             "ru": "Тесты ADR-003: Fan-out: batch validation before the pool, parallel runs, event attribution.",
             "en": "ADR-003 tests: Fan-out: batch validation before the pool, parallel runs, event attribution."
@@ -1470,8 +1470,8 @@
           }
         },
         "tests/scenarios/test_delegation_run_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "0d46b9bc171361a6982271dd6f6b079df4da0d7576e6f87cc71c886f9e6d12b0",
+          "version": "1.0.1",
+          "sha256": "716659421deb59231f8f08d4d27b6518deb74cdaa8c3f8dd62f2f1efdb093469",
           "note": {
             "ru": "Тесты ADR-003: Run scenario: children, Stop cascade, run budget, tree release.",
             "en": "ADR-003 tests: Run scenario: children, Stop cascade, run budget, tree release."
@@ -1496,14 +1496,70 @@
         "tests/scenarios/test_documents_and_delegation_scenario.py": {
           "version": "1.0.0",
           "sha256": "e950bce1e2417b22858a73cb5746c5295654b3ada8f94806506ecd3a7f5c542b"
+        },
+        "core/orchestration/resume.py": {
+          "version": "1.0.0",
+          "sha256": "bf80a544969460e6d56d206f3c5f63417604a0c41ff608f1c939e9d7c7adcb16",
+          "note": {
+            "ru": "resume.py: build_resume собирает задание продолжения из журнала ребёнка, наследует дерево запусков и ограничивает цепочку продолжений.",
+            "en": "resume.py: build_resume composes a continuation task from the child journal, inherits the run tree and caps the continuation chain."
+          }
+        },
+        "core/orchestration/runs.py": {
+          "version": "1.0.0",
+          "sha256": "a088352aeccbd8b5a002b25e5f4f075f409f570ac2aeac7ae2364ef1daf37228",
+          "note": {
+            "ru": "runs.py: долговечное хранилище запусков с явным store_root, восстановлением состояния _heal и выдачей извещений claim_notice.",
+            "en": "runs.py: durable run store with an explicit store_root, _heal state recovery and notice claiming."
+          }
+        },
+        "tests/scenarios/test_background_delegation_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "3a64800efca095141009ce681e2c1ed27958c4d036f1c1a704feb8b74200da04"
+        },
+        "tests/scenarios/test_subagent_resume_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "4f93d72aa3989065edf6fe9cea39729eb7a04730e425285900b0f1458aaf97f1"
+        },
+        "tests/test_agent_loop_child_mode.py": {
+          "version": "1.0.0",
+          "sha256": "b3cbd2f4a8e1c9fc994c8c777a50805f937c9d546a811e34e0a3ae317ca35f5f"
+        },
+        "tests/test_agent_loop_subagent_notices.py": {
+          "version": "1.0.0",
+          "sha256": "2c8182270c99c502335f4f634001f0882f7b9594120674520e39849dda08f8a2"
+        },
+        "tests/test_orchestration_background.py": {
+          "version": "1.0.0",
+          "sha256": "b3a04a8eb4e2d4e56c03071a61927170243f0ab06ffda94af21add6dc5da3ffd"
+        },
+        "tests/test_orchestration_resume.py": {
+          "version": "1.0.0",
+          "sha256": "8d7f5304a87577cb8ac039452ff8bd74d854ca7a3dac70f1503c32719e4a2e88"
+        },
+        "tests/test_orchestration_runs.py": {
+          "version": "1.0.0",
+          "sha256": "2bd56652683fa89d85cc38fd94d9164c6a71b987b77dff68eeeb5ba8591ba1f3"
+        },
+        "tests/test_orchestration_subagent_tools.py": {
+          "version": "1.0.0",
+          "sha256": "8d48132c06aa1498465bcb7e4d52e64c028d3fc25e1ab7e9d058d072c6f66317"
+        },
+        "tests/test_orchestrator_subagent_ui.py": {
+          "version": "1.0.0",
+          "sha256": "d49a281b43231af3b4f30ab65cd1bd90135974898c08e5d96a3bba6dfd070adb"
+        },
+        "tests/test_system_prompt_subagents.py": {
+          "version": "1.0.0",
+          "sha256": "5c531df8b358f78c64458a0955bcbc95fb5769614e7efd0b6a46bce3c0157558"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.42.0",
-      "sha256": "6ce65cd7e9ad8593e947a13cb3c0e0889c74a78821b008b2e5f26078ced0e142",
+      "version": "1.43.0",
+      "sha256": "540c529bc90227c201e4d6824aec821ee4d2fd89fe3c1684106e022a1b32c626",
       "note": {
         "ru": "ARCHITECTURE.md: core/document_text и инструмент read_document, извлечение текста вложений через threads_devagent, документы в invoke_once, абсолютные пути в задании субагенту и блоки агентов/помощников в промпте.",
         "en": "ARCHITECTURE.md: core/document_text and the read_document tool, attachment text extraction via threads_devagent, documents in invoke_once, absolute paths in the child task and the agent/assistant prompt blocks."
@@ -1518,16 +1574,16 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.45.0",
-      "sha256": "2265ca198b1ead0dfd9d64d03bce3fd4bf10324e66dbf58e7d450bbbbb94e09c",
+      "version": "1.45.2",
+      "sha256": "ef760e2a2eb64e1aeab97a8c56d77df7cba354a0fd9e4353923505cebd2b06a9",
       "note": {
         "ru": "PROJECT_MAP.md: регенерация после релиза 2.11.0 - файлы core/document_text, новые тесты, обновлённые описания (извлечение документов, делегирование).",
         "en": "PROJECT_MAP.md: regeneration after release 2.11.0 - core/document_text, the new tests and refreshed descriptions (document extraction, delegation)."
       }
     },
     "README.md": {
-      "version": "1.38.0",
-      "sha256": "dd856789009f55465739dccabd5bc5e29c5a66b7641c0cc8695914a1dfeaff6f",
+      "version": "1.39.0",
+      "sha256": "9434fc2b59352985f83c97cf43edc9e44d5184569bbbccef063fea0e42ad392b",
       "note": {
         "ru": "README.md: статус версии переведён в предварительный релиз (2.11.0) с честной формулировкой о совместимости; рефакторинг - оглавление, раздел статуса наверху, единый порядок разделов, сжатые аудитории, разбитые по темам пункты о сотрудниках, унифицированный быстрый старт.",
         "en": "README.md: version status moved to preliminary release (2.11.0) with an honest compatibility statement; refactor - table of contents, status section on top, unified section order, condensed audiences, topic-split employee bullets, unified quick start."
@@ -1606,8 +1662,8 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.19.0",
-      "sha256": "4003bd2334bf57cd288cca663ad5b8e058f6d36f9a8f979cb3a119115cdd0658",
+      "version": "1.19.1",
+      "sha256": "d9a076824c9aa2c0df9b1b7a0886579309886e5753c26ddf0fb3df112f04b921",
       "note": {
         "ru": "Локализация: вкладка «Делегирование» и подсказки её полей (ключи orch_delegation_*).",
         "en": "Localization: the Delegation tab and its field tooltips (orch_delegation_* keys)."
@@ -1622,8 +1678,8 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.19.0",
-      "sha256": "6945a3986d5d3695b790f5745004548a8e8296fb8ff59ed9243c6b39ecdec4ce",
+      "version": "1.19.1",
+      "sha256": "c8f0ea9066d27dd74f826a4bbe9f7fa57e290697b30d61e9559d2f893ea298f4",
       "note": {
         "ru": "Локализация: вкладка «Делегирование» и подсказки её полей (ключи orch_delegation_*).",
         "en": "Localization: the Delegation tab and its field tooltips (orch_delegation_* keys)."
@@ -1638,8 +1694,8 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.19.0",
-      "sha256": "24610ff887c72938976fda8beb51f88f939141c8769594c90386e5f279891dcb",
+      "version": "1.19.1",
+      "sha256": "4f90ac84587e88f1ed991e78bf89796e10ee143384b775ecf66b7cfa0efbbc3f",
       "note": {
         "ru": "Локализация: вкладка «Делегирование» и подсказки её полей (ключи orch_delegation_*).",
         "en": "Localization: the Delegation tab and its field tooltips (orch_delegation_* keys)."
@@ -1862,16 +1918,16 @@
       }
     },
     "dev_agent/system_prompt.md": {
-      "version": "3.23",
-      "sha256": "5f34d5c4ab44a4c800732d3f9d2813acbfc9f74f65049607957223f201d27af6",
+      "version": "3.24",
+      "sha256": "4f28b8b93d051e1866f739c1bcd9b5d46f7eafcd97f0babd8c139c07c3f9504a",
       "note": {
         "ru": "DevAgent v3.23: правило самодостаточности комментариев, докстрингов, документации и описаний тестов (§15), отсылки из §9 и §10.",
         "en": "DevAgent v3.23: the self-sufficiency rule for comments, docstrings, documentation and test descriptions (§15), with cross-references from §9 and §10."
       }
     },
     "langs/en.json": {
-      "version": "1.19.0",
-      "sha256": "5cadc1426bf73ef6130673a808e981b76e9055133e2feee087f0c19add02b2a5",
+      "version": "1.19.1",
+      "sha256": "3da7044631e5527dee08c91584a4e2c89b682971333336e0c8f3a20638e288e0",
       "note": {
         "ru": "Локализация: вкладка «Делегирование» и подсказки её полей (ключи orch_delegation_*).",
         "en": "Localization: the Delegation tab and its field tooltips (orch_delegation_* keys)."
@@ -1886,8 +1942,8 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.19.0",
-      "sha256": "356c1afec418662d61bd39aa198bf34ecc8526e8e487e1d6a50ef121e64f546b",
+      "version": "1.19.1",
+      "sha256": "7243e4305b67232dcf3693c92bdd616e204d1830a0828578f47e9815119edab7",
       "note": {
         "ru": "Локализация: вкладка «Делегирование» и подсказки её полей (ключи orch_delegation_*).",
         "en": "Localization: the Delegation tab and its field tooltips (orch_delegation_* keys)."
@@ -1902,8 +1958,8 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.19.0",
-      "sha256": "54196cf329f4e50e84f4d7057f2d1662bfd1ec837570557149cc094d6f15617d",
+      "version": "1.19.1",
+      "sha256": "355a4a88b34fdc0936aa70f7b23d72bec84c35ebc91b999f92edc06a2ef75a27",
       "note": {
         "ru": "Локализация: вкладка «Делегирование» и подсказки её полей (ключи orch_delegation_*).",
         "en": "Localization: the Delegation tab and its field tooltips (orch_delegation_* keys)."
@@ -1942,8 +1998,8 @@
       }
     },
     "AGENT.md": {
-      "version": "1.18.0",
-      "sha256": "fa3975dd1bde21e065979fd445ea7964175f6f9cabfc7e478c010016f63009b1",
+      "version": "1.19.0",
+      "sha256": "6b0f333bb6b8edd19c9ed808f49fedc1027704095f2161ae88b5db3932bf59a2",
       "note": {
         "ru": "AGENT.md: FR18 - абсолютные пути в задании субагенту, документ одним вызовом invoke_assistant, блоки доступных агентов и помощников в промпте; документы читаются штатными инструментами без run_code.",
         "en": "AGENT.md: FR18 - absolute paths in the subagent task, a document as one invoke_assistant call, available agents and assistants in the prompt; documents are read with dedicated tools, no run_code."

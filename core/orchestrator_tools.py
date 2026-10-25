@@ -100,7 +100,8 @@ _CONDITIONAL_TOOLS = {"url_fetch": "fetch"}
 #: switch on the standard scenario. ``invoke_assistant`` is registered only
 #: when ``allowed_assistants`` is non-empty - there are no assistants by
 #: default, unlike the right to call yourself.
-_DELEGATION_TOOLS = ("spawn_agent", "invoke_assistant")
+_DELEGATION_TOOLS = ("spawn_agent", "invoke_assistant", "subagent_status",
+                     "read_subagent_state", "resume_subagent")
 
 
 def _delegation_tool_enabled(tool_name: str,
@@ -182,8 +183,13 @@ def _delegation_catalog() -> List[Dict[str, str]]:
     entries.
     """
     try:
-        from core.orchestration.tools import spawn_tool_entry, invoke_tool_entry
-        return [spawn_tool_entry(), invoke_tool_entry()]
+        from core.orchestration.tools import (
+            spawn_tool_entry, invoke_tool_entry, subagent_status_tool_entry,
+            read_subagent_state_tool_entry, resume_subagent_tool_entry,
+        )
+        return [spawn_tool_entry(), subagent_status_tool_entry(),
+                read_subagent_state_tool_entry(), resume_subagent_tool_entry(),
+                invoke_tool_entry()]
     except Exception:
         return []
 

@@ -1102,6 +1102,17 @@ def _extend_prompt_with_delegation(prompt: str, orchestrator_slug: str = DEVAGEN
             "the slug in `agent_slug` and describe the task in `request.goal` "
             "plus `request.brief`; every path you mention must be absolute:",
             "",
+            "Add `background=true` to start a child and continue your own work: "
+            "the call returns its `run_id` at once, and the finish arrives as a "
+            "`[SUBAGENT_NOTICE:<run_id>:<status>]` system notice in a later "
+            "step. Check it with `subagent_status(run_id=...)`, read the "
+            "handoff with `read_subagent_state(run_id=...)` and continue "
+            "unfinished work with `resume_subagent(run_id=..., "
+            "request={goal, brief})` - omit `request` to continue the original "
+            "goal from the child journal. A child that stopped at "
+            "`awaiting_input`, `error`, `timeout` or `max_steps` has NOT "
+            "finished the job.",
+            "",
         ])
         lines.extend(entries)
 

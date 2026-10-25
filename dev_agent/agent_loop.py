@@ -162,6 +162,100 @@ def _now_ts() -> str:
 _TOOL_RESULT_PREFIX = '{"tool_result"'
 _AUTO_CONTINUE_PREFIX = "AUTO_CONTINUE:"
 
+#: Marker of the notice line a finished background child leaves in the
+#: parent context. The marker is for readability and audit only; the
+#: exactly-once guarantee comes from the O_EXCL claim in the run store.
+NOTICE_PREFIX = "[SUBAGENT_NOTICE"
+
+
+def format_subagent_notice(notice: Dict[str, Any]) -> str:
+    """Return the one-line, budgeted notice text about a finished child.
+
+    Only what the parent needs to ACT is included: the run id, the agent, the
+    status, up to three open steps and the exact follow-up calls. The handoff
+    itself stays in the child journal - it is fetched on demand through
+    ``read_subagent_state`` and would not fit into a notice line.
+    """
+    if not isinstance(notice, dict):
+        return ""
+    run_id = str(notice.get("run_id") or "").strip()
+    if not run_id:
+        return ""
+    agent = str(notice.get("agent_slug") or "unknown").strip()
+    status = str(notice.get("status") or "unknown").strip()
+    payload = notice.get("payload") or {}
+    reason = str(payload.get("stop_reason") or payload.get("error_code") or "").strip()
+    parts = [
+        NOTICE_PREFIX + ":" + run_id + ":" + status + "]",
+        "Subagent " + agent + " finished with status " + status + ".",
+    ]
+    if reason:
+        parts.append("Reason: " + reason + ".")
+    steps = payload.get("steps_used")
+    if steps:
+        parts.append("Steps used: " + str(steps) + ".")
+    pending = payload.get("pending") or notice.get("pending") or []
+    if isinstance(pending, (list, tuple)):
+        short = [str(p).strip() for p in list(pending)[:3] if str(p).strip()]
+        if short:
+            parts.append("Open steps: " + ", ".join(short) + ".")
+    parts.append("Call read_subagent_state(run_id=\"" + run_id + "\") for the handoff.")
+    parts.append("Call resume_subagent(run_id=\"" + run_id + "\") to continue it.")
+    return " ".join(parts)
+
+
+def drain_subagent_notices(state: "AgentLoopState") -> List[str]:
+    """Drain the tree mailbox and return the notice lines for this step.
+
+    A background child never writes into the dialog history: that structure
+    belongs to the script run that drives the loop, and a worker thread
+    touching it is a race at best and a lost message at worst. The worker
+    posts into the tree mailbox instead and the loop moves the notice into
+    the outgoing message of the next step - so the parent learns about the
+    finished child on the very next model call, not one step later.
+
+    Delivery is guarded by the same ``O_EXCL`` claim the worker uses: a
+    notice already published by the UI is not repeated here.
+    """
+    root_id = str(getattr(state, "root_run_id", "") or getattr(state, "run_id", "") or "").strip()
+    if not root_id:
+        return []
+    try:
+        from core.orchestration.service import get_service
+        service = get_service()
+        notices = service.take_notifications(root_id)
+    except Exception as exc:  # pragma: no cover - orchestration is optional
+        log.warning("subagent notice drain failed: %s", exc)
+        return []
+    lines: List[str] = []
+    for notice in notices:
+        line = format_subagent_notice(notice)
+        if not line:
+            continue
+        lines.append(line)
+        # A hidden SYSTEM message is the delivery channel: it reaches the model
+        # with this call, stays out of the visible dialog, and never becomes
+        # the plain user line that would push the step into ``awaiting_user``.
+        entry = {
+            "role": "system",
+            "content": line,
+            "hidden": True,
+            "_notice": True,
+            "_category": "system_notice",
+            "_summary": "subagent finished: " + str(notice.get("run_id") or ""),
+            "ts": _now_ts(),
+        }
+        try:
+            _index_message(entry, state.next_index, "system_notice")
+            state.next_index += 1
+        except Exception:  # pragma: no cover - indexing must not break a step
+            pass
+        state.history.append(entry)
+    if lines:
+        state.subagent_notices = list(getattr(state, "subagent_notices", []) or []) + lines
+    return lines
+
+
 # ── Tool-result size policy (context-overflow protection + spill) ───────────
 # A single tool_result must never blow up the model context window
 # (incident: a 1.65M-character tool_result caused HTTP 400 context
@@ -636,7 +730,8 @@ def classify_step_strength(parsed_calls: List[Dict[str, Any]],
 # owns the pool semaphore, the tree counter and cancellation; the loop only
 # turns tool-call arguments into requests and maps results back.
 
-_DELEGATION_CALL_NAMES = ("spawn_agent", "invoke_assistant")
+_DELEGATION_CALL_NAMES = ("spawn_agent", "invoke_assistant", "subagent_status",
+                         "read_subagent_state", "resume_subagent")
 
 
 def _agent_brief_from_args(args: Dict[str, Any]):
@@ -724,6 +819,37 @@ def _delegation_job(tool: str, args: Dict[str, Any], *,
             agent_slug=args.get("agent_slug"),
             request=_agent_brief_from_args(args),
             inline_orchestrator=args.get("inline_orchestrator"),
+            background=bool(args.get("background")),
+            resume_run_id=args.get("resume_run_id"),
+            parent_slug=parent_slug,
+            parent_run_id=parent_run_id or None,
+            thread_id=thread_id,
+            parent_config=parent_config,
+            base_dir=base_dir,
+            lang=lang,
+            service=service,
+        )
+    if tool == "subagent_status":
+        from core.orchestration.tools import subagent_status
+        return subagent_status(
+            run_id=args.get("run_id"),
+            root_run_id=args.get("root_run_id"),
+            wait_seconds=float(args.get("wait_seconds") or 0.0),
+            service=service,
+        )
+    if tool == "read_subagent_state":
+        from core.orchestration.tools import read_subagent_state
+        return read_subagent_state(
+            run_id=args.get("run_id"),
+            section=args.get("section"),
+            service=service,
+        )
+    if tool == "resume_subagent":
+        from core.orchestration.tools import resume_subagent
+        return resume_subagent(
+            run_id=args.get("run_id"),
+            request=_agent_brief_from_args(args),
+            background=bool(args.get("background")),
             parent_slug=parent_slug,
             parent_run_id=parent_run_id or None,
             thread_id=thread_id,
@@ -2463,6 +2589,24 @@ class AgentLoopState:
     parent_run_id: str = ""
     depth: int = 0
 
+    # ── Child autonomy ─────────────────────────────────────────────────────
+    # A delegated child has no interactive user: nobody will click Allow and
+    # nobody will answer a question. ``child_mode`` therefore changes two
+    # decisions of the loop - a confirmation request becomes a refusal the
+    # child must rewrite, and an ``awaiting_user`` outcome becomes an
+    # automatic continuation. ``auto_continue_count`` caps that autonomy so a
+    # child that keeps asking cannot spin forever.
+    child_mode: bool = False
+    auto_continue_count: int = 0
+
+    # ── Subagent notices ───────────────────────────────────────────────────
+    # ``root_run_id`` identifies the tree whose mailbox this loop drains;
+    # it defaults to the run's own id, which is what a top-level dialog uses.
+    # ``subagent_notices`` accumulates the notice lines already delivered, so
+    # the UI can render them after the step and a resume can replay them.
+    root_run_id: str = ""
+    subagent_notices: List[str] = field(default_factory=list)
+
     # Cache-friendly economy mode settings.
     economy_cache_enabled: bool = False
     economy_cache_multiplier: int = 1
@@ -2565,6 +2709,13 @@ class AgentLoopState:
 
 
 _MAX_CONSECUTIVE_ERRORS = 3
+
+#: How many times a CHILD loop may auto-continue instead of stopping at
+#: ``awaiting_user``. A child has no user to answer, so stopping would mean
+#: waiting forever; a counter keeps that autonomy bounded and turns a child
+#: that keeps asking into a normal ``awaiting_input`` result the parent can
+#: read, resume or discard.
+MAX_CHILD_AUTO_CONTINUES = 8
 _MAX_DUPLICATE_BLOCKS = 8
 _MAX_DIAGNOSTIC_ENTRIES = 5
 
@@ -2920,6 +3071,24 @@ def _step_agent_loop_impl(
             # between the sent window and the step payload.
             refresh_context_snapshots(state)
 
+            # ── Subagent notices: move finished-child notices into THIS
+            # step BEFORE the outgoing window is built. Draining later would
+            # delay each notice by a whole step, and posting it as plain user
+            # text would push the step into the ``awaiting_user`` branch and
+            # end a run whose plan is still open. A hidden system message in
+            # the history is the delivery channel: it reaches the model with
+            # this call and never disturbs the role alternation. ──────────
+            notice_lines = drain_subagent_notices(state)
+            if notice_lines:
+                emit({"type": "subagent_notices", "notices": notice_lines,
+                      "step": state.steps})
+                if not str(state.user_message or "").strip():
+                    state.user_message = (
+                        _AUTO_CONTINUE_PREFIX
+                        + " A background subagent finished (see the system "
+                        "notice above). React to it and continue."
+                    )
+
             if state.economy_mode:
                 effective_history = build_economy_context(state, assistant)
             else:
@@ -3254,6 +3423,30 @@ def _step_agent_loop_impl(
             else:
                 final_status = "awaiting_user"
 
+            # ── Child autonomy gate ────────────────────────────────────
+            # Every branch above ends the step by WAITING for a person: a
+            # question, a plan awaiting approval, a confirmation request. A
+            # delegated child has no such person, so waiting means hanging
+            # until the run times out. It continues on its own instead, with
+            # the instruction to decide and record the decision; the counter
+            # keeps a child that keeps asking from spinning forever, and at
+            # the ceiling the run ends as awaiting_user for the parent to read.
+            if final_status == "awaiting_user" and state.child_mode:
+                if state.auto_continue_count < MAX_CHILD_AUTO_CONTINUES:
+                    state.auto_continue_count += 1
+                    emit({"type": "phase", "phase": "auto_continuing",
+                          "reason": "child decides without a user",
+                          "auto_continue_count": state.auto_continue_count,
+                          "step": state.steps})
+                    state.user_message = (
+                        _AUTO_CONTINUE_PREFIX
+                        + " No user is available to answer: decide yourself on the "
+                        "most reasonable option, record the decision in your "
+                        "result, and continue to the next step."
+                    )
+                    state.phase = "calling_llm"
+                    return state
+
             emit({"type": "final", "text": state.assistant_text, "status": final_status})
             state.phase = "done"
             state.final_status = final_status
@@ -3510,6 +3703,35 @@ def _step_agent_loop_impl(
                     da = (result.get("danger_assessment") or {})
                     reasons = da.get("reasons", [])
                     code_snippet = da.get("code_snippet", "")
+                    if state.child_mode:
+                        # A child has no user to click Allow, so stopping here
+                        # would leave it waiting for a person who is not there.
+                        # The call is refused instead: the child reads why and
+                        # rewrites it into a form that needs no confirmation.
+                        refusal = {
+                            "ok": False,
+                            "error": (
+                                "This operation needs a human confirmation, which "
+                                "a subagent cannot obtain. Rewrite it so it needs "
+                                "no confirmation (avoid destructive or system-level "
+                                "commands, or split off the part that needs one), "
+                                "or report the blocker in your result."
+                            ),
+                            "error_code": "confirmation_required",
+                            "confirmation_required": True,
+                            "danger_reasons": list(reasons),
+                            "next_action": (
+                                "Do not retry the same call. Switch to a safe "
+                                "alternative or stop and report what was blocked."
+                            ),
+                        }
+                        emit({"type": "tool_result", "tool": tool,
+                              "result": refusal, "step": state.steps})
+                        state.last_failed_signature = call_sig
+                        state = _mark_tool_failure(state, tool, refusal)
+                        tool_results_parts.append(
+                            json.dumps({"tool_result": refusal}, ensure_ascii=False))
+                        continue
                     emit({
                         "type": "confirmation_required",
                         "tool": tool,
