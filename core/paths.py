@@ -27,6 +27,7 @@ HISTORY_DIR: str        = os.path.join(DATA_DIR, "history")
 DB_PATH: str            = os.path.join(DATA_DIR, "sagaai.db")
 DEVAGENT_DB_PATH: str   = os.path.join(DATA_DIR, "devagent.db")
 RAG_BASES_DIR: str      = os.path.join(DATA_DIR, "rag_bases")
+PERSONAL_DIR: str       = os.path.join(DATA_DIR, "personal")
 
 TEXT_FILE_EXTENSIONS = (".txt", ".md", ".py", ".csv")
 SUPPORTED_UPLOAD_TYPES = ["txt", "md", "py", "csv", "pdf", "docx", "pptx", "xlsx"]
@@ -34,7 +35,8 @@ SUPPORTED_UPLOAD_TYPES = ["txt", "md", "py", "csv", "pdf", "docx", "pptx", "xlsx
 
 def ensure_data_dirs() -> None:
     """Create all required runtime directories if they do not exist."""
-    for d in (SYSTEM_PROMPTS_DIR, LANGS_DIR, SERVICES_DIR, HISTORY_DIR, RAG_BASES_DIR):
+    for d in (SYSTEM_PROMPTS_DIR, LANGS_DIR, SERVICES_DIR, HISTORY_DIR, RAG_BASES_DIR,
+              PERSONAL_DIR):
         Path(d).mkdir(parents=True, exist_ok=True)
 
 

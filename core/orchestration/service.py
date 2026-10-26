@@ -56,6 +56,7 @@ from core.orchestration.contracts import (  # noqa: E402
     DEFAULT_TOTAL_SUBAGENT_RUNS,
     ERR_CANCELLED_BY_PARENT,
     ERR_LIMIT_EXCEEDED,
+    ERR_INTERNAL_ERROR,
     ERR_MAX_STEPS,
     ERR_NO_RUN_IDENTITY,
     ERR_NOT_IMPLEMENTED,
@@ -184,6 +185,11 @@ class RunRecord:
     timeout_seconds: int = DEFAULT_SUBAGENT_TIMEOUT_SECONDS
     heartbeat_at: float = 0.0
     created_at: float = 0.0
+    # Would the same call plausibly succeed a second time? False for a defect
+    # inside the loop. Frozen on the record so the answer survives the process
+    # that produced it - a durable status alone cannot tell a retryable failure
+    # from a permanent one.
+    retryable: bool = True
 
     @property
     def is_terminal(self) -> bool:
@@ -202,6 +208,7 @@ class RunRecord:
             steps_used=self.steps_used,
             tokens_used=dict(self.tokens_used),
             child_thread_id=self.child_thread_id,
+            retryable=bool(self.retryable),
         )
 
     def to_record(self) -> Dict[str, Any]:
@@ -237,6 +244,7 @@ class RunRecord:
             "created_at": self.created_at or time.time(),
             "pid": os.getpid(),
             "boot_id": run_store.current_boot_id(),
+            "retryable": bool(self.retryable),
         }
 
 
@@ -292,6 +300,35 @@ class _TreeState:
         # Set when the dialog asked to release the tree while a background
         # child was still running; the last finish performs the release.
         self.release_pending = False
+
+
+def _record_child_handoff(rec: Any, result: AgentRunResult) -> None:
+    """Leave the run outcome in the child journal, best effort.
+
+    Called from the one place every path passes through - the finish - so a
+    child that never wrote a journal still leaves a readable trace of what it
+    did. Never raises: a journal is an aid, and a broken file must not turn a
+    finished run into a failed one.
+    """
+    try:
+        thread = str(getattr(rec, "child_thread_id", "") or "")
+        if not thread:
+            return
+        from dev_agent.task_state import record_runtime_handoff
+        record_runtime_handoff(
+            thread,
+            run_id=str(getattr(rec, "run_id", "") or result.run_id or ""),
+            goal=str(getattr(rec, "goal", "") or ""),
+            status=result.status,
+            stop_reason=str(result.stop_reason or ""),
+            error_code=str(result.error_code or ""),
+            steps_used=int(result.steps_used or 0),
+            summary=str(result.summary or ""),
+            pending=list(result.pending or []),
+            retryable=bool(result.retryable),
+        )
+    except Exception as exc:  # pragma: no cover - journal is best effort
+        log.debug("child handoff write failed: %s", exc)
 
 
 class OrchestrationService:
@@ -395,6 +432,7 @@ class OrchestrationService:
                     child_thread_id=result.child_thread_id,
                     pending=list(result.pending),
                     resume_hint=result.resume_hint,
+                    retryable=result.retryable,
                 )
             rec.status = effective.status
             rec.stop_reason = effective.stop_reason
@@ -403,8 +441,10 @@ class OrchestrationService:
             rec.artifacts = list(effective.artifacts)
             rec.steps_used = effective.steps_used
             rec.tokens_used = dict(effective.tokens_used)
+            rec.retryable = bool(effective.retryable)
             rec.heartbeat_at = time.time()
         self.save_record(rid)
+        _record_child_handoff(rec, effective)
         return effective
 
     def release_tree(self, root_run_id: str) -> Dict[str, Any]:
@@ -1034,6 +1074,17 @@ class OrchestrationService:
         limits = prep["limits"]
         slot = prep["slot"]
 
+        # Freeze the identity and the workspace on the record before the child
+        # starts working. Both are resolved only here, where ``base_dir`` is
+        # known: without them a caller cannot address the child thread or tell
+        # where it wrote, and the durable record would carry empty strings for
+        # the whole life of the run.
+        rec = prep.get("rec")
+        if rec is not None:
+            rec.child_thread_id = child_thread_id or ""
+            if not rec.workspace and base_dir:
+                rec.workspace = str(base_dir)
+
         deadline = time.monotonic() + limits["subagent_timeout_seconds"]
         try:
             result = self._run_child(
@@ -1055,8 +1106,9 @@ class OrchestrationService:
             log.warning("child run %s failed: %s", run_id, exc)
             result = AgentRunResult(run_id=run_id, status=STATUS_FAILED,
                                     stop_reason=STOP_ERROR,
-                                    summary=str(exc),
-                                    error_code=ERR_PROVIDER_ERROR)
+                                    summary=type(exc).__name__ + ": " + str(exc),
+                                    error_code=ERR_INTERNAL_ERROR,
+                                    retryable=False)
         finally:
             self.release_pool(root_id, slot)
 
@@ -1069,6 +1121,13 @@ class OrchestrationService:
                                     steps_used=result.steps_used,
                                     tokens_used=result.tokens_used)
         effective = self.finish_run(run_id, result)
+        # A runner that is not the real agent loop does not know its own child
+        # thread, and a parent addressing the journal needs it in the RESULT,
+        # not only in the registry record. Filling it here keeps the two views
+        # consistent for every runner, including test seams.
+        if not effective.child_thread_id and child_thread_id:
+            from dataclasses import replace as _dc_replace
+            effective = _dc_replace(effective, child_thread_id=child_thread_id)
         self.publish({"type": "run_finished", "run_id": run_id,
                       "parent_run_id": req.parent_run_id,
                       "thread_id": child_thread_id,
@@ -1137,12 +1196,13 @@ class OrchestrationService:
             log.warning("background run %s crashed: %s", run_id, exc)
             payload = {"ok": False,
                        "error": "background run failed: " + str(exc),
-                       "error_code": ERR_PROVIDER_ERROR}
+                       "error_code": ERR_INTERNAL_ERROR, "retryable": False}
             rec = self.get_record(run_id)
             if rec is not None and not rec.is_terminal:
                 self.finish_run(run_id, AgentRunResult(
                     run_id=run_id, status=STATUS_FAILED, stop_reason=STOP_ERROR,
-                    summary=str(exc), error_code=ERR_PROVIDER_ERROR))
+                    summary=type(exc).__name__ + ": " + str(exc),
+                    error_code=ERR_INTERNAL_ERROR, retryable=False))
 
         result = dict((payload or {}).get("result") or {})
         status = str(result.get("status") or STATUS_FAILED)
@@ -1567,10 +1627,22 @@ def _default_child_runner(*, child_slug: str, brief: AgentBrief,
                          "out": state.total_tokens_out,
                          "cache": state.total_tokens_cache})
     except Exception as exc:  # pragma: no cover - defensive
+        # A failure HERE is a defect of the child loop (a TypeError in the
+        # platform), not a provider hiccup. Reporting it as provider_error
+        # invited a retry that could never succeed: the same call fails the
+        # same way, and the plausible-looking code hid the real cause.
         log.warning("child agent loop failed: %s", exc)
-        return AgentRunResult(run_id=run_id, status=STATUS_FAILED,
-                              stop_reason=STOP_ERROR, summary=str(exc),
-                              error_code=ERR_PROVIDER_ERROR)
+        steps_done = 0
+        try:
+            steps_done = int(getattr(state, "steps", 0) or 0)
+        except Exception:
+            steps_done = 0
+        return AgentRunResult(
+            run_id=run_id, status=STATUS_FAILED,
+            stop_reason=STOP_ERROR,
+            summary=type(exc).__name__ + ": " + str(exc),
+            error_code=ERR_INTERNAL_ERROR, steps_used=steps_done,
+            retryable=False)
     finally:
         try:
             if _scope is not None:

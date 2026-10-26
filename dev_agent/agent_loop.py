@@ -3739,10 +3739,10 @@ def _step_agent_loop_impl(
                                 "alternative or stop and report what was blocked."
                             ),
                         }
+                        state.last_failed_signature = call_sig
+                        refusal = _mark_tool_failure(state, tool, refusal)
                         emit({"type": "tool_result", "tool": tool,
                               "result": refusal, "step": state.steps})
-                        state.last_failed_signature = call_sig
-                        state = _mark_tool_failure(state, tool, refusal)
                         tool_results_parts.append(
                             json.dumps({"tool_result": refusal}, ensure_ascii=False))
                         continue

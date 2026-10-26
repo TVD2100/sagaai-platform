@@ -558,16 +558,22 @@ def build_task_state(
     history: Optional[List[Dict[str, str]]] = None,
     started: str = "",
     task_dir: str = "",
+    thread_id: Optional[str] = None,
 ) -> str:
     """Render the complete journal file content.
 
     Missing active-task sections are scaffolded with ``_(not set)_`` so the
     file always has a stable, parseable structure.
+
+    *thread_id* names the thread in the file header. It exists because a run
+    registry writes into a CHILD journal while the process-wide active thread
+    still belongs to the parent dialog: a header taken from the live thread
+    would then contradict the file it sits in.
     """
     parts = [
         "# Task State Journal",
         "",
-        f"> Thread: {current_thread_id()}",
+        f"> Thread: {current_thread_id(thread_id)}",
         "> Журнал задач этого диалога. Ведётся DevAgent автоматически.",
         "> Файл не удаляется: выполненные задачи архивируются в Task History,",
         "> а новые задачи этого же треда дополняют этот же файл.",
@@ -667,6 +673,7 @@ def _write_journal(
         history=history,
         started=started,
         task_dir=(task_dir or "").strip(),
+        thread_id=thread_id,
     )
     _write_raw(text, thread_id)
     return text
@@ -1296,5 +1303,124 @@ def task_state_for_context(max_history: int = 3) -> Optional[str]:
     if len(body) > limit:
         body = body[:limit] + "\n... [truncated]"
     return header + body
+# ─── Runtime handoff (run registry -> child journal) ─────────────────────────
+
+#: Marker prefix of the paragraph the run registry appends to a child journal.
+#: A journal written by the model carries no such marker, so its presence is
+#: what makes the write idempotent: a run that finishes twice (a cancel racing
+#: the finish) must not append the same outcome a second time.
+RUNTIME_HANDOFF_MARKER = "Runtime outcome"
+
+
+def _runtime_handoff_block(*, run_id: str, status: str, stop_reason: str,
+                           error_code: str, steps_used: int, summary: str,
+                           pending: List[str], retryable: bool,
+                           finished_at: str) -> str:
+    """Render the one paragraph a finished run leaves in its journal."""
+    lines = [
+        f"### {RUNTIME_HANDOFF_MARKER} (run {run_id or '<none>'})",
+        f"- status: {status or 'unknown'}",
+        f"- stop_reason: {stop_reason or '(none)'}",
+        f"- error_code: {error_code or '(none)'}",
+        f"- steps_used: {int(steps_used or 0)}",
+        f"- retryable: {'yes' if retryable else 'no'}",
+        f"- finished: {finished_at or _now_iso()}",
+    ]
+    if summary:
+        lines.append("- summary: " + summary.strip()[:1500])
+    if pending:
+        lines.append("- pending:")
+        lines.extend("  - " + str(item) for item in pending[:20])
+    return "\n".join(lines)
+
+
+def record_runtime_handoff(thread_id: str, *, run_id: str = "",
+                           goal: str = "", status: str = "",
+                           stop_reason: str = "", error_code: str = "",
+                           steps_used: int = 0, summary: str = "",
+                           pending: Optional[List[str]] = None,
+                           retryable: bool = True,
+                           finished_at: str = "") -> Dict[str, Any]:
+    """Write the outcome of a delegated run into that run's own journal.
+
+    A child keeps a journal only when it decides to: a run that was told to
+    work read-only, or one that crashed before its first ``task_state_init``,
+    leaves an empty file behind. The parent then cannot tell "did nothing"
+    from "did everything but never wrote it down", and the documented handoff
+    channel - read the child journal - silently answers nothing.
+
+    This function closes that gap from the runtime side: whatever the child
+    did or did not record, the registry appends how the run ENDED. It never
+    overwrites what the child wrote - the paragraph is appended to ``Handoff``
+    and the write is skipped when the same run already recorded its outcome.
+
+    Args:
+        thread_id: the CHILD thread whose journal receives the paragraph.
+        run_id: identifies the record, so a repeated finish is a no-op.
+        goal: used as the journal task line when the child left it empty.
+        status / stop_reason / error_code / steps_used / summary / pending:
+            the outcome, exactly as the parent receives it.
+        retryable: whether the same call could plausibly succeed again.
+        finished_at: ISO timestamp of the finish; defaults to now.
+
+    Returns the tool-style dict with ``wrote`` telling whether the file
+    actually changed. Best effort by design: a journal is an aid, so an
+    unreadable or unwritable file answers ``ok: False`` instead of raising.
+    """
+    tid = (thread_id or "").strip()
+    if not tid:
+        return {"ok": False, "wrote": False,
+                "error": "record_runtime_handoff needs thread_id"}
+
+    path = task_state_path(tid)
+    active: Dict[str, str] = {}
+    history: List[Dict[str, str]] = []
+    started = ""
+    task_dir = ""
+    if path.exists():
+        try:
+            content = path.read_text(encoding=config.DEFAULT_ENCODING)
+        except OSError as exc:
+            return {"ok": False, "wrote": False, "path": str(path),
+                    "error": str(exc)}
+        top = _split_top_sections(content)
+        active_block = top.get("active_task", "")
+        active = _split_active_sections(active_block)
+        history = _parse_history_entries(top.get("task_history", ""))
+        meta = _read_active_meta(active_block)
+        started = meta.get("started", "")
+        task_dir = meta.get("task_dir", "")
+
+    marker = f"{RUNTIME_HANDOFF_MARKER} (run {run_id or '<none>'})"
+    if marker in (active.get("handoff") or ""):
+        return {"ok": True, "wrote": False, "path": str(path),
+                "thread_id": tid, "reason": "already recorded"}
+
+    task_line = (active.get("task") or "").strip()
+    if task_line in ("", _NOT_SET_MARKER):
+        active["task"] = (goal or "").strip() or "Delegated run " + (run_id or "")
+
+    block = _runtime_handoff_block(
+        run_id=run_id, status=status, stop_reason=stop_reason,
+        error_code=error_code, steps_used=steps_used, summary=summary,
+        pending=list(pending or []), retryable=bool(retryable),
+        finished_at=finished_at,
+    )
+    existing = (active.get("handoff") or "").strip()
+    if existing in ("", _NOT_SET_MARKER):
+        active["handoff"] = block
+    else:
+        active["handoff"] = existing + "\n\n" + block
+
+    try:
+        _write_journal(active, history, started=started or _now_iso(),
+                       task_dir=task_dir, thread_id=tid)
+    except OSError as exc:
+        return {"ok": False, "wrote": False, "path": str(path),
+                "error": str(exc)}
+    return {"ok": True, "wrote": True, "path": str(path), "thread_id": tid,
+            "size_bytes": path.stat().st_size if path.exists() else 0}
+
+
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

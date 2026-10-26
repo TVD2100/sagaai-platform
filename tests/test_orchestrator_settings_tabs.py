@@ -217,8 +217,8 @@ def test_current_language_selection_is_kept(st_env):
 def test_every_section_save_pins_its_own_tab(st_env):
     """Each settings section maps to a distinct tab and pin helper call."""
     orch_mod, settings_mod = _page_modules(st_env)
-    assert len(orch_mod.SETTINGS_SECTIONS) == 10
-    assert len(set(orch_mod.SETTINGS_SECTIONS)) == 10
+    assert len(orch_mod.SETTINGS_SECTIONS) == 11
+    assert len(set(orch_mod.SETTINGS_SECTIONS)) == 11
 
     for section in orch_mod.SETTINGS_SECTIONS:
         st_env.session_state.pop(orch_mod.settings_section_key(SLUG), None)

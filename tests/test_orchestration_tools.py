@@ -60,6 +60,11 @@ class FakeService:
         self.calls.append(("run", req, kwargs))
         return self.result
 
+    def start(self, req, **kwargs):
+        """Background launch: the runtime validates now, runs later."""
+        self.calls.append(("start", req, kwargs))
+        return self.result
+
     def invoke(self, req, **kwargs):
         self.calls.append(("invoke", req, kwargs))
         return self.result
@@ -269,3 +274,169 @@ def test_invoke_catalog_entry_states_the_one_shot_boundary():
     assert "no agent loop" in description
     assert "NOT applied" in description
     assert "never truncated" in description
+
+
+# ─── status explanations ────────────────────────────────────────────────────
+#
+# A status word alone is not actionable: ``failed`` may mean "retry once" or
+# "never retry", and an expired wait looks exactly like a hang. The tool
+# results carry the explanation, so no orchestrator needs a prompt edit.
+
+
+def test_an_internal_failure_tells_the_caller_not_to_retry():
+    note = tools.run_note({"status": "failed", "error_code": "internal_error",
+                           "retryable": False, "steps_used": 0})
+
+    assert "platform defect" in note
+    assert "do not spawn" in note.lower()
+
+
+def test_a_retryable_failure_asks_for_a_changed_attempt():
+    note = tools.run_note({"status": "failed", "error_code": "provider_error",
+                           "retryable": True})
+
+    assert "retryable" in note
+    assert "instead of repeating" in note
+
+
+def test_a_max_steps_failure_points_at_the_budget():
+    note = tools.run_note({"status": "failed", "error_code": "max_steps"})
+
+    assert "step budget" in note
+    assert "resuming does not add steps" in note
+
+
+def test_an_expired_wait_is_explained_as_still_running():
+    note = tools.run_note({"status": "running"}, timed_out=True)
+
+    assert "STILL RUNNING" in note
+    assert "not hung" in note
+
+
+def test_a_running_child_is_not_a_hang():
+    note = tools.run_note({"status": "running"})
+
+    assert "still working" in note
+
+
+def test_an_awaiting_input_child_points_at_the_journal():
+    note = tools.run_note({"status": "awaiting_input"})
+
+    assert "read_subagent_state" in note
+    assert "resume_subagent" in note
+
+
+def test_a_done_run_needs_no_second_thought():
+    note = tools.run_note({"status": "done"})
+
+    assert "finished" in note
+
+
+def test_an_unknown_status_produces_no_noise():
+    assert tools.run_note({"status": ""}) == ""
+
+
+def test_a_status_payload_keeps_the_note_next_to_the_data(allowlists):
+    """The explanation travels INSIDE the result, not in a separate call."""
+    class _Svc:
+        def poll(self, rid):
+            return {"ok": True, "run": {"run_id": rid, "status": "failed",
+                                         "error_code": "internal_error",
+                                         "retryable": False}}
+
+    out = tools.subagent_status(run_id="r1", service=_Svc())
+
+    assert out["status"] == "failed"
+    assert "platform defect" in out["note"]
+
+
+def test_an_empty_journal_does_not_read_as_an_empty_run():
+    note = tools._journal_note({}, "done")
+
+    assert "does not prove" in note
+    assert "subagent_status" in note
+
+
+def test_a_journal_of_a_running_child_is_a_snapshot():
+    note = tools._journal_note({"task": "do it"}, "running")
+
+    assert "snapshot" in note
+
+
+def test_a_journal_with_a_runtime_outcome_needs_no_note():
+    note = tools._journal_note(
+        {"task": "do it", "handoff": "Runtime outcome (run r1)\n- status: done"},
+        "done")
+
+    assert note == ""
+
+
+def test_a_journal_without_the_runtime_paragraph_says_so():
+    note = tools._journal_note({"task": "do it", "handoff": "my own notes"},
+                               "done")
+
+    assert "no runtime outcome paragraph" in note
+
+
+def test_a_failed_spawn_carries_the_explanation_of_its_result(allowlists):
+    """spawn_agent explains a failed child in the same result."""
+    allowlists["orchestrators"]["dev_agent"] = {"slug": "dev_agent"}
+    service = FakeService({"ok": True, "result": {
+        "run_id": "r2", "status": "failed", "error_code": "internal_error",
+        "retryable": False, "steps_used": 3}})
+
+    out = tools.spawn_agent(agent_slug="dev_agent",
+                            request=AgentBrief(goal="do it"),
+                            parent_slug="dev_agent", service=service)
+
+    assert out["result"]["status"] == "failed"
+    assert "platform defect" in out["note"]
+
+
+def test_a_background_spawn_tells_the_caller_not_to_spawn_again(allowlists):
+    allowlists["orchestrators"]["dev_agent"] = {"slug": "dev_agent"}
+    service = FakeService({"ok": True, "run_id": "r3", "status": "running",
+                           "background": True})
+
+    out = tools.spawn_agent(agent_slug="dev_agent",
+                            request=AgentBrief(goal="do it"), background=True,
+                            parent_slug="dev_agent", service=service)
+
+    assert out["background"] is True
+    assert "Do not spawn it again" in out["note"]
+
+
+def test_a_tree_with_running_children_cannot_be_reported_as_finished(allowlists):
+    class _Svc:
+        def list_runs(self, root=None):
+            return [{"run_id": "a", "status": "done"},
+                    {"run_id": "b", "status": "running"}]
+
+    out = tools.subagent_status(root_run_id="root", service=_Svc())
+
+    assert out["count"] == 2
+    assert "not terminal yet" in out["note"]
+
+
+def test_a_refused_resume_explains_why_a_retry_will_not_help(allowlists):
+    """A resume that cannot start says what to do INSTEAD of resuming."""
+    class _Svc:
+        def get_record(self, rid):
+            return None
+
+        def record_from_store(self, rid):
+            return {"run_id": rid, "status": "failed", "journal_path": ""}
+
+    import core.orchestration.resume as R
+
+    import pytest as _pytest
+    with _pytest.MonkeyPatch.context() as mp:
+        mp.setattr(R, "build_resume",
+                   lambda record, read_state=None: {
+                       "ok": False, "error": "no journal",
+                       "error_code": "resume_unavailable"})
+        out = tools.resume_subagent(run_id="r9", service=_Svc())
+
+    assert out["ok"] is False
+    assert "no journal to continue from" in out["note"]
+    assert "fresh " in out["note"]

@@ -60,6 +60,12 @@ ERR_TIMEOUT = "timeout"
 ERR_MAX_STEPS = "max_steps"
 ERR_SANITIZED_REQUIRED = "sanitized_required"
 ERR_PROVIDER_ERROR = "provider_error"
+#: The child loop itself raised - a defect in the platform, not a provider
+#: hiccup. Kept apart from ``provider_error`` because the two demand
+#: different reactions: a provider failure may be worth one retry, an
+#: internal defect never is - the same call fails the same way, so a retry
+#: only burns time and hides the bug behind a plausible code.
+ERR_INTERNAL_ERROR = "internal_error"
 ERR_REFUSAL = "refusal"
 ERR_CONTEXT_TOO_LARGE = "context_too_large"
 ERR_NOT_IMPLEMENTED = "not_implemented"
@@ -152,6 +158,14 @@ class AgentRunResult:
     pending: List[str] = field(default_factory=list)
     resume_hint: str = ""
 
+    # ── Failure classification ─────────────────────────────────────────────
+    # ``retryable`` answers the one question a caller asks about a failed run:
+    # would the same call plausibly succeed a second time? A provider hiccup is
+    # retryable; a defect inside the loop is not - it fails identically on
+    # every attempt, so retrying only burns time and hides the cause. Defaults
+    # to True so a plain informational result keeps its old meaning.
+    retryable: bool = True
+
     def to_dict(self) -> Dict[str, object]:
         """Return the compact dict form sent back to the parent model.
 
@@ -172,6 +186,7 @@ class AgentRunResult:
             "child_thread_id": self.child_thread_id,
             "pending": list(self.pending),
             "resume_hint": self.resume_hint,
+            "retryable": bool(self.retryable),
         }
 
     @property

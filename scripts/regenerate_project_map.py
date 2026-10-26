@@ -332,7 +332,15 @@ roles.update({
     "tests/test_usability_fixes.py": "UI regression tests for the usability fixes (two-step delete confirmations, neutral employee caption, datetime captions, inline chat-input file upload: accept_file=\"multiple\", raw-byte persistence, size cap)",
     "ui/components/flash.py": "Deferred UI notifications: a page queues a message in session_state (flash/flash_success/flash_error/flash_warning/flash_info) and render_flash() paints and clears the queue on the NEXT render pass, so a confirmation shown right before st.rerun() is not discarded with the current pass",
     "tests/test_ui_flash.py": "Unit tests for ui.components.flash: queueing of every kind, missing/garbage session state tolerated, render_flash paints once and clears, pending queue capped",
-    "tests/scenarios/test_save_confirmation_scenario.py": "Scenario tests for save confirmations (given->when->then): clicking Save on the prompt, connector, skill and employee pages paints nothing in the saving pass and shows the queued confirmation exactly once on the next pass (render_flash)",
+    "core/personal_memory.py": "Personal memory layer: scopes user / orchestrator:<slug> / project:<hash12> / connector:<id> (adapter), 64 KiB per-scope limit, atomic write with updated_at/updated_by/revision header, ten recoverable versions under personal/.backups, credential screening, caller-based write rights, archive on employee deletion, owner-card rendering",
+    "tests/test_personal_memory.py": "Unit tests for the personal memory layer: scope parsing, size limit, atomic write, backups and rotation, credential screening, access rights, archive on delete",
+    "tests/test_personal_memory_prompt.py": "Unit tests for personal-memory prompt injection: owner card append and cap, size-only employee block, broken-layer tolerance, order of the two blocks",
+    "tests/test_personal_memory_tools.py": "Unit tests for the get/set/list_personal_memory dispatcher tools: scope resolution, append vs replace, limits and permission errors",
+    "tests/test_ui_personal_memory.py": "UI tests for the personal memory pages: owner memory editor, connector memory block, employee Memory tab",
+    "tests/test_memory_dir_config.py": "Unit tests for the memory_dir setting and the deletion cascade: config storage, empty value removes the key, resolver sources, memory archived on employee delete",
+    "tests/test_orchestrator_memory_dir_arg.py": "Unit tests for the memory_dir argument of create_orchestrator/save_orchestrator",
+    "tests/test_orchestrator_memory_paths.py": "Unit tests for the working-folder resolver: MEMORY_DIR marker, config fallback, default folder, outside-workspace and conflict reporting",
+    "tests/scenarios/test_personal_memory_scenario.py": "Scenario tests for the two-store memory model (given->when->then): note survives the dialog and reaches the prompt, append vs replace with recoverable versions, size limit and credential refusal, MEMORY_DIR marker wins with relocation warnings, scopes stay isolated with write rights, deletion archives the notes",
 })
 
 
@@ -476,6 +484,25 @@ roles.update({
     "AGENT.md": "Key project information for agents (requirements, conventions, constraints); FR18 documents multi-agent orchestration - spawn_agent/invoke_assistant, the run contract, six delegation limits, cascade cancellation, fan-out, absolute paths in the child task, the child tool bans and the background subagents (durable run store, notices, resume, child autonomy); managed doc, replaces SPEC.md",
     "ARCHITECTURE.md": "Architecture description: platform layers and flows, incl. the connectors, the optional URL-fetch capability, document text extraction and the multi-agent orchestration package (run contract, OrchestrationService with the run tree and limits, tool wrappers, fan-out, delegation prompt blocks) plus background subagents - durable run store and heal, the notice mailbox, the resume builder and child autonomy",
     "README.md": "User-facing documentation: installation, usage, dependencies; the Employees section covers delegation (spawn_agent/invoke_assistant, the Delegation tab limits and cascade cancellation), background subagents (status, journal, resume, confirmation-free autonomy) and document reading (read_document, read_thread_file) next to the page-fetch model and the connectors",
+}) 
+
+
+roles.update({
+    "core/version.py": "Single source of truth for the SagaAI platform version (semver __version__ plus a documented release history); 2.13.0 records the inherited prompt-injection mode of a delegated child and 2.14.0 records the two-store memory split - the personal layer with its scopes, limits, versions and credential screening, and the MEMORY_DIR working-data folder",
+    "core/paths.py": "Central path registry: DATA_DIR, DB_PATH, personal memory folder and ensure_data_dirs for the runtime layout",
+    "core/orchestrator_folders.py": "Per-orchestrator folders: bundles, functions, instructions; resolve_data_dir picks the role's working-data folder (MEMORY_DIR marker, config.memory_dir, personal folder fallback, project default) and reports the source, an outside-workspace path and folders left over after a relocation",
+    "core/orchestrators.py": "Orchestrator CRUD and assistant assembly: build_assistant_dicts appends skills, instructions, the owner profile card, the employee memory block, connections, RAG bases, delegation and the tool catalog; save_orchestrator/create_orchestrator accept memory_dir and delete_orchestrator archives the employee's personal memory",
+    "dev_agent/universal_agent.py": "Tool dispatcher for orchestrators: validate_tool_call resolves the run's disabled_tools first, then the argument specs, then the rights, without touching process globals; WORKSPACE_TOOL_ARGS describes the spawn_agent and invoke_assistant arguments; get/set/list_personal_memory read and write the personal memory layer without requiring a workspace",
+    "ui/pages/orchestrator.py": "Orchestrator page: chat feed, history and settings sections (models, prompt, economy, functions, instructions, skills, RAG bases, connections, memory, delegation, other); the Memory tab shows size, revision and freshness of the employee's personal memory together with the working-data folder and its relocation warnings",
+    "ui/pages/orchestrator_settings.py": "Orchestrator settings page: tabbed sections (eleven tabs including Memory), the active tab is kept across reruns and pinned after a save",
+    "ui/pages/connectors.py": "Connectors page: service and preset tiles opening a full-page form, the saved-connections tab, credentials status, test/edit/delete; the connection card carries the agent memory block for that connection",
+    "ui/pages/settings.py": "Settings page: provider keys, models, interface language and the owner's personal memory editor",
+    "tests/_st_mock.py": "Streamlit mock used by UI tests: widgets, session state, call log and the tabs/expander stand-ins",
+    "tests/test_orchestrator_settings_tabs.py": "Tests for the settings tab pinning: eleven sections map to their own tab and a stale label from another language is dropped",
+    "tests/scenarios/test_welcome_page_scenarios.py": "Scenario tests for the first-run and settings screens: the employee settings page renders all eleven tabs without the missing-API-key warning and without errors",
+    "AGENT.md": "Key project information for agents (requirements, conventions, constraints); FR19 documents the two-store memory model - personal scopes, the 64 KiB limit, versions, credential screening, prompt injection, the memory tools, the memory_dir setting, the MEMORY_DIR resolver and the data-structure profiles; managed doc, replaces SPEC.md",
+    "ARCHITECTURE.md": "Architecture description: platform layers and flows, incl. the connectors, the optional URL-fetch capability, document text extraction, multi-agent orchestration with background subagents, and the split between the personal memory layer and the role's working-data folder",
+    "README.md": "User-facing documentation: installation, usage, dependencies; the Employees section covers employee memory (owner card, personal notes, the working-data folder and its export rules) next to delegation, background subagents and connectors",
 })
 
 

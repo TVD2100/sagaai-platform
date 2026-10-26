@@ -32,6 +32,7 @@ from core.config import (
 )
 from core.services import get_services
 from core.api_layer import test_connection
+from ui.components.flash import flash_success
 
 
 def _resolve_label(label, lang, fallback):
@@ -294,6 +295,49 @@ def _render_api_keys(lang):
     _render_env_variables_section(lang)
 
 
+def _render_personal_memory(lang):
+    """Render the owner-profile editor (the always-injected part of memory).
+
+    This file is read by every employee's prompt assembly, so it is the one
+    place where a rule stated once applies everywhere. Only the four
+    canonical sections are rendered into the prompt; text without headings is
+    still stored and shown here, which is why the editor is a plain text area.
+    """
+    from core import personal_memory as pm
+
+    st.markdown("---")
+    st.header(t("settings_memory_title", lang=lang))
+    st.markdown(t("settings_memory_desc", lang=lang))
+
+    try:
+        data = pm.read_memory(pm.SCOPE_USER)
+    except Exception as exc:
+        st.error(t("settings_memory_save_error", lang=lang, error=str(exc)))
+        return
+
+    st.caption(t("orch_memory_size", lang=lang, bytes=data.get("bytes", 0),
+                 max=data.get("max_bytes", 0), revision=data.get("revision", 0)))
+    if not data.get("exists"):
+        st.caption(t("orch_memory_empty", lang=lang))
+
+    text = st.text_area(
+        t("settings_memory_title", lang=lang),
+        value=str(data.get("body") or ""),
+        height=280,
+        key="settings_memory_text",
+        label_visibility="collapsed",
+    )
+    if st.button(t("settings_memory_save_btn", lang=lang),
+                 key="settings_memory_save", type="primary"):
+        try:
+            pm.write_memory(pm.SCOPE_USER, text, updated_by="ui")
+        except Exception as exc:
+            st.error(t("settings_memory_save_error", lang=lang, error=str(exc)))
+        else:
+            flash_success(t("settings_memory_saved", lang=lang))
+            st.rerun()
+
+
 def _render_folder_sync(lang):
     """Render the folders-to-DB sync section (folders-first model).
 
@@ -335,6 +379,7 @@ def page_settings():
     lang = st.session_state.get("ui_lang")
     st.title(f"\u2699\ufe0f {t('nav_settings', lang=lang)}")
     _render_api_keys(lang)
+    _render_personal_memory(lang)
     _render_folder_sync(lang)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

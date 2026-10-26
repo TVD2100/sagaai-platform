@@ -16,6 +16,8 @@
 /system_prompts/
 /threads/
 /TASK_STATE.md
+/personal/
+/connectors/
 
 # DevAgent workspace artifacts (repo root)
 /.dev_agent/

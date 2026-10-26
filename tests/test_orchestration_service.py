@@ -474,3 +474,166 @@ def test_child_task_text_ignores_a_blank_workspace():
 
     assert text == "go"
     assert "Рабочая папка" not in text
+
+
+# ─── failure classification ────────────────────────────────────────────────
+
+
+def _raising_runner(**kwargs):
+    """A runner that hits a defect inside the loop, not a provider error."""
+    raise TypeError("'dict' object has no attribute 'steps'")
+
+
+def test_a_defect_in_the_loop_is_not_reported_as_a_provider_error(svc):
+    """An internal defect gets its own code, and a retry is discouraged.
+
+    The two failures demand opposite reactions: a provider hiccup may pass on
+    a second attempt, a platform defect never does. Sharing one code made the
+    parent retry a deterministic crash and hid the real cause behind a
+    plausible one.
+    """
+    svc.set_child_runner(_raising_runner)
+    svc.ensure_run("root", config={"max_depth": 1})
+
+    out = _spawn(svc, parent_run_id="root")
+
+    assert out["ok"] is True
+    result = out["result"]
+    assert result["status"] == "failed"
+    assert result["error_code"] == S.ERR_INTERNAL_ERROR
+    assert result["retryable"] is False
+    assert "TypeError" in result["summary"]
+
+
+def test_an_internal_failure_keeps_the_exception_type_in_the_summary(svc):
+    """The summary names the exception class: without it diagnosis is guesswork."""
+    svc.set_child_runner(_raising_runner)
+    svc.ensure_run("root", config={"max_depth": 1})
+
+    summary = _spawn(svc, parent_run_id="root")["result"]["summary"]
+
+    assert summary.startswith("TypeError: ")
+
+
+def test_the_durable_record_carries_the_retryable_flag(svc):
+    """A caller reading the store after a restart must see the same verdict."""
+    svc.set_child_runner(_raising_runner)
+    svc.ensure_run("root", config={"max_depth": 1})
+
+    run_id = _spawn(svc, parent_run_id="root")["result"]["run_id"]
+
+    stored = svc.record_from_store(run_id)
+    assert stored is not None
+    assert stored["retryable"] is False
+    assert stored["error_code"] == S.ERR_INTERNAL_ERROR
+
+
+# ─── frozen run identity ───────────────────────────────────────────────────
+
+
+def test_child_record_carries_child_thread_id_and_workspace(svc):
+    """The record answers where the child worked and which thread it used.
+
+    Both fields are resolved at spawn time and frozen on the record: without
+    them a background child is a black box - its thread cannot be addressed
+    and its working folder cannot be told from the parent's.
+    """
+    svc.ensure_run("root", config={"max_depth": 1})
+
+    out = _spawn(svc, parent_run_id="root", base_dir="/tmp/workspace")
+
+    run_id = out["result"]["run_id"]
+    stored = svc.record_from_store(run_id)
+    assert stored["child_thread_id"]
+    assert stored["workspace"] == "/tmp/workspace"
+
+
+def test_the_child_thread_differs_from_the_parent_thread(svc):
+    """Delegated work never writes into the parent's journal."""
+    svc.ensure_run("parent-thread", thread_id="parent-thread",
+                   config={"max_depth": 1})
+
+    out = _spawn(svc, parent_run_id="parent-thread", thread_id="parent-thread")
+
+    child_thread = svc.record_from_store(out["result"]["run_id"])["child_thread_id"]
+    assert child_thread
+    assert child_thread != "parent-thread"
+
+
+def test_an_explicit_workspace_wins_over_the_base_dir(svc):
+    """The spawn argument is the truth when the caller stated it."""
+    svc.ensure_run("root", config={"max_depth": 1})
+
+    out = svc.run(
+        SpawnRequest(agent_slug="dev_agent", request=AgentBrief(goal="go"),
+                     parent_run_id="root", workspace="/tmp/explicit"),
+        parent_config={"max_depth": 1}, base_dir="/tmp/fallback", lang="English")
+
+    stored = svc.record_from_store(out["result"]["run_id"])
+    assert stored["workspace"] == "/tmp/explicit"
+
+
+# ─── runtime handoff ───────────────────────────────────────────────────────
+
+
+def test_a_finished_run_leaves_its_outcome_in_the_child_journal(svc, monkeypatch, tmp_path):
+    """The parent can read HOW a child ended even if the child wrote nothing.
+
+    A child keeps a journal only when it decides to. Without the runtime
+    paragraph the documented handoff channel answered nothing, and an empty
+    journal looked like a child that did nothing rather than one that never
+    wrote its work down.
+    """
+    seen = {}
+
+    def _fake_handoff(thread_id, **kwargs):
+        seen["thread_id"] = thread_id
+        seen.update(kwargs)
+        return {"ok": True, "wrote": True}
+
+    import dev_agent.task_state as TS
+    monkeypatch.setattr(TS, "record_runtime_handoff", _fake_handoff)
+    svc.ensure_run("root", config={"max_depth": 1})
+
+    out = _spawn(svc, parent_run_id="root")
+
+    assert seen["thread_id"] == out["result"]["child_thread_id"]
+    assert seen["run_id"] == out["result"]["run_id"]
+    assert seen["status"] == "done"
+    assert seen["steps_used"] == 1
+    assert seen["retryable"] is True
+
+
+def test_the_handoff_records_the_failure_classification(svc, monkeypatch):
+    """A failed run records its code and whether a retry is worth trying."""
+    seen = {}
+
+    def _fake_handoff(thread_id, **kwargs):
+        seen.update(kwargs)
+        return {"ok": True, "wrote": True}
+
+    import dev_agent.task_state as TS
+    monkeypatch.setattr(TS, "record_runtime_handoff", _fake_handoff)
+    svc.set_child_runner(_raising_runner)
+    svc.ensure_run("root", config={"max_depth": 1})
+
+    _spawn(svc, parent_run_id="root")
+
+    assert seen["error_code"] == S.ERR_INTERNAL_ERROR
+    assert seen["retryable"] is False
+    assert seen["summary"].startswith("TypeError: ")
+
+
+def test_a_broken_journal_does_not_fail_a_finished_run(svc, monkeypatch):
+    """The handoff is an aid: its failure must not change the outcome."""
+    import dev_agent.task_state as TS
+
+    def _boom(*args, **kwargs):
+        raise OSError("journal is unwritable")
+
+    monkeypatch.setattr(TS, "record_runtime_handoff", _boom)
+    svc.ensure_run("root", config={"max_depth": 1})
+
+    out = _spawn(svc, parent_run_id="root")
+
+    assert out["result"]["status"] == "done"

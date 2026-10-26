@@ -399,13 +399,32 @@ def save_orchestrator(slug: str, **kwargs) -> bool:
     """Update an existing orchestrator by slug.
 
     Supported kwargs: name, description, prompt_text, config, tools,
-    max_steps, auto_apply, sort_order.
+    max_steps, auto_apply, sort_order, memory_dir.
+
+    ``memory_dir`` is a convenience key: it is written into ``config`` (the
+    stored location of the setting) instead of becoming a column, so the
+    working-data-folder resolver keeps a single source of truth.
 
     Returns True on success.
     """
     orch = repo_get_orchestrator_with_text(slug)
     if orch is None:
         return False
+    if "memory_dir" in kwargs:
+        raw_dir = kwargs.pop("memory_dir")
+        base_cfg = kwargs.get("config")
+        if not isinstance(base_cfg, dict):
+            stored = orch.get("config", {})
+            base_cfg = dict(stored) if isinstance(stored, dict) else {}
+        base_cfg = dict(base_cfg)
+        text = str(raw_dir or "").strip()
+        if text:
+            base_cfg["memory_dir"] = text
+        else:
+            # An empty value means "use the default": drop the key instead of
+            # storing an empty string the resolver would have to special-case.
+            base_cfg.pop("memory_dir", None)
+        kwargs["config"] = base_cfg
     kwargs = _mark_prompt_edited(orch, kwargs)
     ok = repo_update_orchestrator(orch["id"], **kwargs)
     if ok:
@@ -437,6 +456,16 @@ def delete_orchestrator(slug: str) -> bool:
         # with the same slug.
         repo_delete_all_orchestrator_instructions(slug)
         remove_orchestrator_dir(slug)
+        # The personal memory of the employee is archived (never silently
+        # destroyed) so an accidental deletion stays recoverable.
+        try:
+            from core import personal_memory as pm
+            pm.delete_memory(
+                pm.format_scope(pm.SCOPE_ORCHESTRATOR, slug),
+                archived_by="delete_orchestrator",
+            )
+        except Exception:
+            pass
     return ok
 
 
@@ -628,6 +657,116 @@ def set_enabled_connections(orchestrator_slug: str, connection_ids: List[str]) -
     if ok:
         _sync_orchestrator_folder(orchestrator_slug)
     return ok
+
+
+# ─── Personal memory: prompt injection ───────────────────────────────────────
+
+
+def _extend_prompt_with_personal_card(prompt: str,
+                                      orchestrator_slug: str = DEVAGENT_SLUG) -> str:
+    """Append the owner profile card to the system prompt.
+
+    The card holds what the platform knows about the owner - stable rules,
+    preferences and environment facts - and is injected for every employee, so
+    a new dialog never starts by re-asking the same questions.
+
+    Args:
+        prompt: current system prompt text.
+        orchestrator_slug: employee that will read the card; kept for symmetry
+            with the other extenders and future per-employee filtering.
+
+    Returns:
+        The prompt with the ``## Owner profile`` block appended, or the prompt
+        unchanged when the card is empty or the memory layer is unavailable.
+    """
+    try:
+        from core import personal_memory as pm
+        body = pm.render_owner_card(pm.card_cap())
+    except Exception:
+        return prompt
+    if not body.strip():
+        return prompt
+
+    block = "\n".join([
+        "## Owner profile",
+        "",
+        "Facts about the person you work for, maintained across dialogs. Follow "
+        "the rules and preferences below without asking again; update them "
+        "with `set_personal_memory` when you learn something durable:",
+        "",
+        body,
+    ])
+    if prompt.strip():
+        return f"{prompt}\n\n{block}"
+    return block
+
+
+def _extend_prompt_with_memory(prompt: str,
+                               orchestrator_slug: str = DEVAGENT_SLUG) -> str:
+    """Append the personal-memory rules and the employee's own memory size.
+
+    The block is emitted for EVERY employee, even when no note exists yet: the
+    rules tell the employee that keeping notes is part of the job, and a fresh
+    install never starts the practice otherwise. The notes themselves are NOT
+    inlined - a scope can reach 64 KB - so the block only reports the state of
+    the employee's own scope and how to read it.
+
+    Args:
+        prompt: current system prompt text.
+        orchestrator_slug: employee whose own scope is described.
+
+    Returns:
+        The prompt with the ``## Memory`` block appended.
+    """
+    from core import personal_memory as pm
+
+    scope = pm.format_scope(pm.SCOPE_ORCHESTRATOR, orchestrator_slug)
+    size_line = ('Your own scope `current` is empty - add the first note worth '
+                 'keeping.')
+    try:
+        meta = pm.memory_meta(scope)
+    except Exception:
+        meta = {}
+    if meta.get('exists'):
+        size = int(meta.get('bytes') or 0)
+        limit = int(meta.get('max_bytes') or 0)
+        revision = meta.get('revision', 0)
+        updated = meta.get('updated_at') or 'unknown'
+        size_line = (f'Your own scope `current` holds {size} of {limit} bytes '
+                     f'of notes (revision {revision}, last updated {updated}); '
+                     'its text is not inlined here.')
+
+    lines = [
+        '## Memory',
+        '',
+        'Your memory outlives a single dialog. Two stores exist and never '
+        'merge: personal memory holds HOW to work (agreements, preferences, '
+        'limits), and the working-data folder holds the CONTENT of the work '
+        '(files, registries, journals).',
+        '',
+        size_line,
+        '',
+        f'Scopes: `current` - your own notes (`{scope}`); `user` - the owner '
+        'profile shared by every employee; `project` - notes about the active '
+        'working folder.',
+        '',
+        '- Read `current` with `get_personal_memory` before a task that may '
+        'depend on earlier decisions; read `user` when you need the rules or '
+        'preferences of the owner.',
+        '- Write a durable note with `set_personal_memory` (mode `append`) '
+        'when the owner corrects your approach, when you settle a decision '
+        'that will matter next time, or when you discover a limit worth '
+        'remembering. Skip one-off details and anything already visible in '
+        'this prompt.',
+        '- `user` is the card of the owner: extend it with `append`. A rewrite '
+        'with mode `replace` is refused unless the owner asked for it and the '
+        'call passes `overwrite_owner_profile=true`.',
+        '- Keep notes short and factual; never store credentials there.',
+    ]
+    block = '\n'.join(lines)
+    if prompt.strip():
+        return f'{prompt}\n\n{block}'
+    return block
 
 
 def _extend_prompt_with_connections(prompt: str, orchestrator_slug: str = DEVAGENT_SLUG) -> str:
@@ -1259,6 +1398,10 @@ def build_assistant_dicts(orchestrator_slug: str = DEVAGENT_SLUG) -> Tuple[dict,
     enabled_skills = cfg.get("enabled_skills") or []
     prompt = _extend_prompt_with_skills(prompt, enabled_skills)
     prompt = _extend_prompt_with_instructions(prompt, orchestrator_slug)
+    # Append the owner profile card shared by all employees.
+    prompt = _extend_prompt_with_personal_card(prompt, orchestrator_slug)
+    # Append the employee's own memory size and the scope tools it may use.
+    prompt = _extend_prompt_with_memory(prompt, orchestrator_slug)
     # Append enabled external service connections (connectors).
     prompt = _extend_prompt_with_connections(prompt, orchestrator_slug)
     # Append assigned RAG knowledge bases (DevAgent: all; others: assigned).

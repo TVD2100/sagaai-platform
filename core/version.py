@@ -206,7 +206,47 @@
 # permission approved for a single withheld payload is not a mode and is not
 # inherited, and the model cannot change any of this from a tool argument.
 
-__version__ = "2.13.0"
+# 2.14.0 splits memory into two stores. The personal layer
+# (core/personal_memory.py) keeps notes about HOW to work - an owner card
+# shared by every employee plus per-employee and per-project scopes, capped
+# at 64 KiB, written atomically with revision headers and ten recoverable
+# versions, screened for credentials, and archived instead of deleted when an
+# employee leaves; it lives in DATA_DIR/personal and never leaves the
+# installation. The working-data folder (MEMORY_DIR, resolve_data_dir) keeps
+# the role's own registries, cards and journals inside the working project
+# and travels with it. Three agent tools read and write the personal layer,
+# the owner card and a size-only employee block are injected into the system
+# prompt, the employee settings page gets a Memory tab, and the
+# employee_creator instruction gains a data-structure profile section that
+# picks FLOW / CASE / COURSE / ARTICLE / RESEARCH layouts by the shape of the
+# unit of work.
+
+# 2.14.1 makes the memory rules reach every employee from the first dialog.
+# The `## Memory` block used to appear only once an employee already had
+# notes, so a fresh install never taught the practice: the one place that
+# could start it stayed silent. The block is now emitted always, and it
+# states WHEN to write - after the owner corrects an approach, after a
+# decision that will matter next time, after a discovered limit - instead of
+# only how. The owner profile is shared, so it can be extended with append
+# but not rewritten wholesale: a replace needs overwrite_owner_profile, set
+# only on an explicit owner request. The catalog no longer claims `user` as
+# the default read scope (it resolves to the employee's own scope), and a
+# role whose working-data folder is gone is told to ask rather than silently
+# start a new one.
+
+# 2.15.0 makes subagent failures diagnosable. A raise inside the child loop
+# is no longer reported as a provider failure: it becomes internal_error with
+# retryable=False, while a provider failure keeps provider_error and stays
+# retryable, so a caller can tell "retry once" from "this will fail the same
+# way". The run record freezes the child thread id and the workspace before
+# the child starts, and the finish appends a Runtime outcome paragraph to the
+# child journal even when the child never wrote one. The delegation tools
+# carry a note field that turns a status into the next decision - platform
+# defect, retryable provider, exhausted step budget, expired wait meaning
+# still running, empty journal meaning an unwritten record. A state
+# assignment in the child_mode branch of the loop is fixed.
+
+__version__ = "2.15.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -608,3 +608,80 @@ def test_start_task_survives_duplicate_plain_folder(sandbox):
     assert res.get('ok')
     assert Path(res['task_dir']).name == 'task_2'
     assert not (base / 'task_1 (current)').exists()
+
+
+# --- Runtime handoff: the run registry writes into a child journal ---------
+
+
+def test_runtime_handoff_creates_a_journal_for_a_silent_child(sandbox):
+    """A child that never wrote a journal still gets a readable outcome.
+
+    A read-only brief or a crash before the first task_state_init leaves no
+    file at all; the parent would then see an empty handoff channel.
+    """
+    res = ts.record_runtime_handoff(
+        'child_thread_1', run_id='abc123', goal='Inspect the tree',
+        status='done', stop_reason='completed', steps_used=7,
+        summary='found 12 modules', retryable=True)
+
+    assert res['ok'] is True
+    assert res['wrote'] is True
+
+    read = ts.read_task_state_at(res['path'])
+    assert read['exists'] is True
+    assert 'Inspect the tree' in read['sections']['task']
+    assert 'Runtime outcome (run abc123)' in read['sections']['handoff']
+    assert 'steps_used: 7' in read['sections']['handoff']
+    assert 'found 12 modules' in read['sections']['handoff']
+
+
+def test_runtime_handoff_records_a_failure_verdict(sandbox):
+    """The paragraph answers the retry question without opening the code."""
+    res = ts.record_runtime_handoff(
+        'child_thread_2', run_id='dead01', status='failed',
+        stop_reason='error', error_code='internal_error', steps_used=0,
+        summary="TypeError: 'dict' object has no attribute 'steps'",
+        retryable=False)
+
+    handoff = ts.read_task_state_at(res['path'])['sections']['handoff']
+    assert 'status: failed' in handoff
+    assert 'error_code: internal_error' in handoff
+    assert 'retryable: no' in handoff
+    assert 'TypeError' in handoff
+
+
+def test_runtime_handoff_keeps_what_the_child_wrote(sandbox):
+    """The registry appends; it never replaces the child's own handoff."""
+    ts.archive_and_start_task(task='Child task', plan=PLAN_TEXT)
+    ts.update_task_state_section('handoff', 'CHILD-WROTE-THIS')
+
+    res = ts.record_runtime_handoff(
+        config.ACTIVE_THREAD_ID, run_id='run9', status='done',
+        stop_reason='completed', steps_used=3, summary='ok')
+
+    handoff = ts.read_task_state_at(res['path'])['sections']['handoff']
+    assert 'CHILD-WROTE-THIS' in handoff
+    assert 'Runtime outcome (run run9)' in handoff
+    assert handoff.index('CHILD-WROTE-THIS') < handoff.index('Runtime outcome')
+
+
+def test_runtime_handoff_is_idempotent_per_run(sandbox):
+    """A second finish of the same run must not duplicate the paragraph."""
+    first = ts.record_runtime_handoff('child_3', run_id='same1', status='done',
+                                      stop_reason='completed', summary='ok')
+    second = ts.record_runtime_handoff('child_3', run_id='same1', status='done',
+                                       stop_reason='completed', summary='ok')
+
+    assert first['wrote'] is True
+    assert second['wrote'] is False
+    assert second['reason'] == 'already recorded'
+    handoff = ts.read_task_state_at(first['path'])['sections']['handoff']
+    assert handoff.count('Runtime outcome (run same1)') == 1
+
+
+def test_runtime_handoff_needs_a_thread(sandbox):
+    res = ts.record_runtime_handoff('', run_id='x')
+
+    assert res['ok'] is False
+    assert res['wrote'] is False
+    assert 'thread_id' in res['error']

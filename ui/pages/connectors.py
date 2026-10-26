@@ -36,6 +36,7 @@ from core.i18n import t
 from ui.components.flash import flash_error, flash_success
 from core import connectors
 from core import connector_presets
+from core import personal_memory as pm
 from core.connectors import (
     list_connections,
     list_services,
@@ -726,6 +727,34 @@ def _render_connection_card(conn: dict, lang: str) -> None:
                                  use_container_width=True):
                         st.session_state[confirm_key] = None
                         st.rerun()
+
+        # Working notes of this connection: limits discovered in practice,
+        # paths and rules. Written through the personal-memory layer so the
+        # text is screened for credentials before the connector API stores it.
+        st.markdown("---")
+        st.markdown(f"**{t('connectors_memory_title', lang=lang)}**")
+        st.caption(t("connectors_memory_desc", lang=lang))
+        mem_scope = pm.format_scope(pm.SCOPE_CONNECTOR, conn_id)
+        try:
+            mem = pm.read_memory(mem_scope)
+        except Exception:
+            mem = {"exists": False, "body": ""}
+        mem_text = st.text_area(
+            t("connectors_memory_title", lang=lang),
+            value=str(mem.get("body") or ""),
+            height=160,
+            key=f"conn_memory_{conn_id}",
+            label_visibility="collapsed",
+        )
+        if st.button(t("connectors_memory_save_btn", lang=lang),
+                     key=f"conn_memory_save_{conn_id}"):
+            try:
+                pm.write_memory(mem_scope, mem_text, updated_by="ui")
+            except Exception as exc:
+                st.error(f"{t('connectors_memory_save_error', lang=lang)} {exc}")
+            else:
+                flash_success(t("connectors_memory_saved", lang=lang))
+                st.rerun()
 
 
 def _render_connections(lang: str, connections: list) -> None:

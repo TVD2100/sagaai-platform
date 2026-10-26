@@ -65,8 +65,8 @@ WORKSPACE_TOOL_CATALOG: List[Dict[str, str]] = [
     # ── Orchestrator management tools ──────────────────────────────────────
     {"name": "list_orchestrators", "desc": "List all orchestrators (slug, name, description). No args."},
     {"name": "get_orchestrator", "desc": "Return a single orchestrator including prompt_text. Args: slug."},
-    {"name": "create_orchestrator", "desc": "Create a new orchestrator. Args: slug, name, [description], [prompt_text], [config], [tools], [max_steps], [auto_apply]."},
-    {"name": "update_orchestrator", "desc": "Update an existing orchestrator. Args: slug, [name], [description], [prompt_text], [config], [tools], [max_steps], [auto_apply]."},
+    {"name": "create_orchestrator", "desc": "Create a new orchestrator. Args: slug, name, [description], [prompt_text], [config], [tools], [max_steps], [auto_apply], [memory_dir] (working-data folder, stored in config)."},
+    {"name": "update_orchestrator", "desc": "Update an existing orchestrator. Args: slug, [name], [description], [prompt_text], [config], [tools], [max_steps], [auto_apply], [memory_dir] (working-data folder, stored in config)."},
     {"name": "delete_orchestrator", "desc": "Delete a custom orchestrator and its folder. Args: slug."},
     {"name": "reload_orchestrator", "desc": "Reload an orchestrator from its personal folder into the DB (applies hand-made edits to orchestrator.json / system_prompt.md). Args: slug."},
     {"name": "list_orchestrator_functions", "desc": "List custom Python functions of an orchestrator. Args: slug."},
@@ -93,6 +93,9 @@ WORKSPACE_TOOL_CATALOG: List[Dict[str, str]] = [
     {"name": "set_enabled_connections", "desc": "Replace the enabled connection ids of an orchestrator (default: the active one). Args: connection_ids, [orchestrator]."},
     {"name": "get_connection_memory", "desc": "Read the agent-maintained memory notes of a connection ('' when absent). Args: conn_id."},
     {"name": "set_connection_memory", "desc": "Replace the memory notes of a connection (64 KB cap; never store secrets). Args: conn_id, content."},
+    {"name": "get_personal_memory", "desc": "Read the personal memory of one scope - notes about the owner, an employee, a working folder or a connection. Returns content, bytes, updated_at. Args: [scope], [max_chars]. scope: 'current' or omitted (this employee's own notes, default), 'user' (the owner profile shared by every employee), 'orchestrator:<slug>', 'project:<path>', 'connector:<id>'."},
+    {"name": "set_personal_memory", "desc": "Write the personal memory of one scope (64 KB cap; credentials are refused). Args: content, [scope], [mode], [note], [overwrite_owner_profile]. mode='replace' (default) or 'append'. scope: 'current' or omitted (own notes, default), 'user' (owner profile), 'project', 'orchestrator:<slug>'. Extend the owner profile with mode='append'; a full rewrite of scope='user' is refused unless overwrite_owner_profile=true and the owner asked for it. Report every write in one line."},
+    {"name": "list_personal_memory", "desc": "List the personal memory scopes that hold notes, with size and update time. No args."},
 ]
 
 
@@ -142,12 +145,12 @@ WORKSPACE_TOOL_ARGS: Dict[str, Dict[str, set]] = {
     "create_orchestrator": {
         "required": {"slug", "name"},
         "optional": {"description", "prompt_text", "config", "tools",
-                     "max_steps", "auto_apply"},
+                     "max_steps", "auto_apply", "memory_dir"},
     },
     "update_orchestrator": {
         "required": {"slug"},
         "optional": {"name", "description", "prompt_text", "config", "tools",
-                     "max_steps", "auto_apply", "sort_order"},
+                     "max_steps", "auto_apply", "sort_order", "memory_dir"},
     },
     "delete_orchestrator": {"required": {"slug"}, "optional": set()},
     "reload_orchestrator": {"required": {"slug"}, "optional": set()},
@@ -180,6 +183,11 @@ WORKSPACE_TOOL_ARGS: Dict[str, Dict[str, set]] = {
     "set_enabled_connections": {"required": {"connection_ids"}, "optional": {"orchestrator"}},
     "get_connection_memory": {"required": {"conn_id"}, "optional": set()},
     "set_connection_memory": {"required": {"conn_id", "content"}, "optional": set()},
+    "get_personal_memory": {"required": set(), "optional": {"scope", "max_chars"}},
+    "set_personal_memory": {"required": {"content"},
+                           "optional": {"scope", "mode", "note",
+                                        "overwrite_owner_profile"}},
+    "list_personal_memory": {"required": set(), "optional": set()},
     # ── Delegation tools (executed by the agent loop, not by dispatch) ─────
     # Without these specs the argument check would silently pass for the two
     # new tools: the dictionary is the only source of truth for accepted
@@ -435,6 +443,9 @@ class UniversalDevAgent:
             "set_enabled_connections": lambda **kw: self._set_enabled_connections(**kw),
             "get_connection_memory": lambda **kw: self._get_connection_memory(**kw),
             "set_connection_memory": lambda **kw: self._set_connection_memory(**kw),
+            "get_personal_memory": lambda **kw: self._get_personal_memory(**kw),
+            "set_personal_memory": lambda **kw: self._set_personal_memory(**kw),
+            "list_personal_memory": lambda **kw: self._list_personal_memory(**kw),
         }
 
     # ─── system prompt = single file ────────────────────────────────────────
@@ -1080,18 +1091,26 @@ class UniversalDevAgent:
     def _create_orchestrator(self, slug: str = "", name: str = "", description: str = "",
                              prompt_text: str = "", config: Optional[dict] = None,
                              tools: Optional[list] = None, max_steps: int = DEFAULT_MAX_STEPS,
-                             auto_apply: bool = True, **kwargs) -> Dict[str, Any]:
+                             auto_apply: bool = True, memory_dir: str = "",
+                             **kwargs) -> Dict[str, Any]:
         from core.orchestrators import create_orchestrator
         from core.orchestrator_folders import safe_orchestrator_slug
         effective_slug = safe_orchestrator_slug(slug)
         if not effective_slug or not name.strip():
             return {"ok": False, "error": "Both 'slug' and 'name' are required."}
+        # The working-data folder is stored inside config (the same key the
+        # prompt assembly reads), so a bare top-level argument can never be
+        # silently dropped and cannot overwrite the other config keys.
+        cfg = dict(config or {})
+        folder = str(memory_dir or "").strip()
+        if folder:
+            cfg["memory_dir"] = folder
         orch_id = create_orchestrator(
             slug=slug.strip(),
             name=name.strip(),
             description=description or "",
             prompt_text=prompt_text or "",
-            config=config or {},
+            config=cfg,
             tools=tools or [],
             max_steps=int(max_steps or DEFAULT_MAX_STEPS),
             auto_apply=bool(auto_apply),
@@ -1105,7 +1124,7 @@ class UniversalDevAgent:
         if not slug:
             return {"ok": False, "error": "Missing required argument 'slug'."}
         allowed = {"name", "description", "prompt_text", "config", "tools",
-                   "max_steps", "auto_apply", "sort_order"}
+                   "max_steps", "auto_apply", "sort_order", "memory_dir"}
         update_kwargs = {k: v for k, v in kwargs.items() if k in allowed and v is not None}
         ok = save_orchestrator(slug, **update_kwargs)
         if not ok:
@@ -1331,6 +1350,118 @@ class UniversalDevAgent:
         if not ok:
             return {"ok": False, "error": f"Failed to update enabled connections for orchestrator: {slug}"}
         return {"ok": True, "orchestrator": slug, "connection_ids": ids}
+
+    # ─── Personal memory ───────────────────────────────────────────────────
+    def _personal_scope(self, scope: str = "") -> str:
+        """Resolve a user-supplied scope name to its canonical form.
+
+        ``'current'`` and an empty value both mean the employee's own scope; a
+        bare ``'project'`` means the active working folder. Permission checks
+        are not applied here - the memory layer owns that policy.
+        """
+        from core import personal_memory as pm
+
+        text = (scope or "").strip()
+        slug = self._current_orchestrator_slug()
+        if not text or text.lower() == "current":
+            return pm.format_scope(pm.SCOPE_ORCHESTRATOR, slug)
+        kind, key = (pm.SCOPE_PROJECT, "") if text.lower() in ("project", "project:") \
+            else pm.parse_scope(text)
+        if kind == pm.SCOPE_PROJECT and not key:
+            workspace = str(getattr(config, "PROJECT_ROOT", "") or "")
+            if not getattr(config, "WORKSPACE_SELECTED", True) or not workspace:
+                raise ValueError(
+                    "No working folder is selected, so 'project' has no target")
+            return pm.format_scope(pm.SCOPE_PROJECT, workspace)
+        return pm.format_scope(kind, key)
+
+    def _get_personal_memory(self, scope: str = "", max_chars: int = 0,
+                             **kwargs) -> Dict[str, Any]:
+        """Read one memory scope on behalf of the active employee."""
+        from core import personal_memory as pm
+        try:
+            resolved = self._personal_scope(scope)
+            limit = int(max_chars or 0)
+        except (ValueError, TypeError) as e:
+            return {"ok": False, "error": str(e) or "Invalid scope"}
+        try:
+            result = pm.read_memory(resolved, max_chars=limit,
+                                    caller_slug=self._current_orchestrator_slug())
+        except (PermissionError, ValueError) as e:
+            return {"ok": False, "scope": resolved, "error": str(e)}
+        out: Dict[str, Any] = {"ok": True}
+        out.update(result)
+        return out
+
+    def _set_personal_memory(self, content: str = "", scope: str = "",
+                             mode: str = "replace", note: str = "",
+                             overwrite_owner_profile: bool = False,
+                             **kwargs) -> Dict[str, Any]:
+        """Write one memory scope for the active employee.
+
+        The owner profile (``user``) is a SHARED card: every employee reads it
+        as rules and preferences, so a full rewrite by one employee would
+        silently drop what the others recorded. Extending it with ``append`` is
+        allowed; ``replace`` needs ``overwrite_owner_profile=True``, which is
+        passed only when the owner explicitly asked for a rewrite.
+        """
+        from core import personal_memory as pm
+        chosen = (mode or "replace").strip().lower()
+        if chosen not in ("replace", "append"):
+            return {"ok": False,
+                    "error": "'mode' must be 'replace' or 'append', got " + repr(mode)}
+        try:
+            resolved = self._personal_scope(scope)
+        except (ValueError, TypeError) as e:
+            return {"ok": False, "error": str(e) or "Invalid scope"}
+
+        caller = self._current_orchestrator_slug()
+        overwrite = overwrite_owner_profile
+        if isinstance(overwrite, str):
+            overwrite = overwrite.strip().lower() in ("1", "true", "yes", "on")
+        else:
+            overwrite = bool(overwrite)
+        if (resolved == pm.format_scope(pm.SCOPE_USER)
+                and chosen == "replace" and not overwrite):
+            return {
+                "ok": False,
+                "scope": resolved,
+                "error": ("The owner profile is shared by every employee; a full "
+                          "rewrite would drop what the others recorded. Use "
+                          "mode='append' to extend it. A rewrite is allowed only "
+                          "when the owner asked for it, with "
+                          "overwrite_owner_profile=true."),
+            }
+
+        text = str(content if content is not None else "")
+        if chosen == "append":
+            try:
+                existing = pm.read_memory(resolved, caller_slug=caller)
+            except (PermissionError, ValueError) as e:
+                return {"ok": False, "scope": resolved, "error": str(e)}
+            head = (existing.get("content") or "").rstrip()
+            block = text.strip("\n")
+            text = f"{head}\n\n{block}\n" if head else f"{block}\n"
+
+        try:
+            result = pm.write_memory(resolved, text, updated_by=caller,
+                                     caller_slug=caller)
+        except (PermissionError, ValueError) as e:
+            return {"ok": False, "scope": resolved, "error": str(e)}
+        out: Dict[str, Any] = {"ok": True, "mode": chosen}
+        if note:
+            out["note"] = note
+        out.update(result)
+        return out
+
+    def _list_personal_memory(self, **kwargs) -> Dict[str, Any]:
+        """List the memory scopes that hold notes."""
+        from core import personal_memory as pm
+        try:
+            scopes = pm.list_memory_scopes()
+        except Exception as e:
+            return {"ok": False, "error": str(e) or "Memory scopes are unavailable"}
+        return {"ok": True, "count": len(scopes), "scopes": scopes}
 
     def _get_connection_memory(self, conn_id: str = "", **kwargs) -> Dict[str, Any]:
         from core.connectors import get_connection_memory

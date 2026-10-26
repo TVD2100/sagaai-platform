@@ -86,12 +86,16 @@ class StreamlitMock(types.ModuleType):
         return opts[idx] if opts and idx < len(opts) else (opts[0] if opts else None)
 
     def text_input(self, label="", value="", *args, **kwargs):
-        self._rec("text_input", (label,), kwargs)
+        recorded = dict(kwargs)
+        recorded.setdefault("value", value)
+        self._rec("text_input", (label,), recorded)
         key = kwargs.get("key")
         return self._text_returns.get(key, kwargs.get("value", value))
 
     def text_area(self, label="", value="", *args, **kwargs):
-        self._rec("text_area", (label,), kwargs)
+        recorded = dict(kwargs)
+        recorded.setdefault("value", value)
+        self._rec("text_area", (label,), recorded)
         key = kwargs.get("key")
         return self._text_returns.get(key, kwargs.get("value", value))
 

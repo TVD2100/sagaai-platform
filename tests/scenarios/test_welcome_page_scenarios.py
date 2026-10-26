@@ -122,8 +122,8 @@ def test_devagent_settings_full_render_without_api_key_warning(isolated_data):
             if name == "tabs"
             for labels in args
         ]
-        assert any(len(labels) == 10 for labels in tab_calls), (
-            "expected the 10 native settings tabs, got %r" % tab_calls
+        assert any(len(labels) == 11 for labels in tab_calls), (
+            "expected the 11 native settings tabs, got %r" % tab_calls
         )
 
         rendered_keys = {kwargs.get("key") for _n, _a, kwargs in st.calls}

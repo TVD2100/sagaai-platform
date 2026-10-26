@@ -534,6 +534,189 @@ def delete_orchestrator_instruction(slug: str, instruction_id: str) -> bool:
     return not os.path.isfile(fpath)
 
 
+# ─── Working data folder of an employee ──────────────────────────────────────
+
+#: Machine-readable marker a prompt may carry to place its working data folder
+#: somewhere specific: ``MEMORY_DIR: <path>``.
+MEMORY_DIR_MARKER: str = "MEMORY_DIR"
+
+#: Longest accepted marker value; anything longer is truncated, not rejected.
+_MEMORY_DIR_MAX_LEN: int = 400
+
+#: Marker values meaning "use the platform default".
+_MEMORY_DIR_DEFAULT_VALUES = ("", "default")
+
+#: Marker value meaning "the workspace root itself".
+_MEMORY_DIR_ROOT_VALUE = "."
+
+
+def parse_memory_dir_marker(prompt_text: str) -> str:
+    """Return the value of the first ``MEMORY_DIR: <path>`` line, or ''.
+
+    The marker is the machine-readable way for an employee prompt to place its
+    working data folder somewhere specific. Lines inside fenced code blocks are
+    skipped and the key is matched case-insensitively; only the FIRST
+    occurrence counts, so an example further down cannot override the setting.
+    """
+    in_fence = False
+    for raw in (prompt_text or "").splitlines():
+        line = raw.strip()
+        if line.startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence or not line:
+            continue
+        key, sep, value = line.partition(":")
+        if not sep or key.strip().lower() != MEMORY_DIR_MARKER.lower():
+            continue
+        value = value.strip().strip("`").strip()
+        if len(value) > _MEMORY_DIR_MAX_LEN:
+            value = value[:_MEMORY_DIR_MAX_LEN]
+        return value
+    return ""
+
+
+def _inside(base: str, candidate: str) -> bool:
+    """Return True when *candidate* resolves to a location inside *base*."""
+    if not base:
+        return False
+    try:
+        return os.path.commonpath(
+            [os.path.abspath(candidate), os.path.abspath(base)]
+        ) == os.path.abspath(base)
+    except ValueError:
+        return False
+
+
+def _join_relative(base: str, value: str) -> str:
+    """Resolve *value* against *base*; return '' when it would escape."""
+    candidate = os.path.normpath(os.path.join(base, value))
+    return candidate if _inside(base, candidate) else ""
+
+
+def default_data_dir_name(slug: str) -> str:
+    """Return the folder name a role gets by default (``<slug>_data``)."""
+    safe = safe_orchestrator_slug(slug) or "unnamed"
+    return f"{safe}_data"
+
+
+def _count_files(folder: str) -> int:
+    """Return the number of files below *folder* (best effort, bounded walk)."""
+    total = 0
+    try:
+        for _root, _dirs, files in os.walk(folder):
+            total += len(files)
+            if total > 5000:
+                break
+    except OSError:
+        return total
+    return total
+
+
+def resolve_data_dir(slug: str, workspace: str = "",
+                     prompt_text: Optional[str] = None,
+                     config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Resolve the working data folder of an orchestrator.
+
+    The working data folder holds a role's domain material - registries, cards,
+    journals - and is a project deliverable exported with the project. It is
+    NOT the personal memory of the employee, which lives under
+    ``DATA_DIR/personal`` and never leaves the installation.
+
+    Resolution order, first match wins:
+
+    1. the ``MEMORY_DIR:`` marker inside the employee's prompt;
+    2. the ``memory_dir`` key of its config;
+    3. the default ``<workspace>/<slug>_data/``.
+
+    Args:
+        slug: orchestrator slug; normalised internally.
+        workspace: active project folder; empty means "no project selected".
+        prompt_text: text to inspect; ``None`` loads it from the record.
+        config: mapping to inspect; ``None`` loads it from the record.
+
+    Returns:
+        A dict with ``path``, ``source`` (``prompt``/``config``/``default``),
+        ``raw``, ``default_path``, ``conflicts`` (unused existing folders that
+        hold files), ``outside_workspace``, ``exists`` and ``available``
+        (False when no workspace is selected and no absolute path was given).
+
+    The function never writes, moves or deletes anything: a changed marker can
+    therefore never destroy existing data.
+    """
+    safe = safe_orchestrator_slug(slug) or "unnamed"
+
+    if prompt_text is None or config is None:
+        try:
+            from core.orchestrators import get_orchestrator
+            record = get_orchestrator(safe) or {}
+        except Exception:
+            record = {}
+        if prompt_text is None:
+            prompt_text = str(record.get("prompt_text") or "")
+        if config is None:
+            loaded = record.get("config")
+            config = loaded if isinstance(loaded, dict) else {}
+
+    ws = (workspace or "").strip()
+    default_path = (os.path.join(ws, default_data_dir_name(safe)) if ws else "")
+
+    marker = parse_memory_dir_marker(prompt_text or "")
+    config_value = str((config or {}).get("memory_dir") or "").strip()
+
+    raw, source = "", "default"
+    if marker.lower() not in _MEMORY_DIR_DEFAULT_VALUES:
+        raw, source = marker, "prompt"
+    elif not marker and config_value.lower() not in _MEMORY_DIR_DEFAULT_VALUES:
+        raw, source = config_value, "config"
+
+    path = ""
+    outside = False
+    if source == "default" or not raw:
+        path = default_path
+    elif raw == _MEMORY_DIR_ROOT_VALUE:
+        path = ws
+    elif os.path.isabs(os.path.expanduser(raw)):
+        path = os.path.normpath(os.path.expanduser(raw))
+        outside = bool(ws) and not _inside(ws, path)
+    elif ws:
+        path = _join_relative(ws, os.path.expanduser(raw))
+        if not path:
+            # A relative path escaping the workspace is ignored, not honoured.
+            source, raw, path = "default", "", default_path
+
+    conflicts: List[Dict[str, Any]] = []
+    for other_source, other_raw in (("prompt", marker), ("config", config_value),
+                                    ("default", default_path)):
+        if other_source == source or not other_raw:
+            continue
+        other = other_raw
+        if other == _MEMORY_DIR_ROOT_VALUE:
+            other = ws
+        elif not os.path.isabs(os.path.expanduser(other)):
+            if not ws:
+                continue
+            other = _join_relative(ws, os.path.expanduser(other))
+        if other and other != path and os.path.isdir(other):
+            files = _count_files(other)
+            if files:
+                conflicts.append(
+                    {"source": other_source, "path": other, "files": files}
+                )
+
+    return {
+        "slug": safe,
+        "path": path,
+        "source": source,
+        "raw": raw,
+        "default_path": default_path,
+        "conflicts": conflicts,
+        "outside_workspace": outside,
+        "exists": bool(path) and os.path.isdir(path),
+        "available": bool(path),
+    }
+
+
 # ─── Export / import of the whole folder ─────────────────────────────────────
 
 def export_orchestrator_folder(slug: str) -> Optional[Dict[str, Any]]:

@@ -2115,7 +2115,7 @@ def _render_optional_model_section(slug: str, lang: str, cfg: dict, service_name
 #: label only at render time.
 SETTINGS_SECTIONS = (
     "models", "prompt", "economy", "functions", "instructions",
-    "skills", "rag_bases", "connections", "delegation", "other",
+    "skills", "rag_bases", "connections", "memory", "delegation", "other",
 )
 
 
@@ -2827,6 +2827,104 @@ def _render_orch_connections(slug: str, lang: str) -> None:
             st.rerun()
         else:
             settings_save_failed(slug, "connections", "orch_connections_save_error", lang)
+
+
+def _render_orch_memory(slug: str, lang: str) -> None:
+    """Manage the employee's working folder and its personal memory.
+
+    Two independent things are configured here, and the page says so:
+    the *working folder* holds the role's domain material and lives inside
+    the project, while the *personal memory* is a note to self that lives in
+    the installation and never leaves it. The folder is written through
+    ``save_orchestrator(memory_dir=...)``, so the stored config stays the
+    single source of truth the prompt assembly reads.
+    """
+    from core import personal_memory as pm
+    from core.orchestrator_folders import resolve_data_dir, default_data_dir_name
+
+    st.markdown(t("orch_memory_section_title", lang=lang))
+    st.markdown(t("orch_memory_section_desc", lang=lang))
+
+    orch = get_orchestrator(slug)
+    if orch is None:
+        st.error(t("orch_not_found", lang=lang))
+        return
+    cfg = orch.get("config")
+    if not isinstance(cfg, dict):
+        cfg = {}
+    default_name = default_data_dir_name(slug)
+
+    # The workspace of THIS dialog, when it has one: the resolver needs it to
+    # turn a relative folder into an absolute path and to spot conflicts.
+    try:
+        workspace = _thread_folder(slug)
+    except Exception:
+        workspace = ""
+    resolved = resolve_data_dir(
+        slug, workspace,
+        prompt_text=str(orch.get("prompt_text") or ""),
+        config=cfg,
+    )
+
+    new_dir = st.text_input(
+        t("orch_memory_dir_label", lang=lang),
+        value=str(cfg.get("memory_dir") or ""),
+        key=f"orch_memory_dir_{slug}",
+        help=t("orch_memory_dir_help", lang=lang, default=default_name),
+    )
+    if resolved.get("path"):
+        st.caption(f"`{resolved['path']}` · {resolved.get('source') or 'default'}")
+    else:
+        st.caption(t("orch_memory_dir_help", lang=lang, default=default_name))
+    for conflict in resolved.get("conflicts") or []:
+        st.warning(t("orch_memory_conflict", lang=lang,
+                     path=str(conflict.get("path") or ""),
+                     files=int(conflict.get("files") or 0)))
+
+    if st.button(t("orch_memory_dir_save_btn", lang=lang),
+                 key=f"orch_save_memory_dir_{slug}", type="primary"):
+        if save_orchestrator(slug, memory_dir=new_dir):
+            pin_settings_section(slug, "memory")
+            shown = new_dir.strip() or default_name
+            flash_success(t("orch_memory_dir_saved", lang=lang, path=shown))
+            st.rerun()
+        else:
+            settings_save_failed(slug, "memory", "orch_memory_dir_save_error", lang)
+
+    st.markdown("---")
+    scope = pm.format_scope(pm.SCOPE_ORCHESTRATOR, slug)
+    try:
+        data = pm.read_memory(scope)
+    except Exception as exc:
+        st.error(t("orch_memory_save_error", lang=lang, error=str(exc)))
+        return
+
+    st.markdown(f"**{t('orch_memory_editor_label', lang=lang)}**")
+    st.caption(t("orch_memory_editor_help", lang=lang))
+    st.caption(t("orch_memory_size", lang=lang, bytes=data.get("bytes", 0),
+                 max=data.get("max_bytes", 0), revision=data.get("revision", 0)))
+    if not data.get("exists"):
+        st.caption(t("orch_memory_empty", lang=lang))
+
+    text = st.text_area(
+        t("orch_memory_editor_label", lang=lang),
+        value=str(data.get("body") or ""),
+        height=260,
+        key=f"orch_memory_text_{slug}",
+        label_visibility="collapsed",
+    )
+    if st.button(t("orch_memory_save_btn", lang=lang),
+                 key=f"orch_save_memory_{slug}", type="primary"):
+        try:
+            pm.write_memory(scope, text, updated_by="ui")
+        except Exception as exc:
+            pin_settings_section(slug, "memory")
+            flash_error(t("orch_memory_save_error", lang=lang, error=str(exc)))
+            st.rerun()
+        else:
+            pin_settings_section(slug, "memory")
+            flash_success(t("orch_memory_saved", lang=lang))
+            st.rerun()
 
 
 def _render_delegation_settings(slug: str, lang: str) -> None:
