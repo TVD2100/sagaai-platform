@@ -36,11 +36,11 @@ LIVE_ASSISTANTS = [
 
 BASE_LIMITS = {
     "max_depth": 1,
-    "max_active_subagents": 3,
-    "subagent_max_steps": 20,
+    "max_active_subagents": 5,
+    "subagent_max_steps": 300,
     "subagent_budget_tokens": 0,
-    "subagent_timeout_seconds": 600,
-    "total_subagent_runs": 32,
+    "subagent_timeout_seconds": 3600,
+    "total_subagent_runs": 64,
 }
 
 LIMIT_WIDGET_KEYS = (
@@ -192,10 +192,10 @@ def test_limit_inputs_show_the_stored_values(env):
     values = {kwargs["key"]: kwargs.get("value")
               for _n, _a, kwargs in st.calls if kwargs.get("key")}
     assert values[f"orch_delegation_max_depth_{SLUG}"] == 1
-    assert values[f"orch_delegation_max_active_{SLUG}"] == 3
-    assert values[f"orch_delegation_max_steps_{SLUG}"] == 20
-    assert values[f"orch_delegation_total_runs_{SLUG}"] == 32
-    assert values[f"orch_delegation_timeout_{SLUG}"] == 600
+    assert values[f"orch_delegation_max_active_{SLUG}"] == 5
+    assert values[f"orch_delegation_max_steps_{SLUG}"] == 300
+    assert values[f"orch_delegation_total_runs_{SLUG}"] == 64
+    assert values[f"orch_delegation_timeout_{SLUG}"] == 3600
     assert values[f"orch_delegation_budget_{SLUG}"] == 0
 
 
@@ -248,8 +248,8 @@ def test_save_persists_selection_and_limits(env):
     limits_arg = mocks["set_limits"].call_args[0][1]
     assert limits_arg["max_depth"] == 2
     assert limits_arg["max_active_subagents"] == 5
-    assert limits_arg["subagent_max_steps"] == 20
-    assert limits_arg["total_subagent_runs"] == 32
+    assert limits_arg["subagent_max_steps"] == 300
+    assert limits_arg["total_subagent_runs"] == 64
 
     mocks["success"].assert_called_once()
     mocks["pinned"].assert_called_once_with(SLUG, "delegation")

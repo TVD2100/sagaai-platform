@@ -14,8 +14,12 @@ user sees:
   Scenario 3 - a temporary detour the agent itself made (live config points
                at another folder) never changes what the UI reports: the
                dialog keeps ITS bound folder.
-  Scenario 4 - the native "Обзор…" button records the picked folder in the
-               dialog's recent list and stages it in the selector.
+  Scenario 4 - the "Другая папка…" entry of the selector opens the native
+               dialog: the picked folder is recorded in the dialog's recent
+               list, staged in the selector, and the entry itself does not
+               stick.
+  Scenario 5 - cancelling the native dialog keeps the previously staged
+               folder and drops the action entry.
 """
 import os
 import shutil
@@ -274,11 +278,13 @@ def test_scenario_agent_detour_does_not_change_reported_folder(st_mock, tmp_path
     assert calls == [], calls
 
 
-def test_scenario_browse_button_records_and_stages_folder(st_mock, tmp_path, monkeypatch):
-    """Scenario 4: the native dialog result is remembered and staged.
+def test_scenario_browse_entry_records_and_stages_folder(st_mock, tmp_path, monkeypatch):
+    """Scenario 4: the dialog entry records the result and stages it.
 
-    Given a machine where the native folder dialog is available,
-    when  the user clicks "Обзор…" and picks a folder,
+    Given a machine where the native folder dialog is available and a
+    dialog with no recent folders (so the selector holds exactly "Авто"
+    and the dialog entry),
+    when  the user picks "Другая папка…" and chooses a folder,
     then  the folder lands in the dialog's recent list and is staged in the
           selector (a fresh widget key); no workspace switch happens yet.
     """
@@ -292,6 +298,8 @@ def test_scenario_browse_button_records_and_stages_folder(st_mock, tmp_path, mon
                         lambda *a, **k: True)
     monkeypatch.setattr(orch_page.folder_dialog, "pick_folder",
                         lambda *a, **k: chosen_path)
+    monkeypatch.setattr(orch_page, "get_recent_workspaces",
+                        lambda slug, limit=None: [])
     recorded = []
     monkeypatch.setattr(orch_page, "add_recent_workspace",
                         lambda path, slug=None: recorded.append((str(path), slug)))
@@ -300,14 +308,91 @@ def test_scenario_browse_button_records_and_stages_folder(st_mock, tmp_path, mon
                         lambda p, slug=None: calls.append(str(p)) or {"ok": True})
 
     counter_before = int(st_mock.session_state.get(f"orch_{SLUG}_folder_picker_counter") or 0)
-    st_mock.click(f"orch_folder_browse_{SLUG}")
+    # Options are ["Авто", "Другая папка…"]: index 1 is the dialog entry.
+    st_mock._selectbox_returns[f"orch_folder_pick_{SLUG}_{counter_before}"] = 1
 
-    # when: the page renders with a clicked "Обзор…" button
+    # when: the page renders with the dialog entry selected
     _render_page(st_mock, orch_page, monkeypatch, user_input=None)
 
     # then: the folder is recorded in this orchestrator's history and staged
     assert recorded == [(chosen_path, SLUG)], recorded
     assert st_mock.session_state[f"orch_{SLUG}_folder_choice"] == chosen_path
+    # the entry is an action, not a value: the fresh key snaps the selector
+    # back to the staged folder instead of leaving it on the sentinel
     assert int(st_mock.session_state[f"orch_{SLUG}_folder_picker_counter"]) == counter_before + 1
     # and the workspace was NOT switched yet (that happens on the next send)
     assert calls == [], calls
+    # no "Обзор…" button exists anywhere: the dialog lives in the selector
+    browse_buttons = [c for c in st_mock.calls
+                      if c[0] == "button"
+                      and str(c[2].get("key") or "").startswith("orch_folder_browse")]
+    assert browse_buttons == [], browse_buttons
+
+
+def test_scenario_browse_entry_cancel_keeps_staged_folder(st_mock, tmp_path, monkeypatch):
+    """Scenario 5: cancelling the native dialog changes nothing.
+
+    Given a dialog with project X staged in the selector,
+    when  the user opens "Другая папка…" and cancels the dialog,
+    then  X stays staged and the action entry does not stick.
+    """
+    import ui.pages.orchestrator as orch_page
+
+    proj_x = _make_project(tmp_path, "cancel_proj")
+    staged_path = str(proj_x.resolve())
+
+    orch_page = _prepare_page(st_mock, monkeypatch)
+    monkeypatch.setattr(orch_page.folder_dialog, "native_dialog_available",
+                        lambda *a, **k: True)
+    monkeypatch.setattr(orch_page.folder_dialog, "pick_folder",
+                        lambda *a, **k: None)  # user cancelled
+    monkeypatch.setattr(orch_page, "get_recent_workspaces",
+                        lambda slug, limit=None: [])
+    recorded = []
+    monkeypatch.setattr(orch_page, "add_recent_workspace",
+                        lambda path, slug=None: recorded.append(str(path)))
+
+    # given: project X is already staged
+    st_mock.session_state[f"orch_{SLUG}_folder_choice"] = staged_path
+    counter_before = int(st_mock.session_state.get(f"orch_{SLUG}_folder_picker_counter") or 0)
+    # Options: ["Авто", X, "Другая папка…"] - the staged folder is appended
+    # before the dialog entry, so the entry is the LAST index.
+    st_mock._selectbox_returns[f"orch_folder_pick_{SLUG}_{counter_before}"] = 2
+
+    # when: the dialog entry runs and the dialog is cancelled
+    _render_page(st_mock, orch_page, monkeypatch, user_input=None)
+
+    # then: nothing was recorded and the staged folder is untouched
+    assert recorded == [], recorded
+    assert st_mock.session_state[f"orch_{SLUG}_folder_choice"] == staged_path
+    assert int(st_mock.session_state[f"orch_{SLUG}_folder_picker_counter"]) == counter_before + 1
+
+
+def test_scenario_stale_selector_value_keeps_staged_folder(st_mock, tmp_path, monkeypatch):
+    """Scenario 6: a stale widget value must not wipe the staged folder.
+
+    Given project X staged in the selector and a widget value left over from
+    a longer option list (the native dialog entry disappeared because the
+    picker is no longer available),
+    when  the chat is rendered,
+    then  X stays staged instead of being reset to "Авто".
+    """
+    import ui.pages.orchestrator as orch_page
+
+    proj_x = _make_project(tmp_path, "stale_proj")
+    staged_path = str(proj_x.resolve())
+
+    orch_page = _prepare_page(st_mock, monkeypatch)
+    # The native dialog is unavailable, so the option list is shorter than
+    # the value the widget still reports.
+    monkeypatch.setattr(orch_page, "get_recent_workspaces",
+                        lambda slug, limit=None: [])
+
+    st_mock.session_state[f"orch_{SLUG}_folder_choice"] = staged_path
+    counter_before = int(st_mock.session_state.get(f"orch_{SLUG}_folder_picker_counter") or 0)
+    # Options are ["Авто", X]; value 7 is out of range.
+    st_mock._selectbox_returns[f"orch_folder_pick_{SLUG}_{counter_before}"] = 7
+
+    _render_page(st_mock, orch_page, monkeypatch, user_input=None)
+
+    assert st_mock.session_state[f"orch_{SLUG}_folder_choice"] == staged_path

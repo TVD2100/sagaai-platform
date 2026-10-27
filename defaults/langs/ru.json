@@ -476,7 +476,7 @@
   "orch_export_section": "#### Экспорт",
   "orch_folder_active": "Активная папка: {path}",
   "orch_folder_auto": "Авто",
-  "orch_folder_browse": "📂 Обзор…",
+  "orch_folder_browse": "📂 Другая папка…",
   "orch_folder_dialog_title": "Выберите папку",
   "orch_folder_picker_label": "📁 Выбор папки",
   "orch_func_code_help": "Код на Python. Обязателен метод invoke(**kwargs), возвращающий dict.",

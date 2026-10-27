@@ -104,12 +104,43 @@ MAX_RESUME_CHAIN = 2
 
 # ─── Defaults of the delegation limits ───────────────────────────────────────
 
+#: Depth of the delegation tree below a dialog. One level - a dialog fans
+#: out to workers - covers normal work; a child that delegates further turns
+#: one runaway loop into a whole tree of them, so nesting stays opt-in.
 DEFAULT_MAX_DEPTH = 1
-DEFAULT_MAX_ACTIVE_SUBAGENTS = 3
-DEFAULT_SUBAGENT_MAX_STEPS = 20
+
+#: Children that may run at once. Research-style tasks fan out 4-7 agents in
+#: one batch, so a pool of three refuses the fourth child of a legitimate
+#: batch; five admits that width and still bounds the provider load.
+DEFAULT_MAX_ACTIVE_SUBAGENTS = 5
+
+#: Steps one child may take. The cap must sit well above what a real task
+#: uses (about 90 steps) so that the TIME budget ends a long run, not the
+#: counter: a counter that trips first stops healthy work and reports a
+#: misleading "split the task" hint.
+DEFAULT_SUBAGENT_MAX_STEPS = 300
+
 DEFAULT_SUBAGENT_BUDGET_TOKENS = 0          # 0 = unlimited
-DEFAULT_SUBAGENT_TIMEOUT_SECONDS = 600
-DEFAULT_TOTAL_SUBAGENT_RUNS = 32
+DEFAULT_SUBAGENT_TIMEOUT_SECONDS = 3600
+
+#: Upper bound of one child run, in seconds. It mirrors the ``sleep`` ceiling:
+#: a parent can wait an hour for a child, so a child must be allowed to work
+#: that long. A larger value written by hand is clamped by ``read_limits`` -
+#: an unbounded child would outlive the dialog that spawned it.
+MAX_SUBAGENT_TIMEOUT_SECONDS = 3600
+
+#: How long a BLOCKING spawn may wait for a free concurrency slot. It is a
+#: separate value on purpose: the run timeout says how long a child may WORK,
+#: while this one says how long a caller may QUEUE. Tying the queue wait to an
+#: hour-long run budget would let a blocking call look hung for an hour while
+#: the pool is simply busy.
+DEFAULT_POOL_WAIT_SECONDS = 600
+
+#: Total runs one dialog may start, root included. It guards against runaway
+#: fan-out, not against normal work: the busiest observed dialog used 31 of
+#: the old 32, so a doubling keeps the guard useful without refusing the
+#: next batch of a long session.
+DEFAULT_TOTAL_SUBAGENT_RUNS = 64
 
 
 @dataclass(frozen=True)

@@ -476,7 +476,7 @@
   "orch_export_section": "#### Export employee",
   "orch_folder_active": "Active folder: {path}",
   "orch_folder_auto": "Auto",
-  "orch_folder_browse": "📂 Browse…",
+  "orch_folder_browse": "📂 Another folder…",
   "orch_folder_dialog_title": "Select folder",
   "orch_folder_picker_label": "📁 Folder",
   "orch_func_code_help": "Python code. Must contain an invoke(**kwargs) method that returns a dict.",

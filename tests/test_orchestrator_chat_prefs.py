@@ -3,11 +3,12 @@
 
 1. The DevAgent-specific welcome message (orch_welcome_msg_devagent) on the
    orchestrator chat page, while custom employees keep orch_welcome_msg.
-2. Persistence of the chat checkboxes (web search / economy mode / safety
-   mode): values are saved into the orchestrator config and are used as the
-   initial session-state defaults for every NEW dialog.
+2. Persistence of the chat checkboxes (web search / safety mode): values
+   are saved into the orchestrator config and are used as the initial
+   session-state defaults for every NEW dialog.
 3. The single chat toolbar: each preference checkbox appears exactly once
-   (no bottom-position duplicate).
+   (no bottom-position duplicate). Economy mode has NO checkbox at all -
+   it is a fixed property of the chat and is always on.
 """
 import sys
 from pathlib import Path
@@ -113,42 +114,42 @@ def test_checkbox_values_come_from_saved_config(ui_env, monkeypatch):
     slug = "custom1"
     orch = _orch_dict(slug=slug, config={
         "chat_web_search": True,
-        "chat_economy_mode": False,
+        "chat_economy_mode": False,  # legacy value: must be ignored
         "chat_safety_mode": False,
     })
     _render_chat(ui_env, monkeypatch, slug, orch)
 
     ws = _checkbox_by_key(ui_env, f"orch_{slug}_web_search")
-    eco = _checkbox_by_key(ui_env, f"orch_{slug}_economy_mode")
     safety = _checkbox_by_key(ui_env, f"orch_{slug}_safety_mode")
     assert ws is not None and callable(ws.get("on_change")), f"web_search: {ws}"
-    assert eco is not None and callable(eco.get("on_change")), f"economy: {eco}"
     assert safety is not None and callable(safety.get("on_change")), f"safety: {safety}"
     assert ws["value"] is True, f"web_search value: {ws}"
-    assert eco["value"] is False, f"economy value: {eco}"
     assert safety["value"] is False, f"safety value: {safety}"
+
+    # Economy mode has no widget at all, and a saved legacy False does not
+    # switch it off: the chat always runs with the compact context.
+    assert _checkbox_by_key(ui_env, f"orch_{slug}_economy_mode") is None
+    assert ui_env.session_state[f"orch_{slug}_economy_mode"] is True
 
     # The session defaults must match as well (new session seeds from config).
     assert ui_env.session_state[f"orch_{slug}_web_search"] is True
-    assert ui_env.session_state[f"orch_{slug}_economy_mode"] is False
     assert ui_env.session_state[f"orch_{slug}_safety_mode"] is False
 
     # The toolbar is rendered once: no bottom-duplicate widgets may exist.
-    for pref in ("web_search", "economy_mode", "safety_mode"):
+    for pref in ("web_search", "safety_mode"):
         assert _checkbox_by_key(ui_env, f"orch_{pref}_bottom_{slug}") is None
 
 
 def test_checkbox_defaults_without_saved_config(ui_env, monkeypatch):
-    """Without saved prefs the defaults are: web off, economy on, safety on."""
+    """Without saved prefs the defaults are: web off, safety on."""
     slug = "custom1"
     _render_chat(ui_env, monkeypatch, slug, _orch_dict(slug=slug))
 
     ws = _checkbox_by_key(ui_env, f"orch_{slug}_web_search")
-    eco = _checkbox_by_key(ui_env, f"orch_{slug}_economy_mode")
     safety = _checkbox_by_key(ui_env, f"orch_{slug}_safety_mode")
     assert ws is not None and ws["value"] is False
-    assert eco is not None and eco["value"] is True
     assert safety is not None and safety["value"] is True
+    assert _checkbox_by_key(ui_env, f"orch_{slug}_economy_mode") is None
 
 
 def test_toolbar_renders_once_without_bottom_duplicates(ui_env, monkeypatch):
@@ -157,12 +158,16 @@ def test_toolbar_renders_once_without_bottom_duplicates(ui_env, monkeypatch):
     slug = "custom1"
     _render_chat(ui_env, monkeypatch, slug, _orch_dict(slug=slug))
 
-    for pref in ("web_search", "economy_mode", "safety_mode"):
+    for pref in ("web_search", "safety_mode"):
         widget = _checkbox_by_key(ui_env, f"orch_{slug}_{pref}")
         assert widget is not None, f"{pref} checkbox missing"
         assert widget["key"] == f"orch_{slug}_{pref}"
         assert _checkbox_by_key(ui_env, f"orch_{pref}_top_{slug}") is None
         assert _checkbox_by_key(ui_env, f"orch_{pref}_bottom_{slug}") is None
+    # Economy mode is not a checkbox: it must never be rendered anywhere.
+    assert _checkbox_by_key(ui_env, f"orch_{slug}_economy_mode") is None
+    assert _checkbox_by_key(ui_env, f"orch_economy_mode_top_{slug}") is None
+    assert _checkbox_by_key(ui_env, f"orch_economy_mode_bottom_{slug}") is None
 
 
 def test_save_chat_pref_merges_config(ui_env, monkeypatch):

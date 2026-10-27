@@ -62,6 +62,7 @@ from __future__ import annotations
 
 import re
 import threading
+import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -1420,6 +1421,263 @@ def record_runtime_handoff(thread_id: str, *, run_id: str = "",
                 "error": str(exc)}
     return {"ok": True, "wrote": True, "path": str(path), "thread_id": tid,
             "size_bytes": path.stat().st_size if path.exists() else 0}
+
+
+# ─── Journal retention (pruning empty and orphaned journals) ──────────────────
+
+#: Journals younger than this are never pruned. A journal is scaffolded before
+#: the task starts, so a fresh empty file is the normal state of a dialog that
+#: has only just opened; removing it would only make the scaffold reappear on
+#: the next step. The age of a file is the only signal that a dialog is done.
+PRUNE_MIN_AGE_DAYS = 7
+
+#: Marks the thread id of a delegated run: ``<parent thread>__s<run prefix>``.
+#: The parent's journal is the only reader of a child journal, which is what
+#: makes a child without a parent safe to remove.
+SUBAGENT_MARKER = "__s"
+
+#: Set by the first :func:`prune_task_state_journals_once` call of a process.
+_PRUNE_DONE = False
+
+#: Statuses the run registry writes into a journal when a delegated run has
+#: ended. A journal without one belongs to a run that may still be working.
+TERMINAL_RUN_STATUSES = frozenset({
+    "done", "failed", "cancelled", "timeout", "max_steps", "awaiting_input",
+})
+
+
+def _journal_is_empty(path: Path) -> Optional[bool]:
+    """Tell whether a journal file holds nothing worth keeping.
+
+    A journal is empty when the Active Task carries no real content AND the
+    Task History lists no completed task. Returns ``None`` when the file is
+    not a journal at all or cannot be read: a file whose format is unknown
+    must be left alone, because "unparseable" is not the same as "empty".
+    """
+    try:
+        content = path.read_text(encoding=config.DEFAULT_ENCODING)
+    except OSError:
+        return None
+    if "# Task State Journal" not in content:
+        return None
+    try:
+        top = _split_top_sections(content)
+        active = _split_active_sections(top.get("active_task", ""))
+        history = _parse_history_entries(top.get("task_history", ""))
+    except Exception:
+        return None
+    return not _has_active_content(active) and not history
+
+
+def _journal_is_finished(path: Path) -> bool:
+    """True when a delegated run recorded a terminal outcome in its journal.
+
+    Used for an ORPHAN only - a journal whose parent is gone. Such a file is
+    an archive of a run that already ended, and the parent that would read it
+    no longer exists. A run that never recorded an outcome is NOT finished:
+    its work may still be in progress, so the file is kept.
+    """
+    try:
+        content = path.read_text(encoding=config.DEFAULT_ENCODING)
+    except OSError:
+        return False
+    match = re.search(r"### Runtime outcome.*?^- status:\s*(\S+)",
+                      content, re.S | re.M)
+    if not match:
+        return False
+    return match.group(1).strip().lower() in TERMINAL_RUN_STATUSES
+
+
+def _parent_journal_name(thread: str) -> str:
+    """Return the parent journal file name of a delegated run, or ``""``."""
+    parent = (thread or "").partition(SUBAGENT_MARKER)[0]
+    if not parent or parent == thread:
+        return ""
+    return f"{TASK_STATE_PREFIX}{parent}{TASK_STATE_SUFFIX}"
+
+
+def prune_task_state_journals(
+    directory: Optional[Path] = None,
+    max_age_days: int = PRUNE_MIN_AGE_DAYS,
+    dry_run: bool = False,
+) -> Dict[str, Any]:
+    """Remove journal files that no reader will ever open again.
+
+    The agent scaffolds a journal for every thread it serves, so a long-lived
+    install accumulates one file per dialog and one per delegated run, most of
+    which stay empty forever. Two kinds are removable:
+
+    * an EMPTY journal - no Active Task content and no Task History entry -
+      whose dialog has not been touched for *max_age_days*;
+    * the journal of a delegated run whose PARENT journal is gone, when that
+      run recorded a terminal outcome: the parent is the only reader of a
+      child journal, so a finished run behind a missing parent is an archive
+      nobody can open.
+
+    A file is never removed when it is younger than *max_age_days*, when the
+    journal belongs to the live dialog, when it is not a journal at all, or
+    when a delegated run has no recorded outcome yet. Deleting an empty parent
+    does NOT make its children orphans in the same pass: orphan detection uses
+    the folder as it was at scan time, so a cascade needs a second pass at
+    least a threshold later - by then the run has either finished or is long
+    gone, never mid-work.
+
+    Args:
+        directory: folder to scan; defaults to ``config.TASK_STATES_DIR``.
+        max_age_days: minimum age of a removable file, in days.
+        dry_run: report what WOULD be removed without deleting anything.
+
+    Returns:
+        A report with ``scanned`` / ``removed`` / ``kept`` counts,
+        ``freed_bytes``, the removed file names (capped) and ``dry_run``.
+        A scan failure answers ``ok: False`` with the reason instead of
+        raising: retention is housekeeping and must never break a caller.
+    """
+    base = Path(directory) if directory is not None else config.TASK_STATES_DIR
+    report: Dict[str, Any] = {
+        "ok": True, "directory": str(base), "scanned": 0, "removed": 0,
+        "kept": 0, "freed_bytes": 0, "removed_files": [],
+        "dry_run": bool(dry_run), "error": "",
+    }
+    try:
+        entries = sorted(base.iterdir())
+    except FileNotFoundError:
+        return report
+    except OSError as exc:
+        report["ok"] = False
+        report["error"] = str(exc)
+        return report
+
+    try:
+        live_thread = current_thread_id()
+    except Exception:
+        live_thread = ""
+    cutoff = time.time() - max(0, int(max_age_days)) * 86400
+    #: Names present in the folder, so an orphan is detected against the real
+    #: set rather than by probing the filesystem once per candidate.
+    names = {p.name for p in entries if p.is_file()}
+
+    for path in entries:
+        name = path.name
+        if not path.is_file():
+            continue
+        if not (name.startswith(TASK_STATE_PREFIX) and name.endswith(TASK_STATE_SUFFIX)):
+            continue
+        report["scanned"] += 1
+        thread = name[len(TASK_STATE_PREFIX):-len(TASK_STATE_SUFFIX)]
+        if thread == live_thread:
+            report["kept"] += 1
+            continue
+        try:
+            stat = path.stat()
+        except OSError:
+            report["kept"] += 1
+            continue
+        if stat.st_mtime > cutoff:
+            report["kept"] += 1
+            continue
+
+        parent_name = _parent_journal_name(thread)
+        orphan = bool(parent_name) and parent_name not in names
+        empty = _journal_is_empty(path)
+        if empty is None:
+            report["kept"] += 1
+            continue
+        removable = empty or (orphan and _journal_is_finished(path))
+        if not removable:
+            report["kept"] += 1
+            continue
+
+        if not dry_run:
+            # A journal older than the threshold is still writable by another
+            # process - a resumed dialog or a background child. Re-reading its
+            # mtime right before the unlink closes the window between the
+            # emptiness check and the removal: if anything touched the file in
+            # between, the timestamps differ and the file is kept.
+            try:
+                if path.stat().st_mtime != stat.st_mtime:
+                    report["kept"] += 1
+                    continue
+            except OSError:
+                report["kept"] += 1
+                continue
+            try:
+                path.unlink()
+            except OSError:
+                report["kept"] += 1
+                continue
+        report["removed"] += 1
+        report["freed_bytes"] += stat.st_size
+        if len(report["removed_files"]) < 50:
+            report["removed_files"].append(name)
+    return report
+
+
+def _journal_directories() -> List[Path]:
+    """Every folder that can hold journals.
+
+    Two places exist: the project runtime dir (a dialog with a workspace)
+    and one folder per dialog that had no workspace selected
+    (``<DATA_DIR>/history/<tid>/task_states``). Retention has to sweep both,
+    otherwise an install that mostly serves empty-state dialogs keeps its
+    files forever.
+    """
+    dirs: List[Path] = [config.TASK_STATES_DIR]
+    try:
+        from core.paths import HISTORY_DIR
+        root = Path(HISTORY_DIR)
+        if root.is_dir():
+            dirs.extend(sorted(
+                child / "task_states" for child in root.iterdir()
+                if (child / "task_states").is_dir()
+            ))
+    except Exception:
+        pass
+    return dirs
+
+
+def prune_task_state_journals_once(
+    directory: Optional[Path] = None,
+    max_age_days: int = PRUNE_MIN_AGE_DAYS,
+) -> Dict[str, Any]:
+    """Run the retention sweep at most once per process.
+
+    Retention is a cold-start concern: running it on every agent step would
+    rescan folders that did not change since the previous step. The flag is
+    per process, so a Streamlit rerun does not repeat the scan either.
+
+    Without *directory* the sweep covers every journal folder - the project
+    runtime dir and one per empty-state dialog - and returns one aggregated
+    report. An explicit *directory* scans just that folder, which is what a
+    test or a maintenance call needs.
+    """
+    global _PRUNE_DONE
+    if _PRUNE_DONE:
+        return {"ok": True, "skipped": True, "removed": 0, "scanned": 0}
+    _PRUNE_DONE = True
+
+    if directory is not None:
+        return prune_task_state_journals(directory=directory,
+                                         max_age_days=max_age_days)
+
+    total: Dict[str, Any] = {
+        "ok": True, "skipped": False, "directories": 0, "scanned": 0,
+        "removed": 0, "kept": 0, "freed_bytes": 0, "removed_files": [],
+        "errors": [],
+    }
+    for folder in _journal_directories():
+        report = prune_task_state_journals(directory=folder,
+                                           max_age_days=max_age_days)
+        total["directories"] += 1
+        for key in ("scanned", "removed", "kept", "freed_bytes"):
+            total[key] += int(report.get(key) or 0)
+        for name in report.get("removed_files") or []:
+            if len(total["removed_files"]) < 50:
+                total["removed_files"].append(name)
+        if not report.get("ok"):
+            total["errors"].append(report.get("error") or str(folder))
+    total["ok"] = not total["errors"]
+    return total
 
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.

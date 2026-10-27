@@ -50,10 +50,12 @@ from core.orchestration.contracts import (  # noqa: E402
     CancelReport,
     DEFAULT_MAX_ACTIVE_SUBAGENTS,
     DEFAULT_MAX_DEPTH,
+    DEFAULT_POOL_WAIT_SECONDS,
     DEFAULT_SUBAGENT_BUDGET_TOKENS,
     DEFAULT_SUBAGENT_MAX_STEPS,
     DEFAULT_SUBAGENT_TIMEOUT_SECONDS,
     DEFAULT_TOTAL_SUBAGENT_RUNS,
+    MAX_SUBAGENT_TIMEOUT_SECONDS,
     ERR_CANCELLED_BY_PARENT,
     ERR_LIMIT_EXCEEDED,
     ERR_INTERNAL_ERROR,
@@ -136,9 +138,12 @@ def read_limits(config: Optional[Dict[str, Any]]) -> Dict[str, int]:
     # A non-positive pool would deadlock the very first spawn; clamp to 1.
     if limits["max_active_subagents"] < 1:
         limits["max_active_subagents"] = 1
-    # A non-positive timeout would abort every run instantly.
+    # A non-positive timeout would abort every run instantly; a value above
+    # the ceiling would outlive the parent that can wait for it.
     if limits["subagent_timeout_seconds"] < 1:
         limits["subagent_timeout_seconds"] = DEFAULT_SUBAGENT_TIMEOUT_SECONDS
+    elif limits["subagent_timeout_seconds"] > MAX_SUBAGENT_TIMEOUT_SECONDS:
+        limits["subagent_timeout_seconds"] = MAX_SUBAGENT_TIMEOUT_SECONDS
     return limits
 
 
@@ -906,9 +911,11 @@ class OrchestrationService:
         launch must not accept work it can never run.
 
         ``block_pool=False`` makes the concurrency check non-blocking. That is
-        what a background launch needs: waiting up to ``subagent_timeout_seconds``
-        inside a tool call would freeze the dialog for the whole timeout while
-        looking like a hang. A blocking spawn keeps the old waiting behaviour.
+        what a background launch needs: waiting inside a tool call would
+        freeze the dialog while looking like a hang. A blocking spawn waits
+        for the pool no longer than its own run budget and never past
+        ``DEFAULT_POOL_WAIT_SECONDS``, so a busy pool cannot turn one call
+        into an hour-long stall.
 
         ``req.resume_run_id`` turns the call into a CONTINUATION: the new run
         inherits the tree of the original (same root, same depth, same parent)
@@ -993,7 +1000,8 @@ class OrchestrationService:
 
         slot = self.acquire_pool(
             root_id,
-            timeout=(float(limits["subagent_timeout_seconds"]) if block_pool else 0.0))
+            timeout=(min(float(limits["subagent_timeout_seconds"]),
+                         float(DEFAULT_POOL_WAIT_SECONDS)) if block_pool else 0.0))
         if not slot:
             self._release_run_slot(root_id)
             return self._limit_error("max_active_subagents",
@@ -1317,7 +1325,8 @@ class OrchestrationService:
         root_id = parent.root_run_id if parent else ""
         limits = read_limits(parent_config)
         slot = self.acquire_pool(root_id,
-                                 timeout=float(limits["subagent_timeout_seconds"]))
+                                 timeout=min(float(limits["subagent_timeout_seconds"]),
+                                             float(DEFAULT_POOL_WAIT_SECONDS)))
         if not slot:
             return self._limit_error("max_active_subagents",
                                      limits["max_active_subagents"],
@@ -1565,6 +1574,8 @@ def _default_child_runner(*, child_slug: str, brief: AgentBrief,
             root_run_id=_tree_root_of(service, run_id),
         )
 
+        _heartbeat_at = [time.monotonic()]
+
         def _child_event(event: dict) -> None:
             """Forward a child event to the run's subscribers (parents included).
 
@@ -1575,6 +1586,16 @@ def _default_child_runner(*, child_slug: str, brief: AgentBrief,
             """
             if not isinstance(event, dict):
                 return
+            # Refresh the durability heartbeat at most once a minute. heal()
+            # treats a silent record as a dead process, and with an hour-long
+            # run budget that verdict must not fall on a healthy child.
+            try:
+                now = time.monotonic()
+                if now - _heartbeat_at[0] >= 60.0:
+                    _heartbeat_at[0] = now
+                    service.refresh_heartbeat(run_id)
+            except Exception:  # pragma: no cover - heartbeat is best effort
+                pass
             event.setdefault("run_id", run_id)
             event.setdefault("parent_run_id", parent_run_id or "")
             event.setdefault("depth", depth)

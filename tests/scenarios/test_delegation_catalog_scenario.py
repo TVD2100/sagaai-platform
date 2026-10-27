@@ -161,7 +161,7 @@ def test_allowlist_survives_a_config_round_trip(employee):
     assert limits["max_depth"] == 2
     assert limits["total_subagent_runs"] == 8
     # Untouched keys keep their documented default.
-    assert limits["max_active_subagents"] == 3
+    assert limits["max_active_subagents"] == 5
 
 
 def test_limits_are_clamped_on_write(employee):
@@ -173,7 +173,7 @@ def test_limits_are_clamped_on_write(employee):
 
     limits = get_delegation_limits(employee)
     assert limits["max_active_subagents"] == 1
-    assert limits["subagent_timeout_seconds"] == 600
+    assert limits["subagent_timeout_seconds"] == 3600
 
 
 def test_unknown_limit_keys_are_ignored(employee):

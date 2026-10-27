@@ -246,7 +246,64 @@
 # still running, empty journal meaning an unwritten record. A state
 # assignment in the child_mode branch of the loop is fixed.
 
-__version__ = "2.15.0"
+# 2.16.0 adds the blocking sleep tool. Instead of polling subagent_status in
+# idle steps, a parent waits for an event or a timeout: sleep(seconds=...,
+# until="any_child"|"timeout") blocks a step, and the caller picks the
+# duration - a child is a full agent, not a command, and may work for tens of
+# minutes. The ceiling MAX_SLEEP_SECONDS = 3600 (one hour) only guards against
+# an accidental frozen step and marks a shortened wait as clamped. The wait is
+# a poll with a growing interval - the
+# orchestration core has no condition variable - and each tick checks the
+# cancellation of the caller, the terminal runs of the tree and the mailbox
+# read-only: sleep never drains a notification. The answer carries woken_by
+# (event / timeout / cancelled) and finished, the run ids that became
+# terminal during the wait, never their summaries or artifacts - those are
+# read with subagent_status or read_subagent_state. A timeout cancels
+# nothing, since ending a wait is not ending the work. The tool is enabled
+# for children too, and the tree root (the mailbox and run-list key) is
+# derived from the parent record because a child knows only its parent.
+#
+# 2.16.1 synchronizes the wait and the work budgets. The default time budget
+# of one child run rises from 600 s to an hour, since sleep is built around a
+# full agent rather than a command, and an upper bound
+# MAX_SUBAGENT_TIMEOUT_SECONDS clamps a hand-written value - a child must not
+# outlive the dialog that spawned it. MAX_SLEEP_SECONDS is derived from that
+# same constant instead of being a second, drifting number, and a blocking
+# spawn waits for a pool slot no longer than min(run budget,
+# DEFAULT_POOL_WAIT_SECONDS), so a busy pool cannot stall one call for an
+# hour. The child heartbeat is refreshed from step events at most once a
+# minute: a long healthy run must not be healed into a dead one.
+
+# 2.17.0 retunes the delegation defaults against real usage and stops task
+# journals from piling up. New orchestrators start with five active
+# children (was 3), 300 steps per child (was 20) and 64 runs per tree
+# (was 32): the step cap now sits well above what a real task uses, so a
+# long run ends on its time budget rather than on a counter that stops
+# healthy work, and a fan-out of 4-7 agents no longer refuses its fourth
+# child. Journal scaffolds are created before a task starts, so an install
+# accumulated one file per dialog and one per delegated run, most of them
+# empty forever; prune_task_state_journals now removes an empty journal
+# older than a week and the journal of a finished delegated run whose
+# parent journal is gone, while the live dialog, fresh files, journals
+# with history and foreign files stay untouched. An empty parent does not
+# cascade onto its children in the same pass, so a working child is never
+# swept, and the sweep covers both the project folder and the empty-state
+# dialog folders once per process.
+
+# 2.17.1 settles two chat affordances that were easy to misuse. The
+# economy-mode checkbox is gone: the compact context is the supported way
+# to run a dialog, so ECONOMY_MODE_ALWAYS_ON is passed to the agent loop
+# unconditionally while the loop itself still honours the flag. The
+# historical chat_economy_mode config key stays readable but is no longer
+# consulted, so a saved False cannot switch the mode off. The separate
+# "Обзор…" button of the folder block is gone too: sitting next to the
+# chat-input paperclip it read as "attach a file". The native dialog now
+# opens from the last entry of the folder selector (FOLDER_PICKER_BROWSE);
+# the entry is an action, not a value, so a fresh widget key after the
+# dialog closes makes the selector fall back to the chosen folder whether
+# the dialog returned a path or was cancelled.
+
+__version__ = "2.17.1"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

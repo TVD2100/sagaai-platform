@@ -181,12 +181,21 @@ def test_cancel_report_serialises_children():
 
 
 def test_delegation_defaults_match_the_contract():
+    """The documented defaults every new orchestrator starts with.
+
+    They are measured against real delegated work, not chosen as round
+    numbers: a pool of five admits a batch of 4-7 agents, 300 steps leave
+    the time budget as the binding limit, and 64 runs keep the fan-out
+    guard useful for a long session.
+    """
     assert C.DEFAULT_MAX_DEPTH == 1
-    assert C.DEFAULT_MAX_ACTIVE_SUBAGENTS == 3
-    assert C.DEFAULT_SUBAGENT_MAX_STEPS == 20
+    assert C.DEFAULT_MAX_ACTIVE_SUBAGENTS == 5
+    assert C.DEFAULT_SUBAGENT_MAX_STEPS == 300
     assert C.DEFAULT_SUBAGENT_BUDGET_TOKENS == 0  # 0 = unlimited
-    assert C.DEFAULT_SUBAGENT_TIMEOUT_SECONDS == 600
-    assert C.DEFAULT_TOTAL_SUBAGENT_RUNS == 32
+    assert C.DEFAULT_SUBAGENT_TIMEOUT_SECONDS == 3600
+    assert C.MAX_SUBAGENT_TIMEOUT_SECONDS == 3600
+    assert C.DEFAULT_POOL_WAIT_SECONDS == 600
+    assert C.DEFAULT_TOTAL_SUBAGENT_RUNS == 64
 
 
 def test_error_codes_are_stable_strings():

@@ -960,11 +960,11 @@ def set_allowed_assistants(orchestrator_slug: str, assistant_ids: List[str]) -> 
 #: in core.orchestration.contracts; this table is the UI-facing order.
 DELEGATION_LIMIT_KEYS = (
     ("max_depth", 1),
-    ("max_active_subagents", 3),
-    ("subagent_max_steps", 20),
+    ("max_active_subagents", 5),
+    ("subagent_max_steps", 300),
     ("subagent_budget_tokens", 0),
-    ("subagent_timeout_seconds", 600),
-    ("total_subagent_runs", 32),
+    ("subagent_timeout_seconds", 3600),
+    ("total_subagent_runs", 64),
 )
 
 
@@ -1250,7 +1250,10 @@ def _extend_prompt_with_delegation(prompt: str, orchestrator_slug: str = DEVAGEN
             "request={goal, brief})` - omit `request` to continue the original "
             "goal from the child journal. A child that stopped at "
             "`awaiting_input`, `error`, `timeout` or `max_steps` has NOT "
-            "finished the job.",
+            "finished the job. When you have nothing else to do while a "
+            "background child runs, call `sleep(seconds=...)` instead of "
+            "polling `subagent_status`: it returns as soon as a child "
+            "finishes, or when the timeout expires.",
             "",
         ])
         lines.extend(entries)

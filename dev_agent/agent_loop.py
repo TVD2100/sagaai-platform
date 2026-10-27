@@ -731,7 +731,7 @@ def classify_step_strength(parsed_calls: List[Dict[str, Any]],
 # turns tool-call arguments into requests and maps results back.
 
 _DELEGATION_CALL_NAMES = ("spawn_agent", "invoke_assistant", "subagent_status",
-                         "read_subagent_state", "resume_subagent")
+                         "read_subagent_state", "resume_subagent", "sleep")
 
 
 def _agent_brief_from_args(args: Dict[str, Any]):
@@ -830,6 +830,19 @@ def _delegation_job(tool: str, args: Dict[str, Any], *,
             lang=lang,
             service=service,
             enable_injection_protection=enable_injection_protection,
+        )
+    if tool == "sleep":
+        # The wait needs the parent run id and the service from this closure:
+        # the tree root is derived from the record, and the generic dispatch
+        # has neither value. Without this branch the call would reach the
+        # unconditional invoke_assistant fallback below with assistant_id=None.
+        from core.orchestration.tools import sleep_tool
+        return sleep_tool(
+            seconds=args.get("seconds"),
+            until=str(args.get("until") or "any_child"),
+            parent_slug=parent_slug,
+            parent_run_id=parent_run_id or None,
+            service=service,
         )
     if tool == "subagent_status":
         from core.orchestration.tools import subagent_status
@@ -2947,6 +2960,17 @@ def _step_agent_loop_impl(
     try:
         from dev_agent import task_state as _ts
         _ts.ensure_task_state_file()
+    except Exception:
+        pass
+
+    # Retention: the scaffold above creates a journal per thread, so an
+    # install that serves many dialogs accumulates files nobody will read
+    # again. The once-wrapper scans the folder on the first step of a
+    # process only - a rerun or the next step is a no-op - and it never
+    # removes the live journal or a file younger than the threshold.
+    try:
+        from dev_agent import task_state as _ts_prune
+        _ts_prune.prune_task_state_journals_once()
     except Exception:
         pass
 

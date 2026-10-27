@@ -476,7 +476,7 @@
   "orch_export_section": "#### 导出员工",
   "orch_folder_active": "当前文件夹：{path}",
   "orch_folder_auto": "自动",
-  "orch_folder_browse": "📂 浏览…",
+  "orch_folder_browse": "📂 其他文件夹…",
   "orch_folder_dialog_title": "选择文件夹",
   "orch_folder_picker_label": "📁 文件夹",
   "orch_func_code_help": "Python 代码。必须包含返回 dict 的 invoke(**kwargs) 方法。",

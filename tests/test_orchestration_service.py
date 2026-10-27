@@ -66,11 +66,11 @@ def _spawn(service, *, parent_run_id=None, thread_id="", slug="dev_agent",
 def test_read_limits_falls_back_to_documented_defaults():
     limits = S.read_limits(None)
     assert limits["max_depth"] == 1
-    assert limits["max_active_subagents"] == 3
-    assert limits["subagent_max_steps"] == 20
+    assert limits["max_active_subagents"] == 5
+    assert limits["subagent_max_steps"] == 300
     assert limits["subagent_budget_tokens"] == 0
-    assert limits["subagent_timeout_seconds"] == 600
-    assert limits["total_subagent_runs"] == 32
+    assert limits["subagent_timeout_seconds"] == 3600
+    assert limits["total_subagent_runs"] == 64
 
 
 def test_read_limits_never_removes_a_limit():
@@ -80,9 +80,9 @@ def test_read_limits_never_removes_a_limit():
                             "max_depth": "nonsense",
                             "total_subagent_runs": None})
     assert limits["max_active_subagents"] == 1
-    assert limits["subagent_timeout_seconds"] == 600
+    assert limits["subagent_timeout_seconds"] == 3600
     assert limits["max_depth"] == 1
-    assert limits["total_subagent_runs"] == 32
+    assert limits["total_subagent_runs"] == 64
 
 
 def test_read_limits_honours_explicit_values():
@@ -91,6 +91,13 @@ def test_read_limits_honours_explicit_values():
     assert limits["max_depth"] == 4
     assert limits["max_active_subagents"] == 7
     assert limits["total_subagent_runs"] == 100
+
+
+def test_a_timeout_above_the_ceiling_is_clamped_to_one_hour():
+    """A run budget is bounded: a parent can wait an hour, not a day."""
+    limits = S.read_limits({"subagent_timeout_seconds": 100_000})
+    assert limits["subagent_timeout_seconds"] == S.MAX_SUBAGENT_TIMEOUT_SECONDS
+    assert limits["subagent_timeout_seconds"] == 3600
 
 
 # ─── registry ───────────────────────────────────────────────────────────────

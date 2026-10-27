@@ -208,6 +208,10 @@ WORKSPACE_TOOL_ARGS: Dict[str, Dict[str, set]] = {
         "required": {"run_id"},
         "optional": {"request", "background"},
     },
+    "sleep": {
+        "required": {"seconds"},
+        "optional": {"until"},
+    },
     "invoke_assistant": {
         "required": set(),
         "optional": {"assistant_id", "user", "context_files", "system",
@@ -326,7 +330,7 @@ ORCHESTRATOR_TOOL_NAMES = {t["name"] for t in WORKSPACE_TOOL_CATALOG if t["name"
 #: Delegation tools. They are catalog entries, but the agent loop executes
 #: them OUTSIDE dispatch - see the concurrency note in core.orchestration.service.
 DELEGATION_TOOL_NAMES = ("spawn_agent", "invoke_assistant", "subagent_status",
-                         "read_subagent_state", "resume_subagent")
+                         "read_subagent_state", "resume_subagent", "sleep")
 
 
 def build_assistant_dict_from_config() -> Tuple[dict, dict]:

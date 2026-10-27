@@ -7,7 +7,8 @@ Scenarios (given -> when -> then), walking the public UI entry point
 
   Scenario 1 - a fresh DevAgent dialog greets with the DevAgent-specific
                welcome and shows the default chat-preference checkboxes
-               (web off, economy on, safety on).
+               (web off, safety on); economy mode has no checkbox because it
+               is always on.
   Scenario 2 - saved chat preferences survive a NEW dialog: the checkboxes
                are initialised from the persisted orchestrator config.
   Scenario 3 - toggling a preference checkbox persists it into the
@@ -107,11 +108,12 @@ def test_scenario_devagent_welcome_and_defaults(page_env):
     assert generic not in md, f"generic welcome leaked: {md}"
 
     ws = _checkbox(st, f"orch_{slug}_web_search")
-    eco = _checkbox(st, f"orch_{slug}_economy_mode")
     safety = _checkbox(st, f"orch_{slug}_safety_mode")
     assert ws is not None and ws["value"] is False, f"web-search: {ws}"
-    assert eco is not None and eco["value"] is True, f"economy: {eco}"
     assert safety is not None and safety["value"] is True, f"safety: {safety}"
+    # Economy mode carries no switch: the compact context is always used.
+    assert _checkbox(st, f"orch_{slug}_economy_mode") is None
+    assert st.session_state[f"orch_{slug}_economy_mode"] is True
 
 
 def test_scenario_saved_prefs_restored_in_new_dialog(page_env):
@@ -133,15 +135,15 @@ def test_scenario_saved_prefs_restored_in_new_dialog(page_env):
     })
 
     ws = _checkbox(st, f"orch_{slug}_web_search")
-    eco = _checkbox(st, f"orch_{slug}_economy_mode")
     safety = _checkbox(st, f"orch_{slug}_safety_mode")
     assert ws is not None and ws["value"] is True, f"web-search: {ws}"
-    assert eco is not None and eco["value"] is False, f"economy: {eco}"
     assert safety is not None and safety["value"] is False, f"safety: {safety}"
+    assert _checkbox(st, f"orch_{slug}_economy_mode") is None
 
     assert st.session_state[f"orch_{slug}_web_search"] is True
-    assert st.session_state[f"orch_{slug}_economy_mode"] is False
     assert st.session_state[f"orch_{slug}_safety_mode"] is False
+    # A legacy chat_economy_mode=False is ignored: the mode stays on.
+    assert st.session_state[f"orch_{slug}_economy_mode"] is True
 
 
 def test_scenario_toggling_checkbox_persists(page_env):

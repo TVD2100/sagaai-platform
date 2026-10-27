@@ -101,7 +101,7 @@ _CONDITIONAL_TOOLS = {"url_fetch": "fetch"}
 #: when ``allowed_assistants`` is non-empty - there are no assistants by
 #: default, unlike the right to call yourself.
 _DELEGATION_TOOLS = ("spawn_agent", "invoke_assistant", "subagent_status",
-                     "read_subagent_state", "resume_subagent")
+                     "read_subagent_state", "resume_subagent", "sleep")
 
 
 def _delegation_tool_enabled(tool_name: str,
@@ -115,6 +115,10 @@ def _delegation_tool_enabled(tool_name: str,
     """
     name = (tool_name or "").strip()
     if name == "spawn_agent":
+        return True
+    if name == "sleep":
+        # Waiting for a child is part of the delegation surface: it launches
+        # nothing and cancels nothing, so it needs no configuration.
         return True
     if name == "invoke_assistant":
         try:
@@ -186,10 +190,11 @@ def _delegation_catalog() -> List[Dict[str, str]]:
         from core.orchestration.tools import (
             spawn_tool_entry, invoke_tool_entry, subagent_status_tool_entry,
             read_subagent_state_tool_entry, resume_subagent_tool_entry,
+            sleep_tool_entry,
         )
         return [spawn_tool_entry(), subagent_status_tool_entry(),
                 read_subagent_state_tool_entry(), resume_subagent_tool_entry(),
-                invoke_tool_entry()]
+                sleep_tool_entry(), invoke_tool_entry()]
     except Exception:
         return []
 

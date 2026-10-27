@@ -87,13 +87,29 @@ CHAT_PAGE_SIZE = 50
 # (in addition to the leading "Авто" entry).
 FOLDER_PICKER_LIMIT = 10
 
+# Sentinel entry of the folder selector that OPENS the native dialog instead
+# of staging a folder. It is an action, not a value: the selector is rebuilt
+# with a fresh widget key after the dialog closes, so it never sticks.
+FOLDER_PICKER_BROWSE = "\x00browse"
+
+
+# Economy mode is a fixed property of the chat: the compact context is the
+# supported way to run a dialog, so the chat has no switch for it. The agent
+# loop keeps honouring ``economy_mode`` - the UI simply always passes True.
+ECONOMY_MODE_ALWAYS_ON = True
+
 
 # ─── Session-state helpers ────────────────────────────────────────────────────
 
 def _chat_pref_config_keys() -> Dict[str, tuple]:
-    """Return {session_key: (config_key, default)} for persisted chat prefs."""
+    """Return {session_key: (config_key, default)} for persisted chat prefs.
+
+    Economy mode is deliberately absent: it is a fixed property of the chat
+    (see ``ECONOMY_MODE_ALWAYS_ON``), not a user preference. The historical
+    ``chat_economy_mode`` config key stays readable but is no longer
+    consulted, so an install with the old value saved simply ignores it.
+    """
     return {"web_search": ("chat_web_search", False),
-            "economy_mode": ("chat_economy_mode", True),
             "safety_mode": ("chat_safety_mode", True)}
 
 
@@ -137,7 +153,7 @@ def _make_state_keys(slug: str) -> dict:
         f"orch_{slug}_token_line_cache": None,
         f"orch_{slug}_auto_apply": True,
         f"orch_{slug}_web_search": prefs["web_search"],
-        f"orch_{slug}_economy_mode": prefs["economy_mode"],
+        f"orch_{slug}_economy_mode": ECONOMY_MODE_ALWAYS_ON,
         f"orch_{slug}_stop_requested": False,
         f"orch_{slug}_dispatcher": None,
         f"orch_{slug}_saved_msg_count": 0,
@@ -318,12 +334,18 @@ def _apply_folder_choice(slug: str) -> Optional[str]:
 def _render_folder_picker(slug: str, lang: str) -> None:
     """Render the "Выбор папки" block right above the chat input.
 
-    Offers "Авто" plus the orchestrator's recent folders (up to
-    FOLDER_PICKER_LIMIT), a native "Обзор…" button that opens the OS folder
-    dialog, and - below - the path of the folder active AT THIS MOMENT.
+    Offers "Авто", the orchestrator's recent folders (up to
+    FOLDER_PICKER_LIMIT) and - last - an entry that opens the native OS
+    folder dialog. The dialog lives INSIDE the selector rather than on a
+    neighbouring button: a separate "Обзор…" button next to the chat input
+    reads as "attach a file" and was clicked by mistake, so the block now
+    carries no button at all.
+
     Selecting a folder does not touch the workspace immediately: the choice
     is applied automatically when the next message is sent (see
-    ``_apply_folder_choice``).
+    ``_apply_folder_choice``). The dialog entry is an ACTION, not a value:
+    after it runs, the selector is rebuilt with a fresh widget key, so it
+    falls back to the staged folder instead of sticking on the sentinel.
     """
     options: list = [""]
     try:
@@ -335,42 +357,54 @@ def _render_folder_picker(slug: str, lang: str) -> None:
     if staged and staged not in options:
         options.append(staged)
 
+    # The dialog entry is offered only when a native picker actually exists;
+    # without a GUI the selector keeps the manual-path workflow intact.
+    try:
+        dialog_available = bool(folder_dialog.native_dialog_available())
+    except Exception:
+        dialog_available = False
+    if dialog_available:
+        options.append(FOLDER_PICKER_BROWSE)
+
     def _label(path: str) -> str:
         if not path:
             return t("orch_folder_auto", lang=lang)
+        if path == FOLDER_PICKER_BROWSE:
+            return t("orch_folder_browse", lang=lang)
         return f"📁 {os.path.basename(path.rstrip('/')) or path} - {path}"
 
     index = options.index(staged) if staged in options else 0
 
-    col_sel, col_browse = st.columns([5, 1])
-    with col_sel:
-        picked = st.selectbox(
-            t("orch_folder_picker_label", lang=lang),
-            options=range(len(options)),
-            format_func=lambda i: _label(options[i]),
-            index=index,
-            key=_folder_picker_key(slug),
+    picked = st.selectbox(
+        t("orch_folder_picker_label", lang=lang),
+        options=range(len(options)),
+        format_func=lambda i: _label(options[i]),
+        index=index,
+        key=_folder_picker_key(slug),
+    )
+    try:
+        picked_value = options[int(picked)]
+    except Exception:
+        # A stale widget value (for example after the dialog entry vanished
+        # because the native picker stopped being available) must never
+        # wipe the folder the user already staged: keep it as it was.
+        picked_value = staged
+
+    if picked_value == FOLDER_PICKER_BROWSE:
+        chosen = folder_dialog.pick_folder(
+            initial_dir=staged or None,
+            title=t("orch_folder_dialog_title", lang=lang),
         )
-        try:
-            _set_ss(slug, "folder_choice", options[int(picked)])
-        except Exception:
-            pass
-    with col_browse:
-        st.write("")
-        if folder_dialog.native_dialog_available():
-            if st.button(t("orch_folder_browse", lang=lang),
-                         key=f"orch_folder_browse_{slug}",
-                         use_container_width=True):
-                chosen = folder_dialog.pick_folder(
-                    initial_dir=staged or None,
-                    title=t("orch_folder_dialog_title", lang=lang),
-                )
-                if chosen:
-                    add_recent_workspace(chosen, slug=slug)
-                    _set_ss(slug, "folder_choice", chosen)
-                    _set_ss(slug, "folder_picker_counter",
-                            int(_ss(slug, "folder_picker_counter") or 0) + 1)
-                st.rerun()
+        if chosen:
+            add_recent_workspace(chosen, slug=slug)
+            _set_ss(slug, "folder_choice", chosen)
+        # A fresh widget key drops the action entry whether a folder was
+        # chosen or the dialog was cancelled.
+        _set_ss(slug, "folder_picker_counter",
+                int(_ss(slug, "folder_picker_counter") or 0) + 1)
+        st.rerun()
+    else:
+        _set_ss(slug, "folder_choice", picked_value)
 
     # Always show the working folder of THIS dialog. The thread binding is
     # authoritative: the live config may belong to a neighbouring dialog or
@@ -1027,8 +1061,7 @@ def _do_step(slug: str, lang: str) -> None:
     state = _ss(slug, "loop_state")
     user_message = _pop_ss(slug, "user_message")
 
-    economy_mode_ss = _ss(slug, "economy_mode")
-    economy_mode = economy_mode_ss if economy_mode_ss is not None else True
+    economy_mode = ECONOMY_MODE_ALWAYS_ON
     web_search_ss = _ss(slug, "web_search")
     web_search_enabled = web_search_ss if web_search_ss is not None else False
     safety_mode = _ss(slug, "safety_mode")
@@ -1363,16 +1396,14 @@ def _render_chat_toolbar(slug: str, lang: str) -> None:
     session slots used by the agent loop, so there is a single source of
     truth for each preference.
     """
-    cols = st.columns([1, 1, 1, 1, 1, 0.8])
+    cols = st.columns([1, 1, 1, 1, 0.8])
     pref_specs = (
         ("web_search", t("orch_web_search_label", lang=lang),
          t("orch_web_search_help", lang=lang)),
-        ("economy_mode", t("orch_economy_label", lang=lang),
-         t("orch_economy_help", lang=lang)),
         ("safety_mode", t("orch_safety_label", lang=lang),
          t("orch_safety_help", lang=lang)),
     )
-    for col, (pref, label, help_text) in zip(cols[:3], pref_specs):
+    for col, (pref, label, help_text) in zip(cols[:2], pref_specs):
         with col:
             widget_key = _chat_toolbar_widget_key(slug, pref)
             st.checkbox(
@@ -1383,19 +1414,19 @@ def _render_chat_toolbar(slug: str, lang: str) -> None:
                 args=(slug, pref),
             )
 
-    with cols[3]:
+    with cols[2]:
         if st.button("⚙️ " + t("nav_settings", lang=lang),
                      key=f"orch_settings_{slug}",
                      use_container_width=True, type="secondary"):
             st.session_state["current_page"] = f"orchestrator_settings:{slug}"
             st.rerun()
-    with cols[4]:
+    with cols[3]:
         if st.button(t("orch_new_dialog", lang=lang),
                      key=f"orch_reset_{slug}",
                      use_container_width=True, type="secondary"):
             _reset_dialog(slug)
             st.rerun()
-    with cols[5]:
+    with cols[4]:
         url_params = {"orchestrator": slug}
         tid = _ss(slug, "thread_id")
         if tid:
@@ -1582,8 +1613,7 @@ def _render_chat_tab(slug: str, lang: str) -> None:
         unsafe_allow_html=True,
     )
 
-    economy_ss_val = _ss(slug, "economy_mode")
-    economy_enabled = economy_ss_val if economy_ss_val is not None else True
+    economy_enabled = ECONOMY_MODE_ALWAYS_ON
 
     # Neutral caption: this page hosts ANY employee (not only developer
     # agents), so show the employee's own description instead of the legacy
