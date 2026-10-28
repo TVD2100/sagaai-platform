@@ -759,11 +759,19 @@ def set_connection_token(conn_id: str, token: str) -> bool:
     return True
 
 
-def delete_connection(conn_id: str) -> bool:
+def delete_connection(conn_id: str, *, record_removal: bool = True) -> bool:
     """Delete a connection folder. Returns True on success.
 
     Also drops the cached MCP server process of the connection (when any),
-    so a deleted connector never leaves a live server behind."""
+    so a deleted connector never leaves a live server behind. A connection
+    that a catalog install created is recorded as deliberately removed, so
+    the showcase stops calling it installed and the entity is never offered
+    as a hidden re-install.
+
+    *record_removal* is turned off by an installer undoing its own run: a
+    connection removed because the install failed was never installed, and
+    marking it removed would describe a deletion the user never made.
+    """
     try:
         from core.mcp_client import drop_client as _drop_client
         _drop_client(str(conn_id))
@@ -773,9 +781,42 @@ def delete_connection(conn_id: str) -> bool:
     try:
         if os.path.isdir(d):
             shutil.rmtree(d, ignore_errors=True)
+        if record_removal:
+            _mark_marketplace_removed(conn_id)
         return True
     except Exception:
         return False
+
+
+def _mark_marketplace_removed(conn_id: str) -> None:
+    """Record a deliberate deletion of a catalog-installed MCP connection.
+
+    An MCP entity owns no folder - its installation is the connection - so
+    deleting the connection is the uninstall. Without this marker the
+    registry keeps the row, the showcase shows the server as installed while
+    it is gone, and reinstalling it is silently a no-op.
+
+    The row is found by the connection id the installer stored as its runtime
+    slug. A connection the catalog never installed has no row and stays a
+    purely local deletion; a failed install has no row yet either, so a
+    rollback does not leave a removal marker behind.
+    """
+    try:
+        from core.marketplace import registry as marketplace_registry
+
+        for row in marketplace_registry.list_installed("mcp"):
+            if str(row.get("runtime_slug") or "") != str(conn_id):
+                continue
+            entity_id = str(row.get("id") or "")
+            if not entity_id:
+                return
+            marketplace_registry.remove_installed("mcp", entity_id)
+            marketplace_registry.mark_removed(
+                "mcp", entity_id, str(conn_id), via="user"
+            )
+            return
+    except Exception:
+        pass
 
 
 def decrypt_token(conn_id: str) -> str:
