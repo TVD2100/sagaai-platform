@@ -418,6 +418,35 @@ def test_a_tree_with_running_children_cannot_be_reported_as_finished(allowlists)
     assert "not terminal yet" in out["note"]
 
 
+def test_the_open_dialog_itself_does_not_hold_its_tree_up(allowlists):
+    """The root record of an open dialog is running by design.
+
+    Counting it as unfinished reported every healthy dialog as incomplete, so
+    the caller could never be told that its children had all finished.
+    """
+    class _Svc:
+        def list_runs(self, root=None):
+            return [{"run_id": "root", "status": "running"},
+                    {"run_id": "b", "status": "done"}]
+
+    out = tools.subagent_status(root_run_id="root", service=_Svc())
+
+    assert "note" not in out or "not terminal yet" not in out["note"]
+
+
+def test_a_dead_child_of_the_tree_is_reported_as_failed(allowlists):
+    """A demoted child is terminal, so the tree reports as finished."""
+    class _Svc:
+        def list_runs(self, root=None):
+            return [{"run_id": "root", "status": "running"},
+                    {"run_id": "z", "status": "failed",
+                     "error_code": "stale_run"}]
+
+    out = tools.subagent_status(root_run_id="root", service=_Svc())
+
+    assert "note" not in out or "not terminal yet" not in out["note"]
+
+
 def test_a_refused_resume_explains_why_a_retry_will_not_help(allowlists):
     """A resume that cannot start says what to do INSTEAD of resuming."""
     class _Svc:

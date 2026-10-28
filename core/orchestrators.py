@@ -105,9 +105,35 @@ def _ensure_default_orchestrators() -> Dict[str, str]:
     """Create default orchestrators from defaults/orchestrators/*.
 
     Imported lazily to avoid a circular import with core.default_imports.
+
+    The marketplace master switch is read here because both branches of
+    ``ensure_builtin_orchestrators`` reach the bundled defaults through
+    this single call. With the switch off the bundled folder stays the
+    only source and the marketplace keeps its hands off the defaults.
     """
     from core.default_imports import ensure_default_orchestrators
-    return ensure_default_orchestrators()
+    from core.marketplace import is_enabled as marketplace_enabled
+
+    results = ensure_default_orchestrators()
+    if marketplace_enabled():
+        _refresh_marketplace_registry_cache()
+    return results
+
+
+def _refresh_marketplace_registry_cache() -> None:
+    """Export the marketplace registry cache after the defaults are seeded.
+
+    Bundled defaults are local entities, not catalog ones, so nothing is
+    written to ``marketplace_installed`` here; what this keeps in step is
+    the exported cache the marketplace pages read. A failure is ignored on
+    purpose: a stale cache must never block the start-up of defaults.
+    """
+    try:
+        from core.marketplace import registry as marketplace_registry
+
+        marketplace_registry.export_registry_cache()
+    except Exception:
+        pass
 
 # ─── Default config for the DevAgent orchestrator ─────────────────────────
 # The values come from the canonical orchestrator bundle
@@ -456,6 +482,7 @@ def delete_orchestrator(slug: str) -> bool:
         # with the same slug.
         repo_delete_all_orchestrator_instructions(slug)
         remove_orchestrator_dir(slug)
+        _mark_marketplace_removed(slug, orch)
         # The personal memory of the employee is archived (never silently
         # destroyed) so an accidental deletion stays recoverable.
         try:
@@ -467,6 +494,39 @@ def delete_orchestrator(slug: str) -> bool:
         except Exception:
             pass
     return ok
+
+
+def _mark_marketplace_removed(slug: str, orch: Optional[Dict[str, Any]] = None) -> None:
+    """Record a deliberate deletion so nothing resurrects the orchestrator.
+
+    The bundled default import recreates any orchestrator folder that is
+    missing, and the marketplace keeps its own record of removals. Without
+    this marker a deleted catalog agent comes back on the next start with a
+    fresh prompt and settings the user did not choose.
+
+    The catalog id comes from the ``marketplace`` marker the installer wrote
+    into the orchestrator config; an orchestrator created by hand has no such
+    marker and is simply a local deletion the marketplace never sees.
+    """
+    config = (orch or {}).get("config")
+    marker = config.get("marketplace") if isinstance(config, dict) else None
+    entity_id = str((marker or {}).get("id") or "") if isinstance(marker, dict) else ""
+    try:
+        from core.marketplace import registry
+
+        if not entity_id:
+            # An adopted entity carries no installer marker: its catalog id is
+            # the registry row that owns this folder.
+            for row in registry.list_installed("agent"):
+                if str(row.get("runtime_slug") or "") == slug:
+                    entity_id = str(row.get("id") or "")
+                    break
+        if not entity_id:
+            return
+        registry.remove_installed("agent", entity_id)
+        registry.mark_removed("agent", entity_id, slug, via="user")
+    except Exception:
+        pass
 
 
 def _sync_orchestrator_folder(slug: str) -> None:

@@ -32,6 +32,27 @@ if not same_process_marker(_project_root):
     )
     write_running_marker(_project_root)
 
+# A marketplace run interrupted by a crash is undone before the UI opens.
+# The recovery lives in its own ``try`` because an unhandled failure here
+# would kill the start of the whole application, while the run it restores
+# only affects one installed entity.
+try:
+    from core.marketplace import bootstrap as marketplace_bootstrap
+
+    _marketplace_recovery = marketplace_bootstrap.recover()
+    if _marketplace_recovery:
+        print(
+            "[marketplace recovery] recovered=%r" % (_marketplace_recovery,),
+            file=sys.stderr,
+            flush=True,
+        )
+except Exception as _marketplace_error:  # pragma: no cover - start-up guard
+    print(
+        "[marketplace recovery] error=%r" % (_marketplace_error,),
+        file=sys.stderr,
+        flush=True,
+    )
+
 import streamlit as st
 
 st.set_page_config(

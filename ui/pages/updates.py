@@ -34,6 +34,7 @@ from core.updater import (
 )
 from core.updater_apply import list_backup_runs, load_health, load_state, read_pending
 from core.version import __version__
+from ui.pages.updates_marketplace import render_marketplace_sections
 
 
 def _cached_manifest():
@@ -297,7 +298,14 @@ def page_updates():
     st.title(f"\U0001f504 {t('nav_updates', lang=lang)}")
     _render_health_section(lang, root)
     _render_check_section(lang, root)
+    # Marketplace entities follow the platform files: the platform update is
+    # what a user opens this page for, and the entities are checked only by
+    # their own button inside the section.
+    st.markdown("---")
+    render_marketplace_sections(lang)
     st.markdown("---")
     _render_pending_section(lang, root)
     st.markdown("---")
     _render_state_section(lang, root)
+# SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

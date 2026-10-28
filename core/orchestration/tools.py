@@ -480,8 +480,12 @@ def subagent_status(run_id: Optional[str] = None, *,
     if rid:
         runs = [r for r in runs if str(r.get("run_id") or "") == rid]
     payload = {"ok": True, "root_run_id": tree, "count": len(runs), "runs": runs}
+    # The root record stands for the dialog itself. While the dialog is open it
+    # is legitimately running, so counting it as unfinished would report every
+    # healthy tree as incomplete; only CHILDREN can hold a tree up.
     unfinished = [r for r in runs
-                  if str(r.get("status") or "") not in (STATUS_DONE, STATUS_FAILED,
+                  if str(r.get("run_id") or "") != tree
+                  and str(r.get("status") or "") not in (STATUS_DONE, STATUS_FAILED,
                                                          STATUS_CANCELLED)]
     if unfinished:
         payload = _attach_note(payload, str(len(unfinished)) + " of " + str(len(runs))

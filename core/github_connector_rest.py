@@ -828,17 +828,39 @@ def create_tag(conn_id: str, repo: str, tag: str, sha: str = "",
 
 def _git_blob_sha(content: str) -> str:
     """Compute the canonical Git blob SHA-1 for UTF-8 text content."""
-    data = (content or "").encode("utf-8")
-    header = b"blob " + str(len(data)).encode("ascii") + b"\x00"
-    return hashlib.sha1(header + data).hexdigest()
+    return _git_blob_sha_bytes((content or "").encode("utf-8"))
 
 
-def _create_blob(conn_id: str, owner: str, name: str, content: str) -> str:
-    """Create one Git blob (UTF-8 plain content) and return its SHA."""
+def _git_blob_sha_bytes(data: bytes) -> str:
+    """Compute the canonical Git blob SHA-1 for raw bytes.
+
+    Byte payloads hash exactly like Git hashes them on disk, so a locally
+    computed value can be compared with the SHA the API returns.
+    """
+    payload = bytes(data or b"")
+    header = b"blob " + str(len(payload)).encode("ascii") + b"\x00"
+    return hashlib.sha1(header + payload).hexdigest()
+
+
+def _create_blob(conn_id: str, owner: str, name: str, content: str,
+                 data: Optional[bytes] = None) -> str:
+    """Create one Git blob and return its SHA.
+
+    Text content is sent as ``utf-8``. When *data* carries raw bytes the
+    blob is sent as ``base64`` instead, which is the only way an archive or
+    any other non-text asset reaches the repository unchanged.
+    """
+    if data is None:
+        body: Dict[str, Any] = {"content": content or "", "encoding": "utf-8"}
+    else:
+        body = {
+            "content": base64.b64encode(bytes(data)).decode("ascii"),
+            "encoding": "base64",
+        }
     try:
-        data = _request(
+        payload = _request(
             conn_id, "POST", f"/repos/{owner}/{name}/git/blobs",
-            body={"content": content or "", "encoding": "utf-8"},
+            body=body,
             timeout=_BATCH_TIMEOUT,
         )
     except GithubRestError as e:
@@ -851,7 +873,7 @@ def _create_blob(conn_id: str, owner: str, name: str, content: str) -> str:
                 status=409,
             )
         raise
-    info = data if isinstance(data, dict) else {}
+    info = payload if isinstance(payload, dict) else {}
     blob_sha = str(info.get("sha") or "")
     if not blob_sha:
         raise GithubRestError("GitHub did not return a blob SHA")
@@ -1002,11 +1024,30 @@ def _publish_commit(conn_id: str, owner: str, name: str, branch: str,
     }
 
 
+def _decode_binary_field(value: Any) -> bytes:
+    """Decode the ``content_base64`` batch field into raw bytes.
+
+    The field is the text-safe channel for an archive or any other
+    non-UTF-8 asset: the caller base64-encodes the file and the connector
+    turns it back into the exact byte sequence before creating the blob.
+    """
+    text = str(value or "").strip()
+    if not text:
+        raise GithubRestError("content_base64 cannot be empty")
+    try:
+        return base64.b64decode(text.encode("ascii"), validate=True)
+    except Exception as exc:
+        raise GithubRestError(
+            "content_base64 is not valid base64 data"
+        ) from exc
+
+
 def _normalize_batch_files(files: Any) -> List[Dict[str, Any]]:
     """Validate and normalize the ``files`` argument of batch operations.
 
-    Every entry must be a dict with a non-empty ``path`` and either
-    ``content`` (text) or ``blob_sha``. Duplicate paths are rejected.
+    Every entry must be a dict with a non-empty ``path`` and one of
+    ``content`` (UTF-8 text), ``content_base64`` (raw bytes, base64-encoded
+    in the call) or ``blob_sha``. Duplicate paths are rejected.
     """
     if not isinstance(files, (list, tuple)) or not files:
         raise GithubRestError("Batch files list cannot be empty")
@@ -1021,16 +1062,19 @@ def _normalize_batch_files(files: Any) -> List[Dict[str, Any]]:
         if path in seen:
             raise GithubRestError(f"Duplicate path in batch: {path}")
         seen.add(path)
-        has_content = item.get("content") is not None
+        raw_b64 = item.get("content_base64")
+        has_bytes = raw_b64 is not None
+        has_content = item.get("content") is not None and not has_bytes
         blob_sha = str(item.get("blob_sha") or "").strip()
-        if not has_content and not blob_sha:
+        if not has_content and not has_bytes and not blob_sha:
             raise GithubRestError(
-                f"Batch entry for '{path}' needs 'content' or 'blob_sha'"
+                f"Batch entry for '{path}' needs 'content', 'content_base64' or 'blob_sha'"
             )
         result.append({
             "path": path,
             "content": str(item.get("content")) if has_content else "",
-            "blob_sha": blob_sha if not has_content else "",
+            "data": _decode_binary_field(raw_b64) if has_bytes else None,
+            "blob_sha": blob_sha if not has_content and not has_bytes else "",
             "mode": str(item.get("mode") or "100644"),
         })
     return result
@@ -1076,7 +1120,7 @@ def batch_commit(conn_id: str, repo: str, files: Any,
     blob_map: Dict[str, str] = {}
     for entry in entries:
         blob_map[entry["path"]] = entry["blob_sha"] or _create_blob(
-            conn_id, owner, name, entry["content"]
+            conn_id, owner, name, entry["content"], data=entry.get("data")
         )
     tree_entries: List[Dict[str, str]] = [
         {"path": e["path"], "mode": e["mode"], "type": "blob", "sha": blob_map[e["path"]]}
@@ -1105,14 +1149,18 @@ def batch_commit(conn_id: str, repo: str, files: Any,
     return summary
 
 
-def _files_from_paths(base_dir: str, paths: Any) -> List[Dict[str, Any]]:
+def _files_from_paths(base_dir: str, paths: Any, binary: bool = False) -> List[Dict[str, Any]]:
     """Read batch files from disk under *base_dir*.
 
     Returns a list of {"path", "content"} dicts suitable for
     ``batch_commit`` / ``batch_upsert``. Every input path must be a
     relative, POSIX-style repo path (absolute paths and backslashes are
     rejected) that resolves to a regular file inside *base_dir* - path
-    traversal is blocked. File contents are read as UTF-8 text.
+    traversal is blocked.
+
+    File contents are read as UTF-8 text by default. With *binary* every
+    file is read as raw bytes and returned as ``content_base64`` instead,
+    so archives and other non-text assets reach the repository unchanged.
     """
     if not str(base_dir or "").strip():
         raise GithubRestError("base_dir cannot be empty")
@@ -1145,13 +1193,23 @@ def _files_from_paths(base_dir: str, paths: Any) -> List[Dict[str, Any]]:
             ) from exc
         if not abs_path.is_file():
             raise GithubRestError(f"File not found: {rel}")
+        if binary:
+            try:
+                raw = abs_path.read_bytes()
+            except OSError as exc:
+                raise GithubRestError(f"Cannot read file: {rel}: {exc}") from exc
+            files.append({
+                "path": rel,
+                "content_base64": base64.b64encode(raw).decode("ascii"),
+            })
+            continue
         try:
             with open(abs_path, "r", encoding="utf-8") as fh:
                 content = fh.read()
         except UnicodeDecodeError as exc:
             raise GithubRestError(
                 "File is not UTF-8 text: "
-                f"{rel} (batch tools publish text files only)"
+                f"{rel} (pass binary=True to publish raw bytes)"
             ) from exc
         except OSError as exc:
             raise GithubRestError(f"Cannot read file: {rel}: {exc}") from exc
@@ -1161,17 +1219,18 @@ def _files_from_paths(base_dir: str, paths: Any) -> List[Dict[str, Any]]:
 
 def batch_commit_paths(conn_id: str, repo: str, paths: Any,
                        message: str = "", branch: str = "",
-                       base_dir: str = "") -> Dict[str, Any]:
+                       base_dir: str = "", binary: bool = False) -> Dict[str, Any]:
     """Publish local files from disk in ONE commit (Git Data API).
 
     Reads every file listed in ``paths`` from ``base_dir`` (pass the
     active workspace root; when empty, the tool layer falls back to the
     active DevAgent workspace) and publishes
     the batch through ``batch_commit`` - the read-from-disk gateway for
-    publishing large local files without inline content. Returns the
-    same summary dict as ``batch_commit``.
+    publishing large local files without inline content. With *binary*
+    the files are published as raw bytes, which is what an archive needs.
+    Returns the same summary dict as ``batch_commit``.
     """
-    files = _files_from_paths(base_dir, paths)
+    files = _files_from_paths(base_dir, paths, binary=bool(binary))
     return batch_commit(conn_id, repo, files, message=message, branch=branch)
 
 
@@ -1209,7 +1268,10 @@ def batch_upsert(conn_id: str, repo: str, files: Any,
     tree_entries: List[Dict[str, str]] = []
     for entry in entries:
         path = entry["path"]
-        local_sha = entry["blob_sha"] or _git_blob_sha(entry["content"])
+        if entry.get("data") is not None:
+            local_sha = entry["blob_sha"] or _git_blob_sha_bytes(entry["data"])
+        else:
+            local_sha = entry["blob_sha"] or _git_blob_sha(entry["content"])
         remote_sha = remote_blobs.get(path, "")
         if remote_sha and remote_sha == local_sha:
             unchanged += 1

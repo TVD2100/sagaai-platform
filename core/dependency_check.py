@@ -158,3 +158,5 @@ def outdated_lines(report):
                           d.get("installed", "?"), d.get("required", "?"))
         for d in (report or {}).get("outdated", [])
     ]
+# SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

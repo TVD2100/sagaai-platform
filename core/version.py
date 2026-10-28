@@ -303,7 +303,62 @@
 # dialog closes makes the selector fall back to the chosen folder whether
 # the dialog returned a path or was cancelled.
 
-__version__ = "2.17.1"
+# 2.18.0 adds the marketplace foundation (core.marketplace): a catalog
+# client, an installer for skills with a journal, rollback and recovery of an
+# interrupted run, a conflict matrix for a locally edited installation, an
+# update path with per-entity refusals and a bounded run journal. The section
+# lives behind one master switch (marketplace.enabled): it gates the sidebar
+# entry, the one-time seeding of registry rows and the imported defaults, so
+# a disabled marketplace leaves no trace in the UI and writes nothing. Every
+# start-up path stays offline - the catalog is reached only from a button -
+# and the RAG half of the section is not part of this slice.
+
+# 2.19.0 extends the marketplace from skills to every shipped entity type and
+# stops seeding the catalog entities from the distribution. An agent installs
+# into an orchestrator folder (config merge, instructions, functions), a base
+# through its manifest, source and index with an atomic folder replace, and an
+# MCP server as a credential-less connection that waits for secrets. A bundle
+# previews a recommended set with checkboxes, the update check reports all four
+# types in their own sections and addresses an entity as type:id, and the
+# installable-type list is read by the showcase instead of a trial call. The
+# catalog lives in a separate GitHub repository published by
+# scripts/marketplace_publish.py; entities listed as catalog-only are no longer
+# imported from defaults while the marketplace is on, and a removal marker
+# still wins over that rule.
+
+# 2.19.1 fixes the false "subagents running" reports. A dialog root run stands
+# for one step and has no worker that could ever write its final status, so
+# release_tree closes it explicitly and a new step reopens the finished record
+# instead of inheriting the previous step's status. A status reader judges
+# liveness more strictly than the file repair: a stored running claim without a
+# live in-memory counterpart is reported as failed/stale_run, the whole store is
+# swept for records of previous processes at startup, and the heartbeat timer
+# is started only for a background run, because a blocking child keeps its
+# record in memory until it returns.
+
+# 2.20.0 adds helpers to the marketplace: an ``agent`` entity of kind
+# ``assistant`` installs as an assistant profile (a folder with manifest.json,
+# prompt.md and text attachments, plus a row in the assistants table) next to
+# the existing employee kind, which installs an orchestrator folder. The kind
+# travels with the manifest, the catalog index, the showcase card, the
+# registry row and the Updates row, so the showcase labels a card without
+# downloading its package; a manifest without the field is read as an
+# employee. The publisher refuses an unknown kind, and an installation
+# refuses to switch the kind of an installed agent, because the kind decides
+# both the folder and the table. Attachments are limited to text files the
+# storage layer can hold, and an update keeps the attachments the user added
+# while it leaves an edited prompt untouched.
+
+# The marketplace gained helpers in 2.20.0 and, in 2.21.0, the navigation
+# that makes them first-class. In 2.21.1 a card keeps its expanded state in
+# the session, so its single install button covers both the entity and the
+# ticked extras - and actually reaches the installer on the rerun that
+# follows a click. In 2.22.0 the bundled Rag Base Creator is installed by
+# default again: it is seeded into the folder named after its preset, so one
+# skill exists on disk, the catalog adopts that copy instead of offering a
+# second one, and a catalog installation of the same skill stops the seed.
+
+__version__ = "2.22.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

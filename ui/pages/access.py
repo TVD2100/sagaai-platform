@@ -91,3 +91,5 @@ def page_access() -> None:
         st.info(t("access_status_enabled", lang=lang))
     else:
         st.info(t("access_status_disabled", lang=lang))
+# SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

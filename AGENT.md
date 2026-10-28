@@ -110,6 +110,26 @@ SagaAI - универсальный AI-ассистент с веб-интерф
 - Страница «Настройки» в общем меню содержит только API-ключи и переменные
   окружения.
 
+### FR5a - Боковое меню (навигация)
+
+Меню собрано из четырёх блоков в фиксированном порядке: **СОТРУДНИКИ**,
+**ПОМОЩНИКИ**, **МАРКЕТПЛЕЙС**, **НАСТРОЙКИ**.
+
+- Сотрудники и помощники показывают первые пять позиций, остальные уходят
+  в свёрнутый блок «Все (N)»; поиск появляется при количестве больше пяти.
+- Блок «МАРКЕТПЛЕЙС» (под флагом `marketplace.enabled`) раскрывает пять
+  подразделов каталога: сотрудники, помощники, навыки, базы знаний,
+  коннекторы. Подраздел - это пара «тип каталога + вид агента»: сотрудники
+  и помощники делят тип `agent`, но ставятся в разные места, поэтому
+  показаны отдельными списками. Клик по подразделу открывает витрину на
+  нужной вкладке, а выбранная на витрине вкладка подсвечивает пункт меню
+  обратно: обе стороны пишут один ключ `mp_section`, а запрос из меню идёт
+  отдельным ключом `mp_section_target`, потому что записать состояние
+  вкладки после её создания Streamlit не даёт.
+- Блок «НАСТРОЙКИ» держит три постоянных пункта - Провайдеры, Коннекторы,
+  Обновления; остальные семь (сотрудники, навыки, библиотека навыков, базы
+  знаний, доступы, статистика, о программе) собраны в свёрнутом «Ещё (7)».
+
 ### FR6 - Оркестраторы (сотрудники)
 - **Оркестратор** - автономный AI-агент (как DevAgent) со своим системным
   промптом, конфигурацией моделей, эконом-режимом, набором инструментов,
@@ -684,6 +704,12 @@ SagaAI - универсальный AI-ассистент с веб-интерф
 - Платформенные навыки из `defaults/skills/` импортируются с
   `developer=SagaAI`, `adapted=True`; сторонние - `developer=unknown`,
   `adapted=False`, пока DevAgent не завершит адаптацию.
+- Встроенный навык сеется в папку со своим именем (`rag_base_creator`),
+  а не в папку от отображаемого названия: каталог адресует тот же навык по
+  этому имени, поэтому установка из каталога и встроенная копия занимают
+  одну папку. Запись с маркером `source: marketplace/<id>` или папка,
+  которую она занимает, останавливают сидинг - иначе рядом появилась бы
+  вторая копия с суффиксом и одна установка показывалась бы дважды.
 - Неадаптированные навыки не попадают в блок `Available skills` системного
   промпта оркестратора: `get_enabled_skills_metadata()` возвращает только
   адаптированные записи. Инструмент `list_skills_library` при этом видит
@@ -905,9 +931,26 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   `heartbeat` и `finish` пишутся атомарно в
   `.dev_agent/orchestration/runs/<root_run_id>/`, переживают перезапуск
   процесса и чинятся при чтении (`heal`). Мёртвый `running` распознаётся по
-  трём независимым признакам - устаревший heartbeat, чужой `boot_id`,
-  отсутствующий `pid` - и переводится в `failed/stale_run` с причиной,
-  поэтому брошенный ребёнок не висит в статусе «работает» вечно.
+  трём независимым признакам - устаревший heartbeat (окно равно одному
+  бюджету запуска плюс запас), чужой `boot_id`, отсутствующий `pid` - и
+  переводится в `failed/stale_run` с причиной, поэтому брошенный ребёнок не
+  висит в статусе «работает» вечно.
+- Читатель статуса судит о живости отдельно и строже, чем ремонт файла
+  (`is_live`, `demote_if_dead`, окно `max(60, 3 x heartbeat)`): запись
+  `running`, у которой нет живого двойника в реестре процесса, - остаток
+  умершего потока, и в выдаче она помечается `failed/stale_run` с
+  `live=false`. Живой двойник сильнее любой метки времени, поэтому таймер
+  heartbeat заводится только фоновому запуску: блокирующий ребёнок держит
+  запись в памяти до возврата. На старте процесса `sweep_dead_runs()`
+  проходит по всему хранилищу без потолка и чинит записи прошлых процессов.
+- Корневой запуск диалога - это ОДИН шаг, и воркера у него нет:
+  `release_tree()` закрывает его сам (`close_root_run`), иначе запись на
+  диске оставалась `running` и строка «работают субагенты» переживала
+  завершение шага. Идентификатор диалога переживает шаги, поэтому
+  `ensure_run()` переоткрывает терминальную корневую запись на новом шаге.
+- Список запусков дерева (`subagent_status(root_run_id=...)`) считает
+  незавершёнными только детей: корень диалога `running` по определению и
+  готовность дерева не отменяет.
 - Завершение публикуется ровно один раз: право на извещение захватывается
   атомарно (`claim_notice`, `O_CREAT|O_EXCL`), так что ни воркер, ни UI не
   показывают его дважды. Извещение доставляется скрытым
@@ -1054,6 +1097,118 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   ИССЛЕДОВАНИЕ (реестр тем). Правило роста: папка на единицу создаётся,
   когда у неё появляется три и более собственных артефактов.
 
+### FR20 - Маркетплейс сущностей (агенты, навыки, базы знаний, MCP-серверы)
+
+Каталог сущностей с установкой, обновлением и откатом. Устанавливаются все
+четыре типа: навык (`skill`), агент (`agent`), база знаний (`rag`) и
+MCP-сервер (`mcp`). Публикатор каталога подписывает индекс (`index.json.sig`,
+Ed25519), а проверка подписи на стороне клиента пока заглушка: при
+`require_signature=true` установка отказывает с `signature_not_implemented`,
+при выключенном флаге (по умолчанию) проходит с `verified=false` - спрос на
+подпись не удовлетворяется молчаливым «ок».
+
+- **Единый выключатель.** `marketplace.enabled` (по умолчанию включён)
+  закрывает три вещи сразу: блок «МАРКЕТПЛЕЙС» в боковом меню, разовый сидинг
+  реестра на первом рендере и обновление кэша реестра при импорте
+  встроенных оркестраторов (`core/orchestrators.py`). При выключенном
+  выключателе раздел не рисуется и не пишет ничего - ни строк реестра, ни
+  файлов.
+- **Подразделы витрины.** Пять подразделов - сотрудники, помощники, навыки,
+  базы знаний, коннекторы - это пары «тип каталога + вид агента»: сотрудники
+  и помощники делят тип `agent`, но ставятся в разные места, поэтому у них
+  свои списки. Подразделы работают и вкладками витрины, и пунктами меню; обе
+  стороны пишут ключ `mp_section`, а запрос из меню идёт отдельным ключом
+  `mp_section_target` и открывает нужную вкладку через `default` - записать
+  состояние вкладки после её создания Streamlit не даёт.
+- **Блок «Дополнительно».** Рекомендуемый набор сущности показан в карточке
+  отдельным блоком: позиции подписаны переведёнными названиями типов и своим
+  состоянием, галочки стоят по `default_selected`, недоступные позиции
+  остаются видимыми и неактивными. Отчёт установки набора несёт
+  `requires_secrets`/`credentials_status`, поэтому после установки коннектора
+  карточка напоминает, где заполнить его учётные данные.
+- **Одна кнопка установки.** Карточка показывает ровно одну кнопку
+  «Установить», и одно нажатие ставит сущность вместе с отмеченными позициями
+  набора: сначала сущность, затем набор как единый прогон с откатом. У уже
+  установленной сущности та же кнопка ставит только отмеченное, а если
+  отмеченного нет - кнопки нет. Раскрытие карточки хранится в
+  `session_state` (`mp_open_<id>`), а не выводится из нажатия текущего
+  прогона: каждое нажатие запускает новую перерисовку, где кнопка
+  «Подробнее» уже не нажата, и карточка, свёрнутая по этому признаку,
+  проглатывала бы установку - пользователь не видел ни агента, ни сообщения.
+- **Старт приложения остаётся офлайновым.** Каталог читается только по
+  нажатию кнопки: витрина грузит индекс по «Обновить», страница
+  «Обновления» - по «Проверить обновления». Ни `app.py`, ни
+  `core/default_imports.py`, ни сидинг реестра, ни рендер сайдбара не
+  обращаются к сети; это закреплено и статической проверкой вызовов, и
+  запретом сокетов в тестах.
+- **Установка** (`core/marketplace/installer.py`) пишет журнал
+  прогона до изменения файлов, копирует пакет во временную папку, сверяет
+  sha256 по манифесту пакета и переносит результат атомарно. Строка
+  `marketplace_installed` хранит тип, id каталога, runtime-slug, версию,
+  `files_json`, `tree_sha256` и признак локальных правок; `skills.json`
+  библиотеки обновляется в той же транзакции. Витрина и планировщик пакетов
+  вызывают единый диспетчер `install_entity`, который по типу сущности
+  направляет работу в свой установщик: `installer` (навык),
+  `agent_installer`, `rag_installer`, `mcp_installer`. Список `SUPPORTED_TYPES`
+  перечисляет все четыре типа и читается витриной и планировщиком пакетов
+  вместо пробного вызова.
+- **Вид агента** (`agent_kind`). Сущность типа `agent` бывает двух видов:
+  `orchestrator` (сотрудник: папка оркестратора, мерж конфига, инструкции,
+  functions) и `assistant` (помощник: папка `DATA_DIR/assistants/<slug>` с
+  `manifest.json`, `prompt.md` и вложениями `files/*.txt`, строка в таблице
+  `assistants`). Вид хранится в манифесте, в индексе каталога, в строке
+  `marketplace_installed` и в карточке витрины; манифест без вида считается
+  сотрудником - так читаются записи, созданные до появления поля. Вложения
+  помощника принимаются только текстовыми: хранилище держит их как `.txt`,
+  поэтому пакет с другим расширением отклоняется целиком, а не
+  устанавливается наполовину. Смена вида у установленной сущности
+  запрещена (`agent_kind_changed`): вид определяет и папку, и таблицу,
+  поэтому сначала нужно явное удаление. При обновлении вложения, добавленные
+  пользователем, сохраняются, а отредактированный промпт не перезаписывается
+  каталогом.
+- **Прерванный прогон восстанавливается на холодном старте**
+  (`core/marketplace/bootstrap.recover`, хук в `app.py` до импорта
+  Streamlit): незавершённый прогон откатывается по своему бэкапу и
+  помечается в журнале, чтобы следующая попытка не начиналась поверх
+  мусора.
+- **Матрица конфликтов** (`core/marketplace/conflicts.py`) отвечает на
+  вопрос «что делать с уже установленным»: локальные правки определяются
+  сравнением `files_json` с диском, а не временем изменения файла. Три
+  пути - оставить свою версию (`keep_mine`), взять каталог
+  (`take_catalog`, с бэкапом заменяемых файлов) и форк (`fork`, новый id
+  `<id>#forkN` и папка `<slug>_fork_NN`); оригинал при форке приводится к
+  каталогу. Удаление пишет маркер в `marketplace_removed`, поэтому
+  встроенный импорт не воскрешает удалённый навык.
+- **Встроенные сущности усыновляются, а не дублируются**
+  (`core/marketplace/migration.py`). `LEGACY_DEFAULTS` сопоставляет пару
+  (тип, id) с копией, которая уже стоит на диске, и заводит ей строку
+  реестра с синтетической версией `legacy` - ниже первого релиза каталога,
+  чтобы пользователь увидел настоящее обновление, а не молчаливое «нечего
+  делать». Навык `rag_base_creator` сеется из дистрибутива в папку со своим
+  именем и потому усыновляется наравне с оркестратором и базой; каталог
+  считает такую папку занятой (`adopt`) и не предлагает вторую копию.
+  Маркер удаления проверяется раньше усыновления - иначе удалённое
+  вернулось бы первым же стартом.
+- **Обновления** (`core/marketplace/updates.py`) сравнивают версии по
+  semver и применяют ту же механику конфликтов. Проверка покрывает все
+  четыре типа и раскладывает находки по секциям `skill`/`agent`/`rag`/`mcp`;
+  ссылка на сущность принимается и в форме `type:id`, и в виде голого id
+  (тогда тип ищется по реестру). Навык обновляется через трёхуровневый
+  резолвер конфликтов, остальные типы - переустановкой своей версией через
+  собственный установщик, потому что база и агент заменяются целиком.
+  Отказ по отдельной
+  сущности не отменяет остальные: сущность с несовместимой платформой,
+  требующая исполняемого кода при `allow_code=false` или непринятой
+  лицензии попадает в список недоступных с причиной, а остальные
+  обновляются.
+- **Откат** (`core/marketplace/rollback.py`) восстанавливает файлы, строку
+  реестра и `skills.json` байт в байт; журнал прогонов ограничен - 20
+  записей для навыков и 3 для баз знаний, потому что прогон базы знаний
+  на порядок тяжелее.
+- **Хранилище** - `DATA_DIR/marketplace/`: журнал прогонов, бэкапы
+  прогонов и кэш пакетов. Строки реестра живут в SQLite
+  (`marketplace_installed`, `marketplace_removed`).
+
 ## Нефункциональные требования
 
 ### NFR1 - Модульность
@@ -1104,6 +1259,9 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   и режимом поиска (`search_mode`: bm25/vector/hybrid); каноническая база
   `yaagentai_2020` поставляется в `defaults/rag_bases/`.
 - Бэкапы и снапшоты кода хранятся в `.dev_agent/backups/`.
+- Маркетплейс хранит журнал прогонов, бэкапы прогонов и кэш пакетов
+  в `DATA_DIR/marketplace/`; строки установленного и маркеры удаления -
+  в SQLite (`marketplace_installed`, `marketplace_removed`).
 
 ### NFR5 - Интернационализация
 - Вся видимая пользователю строка должна проходить через `t()`.
@@ -1119,12 +1277,14 @@ SagaAI - универсальный AI-ассистент с веб-интерф
     # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
     # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
-- Список базовых файлов (93):
+- Список базовых файлов (133):
   - Корень (2): __init__.py, app.py
-  - UI (18): ui/__init__.py, ui/app.py, ui/components/__init__.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/assistants.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/orchestrator.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrators.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/welcome.py
-  - Core (54): core/__init__.py, core/api_errors.py, core/api_layer.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/config.py, core/connectors.py, core/contracts.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/entity_sync.py, core/env_loader.py, core/files.py, core/folder_dialog.py, core/fs.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/multimodal.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrators.py, core/paths.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_skills.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skill_creator.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py
+  - UI (23): ui/__init__.py, ui/app.py, ui/components/__init__.py, ui/components/flash.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/access.py, ui/pages/assistants.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/marketplace.py, ui/pages/orchestrator.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrators.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/updates.py, ui/pages/updates_marketplace.py, ui/pages/welcome.py
+  - Core (64): core/__init__.py, core/api_errors.py, core/api_layer.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/config.py, core/connector_presets.py, core/connectors.py, core/context_guard.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/dependency_check.py, core/document_text.py, core/entity_sync.py, core/env_loader.py, core/feed_autoscroll.py, core/files.py, core/folder_dialog.py, core/fs.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/mcp_client.py, core/mcp_tools.py, core/multimodal.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrator_tools.py, core/orchestrators.py, core/paths.py, core/personal_memory.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py, core/updater.py, core/updater_apply.py, core/url_fetch.py, core/version.py
+  - Marketplace (19): core/marketplace/__init__.py, core/marketplace/agent_installer.py, core/marketplace/bootstrap.py, core/marketplace/bundles.py, core/marketplace/catalog.py, core/marketplace/config.py, core/marketplace/conflicts.py, core/marketplace/installer.py, core/marketplace/mcp_installer.py, core/marketplace/migration.py, core/marketplace/publish.py, core/marketplace/rag_installer.py, core/marketplace/registry.py, core/marketplace/rollback.py, core/marketplace/semver.py, core/marketplace/source.py, core/marketplace/store.py, core/marketplace/updates.py, core/marketplace/verify.py
+  - Orchestration (7): core/orchestration/__init__.py, core/orchestration/contracts.py, core/orchestration/invoke.py, core/orchestration/resume.py, core/orchestration/runs.py, core/orchestration/service.py, core/orchestration/tools.py
   - Storage (5): storage/__init__.py, storage/db.py, storage/models.py, storage/repository.py, storage/repository_devagent.py
-  - DevAgent (14): dev_agent/__init__.py, dev_agent/agent_loop.py, dev_agent/assistant_detector.py, dev_agent/assistant_model_resolver.py, dev_agent/backup_manager.py, dev_agent/config.py, dev_agent/llm_utils.py, dev_agent/safe_writer.py, dev_agent/skill_detector.py, dev_agent/skill_model_resolver.py, dev_agent/task_state.py, dev_agent/tool_executor.py, dev_agent/universal_agent.py, dev_agent/workspace_tools.py
+  - DevAgent (13): dev_agent/__init__.py, dev_agent/agent_loop.py, dev_agent/assistant_detector.py, dev_agent/assistant_model_resolver.py, dev_agent/backup_manager.py, dev_agent/config.py, dev_agent/llm_utils.py, dev_agent/safe_writer.py, dev_agent/task_state.py, dev_agent/tool_executor.py, dev_agent/universal_agent.py, dev_agent/workspace_binding.py, dev_agent/workspace_tools.py
 
 ## Ограничения
 

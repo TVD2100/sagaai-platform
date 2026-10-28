@@ -13,6 +13,7 @@ Verifies that:
   4. When defaults/orchestrators/ is absent, no default orchestrators are
      imported (the legacy presets fallback has been removed).
 """
+import json
 import os
 import sys
 import shutil
@@ -24,6 +25,29 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULTS = ROOT / "defaults"
+
+
+def _write_bundled_orchestrator(slug: str, *, config=None, tools=None) -> Path:
+    """Create a bundled default orchestrator folder for one test."""
+    folder = DEFAULTS / "orchestrators" / slug
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "orchestrator.json").write_text(json.dumps({
+        "format": "sagaai_orchestrator/v1",
+        "slug": slug,
+        "name": slug.replace("_", " ").title(),
+        "description": "",
+        "prompt_text": "You are a bundled test agent.",
+        "config": config or {"strong_service": "DeepSeek", "strong_model": "deepseek-flash"},
+        "tools": [] if tools is None else tools,
+        "max_steps": 50,
+        "auto_apply": True,
+    }), encoding="utf-8")
+    return folder
+
+
+def _remove_bundled_orchestrator(slug: str) -> None:
+    """Drop a folder created by ``_write_bundled_orchestrator``."""
+    shutil.rmtree(str(DEFAULTS / "orchestrators" / slug), ignore_errors=True)
 
 
 @pytest.fixture
@@ -84,7 +108,6 @@ class TestDefaultsLoaders:
         from core import defaults as d
         slugs = d.list_default_orchestrator_slugs()
         assert "dev_agent" in slugs
-        assert "ya_agent" in slugs
 
     def test_load_dev_agent_returns_none(self):
         """DevAgent is NOT a default orchestrator: its prompt lives in
@@ -93,8 +116,15 @@ class TestDefaultsLoaders:
         data = d.load_default_orchestrator("dev_agent")
         assert data is None
 
-    def test_load_ya_agent_legacy_format(self):
+    def test_a_catalog_folder_is_still_readable(self):
+        """The bundled folder of a catalog agent stays in the distribution.
+
+        It is the rollback anchor for an installation that predates the
+        catalog, so the loader must keep reading it even though a fresh
+        installation no longer seeds it.
+        """
         from core import defaults as d
+        assert "ya_agent" in d.list_default_orchestrator_slugs()
         data = d.load_default_orchestrator("ya_agent")
         assert data is not None
         assert data["name"] == "YaAgent"
@@ -131,30 +161,64 @@ class TestDefaultsLoaders:
 
 
 class TestBootstrapDefaults:
-    def test_dev_agent_and_defaults_created(self, isolated_data_dir):
+    def test_dev_agent_and_bundled_defaults_created(self, isolated_data_dir):
+        """A bundled default orchestrator is imported; a catalog one is not.
+
+        YaAgent's folder stays in the distribution as a rollback anchor, but a
+        fresh installation receives it from the catalog - seeding it here
+        would create a copy the registry cannot see.
+        """
         from core.default_imports import ensure_all_defaults
-        result = ensure_all_defaults()
+
+        _write_bundled_orchestrator("test_bundled")
+        try:
+            result = ensure_all_defaults()
+        finally:
+            _remove_bundled_orchestrator("test_bundled")
         orch = result["orchestrators"]
         assert orch.get("dev_agent") == "created"
-        assert orch.get("ya_agent") == "created"
+        assert orch.get("test_bundled") == "created"
+        assert "ya_agent" not in orch
 
-    def test_default_orchestrator_config(self, isolated_data_dir):
-        from core.orchestrators import get_orchestrator
+    def test_catalog_agent_is_not_seeded_from_the_bundle(self, isolated_data_dir):
         from core.default_imports import ensure_all_defaults
-        ensure_all_defaults()
-        ya = get_orchestrator("ya_agent")
-        assert ya is not None
-        assert ya["name"] == "YaAgent"
-        assert ya["config"]["strong_service"] == "YandexAI"
+        from core.orchestrators import get_orchestrator
 
-    def test_default_orchestrator_gets_full_toolset(self, isolated_data_dir):
-        from core.orchestrators import get_orchestrator
-        from core.default_imports import ensure_all_defaults
         ensure_all_defaults()
-        ya = get_orchestrator("ya_agent")
-        tools = ya.get("tools") or []
+
+        assert DEFAULTS.joinpath("orchestrators", "ya_agent").is_dir()
+        assert get_orchestrator("ya_agent") is None
+
+    def test_bundled_default_gets_full_toolset(self, isolated_data_dir):
+        from core.default_imports import ensure_all_defaults
+        from core.orchestrators import get_orchestrator
+
+        _write_bundled_orchestrator("test_bundled", tools=[])
+        try:
+            ensure_all_defaults()
+            orch = get_orchestrator("test_bundled")
+        finally:
+            _remove_bundled_orchestrator("test_bundled")
+        assert orch is not None
+        tools = orch.get("tools") or []
         for name in ("read_file", "propose_file", "run_test", "web_search", "list_skills_library"):
             assert name in tools
+
+    def test_bundled_default_keeps_its_config(self, isolated_data_dir):
+        from core.default_imports import ensure_all_defaults
+        from core.orchestrators import get_orchestrator
+
+        _write_bundled_orchestrator(
+            "test_bundled",
+            config={"strong_service": "YandexAI", "strong_model": "yandexgpt"},
+        )
+        try:
+            ensure_all_defaults()
+            orch = get_orchestrator("test_bundled")
+        finally:
+            _remove_bundled_orchestrator("test_bundled")
+        assert orch is not None
+        assert orch["config"]["strong_service"] == "YandexAI"
 
     def test_assistant_web_search_settings_persist_in_manifest(self, isolated_data_dir):
         """Per-assistant web-search overrides are stored in the runtime folder
@@ -231,27 +295,30 @@ class TestBootstrapDefaults:
 
     def test_idempotent(self, isolated_data_dir):
         from core.default_imports import ensure_all_defaults
-        first = ensure_all_defaults()
-        second = ensure_all_defaults()
-        assert first["orchestrators"]["ya_agent"] == "created"
-        assert second["orchestrators"]["ya_agent"] == "exists"
+
+        _write_bundled_orchestrator("test_bundled")
+        try:
+            first = ensure_all_defaults()
+            second = ensure_all_defaults()
+        finally:
+            _remove_bundled_orchestrator("test_bundled")
+        assert first["orchestrators"]["test_bundled"] == "created"
+        assert second["orchestrators"]["test_bundled"] == "exists"
 
     def test_removing_default_folder_excludes_it(self, isolated_data_dir):
         """Deleting a default orchestrator folder removes it from the import."""
-        ya_dir = DEFAULTS / "orchestrators" / "ya_agent"
-        backup_dir = DEFAULTS / "orchestrators" / ".ya_agent_bak"
+        slug_dir = DEFAULTS / "orchestrators" / "test_bundled"
+        _write_bundled_orchestrator("test_bundled")
         try:
-            if ya_dir.exists():
-                shutil.move(str(ya_dir), str(backup_dir))
+            shutil.rmtree(str(slug_dir))
             from core.default_imports import ensure_all_defaults
             result = ensure_all_defaults()
-            # The folder is gone, so YaAgent must not be imported.
-            assert result["orchestrators"].get("ya_agent") is None
+            # The folder is gone, so the entity must not be imported.
+            assert result["orchestrators"].get("test_bundled") is None
             from core.orchestrators import get_orchestrator
-            assert get_orchestrator("ya_agent") is None
+            assert get_orchestrator("test_bundled") is None
         finally:
-            if backup_dir.exists() and not ya_dir.exists():
-                shutil.move(str(backup_dir), str(ya_dir))
+            _remove_bundled_orchestrator("test_bundled")
 
 
 class TestBuiltinPromptPersistence:

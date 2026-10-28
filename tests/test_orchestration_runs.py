@@ -282,5 +282,86 @@ def test_unsafe_run_id_cannot_escape_the_store(store):
     root = Path(store).resolve()
     for path in Path(store).rglob("*.json"):
         assert root in path.resolve().parents
+
+
+# ─── the liveness verdict (a stored ``running`` must be provable) ──────────
+
+
+def test_a_foreign_boot_record_is_not_live_with_a_fresh_heartbeat(store):
+    """A heartbeat cannot prove liveness for another process instance.
+
+    The record may be seconds old and still describe work that no longer
+    exists: the daemon thread died with its process, and only ``boot_id``
+    tells the two cases apart.
+    """
+    record = _record(heartbeat_at=time.time(), boot_id="deadbeef" * 4)
+
+    assert R.is_live(record) is False
+    demoted = R.demote_if_dead(record)
+    assert demoted["status"] == STATUS_FAILED
+    assert demoted["error_code"] == ERR_STALE_RUN
+
+
+def test_a_record_of_this_process_with_a_fresh_beat_stays_live(store):
+    """The happy path must survive the new verdict unchanged."""
+    record = _record()
+
+    assert R.is_live(record) is True
+    assert R.demote_if_dead(record)["status"] == STATUS_RUNNING
+
+
+def test_silence_stops_counting_as_live_long_before_heal_fires(store):
+    """The display window is much shorter than the repair threshold.
+
+    Healing rewrites the file and therefore waits for the whole run budget. A
+    status reader cannot wait that long: reporting a silent record as running
+    work is exactly the false claim this verdict exists to prevent.
+    """
+    age = R.liveness_window() + 1
+    record = _record(heartbeat_at=time.time() - age, timeout_seconds=3600)
+
+    assert R.is_live(record) is False
+    assert R.demote_if_dead(record)["status"] == STATUS_FAILED
+    # heal() still tolerates it: the file itself is not rewritten here.
+    assert R.heal(record)[1] is False
+
+
+def test_a_live_in_memory_record_needs_no_heartbeat_proof():
+    """Presence in the registry is stronger than any timestamp on disk."""
+    record = {"run_id": "r", "status": STATUS_RUNNING, "heartbeat_at": 0}
+
+    assert R.is_live(record, live_in_memory=True) is True
+    assert R.demote_if_dead(record, live_in_memory=True)["status"] == STATUS_RUNNING
+
+
+def test_terminal_records_are_never_demoted():
+    """A finished run keeps its outcome whatever its heartbeat says."""
+    record = {"run_id": "r", "status": STATUS_DONE, "heartbeat_at": 0,
+              "boot_id": "deadbeef" * 4}
+
+    assert R.demote_if_dead(record)["status"] == STATUS_DONE
+
+
+# ─── the staleness window of heal() ────────────────────────────────────────
+
+
+def test_the_stale_window_is_one_run_budget_plus_grace(store):
+    """An expired budget must not keep a dead run alive for a second budget."""
+    timeout = 600
+    age = timeout + R.STALE_GRACE_SECONDS + 1
+    R.save(_record(heartbeat_at=time.time() - age, timeout_seconds=timeout), store)
+
+    loaded = R.load("run-1", store)
+    assert loaded["status"] == STATUS_FAILED
+    assert loaded["error_code"] == ERR_STALE_RUN
+
+
+def test_a_heartbeat_inside_the_window_is_not_healed(store):
+    """A slow but healthy child keeps running: healing must not fire early."""
+    timeout = 600
+    age = timeout + R.STALE_GRACE_SECONDS - 60
+    R.save(_record(heartbeat_at=time.time() - age, timeout_seconds=timeout), store)
+
+    assert R.load("run-1", store)["status"] == STATUS_RUNNING
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

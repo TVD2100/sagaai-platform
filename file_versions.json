@@ -1,15 +1,15 @@
 {
   "schema": 1,
-  "app_version": "2.17.1",
+  "app_version": "2.22.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Ожидание фоновой работы и уборка журналов. Инструмент sleep даёт агенту блокирующее ожидание фонового ребёнка или таймаута вместо опроса subagent_status, с ответом woken_by (event/timeout/cancelled) - таймаут ничего не отменяет, ожидание и работу можно разделить. Бюджеты приведены в соответствие: время одного дочернего запуска выросло до часа, потолок sleep выводится из него, ожидание слота пула ограничено отдельно, heartbeat долгого запуска освежается по ходу работы; дефолты делегирования - 5 активных субагентов, 300 шагов на запуск, 64 запуска на дерево. Журналы задач убираются автоматически: удаляются только пустые журналы старше порога и журналы осиротевших дочерних запусков, журнал с активной задачей не трогается. В панели чата убран переключатель экономичного режима - режим всегда включён, а нативный выбор папки открывается пунктом селектора вместо отдельной кнопки «Обзор…». Версия платформы 2.17.1.",
-    "en": "Waiting for background work and journal cleanup. The sleep tool gives an agent a blocking wait for a background child or a timeout instead of polling subagent_status, answering with woken_by (event/timeout/cancelled) - a timeout cancels nothing, so waiting and working stay separate. The budgets are brought in line: one child run may take an hour, the sleep ceiling is derived from it, the pool queue wait has its own bound, and a long run keeps its heartbeat fresh; the delegation defaults are 5 active subagents, 300 steps per run and 64 runs per tree. Task journals clean themselves up: only empty journals past the age threshold and journals of orphaned child runs are removed, while a journal with an active task is never touched. The chat toolbar drops the economy switch - the mode is always on - and the native folder choice opens as a selector entry instead of a separate Browse button. Platform version 2.17.1."
+    "ru": "Каталог и встроенный навык. Встроенный навык Rag Base Creator снова ставится по умолчанию: он сеется в папку со своим именем, поэтому на диске одна копия, каталог усыновляет её как установленную и не предлагает вторую, а установка того же навыка из каталога останавливает сидинг. В каталог добавлены два навыка - lecture-slides и infographic-builder; оба обезличены и публикуются отдельными пакетами с подписанным индексом. Версия платформы 2.22.0.",
+    "en": "Catalog and the bundled skill. The bundled Rag Base Creator is installed by default again: it is seeded into the folder named after its preset, so one copy exists on disk, the catalog adopts it as installed instead of offering a second one, and installing the same skill from the catalog stops the seed. Two skills joined the catalog - lecture-slides and infographic-builder; both are anonymised and published as separate packages with a signed index. Platform version 2.22.0."
   },
-  "updated": "2026-10-27T16:19:35Z",
+  "updated": "2026-10-28T09:10:00+00:00",
   "units": {
     "core": {
-      "version": "1.52.0",
+      "version": "1.58.0",
       "note": {
         "ru": "Исполняемый код платформы. 1.2.0: SQLite-хаденнинг, кэш строки токенов, пагинация, ретраи. 1.4.0: GitHub REST-интеграция. 1.4.1: фикс производительности RAG. 1.5.0: таймауты run_test 3 мин и run_code 5 мин; расширенный журнал задач task_state - секции Requests/Analysis, автоматические папки задач task_NN, маркеры прогресса. 1.6.0: защита от переполнения контекста LLM - кап результатов инструментов 200k, компактные сводки tool_result в БД, бюджет эконом-истории, pre-flight context guard в api_layer. 1.6.1: каскадный ремонт tool-call JSON и hard-stop только по идентичным повторам битых вызовов (agent_loop). 1.7.0: защита от зацикливания - счётчик отказов по инструменту с подсказкой смены инструмента после 3 попыток, компактные ошибки для флуда одинаковых вызовов (agent_loop). 1.8.0: переход на api.giga.chat, каталог моделей выводится из base_url сервиса (derived models URL), поддержка моделей GigaChat-3. 1.9.0: секция сотрудников в сайдбаре - 5 видимых + блок «Все (N)», поиск только при >5, сортировка по последнему диалогу (core/orchestrator_nav.py). 1.10.0: промпт DevAgent v3.12 (режим pre-approved autonomous mode), версия платформы 0.4.4-preview.1. 1.11.0: стабильный релиз платформы 1.0.0 - снят preview-статус, README переведён в статус stable. 1.12.0: батч-протокол вызовов инструментов - несколько независимых вызовов в одном сообщении и предупреждение partial_batch для нераспарсенных блоков батча (agent_loop); промпты DevAgent v3.13 и YaAgent v2.8; версия платформы 1.1.0. 1.12.1: GigaChat-совместимость оркестратора - нормализация payload (один ведущий system, склейка подряд одинаковых ролей) и кламп max_tokens (core/api_layer.py); ошибки первого шага видны в чате (ui/pages/orchestrator.py); новые тесты unit + scenarios. 1.13.0: добор контекста RAG - rag_get_chunks в DevAgent и function-цикле ассистентов, chunk_id в результатах rag_search, get_chunks/fetch_chunks в core.rag_search/core.rag_index; промпт DevAgent v3.14; версия платформы 1.2.0. 1.13.1: панели выгрузки/копирования (MD/TXT) у каждого текстового ответа-прозы в ленте чата оркестратора; регенерация PROJECT_MAP.md (977 файлов). 1.14.0: SSH-коннектор - инструменты ssh_* для сотрудников, страница «Коннекторы», инструкция ssh_connector; per-field секреты SSH в core/connectors.py. 1.15.0: SSH-коннектор - инструмент ssh_upload_file (потоковая публикация локальных файлов на сервер, sha256-верификация, до 50 МиБ); подсказка create_dirs в ошибке ssh_write_file. 1.15.1: сценарный тест каталога моделей YandexAI (tests/scenarios), пин промпта YaAgent v2.9, регенерация PROJECT_MAP.md; версия платформы 1.3.2. 1.16.0: единая модель оркестраторов - слабая модель удалена из настроек, добавлены опциональные vision/image настройки и каталоги у сервисов, рантайм на основной модели, tolerant legacy weak_*; документация и манифест обновлены; версия платформы 1.4.0. 1.17.0: мультимодальные инструменты analyze_image/generate_image (вложения диалога и файлы проекта; генерация сохраняется файлом), транспорты send_vision_request/send_image_generation_request в api_layer, глобальная инструкция multimodal_mode; версия платформы 1.5.0. 1.18.0: синхронный Images API для generate_image (единственная модель aliceai-image-art-3.0, удаление async-ветки YandexART), показ сгенерированного изображения в чате с кнопкой скачивания; версия платформы 1.6.0. 1.19.0: распознавание изображений на DeepSeek - vision_base_url и каталог vision_models (deepseek-flash) в профиле сервиса, ветка deepseek_responses с detail=original в send_vision_request, deepseek-v4.1-flash в vision-каталоге YandexAI; версия платформы 1.7.0. 1.19.1: сгенерированное изображение generate_image показывается сразу в ленте чата - блок с картинкой и кнопкой скачивания вынесен из свёрнутого блока результата (ui/pages/orchestrator.py); сценарные тесты ленты; версия платформы 1.7.1. 1.20.0: поиск по диалогам - инструменты search_in_threads/list_threads/read_thread (текущий диалог по умолчанию, scope/период) с контролем доступа к тредам; промпт DevAgent v3.15; версия платформы 1.8.0. 1.21.0: изоляция рабочей папки - пустое состояние и guard файловых инструментов, мета «последняя папка» треда с миграцией легаси-меты, недавние папки по оркестраторам, журналы/вложения при пустой папке; промпты DevAgent v3.16 / YaAgent v2.10; версия платформы 1.9.0. 1.21.1: авторетрай GET GitHub-коннектора при сетевых сбоях; компактный дайджест журнала задач; промпт DevAgent v3.17; версия платформы 1.9.1. 1.21.2: устойчивые ошибки Responses API (failed-статус -> ProviderResponseError) и фильтрация пустых сообщений input. 1.22.1: отмена эконом-профиля DeepSeek - объявленный лимит вывода возвращён к 384000, тест каталогов синхронизирован. 1.23.0: генерируемая карта проекта - AST-символы (методы/async/вложенные, реальные строки) с regex-фолбэком и лимитом 200 символов на файл, sha256-отпечаток содержимого в шапке, фильтр состава include_paths/scope_note по публикуемому набору; канонический генератор карты (publish set + main); промпт DevAgent v3.18 (правило «карта только регенерацией»); версия платформы 1.11.0. 1.24.0: AGENT.md - управляемый документ ключевой информации для агентов: AGENT_FILE и легаси-осведомлённые PROJECT_DOC_NAMES в конфиге, вид \"agent\" (алиас \"spec\") у write_doc/read_doc, скаффолд default_agent_markdown с тремя обязательными конвенциями, assess_workspace по AGENT.md|ARCHITECTURE.md; тесты обновлены, добавлен сценарный тест AGENT.md; версия платформы 1.12.0. В релизе 1.12.0 inline-лимит результатов инструментов поднят до 35 000 символов (_TOOL_RESULT_INLINE_LIMIT в agent_loop.py; сценарий переполнения контекста берёт константу из модуля). 1.25.0: RAG-режимы поиска bm25/vector/hybrid (собственный BM25-индекс, hybrid RRF). 1.26.0: create_base принимает явный slug (нормализация к [a-z0-9_.-], отказ без латиницы); навык Rag Base Creator пробрасывает --slug и ведёт --replace по нему. 1.27.0: качество лексического поиска RAG - консервативный русский стеммер, русский/английский стоп-список, вывод служебной шапки чанка из индексируемого текста (заголовок с бустом), координация терминов и ускорение отбора top-k; схема BM25 v2 с ленивым пересбором старых индексов; скрипт оценки качества scripts/rag_eval.py (Recall@k/MRR/nDCG@k). 1.30.0: единый бюджет контекста (B4) - общая формула input_ceiling=окно-лимит вывода и input_budget=0.75xceiling-промпт для эконом-режима и pre-flight guard; мягкий трим 0.75 окна, жёсткий предел 0.9; эконом-срез при переполнении по токенам сбрасывает фронт до tail (единый триггер с переполнением окна). 1.32.0: публикация GitHub ref/тегов - create_ref/create_tag в коннекторе github_rest (лёгкий и аннотированный тег через POST /git/tags, force, резолв сокращённого SHA через GET /repos/{owner}/{repo}/commits) и инструменты ghr_create_ref/ghr_create_tag для оркестраторов; версия пакета core. 1.32.1: исправлен резолв сокращённого SHA (эндпоинт GET /repos/{owner}/{repo}/commits вместо /git/commits); тест и сценарий обновлены. 1.33.0: блок «Выбор папки» в чате - core/folder_dialog.py (нативный выбор папки: tkinter в дочернем процессе с откатом на osascript на macOS, таймаут, деградация без GUI), селектор в ui/pages/orchestrator.py («Авто» + до 10 недавних папок, применение выбранной папки при отправке), лимит недавних папок 10 в core/recent_workspaces.py; промпт DevAgent v3.21 1.33.1: возвращена авто-прокрутка ленты чата - core/feed_autoscroll.py (слежение за выводом, пауза при ручной прокрутке вверх через sessionStorage, возобновление у низа, резерв высоты нижней панели), интеграция в ui/pages/orchestrator.py (флаг scroll_bottom форсирует прокрут на отправке) 1.33.2: core/feed_autoscroll.py не задаёт padding-bottom (Streamlit 1.66 сам резервирует место под st.bottom) - устранён двойной отступ и пустота между последним сообщением и блоком выбора папки.  1.35.0: коннекторы - создание подключений через DevAgent (черновики pending без секретов, файл памяти подключения), 11 инструментов коннекторов в диспетчере, маркер pending и quick-note памяти в промпт-блоке. 1.36.0: MCP-поддержка - собственный JSON-RPC 2.0 stdio клиент (core/mcp_client.py), сервис mcp в реестре коннекторов (белый список команд, env_json), инструменты mcp_list_tools/mcp_call_tool и динамические mcp__-инструменты с санированием недоверенных данных. 1.37.0: пресеты MCP-подключений (core/connector_presets.py + defaults/connectors/mcp/, без секретов) и HTTP-транспорт MCP (McpHttpClient: POST + SSE, Mcp-Session-Id, auth_header из секретов), поля секретов secret_env_fields/env_pairs и расширенный режим на странице «Коннекторы»; версия платформы 2.4.0. 1.38.0: вкладка MCP на странице «Коннекторы» - плитки пресетов с иконками (клик - черновик) и плитка «+ Свой MCP-сервер», удаление демо-пресета everything_demo; обязательное поле icon у пресетов; версия платформы 2.5.0. 1.39.0: страница «Коннекторы» - три вкладки со стабильным key и пином выбора, вкладка «Подключения» с карточками всех подключений, плитки общих сервисов с мгновенным раскрытием формы создания, MCP-пресет создаёт подключение и сразу открывает форму учётных данных, переходы вынесены из try/except; подсказки 401/403 для MCP HTTP (fine-grained github_pat_*); версия платформы 2.6.0. 1.40.0: страница «Коннекторы» - модель «список ↔ форма» (connectors_view = list | create | edit): форма заменяет список, плитки только открывают её, «Создать» сохраняет сразу активное подключение с введёнными секретами, «Отмена»/«Назад» ничего не пишут, ошибка оставляет форму открытой; полноэкранное редактирование; устойчивые вкладки st.tabs(on_change='rerun', key, default) - без on_change виджет не хранит состояние; instantiate_preset получил account/secrets/pending; версия платформы 2.7.0. 1.41.0: скрытые MCP-пресеты - флаг hidden в формате пресета (list_presets его не отдаёт, resolve_preset находит по id), пресет github_mcp помечен hidden и снят с плиток, форма редактирования такого подключения по-прежнему резолвит пресет; версия платформы 2.7.1. 1.43.0: дефолты DevAgent - DeepSeek deepseek-flash с xhigh для основной модели и распознавания изображений, поиск с температурой 0.4, тремя вызовами инструментов и high; вкладка «Модели» скрывает селекторы модели загрузки при включённом Selenium и сохраняет прежнюю пару; подтверждения сохранения рисуются после тела страницы (ui/app.py); версия платформы 2.9.1. 1.44.0: multi-agent orchestration (core/orchestration) - run contract, OrchestrationService with the run tree, slot pool and six delegation limits, cascade cancellation, spawn_agent/invoke_assistant wrappers, fan-out in the agent loop, child threads and journals, the Delegation settings tab; platform version 2.10.0. 1.48.0: prompt-injection защита наследуется дочерними запусками (поле enable_injection_protection в SpawnRequest, заморозка в RunRecord и durable-записи, разрешение \"явный запрос -> режим resumed-запуска -> защита\", режим передаётся в AgentLoopState ребёнка через раннер, fan-out в agent_loop берёт живое состояние родителя, одноразовый bypass просмотра не наследуется); промпт DevAgent v3.25; версия платформы 2.13.0. 1.49.0: персональная память (core/personal_memory), резолвер рабочей папки MEMORY_DIR, инструменты памяти, инъекция карточки владельца и блока размера памяти, вкладка Memory. 1.51.0: инструмент sleep - блокирующее ожидание завершения фонового ребёнка или таймаута (опрос терминальных запусков дерева и read-only mailbox, потолок MAX_SLEEP_SECONDS = 300 с усечением, корень дерева из записи родителя); версия платформы 2.16.0. 1.52.0: панель чата без переключателя эконом-режима (режим всегда включён), нативный выбор папки - пункт селектора вместо кнопки «Обзор…».",
         "en": "Platform executable code. 1.2.0: SQLite hardening, token cache, pagination, retries. 1.4.0: GitHub REST integration. 1.4.1: RAG performance fix. 1.5.0: 3-min run_test and 5-min run_code timeouts; extended task_state journal with Requests/Analysis sections, automatic task_NN folders and progress markers. 1.6.0: LLM context-overflow protection - 200k tool-result cap, compact tool_result summaries in the DB, economy-history budget, pre-flight context guard in api_layer. 1.6.1: cascading tool-call JSON repair and hard-stop only on identical broken-call repeats (agent_loop). 1.7.0: loop-stuck protection - per-tool failure counter with a switch-tool hint after 3 tries, compact errors for identical call floods (agent_loop). 1.8.0: switch to api.giga.chat, model catalog derived from the service base_url, GigaChat-3 model support. 1.9.0: employees sidebar section - 5 visible + an All (N) expander, search only when >5, sorting by the latest dialogue (core/orchestrator_nav.py). 1.10.0: DevAgent prompt v3.12 (pre-approved autonomous mode), platform version 0.4.4-preview.1. 1.11.0: platform stable release 1.0.0 - preview status removed, README switched to the stable status. 1.12.0: batched tool calls - several independent calls in one message and the partial_batch warning for unparsable batch blocks (agent_loop); DevAgent v3.13 and YaAgent v2.8 prompts; platform version 1.1.0. 1.12.1: GigaChat orchestrator compatibility - payload normalization (single leading system message, consecutive same-role merging) and max_tokens clamping (core/api_layer.py); first-step errors visible in the chat (ui/pages/orchestrator.py); new tests unit + scenarios. 1.13.0: RAG context restore - rag_get_chunks in DevAgent and the assistant function loop, chunk ids in rag_search results, get_chunks/fetch_chunks in core.rag_search/core.rag_index; DevAgent prompt v3.14; platform version 1.2.0. 1.13.1: per-message MD/TXT download/copy controls on every plain-prose answer in the orchestrator chat feed; PROJECT_MAP.md regenerated (977 files). 1.14.0: SSH connector - ssh_* tools for orchestrators, Connectors page, ssh_connector instruction; per-field SSH secrets in core/connectors.py. 1.15.0: SSH connector - ssh_upload_file tool (streamed publishing of local files to a server, sha256 verification, up to 50 MB); create_dirs hint in the ssh_write_file error. 1.15.1: YandexAI model catalog scenario test (tests/scenarios), YaAgent v2.9 prompt pin, PROJECT_MAP.md regenerated; platform version 1.3.2. 1.16.0: single-model orchestrators - the weak model removed from settings, optional vision/image settings and service catalogs added, runtime on the main model, tolerant legacy weak_*; docs and manifest updated; platform version 1.4.0. 1.17.0: multimodal tools analyze_image/generate_image (dialog uploads and project files; generation saved to a file), send_vision_request/send_image_generation_request transports in api_layer, the global multimodal_mode instruction; platform version 1.5.0. 1.18.0: synchronous Images API for generate_image (the single model aliceai-image-art-3.0, the YandexART async branch removed), the generated image shown in the chat with a download button; platform version 1.6.0. 1.19.0: DeepSeek image analysis - vision_base_url and the vision_models catalog (deepseek-flash) in the service profile, the deepseek_responses branch with detail=original in send_vision_request, deepseek-v4.1-flash in the YandexAI vision catalog; platform version 1.7.0. 1.19.1: the generate_image picture is shown immediately in the chat feed - the image block with the download button moved out of the collapsed tool-result block (ui/pages/orchestrator.py); feed scenario tests; platform version 1.7.1. 1.20.0: dialog thread search - the search_in_threads/list_threads/read_thread tools (current dialog by default, scope/period) with thread access control; DevAgent prompt v3.15; platform version 1.8.0. 1.21.0: workspace isolation - the no-folder-selected empty state and the file-tool guard, thread last-folder meta with the legacy-meta migration, per-orchestrator recent folders, journals/uploads in the empty state; DevAgent v3.16 / YaAgent v2.10 prompts; platform version 1.9.0. 1.21.1: GitHub REST GET retries on network errors; compact task-state digest; DevAgent prompt v3.17; platform version 1.9.1. 1.21.2: resilient Responses API failures (failed status -> ProviderResponseError) and blank input filtering. 1.22.1: reverted the DeepSeek economy profile - the declared output limit is back to 384000 and the catalog test is aligned. 1.23.0: generated project map - AST symbols (methods/async/nested, real line ranges) with a regex fallback and a 200-symbol cap per file, a content sha256 fingerprint in the header, include_paths/scope_note scope filtering by the published set; the canonical map generator (publish set + main); DevAgent v3.18 prompt (map-is-generated-only rule); platform version 1.11.0. 1.24.0: AGENT.md managed key-information document: AGENT_FILE and legacy-aware PROJECT_DOC_NAMES in config, the \"agent\" doc kind (legacy \"spec\" alias) in write_doc/read_doc, the default_agent_markdown scaffold with three mandatory conventions, assess_workspace via AGENT.md|ARCHITECTURE.md; tests updated, AGENT.md scenario test added; platform version 1.12.0. In release 1.12.0 the tool-result inline limit was raised to 35,000 characters (_TOOL_RESULT_INLINE_LIMIT in agent_loop.py; the context-overflow scenario reads the constant from the module). 1.25.0: RAG search modes bm25/vector/hybrid (own BM25 index, hybrid RRF). 1.26.0: create_base accepts an explicit slug (normalised to [a-z0-9_.-], refused without Latin); the Rag Base Creator skill forwards --slug and scopes --replace to it. 1.27.0: RAG lexical search quality - conservative Russian stemmer, ru/en stop-words, chunk-header metadata removed from the indexed text (title boosted), term coordination and faster top-k; BM25 schema v2 with lazy rebuild of older indexes; the quality harness scripts/rag_eval.py (Recall@k/MRR/nDCG@k). 1.30.0: unified context budget (B4) - the shared formula input_ceiling=window-output_limit and input_budget=0.75xceiling-prompt for economy mode and the pre-flight guard; soft trim at 0.75 window, hard cap 0.9; the economy trim on token overflow resets the front to tail (one trigger with a window overflow). 1.32.0: GitHub ref/tag publishing - create_ref/create_tag in the github_rest connector (lightweight and annotated tags via POST /git/tags, force, abbreviated-SHA resolution via GET /repos/{owner}/{repo}/commits) and the ghr_create_ref/ghr_create_tag tools for orchestrators; core package version. 1.32.1: fixed abbreviated-SHA resolution (the /repos/{owner}/{repo}/commits endpoint instead of /git/commits); its test and scenario updated. 1.33.0: the chat folder picker - core/folder_dialog.py (native OS folder dialog: tkinter in a child process with an osascript fallback on macOS, timeout, graceful degradation without a GUI), the selector in ui/pages/orchestrator.py (\"Auto\" + up to 10 recent folders, the picked folder applied on send), the recent-folder limit of 10 in core/recent_workspaces.py; DevAgent prompt v3.21 1.33.1: chat feed auto-scroll restored - core/feed_autoscroll.py (follow the agent output, pause on a manual scroll-up via sessionStorage, resume at the bottom, reserve the bottom-bar height), wired into ui/pages/orchestrator.py (the scroll_bottom flag forces a scroll on send) 1.33.2: core/feed_autoscroll.py sets no padding-bottom (Streamlit 1.66 reserves room for st.bottom itself) - the doubled inset and the empty gap above the folder-picker bar are gone.  1.35.0: connectors - creation through DevAgent (pending drafts without secrets, per-connection memory file), 11 connector tools in the dispatcher, the pending marker and the memory quick note in the prompt block. 1.36.0: MCP support - a from-scratch JSON-RPC 2.0 stdio client (core/mcp_client.py), the mcp connector service (command whitelist, env_json secret), mcp_list_tools/mcp_call_tool and dynamic mcp__ tools with untrusted-data sanitization. 1.37.0: MCP connection presets (core/connector_presets.py + defaults/connectors/mcp/, secret-free) and the http MCP transport (McpHttpClient: POST + SSE, Mcp-Session-Id, auth_header resolved from secrets), secret_env_fields/env_pairs credential fields and the advanced mode on the Connectors page; platform version 2.4.0. 1.38.0: the MCP tab on the Connectors page - icon preset tiles (click-for-draft) and a '+ Custom MCP server' tile, the everything_demo preset removed; the required preset icon field; platform version 2.5.0. 1.39.0: the Connectors page - three tabs with a stable key and an explicit selection pin, a Connections tab with a card per saved connection, general-service tiles that open the create form at once, an MCP preset creating the connection and opening its credential form right away, rerun transitions moved out of try/except; 401/403 hints for MCP HTTP (fine-grained github_pat_*); platform version 2.6.0. 1.40.0: the Connectors page - list <-> form model (connectors_view = list | create | edit): the form replaces the list, tiles only open it, Create stores an already-active connection with the typed secrets, Cancel/back write nothing, a failed save keeps the form open; full-page editing; persistent tabs via st.tabs(on_change='rerun', key, default) since without on_change the widget keeps no state; instantiate_preset gained account/secrets/pending; platform version 2.7.0. 1.41.0: hidden MCP presets - an optional hidden flag in the preset format (list_presets drops it, resolve_preset still finds it by id), the github_mcp preset is marked hidden and leaves the tiles while its connections keep the preset edit form; platform version 2.7.1. 1.43.0: DevAgent defaults - DeepSeek deepseek-flash with xhigh for the main model and image analysis, web search at temperature 0.4 with three tool calls and high effort; the Models tab hides the page-fetch selectors while Selenium is on and keeps the stored pair; save confirmations are painted after the page body (ui/app.py); platform version 2.9.1. 1.44.0: multi-agent orchestration (core/orchestration) - run contract, OrchestrationService with the run tree, slot pool and six delegation limits, cascade cancellation, spawn_agent/invoke_assistant wrappers, fan-out in the agent loop, child threads and journals, the Delegation settings tab; platform version 2.10.0. 1.48.0: the prompt-injection protection is inherited by delegated runs (the enable_injection_protection field on SpawnRequest, frozen in the RunRecord and the durable record, resolved as explicit request -> mode of the resumed run -> protected, carried into the child AgentLoopState through the runner, the agent-loop fan-out takes the live parent state, the one-step viewing bypass is not inherited); DevAgent prompt v3.25; platform version 2.13.0. 1.49.0: personal memory layer (core/personal_memory), MEMORY_DIR working-folder resolver, memory tools, owner-card and size-block prompt injection, Memory settings tab. 1.51.0: the sleep tool - a blocking wait for a background child or a timeout (a poll of the tree's terminal runs and the read-only mailbox, the MAX_SLEEP_SECONDS = 300 ceiling with clamping, the tree root resolved from the parent record); platform version 2.16.0. 1.52.0: chat toolbar without the economy switch (always on), native folder choice as a selector entry instead of the Browse button."
@@ -20,8 +20,8 @@
           "sha256": "98a049939e085cc41be3ae04222615dacb059ad21b6f9514d8fae47ada0bff37"
         },
         "app.py": {
-          "version": "1.0.4",
-          "sha256": "942e332147a5da08372f22c9c89e96459a786da256052582d712611a485deab1"
+          "version": "1.1.0",
+          "sha256": "57067cfd52b824a67b3baa91b4f67b81042e6caf82c39d40999635affde4efce"
         },
         "assets/favicon.svg": {
           "version": "1.0.0",
@@ -76,16 +76,16 @@
           "sha256": "dc1759f0fd96ee055f0289e00b6f7014e994e3b4e6f36f531bd45ae81116c524"
         },
         "core/connectors.py": {
-          "version": "1.7.0",
-          "sha256": "3f93817fb5d9dbbfbb4a384902216003166ac0d27e039404a7bbb57c3c556dee",
+          "version": "1.7.1",
+          "sha256": "2e0f94bcc1e9cf5cbecf6512c7c7e0ca9aa9a9eb942aaa107a9a7a72467b9fb9",
           "note": {
             "ru": "core/connectors.py: у сервисов реестра появились иконки (github_rest, ssh, mcp) для плиток страницы.",
             "en": "core/connectors.py: service-registry icons (github_rest, ssh, mcp) for the page tiles."
           }
         },
         "core/context_guard.py": {
-          "version": "1.2.0",
-          "sha256": "3971ee649995d838c64e1410bb7c9a60a15b492f4fd42dcb9421bdcfe313b786"
+          "version": "1.2.1",
+          "sha256": "9523c9977e647aeed26e1ace13f1ddd8a41e981a54e2814d2f98209e97086d08"
         },
         "core/crypto.py": {
           "version": "1.0.1",
@@ -96,16 +96,20 @@
           "sha256": "e753b3e3d7b4659421cfd7ed911c053ef92db2254cb50433c1c834e5e3176af1"
         },
         "core/default_imports.py": {
-          "version": "1.1.1",
-          "sha256": "f919370d13579ecb4205fdbbc4df86830be7d3ac1cf1eae8a9653e6f3af01789"
+          "version": "1.3.0",
+          "sha256": "ecccbfbd7a46233a37c6bd90f8d9add0e179e0ad994277ca29dcc7cdc75bc689",
+          "note": {
+            "ru": "Встроенный навык Rag Base Creator сеется в папку со своим именем и потому усыновляется каталогом; сидинг пропускается, если каталог уже поставил навык (маркер source=marketplace/<id> или занятая папка).",
+            "en": "The bundled Rag Base Creator is seeded into the folder named after its preset, so the catalog adopts it; the seed is skipped when the catalog already installed the skill (a marketplace/<id> source marker or a taken folder)."
+          }
         },
         "core/defaults.py": {
           "version": "1.2.0",
           "sha256": "52f7a8595c456dd0c4f81e99c606cac3c7763ceb5f49befe26748ea78e9998c7"
         },
         "core/dependency_check.py": {
-          "version": "1.0.1",
-          "sha256": "729e762a683fbab99b178764fcf2396ae120c3f945f5fa22491ed7fcd49fe3d1"
+          "version": "1.0.2",
+          "sha256": "473991f0b8059cb47c67a71819af02bf2e27ec1ec1bcf37689a4d82f9cd5b265"
         },
         "core/entity_sync.py": {
           "version": "1.0.1",
@@ -116,8 +120,8 @@
           "sha256": "1f11fdeca269ab31af8a8c4703f9dd9f1be23f3f54e57b79e9c1518835df5edc"
         },
         "core/feed_autoscroll.py": {
-          "version": "1.0.1",
-          "sha256": "bcf4b3f468e70c6ea9544fc7100a4ba4f9ee43d47e5688bcf532e236520276d7"
+          "version": "1.0.2",
+          "sha256": "07eefe2e39cadaf60f4689e3652cd71ed3a66e2a12209394d633b5236b0f096d"
         },
         "core/files.py": {
           "version": "1.1.1",
@@ -132,12 +136,12 @@
           "sha256": "f1ba30d23129558ed9c0ca069bc9ecd0a43aae52ebfdebcb7af71801aee6f824"
         },
         "core/github_connector_rest.py": {
-          "version": "1.4.1",
-          "sha256": "0697c55ecd558ed255c8d5cbf4e01805b9a49fffba6bd3659945200ed6121fa1"
+          "version": "1.4.2",
+          "sha256": "9f458269d8fdd8181833350a1825dd436c4c66695cd29154f50edfd60c9ec2ed"
         },
         "core/github_tools_rest.py": {
-          "version": "1.3.0",
-          "sha256": "74fbfdefb8e7c5c521ec11c39c1b5b4800d23b9acf3f5c097c18b47c24947add"
+          "version": "1.3.1",
+          "sha256": "0860742a786662ee203905ac41ffbd6910b49d509c449047f137406efaf62362"
         },
         "core/i18n.py": {
           "version": "1.0.1",
@@ -168,8 +172,8 @@
           }
         },
         "core/orchestrators.py": {
-          "version": "1.15.3",
-          "sha256": "194e7c4c167d0b6758604b3465e2f915e5cff4203393e3fd4a8afa38abcf6f7a",
+          "version": "1.16.0",
+          "sha256": "26907e35015afb7884872db6114a4531ed8bbf6c7b09ece80c176fd72f5bc51e",
           "note": {
             "ru": "Права делегирования: get/set_allowed_agents (свой slug не хранится), get/set_allowed_assistants (сверка с живыми карточками) и get/set_delegation_limits (шесть лимитов с клампом на записи); блок промпта предлагает sleep вместо опроса subagent_status.",
             "en": "Delegation rights: get/set_allowed_agents (the own slug is never stored), get/set_allowed_assistants (validated against live cards) and get/set_delegation_limits (six limits clamped on write)."
@@ -188,8 +192,8 @@
           "sha256": "cc3497cae84f6a10d2924ff61f5b720c1ef28cfbf36217621b0b372121c22d9e"
         },
         "core/rag.py": {
-          "version": "1.3.1",
-          "sha256": "8ad00361df545ea7ea86b3d3776a8b4a9b3f17cdce5a9f26d2cf17c9e54793d9"
+          "version": "1.3.2",
+          "sha256": "2809667eb6d663f42dfc1ea0133ca93dff5e5176f2fe5b6baab2e0806915d4cf"
         },
         "core/rag_bm25.py": {
           "version": "1.2.1",
@@ -236,8 +240,8 @@
           "sha256": "c768ecc5d11e4fe4ccfc0d34e3e43d1353ee85a7aadadb8dbbcec0b6bc2e7484"
         },
         "core/skills_library.py": {
-          "version": "1.0.3",
-          "sha256": "86cf7cfe151e2e13b01141cb88805173bab16886d5c67bea1de5314c5abc5317"
+          "version": "1.1.0",
+          "sha256": "19b06d3d58e5962d9d0ebba11be16009769b76e4411270bee0ae665c0201a3f6"
         },
         "core/ssh_connector.py": {
           "version": "1.1.1",
@@ -264,19 +268,19 @@
           "sha256": "d86fc7a17fc4658703a260c69609e834b2bd0a130c834fe285e9dc41ed234f8f"
         },
         "core/updater.py": {
-          "version": "1.0.3",
-          "sha256": "234177671a548f1fb74d3449be671926f9a6e2cbd3d8f94f4329bb75c9b2716f"
+          "version": "1.0.4",
+          "sha256": "6c7ce3e87d27833dbd944a57e5ab89c40a15183b90e77d9bfe658e2cc4dd63a3"
         },
         "core/updater_apply.py": {
-          "version": "1.1.1",
-          "sha256": "fff605ff8fa7117dc22552f28343490df4ba11b154176b6862abdb2a97fa5f86"
+          "version": "1.1.2",
+          "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.51.0",
-          "sha256": "f8d019a913299d15c02347484cc67029228e6e490d277744b2e399b0bab681f3",
+          "version": "1.57.0",
+          "sha256": "3c27007d6c87f2f0e4b21d7661c6d67fa61e4b1e128eb7bb41f732fd82c4ba71",
           "note": {
-            "ru": "Платформа 2.17.1: эконом-режим всегда включён в чате, нативный выбор папки перенесён в селектор.",
-            "en": "Platform 2.17.1: economy mode is always on in the chat, the native folder dialog moved into the selector."
+            "ru": "Платформа 2.22.0: встроенный навык Rag Base Creator ставится по умолчанию и усыновляется каталогом.",
+            "en": "Platform 2.22.0: the bundled Rag Base Creator ships installed and is adopted by the catalog."
           }
         },
         "dev_agent/__init__.py": {
@@ -360,11 +364,11 @@
           "sha256": "d243711998803755df65bf05630e6ce2c22ec031241399bcf5788dfc32d0dddf"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.17.2",
-          "sha256": "f74785d624c5d7fbb3038c7c8e14001780afba5d5851c9adb3b6c9115c762e9f",
+          "version": "1.20.1",
+          "sha256": "969bada10790d26e4946983bfe4bdf43b901688962681a1f0bfc4bb93ddf6c5b",
           "note": {
-            "ru": "Генератор PROJECT_MAP.md: описания пакета core/orchestration, тестов этого пакета, core/document_text и инструмента read_document, обновлённых модулей делегирования; убрано дублирующее описание core/version.py.",
-            "en": "PROJECT_MAP.md generator: descriptions for the core/orchestration package, its tests, core/document_text and the read_document tool, the updated delegation modules; a duplicate core/version.py entry removed."
+            "ru": "Описания файлов маркетплейса: модули пакета, страницы витрины и подразделов обновлений, тесты и сценарные тесты.",
+            "en": "Marketplace file descriptions: package modules, the showcase and Updates sub-section pages, and the unit and scenario tests."
           }
         },
         "scripts/verify_manifest.py": {
@@ -376,8 +380,8 @@
           "sha256": "46c652f62e73918dd32517ed1018e4bea6d0fa9c4e8536bfa38b00c25467b5e7"
         },
         "storage/db.py": {
-          "version": "1.1.2",
-          "sha256": "e6f9d9161d72e87a232bed4b8c96f00b32644d9602aa4c283f88197400e95656"
+          "version": "1.2.0",
+          "sha256": "db5acdfcd18331fccd902540152e179f748eaffcc5ecd0d448c10c7b1b96be5f"
         },
         "storage/models.py": {
           "version": "1.2.2",
@@ -396,8 +400,8 @@
           "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         },
         "tests/_st_mock.py": {
-          "version": "1.2.1",
-          "sha256": "49c2bb3626ff81139e3868d8b87416923fad66abd4637add35a7f821d4bc56cd"
+          "version": "1.2.2",
+          "sha256": "0ac856410bdeaf4a02944b4574952256ea1e52533dd3f5b0d6c016e6af1ec7ed"
         },
         "tests/_test_isolation.py": {
           "version": "1.0.0",
@@ -656,8 +660,8 @@
           "sha256": "9524ee400e65072d45471725294323fec747612236b311023767ab7136007768"
         },
         "tests/smoke/test_app_smoke.py": {
-          "version": "1.0.1",
-          "sha256": "df3fd59d22fdebfacdfc1920ccd37194c8498b9ce53b1cd3149a6edddb982e49"
+          "version": "1.0.2",
+          "sha256": "50be6a9930808c5ca807710bad23b890a0565fc028a03617b775c86c18e57f5c"
         },
         "tests/test_agent_loop_connection_retry.py": {
           "version": "1.0.1",
@@ -772,12 +776,12 @@
           "sha256": "77dc84da37e9f529f5bd79705d2422842aa6fba63e2c88af6d382493106f0aea"
         },
         "tests/test_default_imports.py": {
-          "version": "1.0.2",
-          "sha256": "64f1a29693b40c2f7470f7c512dac65ff0d0ec94d53e80bf07e4e0eec528b41d"
+          "version": "1.0.3",
+          "sha256": "6fef9744877081e6bdd41540cd02cc1c679622c01f27d8d1284618d7c502e492"
         },
         "tests/test_default_rag_bases.py": {
-          "version": "1.0.0",
-          "sha256": "6e3ff5c8ba9afa25cdc1bf688c7547825be9a171416e9e8e655c43a245527d8b"
+          "version": "1.0.1",
+          "sha256": "37f3235c778a88538410aba6aefd8f766be656524ae0f3b6cdca56051610886f"
         },
         "tests/test_dependency_check.py": {
           "version": "1.0.1",
@@ -816,8 +820,8 @@
           "sha256": "e78b05271b7d849dbda8f68e6b688b4b922725a26cba6c3bf1f561cf4db5e341"
         },
         "tests/test_github_connector_rest.py": {
-          "version": "1.3.1",
-          "sha256": "7267d2a16b5c35345d729681eceebde105e20588367161cbb5714657448a77e4"
+          "version": "1.3.2",
+          "sha256": "93ad86dc5d78e6887feb6c103431778f5e96dced13039b001d017d3eb4ffcd88"
         },
         "tests/test_github_connector_retry.py": {
           "version": "1.0.0",
@@ -936,8 +940,8 @@
           "sha256": "f7bddd92a87deaee47dda3298888149a320851071d3eeae670052b1ffa8be17b"
         },
         "tests/test_preset_orchestrators.py": {
-          "version": "1.2.0",
-          "sha256": "784284eb26733e98a3382e59bbd52ef3767abfec9ebe902a70855e256e7f5aec"
+          "version": "1.2.1",
+          "sha256": "400f1cb808d5af0bebf00b064de898eee7c5d83108bf6daf95f8c9be2fe45afe"
         },
         "tests/test_project_map_ast.py": {
           "version": "1.0.0",
@@ -1184,8 +1188,8 @@
           "sha256": "0581f0ba70632a8048a3f161f15377f719d5a5dfc339412bf5a19a2ee39f54c6"
         },
         "ui/app.py": {
-          "version": "1.6.0",
-          "sha256": "aaf1d45a706730675c9515f4a35eb862ad737379eed24391ef133f769a81016a"
+          "version": "1.7.1",
+          "sha256": "487a06695c414ffd957e6429e6c875b3aab8c16ad34df079652914dcdea76df4"
         },
         "ui/components/__init__.py": {
           "version": "1.0.1",
@@ -1200,8 +1204,8 @@
           "sha256": "a7e5a1e16d4bf869e9ee203b428d6ce5ce52ad5cf8379947c5063a20d80291ee"
         },
         "ui/pages/access.py": {
-          "version": "1.0.0",
-          "sha256": "ffb75aa7f6bf9b60c1a7a0649a98f57f92557fed70b37f89724a94e744577c42"
+          "version": "1.0.1",
+          "sha256": "cd24992e0c0d57d15b9bdea1ebfd0db30a219588387101e78a67d283716b7246"
         },
         "ui/pages/assistants.py": {
           "version": "1.3.2",
@@ -1221,8 +1225,8 @@
           "sha256": "9b4054227ddd01bef1c3efb3c8135c1fa8b49d4d6b26d9aa4e15e93e08e34807"
         },
         "ui/pages/orchestrator.py": {
-          "version": "1.22.1",
-          "sha256": "dedc94c68d50141932996a1d0bd240d1d48ae8e4a7bc8630bcb10b03e78cb541",
+          "version": "1.22.2",
+          "sha256": "6626192e7c5a2433b51d2122cb9331b98a2ff2f05966cf39e3280f0846cdcd49",
           "note": {
             "ru": "Панель чата без переключателя эконом-режима (ECONOMY_MODE_ALWAYS_ON) и блок «Выбор папки» без кнопки «Обзор…»: нативный диалог открывается последним пунктом селектора.",
             "en": "Chat toolbar without the economy-mode switch (ECONOMY_MODE_ALWAYS_ON) and the folder block without the Browse button: the native dialog opens from the last selector entry."
@@ -1261,8 +1265,8 @@
           "sha256": "c875bbbfd0e9aaa74e7aca49bc20145abbe8925b5af4d7b0acfe5142ebe99643"
         },
         "ui/pages/updates.py": {
-          "version": "1.1.1",
-          "sha256": "41af7b708cebd06b00bc6a90e7d0418c8df1a72a94d065ba5309cf89703162f5"
+          "version": "1.2.0",
+          "sha256": "e21a8333e0700b95aaf36f4a66ad56982a8279c1ef8b87f7388b21c6842bffb8"
         },
         "ui/pages/welcome.py": {
           "version": "1.0.1",
@@ -1410,16 +1414,16 @@
           }
         },
         "core/orchestration/service.py": {
-          "version": "1.4.1",
-          "sha256": "69d0d94c6ae00cb8ef1c2056246f1b8100697969f415ca95ff9d6f9de4fcd65f",
+          "version": "1.5.0",
+          "sha256": "5a3f344795d7a92df6d1ff71c0952cbb4101de168cde7dfc2c75034099982528",
           "note": {
             "ru": "OrchestrationService: реестр и дерево запусков, ensure_run/run/release_tree, каскадная отмена, лента подписчиков, пул слотов, max_depth и total_subagent_runs, таймаут и шаги запуска, производные треды детей и запреты инструментов; read_limits усекает бюджет времени ребёнка верхней границей, блокирующий spawn ждёт слот не дольше min(бюджет, DEFAULT_POOL_WAIT_SECONDS), а heartbeat долгого запуска освежается событием шага не чаще раза в минуту.",
             "en": "OrchestrationService: run registry and tree, ensure_run/run/release_tree, cascade cancel, subscriber feed, slot pool, max_depth and total_subagent_runs, per-run timeout and step cap, derived child threads and child tool bans; read_limits clamps the child time budget to its ceiling, a blocking spawn waits for a slot no longer than min(budget, DEFAULT_POOL_WAIT_SECONDS), and a long run refreshes its heartbeat from step events at most once a minute."
           }
         },
         "core/orchestration/tools.py": {
-          "version": "1.5.1",
-          "sha256": "148535475db4813d3874e77c63107cc70ca54bd93accd876fa8088e5a24063af",
+          "version": "1.5.2",
+          "sha256": "a4cac0ea89998b2177aaef9336f91b18e61c77d16178f5abb94e2f97be28e6dd",
           "note": {
             "ru": "Обёртки инструментов spawn_agent/invoke_assistant: валидация аргументов, права по allowlist, invalid_args и not_implemented, записи каталога с границами; инструмент sleep - блокирующее ожидание ребёнка или таймаута: MAX_SLEEP_SECONDS выводится из MAX_SUBAGENT_TIMEOUT_SECONDS (час), усечение помечается clamped, опрос отмены вызывающего, терминальных запусков дерева и read-only mailbox, корень дерева из записи родителя, ответ только woken_by и finished run ids.",
             "en": "spawn_agent and invoke_assistant tool wrappers: argument validation, allowlist rights, invalid_args and not_implemented, catalog entries whose descriptions state the boundaries; the sleep tool (blocking wait for a child or a timeout): MAX_SLEEP_SECONDS is derived from MAX_SUBAGENT_TIMEOUT_SECONDS (one hour), a shortened wait is marked clamped, a poll of the caller cancellation, the terminal runs of the tree and the read-only mailbox, the tree root resolved from the parent record, and an answer of woken_by plus finished run ids only."
@@ -1442,16 +1446,16 @@
           }
         },
         "tests/test_orchestration_service.py": {
-          "version": "1.2.2",
-          "sha256": "54c2cf98da61dc1a98f6426a9dc4101671d9577543cfd68ded725df5a74b2ba3",
+          "version": "1.2.3",
+          "sha256": "bef8fe446bc5a1fb8fa71d913174c09a05b0a63f24221fdab1123bf391e634e8",
           "note": {
             "ru": "Тесты ADR-003: Run tree, pool, limits, timeout, cascade cancel, child tool bans.",
             "en": "ADR-003 tests: Run tree, pool, limits, timeout, cascade cancel, child tool bans."
           }
         },
         "tests/test_orchestration_tools.py": {
-          "version": "1.1.0",
-          "sha256": "3519bc6fa363b366f6431d6814c723d0cb7919095f8de409d3948024c117124c",
+          "version": "1.1.1",
+          "sha256": "c6ff76abb2e642065050099fe06d802b509a02932d2c76ea150d7d5d66e63655",
           "note": {
             "ru": "Тесты ADR-003: spawn_agent/invoke_assistant wrappers: rights and validation.",
             "en": "ADR-003 tests: spawn_agent/invoke_assistant wrappers: rights and validation."
@@ -1526,8 +1530,8 @@
           }
         },
         "core/orchestration/runs.py": {
-          "version": "1.0.0",
-          "sha256": "a088352aeccbd8b5a002b25e5f4f075f409f570ac2aeac7ae2364ef1daf37228",
+          "version": "1.1.0",
+          "sha256": "40845e3547fb7d91285904c7c2b6b769ffe790e6bf2c2868d41716b59d3aa7f2",
           "note": {
             "ru": "runs.py: долговечное хранилище запусков с явным store_root, восстановлением состояния _heal и выдачей извещений claim_notice.",
             "en": "runs.py: durable run store with an explicit store_root, _heal state recovery and notice claiming."
@@ -1562,16 +1566,16 @@
           "sha256": "8d7f5304a87577cb8ac039452ff8bd74d854ca7a3dac70f1503c32719e4a2e88"
         },
         "tests/test_orchestration_runs.py": {
-          "version": "1.0.0",
-          "sha256": "2bd56652683fa89d85cc38fd94d9164c6a71b987b77dff68eeeb5ba8591ba1f3"
+          "version": "1.0.1",
+          "sha256": "71d9ee85f1a673ea15d6c3b907c1f12339e24ccf33d03b82ace016d0f9b9179e"
         },
         "tests/test_orchestration_subagent_tools.py": {
           "version": "1.0.0",
           "sha256": "8d48132c06aa1498465bcb7e4d52e64c028d3fc25e1ab7e9d058d072c6f66317"
         },
         "tests/test_orchestrator_subagent_ui.py": {
-          "version": "1.0.0",
-          "sha256": "d49a281b43231af3b4f30ab65cd1bd90135974898c08e5d96a3bba6dfd070adb"
+          "version": "1.0.1",
+          "sha256": "2dd42c63f77ea870e7179e23d5be4b324443f22b1d4ce08ca0ca27f49cb67064"
         },
         "tests/test_system_prompt_subagents.py": {
           "version": "1.0.1",
@@ -1628,17 +1632,301 @@
         "tests/scenarios/test_journal_retention_scenario.py": {
           "version": "1.0.0",
           "sha256": "c630ce32bb01f256be870f78131e050292bf17a9548da58b8b0f5364d0bb9ea1"
+        },
+        "core/marketplace/__init__.py": {
+          "version": "1.0.0",
+          "sha256": "b250beb8338f1d5b624da1128215577807bc29e2b3bba79aea43c9d1fb9e5309",
+          "note": {
+            "ru": "Пакет маркетплейса: публичные точки входа, is_enabled и реэкспорт.",
+            "en": "Marketplace package: public entry points, is_enabled and re-exports."
+          }
+        },
+        "core/marketplace/bootstrap.py": {
+          "version": "1.0.0",
+          "sha256": "581a3196f659288d7cc2a24122d9fe034e600fd3c9bfa6542d53e51b3d2df2f5",
+          "note": {
+            "ru": "Холодный старт маркетплейса: восстановление прерванного прогона и разовый сидинг.",
+            "en": "Marketplace cold start: recovery of an interrupted run and one-time seeding."
+          }
+        },
+        "core/marketplace/catalog.py": {
+          "version": "1.1.0",
+          "sha256": "d60e3ed168b8d817c568c2cff82d422ba7d5d1a288112f58d2f455c50123b175",
+          "note": {
+            "ru": "Каталог: индекс, карточки сущностей и вид для витрины.",
+            "en": "Catalog: index, entity cards and the showcase view."
+          }
+        },
+        "core/marketplace/config.py": {
+          "version": "1.0.0",
+          "sha256": "2054b7e715dff0b78e22665aeed446076a3aa6a68ec7639647ea0ba2d1355997",
+          "note": {
+            "ru": "Настройки маркетплейса: переключатель enabled, канал и лимиты.",
+            "en": "Marketplace settings: the enabled switch, channel and limits."
+          }
+        },
+        "core/marketplace/conflicts.py": {
+          "version": "1.0.0",
+          "sha256": "677888471a0b7bed2e728b49f7c5415631f48b0b5db48a8e444a4769162311ea",
+          "note": {
+            "ru": "Матрица конфликтов: план установки, локальные правки, три пути, удаление.",
+            "en": "Conflict matrix: install plan, local edits, three resolutions and uninstall."
+          }
+        },
+        "core/marketplace/installer.py": {
+          "version": "1.0.0",
+          "sha256": "c5f5e43de1525f2d7837d9551e1aacdf0d5f44b7c25259fe37d2b99f776d679f",
+          "note": {
+            "ru": "Установщик навыка: журнал прогона, атомарная запись и откат.",
+            "en": "Skill installer: run journal, atomic write and rollback."
+          }
+        },
+        "core/marketplace/registry.py": {
+          "version": "1.0.0",
+          "sha256": "77fcda0ee7504f8a065cc5b66742c286aebc375858978b4d3b8a11e98b51cd72",
+          "note": {
+            "ru": "Реестр установленного: строки marketplace_installed, маркеры удаления, сидинг.",
+            "en": "Installed registry: marketplace_installed rows, removal markers and seeding."
+          }
+        },
+        "core/marketplace/rollback.py": {
+          "version": "1.0.0",
+          "sha256": "a1b11f72a8cad10083a27c5bc9ff2cbebd24ca9cd55d60fd32c85a6bf856c1a9",
+          "note": {
+            "ru": "Откат прогона: файлы, строка реестра и skills.json.",
+            "en": "Run rollback: files, the registry row and skills.json."
+          }
+        },
+        "core/marketplace/semver.py": {
+          "version": "1.0.0",
+          "sha256": "062e65185832bb613f2c531dfe005c9e45b774cb5c7d4187c041809187576522",
+          "note": {
+            "ru": "Разбор и сравнение версий, диапазоны platform.",
+            "en": "Version parsing and comparison, platform ranges."
+          }
+        },
+        "core/marketplace/source.py": {
+          "version": "1.0.0",
+          "sha256": "2111e079b5bd33c12f14900c65f638868bb09d833d77069d3b00cb8a4fa09d73",
+          "note": {
+            "ru": "Транспорт каталога: чтение индекса, сущности и пакета.",
+            "en": "Catalog transport: reading the index, an entity and a package."
+          }
+        },
+        "core/marketplace/store.py": {
+          "version": "1.0.0",
+          "sha256": "9b2cd44a0adbad557aa4fe8fd375da16b53ba13bb882d219441c5a68e5db7b43",
+          "note": {
+            "ru": "Хранилище маркетплейса: каталог данных, бэкапы, журнал и кэш пакета.",
+            "en": "Marketplace storage: data directory, backups, journal and package cache."
+          }
+        },
+        "core/marketplace/updates.py": {
+          "version": "1.1.0",
+          "sha256": "db9b4c63109ce0efc73661e62a9244820b268c9e1d890099399c45e1b10d5569",
+          "note": {
+            "ru": "Обновления: проверка версий и применение с политикой конфликтов.",
+            "en": "Updates: version checks and an update run with the conflict policy."
+          }
+        },
+        "core/marketplace/verify.py": {
+          "version": "1.0.0",
+          "sha256": "0edc093164f4d267cfb6f4b798b92cf65b1c0961d653fc3f9e418037bdd2e21f",
+          "note": {
+            "ru": "Проверка пакета: sha256-манифест и целостность установки.",
+            "en": "Package verification: the sha256 manifest and installed integrity."
+          }
+        },
+        "ui/pages/marketplace.py": {
+          "version": "1.3.1",
+          "sha256": "90d744da765ca27fbfa5949eb9a6b86dbf27056172834c7f159220f8a0d5ba11",
+          "note": {
+            "ru": "Страница «Маркетплейс»: витрина, карточка, установка, удаление.",
+            "en": "Marketplace page: showcase, card, install and uninstall."
+          }
+        },
+        "ui/pages/updates_marketplace.py": {
+          "version": "1.1.0",
+          "sha256": "3148a28f63b0a8b6519fdfa61026ff74cc7d4262ad94c93be2da49ef2b6b085d",
+          "note": {
+            "ru": "Подразделы маркетплейса на странице «Обновления»: проверка, обновление, журнал.",
+            "en": "Marketplace sections on the Updates page: check, update and journal."
+          }
+        },
+        "tests/marketplace_fixtures.py": {
+          "version": "1.0.1",
+          "sha256": "9cb5aa15b1cce825291a81dbc1d0272a8fe248a5fcae37fc49c3b7f9590ee77d",
+          "note": {
+            "ru": "Общие фикстуры тестов маркетплейса: локальный каталог, HTTP-сервер, установка.",
+            "en": "Shared marketplace test fixtures: local catalog, HTTP server and install."
+          }
+        },
+        "tests/test_marketplace_catalog.py": {
+          "version": "1.0.0",
+          "sha256": "3ca5daf909067d89e3a6d1920ded7a7ade64d96bf7a646dda4e34a46dbef58e9"
+        },
+        "tests/test_marketplace_conflicts.py": {
+          "version": "1.0.0",
+          "sha256": "c996be3bc9d8f6d102c22ded7a678088ecbd4afae59de2ef9416e941661c6394"
+        },
+        "tests/test_marketplace_flag.py": {
+          "version": "1.0.0",
+          "sha256": "82bd04e895ef19a995d1d4f2acefac45ddeae10ad0829db594780360b920a504"
+        },
+        "tests/test_marketplace_installer.py": {
+          "version": "1.0.0",
+          "sha256": "c61bfe4dacff98a42dc0c7d7254891c5172ac94eef3159ce0fea7e56f8cf96dd"
+        },
+        "tests/test_marketplace_limits.py": {
+          "version": "1.0.0",
+          "sha256": "8ef9967a319e07b929ee0b21cfdc1599279a85a35a6d7e9934089339cc7d14e8"
+        },
+        "tests/test_marketplace_local_mods.py": {
+          "version": "1.0.0",
+          "sha256": "207601ca85b7d7f51eee0f0d70c1ba74a1121a1ef5715942c8f293fdf4d2b47f"
+        },
+        "tests/test_marketplace_no_network.py": {
+          "version": "1.0.0",
+          "sha256": "52f5baaf5dfa7da3d62fca3498feed838937d034e21c272b9421e926a89ac515"
+        },
+        "tests/test_marketplace_registry.py": {
+          "version": "1.0.0",
+          "sha256": "1e7dfa0119a9f0c106f7fe84f5bb4cdb95ef9ecb13e92337ae18c53982748086"
+        },
+        "tests/test_marketplace_retention.py": {
+          "version": "1.0.0",
+          "sha256": "17b0c688582062aabd6eae87fff7bfc87326e256b8e7d652f5c79f881f490fa5"
+        },
+        "tests/test_marketplace_semver.py": {
+          "version": "1.0.0",
+          "sha256": "8a825463df93c4b70ea832197da3019357a99b8c0bbe143d52ea1ba67190b276"
+        },
+        "tests/test_marketplace_source.py": {
+          "version": "1.0.0",
+          "sha256": "5428daa07aac3184b715496d79e104331591174759610c8a8e84495bb9b44561"
+        },
+        "tests/test_marketplace_store.py": {
+          "version": "1.0.0",
+          "sha256": "a4e631482c09580a5d73d20cc102bf813c741d0ce4c438a9c336685710bf900b"
+        },
+        "tests/test_marketplace_uninstall.py": {
+          "version": "1.0.0",
+          "sha256": "675dc06543a0e72b0e3cae530af55641745a5111fdd26fcf08f45ff630653d68"
+        },
+        "tests/test_marketplace_updates.py": {
+          "version": "1.0.0",
+          "sha256": "467b9f9585a6242cfcc41409451ab39cc66399c27b62b4d39042f95a307bca47"
+        },
+        "tests/scenarios/test_marketplace_conflict_scenario.py": {
+          "version": "1.1.0",
+          "sha256": "33def78ac51727f5efb92095e53140e31ff80194e67aed64aa9a68c4bbc4e535"
+        },
+        "tests/scenarios/test_marketplace_skill_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "b4d7947db2fa08474b368bc0ea5f67fe0c8d55a17bb654ced14f56d17e34d78d"
+        },
+        "tests/scenarios/test_marketplace_updates_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "841c2c522bd9ab915f9e69d564d57f6747c507a2b8086193aae67159236b8b8a"
+        },
+        "tests/test_marketplace_agent_installer.py": {
+          "version": "1.0.0",
+          "sha256": "1e5ef1a904097db8cdf41ed63d7d049da823b5650a86886a485a4e3c23ad4a2d"
+        },
+        "tests/test_marketplace_bundles.py": {
+          "version": "1.0.0",
+          "sha256": "09242ccfce223a6c2554525530c909c6fad379eb23473dfe43ad3ee110137760"
+        },
+        "tests/test_marketplace_catalog_types.py": {
+          "version": "1.0.1",
+          "sha256": "5407b9f917267cdc9882e6114bee4b6f235ed03ffe6365bb329be7fff0f432ff"
+        },
+        "tests/test_marketplace_mcp_installer.py": {
+          "version": "1.0.0",
+          "sha256": "c4469c592134a5176ed69d2e35694e1bdaa2e6dee62eb339fd1724f64e08025f"
+        },
+        "tests/test_marketplace_migration.py": {
+          "version": "1.0.0",
+          "sha256": "9608f175cea12b9cdbb74b73fabd62161a6ca0e32eec3174f3af231cec635375"
+        },
+        "tests/test_marketplace_publish.py": {
+          "version": "1.0.2",
+          "sha256": "37d65577534fc27bebb15b3c774394b7b9d735397ef01d523f423d058dd44216"
+        },
+        "tests/test_marketplace_rag_installer.py": {
+          "version": "1.0.0",
+          "sha256": "670adbfcbc1453ab7cad447e7092314c39a15087711950c8de2f2fafafbe1e03"
+        },
+        "tests/test_marketplace_ui_page.py": {
+          "version": "1.1.0",
+          "sha256": "751faa213e3fa90ce80ccffb31e2cad530234c8e64dfb6622e5b893aeb014c53"
+        },
+        "tests/test_marketplace_updates_types.py": {
+          "version": "1.0.0",
+          "sha256": "83c478844c27b92dd3b69276eb19c1627213647dbd21ac3fa9d075342c58f9cd"
+        },
+        "scripts/marketplace_publish.py": {
+          "version": "1.0.0",
+          "sha256": "443ba1ffdf57a0b4b3b119027443d2e4600e6929433f82b4eb4b7c590c6373cd"
+        },
+        "core/marketplace/agent_installer.py": {
+          "version": "1.1.0",
+          "sha256": "1d0b070a01196eb52cc4475838dff48152ee64fe766d1157fae0f8aa770ec10d"
+        },
+        "core/marketplace/bundles.py": {
+          "version": "1.1.0",
+          "sha256": "7d1a89aa99e0bea8e29c6337c2ac5827c21561eea8fec9a977bc5fea23a7fd70"
+        },
+        "core/marketplace/mcp_installer.py": {
+          "version": "1.0.0",
+          "sha256": "dc0c95aab8993618194b26a31caacb8e20b8b59b8f4be7b552640e87d7bbb932"
+        },
+        "core/marketplace/migration.py": {
+          "version": "1.0.1",
+          "sha256": "fe310be0ab71749a60a8714ed88246c190b8662cee491ba1483c516eeb78a509"
+        },
+        "core/marketplace/publish.py": {
+          "version": "1.1.0",
+          "sha256": "4b43b4fa8b363ba1b5401a012bc2ba5a172d664114a0439e301667d54f40ca6e"
+        },
+        "core/marketplace/rag_installer.py": {
+          "version": "1.0.0",
+          "sha256": "c4c0b217562a0715c7b694d4e83913c4909e20fd63c31607fd034ac2ed4cf3d8"
+        },
+        "tests/test_copyright_headers.py": {
+          "version": "1.0.0",
+          "sha256": "dd62cfd226672e0b2b2110f5082d346314d44298d9a9c74a7343d33a07b29438"
+        },
+        "tests/test_marketplace_assistant_installer.py": {
+          "version": "1.0.1",
+          "sha256": "9aeb05a446aa5a3ea411e30e35d05310f9f41b82782565c3927023962c20a552"
+        },
+        "tests/test_sidebar_nav.py": {
+          "version": "1.0.0",
+          "sha256": "a899266ec2fab0d5200befc3be281f00b6dffd93554858568b8b5ec23312cf76"
+        },
+        "tests/test_marketplace_card_extras.py": {
+          "version": "1.1.0",
+          "sha256": "e05f682768c578029c93c2dc5cd5b7a228413bef5b0eecbde19bdb8d29941349"
+        },
+        "tests/test_default_skills_seeding.py": {
+          "version": "1.0.0",
+          "sha256": "5d05f26273b443413dd50f2b7305b6375ec329a754636be0d93637a2a93264d9",
+          "note": {
+            "ru": "Тесты сидинга встроенного навыка: установка по умолчанию при включённом маркетплейсе, отсутствие дубля с каталожной установкой, усыновление каталогом.",
+            "en": "Tests for seeding the bundled skill: installed by default with the marketplace on, no duplicate next to a catalog installation, adopted by the catalog."
+          }
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.49.0",
-      "sha256": "a60236863b36c0e5ebc6850bda7564a7c1b0abc35b4d84d357f036c5e301aa9e",
+      "version": "1.51.0",
+      "sha256": "f46b1db2f1e58308f77f62965720f47a6c60ec852f2e7068683f874e69393bf5",
       "note": {
-        "ru": "Раздел «Панель инструментов чата» (ECONOMY_MODE_ALWAYS_ON, игнорирование chat_economy_mode) и обновлённый раздел «Выбор папки» с пунктом-действием FOLDER_PICKER_BROWSE.",
-        "en": "Chat toolbar section (ECONOMY_MODE_ALWAYS_ON, chat_economy_mode ignored) and the updated folder-picker section with the FOLDER_PICKER_BROWSE action entry."
+        "ru": "Раздел 8a о маркетплейсе: добавлено усыновление встроенных сущностей и имя папки встроенного навыка.",
+        "en": "Section 8a on the marketplace: adoption of bundled entities and the folder name of a bundled skill."
       }
     },
     "LICENSE": {
@@ -1650,19 +1938,19 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.48.5",
-      "sha256": "b8bc7d9eba6002449f0015a86188f88fd9739ad8420595fb6340e6ee53717274",
+      "version": "1.51.3",
+      "sha256": "3ebd1e57e6db69b168f8b99b1e1c9d28b1331c1ab8426809f071f25fd022b856",
       "note": {
-        "ru": "Регенерация карты после правок страницы оркестратора и тестов.",
-        "en": "Map regeneration after the orchestrator page and test changes."
+        "ru": "Карта включает сидинг встроенных навыков и тест tests/test_default_skills_seeding.py.",
+        "en": "The map covers the bundled-skill seeding and tests/test_default_skills_seeding.py."
       }
     },
     "README.md": {
-      "version": "1.42.6",
-      "sha256": "70ebb06a946cb28be6451fa3d71fb18fb2be4f429128cb945d57e20aba1c172d",
+      "version": "1.44.0",
+      "sha256": "c1a5e3075463b15aa9eb2202587aaac97d1957003278bd1eb45cd047ae2ac3cc",
       "note": {
-        "ru": "Блок «Выбор папки» без отдельной кнопки и эконом-режим как постоянное поведение чата.",
-        "en": "Folder block without a separate button and economy mode as permanent chat behaviour."
+        "ru": "Раздел «Маркетплейс сущностей» дополнен строкой о встроенном навыке Rag Base Creator; статус версии 2.22.0.",
+        "en": "The entity marketplace section gained a line about the bundled Rag Base Creator skill; version status 2.22.0."
       }
     },
     "defaults/README.md": {
@@ -1738,8 +2026,8 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.20.1",
-      "sha256": "fa9fe47b53377cb407e101f1bcefb823c6bc2ef66bb58e1330f56c82374e721b",
+      "version": "1.24.0",
+      "sha256": "db8c10722dc80ee7bf654eb7462ac48a7c40e9a3b8ba0ca8c306c4058146e8cd",
       "note": {
         "ru": "Подпись пункта нативного выбора папки в селекторе (orch_folder_browse).",
         "en": "Label of the native folder-dialog entry in the selector (orch_folder_browse)."
@@ -1754,8 +2042,8 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.20.1",
-      "sha256": "70c6c9e1d7b5cb4b2267015a50a45fc0f5b95a130a855dea188dccb75a25f8c1",
+      "version": "1.24.0",
+      "sha256": "a9c29c2fb340e664bd7df8f1a5c01f3da43b6e123f204aff6023cbc88ee02657",
       "note": {
         "ru": "Подпись пункта нативного выбора папки в селекторе (orch_folder_browse).",
         "en": "Label of the native folder-dialog entry in the selector (orch_folder_browse)."
@@ -1770,8 +2058,8 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.20.1",
-      "sha256": "6bec1e981978d1f60c1321ae3f022a3847c8a0a733a110ae29a8d41ce59c3572",
+      "version": "1.24.0",
+      "sha256": "be7c3d24a44f117fcbf8c86538011e7a4d38d483c08635d945cb0a6f293fb3eb",
       "note": {
         "ru": "Подпись пункта нативного выбора папки в селекторе (orch_folder_browse).",
         "en": "Label of the native folder-dialog entry in the selector (orch_folder_browse)."
@@ -2002,8 +2290,8 @@
       }
     },
     "langs/en.json": {
-      "version": "1.20.1",
-      "sha256": "d21b3caed2d9e48a14cc44de372bd90b51fb680319474114a48853b775b5b529",
+      "version": "1.24.0",
+      "sha256": "818e53899143413bc71fb5e506698cfcc3d02049571266e169b699b15a2b3f5d",
       "note": {
         "ru": "Подпись пункта нативного выбора папки в селекторе (orch_folder_browse).",
         "en": "Label of the native folder-dialog entry in the selector (orch_folder_browse)."
@@ -2018,8 +2306,8 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.20.1",
-      "sha256": "feb0d32c4dd1276a9165d72d611fd2cf173310b659380f694526cb4978725f55",
+      "version": "1.24.0",
+      "sha256": "1ccff8e6966764a5b942f2e513e93ab6746496ad375e3fc80870d13b885efae3",
       "note": {
         "ru": "Подпись пункта нативного выбора папки в селекторе (orch_folder_browse).",
         "en": "Label of the native folder-dialog entry in the selector (orch_folder_browse)."
@@ -2034,8 +2322,8 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.20.1",
-      "sha256": "06cb7faa4c10ce4d3dddbecd9f442208e90e369fafbf8c3d3816d188583ce728",
+      "version": "1.24.0",
+      "sha256": "21867626a4af46e98db3ab586e06b10ecda223feef94118d55255479eb215b4f",
       "note": {
         "ru": "Подпись пункта нативного выбора папки в селекторе (orch_folder_browse).",
         "en": "Label of the native folder-dialog entry in the selector (orch_folder_browse)."
@@ -2074,11 +2362,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.24.3",
-      "sha256": "655b07721e7888cb6e320b68a69e5b5d64b882b5d4d4c5163623ae2cf32deeb9",
+      "version": "1.26.0",
+      "sha256": "4ad805d595fd8d41097fd22e81be83e270630af10c5d7f88047f6dd20f58e446",
       "note": {
-        "ru": "Панель инструментов чата (web-поиск, safety, без эконом-режима) и блок «Выбор папки» с пунктом-действием вместо кнопки.",
-        "en": "Chat toolbar (web search, safety, no economy switch) and the folder block with an action entry instead of a button."
+        "ru": "FR20: встроенные сущности усыновляются каталогом, а не дублируются - синтетическая версия legacy, папка навыка по имени пресета, маркер удаления проверяется раньше.",
+        "en": "FR20: bundled entities are adopted by the catalog instead of being duplicated - the synthetic legacy version, the skill folder named after its preset, the removal marker checked first."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/connector_creator.md": {

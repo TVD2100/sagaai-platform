@@ -120,6 +120,40 @@ def test_the_status_line_counts_the_children(monkeypatch):
     assert captured and captured[0].endswith("2")
 
 
+def test_a_demoted_child_does_not_keep_the_line_up(monkeypatch):
+    """A record the registry demoted to ``failed`` must not count as live.
+
+    This is the user-visible half of the zombie fix: the status line used to
+    survive on a stored ``running`` claim whose thread was already gone, so the
+    dialog kept telling the user that work was in progress.
+    """
+    _state_with_root(monkeypatch, "root1")
+    _install_service(monkeypatch, [
+        {"run_id": "z", "status": "failed", "error_code": "stale_run",
+         "agent_slug": "dev_agent"},
+    ])
+    calls = []
+    monkeypatch.setattr(ORCH.st, "caption", lambda *a, **k: calls.append(a))
+
+    ORCH._render_subagent_status("dev_agent", "en")
+
+    assert calls == []
+
+
+def test_only_the_root_running_leaves_the_dialog_idle(monkeypatch):
+    """The dialog's own record is not a child; no line without children."""
+    _state_with_root(monkeypatch, "root1")
+    _install_service(monkeypatch, [
+        {"run_id": "root1", "status": "running", "agent_slug": "dev_agent"},
+    ])
+    calls = []
+    monkeypatch.setattr(ORCH.st, "caption", lambda *a, **k: calls.append(a))
+
+    ORCH._render_subagent_status("dev_agent", "en")
+
+    assert calls == []
+
+
 # ─── localization ─────────────────────────────────────────────────────────
 
 

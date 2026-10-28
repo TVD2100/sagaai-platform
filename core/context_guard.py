@@ -168,3 +168,5 @@ def _estimate_messages(messages):
         if isinstance(content, str):
             total += estimate_tokens(content)
     return max(1, total)
+# SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

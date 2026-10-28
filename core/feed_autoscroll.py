@@ -133,3 +133,5 @@ def render_autoscroll(force: bool = False) -> None:
     """
     import streamlit.components.v1 as components
     components.html(autoscroll_js(force), height=0, scrolling=False)
+# SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

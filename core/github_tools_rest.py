@@ -531,6 +531,8 @@ def ghr_batch_commit_paths(**kwargs: Any) -> Dict[str, Any]:
         branch (str, optional): target branch (created when missing).
         base_dir (str, optional): workspace root to read from (defaults to
             the active DevAgent workspace).
+        binary (bool, optional): publish the files as raw bytes instead of
+            UTF-8 text - required for archives and other non-text assets.
     Returns:
         same summary dict as ghr_batch_commit.
     """
@@ -561,6 +563,7 @@ def ghr_batch_commit_paths(**kwargs: Any) -> Dict[str, Any]:
             message=str(kwargs.get("message") or ""),
             branch=str(kwargs.get("branch") or ""),
             base_dir=base_dir,
+            binary=bool(kwargs.get("binary")),
         )
 
     return _wrap(run, kwargs)

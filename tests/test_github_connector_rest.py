@@ -1088,6 +1088,109 @@ def test_batch_commit_paths_reads_files_and_publishes_one_commit(tmp_path, isola
     assert result["committed"] is True
 
 
+def test_normalize_batch_files_accepts_raw_bytes():
+    entries = ghr._normalize_batch_files([
+        {"path": "pkg.tar.gz", "content_base64": base64.b64encode(b"\x1f\x8b\x08\x00").decode("ascii")},
+    ])
+    assert entries[0]["data"] == b"\x1f\x8b\x08\x00"
+    assert entries[0]["content"] == ""
+    assert entries[0]["blob_sha"] == ""
+
+
+def test_normalize_batch_files_rejects_broken_base64():
+    with pytest.raises(ghr.GithubRestError) as excinfo:
+        ghr._normalize_batch_files([{"path": "a.bin", "content_base64": "not base64!"}])
+
+    assert "base64" in str(excinfo.value).lower()
+
+
+def test_git_blob_sha_bytes_matches_the_text_hash():
+    text = "Hello\n"
+    assert ghr._git_blob_sha_bytes(text.encode("utf-8")) == ghr._git_blob_sha(text)
+
+
+def test_files_from_paths_reads_binary_assets(tmp_path):
+    payload = b"\x1f\x8b\x08\x00compressed"
+    (tmp_path / "package.tar.gz").write_bytes(payload)
+
+    files = ghr._files_from_paths(str(tmp_path), ["package.tar.gz"], binary=True)
+
+    assert files == [{"path": "package.tar.gz",
+                      "content_base64": base64.b64encode(payload).decode("ascii")}]
+
+
+def test_batch_commit_sends_raw_bytes_as_base64(isolated_connector):
+    payload = b"\x00\x01binary\xff"
+    expected_sha = ghr._git_blob_sha_bytes(payload)
+
+    def handler(call):
+        method, url = call["method"], call["url"]
+        if method == "GET" and url.endswith("/git/ref/heads/main"):
+            raise ghr.GithubRestError("not found", status=404)
+        if method == "POST" and url.endswith("/git/blobs"):
+            assert call["body"]["encoding"] == "base64"
+            assert base64.b64decode(call["body"]["content"]) == payload
+            return {"sha": expected_sha}
+        if method == "POST" and url.endswith("/git/trees"):
+            return {"sha": "tree-1"}
+        if method == "POST" and url.endswith("/git/commits"):
+            return {"sha": "commit-1"}
+        if method == "POST" and url.endswith("/git/refs"):
+            return {"ref": "refs/heads/main", "object": {"sha": "commit-1"}}
+        raise AssertionError(f"Unexpected: {method} {url}")
+
+    api = FakeAPI(handler)
+    files = [{"path": "assets/package.tar.gz",
+              "content_base64": base64.b64encode(payload).decode("ascii")}]
+    with mock.patch.object(ghr, "_request", new=api):
+        result = ghr.batch_commit(isolated_connector, "alice/repo", files, branch="main")
+
+    assert result["files_created"] == 1
+    blob_body = [c for c in api.calls if c["url"].endswith("/git/blobs")][0]["body"]
+    assert blob_body["encoding"] == "base64"
+
+
+def test_batch_upsert_skips_an_unchanged_binary_asset(isolated_connector):
+    payload = b"\x1f\x8b\x08\x00stable"
+    blob_sha = ghr._git_blob_sha_bytes(payload)
+
+    def handler(call):
+        method, url = call["method"], call["url"]
+        if method == "GET" and url.endswith("/git/ref/heads/main"):
+            return {"ref": "refs/heads/main", "object": {"sha": "parent-1"}}
+        if method == "GET" and url.endswith("/git/commits/parent-1"):
+            return {"sha": "parent-1", "tree": {"sha": "base-tree"}}
+        if method == "GET" and url.endswith("/git/trees/base-tree"):
+            return {"tree": [{"path": "package.tar.gz", "type": "blob", "sha": blob_sha}]}
+        raise AssertionError(f"Unexpected write: {method} {url}")
+
+    api = FakeAPI(handler)
+    files = [{"path": "package.tar.gz",
+              "content_base64": base64.b64encode(payload).decode("ascii")}]
+    with mock.patch.object(ghr, "_request", new=api):
+        result = ghr.batch_upsert(isolated_connector, "alice/repo", files, branch="main")
+
+    assert result["committed"] is False
+    assert result["files_unchanged"] == 1
+
+
+def test_batch_commit_paths_publishes_binary_assets(tmp_path, isolated_connector):
+    payload = b"\x1f\x8b\x08\x00arch"
+    (tmp_path / "package.tar.gz").write_bytes(payload)
+    with mock.patch.object(ghr, "batch_commit", return_value={"committed": True}) as mock_batch:
+        ghr.batch_commit_paths(
+            isolated_connector, "alice/repo", ["package.tar.gz"],
+            branch="main", base_dir=str(tmp_path), binary=True,
+        )
+
+    mock_batch.assert_called_once_with(
+        isolated_connector, "alice/repo",
+        [{"path": "package.tar.gz",
+          "content_base64": base64.b64encode(payload).decode("ascii")}],
+        message="", branch="main",
+    )
+
+
 def test_batch_commit_honest_counters_created_updated_unchanged(isolated_connector):
     unchanged_sha = ghr._git_blob_sha("AAA")
     updated_old = ghr._git_blob_sha("OLD")

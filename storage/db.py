@@ -86,6 +86,87 @@ def _ensure_message_index(engine) -> None:
             )
             conn.commit()
 
+def _ensure_marketplace_tables(engine) -> None:
+    """Create the marketplace registry tables on any database.
+
+    Fresh databases get no marketplace tables from the ORM models - the
+    feature stores its state through raw SQL, exactly like the message
+    index migration above. The create is idempotent and wrapped in
+    ``try/except``: a failure here must never block ``get_engine()`` and
+    stop the whole application from starting.
+
+    ``runtime_db_id`` is TEXT, not INTEGER: the primary keys of
+    ``assistants`` and ``orchestrators`` are ``String(8)``, so an integer
+    column could never hold them.
+    """
+    statements = (
+        """
+        CREATE TABLE IF NOT EXISTS marketplace_installed (
+            type                      TEXT NOT NULL,
+            id                        TEXT NOT NULL,
+            runtime_slug              TEXT NOT NULL,
+            runtime_db_id             TEXT,
+            runtime_skill_id          TEXT,
+            fork_of                   TEXT,
+            version                   TEXT NOT NULL,
+            channel                   TEXT NOT NULL,
+            source_url                TEXT NOT NULL,
+            package_sha256            TEXT,
+            tree_sha256               TEXT,
+            index_sha256              TEXT,
+            files_json                TEXT NOT NULL DEFAULT '{}',
+            skipped_code_files_json   TEXT NOT NULL DEFAULT '[]',
+            installed_at              TEXT NOT NULL,
+            updated_at                TEXT NOT NULL,
+            installed_by              TEXT NOT NULL,
+            user_modified             INTEGER NOT NULL DEFAULT 0,
+            user_modified_files_json  TEXT NOT NULL DEFAULT '[]',
+            install_id                TEXT,
+            bundle_id                 TEXT,
+            pinned                    INTEGER NOT NULL DEFAULT 0,
+            license_accepted_at       TEXT,
+            agent_kind                TEXT,
+            PRIMARY KEY (type, id),
+            UNIQUE (type, runtime_slug)
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS marketplace_removed (
+            type         TEXT NOT NULL,
+            id           TEXT NOT NULL,
+            runtime_slug TEXT NOT NULL,
+            removed_at   TEXT NOT NULL,
+            via          TEXT NOT NULL,
+            PRIMARY KEY (type, id)
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_marketplace_installed_slug "
+        "ON marketplace_installed (type, runtime_slug)",
+    )
+    try:
+        with engine.begin() as conn:
+            for statement in statements:
+                conn.exec_driver_sql(statement)
+            # An installation created before the column existed carries no
+            # kind; it is an orchestrator, which is what the platform had.
+            columns = {
+                row[1]
+                for row in conn.exec_driver_sql(
+                    "PRAGMA table_info(marketplace_installed)"
+                ).fetchall()
+            }
+            if "agent_kind" not in columns:
+                conn.exec_driver_sql(
+                    "ALTER TABLE marketplace_installed ADD COLUMN agent_kind TEXT"
+                )
+    except Exception as exc:  # pragma: no cover - defensive path
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "marketplace tables migration failed: %s", exc
+        )
+
+
 # DevAgent DB connection hook: busy_timeout without FK checks (assistant_id
 # stores orchestrator slugs there, not assistants.id values).
 def _configure_devagent_connection(dbapi_connection, connection_record) -> None:
@@ -243,6 +324,7 @@ def get_engine():
         _ensure_thread_columns(_engine)
         _ensure_assistant_columns(_engine)
         _ensure_message_index(_engine)
+        _ensure_marketplace_tables(_engine)
     return _engine
 
 

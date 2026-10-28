@@ -63,6 +63,23 @@ MAX_RECORDS_PER_ROOT = 200
 #: considered dead, whatever the run timeout says.
 STALE_MIN_SECONDS = 60.0
 
+#: Grace period added to the run timeout to obtain the staleness window.
+#: The window must cover one full run budget plus enough slack for a slow
+#: finish; multiplying the timeout instead made an hour-long budget blind for
+#: two hours, so a run whose thread died stayed visible as alive.
+STALE_GRACE_SECONDS = 300.0
+
+#: How often a genuinely running child is expected to refresh its
+#: heartbeat. ``heal`` may wait for a whole run budget, but a DISPLAY verdict
+#: cannot: a record whose heartbeat is several intervals old and that has no
+#: live in-memory counterpart is a leftover of a dead thread, not a live run.
+HEARTBEAT_INTERVAL_SECONDS = 60.0
+
+#: Multiplier of the heartbeat interval that a liveness verdict tolerates.
+#: Three intervals cover a slow tool call plus scheduling jitter without
+#: letting a dead thread look alive for minutes.
+LIVENESS_HEARTBEAT_MULTIPLIER = 3.0
+
 #: Identity of THIS process instance. A record carrying another value was
 #: written by a previous process, whose daemon threads no longer exist.
 _BOOT_ID = uuid.uuid4().hex
@@ -213,7 +230,7 @@ def heal(record: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
                         or DEFAULT_SUBAGENT_TIMEOUT_SECONDS)
     except (TypeError, ValueError):
         timeout = float(DEFAULT_SUBAGENT_TIMEOUT_SECONDS)
-    threshold = max(STALE_MIN_SECONDS, 2.0 * timeout)
+    threshold = max(STALE_MIN_SECONDS, timeout + STALE_GRACE_SECONDS)
 
     reasons: List[str] = []
     if heartbeat <= 0 or (time.time() - heartbeat) > threshold:
@@ -235,6 +252,76 @@ def heal(record: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
     healed["stale_reason"] = ",".join(reasons)
     healed["updated_at"] = _now_iso()
     return healed, True
+
+
+def liveness_window() -> float:
+    """Return how old a heartbeat may be before a run stops counting as live.
+
+    This is deliberately much shorter than the :func:`heal` threshold. Healing
+    rewrites a record and must not fire on a child that sits inside one long
+    tool call, so it waits for the whole run budget. A caller that only asks
+    "is this run working right now" - the status line, the status tool - needs
+    the opposite bias: a record with no live in-memory counterpart and a
+    heartbeat older than a few intervals belongs to a dead thread, and saying
+    otherwise is a false claim about running work.
+    """
+    return max(STALE_MIN_SECONDS,
+               HEARTBEAT_INTERVAL_SECONDS * LIVENESS_HEARTBEAT_MULTIPLIER)
+
+
+def is_live(record: Dict[str, Any], live_in_memory: bool = False) -> bool:
+    """Return True when *record* describes work that is actually running.
+
+    ``live_in_memory`` means the service still holds the record object, which
+    is only true while the thread that owns it exists in THIS process. A
+    ``running`` record read from disk without that counterpart is a leftover:
+    the process that wrote it may be gone, or its daemon thread died without
+    writing a terminal status.
+    """
+    if not isinstance(record, dict):
+        return False
+    if str(record.get("status") or "") != STATUS_RUNNING:
+        return False
+    if live_in_memory:
+        return True
+    writer_boot = str(record.get("boot_id") or "")
+    if writer_boot and writer_boot != current_boot_id():
+        return False
+    try:
+        heartbeat = float(record.get("heartbeat_at") or 0.0)
+    except (TypeError, ValueError):
+        heartbeat = 0.0
+    if heartbeat <= 0:
+        return False
+    return (time.time() - heartbeat) <= liveness_window()
+
+
+def demote_if_dead(record: Dict[str, Any],
+                   live_in_memory: bool = False) -> Dict[str, Any]:
+    """Return *record* with an unverifiable ``running`` claim downgraded.
+
+    Reading is the only place where this can be decided: a record on disk
+    cannot say whether its thread still exists, while the live registry can. A
+    caller that reports status to a human must therefore never pass a stored
+    ``running`` through unchanged - that is exactly how a crashed child kept
+    looking alive and made the dialog claim it was still working.
+
+    The stored file is left alone: the demotion is a statement about what the
+    caller can verify, not a repair. :func:`heal` performs the repair once the
+    heartbeat is unambiguously dead.
+    """
+    if not isinstance(record, dict):
+        return record
+    if str(record.get("status") or "") != STATUS_RUNNING:
+        return record
+    if is_live(record, live_in_memory=live_in_memory):
+        return record
+    demoted = dict(record)
+    demoted["status"] = STATUS_FAILED
+    demoted["stop_reason"] = STOP_ERROR
+    demoted["error_code"] = ERR_STALE_RUN
+    demoted["stale_reason"] = "unverifiable"
+    return demoted
 
 
 def save(record: Dict[str, Any], store_root: str = "") -> bool:

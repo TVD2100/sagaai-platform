@@ -140,12 +140,14 @@ def test_nav_button_changes_page(isolated_data):
             attached_file_context="", attached_file_name="", input_key=0,
             current_page="run", ui_lang="English",
         ))
-        st.click("nav_skills_settings")
+        st.click("nav_updates")
+        raised = False
         try:
             ui_app.main()
         except StopRerun:
-            pass
-        assert st.session_state["current_page"] == "skills"
+            raised = True
+    assert raised, "clicking a nav entry did not trigger st.rerun()"
+    assert st.session_state["current_page"] == "updates"
 
 
 def test_no_duplicate_widget_keys(isolated_data):
@@ -297,8 +299,13 @@ def test_no_duplicate_widget_keys(isolated_data):
     )
 
 
-def test_nav_order_access_before_updates(isolated_data):
-    """Sidebar order: Access right before Updates."""
+def test_nav_order_settings_primary_before_the_more_block(isolated_data):
+    """Sidebar order: the three primary settings entries, then "More".
+
+    The primary entries stay visible; everything rarer sits in the
+    collapsed block below them in a fixed order, so a user always finds
+    Providers, Connectors and Updates in the same place.
+    """
     with install_streamlit_mock() as st:
         ui_app = _fresh_ui()
         st.session_state.update(dict(
@@ -318,12 +325,28 @@ def test_nav_order_access_before_updates(isolated_data):
                 return i
         return None
 
-    idx_access = _index("nav_access")
+    idx_settings = _index("nav_settings")
+    idx_connectors = _index("nav_connectors")
     idx_updates = _index("nav_updates")
-    assert idx_access is not None and idx_updates is not None, \
-        f"expected sidebar widgets missing: nav_access={idx_access}, nav_updates={idx_updates}"
-    assert idx_access < idx_updates, \
-        f"order violated: access {idx_access} should precede updates {idx_updates}"
+    idx_orchestrators = _index("nav_orchestrators")
+    idx_access = _index("nav_access")
+    idx_stats = _index("nav_stats")
+    idx_about = _index("nav_welcome")
+    missing = {
+        "nav_settings": idx_settings, "nav_connectors": idx_connectors,
+        "nav_updates": idx_updates, "nav_orchestrators": idx_orchestrators,
+        "nav_access": idx_access, "nav_stats": idx_stats,
+        "nav_welcome": idx_about,
+    }
+    assert all(value is not None for value in missing.values()), \
+        f"expected sidebar widgets missing: {missing}"
+    # The primary block keeps its own order...
+    assert idx_settings < idx_connectors < idx_updates, \
+        f"primary order violated: {idx_settings}, {idx_connectors}, {idx_updates}"
+    # ...and the collapsed block follows it, in its fixed order.
+    assert idx_updates < idx_orchestrators < idx_access < idx_stats < idx_about, \
+        "order violated: more block " \
+        f"{idx_orchestrators}, {idx_access}, {idx_stats}, {idx_about}"
 
 
 def test_nav_order_stats_before_about_and_lang_theme_after(isolated_data):

@@ -50,6 +50,8 @@ from ui.pages.orchestrator import page_orchestrator
 from ui.pages.orchestrator_settings import page_orchestrator_settings
 from ui.pages.orchestrators import page_orchestrators
 from ui.pages.skills_library import page_skills_library
+from ui.pages.marketplace import page_marketplace
+from core.marketplace import is_enabled as marketplace_enabled
 from ui.pages.storage import page_storage
 from ui.pages.connectors import page_connectors
 from ui.pages.stats import page_stats
@@ -62,6 +64,7 @@ _ORCH_ICON = "\U0001f916"          # custom orchestrators: robot
 _DEVAGENT_ICON = "\U0001f6e0\ufe0f"      # built-in DevAgent: wrench + hammer
 _ASSISTANT_ICON = "\U0001f9e9"      # assistants
 _SLIB_ICON = "\U0001f9e0"          # skills library: puzzle piece
+_MARKETPLACE_ICON = "\U0001f6d2"    # marketplace: shopping trolley
 _THEME_MODES = ["System", "Light", "Dark"]
 
 
@@ -124,6 +127,94 @@ def _build_assistants_nav(lang: str):
     entries = [(s["id"], s["name"]) for s in ordered if s.get("id") in assistant_map]
     visible, collapsed = split_nav_lists(entries, DEFAULT_VISIBLE_ASSISTANTS)
     return visible, collapsed
+
+
+#: Marketplace subsections: (state key, entity type, agent kind, icon, label key).
+_MARKETPLACE_SECTIONS = (
+    ("agents", "agent", "orchestrator", _ORCH_ICON, "nav_settings_employees"),
+    ("helpers", "agent", "assistant", _ASSISTANT_ICON, "nav_settings_assistants"),
+    ("skills", "skill", "", _SLIB_ICON, "nav_settings_skills"),
+    ("rag", "rag", "", "\U0001f5c4\ufe0f", "nav_storage"),
+    ("mcp", "mcp", "", "\U0001f517", "nav_connectors"),
+)
+
+#: Settings entries that stay visible without expanding the block.
+_SETTINGS_PRIMARY = (
+    ("settings", "\U0001f50c", "nav_settings_providers"),
+    ("connectors", "\U0001f517", "nav_connectors"),
+    ("updates", "\U0001f504", "nav_updates"),
+)
+
+#: Settings entries kept inside the collapsed "More" block.
+_SETTINGS_MORE = (
+    ("orchestrators", "\U0001f916", "nav_settings_employees"),
+    ("skills", "\U0001f9e9", "nav_settings_assistants"),
+    ("skills_library", "\U0001f9e0", "nav_settings_skills"),
+    ("storage", "\U0001f5c4\ufe0f", "nav_storage"),
+    ("access", "\U0001f510", "nav_access"),
+    ("stats", "\U0001f4ca", "nav_stats"),
+    ("welcome", "\U0001f3e0", "nav_about"),
+)
+
+
+def active_marketplace_section() -> str:
+    """Return the marketplace subsection selected in the sidebar.
+
+    The showcase reads this value on render: the sidebar entry and the page
+    tabs share one state key, so a click in either place lands on the same
+    filter.
+    """
+    return str(st.session_state.get("mp_section") or "agents")
+
+
+def _render_nav_button(
+    page_id: str, icon: str, label_key: str, page: str, lang: str
+) -> None:
+    """Render one sidebar entry and switch to its page when pressed."""
+    active = (page == page_id) or (
+        page_id == "orchestrators" and page.startswith("orchestrator_settings:")
+    )
+    if active:
+        st.markdown('<div class="nav-active">', unsafe_allow_html=True)
+    if st.button(
+        f"{icon} {t(label_key, lang=lang)}",
+        key=f"nav_{page_id}",
+        use_container_width=True,
+    ):
+        st.session_state["current_page"] = page_id
+        if page_id == "skills_library":
+            st.session_state["slib_edit_id"] = None
+        st.rerun()
+    if active:
+        st.markdown("</div>", unsafe_allow_html=True)
+
+
+def _render_marketplace_nav(page: str, lang: str) -> None:
+    """Render the catalog subsections of the marketplace block.
+
+    Every entry opens the same showcase page with its own subsection
+    preselected; the page tabs write the same state key, so the sidebar
+    highlight follows a tab click too.
+    """
+    current = active_marketplace_section()
+    for section_key, _type, _kind, icon, label_key in _MARKETPLACE_SECTIONS:
+        active = (page == "marketplace" and current == section_key)
+        if active:
+            st.markdown('<div class="nav-active">', unsafe_allow_html=True)
+        if st.button(
+            f"{icon} {t(label_key, lang=lang)}",
+            key=f"nav_marketplace_{section_key}",
+            use_container_width=True,
+        ):
+            # The showcase reads the shared section key for its highlight
+            # and consumes the target key to open the matching tab: writing
+            # the tab widget state itself is not allowed after creation.
+            st.session_state["mp_section"] = section_key
+            st.session_state["mp_section_target"] = section_key
+            st.session_state["current_page"] = "marketplace"
+            st.rerun()
+        if active:
+            st.markdown("</div>", unsafe_allow_html=True)
 
 
 def _apply_theme(mode: str, restore_payload: str = "") -> None:
@@ -371,6 +462,29 @@ def main():
     # Seed built-in instructions and DevAgent settings.
     if not st.session_state.get("_defaults_seeded"):
         default_imports.ensure_all_defaults()
+        # Entities that predate the catalog are adopted before anything reads
+        # the registry: the bundled defaults create their folders above, and
+        # the adoption turns those folders into registry rows. Without it an
+        # existing installation would report "not installed" and offer a
+        # second copy of what the user already has.
+        if marketplace_enabled():
+            try:
+                from core.marketplace import migration as marketplace_migration
+
+                marketplace_migration.migrate()
+            except Exception:
+                pass
+        # Registry rows for skills installed before the marketplace existed.
+        # Seeding is a local DB write only - it never touches the catalog
+        # (the no-network test pins that), and a disabled marketplace is not
+        # allowed to write anything at all.
+        if marketplace_enabled():
+            try:
+                from core.marketplace import registry as marketplace_registry
+
+                marketplace_registry.seed_local_orphans()
+            except Exception:
+                pass
         # One-time cleanup of leaked platform folders in foreign dialogs'
         # saved workspace (workspace isolation v2, see core.threads_devagent).
         # Idempotent; a failure here must never block the app start.
@@ -808,6 +922,18 @@ def main():
         st.markdown("---")
 
         # ═══════════════════════════════════════════════════════════════════
+        #  MARKETPLACE (catalog subsections)
+        # ═══════════════════════════════════════════════════════════════════
+        if marketplace_enabled():
+            st.markdown(
+                f'<div class="sidebar-section-header">{t("sidebar_section_marketplace", lang=lang)}</div>',
+                unsafe_allow_html=True,
+            )
+            _render_marketplace_nav(page, lang)
+
+        st.markdown("---")
+
+        # ═══════════════════════════════════════════════════════════════════
         #  SETTINGS
         # ═══════════════════════════════════════════════════════════════════
         st.markdown(
@@ -815,150 +941,16 @@ def main():
             unsafe_allow_html=True,
         )
 
-        # Settings → Employees
-        is_orch_settings_active = (page == "orchestrators" or page.startswith("orchestrator_settings:"))
-        if is_orch_settings_active:
-            st.markdown('<div class="nav-active">', unsafe_allow_html=True)
-        if st.button(
-            f"\U0001f916 {t('nav_settings_employees', lang=lang)}",
-            key="nav_orchestrators",
-            use_container_width=True,
-        ):
-            st.session_state["current_page"] = "orchestrators"
-            st.rerun()
-        if is_orch_settings_active:
-            st.markdown("</div>", unsafe_allow_html=True)
+        # The three primary entries stay visible; everything else lives in
+        # the collapsed block right below them, in a fixed order.
+        for _page_id, _icon, _label_key in _SETTINGS_PRIMARY:
+            _render_nav_button(_page_id, _icon, _label_key, page, lang)
 
-        # Settings → Assistants
-        is_skills_settings_active = (page == "skills")
-        if is_skills_settings_active:
-            st.markdown('<div class="nav-active">', unsafe_allow_html=True)
-        if st.button(
-            f"{_ASSISTANT_ICON} {t('nav_settings_assistants', lang=lang)}",
-            key="nav_skills_settings",
-            use_container_width=True,
+        with st.expander(
+            t("sidebar_more", lang=lang, count=len(_SETTINGS_MORE)), expanded=False
         ):
-            st.session_state["current_page"] = "skills"
-            st.rerun()
-        if is_skills_settings_active:
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        # Settings → Skills library
-        is_slib_active = (page == "skills_library")
-        if is_slib_active:
-            st.markdown('<div class="nav-active">', unsafe_allow_html=True)
-        if st.button(
-            f"{_SLIB_ICON} {t('nav_settings_skills', lang=lang)}",
-            key="nav_skills_library",
-            use_container_width=True,
-        ):
-            st.session_state["slib_edit_id"] = None
-            st.session_state["current_page"] = "skills_library"
-            st.rerun()
-        if is_slib_active:
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        # Settings → Storage (RAG bases)
-        is_storage_active = (page == "storage")
-        if is_storage_active:
-            st.markdown('<div class="nav-active">', unsafe_allow_html=True)
-        if st.button(
-            f"\U0001f5c4\ufe0f {t('nav_storage', lang=lang)}",
-            key="nav_storage",
-            use_container_width=True,
-        ):
-            st.session_state["current_page"] = "storage"
-            st.rerun()
-        if is_storage_active:
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        # Settings → Connectors
-        is_connectors_active = (page == "connectors")
-        if is_connectors_active:
-            st.markdown('<div class="nav-active">', unsafe_allow_html=True)
-        if st.button(
-            f"\U0001f517 {t('nav_connectors', lang=lang)}",
-            key="nav_connectors",
-            use_container_width=True,
-        ):
-            st.session_state["current_page"] = "connectors"
-            st.rerun()
-        if is_connectors_active:
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        # Settings → LLM Providers
-        is_providers_active = (page == "settings")
-        if is_providers_active:
-            st.markdown('<div class="nav-active">', unsafe_allow_html=True)
-        if st.button(
-            f"\U0001f50c {t('nav_settings_providers', lang=lang)}",
-            key="nav_settings",
-            use_container_width=True,
-        ):
-            st.session_state["current_page"] = "settings"
-            st.rerun()
-        if is_providers_active:
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        # ═══════════════════════════════════════════════════════════════════
-        #  STATISTICS
-        # ═══════════════════════════════════════════════════════════════════
-        is_stats_active = (page == "stats")
-        if is_stats_active:
-            st.markdown('<div class="nav-active">', unsafe_allow_html=True)
-        if st.button(
-            f"\U0001f4ca {t('nav_stats', lang=lang)}",
-            key="nav_stats",
-            use_container_width=True,
-        ):
-            st.session_state["current_page"] = "stats"
-            st.rerun()
-        if is_stats_active:
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        # ═══════════════════════════════════════════════════════════════════
-        #  ABOUT
-        # ═══════════════════════════════════════════════════════════════════
-        is_welcome_active = (page == "welcome")
-        if is_welcome_active:
-            st.markdown('<div class="nav-active">', unsafe_allow_html=True)
-        if st.button(
-            f"\U0001f3e0 {t('nav_about', lang=lang)}",
-            key="nav_welcome",
-            use_container_width=True,
-        ):
-            st.session_state["current_page"] = "welcome"
-            st.rerun()
-        if is_welcome_active:
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        # Access (Доступы) - right before Updates
-        is_access_active = (page == "access")
-        if is_access_active:
-            st.markdown('<div class="nav-active">', unsafe_allow_html=True)
-        if st.button(
-            f"\U0001f510 {t('nav_access', lang=lang)}",
-            key="nav_access",
-            use_container_width=True,
-        ):
-            st.session_state["current_page"] = "access"
-            st.rerun()
-        if is_access_active:
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        # Updates (end of main menu)
-        is_updates_active = (page == "updates")
-        if is_updates_active:
-            st.markdown('<div class="nav-active">', unsafe_allow_html=True)
-        if st.button(
-            f"\U0001f504 {t('nav_updates', lang=lang)}",
-            key="nav_updates",
-            use_container_width=True,
-        ):
-            st.session_state["current_page"] = "updates"
-            st.rerun()
-        if is_updates_active:
-            st.markdown("</div>", unsafe_allow_html=True)
+            for _page_id, _icon, _label_key in _SETTINGS_MORE:
+                _render_nav_button(_page_id, _icon, _label_key, page, lang)
 
         st.markdown("---")
 
@@ -1012,6 +1004,8 @@ def main():
         page_skills()
     elif page == "skills_library":
         page_skills_library()
+    elif page == "marketplace":
+        page_marketplace()
     elif page == "storage":
         page_storage()
     elif page == "connectors":

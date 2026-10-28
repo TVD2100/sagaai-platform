@@ -1,15 +1,19 @@
 """
-test_preset_orchestrators.py - tests for the bundled default orchestrators.
+test_preset_orchestrators.py - tests for bundled default orchestrators.
 
-YaAgent is the only non-dev built-in, bundled under
-``defaults/orchestrators/ya_agent/`` (orchestrator.json + system_prompt.md).
+The bundled defaults under ``defaults/orchestrators/`` are imported on
+first boot. Entities that moved to the marketplace catalog (YaAgent) keep
+their folder as a rollback anchor but are no longer seeded; the import
+mechanics are therefore exercised on a synthetic preset created for the
+duration of a test.
 
 The legacy presets/*.json mechanism has been removed; every import now goes
-through ``core.defaults.defaults.load_default_orchestrator`` +
+through ``core.defaults.load_default_orchestrator`` +
 ``ensure_default_orchestrators``.
 """
 import json
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -20,11 +24,53 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from storage.db import reset_engine, reset_devagent_engine
 
 
-PRESET_SLUG = "ya_agent"
-DEFAULTS_ORCH_PATH = (
-    Path(__file__).resolve().parent.parent
-    / "defaults" / "orchestrators" / "ya_agent" / "orchestrator.json"
+PRESET_SLUG = "test_preset"
+DEFAULTS_ORCH_DIR = (
+    Path(__file__).resolve().parent.parent / "defaults" / "orchestrators"
 )
+PRESET_CFG = {
+    "strong_service": "YandexAI",
+    "strong_model": "yandexgpt",
+    "strong_temperature": 0.3,
+    "vision_service": "",
+    "vision_model": "",
+    "image_service": "",
+    "image_model": "",
+    "search_service": "YandexAI",
+    "search_model": "yandexgpt",
+    "search_max_tool_calls": 3,
+    "economy_tail_messages": 8,
+    "economy_cache_enabled": True,
+    "economy_cache_multiplier": 1.5,
+}
+PRESET_PROMPT = (
+    "# Test preset agent (v1.0)\n\n"
+    "You are a bundled test agent. Yandex AI Studio provides the models.\n"
+    "Every response ends with a loop_status block.\n"
+)
+
+
+@pytest.fixture
+def bundled_preset():
+    """Create the bundled preset folder for one test."""
+    folder = DEFAULTS_ORCH_DIR / PRESET_SLUG
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "system_prompt.md").write_text(PRESET_PROMPT, encoding="utf-8")
+    (folder / "orchestrator.json").write_text(json.dumps({
+        "format": "sagaai_orchestrator/v1",
+        "slug": PRESET_SLUG,
+        "name": "TestPreset",
+        "description": "",
+        "config": dict(PRESET_CFG),
+        "tools": [],
+        "max_steps": 50,
+        "auto_apply": True,
+        "sort_order": 150,
+    }, ensure_ascii=False), encoding="utf-8")
+    try:
+        yield folder
+    finally:
+        shutil.rmtree(str(folder), ignore_errors=True)
 
 
 @pytest.fixture
@@ -76,50 +122,44 @@ def _get_preset():
     return get_orchestrator(PRESET_SLUG)
 
 
-def test_preset_created_on_first_boot(isolated_data_dir):
-    """First run creates YaAgent from the bundled defaults folder."""
+def test_preset_created_on_first_boot(isolated_data_dir, bundled_preset):
+    """First run creates the bundled preset from its defaults folder."""
     result = _run_bootstrap()
     assert result.get(PRESET_SLUG) == "created", result
 
     orch = _get_preset()
     assert orch is not None
-    assert orch["name"] == "YaAgent"
+    assert orch["name"] == "TestPreset"
     assert orch["is_builtin"] is False
-    assert orch["sort_order"] == 150
-
-    defaults_cfg = json.loads(DEFAULTS_ORCH_PATH.read_text(encoding="utf-8"))["config"]
 
     cfg = orch["config"]
-    assert cfg["strong_service"] == defaults_cfg["strong_service"]
-    assert cfg["strong_model"] == defaults_cfg["strong_model"]
-    assert cfg["strong_temperature"] == defaults_cfg["strong_temperature"]
+    assert cfg["strong_service"] == PRESET_CFG["strong_service"]
+    assert cfg["strong_model"] == PRESET_CFG["strong_model"]
+    assert cfg["strong_temperature"] == PRESET_CFG["strong_temperature"]
     # Single-model mode: no weak_* keys; vision/image are optional and empty.
     assert "weak_service" not in cfg
     assert "weak_model" not in cfg
-    assert cfg["vision_service"] == defaults_cfg["vision_service"] == ""
-    assert cfg["vision_model"] == defaults_cfg["vision_model"] == ""
-    assert cfg["image_service"] == defaults_cfg["image_service"] == ""
-    assert cfg["image_model"] == defaults_cfg["image_model"] == ""
-    assert cfg["search_service"] == defaults_cfg["search_service"]
-    assert cfg["search_model"] == defaults_cfg["search_model"]
-    assert cfg["search_max_tool_calls"] == defaults_cfg["search_max_tool_calls"]
-    assert cfg["economy_tail_messages"] == defaults_cfg["economy_tail_messages"]
-    assert cfg["economy_cache_enabled"] is defaults_cfg["economy_cache_enabled"]
-    assert cfg["economy_cache_multiplier"] == defaults_cfg["economy_cache_multiplier"]
+    assert cfg["vision_service"] == ""
+    assert cfg["vision_model"] == ""
+    assert cfg["image_service"] == ""
+    assert cfg["image_model"] == ""
+    assert cfg["search_service"] == PRESET_CFG["search_service"]
+    assert cfg["search_model"] == PRESET_CFG["search_model"]
+    assert cfg["search_max_tool_calls"] == PRESET_CFG["search_max_tool_calls"]
+    assert cfg["economy_tail_messages"] == PRESET_CFG["economy_tail_messages"]
+    assert cfg["economy_cache_enabled"] == PRESET_CFG["economy_cache_enabled"]
+    assert cfg["economy_cache_multiplier"] == PRESET_CFG["economy_cache_multiplier"]
 
 
-def test_preset_prompt_loaded_from_md(isolated_data_dir):
-    """YaAgent gets the Russian system prompt from defaults system_prompt.md."""
+def test_preset_prompt_loaded_from_md(isolated_data_dir, bundled_preset):
+    """The system prompt comes from the bundled system_prompt.md."""
     _run_bootstrap()
     orch = _get_preset()
     prompt = orch["prompt_text"]
-    assert "YaAgent" in prompt
-    assert "Yandex AI Studio" in prompt
-    assert "loop_status" in prompt
-    assert len(prompt) > 5000
+    assert prompt == PRESET_PROMPT
 
 
-def test_preset_grants_full_toolset(isolated_data_dir):
+def test_preset_grants_full_toolset(isolated_data_dir, bundled_preset):
     """Empty tools list yields the full DevAgent tool set."""
     _run_bootstrap()
     tools = _get_preset()["tools"]
@@ -127,11 +167,29 @@ def test_preset_grants_full_toolset(isolated_data_dir):
         assert name in tools
 
 
-def test_preset_is_idempotent(isolated_data_dir):
+def test_preset_is_idempotent(isolated_data_dir, bundled_preset):
     """Second run does not recreate an existing default orchestrator."""
     _run_bootstrap()
     result = _run_bootstrap()
     assert result.get(PRESET_SLUG) == "exists", result
+
+
+def test_a_catalog_agent_is_not_seeded(isolated_data_dir):
+    """A catalog agent stays out of the bundled import.
+
+    Its folder remains in the distribution as a rollback anchor, but a fresh
+    installation receives the agent from the catalog - seeding it here would
+    create a copy the registry cannot see.
+    """
+    from core import default_imports
+    from core.orchestrators import get_orchestrator
+
+    assert DEFAULTS_ORCH_DIR.joinpath("ya_agent").is_dir()
+    assert "ya_agent" in default_imports.CATALOG_ONLY_ORCHESTRATORS
+
+    _run_bootstrap()
+
+    assert get_orchestrator("ya_agent") is None
 
 
 def _set_max_steps(slug, value):
@@ -173,35 +231,31 @@ def test_devagent_user_max_steps_survives_bootstrap(isolated_data_dir):
     assert orch["max_steps"] == 321
 
 
-def test_preset_legacy_100_migrates_to_default(isolated_data_dir):
+def test_preset_legacy_100_migrates_to_default(isolated_data_dir, bundled_preset):
     """Bundled default orchestrators with the legacy 100 limit are upgraded
     to DEFAULT_MAX_STEPS once."""
     from storage.models import DEFAULT_MAX_STEPS
-    from core.orchestrators import get_orchestrator
 
     _run_bootstrap()
     assert _set_max_steps(PRESET_SLUG, 100)["max_steps"] == 100
 
     _run_bootstrap()
-    orch = get_orchestrator(PRESET_SLUG)
+    orch = _get_preset()
     assert orch["max_steps"] == DEFAULT_MAX_STEPS
     assert orch["config"].get("max_steps_default_migrated") is True
 
 
-def test_preset_user_max_steps_survives_bootstrap(isolated_data_dir):
+def test_preset_user_max_steps_survives_bootstrap(isolated_data_dir, bundled_preset):
     """A user-chosen preset max_steps value survives bootstrap runs."""
-    from core.orchestrators import get_orchestrator
-
     _run_bootstrap()
     assert _set_max_steps(PRESET_SLUG, 777)["max_steps"] == 777
 
     _run_bootstrap()
-    orch = get_orchestrator(PRESET_SLUG)
-    assert orch["max_steps"] == 777
+    assert _get_preset()["max_steps"] == 777
 
 
-def test_preset_preserves_user_changes(isolated_data_dir):
-    """User-edited YaAgent settings survive subsequent bootstrap runs."""
+def test_preset_preserves_user_changes(isolated_data_dir, bundled_preset):
+    """User-edited preset settings survive subsequent bootstrap runs."""
     from core.orchestrators import save_orchestrator
 
     _run_bootstrap()

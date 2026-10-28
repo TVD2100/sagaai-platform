@@ -998,6 +998,11 @@ def _live_subagent_runs(slug: str) -> list:
     previous script run is still visible. An empty list means the dialog has
     nothing to poll and the auto-refresh fragment is not rendered at all -
     an idle dialog must not hold a background timer.
+
+    A stored ``running`` claim is not taken at face value: the registry demotes
+    a record this process cannot verify to ``failed``, so a child whose thread
+    died cannot keep the status line up. The root record of the dialog is never
+    a child of itself.
     """
     try:
         from core.orchestration.service import get_service
@@ -1011,7 +1016,10 @@ def _live_subagent_runs(slug: str) -> list:
     for rec in runs:
         if not isinstance(rec, dict):
             continue
-        if str(rec.get("status") or "") == "running" and str(rec.get("run_id") or "") != root:
+        run_id = str(rec.get("run_id") or "")
+        if run_id == root:
+            continue
+        if str(rec.get("status") or "") == "running":
             alive.append(rec)
     return alive
 

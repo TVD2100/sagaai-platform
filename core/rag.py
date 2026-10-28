@@ -331,7 +331,33 @@ def delete_base(slug: str) -> bool:
         if source not in markers:
             markers.append(source)
         _save_removed_defaults(markers)
+    _mark_marketplace_removed(slug, manifest)
     return True
+
+
+def _mark_marketplace_removed(slug: str, manifest: dict) -> None:
+    """Record a deliberate base deletion in the marketplace registry.
+
+    The default import honours its own removed-defaults file, and the
+    marketplace honours ``marketplace_removed``. A base deleted here has to
+    be stopped by both, otherwise the next start either recreates the folder
+    from ``defaults/`` or offers to install the catalog version again.
+
+    The catalog id comes from the ``marketplace`` block the installer writes
+    into the manifest; a base built by hand has no such block and stays a
+    local deletion.
+    """
+    block = (manifest or {}).get("marketplace")
+    entity_id = str((block or {}).get("id") or "") if isinstance(block, dict) else ""
+    if not entity_id:
+        return
+    try:
+        from core.marketplace import registry
+
+        registry.remove_installed("rag", entity_id)
+        registry.mark_removed("rag", entity_id, slug, via="user")
+    except Exception:
+        pass
 
 
 def add_file(slug: str, filename: str, content: bytes) -> dict:

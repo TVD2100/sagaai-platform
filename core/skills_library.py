@@ -365,7 +365,46 @@ def delete_skill(skill_id: str) -> bool:
         if source not in removed:
             removed.append(source)
             _save_removed_defaults(removed)
+    _mark_marketplace_removed(skill_id, folder)
     return _save_registry(registry)
+
+
+def _mark_marketplace_removed(skill_id: str, folder: str = "") -> None:
+    """Record a deliberate skill deletion in the marketplace registry.
+
+    ``ensure_default_skills()`` honours its own removed-defaults file, and the
+    catalog honours ``marketplace_removed``. A skill deleted from the library
+    has to be stopped by both, otherwise the next start either recreates the
+    folder from ``defaults/`` or offers the catalog version again.
+
+    The catalog row is found by the runtime skill id the installer stored,
+    falling back to the folder name (an adopted preset carries no installer
+    record but does carry its folder). A skill the marketplace never touched
+    has no row and stays a purely local deletion.
+    """
+    try:
+        from core.marketplace import registry as marketplace_registry
+
+        row = None
+        for candidate in marketplace_registry.list_installed("skill"):
+            if str(candidate.get("runtime_skill_id") or "") == skill_id:
+                row = candidate
+                break
+        if row is None and folder:
+            for candidate in marketplace_registry.list_installed("skill"):
+                if str(candidate.get("runtime_slug") or "") == folder:
+                    row = candidate
+                    break
+        if row is None:
+            return
+        entity_id = str(row.get("id") or "")
+        if not entity_id:
+            return
+        runtime_slug = str(row.get("runtime_slug") or folder or "")
+        marketplace_registry.remove_installed("skill", entity_id)
+        marketplace_registry.mark_removed("skill", entity_id, runtime_slug, via="user")
+    except Exception:
+        pass
 
 
 # ─── Skill files ─────────────────────────────────────────────────────────
@@ -508,15 +547,30 @@ def import_skill_from_zip(zip_bytes: bytes, name: Optional[str] = None,
 
 def _install_from_folder(src: str, root: str, name: Optional[str],
                          description: str, developer: Optional[str] = None,
-                         adapted: Optional[bool] = None) -> Dict[str, Any]:
+                         adapted: Optional[bool] = None,
+                         folder: Optional[str] = None,
+                         skill_id: Optional[str] = None) -> Dict[str, Any]:
     """Copy src into a new skill folder and register it.
 
     ``developer``/``adapted`` describe the skill's ownership and SagaAI
     compatibility status (see AGENT.md). When omitted the defaults are
     ``unknown`` / not adapted, i.e. a skill imported from an external source.
+
+    ``folder`` pins the destination folder name instead of deriving a free
+    one, and ``skill_id`` reuses a known 8-hex id. Both exist for the
+    marketplace installer: it has already reserved a runtime folder and may
+    have received the id from the catalog, and a second generated id would
+    break the registry row that points at the first one.
     """
-    folder = _unique_folder(name or Path(src).name or "skill")
-    dest = os.path.join(root, folder)
+    if folder:
+        cleaned = _safe_folder_name(folder)
+        dest = os.path.join(root, cleaned)
+        if os.path.exists(dest):
+            raise SkillsLibraryError(f"Folder already exists: {cleaned}")
+        folder = cleaned
+    else:
+        folder = _unique_folder(name or Path(src).name or "skill")
+        dest = os.path.join(root, folder)
     count = _copy_tree(src, dest)
     if count == 0:
         shutil.rmtree(dest, ignore_errors=True)
@@ -524,8 +578,11 @@ def _install_from_folder(src: str, root: str, name: Optional[str],
     skill_name = (name or "").strip() or Path(src).name.replace("_", " ").title() or folder
     developer = (developer or "").strip() or UNKNOWN_DEVELOPER
     adapted = bool(adapted)
-    sid = _new_skill_id()
     registry = _load_registry()
+    if skill_id and _SKILL_ID_RE.match(skill_id) and skill_id not in registry:
+        sid = skill_id
+    else:
+        sid = _new_skill_id()
     registry[sid] = {
         "name": skill_name,
         "description": (description or "").strip(),
@@ -548,21 +605,27 @@ def _install_from_folder(src: str, root: str, name: Optional[str],
 def import_skill_from_folder(folder_path: str, name: Optional[str] = None,
                              description: str = "",
                              developer: Optional[str] = None,
-                             adapted: Optional[bool] = None) -> Dict[str, Any]:
+                             adapted: Optional[bool] = None,
+                             folder: Optional[str] = None,
+                             skill_id: Optional[str] = None) -> Dict[str, Any]:
     """Install a skill from a local folder.
 
     The folder is copied to skills/<folder>. *developer* defaults to
     ``unknown`` and *adapted* to False (an external import); pass explicit
     values when the folder is known to be a platform/adapted skill.
+
+    *folder* forces the destination folder name and *skill_id* reuses a
+    known 8-hex id; the marketplace installer uses both so a catalog install
+    lands exactly where its registry row expects it.
     Returns {"ok": True, "skill": ...}.
     """
     if not folder_path or not os.path.isdir(folder_path):
         raise SkillsLibraryError(f"Folder does not exist: {folder_path}")
     root = ensure_skills_root()
     src = os.path.abspath(folder_path)
-    fallback = os.path.basename(src.rstrip("/\\")) or "skill"
     return _install_from_folder(src, root, name=name, description=description,
-                                developer=developer, adapted=adapted)
+                                developer=developer, adapted=adapted,
+                                folder=folder, skill_id=skill_id)
 
 
 # ─── Import: GitHub ───────────────────────────────────────────────────────

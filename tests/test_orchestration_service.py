@@ -25,6 +25,7 @@ from core.orchestration.contracts import (  # noqa: E402
     ERR_LIMIT_EXCEEDED,
     SpawnRequest,
     STATUS_CANCELLED,
+    STATUS_FAILED,
     STATUS_RUNNING,
     STATUS_DONE,
     STOP_ABORTED,
@@ -169,6 +170,112 @@ def test_derive_child_thread_id_is_unique_per_run():
     assert b.startswith("parent__s")
     assert a != b
     assert S.derive_child_thread_id("", "cccccccc").startswith("nothread__s")
+
+
+# ─── the root run of a dialog (no worker ever finishes it) ──────────────────
+
+
+def test_release_tree_gives_the_root_a_terminal_status(svc):
+    """The dialog's own record must not stay ``running`` after its step ends.
+
+    A root run has no worker: nothing else would ever write its final status,
+    so a released tree used to leave a ``running`` claim on disk forever and
+    every status reader kept reporting the finished dialog as live work.
+    """
+    svc.ensure_run("root", thread_id="thread-1")
+    svc.save_record("root")
+
+    svc.release_tree("root")
+
+    stored = S.run_store.load("root", svc.store_root())
+    assert stored is not None
+    assert stored["status"] == STATUS_DONE
+    assert stored["stop_reason"] == "completed"
+
+
+def test_a_new_step_reopens_the_finished_root_record(svc):
+    """The dialog id survives across steps; its step status must not."""
+    svc.ensure_run("root", thread_id="thread-1")
+    svc.release_tree("root")
+    assert S.run_store.load("root", svc.store_root())["status"] == STATUS_DONE
+
+    reopened = svc.ensure_run("root", thread_id="thread-1")
+
+    assert reopened.status == STATUS_RUNNING
+    assert reopened.stop_reason is None
+    svc.save_record("root")
+    assert S.run_store.load("root", svc.store_root())["status"] == STATUS_RUNNING
+
+
+def test_closing_the_root_leaves_a_running_child_alone(svc):
+    """Only the dialog's own record is closed; a child still owns its status."""
+    svc.ensure_run("root", thread_id="thread-1")
+    svc.ensure_run("child", parent_run_id="root", depth=1)
+
+    svc.release_tree("root")
+
+    assert svc.get_record("child").status == STATUS_RUNNING
+
+
+# ─── a stored ``running`` claim must be provable ───────────────────────────
+
+
+def test_a_stored_running_record_without_a_live_counterpart_is_demoted(svc):
+    """A leftover of a dead thread must not be reported as work in progress."""
+    S.run_store.save({"run_id": "gone", "root_run_id": "root",
+                      "parent_run_id": "root", "status": STATUS_RUNNING,
+                      "boot_id": "deadbeef" * 4, "heartbeat_at": time.time()},
+                     svc.store_root())
+
+    listed = {r["run_id"]: r for r in svc.list_records("root")}
+
+    assert listed["gone"]["status"] == STATUS_FAILED
+    assert listed["gone"]["error_code"] == "stale_run"
+    assert listed["gone"]["live"] is False
+
+
+def test_a_live_record_keeps_its_running_status_in_the_list(svc):
+    """The verdict must not demote work this process is actually running."""
+    svc.ensure_run("child", thread_id="thread-1", parent_run_id=None, depth=1)
+
+    listed = {r["run_id"]: r for r in svc.list_records()}
+
+    assert listed["child"]["status"] == STATUS_RUNNING
+    assert listed["child"]["live"] is True
+
+
+def test_record_from_store_demotes_an_unverifiable_run(svc):
+    """poll() reads through this method, so it must not hand back a zombie."""
+    S.run_store.save({"run_id": "gone", "root_run_id": "root",
+                      "status": STATUS_RUNNING, "boot_id": "deadbeef" * 4,
+                      "heartbeat_at": time.time()}, svc.store_root())
+
+    record = svc.record_from_store("gone")
+
+    assert record["status"] == STATUS_FAILED
+    assert record["error_code"] == "stale_run"
+
+
+def test_the_sweep_repairs_records_of_previous_processes(svc):
+    """A restart is the one moment every leftover is provably dead."""
+    for rid in ("old-1", "old-2"):
+        S.run_store.save({"run_id": rid, "root_run_id": "tree-" + rid,
+                          "status": STATUS_RUNNING, "boot_id": "deadbeef" * 4,
+                          "heartbeat_at": time.time()}, svc.store_root())
+
+    repaired = svc.sweep_dead_runs()
+
+    assert repaired == 2
+    assert S.run_store.load("old-1", svc.store_root())["status"] == STATUS_FAILED
+
+
+def test_the_sweep_keeps_the_records_of_this_process(svc):
+    """A record written by the running process is not a leftover."""
+    svc.ensure_run("root", thread_id="thread-1")
+    svc.save_record("root")
+
+    assert svc.sweep_dead_runs() == 0
+    assert S.run_store.load("root", svc.store_root())["status"] == STATUS_RUNNING
 
 
 # ─── depth and total-run limits ─────────────────────────────────────────────

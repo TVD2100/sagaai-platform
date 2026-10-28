@@ -67,6 +67,7 @@ from core.orchestration.contracts import (  # noqa: E402
     ERR_RESUME_CHAIN_LIMIT,
     ERR_RESUME_UNAVAILABLE,
     ERR_RUN_NOT_FOUND,
+    ERR_STALE_RUN,
     ERR_TIMEOUT,
     InvokeRequest,
     MAX_RESUME_CHAIN,
@@ -349,6 +350,25 @@ class OrchestrationService:
         self._trees: Dict[str, _TreeState] = {}
         self._child_runner: Optional[Callable[..., AgentRunResult]] = None
 
+    def sweep_dead_runs(self) -> int:
+        """Repair stored ``running`` claims that cannot be alive any more.
+
+        Called once when the process-wide service is created. A record left by
+        a previous process instance can never become live again, so leaving it
+        untouched only made a dead child look like running work. Listing the
+        store already applies the staleness rules and writes every repaired
+        record back, which makes the listing the sweep.
+
+        Returns the number of records that are stale.
+        """
+        try:
+            records = run_store.list_runs(None, self.store_root(), limit=0)
+        except Exception as exc:  # pragma: no cover - sweep is best effort
+            log.warning("run store sweep failed: %s", exc)
+            return 0
+        return sum(1 for rec in records
+                   if str(rec.get("error_code") or "") == ERR_STALE_RUN)
+
     # ── Records ────────────────────────────────────────────────────────────
 
     def ensure_run(self, run_id: str, *,
@@ -375,6 +395,17 @@ class OrchestrationService:
                     rec.thread_id = thread_id
                 if agent_slug and not rec.agent_slug:
                     rec.agent_slug = agent_slug
+                if not parent_run_id and rec.is_terminal:
+                    # The root record stands for ONE step of the dialog, and the
+                    # dialog id survives across steps. A new step therefore
+                    # re-opens the finished record instead of inheriting a
+                    # terminal status that would describe the previous step.
+                    rec.status = STATUS_RUNNING
+                    rec.stop_reason = None
+                    rec.error_code = None
+                    rec.summary = ""
+                    rec.created_at = time.time()
+                    rec.heartbeat_at = rec.created_at
                 return rec
             root_id = rid
             if parent_run_id:
@@ -452,6 +483,29 @@ class OrchestrationService:
         _record_child_handoff(rec, effective)
         return effective
 
+    def close_root_run(self, root_run_id: str,
+                       status: str = STATUS_DONE) -> bool:
+        """Give the dialog's own run a terminal status; True when it changed.
+
+        A root run is not a child: it stands for one step of the dialog and has
+        no worker that could ever finish it. Nothing else writes its final
+        status, so without this call the record stays ``running`` on disk and
+        keeps claiming that work is in progress long after the step ended.
+        """
+        rid = (root_run_id or "").strip()
+        if not rid:
+            return False
+        with self._lock:
+            rec = self._runs.get(rid)
+            if rec is None or rec.is_terminal:
+                return False
+            rec.status = status
+            rec.stop_reason = (STOP_COMPLETED if status == STATUS_DONE
+                              else STOP_ERROR)
+            rec.heartbeat_at = time.time()
+        self.save_record(rid)
+        return True
+
     def release_tree(self, root_run_id: str) -> Dict[str, Any]:
         """Forget a finished tree (records, pool, subscribers, mailbox).
 
@@ -468,6 +522,11 @@ class OrchestrationService:
         rid = (root_run_id or "").strip()
         if not rid:
             return {"released": False, "deferred": False}
+        # The root record describes the DIALOG step, and this call happens
+        # exactly when that step is over. Leaving it ``running`` is what made a
+        # finished dialog look like live work forever: the record had no thread
+        # behind it any more, yet every status reader reported it as running.
+        self.close_root_run(rid)
         with self._lock:
             alive = [r for r in self._runs.values()
                      if r.root_run_id == rid and r.run_id != rid
@@ -525,17 +584,50 @@ class OrchestrationService:
         rec.heartbeat_at = time.time()
         self.save_record(run_id)
 
+    def start_heartbeat(self, run_id: str) -> threading.Event:
+        """Keep the heartbeat of a live run fresh until the returned event is set.
+
+        The event-driven refresh alone is not enough: a child inside one long
+        tool call publishes no event for minutes, and a reader that judges
+        liveness by heartbeat age would wrongly declare it dead. The timer stops
+        itself once the run is terminal, so a finished run writes nothing more.
+        """
+        stop = threading.Event()
+        interval = float(run_store.HEARTBEAT_INTERVAL_SECONDS)
+
+        def _beat() -> None:
+            """Refresh the heartbeat until asked to stop or the run ends."""
+            while not stop.wait(interval):
+                try:
+                    rec = self.get_record(run_id)
+                    if rec is None or rec.is_terminal:
+                        return
+                    self.refresh_heartbeat(run_id)
+                except Exception as exc:  # pragma: no cover - best effort
+                    log.debug("heartbeat failed for %s: %s", run_id, exc)
+                    return
+
+        threading.Thread(target=_beat, name="orch-hb-" + str(run_id),
+                         daemon=True).start()
+        return stop
+
     def record_from_store(self, run_id: str) -> Optional[Dict[str, Any]]:
         """Return a durable record even when the in-memory one is gone.
 
         This is what makes a background run observable after ``release_tree``
-        or a restart: the registry is a cache, the store is the truth.
+        or a restart: the registry is a cache, the store is the truth. A
+        ``running`` claim is only reported as running when this process can
+        still verify it - a stored record without a live counterpart is a
+        leftover of a dead thread and is demoted before it reaches a caller.
         """
         try:
-            return run_store.load(run_id, self.store_root())
+            record = run_store.load(run_id, self.store_root())
         except Exception as exc:  # pragma: no cover - unreadable store
             log.warning("run record load failed for %s: %s", run_id, exc)
             return None
+        if record is None:
+            return None
+        return run_store.demote_if_dead(record, live_in_memory=False)
 
     def list_records(self, root_run_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Merge live records with durable ones, newest first, one per run.
@@ -543,6 +635,12 @@ class OrchestrationService:
         Live state wins over the stored copy (the store lags a heartbeat); a
         run known only to the store - a background child from a previous
         process - is still reported instead of silently disappearing.
+
+        A stored record that still claims ``running`` is checked against what
+        this process can verify: without a live counterpart it belongs to a
+        thread that is gone, so it is demoted to ``failed``/``stale_run``. That
+        verdict is what stops a crashed child from being reported as work in
+        progress; the repair of the file itself is ``runs.heal``'s job.
         """
         merged: Dict[str, Dict[str, Any]] = {}
         try:
@@ -556,7 +654,15 @@ class OrchestrationService:
             live = [r for r in self._runs.values()
                     if not root_run_id or r.root_run_id == root_run_id]
         for rec in live:
-            merged[rec.run_id] = rec.to_record()
+            data = rec.to_record()
+            data["live"] = True
+            merged[rec.run_id] = data
+        for rid, item in list(merged.items()):
+            if item.get("live"):
+                continue
+            demoted = run_store.demote_if_dead(item, live_in_memory=False)
+            demoted["live"] = False
+            merged[rid] = demoted
         items = list(merged.values())
         items.sort(key=lambda d: float(d.get("created_at") or 0.0), reverse=True)
         return items
@@ -1094,6 +1200,13 @@ class OrchestrationService:
                 rec.workspace = str(base_dir)
 
         deadline = time.monotonic() + limits["subagent_timeout_seconds"]
+        # A reader that judges liveness by heartbeat age must see a fresh beat
+        # even while the child sits inside one long tool call. Only a BACKGROUND
+        # child needs the timer: a blocking one keeps its record in memory until
+        # it returns, and presence in the registry is the stronger signal there.
+        heartbeat_stop = None
+        if getattr(req, "background", False) or getattr(rec, "background", False):
+            heartbeat_stop = self.start_heartbeat(run_id)
         try:
             result = self._run_child(
                 child_slug=req.agent_slug or "",
@@ -1118,6 +1231,8 @@ class OrchestrationService:
                                     error_code=ERR_INTERNAL_ERROR,
                                     retryable=False)
         finally:
+            if heartbeat_stop is not None:
+                heartbeat_stop.set()
             self.release_pool(root_id, slot)
 
         if self.is_cancelled(run_id) and result.status == STATUS_RUNNING:
@@ -1686,12 +1801,18 @@ _SERVICE_LOCK = threading.Lock()
 
 
 def get_service() -> OrchestrationService:
-    """Return the process-wide orchestration service (created on first use)."""
+    """Return the process-wide orchestration service (created on first use).
+
+    Creation is the one moment the store is known to be read by a fresh
+    process, so it is also where records of a previous instance are repaired:
+    no live counterpart can exist for them yet.
+    """
     global _SERVICE
     if _SERVICE is None:
         with _SERVICE_LOCK:
             if _SERVICE is None:
                 _SERVICE = OrchestrationService()
+                _SERVICE.sweep_dead_runs()
     return _SERVICE
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

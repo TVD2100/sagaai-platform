@@ -16,7 +16,23 @@ class StopRerun(Exception):
     """Raised by mock st.rerun() / st.stop() to unwind the current render."""
 
 
+class WidgetLockedError(Exception):
+    """Modelled after streamlit.errors.StreamlitWidgetAlreadyInstantiatedError."""
+
+
 class _SessionState(dict):
+    """Session state that can refuse writes to an already-created widget key.
+
+    Real Streamlit binds a widget to its ``key`` at creation time and rejects
+    any later assignment to that key within the same script run. A plain dict
+    accepts the write silently, so the bug reaches the user instead of a
+    test: this mock reproduces the rejection when ``mock.lock_widgets`` is on.
+    """
+
+    def __init__(self, mock=None):
+        super().__init__()
+        self._mock = mock
+
     # allow attribute access like real st.session_state
     def __getattr__(self, k):
         try:
@@ -25,13 +41,48 @@ class _SessionState(dict):
             raise AttributeError(k) from e
 
     def __setattr__(self, k, v):
+        if k.startswith("_"):
+            super().__setattr__(k, v)
+            return
         self[k] = v
+
+    def _guard(self, key) -> None:
+        """Raise when *key* is a widget key already created in this run."""
+        mock = self._mock
+        if mock is not None and mock.lock_widgets and key in mock._locked_keys:
+            raise WidgetLockedError(
+                f"st.session_state['{key}'] cannot be modified after the "
+                "widget with that key is instantiated. Assign it before "
+                "creating the widget, or update it from an on_change or "
+                "on_click callback. If this is a read-only session state "
+                "key, store the value under a different key."
+            )
+
+    def __setitem__(self, key, value):
+        self._guard(key)
+        super().__setitem__(key, value)
+
+    def pop(self, key, *args):
+        self._guard(key)
+        return super().pop(key, *args)
 
 
 class StreamlitMock(types.ModuleType):
+    #: Widget kinds that bind their ``key`` when they are created.
+    _WIDGET_NAMES = frozenset({
+        "button", "form_submit_button", "selectbox", "text_input",
+        "text_area", "number_input", "date_input", "slider",
+        "file_uploader", "chat_input", "checkbox", "multiselect", "radio",
+    })
+
     def __init__(self):
         super().__init__("streamlit")
-        self.session_state = _SessionState()
+        # ``lock_widgets`` is off by default so existing tests keep their
+        # "seed state, then render" flow; the guard tests switch it on to
+        # catch writes into an instantiated widget key.
+        self.lock_widgets = False
+        self._locked_keys = set()       # widget keys bound in this script run
+        self.session_state = _SessionState(self)
         self.calls = []                 # list of (fn_name, args, kwargs)
         self._buttons_true = set()      # keys/labels that should return True once
         self._selectbox_returns = {}    # key -> value to return
@@ -48,6 +99,21 @@ class StreamlitMock(types.ModuleType):
     # ---- helpers for tests ------------------------------------------------
     def _rec(self, name, args, kwargs):
         self.calls.append((name, args, kwargs))
+        # Every widget creation goes through here, so binding the key in one
+        # place keeps the whole mock honest: a widget created inside a
+        # container (``sidebar.text_input``) is locked exactly like a direct
+        # one, and no widget method can forget to call ``_bind``.
+        self._bind(str(name).rsplit(".", 1)[-1], kwargs)
+
+    def _bind(self, name, kwargs) -> None:
+        """Register a widget key as instantiated (when locking is on)."""
+        if not self.lock_widgets:
+            return
+        if name not in self._WIDGET_NAMES:
+            return
+        key = kwargs.get("key")
+        if key:
+            self._locked_keys.add(key)
 
     def click(self, *keys_or_labels):
         self._buttons_true = set(keys_or_labels)

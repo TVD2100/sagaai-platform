@@ -19,6 +19,11 @@ preset once), so newly bundled skills appear on existing installs. User
 intent is preserved via registry ``source`` markers and a removed-defaults
 list (see raw string details inside ``ensure_default_skills``).
 
+A skill that lives in the catalog as well is seeded from the bundle and
+keeps its preset name as its folder, so the catalog recognises it instead of
+offering a second copy; a skill the catalog already installed is never
+seeded again.
+
 After the imports, a folders-first sync (core.entity_sync) runs so every
 assistant / orchestrator folder is reflected in the DB cache and every legacy
 DB record gets a folder on disk.
@@ -51,6 +56,72 @@ def _full_devagent_toolset() -> list:
         return []
 
 
+#: Orchestrators that moved from the bundled defaults into the marketplace
+#: catalog. Their folders stay under defaults/ so a platform rollback never
+#: loses them, but a fresh installation no longer seeds them: they arrive
+#: from the catalog, and an existing installation keeps its runtime copy.
+CATALOG_ONLY_ORCHESTRATORS = frozenset({"ya_agent"})
+
+#: RAG bases that moved into the catalog (same rule as the orchestrators).
+CATALOG_ONLY_RAG_BASES = frozenset({"yaagentai_2020"})
+
+#: Skills that moved into the catalog. The bundled folder stays in the
+#: distribution: an installation without the catalog keeps seeding it, and a
+#: platform rollback finds it exactly where it was.
+#:
+#: Empty today: every bundled skill is seeded again on a fresh installation,
+#: and the catalog recognises the seeded copy as an existing installation
+#: instead of offering a second one. The hook stays in place for a skill whose
+#: bundled copy must not be seeded at all.
+CATALOG_ONLY_SKILLS: frozenset = frozenset()
+
+#: Prefix of the ``source`` marker the marketplace writes into the record of
+#: a skill it installed (``marketplace/<catalog id>``).
+CATALOG_SOURCE_PREFIX = "marketplace/"
+
+
+def _marketplace_active() -> bool:
+    """True when the marketplace section is switched on.
+
+    The master switch governs the bundled defaults too: with the section
+    switched off the platform must behave exactly as it did before the
+    catalog existed, catalog-only entities included.
+    """
+    try:
+        from core.marketplace import is_enabled as marketplace_enabled
+
+        return bool(marketplace_enabled())
+    except Exception:
+        return False
+
+
+def _marketplace_removed_slugs(type_: str) -> set:
+    """Return the runtime slugs the marketplace recorded as removed.
+
+    A catalog entity the user deleted must not be recreated by the bundled
+    default import: the two removal registries (the marketplace one and the
+    pre-marketplace marker files) answer the same question, and this bridges
+    them for the import paths that predate the catalog.
+
+    A disabled marketplace contributes nothing - with the section switched
+    off the bundled defaults keep working exactly as they did before.
+    """
+    try:
+        from core.marketplace import is_enabled as marketplace_enabled
+
+        if not marketplace_enabled():
+            return set()
+        from core.marketplace import registry
+
+        return {
+            str(row.get("runtime_slug") or "")
+            for row in registry.list_removed(type_)
+            if str(row.get("runtime_slug") or "").strip()
+        }
+    except Exception:
+        return set()
+
+
 def ensure_default_orchestrators() -> Dict[str, str]:
     """Import default orchestrators from defaults/orchestrators/*.
 
@@ -80,7 +151,20 @@ def ensure_default_orchestrators() -> Dict[str, str]:
     # When defaults/ exists, ONLY its folders are imported. Deleting a folder
     # silently excludes that entity (no presets fallback).
 
+    removed_slugs = _marketplace_removed_slugs("agent")
+
     for slug in non_dev:
+        if slug in removed_slugs:
+            # The user deleted this entity. Recreating its folder here would
+            # resurrect exactly what the registry recorded as removed; the
+            # status says "exists" because nothing was created.
+            results[slug] = "exists"
+            continue
+        if slug in CATALOG_ONLY_ORCHESTRATORS and _marketplace_active():
+            # A catalog entity: seeding it here would bypass the registry and
+            # make a fresh installation look like a catalog install. With the
+            # section switched off the bundled folder stays the only source.
+            continue
         data = defaults_mod.load_default_orchestrator(slug)
         if data is None:
             results[slug] = "error: unreadable"
@@ -161,11 +245,22 @@ def ensure_default_rag_bases() -> Dict[str, str]:
 
     ensure_dir(rag.RAG_BASES_DIR)
     removed = set(rag._load_removed_defaults())
+    removed_slugs = _marketplace_removed_slugs("rag")
 
     for slug in defaults_mod.list_default_rag_base_slugs():
         source_marker = f"defaults/rag_bases/{slug}"
         if source_marker in removed:
             results[slug] = "exists"
+            continue
+        if slug in removed_slugs:
+            # A base deleted through the marketplace must not be copied back
+            # from the bundled defaults: the registry recorded the intent.
+            results[slug] = "exists"
+            continue
+        if slug in CATALOG_ONLY_RAG_BASES and _marketplace_active():
+            # A catalog base: the marketplace installs it, and seeding it here
+            # would hide the catalog install behind a bundled copy. With the
+            # section switched off the bundled folder stays the only source.
             continue
         dst_folder = os.path.join(rag.RAG_BASES_DIR, slug)
         if os.path.isdir(dst_folder):
@@ -385,6 +480,11 @@ def ensure_default_skills() -> Dict[str, str]:
     skill records its marker in the library's removed-defaults list, which
     is honoured here.
 
+    A folder the marketplace already filled with the same skill is not seeded
+    twice: the catalog calls a bundled copy an existing installation
+    (``adopt``) rather than a free slot, so a second copy under a suffixed
+    name would show one installation as two entries.
+
     Newly imported skills are enabled for the built-in DevAgent
     orchestrator (config.enabled_skills).
 
@@ -394,6 +494,7 @@ def ensure_default_skills() -> Dict[str, str]:
         _load_registry,
         _load_removed_defaults,
         _save_registry,
+        get_skills_root,
         import_skill_from_folder,
         PLATFORM_DEVELOPER,
     )
@@ -404,11 +505,31 @@ def ensure_default_skills() -> Dict[str, str]:
         return results
 
     removed = set(_load_removed_defaults())
+    # Removal markers written by the marketplace are a second source: a skill
+    # deleted from the catalog UI must never be resurrected by this import
+    # either, and its marker lives in the marketplace_removed table rather
+    # than in removed_defaults.json.
+    try:
+        from core.marketplace.registry import removed_source_markers
+
+        removed.update(removed_source_markers())
+    except Exception:
+        pass
     registry = _load_registry()
     known_markers = {
         str(r.get("source") or "")
         for r in registry.values()
         if isinstance(r, dict)
+    }
+    # A skill the catalog installed occupies the folder a bundled preset would
+    # take. Its record is the evidence that the folder is already in use:
+    # seeding the preset next to it would produce a second copy under a
+    # suffixed name and one installation would show up twice.
+    catalog_folders = {
+        str(r.get("folder") or "")
+        for r in registry.values()
+        if isinstance(r, dict)
+        and str(r.get("source") or "").startswith(CATALOG_SOURCE_PREFIX)
     }
 
     for name in sorted(os.listdir(src_root)):
@@ -426,10 +547,26 @@ def ensure_default_skills() -> Dict[str, str]:
         if source_marker in removed or source_marker in known_markers:
             results[name] = "exists"
             continue
+        if f"{CATALOG_SOURCE_PREFIX}{name}" in known_markers:
+            results[name] = "exists"
+            continue
+        if name in catalog_folders:
+            results[name] = "exists"
+            continue
+        if name in CATALOG_ONLY_SKILLS and _marketplace_active():
+            # A catalog skill: the marketplace installs it, and seeding it here
+            # would hide the catalog install behind a bundled copy. With the
+            # section switched off the bundled folder stays the only source.
+            continue
+        # The bundled preset keeps its folder name: the catalog addresses the
+        # same skill by that name, so an adopted installation and a catalog
+        # installation land in one place. A folder that already exists without
+        # a record is a stranger - the library then picks a free name.
+        folder_arg = name if not os.path.isdir(os.path.join(get_skills_root(), name)) else None
         try:
             res = import_skill_from_folder(
                 src, name=name.replace("_", " ").title(),
-                developer=PLATFORM_DEVELOPER, adapted=True
+                developer=PLATFORM_DEVELOPER, adapted=True, folder=folder_arg
             )
         except Exception as exc:
             results[name] = "error: " + str(exc)
