@@ -34,11 +34,13 @@ from core.orchestration.contracts import (
     AgentBrief,
     ERR_AGENT_NOT_ALLOWED,
     ERR_ASSISTANT_NOT_ALLOWED,
+    ERR_CHILD_UNFINISHED,
     ERR_INTERNAL_ERROR,
     ERR_INVALID_ARGS,
     ERR_INVALID_BRIEF,
     ERR_MAX_STEPS,
     ERR_NOT_IMPLEMENTED,
+    ERR_NOT_YOUR_RUN,
     ERR_PROVIDER_ERROR,
     ERR_RESUME_UNAVAILABLE,
     ERR_RUN_NOT_FOUND,
@@ -118,6 +120,11 @@ def run_note(run: Dict[str, Any], *, timed_out: bool = False) -> str:
                     "instead of repeating the call verbatim.")
         return "The child failed; the run is marked not retryable."
     if status == STATUS_AWAITING_INPUT:
+        if code == ERR_CHILD_UNFINISHED:
+            return ("The child did its work but never signalled completion: "
+                    "its files are usually on disk already. Check the "
+                    "artifacts before resuming - re-running would duplicate "
+                    "what it wrote.")
         return ("The run stopped with work unfinished. Read its journal with "
                 "read_subagent_state, then continue with resume_subagent.")
     if status == STATUS_CANCELLED:
@@ -577,6 +584,200 @@ def read_subagent_state(run_id: Optional[str] = None, *,
             "note": _journal_note(trimmed, str(record.get("status") or ""))}
 
 
+def _load_run_record(service, run_id: str) -> Optional[Dict[str, Any]]:
+    """Return a run record as a dict: the live copy first, the store second.
+
+    The two sources carry the same fields but different shapes - a live record
+    is an object with attributes, a stored one is already a dict - so callers
+    get one shape and never branch on where the record came from.
+    """
+    rid = str(run_id or "").strip()
+    if not rid:
+        return None
+    try:
+        live = service.get_record(rid)
+    except Exception:  # pragma: no cover - registry is best effort
+        live = None
+    if live is not None:
+        try:
+            return live.to_record()
+        except Exception:  # pragma: no cover - defensive
+            if isinstance(live, dict):
+                return dict(live)
+    try:
+        return service.record_from_store(rid)
+    except Exception:  # pragma: no cover - store is best effort
+        return None
+
+
+def _resolve_run_root(service, run_id: str) -> str:
+    """Return the tree root of a run, falling back to the run itself.
+
+    A root record carries its own id as ``root_run_id``, so the fallback is
+    correct for a dialog-level run whose record still lacks the field.
+    """
+    rid = str(run_id or "").strip()
+    if not rid:
+        return ""
+    record = _load_run_record(service, rid) or {}
+    return str(record.get("root_run_id") or "").strip() or rid
+
+
+def _confine_run(service, run_id: str,
+                 parent_run_id: Optional[str]) -> Dict[str, Any]:
+    """Load a run record, refusing a run that belongs to another tree.
+
+    Reading or stopping a child is a right of its OWN tree: another dialog's
+    transcript is not addressable, and reaching into its runs would be a way
+    around the dialog boundary. Callers pass the parent run id they were given;
+    without one the call is treated as dialog-level and allowed.
+
+    Returns ``{"ok": True, "record": {...}}`` or the ready error payload.
+    """
+    rid = str(run_id or "").strip()
+    record = _load_run_record(service, rid)
+    if record is None:
+        return error_result(rid, "Unknown run: " + rid + ".", ERR_RUN_NOT_FOUND)
+    parent = str(parent_run_id or "").strip()
+    if not parent:
+        return {"ok": True, "record": record}
+    caller_root = _resolve_run_root(service, parent)
+    target_root = str(record.get("root_run_id") or "").strip() or _resolve_run_root(
+        service, rid)
+    if caller_root and target_root and caller_root != target_root:
+        return error_result(
+            rid, "Run " + rid + " belongs to another tree.", ERR_NOT_YOUR_RUN,
+            root_run_id=target_root, caller_root_run_id=caller_root)
+    return {"ok": True, "record": record}
+
+
+def read_subagent_thread(run_id: Optional[str] = None, *,
+                         offset: int = 0,
+                         limit: int = 50,
+                         include_tool_results: bool = False,
+                         parent_slug: str = "dev_agent",
+                         parent_run_id: Optional[str] = None,
+                         service=None) -> Dict[str, Any]:
+    """Read the CONVERSATION of a subagent run, not just its journal.
+
+    The journal answers "what did it plan and finish"; this tool answers "what
+    did it actually see and say" - the model replies, the tool calls and the
+    errors of a child whose result looks wrong. A long child is hard to debug
+    from a summary alone, so the parent reads its transcript.
+
+    Access is limited to the caller's own tree: a run of another dialog is not
+    addressable, and an unknown run answers ``run_not_found`` instead of an
+    empty transcript (an empty list would look like a silent child).
+
+    Windows are paginated with ABSOLUTE message indices, so a hit from a
+    search pairs with the exact offset to read around.
+    """
+    if service is None:
+        from core.orchestration.service import get_service
+        service = get_service()
+    rid = str(run_id or "").strip()
+    if not rid:
+        return error_result("", "read_subagent_thread needs run_id: the run whose "
+                            "conversation you want to read.", ERR_INVALID_ARGS,
+                            missing=["run_id"])
+
+    # Confinement: only the caller's own tree is readable. Reading somebody
+    # else's transcript would leak another dialog's work into this context.
+    checked = _confine_run(service, rid, parent_run_id)
+    if not checked.get("ok"):
+        return checked
+    record = dict(checked.get("record") or {})
+
+    thread_id = str(record.get("child_thread_id") or "").strip()
+    if not thread_id:
+        return error_result(
+            rid, "Run " + rid + " has no child thread recorded.",
+            ERR_RESUME_UNAVAILABLE,
+            note=("A run prepared without a child thread (an older record or a "
+                  "test runner) has no transcript. Use read_subagent_state to "
+                  "read its journal instead."))
+
+    try:
+        from core.threads_devagent import read_thread_window
+        window = read_thread_window(thread_id, offset=offset, limit=limit,
+                                    include_tool_results=bool(include_tool_results))
+    except Exception as exc:  # pragma: no cover - defensive
+        return error_result(rid, "Thread read failed: " + str(exc),
+                            ERR_INTERNAL_ERROR)
+    if not window.get("ok"):
+        return error_result(rid, str(window.get("error") or "Thread unreadable."),
+                            ERR_PROVIDER_ERROR, child_thread_id=thread_id)
+
+    window["run_id"] = rid
+    window["child_thread_id"] = thread_id
+    window["status"] = str(record.get("status") or "")
+    if not window.get("messages"):
+        window["note"] = ("The transcript window is empty. Either the offset is "
+                          "past the end, or the child has not produced a "
+                          "visible message yet.")
+    return window
+
+
+def cancel_subagent(run_id: Optional[str] = None, *,
+                     cascade: bool = True,
+                     reason: str = "",
+                     parent_slug: str = "dev_agent",
+                     parent_run_id: Optional[str] = None,
+                     service=None) -> Dict[str, Any]:
+    """Stop a running child, optionally together with its descendants.
+
+    Stopping work is the parent's decision, not the child's: a child that
+    misunderstands the task, loops on a wrong path or proves unnecessary must
+    be stoppable from the dialog that launched it. Without this tool the only
+    way out was to wait for the timeout.
+
+    ``cascade`` also cancels every descendant of the run, which is what a
+    parent usually wants - a grandchild working for a cancelled child is dead
+    weight. The cancellation is a FLAG checked at step boundaries: a tool call
+    already in flight finishes first, because a Python thread cannot be killed
+    safely.
+
+    ``reason`` travels into the notice so the model sees why the work stopped.
+    """
+    if service is None:
+        from core.orchestration.service import get_service
+        service = get_service()
+    rid = str(run_id or "").strip()
+    if not rid:
+        return error_result("", "cancel_subagent needs run_id: the run to stop.",
+                            ERR_INVALID_ARGS, missing=["run_id"])
+
+    # Confinement: a caller may only cancel its own descendants. A dialog-level
+    # call owns its tree; a child may stop what it started, nothing else.
+    checked = _confine_run(service, rid, parent_run_id)
+    if not checked.get("ok"):
+        return checked
+
+    try:
+        report = service.cancel(rid, cascade=bool(cascade))
+    except Exception as exc:  # pragma: no cover - defensive
+        return error_result(rid, "Cancellation failed: " + str(exc),
+                            ERR_INTERNAL_ERROR)
+
+    payload: Dict[str, Any] = {"ok": True, "run_id": rid}
+    payload.update(report.to_dict())
+    if reason:
+        payload["reason_text"] = str(reason)
+    if not report.cancelled:
+        payload["note"] = ("Nothing to cancel: the run is already "
+                           + str(report.previous_status) + ".")
+    elif cascade and report.children:
+        payload["note"] = (str(len(report.children)) + " descendant run(s) were "
+                           "cancelled with it. Cancellation is a flag checked "
+                           "at step boundaries: a tool call already in flight "
+                           "finishes before the child stops.")
+    else:
+        payload["note"] = ("Cancellation requested. The child stops at its next "
+                           "step boundary; a tool call already in flight "
+                           "finishes first.")
+    return payload
+
+
 def resume_subagent(run_id: Optional[str] = None, *,
                     request: Optional[AgentBrief] = None,
                     background: bool = False,
@@ -698,6 +899,29 @@ def _terminal_run_ids(service: Any, root: str,
     return out
 
 
+def _active_run_ids(service: Any, root: str,
+                    exclude: Optional[set] = None) -> set:
+    """Return the ``run_id`` values of the tree that are still not terminal.
+
+    The root record stands for the whole tree, so it is always excluded: while
+    the dialog is open it is legitimately running, and counting it would make
+    ``all_children`` wait for the very run that is doing the waiting.
+    """
+    skip = set(exclude or ())
+    try:
+        runs = service.list_records(root) or []
+    except Exception:  # pragma: no cover - a wait must never raise
+        return set()
+    out = set()
+    for item in runs:
+        rid = str((item or {}).get("run_id") or "").strip()
+        if not rid or rid in skip:
+            continue
+        if str((item or {}).get("status") or "") not in TERMINAL_STATUSES:
+            out.add(rid)
+    return out
+
+
 def sleep_tool(
     seconds: Optional[float] = None,
     until: str = "any_child",
@@ -751,11 +975,11 @@ def sleep_tool(
             ERR_INVALID_ARGS, invalid=["seconds"])
 
     mode = str(until or "any_child").strip().lower() or "any_child"
-    if mode not in ("any_child", "timeout"):
+    if mode not in ("any_child", "timeout", "all_children"):
         return error_result(
-            "", "until must be any_child or timeout.",
+            "", "until must be any_child, all_children or timeout.",
             ERR_INVALID_ARGS, invalid=["until"],
-            allowed=["any_child", "timeout"])
+            allowed=["any_child", "all_children", "timeout"])
 
     clamped = wait > MAX_SLEEP_SECONDS
     if clamped:
@@ -772,8 +996,19 @@ def sleep_tool(
 
     track_events = mode == "any_child" and bool(root)
     snapshot = _terminal_run_ids(service, root, {parent}) if track_events else set()
+    # ``all_children`` waits for the WHOLE fan-out: a parent that spawned five
+    # auditors wants the batch, not a turn per child. The wait ends when no
+    # non-terminal child of the tree remains, so a child that finished before
+    # the call started does not shorten it and one that was cancelled mid-way
+    # releases it just the same.
+    track_all = mode == "all_children" and bool(root)
     finished: List[str] = []
     woken_by = "timeout"
+    if track_all:
+        remaining = _active_run_ids(service, root, {parent})
+        if not remaining:
+            return {"ok": True, "slept": 0.0, "woken_by": "all_done",
+                    "finished": [], "clamped": False}
 
     started = time.monotonic()
     deadline = started + wait
@@ -788,6 +1023,13 @@ def sleep_tool(
                 woken_by = "cancelled"
                 finished = []
                 break
+
+        if track_all and not _active_run_ids(service, root, {parent}):
+            # The whole fan-out is quiet: that is a distinct outcome from one
+            # child finishing, and the model acts on it differently.
+            woken_by = "all_done"
+            finished = sorted(_terminal_run_ids(service, root, {parent}))
+            break
 
         if track_events:
             current = _terminal_run_ids(service, root, {parent})
@@ -896,6 +1138,37 @@ def resume_subagent_tool_entry() -> Dict[str, str]:
     }
 
 
+def read_subagent_thread_tool_entry() -> Dict[str, str]:
+    """Return the catalog entry of ``read_subagent_thread``."""
+    return {
+        "name": "read_subagent_thread",
+        "desc": (
+            "Read the CONVERSATION of a subagent run - what it actually saw "
+            "and said, not just what it planned. Args: run_id, [offset=0], "
+            "[limit=50], [include_tool_results=false]. Windows carry absolute "
+            "message indices for pagination. Use it when a child's result "
+            "looks wrong and the journal does not explain why. Only runs of "
+            "your own tree are readable."
+        ),
+    }
+
+
+def cancel_subagent_tool_entry() -> Dict[str, str]:
+    """Return the catalog entry of ``cancel_subagent``."""
+    return {
+        "name": "cancel_subagent",
+        "desc": (
+            "Stop a running subagent instead of waiting for its timeout. "
+            "Args: run_id, [cascade=true] (also stop its descendants), "
+            "[reason] (why - it travels into the notice). Use it when a "
+            "child misunderstood the task, loops on a wrong path or is no "
+            "longer needed. Cancellation is a flag checked at step "
+            "boundaries: a tool call already in flight finishes first. You "
+            "may only cancel runs of your own tree."
+        ),
+    }
+
+
 def sleep_tool_entry() -> Dict[str, str]:
     """Return the catalog entry of ``sleep``.
 
@@ -910,9 +1183,10 @@ def sleep_tool_entry() -> Dict[str, str]:
             "Sleep until one of your background children finishes, or until the "
             "timeout expires. Args: seconds (the ceiling, max 3600 = one "
             "hour; a child agent can work for many minutes), until "
-            "(\"any_child\" by default, or \"timeout\" to wait the full time "
-            "regardless of events). Returns woken_by (event | timeout | "
-            "cancelled) and finished: the run_ids that became terminal while "
+            "(\"any_child\" by default, \"all_children\" to wait for the whole "
+            "fan-out at once, or \"timeout\" to wait the full time "
+            "regardless of events). Returns woken_by (event | all_done | "
+            "timeout | cancelled) and finished: the run_ids that became terminal while "
             "you slept. It does NOT return their results - fetch those with "
             "subagent_status(run_id=...) or read_subagent_state(run_id=...). "
             "A timeout does NOT cancel anything: it only ends your wait. "

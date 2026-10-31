@@ -127,14 +127,58 @@ def test_non_positive_seconds_is_refused(svc, clock):
 
 
 def test_unknown_until_value_is_refused(svc, clock):
-    """Only the two documented modes exist; all_children is not one of them."""
+    """Only the documented modes exist; an invented one is refused."""
     clock()
 
-    out = T.sleep_tool(seconds=1, until="all_children", service=svc)
+    out = T.sleep_tool(seconds=1, until="some_children", service=svc)
 
     assert out["ok"] is False
     assert out["error_code"] == ERR_INVALID_ARGS
-    assert out["allowed"] == ["any_child", "timeout"]
+    assert out["allowed"] == ["any_child", "all_children", "timeout"]
+
+
+def test_all_children_waits_for_the_whole_fanout(svc, clock):
+    """A fan-out is waited on as a batch, not child by child.
+
+    ``any_child`` returns after the first completion and makes the model call
+    sleep once per child; ``all_children`` ends only when no child of the tree
+    is still running, which is what a parent that launched several auditors
+    actually wants.
+    """
+    svc.ensure_run("root", thread_id="thread-1")
+    kids = [_child(svc, "root", name)
+            for name in ("child-a", "child-b", "child-c")]
+
+    def _finish(tick):
+        # One child finishes on every tick: the wait must not end before the
+        # tree is quiet, and must end as soon as it is.
+        if tick <= len(kids):
+            kids[tick - 1].status = STATUS_DONE
+
+    clock(on_tick=_finish)
+
+    out = T.sleep_tool(seconds=60, parent_run_id="root",
+                       until="all_children", service=svc)
+
+    assert out["ok"] is True
+    assert out["woken_by"] == "all_done"
+    assert out["finished"] == ["child-a", "child-b", "child-c"]
+    assert out["slept"] < 60
+
+
+def test_all_children_returns_at_once_when_nothing_is_running(svc, clock):
+    """An already-quiet tree must not burn the whole wait."""
+    fake = clock()
+    svc.ensure_run("root", thread_id="thread-1")
+    _child(svc, "root", "child-a").status = STATUS_DONE
+
+    out = T.sleep_tool(seconds=60, parent_run_id="root",
+                       until="all_children", service=svc)
+
+    assert out["woken_by"] == "all_done"
+    assert out["finished"] == []
+    assert out["slept"] == 0.0
+    assert fake.spent == 0
 
 
 def test_seconds_above_the_ceiling_is_clamped_not_refused(svc, clock):

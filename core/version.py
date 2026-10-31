@@ -358,7 +358,18 @@
 # skill exists on disk, the catalog adopts that copy instead of offering a
 # second one, and a catalog installation of the same skill stops the seed.
 
-__version__ = "2.22.0"
+# 2.23.0 puts the parent in charge of the children it started. A delegated
+# run can be stopped with cancel_subagent: the request is a flag checked at
+# step boundaries (a tool call already in flight finishes first), the run and
+# its descendants end as cancelled, and only runs of the caller's own tree
+# are addressable. read_subagent_thread shows what a child actually saw and
+# said, not just what its journal claims. A child now reports its finish
+# through a done loop status instead of a question, keeps no plan gate it
+# cannot pass, and a run that ends without a summary is reported as
+# unfinished work rather than as a result. The blocking wait gained
+# until="all_children".
+
+__version__ = "2.23.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -997,11 +997,23 @@ sha256-отпечаток шапки сигнализирует об устар�
   завершения диалога. Идентификаторы: `run_id` - уникальный, тред ребёнка -
   производный `{parent}__s{run_id[:8]}` (свой журнал, рабочая папка
   родителя).
-- **`tools.py`** - обёртки инструментов `spawn_agent` и `invoke_assistant`
-  с правами доступа: `agent_not_allowed`, `unknown_agent`,
-  `assistant_not_allowed`, `unknown_assistant`, `invalid_args`,
-  `not_implemented`. Права проверяются до захвата ресурсов, поэтому
-  отклонённый вызов не занимает слот пула.
+- **`tools.py`** - обёртки инструментов `spawn_agent`, `invoke_assistant`,
+  `cancel_subagent` и `read_subagent_thread` с правами доступа:
+  `agent_not_allowed`, `unknown_agent`, `assistant_not_allowed`,
+  `unknown_assistant`, `invalid_args`, `not_implemented`, `not_your_run`.
+  Права проверяются до захвата ресурсов, поэтому отклонённый вызов не
+  занимает слот пула.
+- **Управление запущенным ребёнком.** `cancel_subagent` не ждёт бюджета
+  запуска, а ставит флаг отмены в записи (`cancel_reason`), который цикл
+  ребёнка проверяет на границах шагов: вызов инструмента, уже начатый,
+  завершается, после чего запуск и его потомки (`cascade`) уходят в
+  `cancelled`. `read_subagent_thread` читает переписку ребёнка через
+  `core.threads_devagent.read_thread_window`, подставляя `child_thread_id`
+  из записи запуска: журнал показывает план, а переписка - что ребёнок
+  реально сказал и вызвал. Оба инструмента адресуют только запуски своей
+  корневой ветки (`_resolve_run_root` + `_confine_run`), чужой запуск
+  отвечает `not_your_run`; отмена уже завершённого - успешный ответ
+  `cancelled=false`, чтобы модель не повторяла вызов.
 
 **Лимиты делегирования** хранятся в конфигурации оркестратора и читаются
 через `get_delegation_limits(slug)` (шесть ключей): `max_depth` - глубина

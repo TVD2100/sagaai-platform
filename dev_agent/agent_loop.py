@@ -194,6 +194,18 @@ def format_subagent_notice(notice: Dict[str, Any]) -> str:
     steps = payload.get("steps_used")
     if steps:
         parts.append("Steps used: " + str(steps) + ".")
+    # The outcome and the artifact list are what the parent needs to decide
+    # whether to read, resume or stop. Without them every notice costs the
+    # parent three extra calls (journal, status, directory listing) just to
+    # learn whether the child produced anything at all.
+    summary = " ".join(str(payload.get("summary") or "").split())
+    if summary:
+        if len(summary) > 280:
+            summary = summary[:277] + "..."
+        parts.append("Summary: " + summary)
+    artifacts = payload.get("artifacts") or notice.get("artifacts") or []
+    if isinstance(artifacts, (list, tuple)) and artifacts:
+        parts.append("Artifacts: " + str(len(artifacts)) + ".")
     pending = payload.get("pending") or notice.get("pending") or []
     if isinstance(pending, (list, tuple)):
         short = [str(p).strip() for p in list(pending)[:3] if str(p).strip()]
@@ -583,7 +595,7 @@ _REQUIRES_USER_RESPONSE_RE = re.compile(
 )
 
 _LOOP_STATUS_RE = re.compile(
-    r'"loop_status"\s*:\s*"(continue|awaiting_user)"', re.IGNORECASE
+    r'"loop_status"\s*:\s*"(continue|awaiting_user|done)"', re.IGNORECASE
 )
 
 
@@ -731,7 +743,8 @@ def classify_step_strength(parsed_calls: List[Dict[str, Any]],
 # turns tool-call arguments into requests and maps results back.
 
 _DELEGATION_CALL_NAMES = ("spawn_agent", "invoke_assistant", "subagent_status",
-                         "read_subagent_state", "resume_subagent", "sleep")
+                         "read_subagent_state", "resume_subagent", "sleep",
+                         "cancel_subagent", "read_subagent_thread")
 
 
 def _agent_brief_from_args(args: Dict[str, Any]):
@@ -840,6 +853,29 @@ def _delegation_job(tool: str, args: Dict[str, Any], *,
         return sleep_tool(
             seconds=args.get("seconds"),
             until=str(args.get("until") or "any_child"),
+            parent_slug=parent_slug,
+            parent_run_id=parent_run_id or None,
+            service=service,
+        )
+    if tool == "cancel_subagent":
+        # The parent run id comes from this closure: the confinement check
+        # needs the caller's tree, and the generic dispatch has no such value.
+        from core.orchestration.tools import cancel_subagent
+        return cancel_subagent(
+            run_id=args.get("run_id"),
+            cascade=bool(args.get("cascade", True)),
+            reason=str(args.get("reason") or ""),
+            parent_slug=parent_slug,
+            parent_run_id=parent_run_id or None,
+            service=service,
+        )
+    if tool == "read_subagent_thread":
+        from core.orchestration.tools import read_subagent_thread
+        return read_subagent_thread(
+            run_id=args.get("run_id"),
+            offset=int(args.get("offset") or 0),
+            limit=int(args.get("limit") or 50),
+            include_tool_results=bool(args.get("include_tool_results")),
             parent_slug=parent_slug,
             parent_run_id=parent_run_id or None,
             service=service,
@@ -3412,8 +3448,16 @@ def _step_agent_loop_impl(
                 state.user_message = _AUTO_CONTINUE_PREFIX + " Continue to the next step."
                 state.phase = "calling_llm"
                 return state
+            elif loop_status == "done":
+                # Explicit completion. Without this branch the only exit to
+                # ``done`` is the English phrase in ``_FINAL_PHRASE``, so a
+                # run whose final answer follows the documented footer
+                # contract could never finish: ``continue`` loops forever and
+                # ``awaiting_user`` exhausts the auto-continue budget. A child
+                # that reports its result must be able to say so.
+                final_status = "done"
             elif loop_status == "awaiting_user":
-                if _looks_like_plan(state.assistant_text):
+                if _looks_like_plan(state.assistant_text) and not state.child_mode:
                     state.plan_presented = True
                 final_status = "awaiting_user"
             elif _parse_requires_user_response(state.assistant_text) is False:
@@ -3429,7 +3473,11 @@ def _step_agent_loop_impl(
             elif _prose_looks_like_question(state.assistant_text):
                 final_status = "awaiting_user"
             elif _looks_like_plan(state.assistant_text) or _looks_like_confirmation_request(state.assistant_text):
-                if _looks_like_plan(state.assistant_text):
+                # A child has nobody to approve a plan: latching the flag would
+                # make every following turn stop on the same text until the
+                # auto-continue budget burns out, while the child keeps doing
+                # real work.
+                if _looks_like_plan(state.assistant_text) and not state.child_mode:
                     state.plan_presented = True
                 emit({"type": "phase", "phase": "awaiting_plan_approval",
                       "reason": "plan or confirmation request detected", "step": state.steps})
@@ -3484,6 +3532,17 @@ def _step_agent_loop_impl(
                     )
                     state.phase = "calling_llm"
                     return state
+
+            if final_status == "awaiting_user" and state.child_mode:
+                # The child burned its whole autonomy budget without ever
+                # saying the work was finished. Its files are usually on
+                # disk, so the parent needs a cause it can tell apart from
+                # a real step-budget failure.
+                state.error_code = "child_unfinished"
+                state.error_message = (
+                    "The child exhausted its autonomous continuations "
+                    "without signalling completion."
+                )
 
             emit({"type": "final", "text": state.assistant_text, "status": final_status})
             state.phase = "done"
@@ -3816,6 +3875,14 @@ def _step_agent_loop_impl(
 
         if all_ok:
             state.consecutive_errors = 0
+        if any_call_ok and state.child_mode:
+            # The auto-continue budget exists to stop a child that SPINS on
+            # questions, not to cap a child that WORKS. A step that executed
+            # real tool calls is progress, so the budget is refilled: without
+            # this a long child spends its eight continuations on unrelated
+            # questions and then ends as ``awaiting_user`` with its work on
+            # disk and its report unwritten.
+            state.auto_continue_count = 0
 
         # DSML-discipline reminder: a successfully executed fallback-dialect
         # call still means the step used DSML - append the one-line contract

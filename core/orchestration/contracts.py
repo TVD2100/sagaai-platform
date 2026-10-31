@@ -58,6 +58,11 @@ ERR_CANCELLED_BY_PARENT = "cancelled_by_parent"
 ERR_CANCELLED_BY_USER = "cancelled_by_user"
 ERR_TIMEOUT = "timeout"
 ERR_MAX_STEPS = "max_steps"
+#: A child exhausted its autonomous continuations without ever signalling
+#: completion. Kept apart from ``max_steps`` because the two demand different
+#: reactions: a step budget needs a smaller task, while this one means the
+#: child never learned its work was finished - its files are usually on disk.
+ERR_CHILD_UNFINISHED = "child_unfinished"
 ERR_SANITIZED_REQUIRED = "sanitized_required"
 ERR_PROVIDER_ERROR = "provider_error"
 #: The child loop itself raised - a defect in the platform, not a provider

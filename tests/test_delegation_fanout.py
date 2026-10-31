@@ -280,11 +280,12 @@ def test_brief_passes_through_unchanged(delegation_env):
 def test_delegation_call_names_are_the_documented_set():
     """The fan-out phase recognizes every call that touches the run tree.
 
-    Launching is not the only delegation call: observing and resuming a
-    child also belongs to the tree, and so does waiting for one to finish,
-    so all six names have to be routed by the same phase instead of falling
-    into the plain tool path.
+    Launching is not the only delegation call: observing, resuming and
+    stopping a child also belong to the tree, and so do waiting for one to
+    finish and reading its transcript, so every one of those names has to be
+    routed by the same phase instead of falling into the plain tool path.
     """
     assert L._DELEGATION_CALL_NAMES == (
         "spawn_agent", "invoke_assistant", "subagent_status",
-        "read_subagent_state", "resume_subagent", "sleep")
+        "read_subagent_state", "resume_subagent", "sleep",
+        "cancel_subagent", "read_subagent_thread")

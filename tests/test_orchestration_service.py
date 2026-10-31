@@ -574,19 +574,27 @@ def test_child_task_text_lists_parent_dialog_files(monkeypatch):
     assert "Файлы диалога родителя: /data/history/tid/files" in text
 
 
-def test_child_task_text_without_context_stays_minimal():
-    """No workspace and no thread: the text is just the goal."""
+def test_child_task_text_without_context_keeps_only_the_role_contract():
+    """No workspace and no thread: the goal plus the executor role contract.
+
+    A child always learns that it is the executor of someone else's decision
+    and how it must finish, because there is no user in its dialog to grant an
+    approval.
+    """
     text = S._build_child_task_text(AgentBrief(goal="go"), None, None)
 
-    assert text == "go"
+    assert text.startswith("go")
+    assert "исполнитель" in text
+    assert '"loop_status": "done"' in text
     assert "Рабочая папка" not in text
+    assert "Файлы диалога родителя" not in text
 
 
 def test_child_task_text_ignores_a_blank_workspace():
     """A whitespace workspace must not produce an empty path line."""
     text = S._build_child_task_text(AgentBrief(goal="go"), "   ", "")
 
-    assert text == "go"
+    assert text.startswith("go")
     assert "Рабочая папка" not in text
 
 

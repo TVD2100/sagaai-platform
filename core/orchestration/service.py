@@ -1280,7 +1280,6 @@ class OrchestrationService:
                                    block_pool=False)
         if prep.get("ok") is False:
             return prep
-
         run_id = prep["run_id"]
         rec = prep["rec"]
         rec.background = True
@@ -1551,6 +1550,23 @@ def _build_child_task_text(brief: AgentBrief, base_dir: Optional[str],
         task_text += "\n".join(lines)
 
     context_lines: List[str] = []
+    # A child is an executor, not a dialog partner. Without these lines it
+    # starts with the full agent prompt, where Stage 1 demands a plan and an
+    # approval stop - and a child has nobody to approve anything, so it
+    # spends its step budget re-presenting a plan nobody will read.
+    context_lines.append(
+        "- Роль: делегированный исполнитель. Пользователя в этом диалоге нет, "
+        "план утверждать некому."
+    )
+    context_lines.append(
+        "- План в ответе не печатай: запиши его в журнал задачи "
+        "(task_state_init) и сразу переходи к выполнению."
+    )
+    context_lines.append(
+        "- Завершив работу, ответь итогом и закончи ответ строкой "
+        '{"loop_status": "done"}. Значение "awaiting_user" здесь означает '
+        "незавершённую работу и останавливает родителя."
+    )
     workspace_root = str(base_dir or "").strip()
     if workspace_root:
         context_lines.append("- Рабочая папка: " + os.path.abspath(workspace_root))
@@ -1653,6 +1669,13 @@ def _default_child_runner(*, child_slug: str, brief: AgentBrief,
         dispatcher.attach_orchestrator(slug)
         try:
             dispatcher.child_disabled_tools = set(CHILD_DISABLED_TOOLS)
+            # A child that already sits at the depth ceiling cannot delegate
+            # further: the service would refuse the call anyway. Hiding the
+            # tools saves a wasted step and keeps ``sleep`` from waiting for
+            # children that can never appear.
+            max_depth = int(limits.get("max_depth") or 0)
+            if max_depth and depth >= max_depth:
+                dispatcher.child_disabled_tools |= {"spawn_agent", "sleep"}
         except Exception:
             pass
 
