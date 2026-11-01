@@ -77,8 +77,19 @@ def test_core_runtime_packages_are_required():
 def test_doc_and_ssh_packages_are_optional():
     for name in ("docx", "pptx", "openpyxl", "pypdf", "pdfplumber",
                  "markdown", "reportlab", "paramiko", "tiktoken",
-                 "selenium"):
+                 "selenium", "PIL"):
         assert dc.DEPENDENCIES[name]["required"] is False, name
+
+
+def test_pdf_renderer_floor_is_pdfplumber_011():
+    """Page rendering needs the pypdfium2 backend that 0.11 introduced."""
+    assert dc.DEPENDENCIES["pdfplumber"]["min"] == "0.11"
+
+
+def test_pillow_is_declared_for_embedded_pictures():
+    spec = dc.DEPENDENCIES["PIL"]
+    assert spec["pip"] == "Pillow"
+    assert spec["min"] == "9.0"
 
 
 # ── check_dependencies ───────────────────────────────────────────────────────

@@ -369,7 +369,15 @@
 # unfinished work rather than as a result. The blocking wait gained
 # until="all_children".
 
-__version__ = "2.23.0"
+# 2.24.0 reads the pictures a document carries, not only its text. The
+# extract_document_images tool lifts embedded pictures out of PDF, DOCX,
+# PPTX and XLSX, writes them as files inside the project and hands them to
+# analyze_image in groups of five - the per-request limit. Pages of a PDF
+# without a text layer (a scan) are rendered on request, and a rendered page
+# replaces the pictures stored on that page, so the same material is never
+# read twice. The analysis reply is fenced as untrusted image data.
+
+__version__ = "2.24.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

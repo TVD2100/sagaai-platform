@@ -594,7 +594,17 @@ roles.update({
     "tests/test_delegation_fanout.py": "Unit tests for fan-out in the executing phase: whole-batch validation before the pool, parallel child runs with an identical task allowed, per-run event attribution and journal/binding isolation; the routed call tuple includes sleep and the child-control calls",
     "tests/scenarios/test_orchestrator_tool_gating.py": "Gating scenarios: system-prompt version pins (v3.26/v2.11), empty-state prompt invariants, generated-document rule, Stage 0 recent-folders menu, the subagent stop/transcript rules and thread-search tool invariants",
     "AGENT.md": "Key project information for agents (requirements, conventions, constraints); FR delegation documents the child-control tools, the done-status finish of a child and the unfinished-run marker; managed doc, replaces SPEC.md",
-    "ARCHITECTURE.md": "Architecture description: platform layers and flows, incl. the connectors, the optional URL-fetch capability, document text extraction, multi-agent orchestration with the child-control tools and section 8a on the marketplace",
+    "ARCHITECTURE.md": "Architecture description: platform layers and flows, incl. the connectors, the optional URL-fetch capability, document text extraction, picture extraction from documents (core/document_images, extract_document_images), multi-agent orchestration with the child-control tools and section 8a on the marketplace",
+})
+
+roles.update({
+    "core/document_images.py": "Embedded-picture extraction for documents: extract_images(filename, data) over PDF, DOCX, PPTX and XLSX (page/slide/sheet anchors resolved through _rels/*.rels, sha256 deduplication, zip-bomb guards, format sniffing by signature), render_pdf_pages through pdfplumber>=0.11/pypdfium2 with no external binary, looks_like_scan, save_images, make_batches and recognition_prompt; like document_text it never raises - problems come back as warnings",
+    "tests/test_document_images.py": "Unit tests for core/document_images: per-format extraction and anchors, deduplication, size and zip-limits, signature checks, page rendering and blank-page skipping, scan detection, file naming and batching, the recognition prompt",
+    "tests/scenarios/test_document_images_scenario.py": "Scenario tests (given->when->then) for reading the pictures of a document: a report with a chart, a scanned contract (auto does not read a page twice, force renders pages and replaces the pictures on them), an empty file, a dialog upload, a missing vision model and a repeated run",
+    "dev_agent/universal_agent.py": "Tool dispatcher for orchestrators: validate_tool_call resolves the run's disabled_tools first, then the argument specs, then the rights, without touching process globals; WORKSPACE_TOOL_ARGS describes the arguments of the delegation tools, including the child-control calls; extract_document_images saves document pictures under .dev_agent/doc_images and hands them to analyze_image in batches of five",
+    "defaults/instructions/multimodal_mode.md": "Global multimodal_mode instruction: analyze_image/generate_image/extract_document_images usage rules, document-picture extraction, unassigned-model fallbacks and image-borne prompt-injection safety",
+    "tests/test_multimodal_instruction.py": "Tests for the multimodal_mode instruction seeding and content, incl. the picture-extraction contract",
+    "core/multimodal.py": "Vision/image model resolution + analyze_image/generate_image wrappers (core.multimodal); the analysis reply is fenced as DATA_FROM_IMAGE and reported as untrusted data",
 })
 
 

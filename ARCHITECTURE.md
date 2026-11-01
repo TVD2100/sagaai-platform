@@ -58,6 +58,7 @@ SagaAI построена по модульной архитектуре с чё
 | `instructions` | CRUD для внутренних инструкций (Assistant Creator, Employee Creator) |
 | `orchestrators` | **Ядро оркестраторов**: CRUD, `build_assistant_dicts()`, `get_web_search_config()`, `get_economy_config()`, `export_orchestrator()` / `import_orchestrator()` (формат `sagaai_orchestrator/v1`), `ensure_builtin_orchestrators()`; права делегирования - `get_allowed_agents` / `set_allowed_agents`, `get_allowed_assistants` / `set_allowed_assistants` (список помощников сверяется с живыми карточками) и `get_delegation_limits` / `set_delegation_limits` (шесть лимитов с клампом на записи) |
 | `document_text` | Извлечение текста из документов на диске и во вложениях: PDF, DOCX, DOC, PPTX, XLSX, XLS, RTF, ODT, HTML и plain text через `extract_text(filename, data)`, плюс `read_document_path(path, offset, limit, max_chars)` - чтение файла с окном строк. Неизвестный формат или отсутствующая библиотека возвращаются предупреждением, а не исключением, поэтому вызывающий инструмент всегда отвечает текстом |
+| `document_images` | Извлечение встроенных изображений из документов: `extract_images(filename, data)` для PDF, DOCX, PPTX и XLSX (привязка к странице/слайду/листу через `_rels/*.rels`, дедупликация по sha256, защита от zip-бомб, опознание формата по сигнатуре), `render_pdf_pages(...)` - рендер страниц PDF через `pdfplumber>=0.11`/pypdfium2 без внешних бинарников, `looks_like_scan(...)`, `save_images(...)`, `make_batches(...)`, `recognition_prompt(...)`. Как и `document_text`, модуль не бросает исключений: проблемы возвращаются списком предупреждений |
 | `orchestrator_tools` | Каталог инструментов оркестраторов: core + workspace + подключения + кастомные функции; англоязычный блок `## Available tools` для системного промпта (без отключённых инструментов); `disabled_tools` blacklist, разрешение legacy-алиасов, `list_system_tools()` для UI |
 | `orchestration/*` | Мультиагентная оркестрация запусков: контракты конвейера (`contracts` - `AgentBrief`, `SpawnRequest`, `InvokeRequest`, `AgentRunResult`, `CancelReport`, `Artifact`, сериализация в dict), одноразовый вызов помощника без цикла инструментов (`invoke` - `invoke_once`), реестр запусков с деревом, пулом, лимитами, таймаутами и каскадной отменой (`service` - `OrchestrationService`), обёртки инструментов `spawn_agent` / `invoke_assistant` с правами доступа (`tools`) |
 | `orchestrator_folders` | Папки оркестраторов: `orchestrator.json`, функции, инструкции (front-matter), экспорт/импорт папок; резолвер рабочей папки данных `resolve_data_dir(slug, workspace)` с маркером `MEMORY_DIR:` и отчётом о конфликтах |
@@ -180,7 +181,9 @@ SagaAI построена по модульной архитектуре с чё
   освобождает его `unbind_thread` по завершении.
 - `universal_agent.py` - `load_system_prompt()` (единый файл
   `dev_agent/system_prompt.md`), `build_assistant_dict_from_config()`,
-  `UniversalDevAgent` (core + workspace + orchestrator tools).
+  `UniversalDevAgent` (core + workspace + orchestrator tools, включая
+  `extract_document_images`: картинки документа сохраняются файлами под
+  `.dev_agent/doc_images/`, а распознавание остаётся за `analyze_image`).
 - `system_prompt.md` - канонический системный промпт DevAgent (v3.20):
   docs-first workflow (перед началом работы читать `AGENT.md`, если он есть,
   затем `PROJECT_MAP.md`), обязательная секция «Documentation» в финальном отчёте,
@@ -505,7 +508,8 @@ DeepSeek/`deepseek-flash` с `search_temperature` 0.4,
 пользователем модели и настройки экономии не перезаписываются.
 Назначенные модели используются системными инструментами `analyze_image`
 (файлы проекта и вложения диалога; JPEG/PNG/WebP, до 5 изображений и
-10 МБ каждое; каталоги `vision_models`: YandexAI - `qwen3.6-35b-a3b` и `deepseek-v4.1-flash`, DeepSeek - `deepseek-flash` через выделенный `vision_base_url` с `detail="original"`) и `generate_image` (синхронный OpenAI-совместимый Images API
+10 МБ каждое; ответ оборачивается в фенс `DATA_FROM_IMAGE`; каталоги
+`vision_models`: YandexAI - `qwen3.6-35b-a3b` и `deepseek-v4.1-flash`, DeepSeek - `deepseek-flash` через выделенный `vision_base_url` с `detail="original"`) и `generate_image` (синхронный OpenAI-совместимый Images API
 YandexAI, единственная модель `aliceai-image-art-3.0`; результат сохраняется
 файлом - в workspace или в папку файлов диалога, base64 не возвращается -
 и показывается в чате с кнопкой скачивания) через `core/multimodal.py`
@@ -770,6 +774,20 @@ XLSX, XLS, RTF, ODT, HTML), а `read_document` делает то же самое
 файла на диске по абсолютному пути с окном строк. `run_code` помечен в
 каталоге как средство последней очереди - текстовые и документные форматы
 читаются специализированными инструментами.
+
+Картинки документа читаются отдельным шагом. `extract_document_images`
+(`UniversalDevAgent._extract_document_images`, ядро -
+`core/document_images.py`) достаёт встроенные изображения из PDF, DOCX,
+PPTX и XLSX, раскладывает их файлами PNG в
+`<проект>/.dev_agent/doc_images/<документ>-<хеш>/` и возвращает манифест
+без base64: привязку к странице/слайду/листу, размеры, предупреждения и
+готовые группы `batches` по 5 путей - столько `analyze_image` принимает за
+один вызов. Распознавание остаётся за `analyze_image`, который возвращает
+текст, обёрнутый в `DATA_BEGIN: DATA_FROM_IMAGE`; инструмент лишь готовит
+файлы. Для сканов есть рендер страниц (`ocr='auto'` - только когда у PDF
+нет ни текстового слоя, ни извлекаемых картинок, `ocr='force'` - всегда):
+рендер страницы замещает встроенные картинки той же страницы, поэтому один
+и тот же материал не оплачивается дважды.
 
 ### Авто-прокрутка ленты чата
 Лента истории растёт под липкой нижней панелью (блок «Выбор папки» + поле

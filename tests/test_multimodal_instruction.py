@@ -3,11 +3,11 @@ tests/test_multimodal_instruction.py - the bundled multimodal_mode global
 instruction and its seeding into the global instructions store.
 
 The instruction (defaults/instructions/multimodal_mode.md) documents the
-analyze_image / generate_image platform tools: usage rules, unassigned-model
-handling, provider errors, dependency-install consent and image-borne
-prompt-injection safety. These tests cover the file format, the seeding
-statuses of ensure_global_instructions and idempotency (user edits are
-preserved).
+analyze_image / generate_image / extract_document_images platform tools:
+usage rules, unassigned-model handling, provider errors, dependency-install
+consent and image-borne prompt-injection safety. These tests cover the file
+format, the seeding statuses of ensure_global_instructions and idempotency
+(user edits are preserved).
 """
 import sys
 from pathlib import Path
@@ -59,6 +59,16 @@ class TestInstructionFile:
         assert "consent" in body.lower()
         assert "untrusted" in body.lower()
         assert "prompt-injection" in body.lower()
+
+    def test_body_documents_picture_extraction(self):
+        """The instruction routes document pictures to the dedicated tool."""
+        meta, body = _load_instruction()
+        assert "extract_document_images" in meta["description"]
+        assert "extract_document_images" in body
+        # The tool only extracts; recognition stays with analyze_image.
+        assert "recommended_prompt" in body
+        assert "batches" in body
+        assert "DATA_FROM_IMAGE" in body
 
 
 class TestSeeding:

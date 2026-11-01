@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-10-31T18:57:36+00:00`
-- Файлов: **474**
+- Обновлено: `2026-11-01T12:41:16+00:00`
+- Файлов: **477**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **7110**
-- Отпечаток содержимого: `sha256:685c381a05ba69ca11e5f883e325b2e5ae1cf64da33add4fcbab12da48ad9af5` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 1, JSON: 23, Markdown: 38, PEM certificate: 1, Python: 414, Text: 1
+- Python-символов: **7244**
+- Отпечаток содержимого: `sha256:285b10fea4fcdcbfd235ce5c959e1345feda45ecca472c8558ae4d7ddeeb4791` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 1, JSON: 23, Markdown: 38, PEM certificate: 1, Python: 417, Text: 1
 
 ## Файлы и назначение
 
@@ -59,6 +59,7 @@
 | `core/default_imports.py` | Python | Bundled defaults import on first boot: orchestrators, assistants, instructions and skills are seeded idempotently; a bundled skill keeps its preset name as its folder, is skipped when the catalog already owns that folder or wrote its source marker, and honors both removal registries | storage |
 | `core/defaults.py` | Python | Defaults layout helpers: paths of the shipped defaults tree, incl. connector_presets_dir() for the bundled connector presets (defaults/connectors) | storage |
 | `core/dependency_check.py` | Python | Cold-start dependency audit: DEPENDENCIES registry (import name -> pip name, minimum version, required flag) kept in sync with requirements.txt; parse_version/version_lt; check_dependencies() probes importlib.metadata and reports missing/outdated packages | - |
+| `core/document_images.py` | Python | Embedded-picture extraction for documents: extract_images(filename, data) over PDF, DOCX, PPTX and XLSX (page/slide/sheet anchors resolved through _rels/*.rels, sha256 deduplication, zip-bomb guards, format sniffing by signature), render_pdf_pages through pdfplumber>=0.11/pypdfium2 with no external binary, looks_like_scan, save_images, make_batches and recognition_prompt; like document_text it never raises - problems come back as warnings | - |
 | `core/document_text.py` | Python | Text extraction for documents on disk and in dialog attachments: PDF, DOCX, DOC, PPTX, XLSX, XLS, RTF, ODT, HTML and plain text via extract_text(filename, data), plus read_document_path(path, offset, limit, max_chars) with a line window; an unknown format or a missing optional library returns a warning line instead of raising, so the calling tool always answers with text | - |
 | `core/entity_sync.py` | Python | _(описание не задано)_ | storage |
 | `core/env_loader.py` | Python | Loads API keys from shell profiles | - |
@@ -72,7 +73,7 @@
 | `core/instructions.py` | Python | CRUD for internal instructions (Assistant Creator, Employee Creator) | - |
 | `core/mcp_client.py` | Python | MCP client, dual transport (stdlib only, no official SDK): McpClient (stdio) - Popen without shell, initialize/initialized handshake, per-process tools/list cache, text-only tools/call, 30/60s timeouts with termination and connection lockout, process registry, stderr to log; McpHttpClient (http) - POST requests with JSON or SSE responses, Mcp-Session-Id replay, Authorization header from an auth_header template resolved with the decrypted secrets per request (empty secrets skip the header), client cache dropped after secret updates; shared inputSchema translation into platform tool parameters | - |
 | `core/mcp_tools.py` | Python | MCP tools for orchestrators: static mcp_list_tools/mcp_call_tool and dynamic mcp__<conn>__<tool> tools with a reverse registry and a 60s discovery cache; env_json decrypted only for the server process; http transport branches; untrusted server data sanitized | - |
-| `core/multimodal.py` | Python | Vision/image model resolution + analyze_image/generate_image wrappers (core.multimodal) | - |
+| `core/multimodal.py` | Python | Vision/image model resolution + analyze_image/generate_image wrappers (core.multimodal); the analysis reply is fenced as DATA_FROM_IMAGE and reported as untrusted data | - |
 | `core/orchestrator_folders.py` | Python | Per-orchestrator folders: bundles, functions, instructions; resolve_data_dir picks the role's working-data folder (MEMORY_DIR marker, config.memory_dir, personal folder fallback, project default) and reports the source, an outside-workspace path and folders left over after a relocation | storage |
 | `core/orchestrator_nav.py` | Python | _(описание не задано)_ | - |
 | `core/orchestrator_tools.py` | Python | Tool catalog for orchestrators: core + workspace + delegation + connection + custom functions, the English '## Available tools' prompt block and the system-functions list; capability-gated tools (_CONDITIONAL_TOOLS) keep url_fetch out of the catalog until a fetch model is assigned or Selenium is enabled, invoke_assistant is offered only with a non-empty assistant allowlist while spawn_agent and the child-control tools are always offered, and disabled_tools stays a plain blacklist | - |
@@ -177,6 +178,7 @@
 | `tests/test_devagent_thread_workspace.py` | Python | DevAgent thread workspace persistence tests | storage |
 | `tests/test_dispatcher_connections.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_dispatcher_tool_gating.py` | Python | _(описание не задано)_ | storage |
+| `tests/test_document_images.py` | Python | Unit tests for core/document_images: per-format extraction and anchors, deduplication, size and zip-limits, signature checks, page rendering and blank-page skipping, scan detection, file naming and batching, the recognition prompt | - |
 | `tests/test_document_text.py` | Python | Unit tests for core.document_text: per-format extraction, line window, warnings for unknown formats and missing libraries | - |
 | `tests/test_economy_history_budget.py` | Python | Economy budget tests: unified (B4) input budget, tail reset on token overflow, low-watermark fallback, economy_anchor hysteresis (frozen front) | - |
 | `tests/test_employee_management_ui.py` | Python | UI regression tests: employee management pages render and expose no export/import employee UI | - |
@@ -219,7 +221,7 @@
 | `tests/test_mcp_client.py` | Python | MCP client tests with a stdlib mini JSON-RPC server fixture: handshake and bad-version start, tools/list with caching, call success/isError/rpc-error, non-text result rejection, broken command, dead process, timeout with termination and lockout, process registry, stderr, schema translation, http auth-header resolution (empty placeholders skip the header), HTTP code hints and a 403 message that exposes no secrets | - |
 | `tests/test_memory_dir_config.py` | Python | Unit tests for the memory_dir setting and the deletion cascade: config storage, empty value removes the key, resolver sources, memory archived on employee delete | - |
 | `tests/test_multimodal.py` | Python | Unit tests for core.multimodal and the image request transports | - |
-| `tests/test_multimodal_instruction.py` | Python | Tests for the multimodal_mode instruction seeding and content | - |
+| `tests/test_multimodal_instruction.py` | Python | Tests for the multimodal_mode instruction seeding and content, incl. the picture-extraction contract | - |
 | `tests/test_multimodal_tools.py` | Python | Unit tests for the analyze_image/generate_image tools | - |
 | `tests/test_numeric_arg_coercion.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestration_background.py` | Python | Unit tests for background children: the launch returns before the child finishes, the durable record is written and healed, notices land in the tree mailbox and are published once, and a cancelled child reports cancelled rather than its own done | - |
@@ -342,6 +344,7 @@
 | `tests/scenarios/test_delegation_injection_inheritance_scenario.py` | Python | Scenario tests for the safety mode a user actually creates: Safety off gives an unprotected child, the default dialog keeps it protected, a resume keeps the mode of the run it continues, an explicit mode wins, and the loop hands the dialog mode down to the tool without a gap | - |
 | `tests/scenarios/test_delegation_run_scenario.py` | Python | Scenario tests for one delegated run: two children reporting into the dialog feed, distinct threads and journals, Stop cascading to children, the run budget with a readable refusal, tree release at dialog end | - |
 | `tests/scenarios/test_devagent_defaults_scenario.py` | Python | _(описание не задано)_ | storage |
+| `tests/scenarios/test_document_images_scenario.py` | Python | Scenario tests (given->when->then) for reading the pictures of a document: a report with a chart, a scanned contract (auto does not read a page twice, force renders pages and replaces the pictures on them), an empty file, a dialog upload, a missing vision model and a repeated run | - |
 | `tests/scenarios/test_documents_and_delegation_scenario.py` | Python | Scenario tests for documents and delegation: a document goes to an assistant as one invoke_assistant call without run_code, a missing file is skipped, the prompt lists agent and assistant ids, a subagent task carries absolute paths | storage |
 | `tests/scenarios/test_dsml_fallback_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_employees_sidebar_scenarios.py` | Python | _(описание не задано)_ | storage |
@@ -419,7 +422,7 @@
 | `defaults/connectors/mcp/github_mcp.json` | JSON | GitHub MCP preset (http, https://api.githubcopilot.com/mcp/, icon for the MCP tab tile) shipped with hidden=true: the Copilot endpoint rejects classic ghp_* PATs with 403 access denied and requires a fine-grained github_pat_* token carrying the account permission Copilot Requests, sent as Authorization Bearer; the preset is off the tile list while staying resolvable by id | - |
 | `defaults/connectors/mcp/vkusvill.json` | JSON | Vkusvill MCP preset (http, https://mcp.vkusvill.ru/mcp, icon for the MCP tab tile): catalog and recipe tools work without credentials, the optional VKUSVILL_TOKEN unlocks personal data; secret_env_fields describe the token field | - |
 | `defaults/instructions/github_connector.md` | Markdown | Global github_connector instruction: ghr_* REST tool usage, batch publishing, the mandatory pre-publish secret & personal-data check (STOP and ask the user on a hit), connection memory file | - |
-| `defaults/instructions/multimodal_mode.md` | Markdown | Global multimodal_mode instruction: analyze_image/generate_image usage rules and fallbacks | - |
+| `defaults/instructions/multimodal_mode.md` | Markdown | Global multimodal_mode instruction: analyze_image/generate_image/extract_document_images usage rules, document-picture extraction, unassigned-model fallbacks and image-borne prompt-injection safety | - |
 | `defaults/instructions/ssh_connector.md` | Markdown | Global ssh_connector instruction (identical to the DevAgent copy): ssh_* tools, first-connection rules, connection memory file | - |
 | `defaults/settings/global.json` | JSON | _(описание не задано)_ | - |
 | `defaults/rag_bases/yaagentai_2020/manifest.json` | JSON | _(описание не задано)_ | - |
@@ -481,7 +484,7 @@
 | `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.26 subagent stop and transcript rules; v3.25 inherited protection mode; v3.23 self-sufficiency rule for comments/docs/tests (no origin attribution); v3.21 Stage 0 recent-folders menu for a concrete project and the chat folder selector; v3.20 AGENT.md docs-first (legacy SPEC.md removed); v3.18 generated-PROJECT_MAP rule) | - |
 | `dev_agent/task_state.py` | Python | Per-thread task journal (TASK_STATE__<thread_id>.md) with section budgets and the compact digest; the thread id is an explicit parameter (current_thread_id, ensure_task_state_file, archive_and_start_task) with config.ACTIVE_THREAD_ID as a fallback, thread_scope pins a child thread in the current Python thread so parallel children never overwrite each other's journal, and journal retention (prune_task_state_journals) drops an empty journal older than PRUNE_MIN_AGE_DAYS and a finished delegated run whose parent journal is gone, sweeping both the project folder and the empty-state dialog folders once per process | backup_manager |
 | `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools, legacy skill aliases, skills-library, document and multimodal tools; read_document reads a document on disk by absolute path with a line window through core.document_text; empty-state workspace guard (workspace_not_selected, neutral cwd for code=) | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
-| `dev_agent/universal_agent.py` | Python | Tool dispatcher for orchestrators: validate_tool_call resolves the run's disabled_tools first, then the argument specs, then the rights, without touching process globals; WORKSPACE_TOOL_ARGS describes the arguments of the delegation tools, including the child-control calls | storage, tool_executor |
+| `dev_agent/universal_agent.py` | Python | Tool dispatcher for orchestrators: validate_tool_call resolves the run's disabled_tools first, then the argument specs, then the rights, without touching process globals; WORKSPACE_TOOL_ARGS describes the arguments of the delegation tools, including the child-control calls; extract_document_images saves document pictures under .dev_agent/doc_images and hands them to analyze_image in batches of five | storage, tool_executor |
 | `dev_agent/workspace_binding.py` | Python | Per-thread workspace binding registry under an RLock; thread_context applies and restores a thread's state, bind_child_thread gives a child run the parent's workspace with its own derived thread ({parent}__s{run_id[:8]}, no target_file) and unbind_thread releases it when the run ends | - |
 | `dev_agent/workspace_tools.py` | Python | Workspace layer: folders, project map (AST symbols, content fingerprint, GitHub-published scope filter), docs, snapshots; workspace_selected reporting and per-orchestrator recent workspaces (top 10) | backup_manager |
 | `services/deepseek.json` | JSON | DeepSeek service definition (vision_base_url + vision_models catalog) | - |
@@ -1102,13 +1105,53 @@
 - `load_global_settings` (func, строка 503)
 
 ### `core/dependency_check.py`
-- `parse_version` (func, строка 57)
-- `version_lt` (func, строка 80)
-- `_installed_version` (func, строка 94)
-- `_importable` (func, строка 102)
-- `check_dependencies` (func, строка 110)
-- `missing_packages` (func, строка 149)
-- `outdated_lines` (func, строка 154)
+- `parse_version` (func, строка 60)
+- `version_lt` (func, строка 83)
+- `_installed_version` (func, строка 97)
+- `_importable` (func, строка 105)
+- `check_dependencies` (func, строка 113)
+- `missing_packages` (func, строка 152)
+- `outdated_lines` (func, строка 157)
+
+### `core/document_images.py`
+- `DocumentImage` (class, строка 120)
+- `DocumentImage.size` (func, строка 156)
+- `detect_mime` (func, строка 162)
+- `detect_format` (func, строка 180)
+- `is_supported` (func, строка 185)
+- `_pil` (func, строка 190)
+- `_is_well_formed` (func, строка 199)
+- `normalize_image` (func, строка 220)
+- `_open_zip` (func, строка 300)
+- `_read_member` (func, строка 321)
+- `_natural_key` (func, строка 349)
+- `_rels_media_targets` (func, строка 360)
+- `_pptx_targets` (func, строка 401)
+- `_docx_targets` (func, строка 421)
+- `_xlsx_sheet_names` (func, строка 431)
+- `_xlsx_targets` (func, строка 448)
+- `_pypdf_reader` (func, строка 468)
+- `_read_pdf_images` (func, строка 477)
+- `_read_ooxml_images` (func, строка 558)
+- `_ooxml_source` (func, строка 632)
+- `_pdfplumber_open` (func, строка 646)
+- `_is_blank_page` (func, строка 655)
+- `render_pdf_pages` (func, строка 697)
+- `looks_like_scan` (func, строка 827)
+- `_Collector` (class, строка 861)
+- `_Collector.__init__` (func, строка 864)
+- `_Collector.expired` (func, строка 877)
+- `_Collector.full` (func, строка 881)
+- `_Collector.add` (func, строка 885)
+- `_Collector.finish` (func, строка 932)
+- `extract_images` (func, строка 938)
+- `image_manifest` (func, строка 977)
+- `suggested_filename` (func, строка 1004)
+- `make_batches` (func, строка 1028)
+- `priority_order` (func, строка 1035)
+- `priority_order.key` (func, строка 1049)
+- `recognition_prompt` (func, строка 1094)
+- `save_images` (func, строка 1102)
 
 ### `core/document_text.py`
 - `detect_format` (func, строка 67)
@@ -3341,20 +3384,22 @@
 - `test_streamlit_is_required_with_min_1_66` (func, строка 65)
 - `test_core_runtime_packages_are_required` (func, строка 72)
 - `test_doc_and_ssh_packages_are_optional` (func, строка 77)
-- `_stub_versions` (func, строка 86)
-- `_stub_versions._version` (func, строка 88)
-- `test_check_all_up_to_date` (func, строка 95)
-- `test_check_detects_outdated` (func, строка 104)
-- `test_check_detects_missing` (func, строка 115)
-- `test_importable_without_metadata_is_not_missing` (func, строка 126)
-- `test_check_report_is_sorted` (func, строка 138)
-- `test_missing_packages_helper` (func, строка 149)
-- `test_outdated_lines_helper` (func, строка 156)
-- `test_default_registry_returns_report_shape` (func, строка 162)
-- `_parse_requirements` (func, строка 173)
-- `test_requirements_pins_streamlit_minimum_not_exact` (func, строка 191)
-- `test_registry_matches_requirements` (func, строка 198)
-- `test_dev_dependencies_match_requirements` (func, строка 211)
+- `test_pdf_renderer_floor_is_pdfplumber_011` (func, строка 84)
+- `test_pillow_is_declared_for_embedded_pictures` (func, строка 89)
+- `_stub_versions` (func, строка 97)
+- `_stub_versions._version` (func, строка 99)
+- `test_check_all_up_to_date` (func, строка 106)
+- `test_check_detects_outdated` (func, строка 115)
+- `test_check_detects_missing` (func, строка 126)
+- `test_importable_without_metadata_is_not_missing` (func, строка 137)
+- `test_check_report_is_sorted` (func, строка 149)
+- `test_missing_packages_helper` (func, строка 160)
+- `test_outdated_lines_helper` (func, строка 167)
+- `test_default_registry_returns_report_shape` (func, строка 173)
+- `_parse_requirements` (func, строка 184)
+- `test_requirements_pins_streamlit_minimum_not_exact` (func, строка 202)
+- `test_registry_matches_requirements` (func, строка 209)
+- `test_dev_dependencies_match_requirements` (func, строка 222)
 
 ### `tests/test_devagent_instructions.py`
 - `_read` (func, строка 19)
@@ -3408,6 +3453,71 @@
 - `TestDispatchToolGating.test_disabled_custom_function_is_blocked` (func, строка 104)
 - `TestDispatchToolGating.test_disabled_connection_tool_is_blocked` (func, строка 115)
 - `TestDispatchToolGating.test_default_devagent_has_nothing_disabled` (func, строка 127)
+
+### `tests/test_document_images.py`
+- `_png` (func, строка 26)
+- `_jpeg` (func, строка 33)
+- `_docx_bytes` (func, строка 40)
+- `_pptx_bytes` (func, строка 52)
+- `_xlsx_bytes` (func, строка 65)
+- `_blank_pdf` (func, строка 80)
+- `_image_pdf` (func, строка 89)
+- `_zip_with` (func, строка 98)
+- `test_plain_text_carries_no_images` (func, строка 109)
+- `test_empty_payload_is_reported` (func, строка 115)
+- `test_broken_docx_degrades_to_a_warning` (func, строка 121)
+- `test_document_without_pictures_returns_empty_without_warnings` (func, строка 127)
+- `test_empty_workbook_returns_empty_without_warnings` (func, строка 133)
+- `test_blank_pdf_returns_empty_without_warnings` (func, строка 139)
+- `test_extract_images_never_raises_on_unknown_bytes` (func, строка 145)
+- `test_is_supported_and_detect_format` (func, строка 151)
+- `test_docx_picture_is_extracted_with_its_anchor` (func, строка 163)
+- `test_pptx_picture_is_tagged_with_the_slide_number` (func, строка 174)
+- `test_xlsx_picture_is_tagged_with_the_sheet_name` (func, строка 183)
+- `test_each_sheet_keeps_its_own_picture` (func, строка 192)
+- `test_pdf_picture_is_tagged_with_the_page_number` (func, строка 199)
+- `test_a_logo_repeated_on_every_slide_is_one_image` (func, строка 210)
+- `test_identical_docx_pictures_collapse_to_one_record` (func, строка 218)
+- `test_distinct_pictures_keep_distinct_records` (func, строка 236)
+- `test_oversized_member_is_refused_before_reading` (func, строка 246)
+- `test_suspicious_compression_ratio_is_refused` (func, строка 253)
+- `test_too_many_zip_entries_are_refused` (func, строка 260)
+- `test_emf_member_is_skipped_with_a_reason` (func, строка 271)
+- `test_wmf_member_is_not_accepted_as_a_tiny_image` (func, строка 279)
+- `test_png_with_a_broken_body_is_skipped` (func, строка 286)
+- `test_truncated_png_is_skipped_not_sent` (func, строка 294)
+- `test_max_images_caps_the_result` (func, строка 305)
+- `test_total_budget_stops_further_images` (func, строка 312)
+- `test_image_larger_than_the_per_image_cap_is_skipped` (func, строка 320)
+- `test_missing_pillow_still_passes_a_signature_valid_image` (func, строка 331)
+- `test_missing_pillow_skips_an_unidentifiable_payload` (func, строка 340)
+- `test_manifest_carries_no_payload` (func, строка 350)
+- `test_suggested_filename_is_stable_and_anchored` (func, строка 360)
+- `test_suggested_filename_for_a_slide_uses_the_slide_number` (func, строка 369)
+- `test_make_batches_respects_the_request_size` (func, строка 374)
+- `test_priority_order_prefers_early_and_large_images` (func, строка 383)
+- `test_priority_order_prefers_early_and_large_images.record` (func, строка 384)
+- `_distinct_pdf` (func, строка 398)
+- `test_rendered_page_becomes_one_image` (func, строка 412)
+- `test_render_respects_max_pages` (func, строка 423)
+- `test_render_accepts_an_explicit_page_list` (func, строка 430)
+- `test_render_rejects_pages_out_of_range` (func, строка 436)
+- `test_render_is_pdf_only` (func, строка 442)
+- `test_render_clamps_the_resolution` (func, строка 448)
+- `test_scan_detection_is_true_for_an_image_only_pdf` (func, строка 453)
+- `test_scan_detection_is_false_when_a_text_layer_exists` (func, строка 458)
+- `test_scan_detection_ignores_non_pdf_input` (func, строка 468)
+- `test_save_images_writes_one_file_per_image` (func, строка 476)
+- `test_save_images_prefix_is_prepended` (func, строка 487)
+- `test_save_images_reuses_the_same_name` (func, строка 493)
+- `test_save_images_needs_a_directory` (func, строка 501)
+- `test_recognition_prompt_keeps_the_base_rules` (func, строка 506)
+- `test_recognition_prompt_adds_the_kind_hint` (func, строка 513)
+- `test_a_white_page_is_blank` (func, строка 519)
+- `test_a_page_with_text_lines_is_not_blank` (func, строка 524)
+- `test_a_page_covered_by_a_picture_is_not_blank` (func, строка 535)
+- `test_blank_pages_are_skipped_by_the_renderer` (func, строка 540)
+- `test_skip_blank_false_renders_a_white_page` (func, строка 551)
 
 ### `tests/test_document_text.py`
 - `_write` (func, строка 28)
@@ -4449,10 +4559,11 @@
 - `TestInstructionFile.test_file_exists_with_front_matter` (func, строка 39)
 - `TestInstructionFile.test_body_names_tools_and_settings_sections` (func, строка 49)
 - `TestInstructionFile.test_body_covers_failure_modes_and_safety` (func, строка 56)
-- `TestSeeding` (class, строка 64)
-- `TestSeeding.test_seeds_into_empty_store` (func, строка 65)
-- `TestSeeding.test_idempotent_and_preserves_user_edits` (func, строка 75)
-- `TestSeeding.test_available_to_devagent_without_connections` (func, строка 93)
+- `TestInstructionFile.test_body_documents_picture_extraction` (func, строка 63)
+- `TestSeeding` (class, строка 74)
+- `TestSeeding.test_seeds_into_empty_store` (func, строка 75)
+- `TestSeeding.test_idempotent_and_preserves_user_edits` (func, строка 85)
+- `TestSeeding.test_available_to_devagent_without_connections` (func, строка 103)
 
 ### `tests/test_multimodal_tools.py`
 - `_write_image` (func, строка 25)
@@ -4463,16 +4574,19 @@
 - `TestAnalyzeImageTool.test_no_images` (func, строка 47)
 - `TestAnalyzeImageTool.test_missing_file` (func, строка 53)
 - `TestAnalyzeImageTool.test_workspace_image_resolved` (func, строка 61)
-- `TestAnalyzeImageTool.test_dialog_upload_by_name` (func, строка 80)
-- `TestAnalyzeImageTool.test_not_assigned` (func, строка 95)
-- `TestAnalyzeImageTool.test_provider_error_mapped` (func, строка 106)
-- `TestGenerateImageTool` (class, строка 118)
-- `TestGenerateImageTool.test_empty_prompt` (func, строка 119)
-- `TestGenerateImageTool.test_no_thread_and_no_output_path` (func, строка 125)
-- `TestGenerateImageTool.test_saved_to_dialog_folder` (func, строка 134)
-- `TestGenerateImageTool.test_output_path_inside_project` (func, строка 151)
-- `TestGenerateImageTool.test_output_path_escape_rejected` (func, строка 167)
-- `TestGenerateImageTool.test_not_assigned` (func, строка 179)
+- `TestAnalyzeImageTool.test_dialog_upload_by_name` (func, строка 84)
+- `TestAnalyzeImageTool.test_not_assigned` (func, строка 99)
+- `TestAnalyzeImageTool.test_provider_error_mapped` (func, строка 110)
+- `TestAnalyzeImageTool.test_plain_reply_is_wrapped_as_data` (func, строка 121)
+- `TestAnalyzeImageTool.test_instruction_inside_the_image_is_withheld` (func, строка 135)
+- `TestAnalyzeImageTool.test_empty_reply_stays_empty` (func, строка 148)
+- `TestGenerateImageTool` (class, строка 160)
+- `TestGenerateImageTool.test_empty_prompt` (func, строка 161)
+- `TestGenerateImageTool.test_no_thread_and_no_output_path` (func, строка 167)
+- `TestGenerateImageTool.test_saved_to_dialog_folder` (func, строка 176)
+- `TestGenerateImageTool.test_output_path_inside_project` (func, строка 193)
+- `TestGenerateImageTool.test_output_path_escape_rejected` (func, строка 209)
+- `TestGenerateImageTool.test_not_assigned` (func, строка 221)
 
 ### `tests/test_numeric_arg_coercion.py`
 - `sandbox` (func, строка 18)
@@ -7090,6 +7204,32 @@
 - `test_scenario_5_save_confirmation_is_painted_below_the_page` (func, строка 276)
 - `test_scenario_5_save_confirmation_is_painted_below_the_page._fake_page` (func, строка 290)
 
+### `tests/scenarios/test_document_images_scenario.py`
+- `_png` (func, строка 35)
+- `_report_docx` (func, строка 42)
+- `_scan_pdf` (func, строка 54)
+- `workspace` (func, строка 75)
+- `vision_assigned` (func, строка 92)
+- `_fake_reply` (func, строка 101)
+- `test_a_chart_in_a_report_becomes_a_readable_file` (func, строка 109)
+- `test_the_picture_is_read_as_labelled_data` (func, строка 126)
+- `test_the_extraction_prompt_asks_for_transcription` (func, строка 147)
+- `test_a_scan_is_detected_and_its_pages_are_not_read_twice` (func, строка 163)
+- `test_forcing_ocr_renders_the_pages_of_a_scan` (func, строка 178)
+- `test_an_empty_document_ends_with_an_actionable_next_step` (func, строка 194)
+- `test_a_dialog_upload_is_read_by_name` (func, строка 214)
+- `test_an_unknown_upload_is_refused_with_the_name` (func, строка 227)
+- `test_without_a_vision_model_the_files_are_still_saved` (func, строка 240)
+- `test_without_a_vision_model_the_files_are_still_saved._not_assigned` (func, строка 244)
+- `test_analyze_image_without_a_model_explains_the_setting` (func, строка 261)
+- `test_analyze_image_without_a_model_explains_the_setting._not_assigned` (func, строка 265)
+- `test_running_twice_leaves_no_duplicate_files` (func, строка 285)
+- `test_the_project_tree_keeps_no_image_copies` (func, строка 300)
+- `test_the_catalog_advertises_the_tool_with_its_arguments` (func, строка 317)
+- `test_a_call_without_a_source_is_refused_with_a_hint` (func, строка 330)
+- `test_an_unknown_argument_is_refused_with_the_signature` (func, строка 340)
+- `test_a_non_document_is_refused_without_a_traceback` (func, строка 352)
+
 ### `tests/scenarios/test_documents_and_delegation_scenario.py`
 - `_docx_bytes` (func, строка 33)
 - `platform` (func, строка 45)
@@ -8247,109 +8387,112 @@
 - `ToolExecutor._resolve_image_path` (func, строка 1983)
 - `ToolExecutor._save_generated_image` (func, строка 2015)
 - `ToolExecutor.analyze_image` (func, строка 2052)
-- `ToolExecutor.generate_image` (func, строка 2112)
-- `ToolExecutor._rag_slug` (func, строка 2179)
-- `ToolExecutor._rag_access_allowed` (func, строка 2183)
-- `ToolExecutor.list_rag_bases` (func, строка 2200)
-- `ToolExecutor.rag_search` (func, строка 2246)
-- `ToolExecutor.rag_get_chunks` (func, строка 2338)
-- `ToolExecutor.set_history` (func, строка 2426)
-- `ToolExecutor._ensure_history_indexed` (func, строка 2436)
-- `ToolExecutor.get_history_index` (func, строка 2443)
-- `ToolExecutor.get_history_messages` (func, строка 2479)
-- `ToolExecutor.list_skills_library` (func, строка 2528)
-- `ToolExecutor.get_skill_folder` (func, строка 2542)
-- `ToolExecutor.get_skill_prompt` (func, строка 2577)
-- `ToolExecutor.get_skill_file` (func, строка 2622)
-- `ToolExecutor.mark_skill_adapted` (func, строка 2656)
-- `ToolExecutor.list_assistants` (func, строка 2673)
-- `ToolExecutor.get_assistant_by_id` (func, строка 2683)
-- `ToolExecutor.update_assistant_by_id` (func, строка 2690)
-- `ToolExecutor.list_instructions` (func, строка 2750)
-- `ToolExecutor.get_instruction` (func, строка 2765)
-- `ToolExecutor.detect_and_select_assistant` (func, строка 2781)
-- `ToolExecutor._orchestrator_instruction_text` (func, строка 2814)
-- `ToolExecutor._create_assistant_with_auto_model` (func, строка 2830)
-- `ToolExecutor.create_assistant_for_task` (func, строка 2989)
-- `ToolExecutor.list_recent_workspaces` (func, строка 3016)
-- `ToolExecutor.task_state_init` (func, строка 3040)
-- `ToolExecutor.task_state_read` (func, строка 3057)
-- `ToolExecutor.task_state_update` (func, строка 3070)
-- `ToolExecutor.task_state_mark_step` (func, строка 3078)
-- `ToolExecutor.task_state_clear` (func, строка 3097)
+- `ToolExecutor.generate_image` (func, строка 2120)
+- `ToolExecutor._rag_slug` (func, строка 2187)
+- `ToolExecutor._rag_access_allowed` (func, строка 2191)
+- `ToolExecutor.list_rag_bases` (func, строка 2208)
+- `ToolExecutor.rag_search` (func, строка 2254)
+- `ToolExecutor.rag_get_chunks` (func, строка 2346)
+- `ToolExecutor.set_history` (func, строка 2434)
+- `ToolExecutor._ensure_history_indexed` (func, строка 2444)
+- `ToolExecutor.get_history_index` (func, строка 2451)
+- `ToolExecutor.get_history_messages` (func, строка 2487)
+- `ToolExecutor.list_skills_library` (func, строка 2536)
+- `ToolExecutor.get_skill_folder` (func, строка 2550)
+- `ToolExecutor.get_skill_prompt` (func, строка 2585)
+- `ToolExecutor.get_skill_file` (func, строка 2630)
+- `ToolExecutor.mark_skill_adapted` (func, строка 2664)
+- `ToolExecutor.list_assistants` (func, строка 2681)
+- `ToolExecutor.get_assistant_by_id` (func, строка 2691)
+- `ToolExecutor.update_assistant_by_id` (func, строка 2698)
+- `ToolExecutor.list_instructions` (func, строка 2758)
+- `ToolExecutor.get_instruction` (func, строка 2773)
+- `ToolExecutor.detect_and_select_assistant` (func, строка 2789)
+- `ToolExecutor._orchestrator_instruction_text` (func, строка 2822)
+- `ToolExecutor._create_assistant_with_auto_model` (func, строка 2838)
+- `ToolExecutor.create_assistant_for_task` (func, строка 2997)
+- `ToolExecutor.list_recent_workspaces` (func, строка 3024)
+- `ToolExecutor.task_state_init` (func, строка 3048)
+- `ToolExecutor.task_state_read` (func, строка 3065)
+- `ToolExecutor.task_state_update` (func, строка 3078)
+- `ToolExecutor.task_state_mark_step` (func, строка 3086)
+- `ToolExecutor.task_state_clear` (func, строка 3105)
 
 ### `dev_agent/universal_agent.py`
 - `load_system_prompt` (func, строка 31)
-- `_workspace_usage` (func, строка 237)
-- `validate_tool_call` (func, строка 246)
-- `build_assistant_dict_from_config` (func, строка 345)
-- `build_assistant_dict_from_config._make_assistant` (func, строка 357)
-- `UniversalDevAgent` (class, строка 386)
-- `UniversalDevAgent.__init__` (func, строка 389)
-- `UniversalDevAgent.system_prompt` (func, строка 466)
-- `UniversalDevAgent.tool_catalog` (func, строка 471)
-- `UniversalDevAgent.dispatch` (func, строка 477)
-- `UniversalDevAgent._current_orchestrator_slug` (func, строка 489)
-- `UniversalDevAgent._is_disabled_for_orchestrator` (func, строка 498)
-- `UniversalDevAgent._disabled_tool_error` (func, строка 514)
-- `UniversalDevAgent._dispatch_impl` (func, строка 526)
-- `UniversalDevAgent.attach_orchestrator` (func, строка 576)
-- `UniversalDevAgent._pop_mcp_tools` (func, строка 626)
-- `UniversalDevAgent._attach_connection_tools` (func, строка 637)
-- `UniversalDevAgent.attach_orchestrator_catalog` (func, строка 692)
-- `UniversalDevAgent.dispatch_json` (func, строка 711)
-- `UniversalDevAgent._recreate_core_preserving_history` (func, строка 723)
-- `UniversalDevAgent.set_thread_id` (func, строка 745)
-- `UniversalDevAgent._persist_thread_workspace` (func, строка 767)
-- `UniversalDevAgent._sync_binding_after_switch` (func, строка 788)
-- `UniversalDevAgent._set_workspace` (func, строка 794)
-- `UniversalDevAgent._set_target_file` (func, строка 803)
-- `UniversalDevAgent._write_project_map` (func, строка 812)
-- `UniversalDevAgent._write_doc` (func, строка 815)
-- `UniversalDevAgent._read_doc` (func, строка 818)
-- `UniversalDevAgent._snapshot_all` (func, строка 821)
-- `UniversalDevAgent._restore_all` (func, строка 824)
-- `UniversalDevAgent._active_thread_id` (func, строка 830)
-- `UniversalDevAgent._list_thread_files` (func, строка 835)
-- `UniversalDevAgent._read_thread_file` (func, строка 843)
-- `UniversalDevAgent._read_document` (func, строка 859)
-- `UniversalDevAgent._resolve_document_path` (func, строка 895)
-- `UniversalDevAgent._thread_access_slugs` (func, строка 931)
-- `UniversalDevAgent._normalize_orchestrator_arg` (func, строка 949)
-- `UniversalDevAgent._as_bool` (func, строка 967)
-- `UniversalDevAgent._search_in_threads` (func, строка 980)
-- `UniversalDevAgent._list_threads` (func, строка 1044)
-- `UniversalDevAgent._read_thread` (func, строка 1066)
-- `UniversalDevAgent._list_orchestrators` (func, строка 1090)
-- `UniversalDevAgent._get_orchestrator` (func, строка 1095)
-- `UniversalDevAgent._create_orchestrator` (func, строка 1104)
-- `UniversalDevAgent._update_orchestrator` (func, строка 1135)
-- `UniversalDevAgent._delete_orchestrator` (func, строка 1147)
-- `UniversalDevAgent._reload_orchestrator` (func, строка 1156)
-- `UniversalDevAgent._list_orchestrator_functions` (func, строка 1165)
-- `UniversalDevAgent._get_orchestrator_function` (func, строка 1172)
-- `UniversalDevAgent._save_orchestrator_function` (func, строка 1181)
-- `UniversalDevAgent._delete_orchestrator_function` (func, строка 1190)
-- `UniversalDevAgent._list_orchestrator_instructions` (func, строка 1199)
-- `UniversalDevAgent._get_orchestrator_instruction` (func, строка 1206)
-- `UniversalDevAgent._save_orchestrator_instruction` (func, строка 1215)
-- `UniversalDevAgent._delete_orchestrator_instruction` (func, строка 1228)
-- `UniversalDevAgent._list_connections` (func, строка 1239)
-- `UniversalDevAgent._get_connection` (func, строка 1244)
-- `UniversalDevAgent._list_connector_services` (func, строка 1253)
-- `UniversalDevAgent._list_connection_presets` (func, строка 1257)
-- `UniversalDevAgent._create_connection` (func, строка 1269)
-- `UniversalDevAgent._update_connection` (func, строка 1308)
-- `UniversalDevAgent._delete_connection` (func, строка 1320)
-- `UniversalDevAgent._test_connection` (func, строка 1329)
-- `UniversalDevAgent._get_enabled_connections` (func, строка 1351)
-- `UniversalDevAgent._set_enabled_connections` (func, строка 1356)
-- `UniversalDevAgent._personal_scope` (func, строка 1368)
-- `UniversalDevAgent._get_personal_memory` (func, строка 1391)
-- `UniversalDevAgent._set_personal_memory` (func, строка 1409)
-- `UniversalDevAgent._list_personal_memory` (func, строка 1470)
-- `UniversalDevAgent._get_connection_memory` (func, строка 1479)
-- `UniversalDevAgent._set_connection_memory` (func, строка 1485)
+- `_workspace_usage` (func, строка 243)
+- `validate_tool_call` (func, строка 252)
+- `build_assistant_dict_from_config` (func, строка 351)
+- `build_assistant_dict_from_config._make_assistant` (func, строка 363)
+- `UniversalDevAgent` (class, строка 392)
+- `UniversalDevAgent.__init__` (func, строка 395)
+- `UniversalDevAgent.system_prompt` (func, строка 473)
+- `UniversalDevAgent.tool_catalog` (func, строка 478)
+- `UniversalDevAgent.dispatch` (func, строка 484)
+- `UniversalDevAgent._current_orchestrator_slug` (func, строка 496)
+- `UniversalDevAgent._is_disabled_for_orchestrator` (func, строка 505)
+- `UniversalDevAgent._disabled_tool_error` (func, строка 521)
+- `UniversalDevAgent._dispatch_impl` (func, строка 533)
+- `UniversalDevAgent.attach_orchestrator` (func, строка 583)
+- `UniversalDevAgent._pop_mcp_tools` (func, строка 633)
+- `UniversalDevAgent._attach_connection_tools` (func, строка 644)
+- `UniversalDevAgent.attach_orchestrator_catalog` (func, строка 699)
+- `UniversalDevAgent.dispatch_json` (func, строка 718)
+- `UniversalDevAgent._recreate_core_preserving_history` (func, строка 730)
+- `UniversalDevAgent.set_thread_id` (func, строка 752)
+- `UniversalDevAgent._persist_thread_workspace` (func, строка 774)
+- `UniversalDevAgent._sync_binding_after_switch` (func, строка 795)
+- `UniversalDevAgent._set_workspace` (func, строка 801)
+- `UniversalDevAgent._set_target_file` (func, строка 810)
+- `UniversalDevAgent._write_project_map` (func, строка 819)
+- `UniversalDevAgent._write_doc` (func, строка 822)
+- `UniversalDevAgent._read_doc` (func, строка 825)
+- `UniversalDevAgent._snapshot_all` (func, строка 828)
+- `UniversalDevAgent._restore_all` (func, строка 831)
+- `UniversalDevAgent._active_thread_id` (func, строка 837)
+- `UniversalDevAgent._list_thread_files` (func, строка 842)
+- `UniversalDevAgent._read_thread_file` (func, строка 850)
+- `UniversalDevAgent._read_document` (func, строка 866)
+- `UniversalDevAgent._extract_document_images` (func, строка 902)
+- `UniversalDevAgent._vision_available` (func, строка 1152)
+- `UniversalDevAgent._document_images_dir` (func, строка 1161)
+- `UniversalDevAgent._resolve_document_path` (func, строка 1193)
+- `UniversalDevAgent._thread_access_slugs` (func, строка 1229)
+- `UniversalDevAgent._normalize_orchestrator_arg` (func, строка 1247)
+- `UniversalDevAgent._as_bool` (func, строка 1265)
+- `UniversalDevAgent._search_in_threads` (func, строка 1278)
+- `UniversalDevAgent._list_threads` (func, строка 1342)
+- `UniversalDevAgent._read_thread` (func, строка 1364)
+- `UniversalDevAgent._list_orchestrators` (func, строка 1388)
+- `UniversalDevAgent._get_orchestrator` (func, строка 1393)
+- `UniversalDevAgent._create_orchestrator` (func, строка 1402)
+- `UniversalDevAgent._update_orchestrator` (func, строка 1433)
+- `UniversalDevAgent._delete_orchestrator` (func, строка 1445)
+- `UniversalDevAgent._reload_orchestrator` (func, строка 1454)
+- `UniversalDevAgent._list_orchestrator_functions` (func, строка 1463)
+- `UniversalDevAgent._get_orchestrator_function` (func, строка 1470)
+- `UniversalDevAgent._save_orchestrator_function` (func, строка 1479)
+- `UniversalDevAgent._delete_orchestrator_function` (func, строка 1488)
+- `UniversalDevAgent._list_orchestrator_instructions` (func, строка 1497)
+- `UniversalDevAgent._get_orchestrator_instruction` (func, строка 1504)
+- `UniversalDevAgent._save_orchestrator_instruction` (func, строка 1513)
+- `UniversalDevAgent._delete_orchestrator_instruction` (func, строка 1526)
+- `UniversalDevAgent._list_connections` (func, строка 1537)
+- `UniversalDevAgent._get_connection` (func, строка 1542)
+- `UniversalDevAgent._list_connector_services` (func, строка 1551)
+- `UniversalDevAgent._list_connection_presets` (func, строка 1555)
+- `UniversalDevAgent._create_connection` (func, строка 1567)
+- `UniversalDevAgent._update_connection` (func, строка 1606)
+- `UniversalDevAgent._delete_connection` (func, строка 1618)
+- `UniversalDevAgent._test_connection` (func, строка 1627)
+- `UniversalDevAgent._get_enabled_connections` (func, строка 1649)
+- `UniversalDevAgent._set_enabled_connections` (func, строка 1654)
+- `UniversalDevAgent._personal_scope` (func, строка 1666)
+- `UniversalDevAgent._get_personal_memory` (func, строка 1689)
+- `UniversalDevAgent._set_personal_memory` (func, строка 1707)
+- `UniversalDevAgent._list_personal_memory` (func, строка 1768)
+- `UniversalDevAgent._get_connection_memory` (func, строка 1777)
+- `UniversalDevAgent._set_connection_memory` (func, строка 1783)
 
 ### `dev_agent/workspace_binding.py`
 - `_norm_tid` (func, строка 47)

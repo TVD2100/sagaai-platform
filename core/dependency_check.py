@@ -37,10 +37,13 @@ DEPENDENCIES = {
     "docx":         {"pip": "python-docx",  "min": "0.8",    "required": False},
     "pptx":         {"pip": "python-pptx",  "min": "0.6",    "required": False},
     "openpyxl":     {"pip": "openpyxl",     "min": "3.1",    "required": False},
-    "pdfplumber":   {"pip": "pdfplumber",   "min": "0.6",    "required": False},
+    "pdfplumber":   {"pip": "pdfplumber",   "min": "0.11",   "required": False},
     "tiktoken":     {"pip": "tiktoken",     "min": "0.5",    "required": False},
     "markdown":     {"pip": "markdown",     "min": "3.0",    "required": False},
     "reportlab":    {"pip": "reportlab",    "min": "4.0",    "required": False},
+    # Optional image handling for embedded-picture extraction: without it the
+    # pictures are detected by their signature but their size stays unknown.
+    "PIL":          {"pip": "Pillow",       "min": "9.0",    "required": False},
     # Optional Selenium rendering of web pages (url_fetch tool).
     "selenium":     {"pip": "selenium",     "min": "4.10",   "required": False},
     # Optional SSH connector.
