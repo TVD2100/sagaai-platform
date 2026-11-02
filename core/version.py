@@ -410,7 +410,18 @@
 # child already existed and was left untouched - a second stop tool with a
 # different name would only make the model guess.
 
-__version__ = "2.26.0"
+# 2.26.1 restores the chat feed auto-scroll itself. The snippet went through
+# st.components.v1.html, which Streamlit 1.66 deprecates with a removal date
+# that logs a warning on every call, and which runs inside a sandboxed iframe
+# that cannot reach the app's scroll container. It is now injected with
+# st.html(unsafe_allow_javascript=True) - the same main-document path the theme
+# reloader and the clipboard button already use - and the container lookup
+# follows the current layout (stAppScrollToBottomContainer / #stMain, since
+# section.main no longer exists and the testid overrides stMain). A monotonic
+# render id keeps the injected body changing so Streamlit re-runs the script on
+# every rerun.
+
+__version__ = "2.26.1"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

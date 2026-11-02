@@ -132,6 +132,11 @@ def test_scenario_script_pauses_on_scroll_up_and_resumes_at_bottom():
     from core import feed_autoscroll as fa
 
     js = fa.autoscroll_js(force=False)
+    # The script must find the container the app actually scrolls: Streamlit
+    # 1.66 marks it with the scroll-to-bottom testid and keeps the stMain id,
+    # while the former section.main class is gone.
+    assert '[data-testid="stAppScrollToBottomContainer"]' in js
+    assert "'#stMain'" in js
     # Pause on a manual upward scroll (wheel/touch) and on the scroll event
     # landing away from the bottom.
     assert "sessionStorage" in js

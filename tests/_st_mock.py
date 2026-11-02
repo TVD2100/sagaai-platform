@@ -310,39 +310,26 @@ class _NullCtx:
         return _stub
 
 
-def _make_components_stub(mock):
-    """Build lightweight streamlit.components(+) stubs bound to *mock*."""
-    comp = types.ModuleType("streamlit.components")
-    v1 = types.ModuleType("streamlit.components.v1")
-    v1.html = lambda *a, **k: mock._rec("components.v1.html", a, k)
-    comp.v1 = v1
-    return comp
-
-
 @contextmanager
 def install_streamlit_mock():
     """Install the mock into sys.modules for the duration of the context.
 
-    Saves the original ``streamlit``, ``streamlit.components`` and
-    ``streamlit.components.v1`` modules FIRST, so the mock (which replaces
-    them) never shadows the real package after the context exits.
+    Saves the original ``streamlit`` module FIRST, so the mock (which replaces
+    it) never shadows the real package after the context exits.  Custom
+    components are not stubbed: the render helpers use ``st.html``, which is a
+    regular mock attribute, so a test that still reaches for
+    ``streamlit.components`` fails loudly instead of silently passing.
     """
-    names = ("streamlit", "streamlit.components", "streamlit.components.v1")
-    saved = {name: sys.modules.get(name) for name in names}
+    saved = sys.modules.get("streamlit")
 
     mock = StreamlitMock()
     mock.sidebar = _NullCtx(mock, "sidebar")   # st.sidebar must behave like a context manager
-    components = _make_components_stub(mock)
-    mock.components = components
 
     sys.modules["streamlit"] = mock
-    sys.modules["streamlit.components"] = components
-    sys.modules["streamlit.components.v1"] = components.v1
     try:
         yield mock
     finally:
-        for name in names:
-            if saved[name] is not None:
-                sys.modules[name] = saved[name]
-            else:
-                sys.modules.pop(name, None)
+        if saved is not None:
+            sys.modules["streamlit"] = saved
+        else:
+            sys.modules.pop("streamlit", None)

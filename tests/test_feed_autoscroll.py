@@ -42,15 +42,39 @@ def test_autoscroll_js_force_flag_toggles():
     assert "var FORCE = true;" in fa.autoscroll_js(True)
 
 
-def test_render_autoscroll_emits_zero_height_component():
-    """The helper emits exactly one zero-height components.html block."""
+def test_render_autoscroll_emits_main_document_script():
+    """The helper emits exactly one st.html script that may run JavaScript."""
     with install_streamlit_mock() as st:
         fa.render_autoscroll(force=True)
-        html_calls = [c for c in st.calls if c[0] == "components.v1.html"]
+        html_calls = [c for c in st.calls if c[0] == "html"]
         assert len(html_calls) == 1, f"calls: {st.calls}"
         args, kwargs = html_calls[0][1], html_calls[0][2]
-        assert kwargs.get("height") == 0
+        assert kwargs.get("unsafe_allow_javascript") is True
         assert "var FORCE = true;" in args[0]
+        # The deprecated iframe component logs a removal warning on every call
+        # and cannot reach the app's scroll container, so it must not be used.
+        assert not [c for c in st.calls if c[0].startswith("components")]
+
+
+def test_render_autoscroll_changes_body_between_calls():
+    """Each emission carries a new render id so Streamlit re-runs the script."""
+    with install_streamlit_mock() as st:
+        fa.render_autoscroll()
+        fa.render_autoscroll()
+        bodies = [c[1][0] for c in st.calls if c[0] == "html"]
+        assert len(bodies) == 2
+        assert bodies[0] != bodies[1]
+
+
+def test_scroller_selectors_match_streamlit_layout():
+    """The client script probes the containers the current layout provides."""
+    js = fa.autoscroll_js()
+    assert '[data-testid="stAppScrollToBottomContainer"]' in js
+    assert "'#stMain'" in js
+    assert '[data-testid="stAppViewContainer"]' in js
+    # The document element of the app does not scroll (the app sets
+    # overflow: hidden on it), so it must come after the real containers.
+    assert js.index("stAppScrollToBottomContainer") < js.index("scrollingElement")
 
 
 # ─── integration: _render_chat_tab wiring ───────────────────────────────────

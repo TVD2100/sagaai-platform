@@ -2,11 +2,11 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-01T21:16:51+00:00`
+- Обновлено: `2026-11-02T09:23:41+00:00`
 - Файлов: **482**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **7361**
-- Отпечаток содержимого: `sha256:2e094186e382683d05f5e75c4abcee1fede96396e90ee381242c85b385e46df6` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Python-символов: **7362**
+- Отпечаток содержимого: `sha256:aa2fe1f84ad49bcb7b6c9afc4867b3857c699c329092b0f4e34f99f205e62bdb` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
 - Языки: Config: 1, JSON: 23, Markdown: 38, PEM certificate: 1, Python: 422, Text: 1
 
 ## Файлы и назначение
@@ -63,7 +63,7 @@
 | `core/document_text.py` | Python | Text extraction for documents on disk and in dialog attachments: PDF, DOCX, DOC, PPTX, XLSX, XLS, RTF, ODT, HTML and plain text via extract_text(filename, data), plus read_document_path(path, offset, limit, max_chars) with a line window; an unknown format or a missing optional library returns a warning line instead of raising, so the calling tool always answers with text | - |
 | `core/entity_sync.py` | Python | _(описание не задано)_ | storage |
 | `core/env_loader.py` | Python | Loads API keys from shell profiles | - |
-| `core/feed_autoscroll.py` | Python | Client-side auto-scroll for the orchestrator chat feed: follows the agent output, pauses on a manual scroll-up (sessionStorage flag), resumes at the bottom; adds no bottom padding of its own (Streamlit 1.66 already reserves room for the pinned bottom bar) | - |
+| `core/feed_autoscroll.py` | Python | Client-side auto-scroll for the orchestrator chat feed, emitted via st.html(unsafe_allow_javascript=True) so the script runs in the main document: finds the scroll container by stAppScrollToBottomContainer / #stMain, follows the agent output, pauses on a manual scroll-up (sessionStorage flag), resumes at the bottom; adds no bottom padding of its own (Streamlit 1.66 already reserves room for the pinned bottom bar) | - |
 | `core/files.py` | Python | File upload helpers, token estimation, context checks | - |
 | `core/folder_dialog.py` | Python | Native OS folder picker for the Streamlit UI (no built-in chooser): tkinter filedialog in a child process with an osascript fallback on macOS, verdict via a temp UTF-8 JSON file, timeout, graceful degradation without a GUI (SAGAAI_DISABLE_FOLDER_DIALOG) | - |
 | `core/fs.py` | Python | Filesystem helpers (json/text read/write, ensure_dir, combine_nonempty) | - |
@@ -183,7 +183,7 @@
 | `tests/test_document_text.py` | Python | Unit tests for core.document_text: per-format extraction, line window, warnings for unknown formats and missing libraries | - |
 | `tests/test_economy_history_budget.py` | Python | Economy budget tests: unified (B4) input budget, tail reset on token overflow, low-watermark fallback, economy_anchor hysteresis (frozen front) | - |
 | `tests/test_employee_management_ui.py` | Python | UI regression tests: employee management pages render and expose no export/import employee UI | - |
-| `tests/test_feed_autoscroll.py` | Python | Unit + integration tests for core.feed_autoscroll and its wiring into _render_chat_tab: JS markers, force flag, zero-height component, idle/active/send behaviour | - |
+| `tests/test_feed_autoscroll.py` | Python | Unit + integration tests for core.feed_autoscroll and its wiring into _render_chat_tab: JS markers, force flag, st.html emission with a changing render id, scroll-container selectors, idle/active/send behaviour | - |
 | `tests/test_folder_dialog.py` | Python | Unit tests for core.folder_dialog: availability probe, tkinter/osascript backends, timeout and cancel handling, non-ASCII paths, disable switch | - |
 | `tests/test_gigachat_messages.py` | Python | GigaChat payload tests: single leading system, mid-history system blocks keep the user role, role merging | - |
 | `tests/test_github_connector_rest.py` | Python | Unit tests for the GitHub REST connector (mock sessions) | - |
@@ -1194,8 +1194,8 @@
 - `load_env_from_shell_profiles` (func, строка 43)
 
 ### `core/feed_autoscroll.py`
-- `autoscroll_js` (func, строка 106)
-- `render_autoscroll` (func, строка 126)
+- `autoscroll_js` (func, строка 144)
+- `render_autoscroll` (func, строка 169)
 
 ### `core/files.py`
 - `get_file_uploader_types` (func, строка 32)
@@ -2616,8 +2616,7 @@
 - `_NullCtx.__call__` (func, строка 290)
 - `_NullCtx.__getattr__` (func, строка 295)
 - `_NullCtx.__getattr__._stub` (func, строка 298)
-- `_make_components_stub` (func, строка 313)
-- `install_streamlit_mock` (func, строка 323)
+- `install_streamlit_mock` (func, строка 314)
 
 ### `tests/_test_isolation.py`
 - `is_app_module` (func, строка 18)
@@ -3599,15 +3598,17 @@
 ### `tests/test_feed_autoscroll.py`
 - `test_autoscroll_js_has_required_markers` (func, строка 22)
 - `test_autoscroll_js_force_flag_toggles` (func, строка 39)
-- `test_render_autoscroll_emits_zero_height_component` (func, строка 45)
-- `ui_env` (func, строка 59)
-- `_LoopState` (class, строка 71)
-- `_LoopState.__init__` (func, строка 74)
-- `_chat_env` (func, строка 81)
-- `_render` (func, строка 126)
-- `test_idle_chat_does_not_scroll` (func, строка 133)
-- `test_active_agent_scrolls` (func, строка 140)
-- `test_forced_scroll_on_send_clears_flag` (func, строка 148)
+- `test_render_autoscroll_emits_main_document_script` (func, строка 45)
+- `test_render_autoscroll_changes_body_between_calls` (func, строка 59)
+- `test_scroller_selectors_match_streamlit_layout` (func, строка 69)
+- `ui_env` (func, строка 83)
+- `_LoopState` (class, строка 95)
+- `_LoopState.__init__` (func, строка 98)
+- `_chat_env` (func, строка 105)
+- `_render` (func, строка 150)
+- `test_idle_chat_does_not_scroll` (func, строка 157)
+- `test_active_agent_scrolls` (func, строка 164)
+- `test_forced_scroll_on_send_clears_flag` (func, строка 172)
 
 ### `tests/test_folder_dialog.py`
 - `_reset_cache` (func, строка 21)
@@ -7396,7 +7397,7 @@
 - `test_scenario_first_send_forces_scroll_to_bottom` (func, строка 106)
 - `test_scenario_active_agent_follows_each_step` (func, строка 117)
 - `test_scenario_script_pauses_on_scroll_up_and_resumes_at_bottom` (func, строка 129)
-- `test_scenario_idle_chat_does_not_scroll` (func, строка 150)
+- `test_scenario_idle_chat_does_not_scroll` (func, строка 155)
 
 ### `tests/scenarios/test_first_run_flow.py`
 - `isolated_data` (func, строка 64)
