@@ -446,7 +446,15 @@
 # a verified zip beside itself, a fresh empty base is created, and a one-shot
 # notice names the archive and the dialogues it preserves.
 
-__version__ = "2.28.0"
+# 2.28.1 fixes the working-data migrator: the central root is called
+# agents_data and therefore ends in _data, exactly like a legacy folder
+# <slug>_data. An installation whose DATA_DIR is its own project root - the
+# usual single-folder setup - made the planner report that root as the legacy
+# folder of an employee called "agents" and offer to move every employee's
+# data into agents_data/agents/. The central root is now recognised by path,
+# not by its name, and a genuine legacy folder beside it is still reported.
+
+__version__ = "2.28.1"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

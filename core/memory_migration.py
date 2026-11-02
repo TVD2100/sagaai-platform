@@ -88,6 +88,11 @@ def plan_migration(slug: str, workspace: str = "") -> Dict[str, Any]:
     safe = of.safe_orchestrator_slug(slug) or "unnamed"
     ws = (workspace or "").strip()
     legacy = (os.path.join(ws, of.default_data_dir_name(safe)) if ws else "")
+    # The central root carries the same ``_data`` suffix, so an installation
+    # that runs from its own project root would otherwise report that root as
+    # the legacy folder of an employee called "agents".
+    if legacy and os.path.abspath(legacy) == os.path.abspath(of.agents_data_root()):
+        legacy = ""
     resolved = of.resolve_data_dir(safe, ws)
     target = str(resolved.get("path") or "")
 

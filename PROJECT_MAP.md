@@ -2,11 +2,11 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-02T17:03:15+00:00`
+- Обновлено: `2026-11-02T18:16:20+00:00`
 - Файлов: **509**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **7838**
-- Отпечаток содержимого: `sha256:0f64a38e972652e7cf65512db841f70ab8c92fc2dbb700229573b7bf276d8b02` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Python-символов: **7841**
+- Отпечаток содержимого: `sha256:705e23948c64c13a882fdbf56d45a509158516a9d79720fe357f2200842665d2` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
 - Языки: Config: 1, JSON: 23, Markdown: 38, PEM certificate: 1, Python: 449, Text: 1
 
 ## Файлы и назначение
@@ -1483,10 +1483,10 @@
 - `_files_below` (func, строка 39)
 - `_same_tree` (func, строка 55)
 - `plan_migration` (func, строка 71)
-- `plan_migrations` (func, строка 139)
-- `plan_migrations._add` (func, строка 161)
-- `apply_migration` (func, строка 207)
-- `apply_plan` (func, строка 287)
+- `plan_migrations` (func, строка 144)
+- `plan_migrations._add` (func, строка 166)
+- `apply_migration` (func, строка 212)
+- `apply_plan` (func, строка 292)
 
 ### `core/multimodal.py`
 - `MultimodalError` (class, строка 44)
@@ -4728,17 +4728,20 @@
 - `test_plan_skips_a_role_that_uses_the_legacy_folder` (func, строка 94)
 - `test_plan_migrations_finds_unknown_legacy_folders` (func, строка 106)
 - `test_plan_migrations_ignores_unrelated_folders` (func, строка 113)
-- `test_apply_copies_nested_files` (func, строка 123)
-- `test_apply_keeps_the_source_folder` (func, строка 138)
-- `test_apply_dry_run_writes_nothing` (func, строка 146)
-- `test_apply_refuses_a_conflict` (func, строка 155)
-- `test_apply_reports_the_kept_folder_in_the_reason` (func, строка 167)
-- `test_apply_plan_summarises_the_run` (func, строка 174)
-- `test_apply_plan_reports_failures` (func, строка 184)
-- `test_apply_is_idempotent` (func, строка 195)
-- `test_cli_is_a_dry_run_by_default` (func, строка 207)
-- `test_cli_apply_copies_and_keeps_the_source` (func, строка 218)
-- `test_cli_reports_an_empty_plan` (func, строка 230)
+- `_install_tree` (func, строка 120)
+- `test_plan_migrations_ignores_the_central_root` (func, строка 139)
+- `test_plan_migrations_still_finds_a_legacy_folder_beside_the_central_root` (func, строка 146)
+- `test_apply_copies_nested_files` (func, строка 163)
+- `test_apply_keeps_the_source_folder` (func, строка 178)
+- `test_apply_dry_run_writes_nothing` (func, строка 186)
+- `test_apply_refuses_a_conflict` (func, строка 195)
+- `test_apply_reports_the_kept_folder_in_the_reason` (func, строка 207)
+- `test_apply_plan_summarises_the_run` (func, строка 214)
+- `test_apply_plan_reports_failures` (func, строка 224)
+- `test_apply_is_idempotent` (func, строка 235)
+- `test_cli_is_a_dry_run_by_default` (func, строка 247)
+- `test_cli_apply_copies_and_keeps_the_source` (func, строка 258)
+- `test_cli_reports_an_empty_plan` (func, строка 270)
 
 ### `tests/test_multimodal.py`
 - `_jpeg` (func, строка 32)

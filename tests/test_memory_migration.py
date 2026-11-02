@@ -117,6 +117,46 @@ def test_plan_migrations_ignores_unrelated_folders(sandbox):
     assert [e["slug"] for e in plan] == ["marketer"]
 
 
+def _install_tree(tmp_path, monkeypatch):
+    """Build a tree where the central root sits INSIDE the scanned workspace.
+
+    The default ``sandbox`` fixture keeps them as siblings, which never
+    exercises the ``_data`` name collision: the central root is called
+    ``agents_data`` and so looks exactly like a legacy folder of an employee
+    called ``agents``.
+    """
+    install = tmp_path / "install"
+    install.mkdir()
+    central = install / "agents_data"
+    # A DIFFERENT employee occupies the central root, so the legacy folder
+    # created by a test never collides with an already populated target.
+    (central / "dev_agent").mkdir(parents=True)
+    (central / "dev_agent" / "registry.md").write_text("# реестр", encoding="utf-8")
+    monkeypatch.setattr(core.paths, "AGENTS_DATA_DIR", str(central))
+    return install, central
+
+
+def test_plan_migrations_ignores_the_central_root(tmp_path, monkeypatch):
+    """The central root is not a legacy folder of an employee called agents."""
+    install, _central = _install_tree(tmp_path, monkeypatch)
+    plan = mm.plan_migrations(str(install), include_known=False)
+    assert [e["slug"] for e in plan] == []
+
+
+def test_plan_migrations_still_finds_a_legacy_folder_beside_the_central_root(
+        tmp_path, monkeypatch):
+    """Skipping the central root must not hide real legacy data next to it."""
+    install, _central = _install_tree(tmp_path, monkeypatch)
+    # A role with no stored record: the resolver then falls back to the
+    # (patched) central root, instead of reading a live employee's own path.
+    legacy = install / "retired_role_data"
+    legacy.mkdir()
+    (legacy / "registry.md").write_text("# старый реестр", encoding="utf-8")
+    plan = mm.plan_migrations(str(install), include_known=False)
+    assert [e["slug"] for e in plan] == ["retired_role"]
+    assert plan[0]["status"] == mm.STATUS_READY
+
+
 # ─── Applying ────────────────────────────────────────────────────────────────
 
 
