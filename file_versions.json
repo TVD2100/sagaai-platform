@@ -332,11 +332,11 @@
           "sha256": "c4500cdaf8b3afa5e866cf5705cace0d37052f4601124a01392e380754b8491b"
         },
         "dev_agent/universal_agent.py": {
-          "version": "1.23.1",
-          "sha256": "aade9817271e2100adf72f59d2802708ab133a877a692b8505a4025ea14b4f79",
+          "version": "1.23.2",
+          "sha256": "b748392e996ee42e02d55ae7b8df36d47a69a91a3969d3e998b52602aa609c6f",
           "note": {
-            "ru": "Спецификация аргументов subagent_result (run_id, wait_seconds) и имя в наборе делегирования.",
-            "en": "Argument spec of subagent_result (run_id, wait_seconds) and its name in the delegation set."
+            "ru": "Описание current_workspace: сначала логика выбора рабочей папки из системного промпта, затем папка по запросу пользователя, и только потом меню недавних папок.",
+            "en": "current_workspace description: workspace selection follows the system prompt first, then the folder named in the user request, and only then the recent-folders menu."
           }
         },
         "dev_agent/workspace_binding.py": {
