@@ -37,6 +37,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import socket
 import time
 import uuid
 from datetime import datetime, timezone
@@ -199,22 +200,57 @@ def _read_file(path: Path) -> Optional[Dict[str, Any]]:
 
 
 def _pid_alive(pid: int) -> bool:
-    """Return True when *pid* exists (POSIX signal 0 probe)."""
+    """Return True when *pid* exists (POSIX signal 0 probe).
+
+    ``PermissionError`` means the process EXISTS but belongs to another user:
+    it is a subclass of ``OSError``, so a blanket ``except OSError`` would
+    report a live foreign process as dead and get a healthy run healed into
+    ``stale_run``. Only ``ProcessLookupError`` proves absence; every other
+    answer is treated as alive, because a wrong "dead" verdict destroys a
+    real run while a wrong "alive" verdict merely delays a repair.
+    """
     try:
         os.kill(int(pid), 0)
-    except (OSError, ValueError, OverflowError):
+    except ProcessLookupError:
         return False
+    except (ValueError, OverflowError):
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return True
     return True
+
+
+def current_host() -> str:
+    """Return a stable identifier of THIS machine.
+
+    ``pid`` is only meaningful inside one machine: a store may live on a
+    shared folder that several hosts write to. Without a host stamp a dead
+    pid on this machine says nothing about a record written elsewhere.
+    """
+    try:
+        return str(socket.gethostname() or "")
+    except Exception:  # pragma: no cover - defensive
+        return ""
 
 
 def heal(record: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
     """Return ``(record, changed)`` with a dead ``running`` claim repaired.
 
-    Three independent signals mark a claim as dead: a heartbeat older than
-    ``max(STALE_MIN_SECONDS, 2 x run timeout)``, a ``boot_id`` of another
-    process instance, or a ``pid`` that no longer exists. Any of them turns the
-    record into ``failed``/``stale_run``; the reason is recorded so an
-    operator can tell a crash from a hang.
+    Death needs an AFFIRMATIVE signal, never the absence of one. Two qualify:
+    a heartbeat older than ``max(STALE_MIN_SECONDS, run timeout + grace)``, and
+    a ``pid`` that no longer exists on the machine that wrote the record.
+
+    A foreign ``boot_id`` is NOT a signal: the store is shared between
+    processes and is meant to be observed from any of them, so "this record
+    was written by another process instance" describes a healthy long-running
+    child as often as a dead one. Treating it as death let any reader
+    (a status poll, a second Streamlit, a tool subprocess) rewrite a LIVE
+    record into ``failed``/``stale_run`` - and the writer's next heartbeat
+    only papered over the damage until the next reader repeated it.
+
+    The reason is recorded so an operator can tell a crash from a hang.
     """
     if not isinstance(record, dict):
         return record, False
@@ -235,12 +271,14 @@ def heal(record: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
     reasons: List[str] = []
     if heartbeat <= 0 or (time.time() - heartbeat) > threshold:
         reasons.append("heartbeat")
-    writer_boot = str(record.get("boot_id") or "")
-    if writer_boot and writer_boot != current_boot_id():
-        reasons.append("boot")
+    # A pid is only evidence on the machine that owns it. A record with no
+    # host stamp is treated as local (older writers did not stamp it), which
+    # keeps the pid check available for them instead of silently disabling it.
+    writer_host = str(record.get("host") or "")
+    same_host = (not writer_host) or writer_host == current_host()
     pid = record.get("pid")
-    if (reasons == [] and isinstance(pid, int) and pid > 0
-            and writer_boot == current_boot_id() and not _pid_alive(pid)):
+    if (same_host and isinstance(pid, int) and pid > 0
+            and not _pid_alive(pid)):
         reasons.append("pid")
     if not reasons:
         return record, False
@@ -284,8 +322,14 @@ def is_live(record: Dict[str, Any], live_in_memory: bool = False) -> bool:
         return False
     if live_in_memory:
         return True
-    writer_boot = str(record.get("boot_id") or "")
-    if writer_boot and writer_boot != current_boot_id():
+    # Prove death when the evidence is available: a pid that no longer exists
+    # on the machine that wrote the record cannot be running that record.
+    # Otherwise fall through to the heartbeat window - recent activity is the
+    # only host-independent positive signal.
+    writer_host = str(record.get("host") or "")
+    pid = record.get("pid")
+    if ((not writer_host or writer_host == current_host())
+            and isinstance(pid, int) and pid > 0 and not _pid_alive(pid)):
         return False
     try:
         heartbeat = float(record.get("heartbeat_at") or 0.0)
@@ -300,11 +344,13 @@ def demote_if_dead(record: Dict[str, Any],
                    live_in_memory: bool = False) -> Dict[str, Any]:
     """Return *record* with an unverifiable ``running`` claim downgraded.
 
-    Reading is the only place where this can be decided: a record on disk
-    cannot say whether its thread still exists, while the live registry can. A
-    caller that reports status to a human must therefore never pass a stored
-    ``running`` through unchanged - that is exactly how a crashed child kept
-    looking alive and made the dialog claim it was still working.
+    The in-memory registry is the strongest evidence there is: a record it
+    still holds belongs to a thread of this process. Without that evidence the
+    verdict falls back to what the record itself proves - a dead pid or a
+    heartbeat outside :func:`liveness_window`. Absence of a live counterpart
+    is NOT evidence on its own: a background child routinely outlives
+    ``release_tree``, and a second reader never had a counterpart to begin
+    with.
 
     The stored file is left alone: the demotion is a statement about what the
     caller can verify, not a repair. :func:`heal` performs the repair once the
@@ -418,8 +464,16 @@ def _dedupe_run_records(run_id: str, store_root: str = "",
     return removed
 
 
-def load(run_id: str, store_root: str = "") -> Optional[Dict[str, Any]]:
-    """Return one record with :func:`heal` applied, or None."""
+def load(run_id: str, store_root: str = "", *, persist: bool = False
+         ) -> Optional[Dict[str, Any]]:
+    """Return one record with :func:`heal` applied, or None.
+
+    Reading does not write by default: a status poll, a listing in the UI and
+    a tool subprocess all read this store, and a read that rewrites files is
+    how an observer turns a live record into a dead one. A caller that
+    genuinely wants the repair on disk (the startup sweep) passes
+    ``persist=True``.
+    """
     path = _find_record_file(run_id, store_root)
     if path is None:
         return None
@@ -427,14 +481,20 @@ def load(run_id: str, store_root: str = "") -> Optional[Dict[str, Any]]:
     if record is None:
         return None
     healed, changed = heal(record)
-    if changed:
+    if changed and persist:
         save(healed, store_root)
     return healed
 
 
 def list_runs(root_run_id: Optional[str] = None, store_root: str = "",
-              limit: int = 50) -> List[Dict[str, Any]]:
-    """Return recent records of one tree (newest first), or of all trees."""
+              limit: int = 50, *, persist: bool = False
+              ) -> List[Dict[str, Any]]:
+    """Return recent records of one tree (newest first), or of all trees.
+
+    Like :func:`load`, this heals the records it RETURNS without rewriting
+    them unless ``persist=True``: listing is a read, and a read that writes is
+    how an observer resurrects the damage the repair was meant to fix.
+    """
     files = _iter_record_files(store_root, root_run_id)
     if not files:
         return []
@@ -451,7 +511,7 @@ def list_runs(root_run_id: Optional[str] = None, store_root: str = "",
         if record is None:
             continue
         healed, changed = heal(record)
-        if changed:
+        if changed and persist:
             save(healed, store_root)
         rid = str(healed.get("run_id") or "")
         if rid and rid in seen:

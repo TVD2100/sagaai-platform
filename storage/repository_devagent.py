@@ -24,7 +24,10 @@ def repo_devagent_create_thread(thread_id: str, title: str = "",
                                 orchestrator_slug: str = None,
                                 orchestrator_name: str = "DevAgent",
                                 workspace: str = None,
-                                target_file: str = None) -> bool:
+                                target_file: str = None,
+                                parent_thread_id: str = None,
+                                kind: str = None,
+                                transcript_path: str = None) -> bool:
     """Insert a new DevAgent Thread row. Returns True on success.
 
     The orchestrator slug is stored in ``assistant_id`` so we can filter by it.
@@ -45,8 +48,66 @@ def repo_devagent_create_thread(thread_id: str, title: str = "",
                 updated_at=now,
                 workspace=workspace or None,
                 target_file=target_file or None,
+                parent_thread_id=parent_thread_id or None,
+                kind=kind or None,
+                transcript_path=transcript_path or None,
+                content_schema=1 if transcript_path else None,
             )
             s.add(th)
+            s.commit()
+        return True
+    except Exception:
+        return False
+
+
+def repo_devagent_update_transcript_index(thread_id: str, *,
+                                            message_delta: int = 0,
+                                            bytes_delta: int = 0,
+                                            last_message_at: str = "",
+                                            tokens_in: int = 0,
+                                            tokens_out: int = 0,
+                                            tokens_cache: int = 0,
+                                            transcript_path: str = None,
+                                            transcript_bytes: int = None,
+                                            content_schema: int = None) -> bool:
+    """Advance the transcript index of one thread by a delta.
+
+    The counters are updated with an ``UPDATE ... SET x = COALESCE(x,0) + :d``
+    rather than a read-modify-write: two processes appending to the same
+    transcript must not overwrite each other's count, and the database is the
+    only place where the two writers meet.
+
+    Every argument is optional, so a caller reports only what it actually
+    produced - a message with no token report does not zero the running totals.
+    A ``transcript_path`` is stored RELATIVE to the history root, keeping the
+    row valid when the installation moves.
+
+    Returns True when the row existed and was updated.
+    """
+    try:
+        with get_devagent_session() as s:
+            th = s.get(Thread, thread_id)
+            if th is None:
+                return False
+            if message_delta:
+                th.message_count = int(th.message_count or 0) + int(message_delta)
+            if bytes_delta:
+                th.total_bytes = int(th.total_bytes or 0) + int(bytes_delta)
+            if tokens_in:
+                th.tokens_in = int(th.tokens_in or 0) + int(tokens_in)
+            if tokens_out:
+                th.tokens_out = int(th.tokens_out or 0) + int(tokens_out)
+            if tokens_cache:
+                th.tokens_cache = int(th.tokens_cache or 0) + int(tokens_cache)
+            if last_message_at:
+                th.last_message_at = str(last_message_at)
+            if transcript_path is not None:
+                th.transcript_path = transcript_path or None
+            if transcript_bytes is not None:
+                th.transcript_bytes = max(0, int(transcript_bytes))
+            if content_schema is not None:
+                th.content_schema = int(content_schema)
+            th.updated_at = datetime.now().isoformat()
             s.commit()
         return True
     except Exception:
@@ -61,8 +122,13 @@ def repo_devagent_load_thread_meta(thread_id: str) -> dict:
 
 
 def repo_devagent_save_thread_meta(thread_id: str, meta: dict) -> bool:
-    """Persist updated thread metadata (title, assistant_id, assistant_name,
-    workspace, target_file, updated_at)."""
+    """Persist updated thread metadata.
+
+    Covers the chat fields (title, assistant_id, assistant_name, workspace,
+    target_file, updated_at) and the transcript-index fields. Every index key
+    is applied only when present in *meta*, so a caller that updates a title
+    never resets a counter by omission.
+    """
     try:
         with get_devagent_session() as s:
             th = s.get(Thread, thread_id)
@@ -75,6 +141,15 @@ def repo_devagent_save_thread_meta(thread_id: str, meta: dict) -> bool:
                 th.workspace = meta.get("workspace") or None
             if "target_file" in meta:
                 th.target_file = meta.get("target_file") or None
+            for key in ("message_count", "total_bytes", "tokens_in",
+                        "tokens_out", "tokens_cache", "transcript_bytes",
+                        "content_schema"):
+                if key in meta and meta[key] is not None:
+                    setattr(th, key, int(meta[key]))
+            for key in ("last_message_at", "transcript_path",
+                        "transcript_format", "parent_thread_id", "kind"):
+                if key in meta:
+                    setattr(th, key, meta[key] or None)
             th.updated_at = meta.get("updated_at", datetime.now().isoformat())
             s.commit()
         return True
@@ -169,6 +244,10 @@ def repo_devagent_list_threads(slug: str = None) -> list:
     try:
         with get_devagent_session() as s:
             q = s.query(Thread).filter(Thread.type == "devagent")
+            # A delegated child has a row of its own so its transcript is
+            # addressable, but it is not a dialog: it belongs to the run tree
+            # that spawned it and must never appear in the dialog list.
+            q = q.filter(Thread.parent_thread_id.is_(None))
             if slug:
                 q = q.filter(Thread.assistant_id == slug)
             threads = q.order_by(Thread.updated_at.desc()).all()
@@ -237,6 +316,8 @@ def repo_devagent_list_threads_filtered(slugs: list = None,
     try:
         with get_devagent_session() as s:
             q = s.query(Thread).filter(Thread.type == "devagent")
+            # Children stay out of every dialog listing (see list_threads).
+            q = q.filter(Thread.parent_thread_id.is_(None))
             if slugs:
                 q = q.filter(Thread.assistant_id.in_([str(x) for x in slugs]))
             column = Thread.created_at if date_field == "created" else Thread.updated_at

@@ -18,6 +18,7 @@
 /TASK_STATE.md
 /personal/
 /connectors/
+/agents_data/
 
 # DevAgent workspace artifacts (repo root)
 /.dev_agent/

@@ -895,11 +895,19 @@ def _delegation_job(tool: str, args: Dict[str, Any], *,
         )
     if tool == "read_subagent_thread":
         from core.orchestration.tools import read_subagent_thread
+        # Every recovery argument has to survive this closure: a mode the
+        # loop drops here is a mode the model can never use, however well the
+        # tool itself handles it.
+        raw_index = args.get("index")
         return read_subagent_thread(
             run_id=args.get("run_id"),
             offset=int(args.get("offset") or 0),
             limit=int(args.get("limit") or 50),
             include_tool_results=bool(args.get("include_tool_results")),
+            mode=str(args.get("mode") or "window"),
+            index=None if raw_index is None else int(raw_index),
+            before=int(args.get("before") or 5),
+            after=int(args.get("after") or 5),
             parent_slug=parent_slug,
             parent_run_id=parent_run_id or None,
             service=service,
@@ -962,6 +970,36 @@ def _delegation_job(tool: str, args: Dict[str, Any], *,
     )
 
 
+def _delegation_base_dir(thread_id: str) -> Optional[str]:
+    """Return the project folder a spawned child must work in, or None.
+
+    Resolution order: the parent thread's own binding (the folder the dialog
+    actually selected), then the live config root when a workspace is
+    selected. A thread in the neutral empty state returns None, so the child
+    starts in the empty state too instead of silently adopting another
+    dialog's folder. The value is reported in the run record and in the
+    child's transcript meta, which is what makes a lost child traceable to
+    the project it worked on.
+    """
+    tid = (thread_id or "").strip()
+    if tid:
+        try:
+            from dev_agent.workspace_binding import get_thread_workspace
+            bound = get_thread_workspace(tid)
+            if bound:
+                return str(bound)
+        except Exception:
+            pass
+    try:
+        from dev_agent import config as _dagent_config
+        if not getattr(_dagent_config, "WORKSPACE_SELECTED", True):
+            return None
+        root = getattr(_dagent_config, "PROJECT_ROOT", None)
+        return str(root) if root else None
+    except Exception:
+        return None
+
+
 def execute_delegation_calls(calls: List[Dict[str, Any]], *,
                              state: "AgentLoopState", dispatcher: Any,
                              lang: Optional[str] = None,
@@ -1002,12 +1040,7 @@ def execute_delegation_calls(calls: List[Dict[str, Any]], *,
         inherited_protection = True
     else:
         inherited_protection = bool(getattr(state, "enable_injection_protection", True))
-    base_dir = None
-    try:
-        from dev_agent import config as _dagent_config
-        base_dir = str(_dagent_config.WORKSPACE_ROOT) if _dagent_config.WORKSPACE_ROOT else None
-    except Exception:
-        base_dir = None
+    base_dir = _delegation_base_dir(thread_id)
     if service is None:
         from core.orchestration.service import get_service
         service = get_service()

@@ -42,7 +42,7 @@ from ui.pages.chat     import page_run_query
 from ui.pages.skills   import page_skills
 from ui.pages.settings import page_settings
 from ui.pages.history  import page_history
-from ui.components.flash import render_flash
+from ui.components.flash import render_flash, flash_warning
 
 from core.orchestrators import list_orchestrators, DEVAGENT_SLUG
 from core.version import __version__ as PLATFORM_VERSION
@@ -454,6 +454,38 @@ def _run_dependency_check_once():
         st.warning(t("deps_outdated", lang=lang, libs=", ".join(outdated)))
 
 
+def _show_db_archive_notice_once(lang) -> None:
+    """Tell the user once that the previous database was archived.
+
+    A database written before the transcript file store held every dialogue
+    inside itself. It is replaced by an empty one, and the old file is kept
+    as a zip beside it - the message has to say so, because the dialogue list
+    is empty afterwards and silence would read as data loss.
+
+    The notice is taken exactly once: it is written at cold start, and a
+    rerun must keep showing it. The read-and-clear runs once per session, so
+    the first render of every browser announces the switch.
+    """
+    if st.session_state.get("_db_archive_notice_shown"):
+        return
+    st.session_state["_db_archive_notice_shown"] = True
+    try:
+        from core import devagent_db_archive as _archive
+
+        notice = _archive.take_notice()
+    except Exception:
+        return
+    if not notice:
+        return
+    flash_warning(t(
+        "devagent_db_archived",
+        lang=lang,
+        path=notice.get("archive_path", ""),
+        threads=int(notice.get("threads") or 0),
+        messages=int(notice.get("messages") or 0),
+    ))
+
+
 def main():
     """Entry point called from app.py after st.set_page_config."""
     # ── Authentication gate ────────────────────────────────────────────────
@@ -566,6 +598,8 @@ def main():
 
     lang = st.session_state.get("ui_lang")
     page = st.session_state["current_page"]
+
+    _show_db_archive_notice_once(lang)
 
     # One-time localStorage sync for the saved theme: after a cold start the
     # sidebar shows the saved theme, but the page is painted from the

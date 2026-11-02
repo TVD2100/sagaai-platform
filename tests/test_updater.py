@@ -494,13 +494,20 @@ def test_write_running_marker(tmp_path):
 def test_app_py_has_cold_start_hook():
     """Step 5 guard: app.py must call apply_updates + write_running_marker
     before importing streamlit, guarded by same_process_marker so streamlit
-    reruns (same process) never re-run the cold-start apply."""
+    reruns (same process) never re-run the cold-start apply.
+
+    The marker check may be either inline in the ``if`` or hoisted into a
+    named flag that the same ``if`` consumes: both express one decision taken
+    once per process, which is what the guard is about.
+    """
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     src = _read_text(project_root, "app.py")
-    assert "if not same_process_marker(_project_root):" in src
+    inline = "if not same_process_marker(_project_root):"
+    hoisted = "_cold_start = not same_process_marker(_project_root)"
+    assert inline in src or hoisted in src
     assert "apply_updates(_project_root)" in src
     assert "write_running_marker(_project_root)" in src
-    guard = src.index("if not same_process_marker(_project_root):")
+    guard = src.index(inline) if inline in src else src.index(hoisted)
     assert src.index("apply_updates(_project_root)") > guard
     assert src.index("write_running_marker(_project_root)") > guard
     assert src.index("apply_updates(_project_root)") < src.index("import streamlit as st")

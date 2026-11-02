@@ -421,7 +421,32 @@
 # render id keeps the injected body changing so Streamlit re-runs the script on
 # every rerun.
 
-__version__ = "2.26.1"
+# 2.27.0 detaches employee working data from the project. The role folder is
+# central by default - DATA_DIR/agents_data/<slug>/ - so one employee keeps one
+# memory across projects and a workspace switch no longer hides its registries
+# and journals. resolve_data_dir gained explicit scopes (workspace:<subpath>,
+# central:<subpath>), reports the legacy <project>/<slug>_data folder instead of
+# silently preferring it, and defaults to the central root. The working folder
+# became a second root of the file tools: a path is addressed with the memory:
+# prefix or an absolute path inside it, and the tools keep working before a
+# project is picked, because memory is not a property of the project. The
+# platform block ## Working memory declares the path once for every employee,
+# and core/memory_migration.py with scripts/migrate_agent_data.py moves an old
+# layout (plan only by default, source never deleted).
+
+# 2.28.0 moves subagent conversations out of devagent.db into an append-only
+# file store (dev_agent/transcript.py): one JSONL segment per child under
+# <history>/<parent>/subagents/<child>/, rotated by size, compressed in place
+# when cold, and stripped of UI render events that duplicated roughly half of
+# every tool_result. A child no longer needs a dialog row: the derived thread
+# is addressed through the threads index (transcript_path,
+# parent_thread_id), so read_subagent_thread works on a real run instead of
+# answering "thread not found". A database written before the file store is
+# switched once by core/devagent_db_archive.py: the old file is archived into
+# a verified zip beside itself, a fresh empty base is created, and a one-shot
+# notice names the archive and the dialogues it preserves.
+
+__version__ = "2.28.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

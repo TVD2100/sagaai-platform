@@ -380,6 +380,33 @@ WORKSPACE_REQUIRED_TOOLS: set = {
 
 _PATH_MODE_TOOLS: set = {"run_test", "run_code"}
 
+
+def _addresses_memory(args: Optional[Dict[str, Any]]) -> bool:
+    """True when the call's path arguments point into the working memory.
+
+    Every file tool takes its target as ``path``, ``files``, ``subdir`` or
+    ``file_path``; a call whose targets are ALL inside the working-memory root
+    needs no project folder.
+    """
+    if not isinstance(args, dict):
+        return False
+    targets: List[str] = []
+    for key in ("path", "subdir", "file_path"):
+        value = args.get(key)
+        if isinstance(value, str) and value.strip():
+            targets.append(value)
+    files = args.get("files")
+    if isinstance(files, str) and files.strip():
+        targets.append(files)
+    elif isinstance(files, (list, tuple)):
+        targets.extend(f for f in files if isinstance(f, str) and f.strip())
+    if not targets:
+        return False
+    try:
+        return all(config.is_memory_path(t) for t in targets)
+    except Exception:
+        return False
+
 _WORKSPACE_GUARD_SUGGESTION = (
     "Ask the user which project to work in first (show "
     "list_recent_workspaces as a numbered menu), then call "
@@ -403,6 +430,12 @@ def workspace_guard_error(tool_name: str, args: Optional[Dict[str, Any]] = None)
     if tool_name in _PATH_MODE_TOOLS:
         needs_ws = bool((args or {}).get("path"))
     if not needs_ws:
+        return None
+    # Working memory (the employee's own data folder) lives in the installation
+    # and never depended on a project: a tool that addresses it is allowed in
+    # the empty state, otherwise an employee could not read its own registries
+    # before the user picks a folder.
+    if _addresses_memory(args):
         return None
     if bool(getattr(config, "WORKSPACE_SELECTED", True)):
         return None
@@ -474,6 +507,14 @@ class ToolExecutor:
         # UniversalDevAgent.attach_orchestrator). Used to resolve
         # orchestrator-specific instructions for meta-tasks.
         self._orchestrator_slug: str = "dev_agent"
+        # Working-memory root of that employee (DATA_DIR/agents_data/<slug> by
+        # default). File tools reach it through the ``memory:`` prefix; it is
+        # refreshed together with the slug so the tools and the prompt never
+        # disagree about where the employee's data folder is.
+        try:
+            config.set_memory_root(self._orchestrator_slug, str(config.PROJECT_ROOT))
+        except Exception:
+            pass
         # Web-search config (set by the orchestrator UI). When present, it takes
         # precedence over the global DevAgent config: service, model, temperature,
         # max_tool_calls, and base system prompt. Falls back to the legacy global
@@ -495,6 +536,22 @@ class ToolExecutor:
         self._send_request_fn = fn
 
     # --- dispatch -----------------------------------
+    def set_orchestrator_slug(self, slug: str) -> None:
+        """Point the executor at another employee and refresh its memory root.
+
+        Called by ``UniversalDevAgent.attach_orchestrator`` and on restore, so
+        the ``memory:`` prefix always resolves to the folder of the employee
+        that is actually running. The workspace is passed explicitly because
+        the resolver needs it to expand a project-relative override.
+        """
+        self._orchestrator_slug = (slug or "dev_agent").strip() or "dev_agent"
+        try:
+            workspace = (str(config.PROJECT_ROOT)
+                         if getattr(config, "WORKSPACE_SELECTED", True) else "")
+            config.set_memory_root(self._orchestrator_slug, workspace)
+        except Exception:
+            pass
+
     def dispatch(self, tool_name: str, args: Any) -> Dict[str, Any]:
         """Route a tool call to the corresponding method.
 

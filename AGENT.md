@@ -937,8 +937,8 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   возвращается с `timed_out=true`), `read_subagent_state` (журнал ребёнка по
   абсолютному пути из записи запуска, разделы как у своего журнала),
   `read_subagent_thread` (сама переписка ребёнка: `child_thread_id` из
-  записи запуска подставляется в окно чтения треда, поэтому видно, что
-  ребёнок сказал и какие вызовы сделал, а не только что он записал в
+  записи запуска адресует ФАЙЛОВОЕ хранилище транскриптов, поэтому видно,
+  что ребёнок сказал и какие вызовы сделал, а не только что он записал в
   журнал), `sleep` (блокирующее ожидание события в дереве или таймаута;
   длительность выбирает вызывающий, потолок - час, таймаут ничего не
   отменяет) и `resume_subagent` (продолжение с того места, где ребёнок
@@ -1001,6 +1001,18 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   system-сообщением `[SUBAGENT_NOTICE:<run_id>:<status>]` в фазе
   `calling_llm` следующего шага, а не видимой репликой пользователя,
   поэтому оно не переводит шаг в `awaiting_user`.
+- Транскрипт ребёнка хранится в файле, а не в `devagent.db`
+  (`dev_agent/transcript.py`): один JSONL-сегмент на шаг под
+  `<history>/<parent>/subagents/<child>/`, дописывание одной строкой под
+  локом на ПУТЬ. Инварианты, которые нельзя нарушать при правках: (1) запись
+  не берёт блокировку базы и не мешает другим тредам; (2) префикс
+  `__DEVAGENT_EVENTS__` срезается перед записью - это данные рендера; (3)
+  сегмент определяется НОМЕРОМ, поэтому `.jsonl` и `.jsonl.gz` - один и тот
+  же сегмент до и после уборки; (4) сжатие сохраняет время последней
+  реальной записи; (5) активный сегмент неприкосновенен для квоты; (6)
+  отсутствие строки в индексе делает папку кандидатом в сироты, но
+  удаляется она только при явном `purge_orphans` - по умолчанию она
+  попадает в отчёт.
 - Продолжение (`core/orchestration/resume.py`, `build_resume`) строится по
   журналу ребёнка, а не по его переписке: журнал читается по абсолютному
   пути из записи (обычное чтение взяло бы журнал РОДИТЕЛЯ), выполненные шаги
@@ -1175,16 +1187,33 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   роли (реестры, карточки, журналы). Резолвер
   `core/orchestrator_folders.py:resolve_data_dir(slug, workspace)` отдаёт
   абсолютный путь по первому совпадению: маркер `MEMORY_DIR:` в промпте →
-  `config.memory_dir` → `DATA_DIR/orchestrators/<slug>/` → папка по
-  умолчанию `<slug>_data` в рабочем проекте. Результат содержит `source`,
-  `outside_workspace` и `conflicts` (папки, где остались файлы после смены
-  пути: данные не переносятся молча, пользователь видит предупреждение).
+  `config.memory_dir` → центральный `DATA_DIR/agents_data/<slug>/`.
+  Центральный корень - дефолт: папка принадлежит установке, поэтому одна роль
+  имеет одну память в любом проекте. Явные формы: `workspace:<подпуть>` -
+  от проекта, `central:<подпуть>` - от центрального корня, `.` - корень
+  проекта, абсолютный путь - как есть, прочий относительный путь - от
+  рабочего проекта. Результат содержит `source`, `scope`
+  (central/workspace/external), `outside_workspace`, `legacy` и `conflicts`
+  (папки, где остались файлы после смены пути: данные не переносятся молча,
+  пользователь видит предупреждение).
   Пустые папки не создаются - файл появляется с первой записью.
   Если папка недоступна (перемещена, удалена, рабочая папка указывает
   в другое место), роль не создаёт новую молча: сообщает об этом, спрашивает
   владельца и до решения держит заметки только в текущей задаче. Заметка
   о том, КАК работать, от рабочей папки не зависит и сохраняется в
   персональной памяти.
+- **Доступ файловых инструментов.** Рабочая папка - второй разрешённый
+  корень наряду с проектом: `memory:registry.md` или абсолютный путь внутри
+  папки (`config.to_project_relative` / `resolve_in_project`). Всё вне обоих
+  корней отклоняется, включая папку другого сотрудника. Инструменты работают
+  и без выбранного проекта. Путь объявляет платформенный блок
+  `## Working memory` (`_extend_prompt_with_working_memory`), поэтому промпт
+  роли его не дублирует.
+- **Перенос старой раскладки.** `core/memory_migration.py` - план только на
+  чтение, копирование с проверкой совпадения до отчёта, источник не
+  удаляется, конфликт не сливается молча. CLI:
+  `scripts/migrate_agent_data.py` (dry-run по умолчанию, `--apply` для
+  записи).
 - **Профили структуры данных** (`employee_creator`, 7-я секция) выбираются
   по типу единицы работы: ПОТОК (реестр + журнал, без папок на единицу),
   ДЕЛО/КУРС/СТАТЬЯ (карточка на единицу со своим жизненным циклом),
@@ -1371,14 +1400,14 @@ Ed25519), а проверка подписи на стороне клиента 
     # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
     # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
-- Список базовых файлов (135):
+- Список базовых файлов (141):
   - Корень (2): __init__.py, app.py
   - UI (23): ui/__init__.py, ui/app.py, ui/components/__init__.py, ui/components/flash.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/access.py, ui/pages/assistants.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/marketplace.py, ui/pages/orchestrator.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrators.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/updates.py, ui/pages/updates_marketplace.py, ui/pages/welcome.py
-  - Core (65): core/__init__.py, core/api_errors.py, core/api_layer.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/config.py, core/connector_presets.py, core/connectors.py, core/context_guard.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/dependency_check.py, core/document_images.py, core/document_text.py, core/entity_sync.py, core/env_loader.py, core/feed_autoscroll.py, core/files.py, core/folder_dialog.py, core/fs.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/mcp_client.py, core/mcp_tools.py, core/multimodal.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrator_tools.py, core/orchestrators.py, core/paths.py, core/personal_memory.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py, core/updater.py, core/updater_apply.py, core/url_fetch.py, core/version.py
+  - Core (67): core/__init__.py, core/api_errors.py, core/api_layer.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/config.py, core/connector_presets.py, core/connectors.py, core/context_guard.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/devagent_db_archive.py, core/dependency_check.py, core/document_images.py, core/document_text.py, core/entity_sync.py, core/env_loader.py, core/feed_autoscroll.py, core/files.py, core/folder_dialog.py, core/fs.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/mcp_client.py, core/mcp_tools.py, core/memory_migration.py, core/multimodal.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrator_tools.py, core/orchestrators.py, core/paths.py, core/personal_memory.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py, core/updater.py, core/updater_apply.py, core/url_fetch.py, core/version.py
   - Marketplace (19): core/marketplace/__init__.py, core/marketplace/agent_installer.py, core/marketplace/bootstrap.py, core/marketplace/bundles.py, core/marketplace/catalog.py, core/marketplace/config.py, core/marketplace/conflicts.py, core/marketplace/installer.py, core/marketplace/mcp_installer.py, core/marketplace/migration.py, core/marketplace/publish.py, core/marketplace/rag_installer.py, core/marketplace/registry.py, core/marketplace/rollback.py, core/marketplace/semver.py, core/marketplace/source.py, core/marketplace/store.py, core/marketplace/updates.py, core/marketplace/verify.py
-  - Orchestration (8): core/orchestration/__init__.py, core/orchestration/contracts.py, core/orchestration/invoke.py, core/orchestration/resume.py, core/orchestration/runs.py, core/orchestration/service.py, core/orchestration/tools.py, core/orchestration/verify.py
+  - Orchestration (11): core/orchestration/__init__.py, core/orchestration/contracts.py, core/orchestration/invoke.py, core/orchestration/resume.py, core/orchestration/runs.py, core/orchestration/service.py, core/orchestration/tool_classes.py, core/orchestration/tools.py, core/orchestration/transcript_reader.py, core/orchestration/transcript_sink.py, core/orchestration/verify.py
   - Storage (5): storage/__init__.py, storage/db.py, storage/models.py, storage/repository.py, storage/repository_devagent.py
-  - DevAgent (13): dev_agent/__init__.py, dev_agent/agent_loop.py, dev_agent/assistant_detector.py, dev_agent/assistant_model_resolver.py, dev_agent/backup_manager.py, dev_agent/config.py, dev_agent/llm_utils.py, dev_agent/safe_writer.py, dev_agent/task_state.py, dev_agent/tool_executor.py, dev_agent/universal_agent.py, dev_agent/workspace_binding.py, dev_agent/workspace_tools.py
+  - DevAgent (14): dev_agent/__init__.py, dev_agent/agent_loop.py, dev_agent/assistant_detector.py, dev_agent/assistant_model_resolver.py, dev_agent/backup_manager.py, dev_agent/config.py, dev_agent/llm_utils.py, dev_agent/safe_writer.py, dev_agent/task_state.py, dev_agent/tool_executor.py, dev_agent/transcript.py, dev_agent/universal_agent.py, dev_agent/workspace_binding.py, dev_agent/workspace_tools.py
 
 ## Ограничения
 

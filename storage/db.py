@@ -189,6 +189,31 @@ _THREAD_EXTRA_COLUMNS = [
     ("target_file", "VARCHAR(1024)"),
     ("assistant_id",   "VARCHAR(8)"),
     ("assistant_name", "VARCHAR(256)"),
+    # Transcript index. The message text itself lives in a per-thread
+    # append-only file; these columns describe it, so a thread list never
+    # touches a transcript and a growing transcript never grows the DB.
+    # All nullable on purpose: NULL marks a legacy thread whose messages are
+    # still in the ``messages`` table, and the reader falls back to it.
+    ("parent_thread_id",   "VARCHAR(64)"),
+    ("kind",               "VARCHAR(32)"),
+    ("message_count",      "INTEGER"),
+    ("total_bytes",        "INTEGER"),
+    ("last_message_at",    "VARCHAR(32)"),
+    ("tokens_in",          "INTEGER"),
+    ("tokens_out",         "INTEGER"),
+    ("tokens_cache",       "INTEGER"),
+    ("transcript_path",    "VARCHAR(1024)"),
+    ("transcript_format",  "VARCHAR(16)"),
+    ("transcript_bytes",   "INTEGER"),
+    ("content_schema",     "INTEGER"),
+]
+
+#: Indexes over the transcript-index columns. Counting and listing dialogs is
+#: the hottest read of this table; without an index every list of children of
+#: one parent scans every thread row in the database.
+_THREAD_EXTRA_INDEXES = [
+    ("ix_threads_parent_thread_id", "threads(parent_thread_id)"),
+    ("ix_threads_kind",             "threads(kind)"),
 ]
 
 # Columns added to the assistants table in newer builds.
@@ -228,12 +253,30 @@ def _ensure_thread_columns(engine) -> None:
 
     existing = {col["name"] for col in insp.get_columns("threads")}
     missing = [(name, decl) for name, decl in _THREAD_EXTRA_COLUMNS if name not in existing]
-    if not missing:
-        return
+    if missing:
+        with engine.begin() as conn:
+            for name, decl in missing:
+                conn.execute(text(
+                    f"ALTER TABLE threads ADD COLUMN {name} {decl}"))
+    # Outside the ``missing`` guard on purpose: a database migrated before the
+    # indexes existed has every column and no index, and must still get them.
+    _ensure_thread_indexes(engine)
 
-    with engine.begin() as conn:
-        for name, decl in missing:
-            conn.execute(text(f"ALTER TABLE threads ADD COLUMN {name} {decl}"))
+
+def _ensure_thread_indexes(engine) -> None:
+    """Create the transcript-index indexes if they are absent.
+
+    ``CREATE INDEX IF NOT EXISTS`` is idempotent, so this runs on every start
+    without a migration ledger. It is separate from the column pass because a
+    database migrated before the indexes existed must still receive them.
+    """
+    try:
+        with engine.begin() as conn:
+            for name, target in _THREAD_EXTRA_INDEXES:
+                conn.execute(text(
+                    f"CREATE INDEX IF NOT EXISTS {name} ON {target}"))
+    except Exception:  # pragma: no cover - an index is an optimisation
+        pass
 
 
 def _ensure_assistant_columns(engine) -> None:

@@ -38,6 +38,19 @@ def store(tmp_path) -> str:
     return str(tmp_path / "orchestration")
 
 
+def _a_dead_pid() -> int:
+    """Return a pid that is guaranteed to be gone.
+
+    A child process is started and reaped, so its pid is genuinely dead
+    rather than a number picked to look unlikely. Picking a large constant
+    would be a guess: on a busy host that pid may well exist.
+    """
+    import subprocess
+    proc = subprocess.Popen([sys.executable, "-c", "pass"])
+    proc.wait(timeout=30)
+    return proc.pid
+
+
 def _record(run_id="run-1", root="root-1", **extra):
     """Build a minimal record shaped like the service writes it."""
     data = {
@@ -49,6 +62,7 @@ def _record(run_id="run-1", root="root-1", **extra):
         "heartbeat_at": time.time(),
         "pid": os.getpid(),
         "boot_id": R.current_boot_id(),
+        "host": R.current_host(),
         "timeout_seconds": 600,
     }
     data.update(extra)
@@ -203,14 +217,30 @@ def test_stale_heartbeat_heals_to_failed_stale_run(store):
     assert "heartbeat" in loaded["stale_reason"]
 
 
-def test_foreign_boot_id_heals_a_running_record(store):
-    """A record written by a previous process instance cannot be alive."""
-    R.save(_record(boot_id="deadbeef" * 4), store)
+def test_a_foreign_boot_id_is_not_by_itself_a_death_signal(store):
+    """Reading a record from another process must not kill it.
+
+    The store is shared: a status poll, a second Streamlit or a tool
+    subprocess all read the same files. A foreign ``boot_id`` says only that
+    the writer is a different process instance - which is exactly what a
+    healthy long-running child looks like to every other reader. Treating it
+    as death let an observer rewrite a LIVE record into failed/stale_run.
+    """
+    R.save(_record(boot_id="deadbeef" * 4, heartbeat_at=time.time()), store)
+
+    loaded = R.load("run-1", store)
+    assert loaded["status"] == STATUS_RUNNING
+    assert "stale_reason" not in loaded
+
+
+def test_a_dead_pid_heals_a_running_record(store):
+    """A pid that no longer exists is an affirmative death signal."""
+    R.save(_record(pid=_a_dead_pid(), heartbeat_at=time.time()), store)
 
     loaded = R.load("run-1", store)
     assert loaded["status"] == STATUS_FAILED
     assert loaded["error_code"] == ERR_STALE_RUN
-    assert "boot" in loaded["stale_reason"]
+    assert "pid" in loaded["stale_reason"]
 
 
 def test_a_healthy_running_record_is_not_healed(store):
@@ -287,19 +317,27 @@ def test_unsafe_run_id_cannot_escape_the_store(store):
 # ─── the liveness verdict (a stored ``running`` must be provable) ──────────
 
 
-def test_a_foreign_boot_record_is_not_live_with_a_fresh_heartbeat(store):
-    """A heartbeat cannot prove liveness for another process instance.
+def test_a_dead_pid_is_not_live_whatever_the_heartbeat_says(store):
+    """A fresh timestamp cannot outvote a pid that no longer exists.
 
-    The record may be seconds old and still describe work that no longer
-    exists: the daemon thread died with its process, and only ``boot_id``
-    tells the two cases apart.
+    The worker could have died between two heartbeats; the pid probe is the
+    one signal that answers "is anything still writing this record".
     """
-    record = _record(heartbeat_at=time.time(), boot_id="deadbeef" * 4)
+    record = _record(heartbeat_at=time.time(), pid=_a_dead_pid())
 
     assert R.is_live(record) is False
     demoted = R.demote_if_dead(record)
     assert demoted["status"] == STATUS_FAILED
     assert demoted["error_code"] == ERR_STALE_RUN
+
+
+def test_a_record_from_another_host_keeps_its_pid_out_of_the_verdict(store):
+    """A pid from another machine proves nothing here and is not probed."""
+    record = _record(heartbeat_at=time.time(), pid=_a_dead_pid(),
+                     host="some-other-machine")
+
+    assert R.is_live(record) is True
+    assert R.heal(record)[1] is False
 
 
 def test_a_record_of_this_process_with_a_fresh_beat_stays_live(store):

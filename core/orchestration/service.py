@@ -177,6 +177,12 @@ class RunRecord:
     steps_used: int = 0
     tokens_used: Dict[str, int] = field(default_factory=dict)
     cancel_requested: bool = False
+    # True while a WORKER thread of this process is still executing the run.
+    # The status cannot answer this: ``cancel()`` marks a run CANCELLED at
+    # once, while the child keeps executing until its next step boundary.
+    # Releasing the tree on the status would drop the record out from under
+    # that worker, and the worker would then see no cancel marker at all.
+    worker_running: bool = False
     children: List[str] = field(default_factory=list)
 
     # ── Frozen launch context (background and resume) ──────────────────────
@@ -254,6 +260,7 @@ class RunRecord:
             "created_at": self.created_at or time.time(),
             "pid": os.getpid(),
             "boot_id": run_store.current_boot_id(),
+            "host": run_store.current_host(),
             "retryable": bool(self.retryable),
         }
         if self.is_terminal:
@@ -379,16 +386,19 @@ class OrchestrationService:
     def sweep_dead_runs(self) -> int:
         """Repair stored ``running`` claims that cannot be alive any more.
 
-        Called once when the process-wide service is created. A record left by
-        a previous process instance can never become live again, so leaving it
-        untouched only made a dead child look like running work. Listing the
-        store already applies the staleness rules and writes every repaired
-        record back, which makes the listing the sweep.
+        Called once when the process-wide service is created. A record whose
+        writer is provably gone can never become live again, so leaving it
+        untouched only made a dead child look like running work.
+
+        This is the ONE place that writes the repair back: the startup sweep
+        owns the files, while every other reader (status poll, listing, tool
+        subprocess) is read-only by contract.
 
         Returns the number of records that are stale.
         """
         try:
-            records = run_store.list_runs(None, self.store_root(), limit=0)
+            records = run_store.list_runs(None, self.store_root(), limit=0,
+                                          persist=True)
         except Exception as exc:  # pragma: no cover - sweep is best effort
             log.warning("run store sweep failed: %s", exc)
             return 0
@@ -444,6 +454,9 @@ class OrchestrationService:
                 parent_run_id=parent_run_id or None,
                 root_run_id=root_id,
                 depth=int(depth or 0),
+                # A child record exists because a worker is about to execute
+                # it; a root record stands for one dialog step and has none.
+                worker_running=bool(parent_run_id),
             )
             self._runs[rid] = rec
             if not parent_run_id:
@@ -505,6 +518,7 @@ class OrchestrationService:
             rec.tokens_used = dict(effective.tokens_used)
             rec.retryable = bool(effective.retryable)
             rec.heartbeat_at = time.time()
+            rec.worker_running = False
         self.save_record(rid)
         _record_child_handoff(rec, effective)
         return effective
@@ -554,9 +568,14 @@ class OrchestrationService:
         # behind it any more, yet every status reader reported it as running.
         self.close_root_run(rid)
         with self._lock:
+            # A record holds the tree while its WORKER lives, not while its
+            # status reads RUNNING: a cancelled child is CANCELLED already but
+            # keeps executing to its next step boundary. Releasing here would
+            # pop its record, ``is_cancelled`` would find nothing and the
+            # child would run out its whole budget for a cancelled result.
             alive = [r for r in self._runs.values()
                      if r.root_run_id == rid and r.run_id != rid
-                     and r.status == STATUS_RUNNING]
+                     and r.worker_running]
             if alive:
                 tree = self._trees.get(rid)
                 if tree is not None:
@@ -642,9 +661,9 @@ class OrchestrationService:
 
         This is what makes a background run observable after ``release_tree``
         or a restart: the registry is a cache, the store is the truth. A
-        ``running`` claim is only reported as running when this process can
-        still verify it - a stored record without a live counterpart is a
-        leftover of a dead thread and is demoted before it reaches a caller.
+        ``running`` claim survives only while the record itself proves life -
+        a live pid or a heartbeat inside the liveness window. A record with a
+        dead pid is a leftover and is demoted before it reaches a caller.
         """
         try:
             record = run_store.load(run_id, self.store_root())
@@ -662,11 +681,13 @@ class OrchestrationService:
         run known only to the store - a background child from a previous
         process - is still reported instead of silently disappearing.
 
-        A stored record that still claims ``running`` is checked against what
-        this process can verify: without a live counterpart it belongs to a
-        thread that is gone, so it is demoted to ``failed``/``stale_run``. That
-        verdict is what stops a crashed child from being reported as work in
-        progress; the repair of the file itself is ``runs.heal``'s job.
+        A stored record that still claims ``running`` and has no live
+        counterpart is demoted to ``failed``/``stale_run`` only when the
+        record itself proves its writer is gone (a dead pid or a heartbeat
+        outside the liveness window). That verdict is what stops a crashed
+        child from being reported as work in progress without ever killing a
+        healthy child that another process owns; the repair of the file itself
+        is ``runs.heal``'s job.
         """
         merged: Dict[str, Dict[str, Any]] = {}
         try:
@@ -952,15 +973,39 @@ class OrchestrationService:
                     child.error_code = ERR_CANCELLED_BY_PARENT
                     cancelled_ids.append(child.run_id)
                     stack.extend(child.children)
+        # The marker reaches the DISK before this call returns. An in-memory
+        # flag dies with the process, and a cancel issued through another
+        # entry point (a tool subprocess, a second window) must still be seen
+        # by the worker: the worker re-reads the durable record at every step
+        # boundary, and a cancel that never lands there is a cancel that
+        # silently does nothing.
+        for cid in cancelled_ids:
+            self.save_record(cid)
         return CancelReport(run_id=rid, cancelled=True,
                             previous_status=STATUS_RUNNING,
                             reason="requested",
                             children=cancelled_ids[1:])
 
     def is_cancelled(self, run_id: str) -> bool:
-        """True when cancellation was requested for the run."""
+        """True when cancellation was requested for the run.
+
+        The in-memory record is asked first because it is never behind. When
+        the registry no longer holds the run - a worker whose tree was
+        released, or a cancel written by another process - the answer comes
+        from the durable record instead of a silent ``False``: reporting
+        "not cancelled" for missing state is what let a cancelled child run
+        out its whole budget.
+        """
         rec = self.get_record(run_id)
-        return bool(rec and rec.cancel_requested)
+        if rec is not None:
+            return bool(rec.cancel_requested)
+        try:
+            stored = run_store.load(run_id, self.store_root())
+        except Exception:  # pragma: no cover - unreadable store
+            return False
+        if not stored:
+            return False
+        return bool(stored.get("cancel_requested"))
 
     # ── Child runner seam ──────────────────────────────────────────────────
 
@@ -1738,6 +1783,29 @@ def _default_child_runner(*, child_slug: str, brief: AgentBrief,
             root_run_id=_tree_root_of(service, run_id),
         )
 
+        # Persist this child as it works. The index row makes the run
+        # addressable; the transcript file is the copy of the conversation
+        # that survives the process. Without the row a parent asking "what did
+        # this child actually do" gets "not found", and without the file a
+        # crash loses the whole run.
+        try:
+            from core.orchestration.transcript_sink import TranscriptSink
+            if isinstance(orch, dict):
+                _display = str(orch.get("name") or "")
+            else:
+                _display = str(getattr(orch, "name", "") or "")
+            sink = TranscriptSink(
+                thread_id=child_thread_id,
+                parent_thread_id=parent_thread_id,
+                slug=slug,
+                display_name=_display or slug,
+                workspace=base_dir,
+            )
+            sink.open(task_text)
+        except Exception as exc:  # pragma: no cover - persistence is best effort
+            log.warning("child transcript sink init failed: %s", exc)
+            sink = None
+
         _heartbeat_at = [time.monotonic()]
 
         def _child_event(event: dict) -> None:
@@ -1799,6 +1867,17 @@ def _default_child_runner(*, child_slug: str, brief: AgentBrief,
             state = step_agent_loop(state, dispatcher=dispatcher, lang=lang,
                                     on_event=_child_event)
             steps += 1
+            # One drain per step: the transcript trails the child by at most
+            # the step in flight, and a crash costs that step alone. The write
+            # itself is a single append in the page cache - it does not wait
+            # for the disk, so it cannot slow the child down.
+            if sink is not None:
+                sink.drain(state)
+                # A step boundary is the only place a checkpoint is honest:
+                # every message of the step is on disk and every file the step
+                # wrote already exists. A crash after this point loses at most
+                # the next step, and a resume knows exactly where to continue.
+                sink.checkpoint(state)
 
         status, stop_reason, error_code = map_final_status(
             state.final_status, getattr(state, "error_code", None))
@@ -1829,6 +1908,15 @@ def _default_child_runner(*, child_slug: str, brief: AgentBrief,
             error_code=ERR_INTERNAL_ERROR, steps_used=steps_done,
             retryable=False)
     finally:
+        # Final drain runs on EVERY exit path - a normal finish, a cancelled
+        # or timed-out run, and the exception below. The step loop already
+        # drained what it could; this catches the last step and the counters,
+        # so a reader sees an honest total even for a run that died.
+        if sink is not None:
+            try:
+                sink.finish(state)
+            except Exception as exc:  # pragma: no cover - never mask a result
+                log.warning("child transcript finish failed: %s", exc)
         try:
             if _scope is not None:
                 _scope.__exit__(None, None, None)

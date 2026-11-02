@@ -62,8 +62,11 @@ PORTFOLIO only because the unit is a product with phases.
 Two stores exist and never merge:
 
 - the **working-data folder** (configured in step 1b) holds the CONTENT of the
-  work - registries, cards, journals - and lives inside the project, so it is
-  exported and versioned together with the project;
+  work - registries, cards, journals. By default it is CENTRAL
+  (`DATA_DIR/agents_data/<slug>/`): it belongs to the installation, so the
+  same role has the same memory in every project and keeps it when the working
+  folder changes. A role whose materials must travel WITH a project says so
+  explicitly;
 - **personal memory** holds HOW the user wants the employee to work -
   agreements, preferred formats, discovered limits - and lives in the
   installation (`scope="orchestrator:<slug>"`), never in the project.
@@ -81,12 +84,16 @@ After the interview, perform the following steps in order:
 1. Derive a short slug (lowercase ascii letters, digits, underscores; no
    spaces, dashes, dots or slashes). `create_orchestrator` normalizes the
    slug anyway, but a clean slug avoids surprises.
-1b. Decide the working-data folder and record it as a machine marker.
-    - Dedicated folder (default): `MEMORY_DIR: <slug>_data`
-    - Existing user folder that the workspace points at: `MEMORY_DIR: .`
-    - Explicit absolute folder: `MEMORY_DIR: /abs/path` (mark it as outside
-      the project in the report)
-    - ENGINEERING roles: no memory block, `MEMORY_DIR` is not needed.
+1b. Decide the working-data folder. The DEFAULT needs no marker at all: the
+    platform resolves it to `DATA_DIR/agents_data/<slug>/` and announces the
+    folder itself (see §4), so the prompt carries no installation path.
+    Add a machine marker only for a NON-default choice:
+    - existing user folder that the project points at: `MEMORY_DIR: .`
+    - folder that must travel with the project: `MEMORY_DIR: workspace:<sub>`
+    - shared folder inside the installation: `MEMORY_DIR: central:<sub>`
+    - explicit absolute folder: `MEMORY_DIR: /abs/path` (report it as outside
+      both roots)
+    - ENGINEERING roles: no memory block at all, no marker.
     The marker is ONE line in the system prompt, outside code fences. Free
     text is never parsed - do not rely on a sentence like "all data lives in
     X" as a machine signal. State the marker once; a second occurrence is a
@@ -169,11 +176,18 @@ Write the employee's system prompt as a Markdown document with sections:
    awaiting_user. awaiting_user is mandatory after presenting a plan or a
    question and after the final report; continue is allowed only in the
    middle of an already approved plan.
-4. **## MEMORY AND CONTINUITY** -- for non-ENGINEERING roles (see §1a): how
-   the employee keeps long-lived state, where its data root is, and how it
-   restores context at the start of a dialog. Must carry exactly one
-   `MEMORY_DIR: <path>` line outside code fences. ENGINEERING roles omit this
-   section entirely.
+4. **## MEMORY AND CONTINUITY** -- for non-ENGINEERING roles (see §1a): what
+   the memory consists of, how the employee restores context at the start of a
+   dialog and how it updates the records at the end of a task. It carries a
+   `MEMORY_DIR:` line ONLY for a non-default folder (step 1b). ENGINEERING
+   roles omit this section entirely.
+
+   Do NOT write the data folder's path, nor explain the `memory:` prefix, in
+   the prompt: the platform appends its own `## Working memory` block with the
+   resolved path, the way to address it, the folder state and any legacy-folder
+   warning. A path copied into the role prompt goes stale the moment the folder
+   moves, and two sources of truth for one path is how an employee starts
+   writing to a folder nobody reads.
 5. **## TOOLS** -- which tools it can use and how: exactly one fenced JSON
    tool-call block per message, preceded by a one-line comment; numeric and
    boolean arguments passed as numbers, not as strings. Employees that keep
@@ -195,12 +209,12 @@ Full form of the memory block (PORTFOLIO / STREAM / COURSE / PERSONAL):
 Your memory outlives a single dialog. Without it you start from scratch and
 re-ask what is already known.
 
-MEMORY_DIR: <path>
+<!-- only for a NON-default folder (step 1b): MEMORY_DIR: <path> -->
 
-Data root: <human phrase: next to the course materials | in the editorial
-folder | allocated to this role at creation>. Facts about how the user wants
-you to work belong to personal memory (scope `orchestrator:<own-slug>`), not
-here; facts that are the content of the work belong here.
+Data root: announced by the platform (see the working-memory block of this
+prompt). Facts about how the user wants you to work belong to personal memory
+(scope `orchestrator:<own-slug>`), not here; facts that are the content of the
+work belong here.
 
 ### What the memory consists of
 
@@ -285,24 +299,31 @@ not need the data root: it goes to personal memory with `set_personal_memory`,
 scope `current`, and survives even while the data root is missing.
 ```
 
-How the path is recorded - all three places are mandatory:
+How the folder is recorded:
 
-- the system prompt: exactly one `MEMORY_DIR: <path>` line outside code fences;
-- the config: the same path in `config.memory_dir`. `save_orchestrator`
-  accepts it as `memory_dir=` and folds it into `config`, preserving the other
-  config keys - so pass the existing config through rather than a bare dict;
-- the report to the user: absolute path plus its source (`default` / explicit /
-  outside the project).
+- a NON-default choice gets exactly one `MEMORY_DIR: <path>` line in the system
+  prompt outside code fences, and the same value in `config.memory_dir`.
+  `save_orchestrator` accepts it as `memory_dir=` and folds it into `config`,
+  preserving the other config keys - so pass the existing config through
+  rather than a bare dict;
+- the default needs neither: it is derived from the slug, and adding a
+  `<slug>_data` row would pin the role to a project-relative location again;
+- the report to the user: absolute path plus its source (`default` / `prompt` /
+  `config`) and scope (`central` / `workspace` / `external`).
 
-Path values: a relative path resolves against the project root; `.` means the
-project root itself (for roles whose materials already live there); `default`
-falls back to `<workspace>/<slug>_data/`; an absolute path is allowed but is
-reported as outside the project (not exported, not covered by `.gitignore`).
-`..` segments and escaping the workspace are rejected.
+Path values: `workspace:<sub>` resolves against the project root; `central:<sub>`
+resolves against the installation-wide root `DATA_DIR/agents_data/`; `.` means
+the project root itself (for roles whose materials already live there);
+`default` falls back to the central `DATA_DIR/agents_data/<slug>/`; an absolute
+path is allowed but is reported as outside both roots. `..` segments and
+escaping the chosen root are rejected.
 
 When the marker changes for a role that already has data, nothing is moved
 automatically. Say so explicitly: "the prompt now points at X, the previous
-folder Y still holds N files" - and offer the move as a separate task.
+folder Y still holds N files" - and offer the move as a separate task. The
+platform reports such folders in the working-memory block (`previous layout`)
+and in the resolver result (`conflicts`), so read that report instead of
+walking the disk.
 
 Use the **same language as the user's request** for the generated prompt.
 The prompt should be precise and complete enough that the employee can
@@ -335,5 +356,8 @@ After creation, report:
 - which custom functions were created,
 - which instructions were added,
 - the folder path where the employee lives,
-- working-data folder: <path> (source: default | explicit | outside the project),
+- working-data folder: <path> (scope: central | workspace | external; source:
+  default | prompt | config),
+- what the platform announces by itself (path, `memory:` prefix) - never
+  repeated in the role prompt,
 - memory profile: <PORTFOLIO | STREAM | COURSE | PERSONAL | RESEARCH | SIMPLIFIED | ENGINEERING (no block)>.

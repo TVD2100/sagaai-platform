@@ -763,6 +763,10 @@ def read_subagent_thread(run_id: Optional[str] = None, *,
                          offset: int = 0,
                          limit: int = 50,
                          include_tool_results: bool = False,
+                         mode: str = "window",
+                         index: Optional[int] = None,
+                         before: int = 5,
+                         after: int = 5,
                          parent_slug: str = "dev_agent",
                          parent_run_id: Optional[str] = None,
                          service=None) -> Dict[str, Any]:
@@ -805,10 +809,34 @@ def read_subagent_thread(run_id: Optional[str] = None, *,
                   "test runner) has no transcript. Use read_subagent_state to "
                   "read its journal instead."))
 
+    # Three ways to read the same transcript, because a parent asks three
+    # different questions: "show me page N" (window, the default), "where did
+    # it stop" (tail, what a resume needs) and "what is around this hit"
+    # (around, pairing with a search result's absolute index).
+    wanted = str(mode or "window").strip().lower()
+    if wanted not in ("window", "tail", "around", "meta"):
+        # A typo must not silently answer with nothing: the paged read is the
+        # documented default and the only mode every caller understands.
+        wanted = "window"
     try:
-        from core.threads_devagent import read_thread_window
-        window = read_thread_window(thread_id, offset=offset, limit=limit,
-                                    include_tool_results=bool(include_tool_results))
+        from core.orchestration import transcript_reader as reader
+        if wanted == "tail":
+            window = reader.read_tail(
+                thread_id, limit=limit,
+                include_tool_results=bool(include_tool_results))
+        elif wanted == "around":
+            window = reader.read_around(
+                thread_id, index=index if index is not None else offset,
+                before=before, after=after,
+                include_tool_results=bool(include_tool_results))
+        elif wanted == "meta":
+            described = reader.describe(thread_id)
+            window = described if described.get("ok") else {
+                "ok": False, "error": described.get("error") or "Unreadable."}
+        else:
+            window = reader.read_window(
+                thread_id, offset=offset, limit=limit,
+                include_tool_results=bool(include_tool_results))
     except Exception as exc:  # pragma: no cover - defensive
         return error_result(rid, "Thread read failed: " + str(exc),
                             ERR_INTERNAL_ERROR)
@@ -819,6 +847,11 @@ def read_subagent_thread(run_id: Optional[str] = None, *,
     window["run_id"] = rid
     window["child_thread_id"] = thread_id
     window["status"] = str(record.get("status") or "")
+    window["mode"] = wanted
+    if wanted == "meta":
+        # A description carries no messages on purpose: it answers "how long,
+        # how large, how expensive" without reading the content.
+        return window
     if not window.get("messages"):
         window["note"] = ("The transcript window is empty. Either the offset is "
                           "past the end, or the child has not produced a "
@@ -929,7 +962,9 @@ def resume_subagent(run_id: Optional[str] = None, *,
 
     try:
         from dev_agent.task_state import read_task_state_at
-        built = build_resume(record, read_state=read_task_state_at)
+        from core.orchestration.resume import read_checkpoint
+        built = build_resume(record, read_state=read_task_state_at,
+                             read_checkpoint=read_checkpoint)
     except Exception as exc:  # pragma: no cover - defensive
         return error_result(rid, "Resume planning failed: " + str(exc),
                             ERR_PROVIDER_ERROR)
@@ -1287,11 +1322,16 @@ def read_subagent_thread_tool_entry() -> Dict[str, str]:
         "name": "read_subagent_thread",
         "desc": (
             "Read the CONVERSATION of a subagent run - what it actually saw "
-            "and said, not just what it planned. Args: run_id, [offset=0], "
-            "[limit=50], [include_tool_results=false]. Windows carry absolute "
-            "message indices for pagination. Use it when a child's result "
-            "looks wrong and the journal does not explain why. Only runs of "
-            "your own tree are readable."
+            "and said, not just what it planned, and it survives the death "
+            "of the process that ran the child. Args: run_id, [mode=window], "
+            "[offset=0], [limit=50], [include_tool_results=false], [index], "
+            "[before=5], [after=5]. Modes: 'window' pages from offset; "
+            "'tail' returns the LAST messages (use it to see where a failed "
+            "or cancelled child stopped); 'around' returns the messages "
+            "around an absolute [index] (pair it with a search hit); 'meta' "
+            "returns counts, sizes and token cost without reading content. "
+            "Windows carry absolute message indices for pagination. Only "
+            "runs of your own tree are readable."
         ),
     }
 

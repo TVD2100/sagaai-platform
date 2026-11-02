@@ -140,8 +140,28 @@ def _clip(text: str, limit: int) -> str:
     return cut + "…"
 
 
+def read_checkpoint(thread_id: str) -> Dict[str, Any]:
+    """Return the newest checkpoint of a child transcript, or an empty dict.
+
+    This is the default implementation of the ``read_checkpoint`` seam. It is
+    a thin wrapper on purpose: the resume logic must stay testable without a
+    transcript on disk, and the only thing it needs from the file layer is
+    "the last checkpoint, please".
+    """
+    tid = str(thread_id or "").strip()
+    if not tid:
+        return {}
+    try:
+        from dev_agent import transcript as T
+        return dict(T.last_checkpoint(tid) or {})
+    except Exception as exc:  # pragma: no cover - a missing log is not an error
+        log.warning("resume: checkpoint unavailable for %s: %s", tid, exc)
+        return {}
+
+
 def build_resume(record: Dict[str, Any], *, journal_path: str = "",
-                 read_state=None, exists=None) -> Dict[str, Any]:
+                 read_state=None, exists=None,
+                 read_checkpoint=None) -> Dict[str, Any]:
     """Build the continuation payload of one finished run.
 
     ``record`` is the durable record of the run to resume (from the service or
@@ -149,6 +169,12 @@ def build_resume(record: Dict[str, Any], *, journal_path: str = "",
     record's own path is used otherwise. ``read_state`` and ``exists`` are
     injection seams: the service passes :func:`dev_agent.task_state.read_task_state_at`
     and :func:`os.path.isfile`, tests pass fakes.
+
+    ``read_checkpoint`` is a second seam: it returns the newest checkpoint of
+    the child's transcript. A journal says what the child PLANNED; a
+    checkpoint says how far it actually got and which files it wrote before
+    it died, which the journal cannot know. When both exist the checkpoint
+    wins on facts and the journal supplies the wording of the task.
 
     Returns ``{"ok": True, "goal", "brief", "pending", "done", "resume_hint",
     "workspace", "agent_slug", "child_thread_id", "source_run_id"}`` on
@@ -199,6 +225,26 @@ def build_resume(record: Dict[str, Any], *, journal_path: str = "",
     if not pending:
         pending = [t for t in _as_list(sections.get("handoff"))][:MAX_PENDING_STEPS]
 
+    # The transcript checkpoint is the ONLY source that knows how far the
+    # child ACTUALLY got: which files it already wrote and at which step it
+    # stopped. A journal is written by the child itself and a killed child
+    # often never wrote one; the checkpoint is written by the platform.
+    checkpoint: Dict[str, Any] = {}
+    if read_checkpoint is not None:
+        try:
+            checkpoint = dict(read_checkpoint(str(record.get("child_thread_id") or "")) or {})
+        except Exception as exc:  # pragma: no cover - best effort
+            log.warning("resume: checkpoint read failed: %s", exc)
+            checkpoint = {}
+    written = [str(x) for x in (checkpoint.get("written") or [])
+               if str(x or "").strip()]
+    cp_pending = [str(x) for x in (checkpoint.get("pending") or [])
+                  if str(x or "").strip()]
+    if not pending and cp_pending:
+        pending = cp_pending[:MAX_PENDING_STEPS]
+    step_done = int(checkpoint.get("step") or 0)
+    step_max = int(checkpoint.get("max_steps") or 0)
+
     goal = str(record.get("goal") or "").strip()
     if not goal:
         goal = str(sections.get("task") or "").strip()
@@ -216,6 +262,14 @@ def build_resume(record: Dict[str, Any], *, journal_path: str = "",
     if summary:
         parts.append("Where it stopped: " + summary
                      + (" (" + status + ")" if status else ""))
+    if step_done:
+        parts.append("It had completed step " + str(step_done)
+                     + (" of " + str(step_max) if step_max else "") + ".")
+    if written:
+        # Naming the files is the whole point: it is what stops the resumed
+        # child from regenerating a module that is already on disk.
+        parts.append("Files already written, do NOT rewrite from scratch: "
+                     + _clip("; ".join(written), 400))
     if done_titles:
         parts.append("Already done, do NOT redo: "
                      + _clip("; ".join(done_titles[:MAX_PENDING_STEPS]), 300))
@@ -239,6 +293,9 @@ def build_resume(record: Dict[str, Any], *, journal_path: str = "",
         "journal_found": journal_found,
         "journal_path": path,
         "resume_depth": chain,
+        "checkpoint_found": bool(checkpoint),
+        "written": written[:MAX_PENDING_STEPS],
+        "step": step_done,
     }
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

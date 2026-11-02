@@ -337,6 +337,99 @@ def test_a_released_tree_is_still_cancellable_while_running(svc):
         gate.set()
 
 
+# ─── durable cancellation ──────────────────────────────────────────────────
+
+
+def test_cancel_writes_the_marker_to_disk_before_returning(svc):
+    """The cancel must survive the process that issued it.
+
+    An in-memory flag is enough inside one process and useless everywhere
+    else: the worker may be in another process, and a restart between the
+    request and the next step boundary would silently forget the cancel.
+    """
+    gate = threading.Event()
+    started = threading.Event()
+    svc.set_child_runner(_gated_runner(gate, started))
+    svc.ensure_run("root", thread_id="thread-1")
+
+    launched = _start(svc)
+    run_id = launched["run_id"]
+    try:
+        assert started.wait(timeout=5) is True
+        assert svc.cancel(run_id).cancelled is True
+
+        stored = R.load(run_id, svc.store_root())
+        assert stored is not None
+        assert stored["cancel_requested"] is True
+        assert stored["status"] == STATUS_CANCELLED
+    finally:
+        gate.set()
+
+
+def test_a_cancel_written_elsewhere_is_still_seen(svc):
+    """A worker whose registry entry is gone must still honour the cancel.
+
+    The worker asks ``is_cancelled`` at every step boundary, but its record
+    may have left the in-memory registry (a released tree, a second process,
+    a restart). Answering ``False`` because nothing is in memory is how a
+    cancelled child kept running its full budget.
+    """
+    S.run_store.save({"run_id": "from-elsewhere", "root_run_id": "root",
+                      "status": STATUS_CANCELLED, "cancel_requested": True,
+                      "heartbeat_at": time.time()}, svc.store_root())
+
+    assert svc.get_record("from-elsewhere") is None  # not in this process
+    assert svc.is_cancelled("from-elsewhere") is True
+
+
+def test_a_running_child_keeps_the_tree_after_it_is_cancelled(svc):
+    """Cancelling must not release the tree out from under the worker.
+
+    ``cancel`` marks the run CANCELLED immediately, but the child executes
+    until its next step boundary. Releasing on the STATUS would pop the
+    record, and the worker would then read no marker at all - so a cancelled
+    child would run out its whole budget and only then report cancelled.
+    """
+    gate = threading.Event()
+    started = threading.Event()
+    svc.set_child_runner(_gated_runner(gate, started))
+    svc.ensure_run("root", thread_id="thread-1")
+
+    launched = _start(svc)
+    run_id = launched["run_id"]
+    try:
+        assert started.wait(timeout=5) is True
+        svc.cancel(run_id)
+
+        released = svc.release_tree("root")
+
+        assert released == {"released": False, "deferred": True}
+        assert svc.get_record(run_id) is not None
+        assert svc.is_cancelled(run_id) is True
+    finally:
+        gate.set()
+
+
+def test_a_cancelled_child_reports_cancelled_not_done(svc):
+    """The whole point: the worker stops at its boundary and says so."""
+    gate = threading.Event()
+    started = threading.Event()
+    svc.set_child_runner(_gated_runner(gate, started))
+    svc.ensure_run("root", thread_id="thread-1")
+
+    launched = _start(svc)
+    run_id = launched["run_id"]
+    assert started.wait(timeout=5) is True
+
+    svc.cancel(run_id)
+    gate.set()
+
+    assert _wait_until(lambda: svc.has_notifications("root")) is True
+    final = svc.poll(run_id)["run"]
+    assert final["status"] == STATUS_CANCELLED
+    assert final["stop_reason"] == STOP_ABORTED
+
+
 # ─── compare-and-set cancellation ─────────────────────────────────────────
 
 

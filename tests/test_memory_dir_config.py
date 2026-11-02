@@ -18,6 +18,10 @@ def isolated_data_dir(tmp_path, monkeypatch):
     """Point DATA_DIR at a temp directory so the DB and memory stay isolated."""
     monkeypatch.setattr(core.paths, "DATA_DIR", str(tmp_path))
     monkeypatch.setattr(core.paths, "DB_PATH", os.path.join(str(tmp_path), "sagaai.db"))
+    # The working-data root is central: keep it inside the isolated tree so a
+    # test never writes into the real installation.
+    agents_root = os.path.join(str(tmp_path), "agents_data")
+    monkeypatch.setattr(core.paths, "AGENTS_DATA_DIR", agents_root)
     yield tmp_path
 
 
@@ -71,7 +75,10 @@ def test_memory_dir_reaches_the_resolver(created, tmp_path):
         prompt_text=record.get("prompt_text") or "",
         config=record.get("config") or {})
     assert resolved["source"] == "config"
+    # An explicit relative value keeps its historical meaning: next to the
+    # project that the role serves. Only the DEFAULT is central.
     assert resolved["path"] == os.path.join(str(tmp_path), "bases", "custom")
+    assert resolved["scope"] == "workspace"
 
 
 def test_prompt_marker_beats_config(created, tmp_path):

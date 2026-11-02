@@ -54,6 +54,11 @@ _PREFIX_PATTERN = re.compile(
 )
 
 
+def _now_iso() -> str:
+    """Current local time in the ISO shape the thread rows use."""
+    return datetime.now().isoformat(timespec="seconds")
+
+
 def _sanitize_title(title: Any) -> str:
     """Convert any title value to a safe string."""
     if title is None:
@@ -88,6 +93,15 @@ def create_devagent_thread(title: str = "",
     safe_title = _sanitize_title(title)
     thread_id = datetime.now().strftime("%Y%m%d_%H%M%S_") + str(uuid.uuid4())[:6]
     ensure_dir(os.path.join(get_thread_dir(thread_id), "files"))
+    # Point the row at its transcript from the start: a dialog that begins
+    # life without a path would never be mirrored, and the copy that survives
+    # the process has to exist before the first message, not after it.
+    transcript_rel = ""
+    try:
+        from dev_agent import transcript as _t
+        transcript_rel = _t._relative_to_history(_t.transcript_path(thread_id))
+    except Exception:
+        transcript_rel = ""
     repo_devagent_create_thread(
         thread_id,
         title=safe_title[:60] if safe_title else "",
@@ -95,6 +109,8 @@ def create_devagent_thread(title: str = "",
         orchestrator_name=orchestrator_name or "DevAgent",
         workspace=workspace or None,
         target_file=target_file or None,
+        kind="dialog",
+        transcript_path=transcript_rel or None,
     )
     return thread_id
 
@@ -223,6 +239,83 @@ def _restore_events(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return out
 
 
+def _mirror_enabled(tid: str) -> tuple:
+    """Return ``(enabled, parent_thread_id)`` for the transcript mirror.
+
+    A thread is mirrored once its row carries a ``transcript_path``. Threads
+    written before the file store existed have NULL there and keep working
+    from the ``messages`` table exactly as they always did, so the mirror
+    never has to migrate anything before a dialog can be opened.
+    """
+    try:
+        meta = repo_devagent_load_thread_meta(tid) or {}
+    except Exception:
+        return False, None
+    if not str(meta.get("transcript_path") or "").strip():
+        return False, None
+    parent = str(meta.get("parent_thread_id") or "").strip() or None
+    return True, parent
+
+
+def _mirror_rewrite(tid: str, messages: List[Dict[str, Any]],
+                    parent: Optional[str], known_bytes: int = 0) -> None:
+    """Replace a thread's transcript with the given messages.
+
+    Used by a full save, which replaces the whole conversation: the file has
+    to be replaced too, or the mirror would keep messages that the database
+    no longer has and a reader would show deleted work.
+    """
+    try:
+        from dev_agent import transcript as T
+        records = [T.build_record(m, i + 1) for i, m in enumerate(messages)
+                   if isinstance(m, dict)]
+        result = T.rewrite_records(tid, records, parent)
+        if not result.get("ok"):
+            return
+        repo_devagent_save_thread_meta(tid, {
+            "message_count": len(records),
+            "total_bytes": int(result.get("bytes") or known_bytes or 0),
+            "transcript_path": result.get("path") or None,
+            "transcript_bytes": int(result.get("bytes") or 0),
+            "last_message_at": _now_iso(),
+            "content_schema": 1,
+        })
+    except Exception:
+        # A mirror that fails must not fail the save it mirrors: the database
+        # write already succeeded and remains the source of truth.
+        pass
+
+
+def _mirror_append(tid: str, message: Dict[str, Any],
+                   parent: Optional[str]) -> None:
+    """Append one message to a thread's transcript."""
+    try:
+        from dev_agent import transcript as T
+        meta = repo_devagent_load_thread_meta(tid) or {}
+        seq = int(meta.get("message_count") or 0) + 1
+        result = T.append_record(T.build_record(message, seq), tid, parent)
+        if not result.get("ok"):
+            return
+        tokens = message.get("_tokens") if isinstance(
+            message.get("_tokens"), dict) else {}
+        repo_devagent_save_thread_meta(tid, {
+            "message_count": seq,
+            "total_bytes": int(meta.get("total_bytes") or 0)
+                          + int(result.get("bytes") or 0),
+            "transcript_path": result.get("path") or None,
+            "transcript_bytes": int(meta.get("transcript_bytes") or 0)
+                                + int(result.get("bytes") or 0),
+            "last_message_at": _now_iso(),
+            "tokens_in": int(meta.get("tokens_in") or 0) + int(tokens.get("in", 0) or 0),
+            "tokens_out": int(meta.get("tokens_out") or 0) + int(tokens.get("out", 0) or 0),
+            "tokens_cache": int(meta.get("tokens_cache") or 0)
+                            + int(tokens.get("cache", 0) or 0),
+            "content_schema": 1,
+        })
+    except Exception:
+        pass
+
+
 def save_thread_messages(tid: str, messages: List[Dict[str, Any]]) -> None:
     """
     Persist the full list of messages for a thread.
@@ -265,6 +358,11 @@ def save_thread_messages(tid: str, messages: List[Dict[str, Any]]) -> None:
             clean_msg["content"] = prefix + clean_msg.get("content", "")
         clean.append(clean_msg)
     repo_devagent_save_thread_messages(tid, clean)
+    # A full save replaces the conversation, so the transcript is replaced
+    # too - an append here would keep messages the database just dropped.
+    enabled, parent = _mirror_enabled(tid)
+    if enabled:
+        _mirror_rewrite(tid, clean, parent)
 
 
 def append_thread_message(tid: str, role: str, content: str,
@@ -303,6 +401,16 @@ def append_thread_message(tid: str, role: str, content: str,
         final_content = prefix + final_content
     repo_devagent_append_message(tid, role, final_content,
                                  file_name=file_name, file_chars=file_chars)
+    enabled, parent = _mirror_enabled(tid)
+    if enabled:
+        _mirror_append(tid, {
+            "role": role,
+            "content": final_content,
+            "ts": _now_iso(),
+            "file_name": file_name,
+            "file_chars": file_chars,
+            "_tokens": tokens or {},
+        }, parent)
 
 
 def sum_thread_tokens(messages: List[Dict[str, Any]]) -> tuple:

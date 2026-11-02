@@ -220,12 +220,25 @@ def test_closing_the_root_leaves_a_running_child_alone(svc):
 # ─── a stored ``running`` claim must be provable ───────────────────────────
 
 
+def _leftover_record(run_id: str, root: str) -> dict:
+    """Build a stored record whose writer is PROVABLY gone.
+
+    A fresh heartbeat alone is not proof either way; the pid is what makes
+    the record a leftover. The pid is a reaped child process, so ``kill``
+    answers ``ProcessLookupError`` - the one signal that rules a writer out.
+    """
+    import subprocess
+    proc = subprocess.Popen([sys.executable, "-c", "pass"])
+    proc.wait(timeout=30)
+    return {"run_id": run_id, "root_run_id": root,
+            "parent_run_id": root, "status": STATUS_RUNNING,
+            "pid": proc.pid, "host": S.run_store.current_host(),
+            "heartbeat_at": time.time()}
+
+
 def test_a_stored_running_record_without_a_live_counterpart_is_demoted(svc):
     """A leftover of a dead thread must not be reported as work in progress."""
-    S.run_store.save({"run_id": "gone", "root_run_id": "root",
-                      "parent_run_id": "root", "status": STATUS_RUNNING,
-                      "boot_id": "deadbeef" * 4, "heartbeat_at": time.time()},
-                     svc.store_root())
+    S.run_store.save(_leftover_record("gone", "root"), svc.store_root())
 
     listed = {r["run_id"]: r for r in svc.list_records("root")}
 
@@ -246,9 +259,7 @@ def test_a_live_record_keeps_its_running_status_in_the_list(svc):
 
 def test_record_from_store_demotes_an_unverifiable_run(svc):
     """poll() reads through this method, so it must not hand back a zombie."""
-    S.run_store.save({"run_id": "gone", "root_run_id": "root",
-                      "status": STATUS_RUNNING, "boot_id": "deadbeef" * 4,
-                      "heartbeat_at": time.time()}, svc.store_root())
+    S.run_store.save(_leftover_record("gone", "root"), svc.store_root())
 
     record = svc.record_from_store("gone")
 
@@ -257,11 +268,10 @@ def test_record_from_store_demotes_an_unverifiable_run(svc):
 
 
 def test_the_sweep_repairs_records_of_previous_processes(svc):
-    """A restart is the one moment every leftover is provably dead."""
+    """The sweep repairs leftovers whose writer process is gone."""
     for rid in ("old-1", "old-2"):
-        S.run_store.save({"run_id": rid, "root_run_id": "tree-" + rid,
-                          "status": STATUS_RUNNING, "boot_id": "deadbeef" * 4,
-                          "heartbeat_at": time.time()}, svc.store_root())
+        S.run_store.save(_leftover_record(rid, "tree-" + rid),
+                         svc.store_root())
 
     repaired = svc.sweep_dead_runs()
 
@@ -276,6 +286,45 @@ def test_the_sweep_keeps_the_records_of_this_process(svc):
 
     assert svc.sweep_dead_runs() == 0
     assert S.run_store.load("root", svc.store_root())["status"] == STATUS_RUNNING
+
+
+def test_reading_never_kills_a_live_record_of_another_process(svc):
+    """The observer bug: a poll must not turn running work into stale_run.
+
+    A child started by another Streamlit instance (or a previous process that
+    is still alive) carries a foreign ``boot_id``. Reading its record used to
+    heal it to failed/stale_run and WRITE that back, so the parent's next
+    status poll reported a healthy child as crashed. The record below has a
+    live pid and a fresh heartbeat: no affirmative death signal, so no reader
+    may touch it.
+    """
+    record = {"run_id": "live-elsewhere", "root_run_id": "root",
+              "status": STATUS_RUNNING, "pid": os.getpid(),
+              "host": S.run_store.current_host(),
+              "boot_id": "another-process-" * 4,
+              "heartbeat_at": time.time(), "timeout_seconds": 600}
+    S.run_store.save(record, svc.store_root())
+
+    listed = {r["run_id"]: r for r in svc.list_records("root")}
+    polled = svc.record_from_store("live-elsewhere")
+
+    assert listed["live-elsewhere"]["status"] == STATUS_RUNNING
+    assert polled["status"] == STATUS_RUNNING
+    # And the file on disk was not rewritten by the read.
+    assert S.run_store.load("live-elsewhere", svc.store_root())["status"] == STATUS_RUNNING
+
+
+def test_the_startup_sweep_leaves_a_live_foreign_record_alone(svc):
+    """A restart repairs leftovers, not work another live process is running."""
+    record = {"run_id": "live-elsewhere", "root_run_id": "root",
+              "status": STATUS_RUNNING, "pid": os.getpid(),
+              "host": S.run_store.current_host(),
+              "boot_id": "another-process-" * 4,
+              "heartbeat_at": time.time(), "timeout_seconds": 600}
+    S.run_store.save(record, svc.store_root())
+
+    assert svc.sweep_dead_runs() == 0
+    assert S.run_store.load("live-elsewhere", svc.store_root())["status"] == STATUS_RUNNING
 
 
 # ─── depth and total-run limits ─────────────────────────────────────────────

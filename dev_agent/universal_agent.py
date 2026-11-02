@@ -228,7 +228,11 @@ WORKSPACE_TOOL_ARGS: Dict[str, Dict[str, set]] = {
     },
     "read_subagent_thread": {
         "required": {"run_id"},
-        "optional": {"offset", "limit", "include_tool_results"},
+        # mode/index/before/after drive the recovery reads: 'tail' answers
+        # "where did it stop", 'around' pairs with a search hit, 'meta'
+        # reports cost without content.
+        "optional": {"offset", "limit", "include_tool_results", "mode",
+                     "index", "before", "after"},
     },
     "verify_result": {
         "required": {"run_id"},
@@ -600,7 +604,13 @@ class UniversalDevAgent:
         """
         from core.orchestrator_folders import load_all_orchestrator_functions
         functions = load_all_orchestrator_functions(slug)
-        self.core._orchestrator_slug = slug
+        # set_orchestrator_slug (not a bare assignment) so the working-memory
+        # root is refreshed together with the slug: ``memory:`` must resolve to
+        # THIS employee's data folder.
+        if hasattr(self.core, "set_orchestrator_slug"):
+            self.core.set_orchestrator_slug(slug)
+        else:
+            self.core._orchestrator_slug = slug
         for fname, fn in functions.items():
             self._extra[fname] = fn
         self._attach_connection_tools(slug)
@@ -755,7 +765,10 @@ class UniversalDevAgent:
         self.core.set_history(old_history)
         self.core._send_request_fn = old_send_request_fn
         self.core._web_search_enabled = old_web_search_enabled
-        self.core._orchestrator_slug = old_orch_slug
+        if hasattr(self.core, "set_orchestrator_slug"):
+            self.core.set_orchestrator_slug(old_orch_slug)
+        else:
+            self.core._orchestrator_slug = old_orch_slug
         self.core._web_search_config = old_web_search_config
 
     # ─── workspace-tool wrappers ───────────────────────────────────────────

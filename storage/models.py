@@ -81,6 +81,35 @@ class Thread(Base):
     workspace      = Column(String(1024), nullable=True, default=None)
     target_file    = Column(String(1024), nullable=True, default=None)
 
+    # ── Transcript index ──────────────────────────────────────────────────
+    # Message CONTENT lives in a per-thread append-only file outside SQLite
+    # (see dev_agent/transcript.py); this row is the INDEX over it. Keeping
+    # the row small is the whole point: listing 300 dialogs must not read
+    # 300 MB of message text, and a growing transcript must not grow the
+    # database. Every column here is nullable, and NULL carries a meaning:
+    # it marks a LEGACY thread whose messages are still in ``messages`` and
+    # were never moved to a file. The reader falls back to SQLite for those,
+    # so an un-migrated database keeps working unchanged.
+    parent_thread_id = Column(String(64), nullable=True, default=None)
+    # 'dialog' for a user conversation, 'subagent' for a delegated child.
+    # NULL means a legacy row, which can only be a dialog.
+    kind           = Column(String(32),  nullable=True, default=None)
+    message_count  = Column(Integer,     nullable=True, default=None)
+    total_bytes    = Column(Integer,     nullable=True, default=None)
+    last_message_at = Column(String(32), nullable=True, default=None)
+    tokens_in      = Column(Integer,     nullable=True, default=None)
+    tokens_out     = Column(Integer,     nullable=True, default=None)
+    tokens_cache   = Column(Integer,     nullable=True, default=None)
+    transcript_path = Column(String(1024), nullable=True, default=None)
+    # 'jsonl' or 'jsonl.gz'. Stored explicitly so a reader never has to guess
+    # a format from a file name, and a compressed file can be introduced for
+    # old threads without touching the records themselves.
+    transcript_format = Column(String(16), nullable=True, default=None)
+    transcript_bytes = Column(Integer,    nullable=True, default=None)
+    # Version of the per-line record format, so a future format change can be
+    # read without a migration of every file at once.
+    content_schema = Column(Integer,     nullable=True, default=None)
+
     assistant_rel = relationship("Assistant", back_populates="threads",
                                  foreign_keys=[assistant_id])
     messages      = relationship("Message", back_populates="thread",
@@ -98,6 +127,18 @@ class Thread(Base):
             "updated_at":    self.updated_at,
             "workspace":     self.workspace,
             "target_file":   self.target_file,
+            "parent_thread_id":  self.parent_thread_id,
+            "kind":              self.kind,
+            "message_count":     self.message_count,
+            "total_bytes":       self.total_bytes,
+            "last_message_at":   self.last_message_at,
+            "tokens_in":         self.tokens_in,
+            "tokens_out":        self.tokens_out,
+            "tokens_cache":      self.tokens_cache,
+            "transcript_path":   self.transcript_path,
+            "transcript_format": self.transcript_format,
+            "transcript_bytes":  self.transcript_bytes,
+            "content_schema":    self.content_schema,
         }
 
 

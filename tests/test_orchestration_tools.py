@@ -461,7 +461,7 @@ def test_a_refused_resume_explains_why_a_retry_will_not_help(allowlists):
     import pytest as _pytest
     with _pytest.MonkeyPatch.context() as mp:
         mp.setattr(R, "build_resume",
-                   lambda record, read_state=None: {
+                   lambda record, read_state=None, read_checkpoint=None, **kw: {
                        "ok": False, "error": "no journal",
                        "error_code": "resume_unavailable"})
         out = tools.resume_subagent(run_id="r9", service=_Svc())

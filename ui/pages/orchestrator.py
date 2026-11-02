@@ -418,9 +418,27 @@ def _render_folder_picker(slug: str, lang: str) -> None:
 
 # ─── Adapters & dispatcher ────────────────────────────────────────────────────
 
+def _assistant_dicts(slug: str):
+    """Build the assistant dicts with THIS dialog's workspace.
+
+    The workspace is needed to expand a project-relative MEMORY_DIR override
+    for the working-memory block. Older builds (and tests that stub the
+    builder) accept the slug alone, so the call degrades gracefully instead
+    of breaking the turn.
+    """
+    workspace = _thread_folder(slug) or ""
+    try:
+        return build_assistant_dicts(slug, workspace)
+    except TypeError:
+        return build_assistant_dicts(slug)
+
+
 def _make_send_adapter(lang: str, slug: str) -> Callable:
     """Return a send_request wrapper using the orchestrator's main model."""
-    strong_assistant, _ = build_assistant_dicts(slug)
+    # The workspace of THIS dialog is passed along: the working-memory block
+    # reports a project-relative MEMORY_DIR override, and a neighbouring
+    # dialog's folder must never leak into this prompt.
+    strong_assistant, _ = _assistant_dicts(slug)
     if not strong_assistant.get("service") or not strong_assistant.get("model"):
         orch = get_orchestrator(slug)
         cfg = orch.get("config", {}) if orch else {}
@@ -1083,7 +1101,7 @@ def _do_step(slug: str, lang: str) -> None:
         if not user_message or not user_message.strip():
             return
         prev_state = state  # may be None or a completed loop
-        strong_assistant, weak_assistant = build_assistant_dicts(slug)
+        strong_assistant, weak_assistant = _assistant_dicts(slug)
         orch = get_orchestrator(slug)
         economy_config = get_economy_config(slug)
         state = AgentLoopState(

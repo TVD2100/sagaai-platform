@@ -240,6 +240,7 @@ def snapshot_state() -> Dict[str, Any]:
         "TARGET_FILE": TARGET_FILE,
         "ACTIVE_THREAD_ID": ACTIVE_THREAD_ID,
         "WORKSPACE_SELECTED": WORKSPACE_SELECTED,
+        "MEMORY_ROOT": MEMORY_ROOT,
     }
 
 
@@ -267,6 +268,10 @@ def restore_state(state: Dict[str, Any]) -> None:
     TARGET_FILE = state["TARGET_FILE"]
     ACTIVE_THREAD_ID = state["ACTIVE_THREAD_ID"]
     WORKSPACE_SELECTED = state.get("WORKSPACE_SELECTED", True)
+    # The working-memory root travels with the thread state: two dialogs of two
+    # different employees must never resolve ``memory:`` to each other's folder.
+    global MEMORY_ROOT
+    MEMORY_ROOT = state.get("MEMORY_ROOT")
 
 
 def ensure_runtime_dirs() -> None:
@@ -275,21 +280,119 @@ def ensure_runtime_dirs() -> None:
         d.mkdir(parents=True, exist_ok=True)
 
 
-def to_project_relative(path) -> str:
-    """Return a normalized, POSIX-style path relative to PROJECT_ROOT.
+# ─── Working memory root (the agent's own data folder) ───────────────────────
+# The working-data folder of an employee (registries, cards, journals) lives in
+# the INSTALLATION - DATA_DIR/agents_data/<slug> by default, or wherever the
+# employee's MEMORY_DIR marker points. It is a second allowed root next to the
+# project: file tools accept paths inside it, addressed either by the
+# ``memory:`` prefix (``memory:registry.md``) or by an absolute path.
+MEMORY_PREFIX: str = "memory:"
 
-    Raises ValueError if the resolved path escapes PROJECT_ROOT (path traversal
-    protection). Accepts absolute or relative inputs.
+#: Absolute path of the active employee's working-data folder, or None.
+MEMORY_ROOT: Optional[Path] = None
+
+
+def set_memory_root(slug: str = "", workspace: str = "") -> Optional[Path]:
+    """Point MEMORY_ROOT at the resolved working-data folder of *slug*.
+
+    Resolution follows the platform rules (prompt marker, config value, central
+    default) through ``core.orchestrator_folders.resolve_data_dir``, so the
+    folder the tools reach is exactly the folder the prompt announces. A slug
+    whose folder cannot be resolved disables the second root instead of
+    guessing. Returns the new root (or None).
     """
-    p = Path(path)
+    global MEMORY_ROOT
+    safe = (slug or "").strip()
+    if not safe:
+        MEMORY_ROOT = None
+        return None
+    try:
+        from core.orchestrator_folders import resolve_data_dir
+        resolved = resolve_data_dir(safe, workspace or "")
+        path = str(resolved.get("path") or "")
+    except Exception:
+        path = ""
+    if not path:
+        MEMORY_ROOT = None
+        return None
+    try:
+        MEMORY_ROOT = Path(path).expanduser().resolve()
+    except (OSError, RuntimeError):
+        MEMORY_ROOT = None
+    return MEMORY_ROOT
+
+
+def memory_root() -> Optional[Path]:
+    """Return the active working-memory root, or None when unavailable."""
+    return MEMORY_ROOT
+
+
+def is_memory_path(path) -> bool:
+    """True when *path* addresses the working-memory root (prefix or absolute)."""
+    raw = str(path or "")
+    if raw.lower().startswith(MEMORY_PREFIX):
+        return True
+    if MEMORY_ROOT is None or not raw:
+        return False
+    try:
+        p = Path(raw).expanduser()
+    except (OSError, RuntimeError):
+        return False
+    if not p.is_absolute():
+        return False
+    try:
+        p.resolve().relative_to(MEMORY_ROOT)
+        return True
+    except (ValueError, OSError, RuntimeError):
+        return False
+
+
+def to_project_relative(path) -> str:
+    """Return a normalized, POSIX-style path relative to its allowed root.
+
+    A path inside PROJECT_ROOT becomes project-relative; a path inside the
+    working-memory root becomes ``memory:<relative>`` so the model can address
+    it again with the same string. Raises ValueError when the resolved path
+    escapes BOTH roots (path traversal protection). Accepts absolute or
+    relative inputs.
+    """
+    raw = str(path or "")
+    if raw.lower().startswith(MEMORY_PREFIX):
+        if MEMORY_ROOT is None:
+            raise ValueError(
+                f"Working memory is not available for this employee: {path!r}"
+            )
+        return MEMORY_PREFIX + _memory_relative(raw[len(MEMORY_PREFIX):])
+    p = Path(raw)
     if not p.is_absolute():
         p = (PROJECT_ROOT / p)
     resolved = p.resolve()
     try:
         rel = resolved.relative_to(PROJECT_ROOT.resolve())
+        return rel.as_posix()
+    except ValueError:
+        pass
+    if MEMORY_ROOT is not None:
+        try:
+            rel = resolved.relative_to(MEMORY_ROOT)
+            return MEMORY_PREFIX + rel.as_posix()
+        except ValueError:
+            pass
+    raise ValueError(
+        f"Path escapes project root: {path!r} (resolved {resolved})"
+    )
+
+
+def _memory_relative(sub: str) -> str:
+    """Validate a ``memory:`` sub-path and return it in POSIX form."""
+    if MEMORY_ROOT is None:
+        raise ValueError("Working memory is not available for this employee")
+    candidate = (MEMORY_ROOT / sub.strip().lstrip("/")).resolve()
+    try:
+        rel = candidate.relative_to(MEMORY_ROOT)
     except ValueError as exc:
         raise ValueError(
-            f"Path escapes project root: {path!r} (resolved {resolved})"
+            f"Path escapes the working-memory folder: {sub!r}"
         ) from exc
     return rel.as_posix()
 
@@ -305,11 +408,17 @@ def is_protected(path) -> bool:
 
 
 def resolve_in_project(path) -> Path:
-    """Resolve a path inside the project and verify it stays within PROJECT_ROOT.
+    """Resolve a path inside one of the allowed roots.
 
-    Returns an absolute Path. Raises ValueError on traversal.
+    Two roots are accepted: the active project (PROJECT_ROOT) and the
+    employee's working-data folder (MEMORY_ROOT), the latter addressed by the
+    ``memory:`` prefix or by an absolute path inside it. Returns an absolute
+    Path. Raises ValueError on traversal.
     """
     rel = to_project_relative(path)  # validates containment
+    if rel.startswith(MEMORY_PREFIX):
+        assert MEMORY_ROOT is not None  # to_project_relative already checked
+        return (MEMORY_ROOT / rel[len(MEMORY_PREFIX):]).resolve()
     return (PROJECT_ROOT / rel).resolve()
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

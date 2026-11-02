@@ -595,9 +595,25 @@ def _join_relative(base: str, value: str) -> str:
 
 
 def default_data_dir_name(slug: str) -> str:
-    """Return the folder name a role gets by default (``<slug>_data``)."""
+    """Return the LEGACY folder name of a role (``<slug>_data``).
+
+    Kept for migration and for the conflict report: installations built before
+    the central root existed created one such folder inside the active
+    project, and those folders must be found and offered for moving.
+    """
     safe = safe_orchestrator_slug(slug) or "unnamed"
     return f"{safe}_data"
+
+
+def agents_data_root() -> str:
+    """Return the installation-wide root of working-data folders."""
+    return core.paths.AGENTS_DATA_DIR
+
+
+def central_data_dir(slug: str) -> str:
+    """Return the central working-data folder of one orchestrator (absolute)."""
+    safe = safe_orchestrator_slug(slug) or "unnamed"
+    return os.path.join(agents_data_root(), safe)
 
 
 def _count_files(folder: str) -> int:
@@ -613,21 +629,92 @@ def _count_files(folder: str) -> int:
     return total
 
 
+#: Prefix marking a value that must resolve inside the active PROJECT.
+WORKSPACE_PREFIX: str = "workspace:"
+#: Prefix marking a value that must resolve inside the CENTRAL data root.
+CENTRAL_PREFIX: str = "central:"
+
+
+def _resolve_data_value(raw: str, workspace: str,
+                        central_root: str) -> Optional[Tuple[str, bool]]:
+    """Resolve a marker/config value to ``(absolute path, outside_workspace)``.
+
+    Accepted forms:
+
+    * ``workspace:<sub path>`` - inside the active project (explicit form);
+    * ``central:<sub path>`` - inside the installation-wide data root;
+    * ``.`` - the project root itself;
+    * an absolute path - used verbatim;
+    * any other relative name - inside the active PROJECT, which is what such
+      a value has always meant: a role placed its data next to the project it
+      served. The CENTRAL root is the DEFAULT, not a reinterpretation of an
+      explicit value.
+
+    Returns None when the value cannot be resolved - a project-relative form
+    while no project is selected, or a relative value escaping its root.
+    """
+    value = (raw or "").strip()
+    if not value:
+        return None
+    expanded = os.path.expanduser(value)
+    if os.path.isabs(expanded):
+        path = os.path.normpath(expanded)
+        return path, bool(workspace) and not _inside(workspace, path)
+    if value.lower().startswith(WORKSPACE_PREFIX):
+        sub = expanded[len(WORKSPACE_PREFIX):].strip()
+        if not workspace:
+            return None
+        if not sub:
+            return workspace, False
+        joined = _join_relative(workspace, sub)
+        return (joined, False) if joined else None
+    if value == _MEMORY_DIR_ROOT_VALUE:
+        return (workspace, False) if workspace else None
+    if value.lower().startswith(CENTRAL_PREFIX):
+        sub = expanded[len(CENTRAL_PREFIX):].strip()
+        if not sub:
+            return central_root, False
+        joined = _join_relative(central_root, sub)
+        return (joined, False) if joined else None
+    if not workspace:
+        return None
+    joined = _join_relative(workspace, expanded)
+    return (joined, False) if joined else None
+
+
 def resolve_data_dir(slug: str, workspace: str = "",
                      prompt_text: Optional[str] = None,
                      config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Resolve the working data folder of an orchestrator.
 
     The working data folder holds a role's domain material - registries, cards,
-    journals - and is a project deliverable exported with the project. It is
-    NOT the personal memory of the employee, which lives under
-    ``DATA_DIR/personal`` and never leaves the installation.
+    journals - that is, the CONTENT of the role's work. It is NOT the personal
+    memory of the employee, which lives under ``DATA_DIR/personal`` and keeps
+    HOW to work.
+
+    The default is CENTRAL: ``DATA_DIR/agents_data/<slug>/``, a folder that
+    belongs to the installation, not to whichever project a dialog happens to
+    have open. Without it every employee created a ``<slug>_data`` folder in
+    the active project (and the installation root collected one per employee),
+    so the same role had a different memory in every folder it was used from.
 
     Resolution order, first match wins:
 
     1. the ``MEMORY_DIR:`` marker inside the employee's prompt;
     2. the ``memory_dir`` key of its config;
-    3. the default ``<workspace>/<slug>_data/``.
+    3. the central ``DATA_DIR/agents_data/<slug>/``.
+
+    A marker/config value may be:
+
+    * a plain relative name (``registries``) - resolved against the active
+      project, which is what such a value always meant; existing roles keep
+      reading the folder they have been writing to;
+    * ``central:<sub path>`` - resolved against the central root, for a role
+      whose data must be shared by every project;
+    * ``workspace:<sub path>`` - the explicit form of the project-relative
+      case;
+    * ``.`` - the project root itself;
+    * an absolute path - used verbatim, possibly outside the project.
 
     Args:
         slug: orchestrator slug; normalised internally.
@@ -637,12 +724,16 @@ def resolve_data_dir(slug: str, workspace: str = "",
 
     Returns:
         A dict with ``path``, ``source`` (``prompt``/``config``/``default``),
-        ``raw``, ``default_path``, ``conflicts`` (unused existing folders that
-        hold files), ``outside_workspace``, ``exists`` and ``available``
-        (False when no workspace is selected and no absolute path was given).
+        ``scope`` (``central``/``workspace``/``external``), ``raw``,
+        ``default_path`` (the central default), ``central_root``,
+        ``conflicts`` (existing folders that still hold files), ``legacy``
+        (the old ``<workspace>/<slug>_data`` when it holds files), 
+        ``outside_workspace``, ``exists`` and ``available`` (True whenever a
+        path is known - the central default does not need a project).
 
     The function never writes, moves or deletes anything: a changed marker can
-    therefore never destroy existing data.
+    therefore never destroy existing data, and moving a legacy folder is an
+    explicit, separate action.
     """
     safe = safe_orchestrator_slug(slug) or "unnamed"
 
@@ -659,7 +750,9 @@ def resolve_data_dir(slug: str, workspace: str = "",
             config = loaded if isinstance(loaded, dict) else {}
 
     ws = (workspace or "").strip()
-    default_path = (os.path.join(ws, default_data_dir_name(safe)) if ws else "")
+    central_root = agents_data_root()
+    default_path = central_data_dir(safe)
+    legacy_path = (os.path.join(ws, default_data_dir_name(safe)) if ws else "")
 
     marker = parse_memory_dir_marker(prompt_text or "")
     config_value = str((config or {}).get("memory_dir") or "").strip()
@@ -670,47 +763,72 @@ def resolve_data_dir(slug: str, workspace: str = "",
     elif not marker and config_value.lower() not in _MEMORY_DIR_DEFAULT_VALUES:
         raw, source = config_value, "config"
 
-    path = ""
-    outside = False
+    # An explicit value that cannot be resolved (project-relative form with no
+    # project selected, or a value escaping its root) falls back to the
+    # central default instead of silently pointing somewhere odd.
     if source == "default" or not raw:
-        path = default_path
-    elif raw == _MEMORY_DIR_ROOT_VALUE:
-        path = ws
-    elif os.path.isabs(os.path.expanduser(raw)):
-        path = os.path.normpath(os.path.expanduser(raw))
-        outside = bool(ws) and not _inside(ws, path)
-    elif ws:
-        path = _join_relative(ws, os.path.expanduser(raw))
-        if not path:
-            # A relative path escaping the workspace is ignored, not honoured.
-            source, raw, path = "default", "", default_path
+        path, outside = default_path, False
+    else:
+        resolved = _resolve_data_value(raw, ws, central_root)
+        if resolved is None:
+            source, raw = "default", ""
+            path, outside = default_path, False
+        else:
+            path, outside = resolved
+
+    # Scope of the effective folder: inside the installation's central root,
+    # inside the active project, or anywhere else (an external folder the
+    # owner pointed the role at).
+    if _inside(central_root, path):
+        scope = "central"
+    elif ws and _inside(ws, path):
+        scope = "workspace"
+    else:
+        scope = "external"
 
     conflicts: List[Dict[str, Any]] = []
-    for other_source, other_raw in (("prompt", marker), ("config", config_value),
-                                    ("default", default_path)):
+    candidates: List[Tuple[str, str]] = [
+        ("prompt", marker), ("config", config_value), ("central", default_path),
+    ]
+    if legacy_path:
+        candidates.append(("legacy", legacy_path))
+    for other_source, other_raw in candidates:
         if other_source == source or not other_raw:
             continue
-        other = other_raw
-        if other == _MEMORY_DIR_ROOT_VALUE:
-            other = ws
-        elif not os.path.isabs(os.path.expanduser(other)):
-            if not ws:
-                continue
-            other = _join_relative(ws, os.path.expanduser(other))
-        if other and other != path and os.path.isdir(other):
+        if other_source in ("central", "legacy"):
+            other = other_raw
+        else:
+            pair = _resolve_data_value(other_raw, ws, central_root)
+            other = pair[0] if pair else ""
+        if other and os.path.abspath(other) != os.path.abspath(path) and os.path.isdir(other):
             files = _count_files(other)
             if files:
                 conflicts.append(
                     {"source": other_source, "path": other, "files": files}
                 )
 
+    # The pre-central layout: one <slug>_data folder inside the project. It is
+    # reported separately so the UI can offer an explicit move instead of
+    # leaving the data behind without a word.
+    legacy = None
+    if legacy_path and os.path.isdir(legacy_path) and _count_files(legacy_path):
+        legacy = {
+            "path": legacy_path,
+            "files": _count_files(legacy_path),
+            "is_active": os.path.abspath(legacy_path) == os.path.abspath(path),
+        }
+
     return {
         "slug": safe,
         "path": path,
         "source": source,
+        "scope": scope,
         "raw": raw,
         "default_path": default_path,
+        "central_root": central_root,
+        "workspace": ws,
         "conflicts": conflicts,
+        "legacy": legacy,
         "outside_workspace": outside,
         "exists": bool(path) and os.path.isdir(path),
         "available": bool(path),

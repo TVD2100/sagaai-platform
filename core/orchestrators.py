@@ -832,6 +832,75 @@ def _extend_prompt_with_memory(prompt: str,
     return block
 
 
+def _extend_prompt_with_working_memory(prompt: str,
+                                       orchestrator_slug: str = DEVAGENT_SLUG,
+                                       workspace: str = "") -> str:
+    """Append the ``## Working memory`` block - where the role's data lives.
+
+    The block is emitted for EVERY orchestrator: the path of the working-data
+    folder and the way to address it are platform facts, not role specifics.
+    Without it every new employee had to be told the path in its own prompt,
+    so the same fact drifted out of sync with the resolver and a role that
+    forgot the line wrote nowhere. The role's prompt keeps only what is
+    genuinely its own - the unit of work, the file layout, the update rules.
+
+    Args:
+        prompt: current system prompt text.
+        orchestrator_slug: employee whose folder is described.
+        workspace: active project folder; empty means "no project selected".
+
+    Returns:
+        The prompt with the block appended, or the prompt unchanged when the
+        resolver is unavailable (the prompt must never break over metadata).
+    """
+    try:
+        from core import orchestrator_folders as of
+        resolved = of.resolve_data_dir(orchestrator_slug, workspace)
+    except Exception:
+        return prompt
+    path = str(resolved.get("path") or "")
+    if not path:
+        return prompt
+
+    source = str(resolved.get("source") or "default")
+    scope = str(resolved.get("scope") or "central")
+    lines = [
+        "## Working memory",
+        "",
+        "Where the CONTENT of your work lives - registries, cards, journals. "
+        "It is not the same as personal memory: personal memory keeps HOW to "
+        "work, this folder keeps WHAT you work on.",
+        "",
+        f"- folder: `{path}`",
+        f"- set by: `{source}` (scope: `{scope}`)",
+        "- reach it with the file tools (read_file, propose_file, apply_patch, "
+        "verify_file, list_files, search_in_files) using the `memory:` prefix "
+        "- memory:registry.md, memory:projects/<key>/card.md - or the absolute "
+        "path above.",
+        "- the folder does not depend on the project a dialog works in, so the "
+        "same memory is available in every dialog, even before a project "
+        "folder is chosen.",
+        "- the file layout, the record formats and the update rules are yours "
+        "to define - see the memory section of this prompt.",
+    ]
+    legacy = resolved.get("legacy")
+    if isinstance(legacy, dict) and legacy.get("files") and not legacy.get("is_active"):
+        lines.append(
+            f"- a folder from the previous layout still holds {legacy.get('files')} "
+            f"file(s): `{legacy.get('path')}`. Do not move or delete it on your "
+            "own; report it to the owner."
+        )
+    if not resolved.get("exists"):
+        lines.append(
+            "- the folder does not exist yet: create it with the first write."
+        )
+
+    block = "\n".join(lines)
+    if prompt.strip():
+        return f"{prompt}\n\n{block}"
+    return block
+
+
 def _extend_prompt_with_connections(prompt: str, orchestrator_slug: str = DEVAGENT_SLUG) -> str:
     """Append a metadata block describing enabled connections to the prompt.
 
@@ -1511,7 +1580,8 @@ def _extend_prompt_with_instructions(prompt: str, orchestrator_slug: str = DEVAG
 # ─── Assistant-dict building (for agent loop) ─────────────────────────────
 
 
-def build_assistant_dicts(orchestrator_slug: str = DEVAGENT_SLUG) -> Tuple[dict, dict]:
+def build_assistant_dicts(orchestrator_slug: str = DEVAGENT_SLUG,
+                          workspace: str = "") -> Tuple[dict, dict]:
     """Build (strong_assistant, weak_assistant) from an orchestrator's config.
 
     Assistant dicts are compatible with ``core.api_layer.send_request``.
@@ -1520,6 +1590,11 @@ def build_assistant_dicts(orchestrator_slug: str = DEVAGENT_SLUG) -> Tuple[dict,
     If the orchestrator has enabled standardized skills (config key
     "enabled_skills"), their metadata is appended to the system prompt sent
     to the model.
+
+    *workspace* is the project folder of the calling dialog. It is needed to
+    expand a project-relative ``MEMORY_DIR`` override; empty means "no project
+    selected", which the working-memory block reports honestly instead of
+    guessing a path.
     """
     orch = get_orchestrator(orchestrator_slug)
     if orch is None:
@@ -1538,6 +1613,9 @@ def build_assistant_dicts(orchestrator_slug: str = DEVAGENT_SLUG) -> Tuple[dict,
     prompt = _extend_prompt_with_personal_card(prompt, orchestrator_slug)
     # Append the employee's own memory size and the scope tools it may use.
     prompt = _extend_prompt_with_memory(prompt, orchestrator_slug)
+    # Append the working-data folder: path plus the way to address it. This is
+    # a platform fact, so no employee prompt has to repeat it (and drift).
+    prompt = _extend_prompt_with_working_memory(prompt, orchestrator_slug, workspace)
     # Append enabled external service connections (connectors).
     prompt = _extend_prompt_with_connections(prompt, orchestrator_slug)
     # Append assigned RAG knowledge bases (DevAgent: all; others: assigned).

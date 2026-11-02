@@ -29,6 +29,14 @@ DEVAGENT_DB_PATH: str   = os.path.join(DATA_DIR, "devagent.db")
 RAG_BASES_DIR: str      = os.path.join(DATA_DIR, "rag_bases")
 PERSONAL_DIR: str       = os.path.join(DATA_DIR, "personal")
 
+# AGENTS_DATA_DIR: central root of the orchestrators' working-data folders.
+# One subfolder per orchestrator slug (<slug>/), holding the CONTENT of the
+# role's work - registries, cards, journals. The root belongs to the
+# INSTALLATION, not to the project a dialog happens to work in, so an employee
+# keeps its memory no matter which folder is selected, and the installation
+# root stops collecting one <slug>_data folder per employee.
+AGENTS_DATA_DIR: str = os.path.join(DATA_DIR, "agents_data")
+
 TEXT_FILE_EXTENSIONS = (".txt", ".md", ".py", ".csv")
 SUPPORTED_UPLOAD_TYPES = ["txt", "md", "py", "csv", "pdf", "docx", "pptx", "xlsx"]
 
@@ -36,7 +44,7 @@ SUPPORTED_UPLOAD_TYPES = ["txt", "md", "py", "csv", "pdf", "docx", "pptx", "xlsx
 def ensure_data_dirs() -> None:
     """Create all required runtime directories if they do not exist."""
     for d in (SYSTEM_PROMPTS_DIR, LANGS_DIR, SERVICES_DIR, HISTORY_DIR, RAG_BASES_DIR,
-              PERSONAL_DIR):
+              PERSONAL_DIR, AGENTS_DATA_DIR):
         Path(d).mkdir(parents=True, exist_ok=True)
 
 
