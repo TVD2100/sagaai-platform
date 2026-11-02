@@ -1577,6 +1577,108 @@ def _extend_prompt_with_instructions(prompt: str, orchestrator_slug: str = DEVAG
     except Exception:
         return prompt
 
+# ─── Current date block ───────────────────────────────────────────────────
+
+# Weekday and month names are spelled out instead of using strftime("%A") so
+# the block does not depend on the process locale.
+_WEEKDAY_NAMES = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+                  "Saturday", "Sunday")
+# Russian weekday names are returned by the ``current_datetime`` tool: models
+# answer users in Russian and translating the name themselves is a needless
+# chance to slip.
+_WEEKDAY_NAMES_RU = ("понедельник", "вторник", "среда", "четверг", "пятница",
+                     "суббота", "воскресенье")
+_MONTH_NAMES = ("January", "February", "March", "April", "May", "June",
+                "July", "August", "September", "October", "November",
+                "December")
+
+
+def _format_utc_offset(moment: datetime) -> str:
+    """Return the UTC offset of *moment* as ``UTC+HH:MM``."""
+    offset = moment.utcoffset()
+    if offset is None:
+        return "UTC"
+    total = int(offset.total_seconds())
+    sign = "+" if total >= 0 else "-"
+    total = abs(total)
+    return "UTC%s%02d:%02d" % (sign, total // 3600, (total % 3600) // 60)
+
+
+def _current_date_line(moment: datetime) -> str:
+    """Return the one-line date statement for *moment*.
+
+    The weekday and the month are spelled out so the model does not derive
+    them from a numeric date - a frequent source of off-by-one errors.
+    """
+    return "Today is %s, %02d %s %d." % (
+        _WEEKDAY_NAMES[moment.weekday()],
+        moment.day,
+        _MONTH_NAMES[moment.month - 1],
+        moment.year,
+    )
+
+
+def _extend_prompt_with_current_date(prompt: str,
+                                     orchestrator_slug: str = DEVAGENT_SLUG,
+                                     now: Optional[datetime] = None) -> str:
+    """Append the ``## Current date`` block - the only source of "today".
+
+    A model has no clock: without this block every date-dependent answer is a
+    guess or a reading of a file that recorded the date it was WRITTEN, not
+    the current one. The block is emitted for EVERY orchestrator, so no role
+    prompt has to carry the date itself.
+
+    The block states the date only, with no usage instructions: the system
+    prompt is already large and the fact speaks for itself. ``
+    build_assistant_dicts`` appends it LAST - the only block that changes over
+    time sits at the tail, so the provider's cached prefix survives until the
+    date rolls over.
+
+    Args:
+        prompt: current system prompt text.
+        orchestrator_slug: employee whose config may switch the block off.
+        now: moment to report; defaults to the current local time. Tests pass
+            a fixed value to keep the output deterministic.
+
+    Returns:
+        The prompt with the block appended, or the prompt unchanged when the
+        orchestrator disabled it (``current_date_enabled: false``) or the
+        moment cannot be resolved (the prompt must never break over metadata).
+    """
+    try:
+        orch = get_orchestrator(orchestrator_slug)
+        cfg = (orch or {}).get("config", {}) or {}
+        flag = cfg.get("current_date_enabled", True)
+        if isinstance(flag, str):
+            enabled = flag.strip().lower() not in ("0", "false", "no", "off")
+        else:
+            enabled = bool(flag)
+        if not enabled:
+            return prompt
+
+        moment = now if now is not None else datetime.now()
+        if moment.tzinfo is None:
+            # A naive value is local by definition: attach the system zone so
+            # the offset line reports what the clock actually means.
+            moment = moment.astimezone()
+        tz_name = moment.tzname() or ""
+        tz_part = _format_utc_offset(moment)
+        tz_text = "%s (%s)" % (tz_name, tz_part) if tz_name else tz_part
+        lines = [
+            "## Current date",
+            "",
+            _current_date_line(moment),
+            "Installation timezone: %s." % tz_text,
+        ]
+    except Exception:
+        return prompt
+
+    block = "\n".join(lines)
+    if prompt.strip():
+        return f"{prompt}\n\n{block}"
+    return block
+
+
 # ─── Assistant-dict building (for agent loop) ─────────────────────────────
 
 
@@ -1625,6 +1727,10 @@ def build_assistant_dicts(orchestrator_slug: str = DEVAGENT_SLUG,
     # Append the available-tools catalog (system + custom functions),
     # excluding disabled tools.
     prompt = _extend_prompt_with_tools(prompt, orchestrator_slug)
+    # Append the current date LAST: it is the only block that changes over
+    # time, so keeping it at the tail preserves the provider's cached prefix
+    # until the date rolls over.
+    prompt = _extend_prompt_with_current_date(prompt, orchestrator_slug)
 
     strong_svc = cfg.get("strong_service", "") or cfg.get("service", "DeepSeek")
     strong_mdl = cfg.get("strong_model", "") or cfg.get("model", "deepseek-flash")

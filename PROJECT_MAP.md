@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-02T19:01:06+00:00`
-- Файлов: **515**
+- Обновлено: `2026-11-02T20:21:42+00:00`
+- Файлов: **518**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **7966**
-- Отпечаток содержимого: `sha256:2b5f9a2184dfff53f96b445915c8fe9a7e8ab135a5743b4e95c0bc9f6dd19009` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 1, JSON: 23, Markdown: 38, PEM certificate: 1, Python: 455, Text: 1
+- Python-символов: **8019**
+- Отпечаток содержимого: `sha256:b0fa76df6cce8cad413e23765c2df996ce36fcfbc93932f28016e38466b4f9c0` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 1, JSON: 23, Markdown: 38, PEM certificate: 1, Python: 458, Text: 1
 
 ## Файлы и назначение
 
@@ -80,7 +80,7 @@
 | `core/orchestrator_folders.py` | Python | Per-orchestrator folders: bundles, functions, instructions; resolve_data_dir picks the role's working-data folder by the first match (MEMORY_DIR marker, config.memory_dir, the central DATA_DIR/agents_data/<slug> default) and resolves explicit scopes (workspace:<subpath>, central:<subpath>, '.', absolute, a plain relative path from the project); it reports the source, the scope, an outside-workspace path, the legacy <project>/<slug>_data folder and folders left over after a relocation; agents_data_root and agent_data_dir expose the central root | storage |
 | `core/orchestrator_nav.py` | Python | _(описание не задано)_ | - |
 | `core/orchestrator_tools.py` | Python | Tool catalog for orchestrators: core + workspace + delegation + connection + custom functions, the English '## Available tools' prompt block and the system-functions list; capability-gated tools (_CONDITIONAL_TOOLS) keep url_fetch out of the catalog until a fetch model is assigned or Selenium is enabled, invoke_assistant is offered only with a non-empty assistant allowlist while spawn_agent and the child-control tools are always offered, and disabled_tools stays a plain blacklist | - |
-| `core/orchestrators.py` | Python | Orchestrator CRUD and assistant assembly: build_assistant_dicts appends skills, instructions, the owner profile card, the employee memory block, the working-memory block, connections, RAG bases, delegation and the tool catalog; _extend_prompt_with_working_memory declares the path, scope, memory: addressing, folder state and the legacy-folder warning once for every employee; save_orchestrator/create_orchestrator accept memory_dir and delete_orchestrator archives the employee's personal memory | storage |
+| `core/orchestrators.py` | Python | Orchestrator CRUD and assistant assembly: build_assistant_dicts appends skills, instructions, the owner profile card, the employee memory block, the working-memory block, connections, RAG bases, delegation and the tool catalog; _extend_prompt_with_working_memory declares the path, scope, memory: addressing, folder state and the legacy-folder warning once for every employee; _extend_prompt_with_current_date closes the prompt with the ## Current date block (weekday and month from the fixed _WEEKDAY_NAMES/_MONTH_NAMES tables, the installation timezone, no time of day so the provider prefix cache survives the day), _current_date_line builds the shared sentence, and config['current_date_enabled'] removes the block for one employee; save_orchestrator/create_orchestrator accept memory_dir and delete_orchestrator archives the employee's personal memory | storage |
 | `core/paths.py` | Python | Central path registry: DATA_DIR, DB_PATH, personal memory folder, AGENTS_DATA_DIR (the central root of the orchestrators' working folders) and ensure_data_dirs for the runtime layout | - |
 | `core/personal_memory.py` | Python | Personal memory layer: scopes user / orchestrator:<slug> / project:<hash12> / connector:<id> (adapter), 64 KiB per-scope limit, atomic write with updated_at/updated_by/revision header, ten recoverable versions under personal/.backups, credential screening, caller-based write rights, archive on employee deletion, owner-card rendering | - |
 | `core/prompt_guard.py` | Python | Prompt-injection protection and sanitization | - |
@@ -108,7 +108,7 @@
 | `core/updater.py` | Python | _(описание не задано)_ | - |
 | `core/updater_apply.py` | Python | _(описание не задано)_ | - |
 | `core/url_fetch.py` | Python | URL-fetch transport: fetch_endpoint resolves fetch_base_url (or derives the sibling /v1/tools/fetch from base_url, never duplicating the version segment), validate_fetch_url enforces http/https, the 8192-character cap, no embedded credentials and no local/private hosts (SSRF guard, literal addresses only), fetch_page_content posts {url} with the provider bearer key and returns {title, content} in Markdown, extract_pdf_markdown turns PDF bytes into '### Page N' sections via pdfplumber with a pypdf fallback, selenium_page_text renders a page in headless Chrome and returns its visible text; every failure is raised through the APIError contract (ApiKeyMissing/ProviderHTTP/RequestTimeout/Network/ProviderResponse) or SeleniumUnavailableError | - |
-| `core/version.py` | Python | Single source of truth for the SagaAI platform version (semver __version__ plus a documented release history); 2.22.0 records the bundled Rag Base Creator seeding and 2.23.0 records the subagent control tools, the done-status finish of a child and the all-children wait | - |
+| `core/version.py` | Python | Single source of truth for the SagaAI platform version (semver __version__ plus a documented release history); 2.23.0 records the subagent control tools, 2.30.0 records the ## Current date prompt block and the current_datetime tool (why the block is last, why it carries no time of day, the per-employee switch) | - |
 | `core/marketplace/__init__.py` | Python | Marketplace package: public entry points, is_enabled master switch and re-exports of the catalog, installer, updates and rollback | - |
 | `core/marketplace/agent_installer.py` | Python | Installation of an agent entity: package downloaded, hash-verified and unpacked into staging, config_defaults merged into the bundle config before the import, then the orchestrator folder and the DB row created by the importer; a helper agent of kind assistant installs as an assistant profile (folder with manifest.json, prompt.md and text attachments plus a row in the assistants table), and the kind cannot switch for an installed entity | - |
 | `core/marketplace/bootstrap.py` | Python | Marketplace cold start: recover undoes a run interrupted by a crash and the one-time seeding of registry rows for skills installed before the marketplace existed; never touches the network | - |
@@ -175,6 +175,8 @@
 | `tests/test_core_api_send.py` | Python | send_request integration tests (mocked HTTP) | - |
 | `tests/test_core_files.py` | Python | File helpers tests | - |
 | `tests/test_crypto.py` | Python | Crypto tests | - |
+| `tests/test_current_date_prompt.py` | Python | Unit tests for the ## Current date prompt block: the sentence shape and the fixed weekday/month tables, the block placed last, the minute-free content that keeps the prefix cache stable, the current_date_enabled switch, one block for every orchestrator and the agreement with the current_datetime tool | - |
+| `tests/test_current_datetime_tool.py` | Python | Unit tests for the current_datetime tool: the answer fields, the shared date_line, the Russian weekday, the explicit-instant path with a frozen clock, catalog registration and the dispatcher entry | - |
 | `tests/test_db_concurrency.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_deepseek_anthropic_web_search.py` | Python | _(описание не задано)_ | - |
 | `tests/test_deepseek_responses.py` | Python | DeepSeek Responses API tests | - |
@@ -371,6 +373,7 @@
 | `tests/scenarios/test_connection_retry_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_connectors_scenarios.py` | Python | Scenario tests for the connectors feature: lifecycle, token safety, validation, orchestrator binding/prompt, GitHub tools, dispatcher integration, draft flow | storage |
 | `tests/scenarios/test_context_overflow_protection.py` | Python | Scenario: context-overflow protection - spill of a huge tool result and the failed-spill hard error | - |
+| `tests/scenarios/test_current_date_scenario.py` | Python | Scenario tests (given->when->then) for the employee clock: a fresh employee knows the day without reading a file, the prompt sentence equals the tool answer, a stale summary does not set the date, an employee may switch the block off and keep the tool, and midnight changes only the tail of the prompt | - |
 | `tests/scenarios/test_delegation_catalog_scenario.py` | Python | Scenario tests for what the model sees: spawn_agent always offered, invoke_assistant only with a live assistant, disabled tools removed, limits clamped, catalog and runtime rights read the same allowlist | storage |
 | `tests/scenarios/test_delegation_injection_inheritance_scenario.py` | Python | Scenario tests for the safety mode a user actually creates: Safety off gives an unprotected child, the default dialog keeps it protected, a resume keeps the mode of the run it continues, an explicit mode wins, and the loop hands the dialog mode down to the tool without a gap | - |
 | `tests/scenarios/test_delegation_run_scenario.py` | Python | Scenario tests for one delegated run: two children reporting into the dialog feed, distinct threads and journals, Stop cascading to children, the run budget with a readable refusal, tree release at dialog end | - |
@@ -520,7 +523,7 @@
 | `dev_agent/safe_writer.py` | Python | Safe full-file rewrite with diff/verification | backup_manager |
 | `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.28 working-memory section - two stores, the path taken from the platform block, memory: addressing, the second root and the no-project case; v3.26 subagent stop and transcript rules; v3.25 inherited protection mode; v3.23 self-sufficiency rule for comments/docs/tests; v3.21 Stage 0 recent-folders menu; v3.20 AGENT.md docs-first; v3.18 generated-PROJECT_MAP rule) | - |
 | `dev_agent/task_state.py` | Python | Per-thread task journal (TASK_STATE__<thread_id>.md) with section budgets and the compact digest; the thread id is an explicit parameter (current_thread_id, ensure_task_state_file, archive_and_start_task) with config.ACTIVE_THREAD_ID as a fallback, thread_scope pins a child thread in the current Python thread so parallel children never overwrite each other's journal, and journal retention (prune_task_state_journals) drops an empty journal older than PRUNE_MIN_AGE_DAYS and a finished delegated run whose parent journal is gone, sweeping both the project folder and the empty-state dialog folders once per process | backup_manager |
-| `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools, legacy skill aliases, skills-library and multimodal tools; the file tools resolve a path against the project root and the working-memory root (memory:<subpath>) and lift the empty-state guard for memory access, while a path outside both roots is refused | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
+| `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools, legacy skill aliases, skills-library and multimodal tools; the file tools resolve a path against the project root and the working-memory root (memory:<subpath>) and lift the empty-state guard for memory access, while a path outside both roots is refused; current_datetime answers what the prompt fact cannot - the time of day, the weekday of a date, epoch - and builds date_line with the same helper the prompt block uses, so the two sources cannot drift apart | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
 | `dev_agent/transcript.py` | Python | Append-only file store of delegated conversations, kept out of devagent.db: one JSONL segment per child under <history>/<parent>/subagents/<child>/ with rotation and a gzip-compressed cold segment, a single-line append under a per-path lock so a crash truncates at most the last line, event-prefix stripping, checkpoint records for resume, and retention (compress cold segments, drop whole segments of quiet threads, report - never silently delete - a folder whose index row is gone) | storage |
 | `dev_agent/universal_agent.py` | Python | Tool dispatcher for orchestrators: validate_tool_call resolves the run's disabled_tools first, then the argument specs, then the rights, without touching process globals; WORKSPACE_TOOL_ARGS describes the arguments of the delegation tools; get/set/list_personal_memory read and write the personal memory layer, and the file tools reach the working folder through the memory: prefix even with no project selected | storage, tool_executor |
 | `dev_agent/workspace_binding.py` | Python | Per-thread workspace binding registry under an RLock; thread_context applies and restores a thread's state, bind_child_thread gives a child run the parent's workspace with its own derived thread ({parent}__s{run_id[:8]}, no target_file) and unbind_thread releases it when the run ends | - |
@@ -1016,9 +1019,10 @@
 - `_thread_messages` (func, строка 467)
 - `_cost_of` (func, строка 487)
 - `_write_transcripts` (func, строка 500)
-- `_apply_index` (func, строка 553)
-- `_stamp` (func, строка 580)
-- `ensure_database_format` (func, строка 592)
+- `_record_schema` (func, строка 553)
+- `_apply_index` (func, строка 569)
+- `_stamp` (func, строка 597)
+- `ensure_database_format` (func, строка 609)
 
 ### `core/config.py`
 - `_secret_keys` (func, строка 35)
@@ -1648,32 +1652,35 @@
 - `_extend_prompt_with_delegation` (func, строка 1361)
 - `_extend_prompt_with_skills` (func, строка 1494)
 - `_extend_prompt_with_instructions` (func, строка 1516)
-- `build_assistant_dicts` (func, строка 1583)
-- `build_assistant_dicts._resolve_effort` (func, строка 1637)
-- `get_web_search_prompt` (func, строка 1663)
-- `get_web_search_config` (func, строка 1678)
-- `get_fetch_config` (func, строка 1706)
-- `get_fetch_config._result` (func, строка 1739)
-- `get_economy_tail_messages` (func, строка 1763)
-- `get_economy_cache_enabled` (func, строка 1781)
-- `get_economy_cache_multiplier` (func, строка 1799)
-- `get_economy_config` (func, строка 1818)
-- `export_orchestrator` (func, строка 1832)
-- `_validate_imported_tools` (func, строка 1878)
-- `import_orchestrator` (func, строка 1904)
-- `_import_instructions` (func, строка 2023)
-- `_import_functions` (func, строка 2050)
-- `orch_list_instructions` (func, строка 2068)
-- `orch_get_instruction` (func, строка 2073)
-- `orch_save_instruction` (func, строка 2078)
-- `orch_delete_instruction` (func, строка 2089)
-- `orch_list_functions` (func, строка 2096)
-- `orch_get_function` (func, строка 2101)
-- `orch_save_function` (func, строка 2106)
-- `orch_delete_function` (func, строка 2111)
-- `ensure_builtin_orchestrators` (func, строка 2120)
-- `load_devagent_config` (func, строка 2334)
-- `save_devagent_config` (func, строка 2373)
+- `_format_utc_offset` (func, строка 1596)
+- `_current_date_line` (func, строка 1607)
+- `_extend_prompt_with_current_date` (func, строка 1621)
+- `build_assistant_dicts` (func, строка 1685)
+- `build_assistant_dicts._resolve_effort` (func, строка 1743)
+- `get_web_search_prompt` (func, строка 1769)
+- `get_web_search_config` (func, строка 1784)
+- `get_fetch_config` (func, строка 1812)
+- `get_fetch_config._result` (func, строка 1845)
+- `get_economy_tail_messages` (func, строка 1869)
+- `get_economy_cache_enabled` (func, строка 1887)
+- `get_economy_cache_multiplier` (func, строка 1905)
+- `get_economy_config` (func, строка 1924)
+- `export_orchestrator` (func, строка 1938)
+- `_validate_imported_tools` (func, строка 1984)
+- `import_orchestrator` (func, строка 2010)
+- `_import_instructions` (func, строка 2129)
+- `_import_functions` (func, строка 2156)
+- `orch_list_instructions` (func, строка 2174)
+- `orch_get_instruction` (func, строка 2179)
+- `orch_save_instruction` (func, строка 2184)
+- `orch_delete_instruction` (func, строка 2195)
+- `orch_list_functions` (func, строка 2202)
+- `orch_get_function` (func, строка 2207)
+- `orch_save_function` (func, строка 2212)
+- `orch_delete_function` (func, строка 2217)
+- `ensure_builtin_orchestrators` (func, строка 2226)
+- `load_devagent_config` (func, строка 2440)
+- `save_devagent_config` (func, строка 2479)
 
 ### `core/paths.py`
 - `ensure_data_dirs` (func, строка 44)
@@ -3430,6 +3437,45 @@
 - `test_no_legacy_file_does_not_fail` (func, строка 135)
 - `test_env_key_takes_precedence` (func, строка 144)
 - `test_env_key_file_override` (func, строка 160)
+
+### `tests/test_current_date_prompt.py`
+- `no_config` (func, строка 26)
+- `with_config` (func, строка 32)
+- `with_config.install` (func, строка 34)
+- `test_block_is_appended_for_any_employee` (func, строка 45)
+- `test_block_states_the_date_in_words` (func, строка 51)
+- `test_block_reports_the_installation_timezone` (func, строка 56)
+- `test_block_carries_no_usage_instructions` (func, строка 62)
+- `test_block_has_no_clock_time` (func, строка 70)
+- `test_weekday_names_do_not_depend_on_locale` (func, строка 78)
+- `test_empty_prompt_yields_the_bare_block` (func, строка 87)
+- `test_block_can_be_switched_off` (func, строка 96)
+- `test_string_flag_false_switches_the_block_off` (func, строка 103)
+- `test_block_is_on_by_default` (func, строка 110)
+- `test_block_is_appended_after_the_tools_catalog` (func, строка 120)
+- `test_the_same_date_reaches_the_main_and_the_weak_assistant` (func, строка 150)
+- `test_utc_offset_helper_formats_both_signs` (func, строка 174)
+
+### `tests/test_current_datetime_tool.py`
+- `frozen` (func, строка 21)
+- `frozen._FrozenDatetime` (class, строка 27)
+- `frozen._FrozenDatetime.now` (func, строка 29)
+- `executor` (func, строка 38)
+- `test_tool_returns_ok_and_all_fields` (func, строка 45)
+- `test_tool_reports_a_day_first_date` (func, строка 53)
+- `test_tool_reports_a_sortable_iso_date` (func, строка 59)
+- `test_tool_reports_the_time_of_day` (func, строка 65)
+- `test_tool_reports_a_numeric_epoch` (func, строка 70)
+- `test_tool_reports_the_timezone_offset` (func, строка 76)
+- `test_weekday_name_matches_the_prompt_table` (func, строка 85)
+- `test_russian_weekday_matches_the_prompt_table` (func, строка 91)
+- `test_date_line_equals_the_prompt_line` (func, строка 97)
+- `test_date_and_iso_date_describe_the_same_day` (func, строка 104)
+- `test_frozen_clock_yields_the_expected_values` (func, строка 112)
+- `test_frozen_clock_yields_the_expected_values._FrozenDatetime` (class, строка 115)
+- `test_frozen_clock_yields_the_expected_values._FrozenDatetime.now` (func, строка 117)
+- `test_unknown_argument_is_rejected` (func, строка 133)
+- `test_tool_is_offered_to_the_model` (func, строка 140)
 
 ### `tests/test_db_concurrency.py`
 - `_reset_engines` (func, строка 25)
@@ -7864,6 +7910,21 @@
 - `test_scenario_impossible_payload_raises_clear_error` (func, строка 144)
 - `test_scenario_impossible_payload_raises_clear_error._fake_do_request` (func, строка 154)
 
+### `tests/scenarios/test_current_date_scenario.py`
+- `sandbox` (func, строка 35)
+- `employee` (func, строка 50)
+- `employee._make` (func, строка 54)
+- `agent` (func, строка 72)
+- `test_scenario_a_fresh_employee_knows_today` (func, строка 85)
+- `test_scenario_the_date_block_closes_the_prompt` (func, строка 100)
+- `test_scenario_the_prompt_and_the_clock_tool_agree` (func, строка 117)
+- `test_scenario_the_clock_tool_is_offered_in_the_prompt` (func, строка 132)
+- `test_scenario_a_stale_summary_does_not_set_the_date` (func, строка 146)
+- `test_scenario_the_date_never_comes_from_a_file` (func, строка 170)
+- `test_scenario_a_role_may_switch_the_block_off_but_keep_the_clock` (func, строка 189)
+- `test_scenario_a_disabled_clock_tool_leaves_the_date_intact` (func, строка 205)
+- `test_scenario_midnight_changes_only_the_tail_of_the_prompt` (func, строка 220)
+
 ### `tests/scenarios/test_delegation_catalog_scenario.py`
 - `platform` (func, строка 26)
 - `employee` (func, строка 46)
@@ -9209,6 +9270,7 @@
 - `ToolExecutor.task_state_update` (func, строка 3135)
 - `ToolExecutor.task_state_mark_step` (func, строка 3143)
 - `ToolExecutor.task_state_clear` (func, строка 3162)
+- `ToolExecutor.current_datetime` (func, строка 3173)
 
 ### `dev_agent/transcript.py`
 - `_segment_number` (func, строка 86)

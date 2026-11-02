@@ -468,7 +468,23 @@
 # working from the table exactly as before. The user is told once where the
 # archive is and how many dialogues moved.
 
-__version__ = "2.29.0"
+# 2.30.0 gives every employee a clock. The model has no clock of its own, so
+# any answer about "today", "tomorrow" or "this week" was either a guess or
+# the date a file happened to record when it was written - a schedule summary
+# aged silently and kept answering for the previous day. A ## Current date
+# block is now appended to the system prompt of every orchestrator, stating
+# the day in words (weekday and month from fixed tables, not from the process
+# locale) plus the installation timezone. It is the last block of the prompt
+# on purpose: it is the only block that changes with time, so midnight
+# invalidates the tail of the provider cache rather than the whole prefix.
+# The block carries no time of day, because a minute-precision stamp would
+# break the prefix cache on every step. config['current_date_enabled']
+# removes the block for one employee and leaves the tool alone. The new
+# current_datetime tool answers what the fact cannot - the time of day, the
+# weekday of an arbitrary date, epoch - and builds its sentence with the same
+# helper the prompt block uses, so the two sources cannot drift apart.
+
+__version__ = "2.30.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
