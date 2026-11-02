@@ -357,6 +357,24 @@ def _housekeep(folder: Path, thread_id: str,
         return
 
 
+def _ends_without_newline(path: Path) -> bool:
+    """True when *path* holds data that does not end with a newline.
+
+    That is the signature of a write torn by a crash. The reader already skips
+    such a line, but a later append would glue the next record onto the torn
+    one and lose BOTH: the line stays unparseable, and the record riding on it
+    is skipped together with it.
+    """
+    try:
+        if path.stat().st_size <= 0:
+            return False
+        with open(path, "rb") as handle:
+            handle.seek(-1, os.SEEK_END)
+            return handle.read(1) != b"\n"
+    except OSError:
+        return False
+
+
 def append_record(record: Dict[str, Any], thread_id: str,
                   parent_thread_id: Optional[str] = None) -> Dict[str, Any]:
     """Append ONE record to a thread transcript; return a write summary.
@@ -373,11 +391,18 @@ def append_record(record: Dict[str, Any], thread_id: str,
         folder = thread_dir(thread_id, parent_thread_id)
         folder.mkdir(parents=True, exist_ok=True)
         data = _encode_record(record)
+        extra = 0
         with _lock_for(str(folder)):
             rotated = _active_segment(folder)
             if rotated:
                 _housekeep(folder, thread_id, parent_thread_id)
             target = folder / TRANSCRIPT_NAME
+            # A record torn by an earlier crash must not swallow this one: the
+            # torn line is skipped by the reader, and a new record appended
+            # onto it would ride the same unparseable line to the floor.
+            if _ends_without_newline(target):
+                data = b"\n" + data
+                extra = 1
             fd = os.open(str(target),
                          os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
             try:
@@ -387,7 +412,7 @@ def append_record(record: Dict[str, Any], thread_id: str,
         return {
             "ok": True,
             "path": _relative_to_history(target),
-            "bytes": int(written),
+            "bytes": int(written) - extra,
             "error": "",
         }
     except Exception as exc:  # pragma: no cover - a log must not break a run
@@ -862,6 +887,36 @@ def enforce_quota(thread_id: str,
             "dropped": dropped, "error": ""}
 
 
+def _thread_row_exists(thread_id: str) -> bool:
+    """Answer whether ANY index row points at this thread id.
+
+    Two databases keep dialogue rows now: ``devagent.db`` for orchestrator
+    dialogs and ``sagaai.db`` for assistant chats, and both write their
+    transcripts under the same history tree. A retention pass that knew only
+    about the first one would treat every assistant transcript as the orphan
+    of a deleted dialog.
+
+    An unreadable store answers True ("keep"): a database that cannot be read
+    must never make a live conversation look deletable.
+    """
+    tid = str(thread_id or "").strip()
+    if not tid:
+        return False
+    try:
+        from storage.repository_devagent import repo_devagent_load_thread_meta
+        if repo_devagent_load_thread_meta(tid):
+            return True
+    except Exception:
+        return True
+    try:
+        from storage.repository import repo_load_thread_meta
+        if repo_load_thread_meta(tid):
+            return True
+    except Exception:
+        return True
+    return False
+
+
 def find_orphans(root: Optional[Path] = None,
                  is_known=None) -> List[Dict[str, Any]]:
     """Return child transcript folders that no index row points at.
@@ -881,16 +936,7 @@ def find_orphans(root: Optional[Path] = None,
     store must never make every transcript look deletable.
     """
     base = Path(root) if root is not None else history_root()
-    checker = is_known
-    if checker is None:
-        def checker(tid: str) -> bool:
-            try:
-                from storage.repository_devagent import (
-                    repo_devagent_load_thread_meta,
-                )
-                return bool(repo_devagent_load_thread_meta(tid))
-            except Exception:  # pragma: no cover - unknown means "keep"
-                return True
+    checker = is_known if is_known is not None else _thread_row_exists
     out: List[Dict[str, Any]] = []
     for dialog in _dialog_folders(base):
         for child in _child_folders(dialog):
@@ -930,15 +976,7 @@ def _row_checker(is_known=None):
     """Return a callable that answers whether a thread has an index row."""
     if is_known is not None:
         return is_known
-
-    def checker(tid: str) -> bool:
-        try:
-            from storage.repository_devagent import repo_devagent_load_thread_meta
-            return bool(repo_devagent_load_thread_meta(tid))
-        except Exception:  # pragma: no cover - unknown means "keep"
-            return True
-
-    return checker
+    return _thread_row_exists
 
 
 def sweep(root: Optional[Path] = None, *,

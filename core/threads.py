@@ -2,8 +2,17 @@
 """
 core.threads - thread (chat session) persistence.
 
-Each thread has an assistant_id + assistant_name and stores messages as JSON.
-DevAgent threads use thread_type="devagent".
+Each thread has an assistant_id + assistant_name and stores messages in the
+``messages`` table of the main database.
+
+File-backed transcript:
+  - a thread row also carries ``transcript_path``, a pointer (relative to the
+    history root) at the append-only JSONL file that mirrors its messages
+    (``dev_agent/transcript.py``, driven through ``core.thread_mirror``);
+  - the table stays the source of truth and the file is its mirror, exactly as
+    for orchestrator dialogs, so one format serves both dialog kinds;
+  - a thread created before the file store has no path and is never mirrored:
+    it keeps working from the table, and no migration is needed to open it.
 
 DevAgent event persistence:
   - _events, _event_start, _event_end, _tokens are embedded in the content
@@ -11,6 +20,8 @@ DevAgent event persistence:
     model has no dedicated columns for them.
   - ``load_thread_messages`` strips this prefix and restores the keys.
   - ``save_thread_messages`` injects the prefix for any message that has them.
+  - The transcript mirror unpacks the same prefix once when it writes a record,
+    so a file record carries real fields and no render payload.
 """
 import os, json, re, uuid, shutil
 from datetime import datetime
@@ -32,6 +43,28 @@ _PREFIX_PATTERN = re.compile(
 
 
 def get_thread_messages(tid: str) -> List[Dict[str, Any]]:
+    """Return a thread's messages, from its transcript file when it has one.
+
+    The file is a mirror of the messages table, and reading it is what makes
+    one storage format serve both dialogue kinds. The table answers whenever
+    the file cannot:
+
+    - a thread written before the file store has no transcript path at all;
+    - a broken or missing file yields the table instead of hiding the thread;
+    - a file shorter than the index counter is incomplete, because the
+      retention policy drops the oldest segments of a very long dialogue -
+      the table still holds every message.
+    """
+    try:
+        from core import thread_mirror as mirror
+        meta = repo_load_thread_meta(tid) or {}
+        if mirror.is_mirrored(meta):
+            messages = mirror.read_messages(tid, mirror.parent_of(meta))
+            if mirror.is_complete(meta, messages):
+                return messages
+    except Exception:
+        # A broken transcript must never make a readable thread unreadable.
+        pass
     raw = repo_load_thread_messages(tid)
     return _restore_events(raw)
 
@@ -80,7 +113,15 @@ def create_thread(assistant_id: str, assistant_name: str, title: str = "", **kwa
     safe_title = _sanitize_title(title) if title else ""
     thread_id = datetime.now().strftime("%Y%m%d_%H%M%S_") + str(uuid.uuid4())[:6]
     ensure_dir(os.path.join(get_thread_dir(thread_id), "files"))
-    repo_create_thread(thread_id, assistant_id, assistant_name)
+    # Point the row at its transcript from the first moment: a thread born
+    # without a path would never be mirrored, because the mirror is switched
+    # on by the path itself. Computing it costs nothing and keeps this thread
+    # in the same format as an orchestrator dialog from the start.
+    from core import thread_mirror as mirror
+    transcript_rel = mirror.transcript_rel_path(thread_id)
+    repo_create_thread(thread_id, assistant_id, assistant_name,
+                       transcript_path=transcript_rel or None,
+                       kind="dialog")
     if safe_title:
         repo_save_thread_meta(thread_id, {"title": safe_title[:60]})
     return thread_id
@@ -123,6 +164,11 @@ def _restore_events(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return out
 
 
+def _now_iso() -> str:
+    """Current local time in the ISO shape the thread rows use."""
+    return datetime.now().isoformat(timespec="seconds")
+
+
 def save_thread_messages(tid: str, messages: List[Dict[str, Any]]) -> None:
     """
     Persist the full list of messages for a thread.
@@ -152,6 +198,35 @@ def save_thread_messages(tid: str, messages: List[Dict[str, Any]]) -> None:
             clean_msg["content"] = prefix + clean_msg.get("content", "")
         clean.append(clean_msg)
     repo_save_thread_messages(tid, clean)
+    # A full save REPLACES the conversation, so the transcript is replaced too.
+    # An append here would keep messages the table just dropped, and a reader
+    # would keep offering work the user deleted.
+    try:
+        from core import thread_mirror as mirror
+        meta = repo_load_thread_meta(tid) or {}
+        if mirror.is_mirrored(meta):
+            result = mirror.rewrite_messages(tid, clean, mirror.parent_of(meta))
+            if result.get("ok"):
+                tokens_in, tokens_out, tokens_cache = sum_thread_tokens(messages)
+                repo_save_thread_meta(tid, {
+                    "message_count": int(result.get("count") or 0),
+                    "total_bytes": int(result.get("bytes") or 0),
+                    "transcript_bytes": int(result.get("bytes") or 0),
+                    "transcript_path": result.get("path") or None,
+                    "last_message_at": _now_iso(),
+                    "tokens_in": tokens_in,
+                    "tokens_out": tokens_out,
+                    "tokens_cache": tokens_cache,
+                    "content_schema": 1,
+                })
+            else:
+                # A failed replace leaves the previous file content in place,
+                # which no longer matches the table. Dropping the path makes
+                # the reader use the table instead of stale work.
+                repo_save_thread_meta(tid, {"transcript_path": None})
+    except Exception:
+        # The table write already succeeded and remains the source of truth.
+        pass
 
 
 def append_thread_message(tid: str, role: str, content: str,
@@ -167,6 +242,51 @@ def append_thread_message(tid: str, role: str, content: str,
         prefix = _PREFIX_MARKER + json.dumps({"tokens": tokens}, ensure_ascii=False) + "\n"
         final_content = prefix + final_content
     repo_append_message(tid, role, final_content, file_name=file_name, file_chars=file_chars)
+    # The file is a mirror of the row, so it is written AFTER the table: a
+    # crash in between leaves one message missing from the log, never a
+    # message the user cannot see. A thread without a transcript path predates
+    # the file store and is never mirrored.
+    try:
+        from core import thread_mirror as mirror
+        meta = repo_load_thread_meta(tid) or {}
+        if mirror.is_mirrored(meta):
+            seq = mirror.next_seq(meta)
+            result = mirror.append_message(tid, {
+                "role": role,
+                "content": final_content,
+                "ts": _now_iso(),
+                "file_name": file_name,
+                "file_chars": file_chars,
+                "_tokens": tokens or {},
+            }, seq, mirror.parent_of(meta))
+            if result.get("ok"):
+                written = int(result.get("bytes") or 0)
+                cost = tokens or {}
+                repo_save_thread_meta(tid, {
+                    "message_count": seq,
+                    "total_bytes": int(meta.get("total_bytes") or 0) + written,
+                    "transcript_bytes": int(meta.get("transcript_bytes") or 0) + written,
+                    "transcript_path": result.get("path") or None,
+                    "last_message_at": _now_iso(),
+                    "tokens_in": int(meta.get("tokens_in") or 0)
+                                 + int(cost.get("in", 0) or 0),
+                    "tokens_out": int(meta.get("tokens_out") or 0)
+                                  + int(cost.get("out", 0) or 0),
+                    "tokens_cache": int(meta.get("tokens_cache") or 0)
+                                    + int(cost.get("cache", 0) or 0),
+                    "content_schema": 1,
+                })
+            else:
+                # The message is stored but the log missed it, so the file is
+                # no longer a faithful mirror. Dropping the path switches this
+                # thread back to the table permanently: reading a file that
+                # silently lacks the newest message would hide it from the
+                # user, which is worse than losing the file copy.
+                repo_save_thread_meta(tid, {"transcript_path": None})
+    except Exception:
+        # A mirror that fails must not fail the write it mirrors: the message
+        # is already stored, and the table remains the source of truth.
+        pass
 
 
 def sum_thread_tokens(messages: List[Dict[str, Any]]) -> tuple:
@@ -211,8 +331,21 @@ def load_thread_meta(tid: str) -> dict:
 
 
 def delete_thread(tid: str) -> None:
-    """Delete a thread and all its files."""
+    """Delete a thread, its messages and its transcript folder."""
+    # The index row is read BEFORE the delete: once it is gone there is no way
+    # left to tell where the transcript folder was.
+    try:
+        from core import thread_mirror as mirror
+        meta = repo_load_thread_meta(tid) or {}
+        parent = mirror.parent_of(meta)
+    except Exception:
+        parent = None
     repo_delete_thread(tid)
+    try:
+        from core import thread_mirror as mirror
+        mirror.remove(tid, parent)
+    except Exception:
+        pass
     tdir = get_thread_dir(tid)
     if os.path.isdir(tdir):
         shutil.rmtree(tdir)

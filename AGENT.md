@@ -1376,12 +1376,48 @@ Ed25519), а проверка подписи на стороне клиента 
 
 ### NFR4 - Сохранность данных
 - Все пользовательские данные (помощники, треды, конфигурация) хранятся
-  в SQLite внутри папки данных.
+  в папке данных: строки и настройки - в SQLite, переписка диалогов -
+  в файлах.
+- **Переписка диалогов хранится в файлах, а не в таблице `messages`.**
+  Каждый диалог - ассистентский (основная БД) и оркестраторный
+  (`devagent.db`) - пишет сообщения в общий append-only JSONL-сегмент
+  `dev_agent/transcript.py`, а его строка в `threads` держит индекс над
+  файлом (`transcript_path`, `parent_thread_id`, `message_count`,
+  `content_schema`). Файловую половину зеркала для обеих баз владеет
+  `core/thread_mirror.py`: он не открывает БД, ничего не решает про индекс
+  и не поднимает исключений - сломанное зеркало не должно ломать запись,
+  которую оно зеркалит. Индексные колонки в своих таблицах обновляют
+  `core/threads.py` (основная БД) и `core/threads_devagent.py`
+  (`devagent.db`). Читатель отдаёт файл, только если в нём есть все
+  сообщения, которые насчитал индекс (`thread_mirror.is_complete`):
+  усечённый ретеншеном файл откатывается на таблицу, чтобы начало
+  разговора не исчезло молча.
+- **Переход на файловое хранилище выполняется один раз и без потери
+  строк.** `core/chat_db_archive.py` при холодном старте (`app.py`, до
+  открытия соединений): (1) пакует основную базу в проверенный zip рядом с
+  собой, (2) пишет каждому диалогу его транскрипт, (3) заполняет индексные
+  колонки, (4) только после этого удаляет перенесённые строки `messages`,
+  (5) штампует раскладку в `PRAGMA user_version`. Файл базы НЕ заменяется
+  (в отличие от `devagent.db`), потому что в нём же лежат помощники,
+  настройки, коннекторы и реестр маркетплейса. Шаги идут под одной
+  блокировкой `BEGIN EXCLUSIVE`: сообщение, записанное между копией и
+  удалением строк, иначе пропало бы вместе со строками. Любая ошибка
+  (непроверенный архив, занятая база, неудачная запись транскрипта)
+  оставляет строки на месте - недоперенесённый диалог просто живёт в
+  таблице, как жил раньше. Занятая другой копией база даёт `database is in
+  use`, а не попытку писать вслепую.
+- **Об успешном переводе сообщается один раз.** Факт переноса пишется в
+  `DATA_DIR/chat_db_archive_notice.json` и читается через
+  `chat_db_archive.take_notice()` в `ui/app.py` (страница один раз за
+  сессию браузера): пользователь должен узнать, где лежит архив и сколько
+  диалогов перенесено, потому что таблица после перевода пуста.
 - Оркестраторы хранятся в таблице `orchestrators` (slug, prompt_text,
   config_json, tools, max_steps, auto_apply, is_builtin, sort_order);
   папка-источник каждого оркестратора содержит `orchestrator.json`,
   `instructions.json`, функции и инструкции.
-- Треды оркестраторов хранятся в отдельной БД `devagent.db`.
+- Треды оркестраторов хранятся в отдельной БД `devagent.db`; их
+  переписка, как и переписка ассистентских диалогов, лежит в файловом
+  транскрипте (см. выше).
 - Файлы помощников и загруженные пользователем файлы сохраняются на диске.
 - Базы знаний (RAG) хранятся в `DATA_DIR/rag_bases/` с локальным индексом
   и режимом поиска (`search_mode`: bm25/vector/hybrid); каноническая база
@@ -1405,10 +1441,10 @@ Ed25519), а проверка подписи на стороне клиента 
     # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
     # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
-- Список базовых файлов (141):
+- Список базовых файлов (143):
   - Корень (2): __init__.py, app.py
   - UI (23): ui/__init__.py, ui/app.py, ui/components/__init__.py, ui/components/flash.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/access.py, ui/pages/assistants.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/marketplace.py, ui/pages/orchestrator.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrators.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/updates.py, ui/pages/updates_marketplace.py, ui/pages/welcome.py
-  - Core (67): core/__init__.py, core/api_errors.py, core/api_layer.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/config.py, core/connector_presets.py, core/connectors.py, core/context_guard.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/devagent_db_archive.py, core/dependency_check.py, core/document_images.py, core/document_text.py, core/entity_sync.py, core/env_loader.py, core/feed_autoscroll.py, core/files.py, core/folder_dialog.py, core/fs.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/mcp_client.py, core/mcp_tools.py, core/memory_migration.py, core/multimodal.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrator_tools.py, core/orchestrators.py, core/paths.py, core/personal_memory.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py, core/updater.py, core/updater_apply.py, core/url_fetch.py, core/version.py
+  - Core (69): core/__init__.py, core/api_errors.py, core/api_layer.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/chat_db_archive.py, core/config.py, core/connector_presets.py, core/connectors.py, core/context_guard.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/devagent_db_archive.py, core/dependency_check.py, core/document_images.py, core/document_text.py, core/entity_sync.py, core/env_loader.py, core/feed_autoscroll.py, core/files.py, core/folder_dialog.py, core/fs.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/mcp_client.py, core/mcp_tools.py, core/memory_migration.py, core/multimodal.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrator_tools.py, core/orchestrators.py, core/paths.py, core/personal_memory.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/thread_mirror.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py, core/updater.py, core/updater_apply.py, core/url_fetch.py, core/version.py
   - Marketplace (19): core/marketplace/__init__.py, core/marketplace/agent_installer.py, core/marketplace/bootstrap.py, core/marketplace/bundles.py, core/marketplace/catalog.py, core/marketplace/config.py, core/marketplace/conflicts.py, core/marketplace/installer.py, core/marketplace/mcp_installer.py, core/marketplace/migration.py, core/marketplace/publish.py, core/marketplace/rag_installer.py, core/marketplace/registry.py, core/marketplace/rollback.py, core/marketplace/semver.py, core/marketplace/source.py, core/marketplace/store.py, core/marketplace/updates.py, core/marketplace/verify.py
   - Orchestration (11): core/orchestration/__init__.py, core/orchestration/contracts.py, core/orchestration/invoke.py, core/orchestration/resume.py, core/orchestration/runs.py, core/orchestration/service.py, core/orchestration/tool_classes.py, core/orchestration/tools.py, core/orchestration/transcript_reader.py, core/orchestration/transcript_sink.py, core/orchestration/verify.py
   - Storage (5): storage/__init__.py, storage/db.py, storage/models.py, storage/repository.py, storage/repository_devagent.py

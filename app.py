@@ -85,6 +85,36 @@ if _cold_start:
             flush=True,
         )
 
+# Assistant dialogues used to keep their messages inside sagaai.db. They are
+# moved to per-thread transcript files on the first start of this build, with
+# the previous database archived beside itself first. Unlike the DevAgent
+# check above, the main database is NOT replaced: it also holds assistants,
+# settings and the marketplace registry, so only the message rows move.
+if _cold_start:
+    try:
+        from core import chat_db_archive as _chat_archive
+
+        _chat_archive_report = _chat_archive.ensure_database_format()
+        if _chat_archive_report.get("action") not in ("none", "created"):
+            print(
+                "[chat db] action=%s archive=%r threads=%r messages=%r error=%r"
+                % (
+                    _chat_archive_report.get("action"),
+                    _chat_archive_report.get("archive_path"),
+                    _chat_archive_report.get("threads"),
+                    _chat_archive_report.get("messages"),
+                    _chat_archive_report.get("error"),
+                ),
+                file=sys.stderr,
+                flush=True,
+            )
+    except Exception as _chat_archive_error:  # pragma: no cover - start-up guard
+        print(
+            "[chat db] error=%r" % (_chat_archive_error,),
+            file=sys.stderr,
+            flush=True,
+        )
+
 import streamlit as st
 
 st.set_page_config(

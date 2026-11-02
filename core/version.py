@@ -454,7 +454,21 @@
 # data into agents_data/agents/. The central root is now recognised by path,
 # not by its name, and a genuine legacy folder beside it is still reported.
 
-__version__ = "2.28.1"
+# 2.29.0 moves the assistant dialogues out of the messages table. Every
+# assistant chat is mirrored into the same append-only transcript store the
+# orchestrator dialogs use (core/thread_mirror.py holds the file half shared
+# by both databases), and its thread row keeps the index over the file. A
+# database written before the switch is converted once at cold start by
+# core/chat_db_archive.py: the whole file is archived into a verified zip
+# beside itself, every dialogue is written to its transcript, the index
+# columns are filled, and only then do the moved message rows leave the
+# table. The database file itself is NOT replaced - assistants, settings,
+# connectors and the marketplace registry live in it - so a failure at any
+# step leaves the rows where they were and an un-migrated dialogue keeps
+# working from the table exactly as before. The user is told once where the
+# archive is and how many dialogues moved.
+
+__version__ = "2.29.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

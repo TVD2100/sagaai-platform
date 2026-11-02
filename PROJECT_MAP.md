@@ -2,19 +2,19 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-02T18:16:20+00:00`
-- Файлов: **509**
+- Обновлено: `2026-11-02T19:01:06+00:00`
+- Файлов: **515**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **7841**
-- Отпечаток содержимого: `sha256:705e23948c64c13a882fdbf56d45a509158516a9d79720fe357f2200842665d2` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 1, JSON: 23, Markdown: 38, PEM certificate: 1, Python: 449, Text: 1
+- Python-символов: **7966**
+- Отпечаток содержимого: `sha256:2b5f9a2184dfff53f96b445915c8fe9a7e8ab135a5743b4e95c0bc9f6dd19009` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 1, JSON: 23, Markdown: 38, PEM certificate: 1, Python: 455, Text: 1
 
 ## Файлы и назначение
 
 | Файл | Язык | Назначение | Зависит от |
 | --- | --- | --- | --- |
 | `__init__.py` | Python | Package marker | - |
-| `app.py` | Python | Process entry point: same-process marker and the marketplace recovery hook before Streamlit is imported, so an interrupted install is undone before the UI opens | - |
+| `app.py` | Python | Process entry point: same-process marker, the marketplace recovery hook and the cold-start database-format switches (devagent.db, then the assistant dialogues of sagaai.db) before Streamlit is imported, so an interrupted install is undone and the layout is current before the UI opens | - |
 | `pytest.ini` | Config | Pytest configuration | - |
 | `requirements.txt` | Text | Python dependencies | - |
 | `ui/__init__.py` | Python | Package marker | - |
@@ -50,6 +50,7 @@
 | `core/assistants.py` | Python | CRUD for AI assistant profiles and their attachment files | storage |
 | `core/auth.py` | Python | Optional password authentication gate | - |
 | `core/bootstrap.py` | Python | First-run provisioning: Assistant/Employee Creator instructions, DevAgent settings, legacy skill_creator migration | - |
+| `core/chat_db_archive.py` | Python | One-time switch of the assistant dialogues inside sagaai.db to the transcript file store: stamps the layout in PRAGMA user_version, detects table-backed dialogues, archives the whole database into a verified zip beside itself (the file is never replaced, so assistants and settings survive), writes every dialogue to its transcript while holding one write lock, fills the index columns, and only then drops the moved message rows - a failed archive, lock or transcript write leaves every row in place; an existing byte-identical archive is reused and a one-shot notice names the archive and the counts | - |
 | `core/config.py` | Python | Configuration load/save with secret encryption and env overlay | storage |
 | `core/connector_presets.py` | Python | MCP connection presets: list_presets/resolve_preset/instantiate_preset over secret-free templates from defaults/connectors/mcp/*.json plus the per-user preset dir; the required icon renders on the MCP-tab tiles and sort_order orders them (vkusvill shipped, github_mcp kept with hidden=true); the optional hidden flag drops a preset from the catalogue while list_presets(include_hidden=True) and resolve_preset still find it by id (invalid values mean visible), so connections created from a hidden preset keep their preset fields and the tile returns once the flag is cleared; instantiate_preset takes account/secrets/pending - the default pending=True snaps the preset config into a credential-less draft and seeds the connection memory from memory_seed, while the Connectors page passes pending=False with the typed credentials so a user-created connection is active at once | - |
 | `core/connectors.py` | Python | Connector storage & CRUD: encrypted credential manifest per connection (DATA_DIR/connectors/<id>/manifest.json), pending drafts without credentials (credentials_status), per-field SSH secrets, mcp service (transport stdio/http, command whitelist, args, url scheme check, auth_header, preset, secret_env_fields; env_json secret plus env_pairs merge), per-connection memory file (64 KiB cap), services registry | - |
@@ -100,6 +101,7 @@
 | `core/ssh_connector.py` | Python | SSH/SFTP service layer for the ssh connector (paramiko, lazy import) | - |
 | `core/ssh_tools.py` | Python | Orchestrator ssh_* tools for the SSH connector | - |
 | `core/statistics.py` | Python | _(описание не задано)_ | - |
+| `core/thread_mirror.py` | Python | File half of the dialogue mirror shared by both databases: transcript path resolution, append and full rewrite of a thread's records, reading them back in the same shape the table reader produces, the completeness check that decides when a reader may trust the file, and folder removal; it opens no database, decides nothing about the index and never raises, so a broken mirror cannot break the write it mirrors | - |
 | `core/threads.py` | Python | Chat thread persistence for assistants | storage |
 | `core/threads_devagent.py` | Python | DevAgent/orchestrator thread persistence (devagent.db) and the thread-search service layer (search_thread_messages, list_threads_filtered, read_thread_window) with access control; thread workspace meta (last folder) and the legacy-meta cleanup migration; read_thread_file extracts attachment text of binary documents through core.document_text | storage |
 | `core/tools_utils.py` | Python | Tool definitions list for the Skills/Assistants pages; RAG tool descriptions carry the per-base search mode | - |
@@ -161,6 +163,7 @@
 | `tests/test_assistant_tools.py` | Python | _(описание не задано)_ | - |
 | `tests/test_auth_access.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_backup_and_safewriter.py` | Python | Backup/safe-writer tests | - |
+| `tests/test_chat_db_archive.py` | Python | Unit tests for the switch of the assistant dialogues: legacy detection, the layout stamp, the verified archive including messages that live only in the write-ahead log, the exact moment rows may leave the table, reuse of an identical archive and refusal of a stale one, reuse of the plain name only once, the notice read exactly once, and the failure modes (unverifiable archive, failed transcript write, unreadable database, a lock held by another connection) | storage |
 | `tests/test_chat_pagination.py` | Python | _(описание не задано)_ | - |
 | `tests/test_cold_start_deps.py` | Python | UI tests for the cold-start dependency warning in ui.app: missing/outdated reports render deps_missing/deps_outdated, no warning when up to date, audit runs once per session, probe errors are swallowed | - |
 | `tests/test_connector_presets.py` | Python | Preset catalogue tests: hidden presets drop out of list_presets but stay resolvable by id (and with include_hidden=True), the hidden flag coerces booleans/strings/numbers and treats unknown values as visible, an invalid flag never breaks loading, instantiate_preset still works for a hidden preset, and the bundled catalogue ships vkusvill only while github_mcp stays resolvable with hidden=true | - |
@@ -317,6 +320,7 @@
 | `tests/test_theme_restore.py` | Python | _(описание не задано)_ | - |
 | `tests/test_thread_deeplink.py` | Python | _(описание не задано)_ | - |
 | `tests/test_thread_file_save.py` | Python | _(описание не задано)_ | storage |
+| `tests/test_thread_mirror.py` | Python | Unit tests for the shared file half of the dialogue mirror: path resolution and validation of thread ids, append and full rewrite, the shape a reader gets back, the completeness check that guards the fallback to the table, and a broken write that is reported without raising | - |
 | `tests/test_threads_devagent_files.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_threads_devagent_search.py` | Python | Unit tests for the thread-search storage/service layer: filtered listing, counts, message windows, access control | storage |
 | `tests/test_token_line_cache.py` | Python | Token-line cache tests: language in the cache key, re-render on language switch, localized labels | - |
@@ -326,6 +330,7 @@
 | `tests/test_tool_result_storage_summary.py` | Python | Storage-summary tests: verbatim small documents (wire==stored), batch splitter, both persist paths | storage |
 | `tests/test_tools_utils.py` | Python | _(описание не задано)_ | - |
 | `tests/test_transcript_arg_passthrough.py` | Python | _(описание не задано)_ | - |
+| `tests/test_transcript_chat_mirror.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_transcript_checkpoint.py` | Python | Unit tests for the resume checkpoint: the last checkpoint wins, a damaged record does not break the read, and the hint names the step and the files already written | - |
 | `tests/test_transcript_dialog_mirror.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_transcript_reader.py` | Python | Unit tests for the transcript reader: window pagination, segment order, a torn last line, a compressed segment, and a child resolved through its parent | - |
@@ -362,6 +367,7 @@
 | `tests/scenarios/test_assistant_sidebar_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_background_delegation_scenario.py` | Python | Scenario tests (given->when->then) for two background children: the dialog keeps working, status answers for one run and for the tree, each child reports exactly once through a hidden system line, Stop wins over the child's own done and a cancelled child stays resumable | - |
 | `tests/scenarios/test_batch_tool_calls_scenarios.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_chat_db_archive_scenario.py` | Python | Scenario tests for the upgrade of an existing installation (given->when->then): a previous build's dialogues move to files while the database and the other tables stay intact, the archive reopens as the old build knew it, an upgraded dialogue reads back unchanged, a restart changes nothing, a new dialogue is mirrored from the first message, and a damaged step keeps every dialogue readable from the table | storage |
 | `tests/scenarios/test_connection_retry_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_connectors_scenarios.py` | Python | Scenario tests for the connectors feature: lifecycle, token safety, validation, orchestrator binding/prompt, GitHub tools, dispatcher integration, draft flow | storage |
 | `tests/scenarios/test_context_overflow_protection.py` | Python | Scenario: context-overflow protection - spill of a huge tool result and the failed-spill hard error | - |
@@ -545,9 +551,10 @@
 - `_handle_thread_deeplink` (func, строка 393)
 - `_run_dependency_check_once` (func, строка 432)
 - `_show_db_archive_notice_once` (func, строка 457)
-- `main` (func, строка 489)
-- `main._render_orch_button` (func, строка 777)
-- `main._matches_search` (func, строка 861)
+- `_show_chat_db_archive_notice_once` (func, строка 489)
+- `main` (func, строка 523)
+- `main._render_orch_button` (func, строка 812)
+- `main._matches_search` (func, строка 896)
 
 ### `ui/components/flash.py`
 - `_queue` (func, строка 39)
@@ -984,6 +991,34 @@
 - `ensure_default_skills` (func, строка 59)
 - `ensure_instructions` (func, строка 64)
 - `ensure_devagent_settings` (func, строка 162)
+
+### `core/chat_db_archive.py`
+- `LockBusy` (class, строка 66)
+- `is_lock_error` (func, строка 70)
+- `_escape_uri` (func, строка 76)
+- `_connection` (func, строка 82)
+- `_exclusive` (func, строка 97)
+- `_table_columns` (func, строка 117)
+- `_count` (func, строка 125)
+- `_threads_with_messages` (func, строка 134)
+- `inspect_database` (func, строка 150)
+- `default_archive_path` (func, строка 198)
+- `_file_crc32` (func, строка 218)
+- `existing_identical_archive` (func, строка 230)
+- `_checkpoint_standalone` (func, строка 259)
+- `_verify_archive` (func, строка 286)
+- `_archive_locked` (func, строка 311)
+- `archive_database` (func, строка 371)
+- `_notice_path` (func, строка 395)
+- `_write_notice` (func, строка 403)
+- `take_notice` (func, строка 415)
+- `_ensure_index_columns` (func, строка 457)
+- `_thread_messages` (func, строка 467)
+- `_cost_of` (func, строка 487)
+- `_write_transcripts` (func, строка 500)
+- `_apply_index` (func, строка 553)
+- `_stamp` (func, строка 580)
+- `ensure_database_format` (func, строка 592)
 
 ### `core/config.py`
 - `_secret_keys` (func, строка 35)
@@ -1960,24 +1995,37 @@
 - `_bucket_rows` (func, строка 231)
 - `build_summary` (func, строка 251)
 
+### `core/thread_mirror.py`
+- `_transcript` (func, строка 28)
+- `parent_of` (func, строка 39)
+- `is_mirrored` (func, строка 45)
+- `transcript_rel_path` (func, строка 54)
+- `next_seq` (func, строка 69)
+- `append_message` (func, строка 77)
+- `rewrite_messages` (func, строка 95)
+- `read_messages` (func, строка 117)
+- `is_complete` (func, строка 154)
+- `remove` (func, строка 172)
+
 ### `core/threads.py`
-- `get_thread_messages` (func, строка 34)
-- `_sanitize_title` (func, строка 39)
-- `create_devagent_thread` (func, строка 56)
-- `create_thread` (func, строка 70)
-- `load_thread_messages` (func, строка 89)
-- `_restore_events` (func, строка 93)
-- `save_thread_messages` (func, строка 126)
-- `append_thread_message` (func, строка 157)
-- `sum_thread_tokens` (func, строка 172)
-- `save_thread_file` (func, строка 190)
-- `load_thread_file` (func, строка 200)
-- `load_thread_meta` (func, строка 209)
-- `delete_thread` (func, строка 213)
-- `list_devagent_threads` (func, строка 221)
-- `list_chat_threads` (func, строка 226)
-- `list_all_threads` (func, строка 231)
-- `messages_to_api_history` (func, строка 236)
+- `get_thread_messages` (func, строка 45)
+- `_sanitize_title` (func, строка 72)
+- `create_devagent_thread` (func, строка 89)
+- `create_thread` (func, строка 103)
+- `load_thread_messages` (func, строка 130)
+- `_restore_events` (func, строка 134)
+- `_now_iso` (func, строка 167)
+- `save_thread_messages` (func, строка 172)
+- `append_thread_message` (func, строка 232)
+- `sum_thread_tokens` (func, строка 292)
+- `save_thread_file` (func, строка 310)
+- `load_thread_file` (func, строка 320)
+- `load_thread_meta` (func, строка 329)
+- `delete_thread` (func, строка 333)
+- `list_devagent_threads` (func, строка 354)
+- `list_chat_threads` (func, строка 359)
+- `list_all_threads` (func, строка 364)
+- `messages_to_api_history` (func, строка 369)
 
 ### `core/threads_devagent.py`
 - `_now_iso` (func, строка 57)
@@ -1990,35 +2038,35 @@
 - `_restore_events` (func, строка 204)
 - `_mirror_enabled` (func, строка 242)
 - `_mirror_rewrite` (func, строка 260)
-- `_mirror_append` (func, строка 289)
-- `save_thread_messages` (func, строка 319)
-- `append_thread_message` (func, строка 368)
-- `sum_thread_tokens` (func, строка 416)
-- `load_thread_meta` (func, строка 434)
-- `delete_thread` (func, строка 438)
-- `list_devagent_threads` (func, строка 453)
-- `list_orchestrator_threads` (func, строка 462)
-- `delete_all_devagent_threads` (func, строка 467)
-- `_thread_files_dir` (func, строка 479)
-- `_safe_thread_file_name` (func, строка 484)
-- `_thread_file_path` (func, строка 502)
-- `save_thread_file_data` (func, строка 508)
-- `_looks_binary` (func, строка 533)
-- `_try_decode_text` (func, строка 556)
-- `_extract_document` (func, строка 572)
-- `_document_format` (func, строка 586)
-- `_is_extractable` (func, строка 595)
-- `list_thread_files` (func, строка 611)
-- `read_thread_file` (func, строка 650)
-- `_normalize_date_bound` (func, строка 786)
-- `_strip_events_prefix` (func, строка 809)
-- `_is_hidden_message` (func, строка 819)
-- `_locate_match` (func, строка 825)
-- `_make_snippet` (func, строка 848)
-- `_message_preview` (func, строка 861)
-- `search_thread_messages` (func, строка 880)
-- `list_threads_filtered` (func, строка 1051)
-- `read_thread_window` (func, строка 1149)
+- `_mirror_append` (func, строка 290)
+- `save_thread_messages` (func, строка 324)
+- `append_thread_message` (func, строка 373)
+- `sum_thread_tokens` (func, строка 421)
+- `load_thread_meta` (func, строка 439)
+- `delete_thread` (func, строка 443)
+- `list_devagent_threads` (func, строка 458)
+- `list_orchestrator_threads` (func, строка 467)
+- `delete_all_devagent_threads` (func, строка 472)
+- `_thread_files_dir` (func, строка 484)
+- `_safe_thread_file_name` (func, строка 489)
+- `_thread_file_path` (func, строка 507)
+- `save_thread_file_data` (func, строка 513)
+- `_looks_binary` (func, строка 538)
+- `_try_decode_text` (func, строка 561)
+- `_extract_document` (func, строка 577)
+- `_document_format` (func, строка 591)
+- `_is_extractable` (func, строка 600)
+- `list_thread_files` (func, строка 616)
+- `read_thread_file` (func, строка 655)
+- `_normalize_date_bound` (func, строка 791)
+- `_strip_events_prefix` (func, строка 814)
+- `_is_hidden_message` (func, строка 824)
+- `_locate_match` (func, строка 830)
+- `_make_snippet` (func, строка 853)
+- `_message_preview` (func, строка 866)
+- `search_thread_messages` (func, строка 885)
+- `list_threads_filtered` (func, строка 1056)
+- `read_thread_window` (func, строка 1154)
 
 ### `core/tools_utils.py`
 - `list_tool_definitions` (func, строка 12)
@@ -3137,6 +3185,44 @@
 - `test_stage_and_apply_full_rewrite` (func, строка 66)
 - `test_apply_without_draft_fails` (func, строка 85)
 - `test_path_traversal_blocked` (func, строка 91)
+
+### `tests/test_chat_db_archive.py`
+- `_make_db` (func, строка 23)
+- `_version` (func, строка 59)
+- `_count` (func, строка 68)
+- `_row` (func, строка 80)
+- `isolated_history` (func, строка 90)
+- `test_a_missing_database_is_reported_and_not_created` (func, строка 112)
+- `test_threads_with_messages_in_the_table_are_legacy` (func, строка 123)
+- `test_a_database_whose_threads_all_have_paths_is_not_legacy` (func, строка 136)
+- `test_an_empty_database_is_not_legacy` (func, строка 146)
+- `test_an_unreadable_file_is_reported_instead_of_migrated` (func, строка 156)
+- `test_a_path_with_spaces_and_non_ascii_is_opened` (func, строка 168)
+- `test_the_first_archive_takes_the_plain_name` (func, строка 183)
+- `test_a_second_archive_never_overwrites_the_first` (func, строка 190)
+- `test_archiving_keeps_every_row_and_removes_nothing` (func, строка 206)
+- `test_archiving_a_missing_database_fails_cleanly` (func, строка 226)
+- `test_messages_from_the_write_ahead_log_reach_the_archive` (func, строка 234)
+- `test_a_truncated_archive_leaves_the_database_in_place` (func, строка 259)
+- `test_an_existing_identical_archive_is_reused` (func, строка 271)
+- `test_a_stale_archive_is_never_reused` (func, строка 288)
+- `test_the_notice_is_returned_once_and_then_forgotten` (func, строка 301)
+- `test_a_missing_notice_is_an_empty_dict` (func, строка 315)
+- `test_a_corrupt_notice_file_is_ignored` (func, строка 320)
+- `test_a_missing_database_is_created_and_stamped` (func, строка 332)
+- `test_a_legacy_database_is_migrated_to_files` (func, строка 343)
+- `test_other_tables_survive_the_switch` (func, строка 367)
+- `test_the_archive_holds_the_messages_the_switch_moved` (func, строка 377)
+- `test_the_transcript_file_holds_every_message` (func, строка 391)
+- `test_the_notice_names_the_archive_and_the_counts` (func, строка 402)
+- `test_a_second_start_finds_nothing_to_do` (func, строка 415)
+- `test_a_legacy_database_without_messages_is_stamped_not_archived` (func, строка 428)
+- `test_a_current_database_is_never_touched` (func, строка 439)
+- `test_a_failed_archive_removes_no_row` (func, строка 455)
+- `test_a_failed_transcript_write_removes_no_row` (func, строка 468)
+- `test_a_failed_transcript_write_removes_no_row._boom` (func, строка 472)
+- `test_an_unreadable_database_is_left_alone` (func, строка 486)
+- `test_a_lock_held_by_another_connection_aborts_the_switch` (func, строка 499)
 
 ### `tests/test_chat_pagination.py`
 - `ui_env` (func, строка 40)
@@ -6776,6 +6862,30 @@
 - `test_create_thread_creates_files_dir` (func, строка 36)
 - `test_save_thread_file_creates_files_dir` (func, строка 46)
 
+### `tests/test_thread_mirror.py`
+- `isolated_history` (func, строка 25)
+- `_mirror` (func, строка 35)
+- `_records` (func, строка 41)
+- `test_a_row_without_a_transcript_path_is_not_mirrored` (func, строка 50)
+- `test_the_relative_path_is_usable_and_stable` (func, строка 60)
+- `test_a_child_keeps_its_transcript_inside_its_parent` (func, строка 70)
+- `test_next_seq_continues_from_the_index_counter` (func, строка 79)
+- `test_an_append_writes_exactly_one_record` (func, строка 91)
+- `test_an_append_keeps_the_attachment_and_the_cost` (func, строка 103)
+- `test_the_render_payload_does_not_reach_the_file` (func, строка 118)
+- `test_a_failed_append_is_reported_and_never_raises` (func, строка 131)
+- `test_a_failed_append_is_reported_and_never_raises._boom` (func, строка 135)
+- `test_a_non_dict_message_is_refused` (func, строка 146)
+- `test_a_rewrite_replaces_the_whole_file` (func, строка 159)
+- `test_a_rewrite_with_fewer_messages_shrinks_the_file` (func, строка 176)
+- `test_a_rewrite_skips_entries_that_are_not_messages` (func, строка 187)
+- `test_reading_returns_the_shape_the_table_reader_produces` (func, строка 204)
+- `test_reading_an_unknown_thread_returns_an_empty_list` (func, строка 225)
+- `test_a_checkpoint_never_becomes_a_message` (func, строка 232)
+- `test_a_torn_line_is_skipped_instead_of_breaking_the_read` (func, строка 244)
+- `test_a_file_shorter_than_the_index_is_reported_incomplete` (func, строка 261)
+- `test_removing_a_thread_takes_its_folder_with_it` (func, строка 274)
+
 ### `tests/test_threads_devagent_files.py`
 - `isolated_data` (func, строка 22)
 - `test_save_thread_file_data_writes_history_files_dir` (func, строка 43)
@@ -6920,6 +7030,25 @@
 - `test_the_original_arguments_still_work` (func, строка 80)
 - `test_the_defaults_are_the_documented_ones` (func, строка 91)
 - `test_string_numbers_are_coerced` (func, строка 100)
+
+### `tests/test_transcript_chat_mirror.py`
+- `isolated_data` (func, строка 30)
+- `_meta` (func, строка 46)
+- `_records` (func, строка 52)
+- `_new_thread` (func, строка 58)
+- `test_a_new_thread_records_its_transcript_path` (func, строка 72)
+- `test_the_first_message_reaches_the_transcript` (func, строка 83)
+- `test_appending_updates_the_index_counters` (func, строка 95)
+- `test_token_counts_reach_the_index` (func, строка 110)
+- `test_the_transcript_does_not_keep_the_render_payload` (func, строка 124)
+- `test_a_full_save_replaces_the_transcript` (func, строка 141)
+- `test_a_save_with_fewer_messages_shrinks_the_file` (func, строка 157)
+- `test_reading_answers_with_the_same_messages_either_way` (func, строка 174)
+- `test_reading_a_thread_from_the_file_survives_a_restart` (func, строка 196)
+- `test_a_legacy_thread_is_not_mirrored_and_still_works` (func, строка 214)
+- `test_a_failed_file_write_falls_back_to_the_table` (func, строка 231)
+- `test_a_file_shorter_than_the_index_is_not_trusted` (func, строка 255)
+- `test_a_deleted_thread_leaves_no_transcript_behind` (func, строка 273)
 
 ### `tests/test_transcript_checkpoint.py`
 - `history_root` (func, строка 25)
@@ -7680,6 +7809,20 @@
 - `test_scenario_partially_parsed_batch_warns_next_to_results` (func, строка 129)
 - `test_scenario_truncated_tail_block_is_warned_after_valid_calls` (func, строка 171)
 - `test_scenario_unparseable_single_block_gets_diagnostics_without_exactly_one` (func, строка 206)
+
+### `tests/scenarios/test_chat_db_archive_scenario.py`
+- `isolated_data` (func, строка 21)
+- `_legacy_installation` (func, строка 40)
+- `_db_path` (func, строка 59)
+- `_table_count` (func, строка 65)
+- `test_an_existing_installation_moves_its_dialogues_to_files` (func, строка 77)
+- `test_the_archived_database_still_opens_as_the_previous_build_knew_it` (func, строка 104)
+- `test_the_dialogue_reads_back_after_the_upgrade` (func, строка 121)
+- `test_a_second_start_does_not_touch_a_finished_installation` (func, строка 136)
+- `test_a_new_dialogue_after_the_upgrade_is_mirrored_from_the_start` (func, строка 153)
+- `test_the_other_tables_are_left_untouched` (func, строка 167)
+- `test_a_damaged_installation_keeps_its_dialogues` (func, строка 182)
+- `test_a_damaged_installation_keeps_its_dialogues._fail` (func, строка 192)
 
 ### `tests/scenarios/test_connection_retry_scenarios.py`
 - `fast_retries` (func, строка 28)
@@ -8651,27 +8794,27 @@
 - `repo_delete_orchestrator_instruction` (func, строка 314)
 - `repo_delete_all_orchestrator_instructions` (func, строка 334)
 - `repo_create_thread` (func, строка 349)
-- `repo_load_thread_meta` (func, строка 368)
-- `repo_save_thread_meta` (func, строка 375)
-- `repo_load_thread_messages` (func, строка 393)
-- `repo_save_thread_messages` (func, строка 405)
-- `repo_append_message` (func, строка 426)
-- `repo_list_all_threads` (func, строка 449)
-- `repo_list_threads_by_type` (func, строка 456)
-- `repo_list_chat_threads` (func, строка 468)
-- `repo_delete_thread` (func, строка 477)
-- `repo_delete_all_threads` (func, строка 490)
-- `repo_load_config` (func, строка 504)
-- `repo_save_config` (func, строка 517)
-- `repo_list_orchestrators` (func, строка 533)
-- `repo_get_orchestrator_by_slug` (func, строка 543)
-- `repo_get_orchestrator_by_id` (func, строка 550)
-- `repo_get_orchestrator_with_text` (func, строка 557)
-- `repo_create_orchestrator` (func, строка 573)
-- `repo_update_orchestrator` (func, строка 603)
-- `repo_delete_orchestrator` (func, строка 642)
-- `repo_create_skill` (func, строка 667)
-- `repo_update_skill` (func, строка 682)
+- `repo_load_thread_meta` (func, строка 386)
+- `repo_save_thread_meta` (func, строка 393)
+- `repo_load_thread_messages` (func, строка 427)
+- `repo_save_thread_messages` (func, строка 439)
+- `repo_append_message` (func, строка 460)
+- `repo_list_all_threads` (func, строка 483)
+- `repo_list_threads_by_type` (func, строка 490)
+- `repo_list_chat_threads` (func, строка 502)
+- `repo_delete_thread` (func, строка 511)
+- `repo_delete_all_threads` (func, строка 524)
+- `repo_load_config` (func, строка 538)
+- `repo_save_config` (func, строка 551)
+- `repo_list_orchestrators` (func, строка 567)
+- `repo_get_orchestrator_by_slug` (func, строка 577)
+- `repo_get_orchestrator_by_id` (func, строка 584)
+- `repo_get_orchestrator_with_text` (func, строка 591)
+- `repo_create_orchestrator` (func, строка 607)
+- `repo_update_orchestrator` (func, строка 637)
+- `repo_delete_orchestrator` (func, строка 676)
+- `repo_create_skill` (func, строка 701)
+- `repo_update_skill` (func, строка 716)
 
 ### `storage/repository_devagent.py`
 - `repo_devagent_create_thread` (func, строка 23)
@@ -9083,33 +9226,33 @@
 - `_encode_record` (func, строка 275)
 - `_active_segment` (func, строка 298)
 - `_housekeep` (func, строка 331)
-- `append_record` (func, строка 360)
-- `append_messages` (func, строка 397)
-- `_segments` (func, строка 425)
-- `iter_records` (func, строка 450)
-- `build_checkpoint` (func, строка 498)
-- `append_checkpoint` (func, строка 531)
-- `is_checkpoint` (func, строка 548)
-- `last_checkpoint` (func, строка 553)
-- `exists` (func, строка 568)
-- `rewrite_records` (func, строка 575)
-- `delete_transcript` (func, строка 611)
-- `_mtime` (func, строка 659)
-- `_transcript_files` (func, строка 667)
-- `_total_bytes` (func, строка 680)
-- `_child_folders` (func, строка 691)
-- `_dialog_folders` (func, строка 700)
-- `thread_bytes` (func, строка 709)
-- `compress_segment` (func, строка 726)
-- `compress_transcript` (func, строка 785)
-- `enforce_quota` (func, строка 818)
-- `find_orphans` (func, строка 865)
-- `find_orphans.checker` (func, строка 886)
-- `_folder_bytes` (func, строка 910)
-- `_folder_newest` (func, строка 918)
-- `_row_checker` (func, строка 929)
-- `_row_checker.checker` (func, строка 934)
-- `sweep` (func, строка 944)
+- `_ends_without_newline` (func, строка 360)
+- `append_record` (func, строка 378)
+- `append_messages` (func, строка 422)
+- `_segments` (func, строка 450)
+- `iter_records` (func, строка 475)
+- `build_checkpoint` (func, строка 523)
+- `append_checkpoint` (func, строка 556)
+- `is_checkpoint` (func, строка 573)
+- `last_checkpoint` (func, строка 578)
+- `exists` (func, строка 593)
+- `rewrite_records` (func, строка 600)
+- `delete_transcript` (func, строка 636)
+- `_mtime` (func, строка 684)
+- `_transcript_files` (func, строка 692)
+- `_total_bytes` (func, строка 705)
+- `_child_folders` (func, строка 716)
+- `_dialog_folders` (func, строка 725)
+- `thread_bytes` (func, строка 734)
+- `compress_segment` (func, строка 751)
+- `compress_transcript` (func, строка 810)
+- `enforce_quota` (func, строка 843)
+- `_thread_row_exists` (func, строка 890)
+- `find_orphans` (func, строка 920)
+- `_folder_bytes` (func, строка 956)
+- `_folder_newest` (func, строка 964)
+- `_row_checker` (func, строка 975)
+- `sweep` (func, строка 982)
 
 ### `dev_agent/universal_agent.py`
 - `load_system_prompt` (func, строка 31)

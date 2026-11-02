@@ -1139,5 +1139,6 @@
   "mp_type_skill": "技能",
   "mp_type_rag": "知识库",
   "mp_type_mcp": "连接器",
-  "devagent_db_archived": "⚠️ 对话数据库已迁移到新的存储方式。旧数据库已保存为压缩包：{path}。其中仍保留全部历史对话（{threads} 个对话，{messages} 条消息），如有需要可从压缩包中打开。新对话将写入新数据库。"
+  "devagent_db_archived": "⚠️ 对话数据库已迁移到新的存储方式。旧数据库已保存为压缩包：{path}。其中仍保留全部历史对话（{threads} 个对话，{messages} 条消息），如有需要可从压缩包中打开。新对话将写入新数据库。",
+  "chat_db_archived": "⚠️ 助手的对话已迁移到文件存储：每个对话现在是单独的文件。旧数据库完整保存为压缩包：{path}（已迁移对话：{threads}，消息：{messages}）。助手、设置和连接均保持不变。"
 }

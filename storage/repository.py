@@ -347,16 +347,34 @@ def repo_delete_all_orchestrator_instructions(slug: str) -> bool:
 # ─── Threads ──────────────────────────────────────────────────────────────────
 
 def repo_create_thread(thread_id: str, assistant_id: str, assistant_name: str,
-                       thread_type: str = "chat") -> bool:
-    """Insert a new Thread row. Returns True on success."""
+                       thread_type: str = "chat",
+                       transcript_path: str = None,
+                       kind: str = None) -> bool:
+    """Insert a new Thread row. Returns True on success.
+
+    ``transcript_path`` points the row at the thread's append-only transcript
+    file (relative to the history root), which marks the message CONTENT as
+    file-backed; the counters start at zero so the first append knows its
+    sequence number. A row created without a path keeps its messages in the
+    ``messages`` table - that is how every thread written before the file
+    store works, and such a row is never mirrored.
+    """
     try:
         with get_session() as s:
             now = datetime.now().isoformat()
+            mirrored = bool(transcript_path)
             th = Thread(
                 thread_id=thread_id, assistant_id=assistant_id or None,
                 assistant_name=assistant_name, title="",
                 type=thread_type,
                 created_at=now, updated_at=now,
+                transcript_path=transcript_path or None,
+                kind=kind or None,
+                message_count=0 if mirrored else None,
+                total_bytes=0 if mirrored else None,
+                transcript_bytes=0 if mirrored else None,
+                content_schema=1 if mirrored else None,
+                last_message_at=now if mirrored else None,
             )
             s.add(th)
             s.commit()
@@ -373,7 +391,14 @@ def repo_load_thread_meta(thread_id: str) -> dict:
 
 
 def repo_save_thread_meta(thread_id: str, meta: dict) -> bool:
-    """Persist updated thread metadata (title, updated_at, etc.)."""
+    """Persist updated thread metadata (title, updated_at, index counters).
+
+    Besides the chat fields, this covers the transcript-index columns
+    (``message_count``, ``total_bytes``, ``tokens_*``, ``transcript_path``,
+    ``transcript_bytes``, ``content_schema``, ``kind``). Every index key is
+    applied only when it is present in *meta*, so a caller that only renames a
+    dialog never resets a counter by omission.
+    """
     try:
         with get_session() as s:
             th = s.get(Thread, thread_id)
@@ -383,6 +408,15 @@ def repo_save_thread_meta(thread_id: str, meta: dict) -> bool:
             th.assistant_id   = meta.get("assistant_id",   th.assistant_id)
             th.assistant_name = meta.get("assistant_name", th.assistant_name)
             th.type           = meta.get("type",            th.type)
+            for key in ("message_count", "total_bytes", "tokens_in",
+                        "tokens_out", "tokens_cache", "transcript_bytes",
+                        "content_schema"):
+                if key in meta and meta[key] is not None:
+                    setattr(th, key, int(meta[key]))
+            for key in ("last_message_at", "transcript_path",
+                        "transcript_format", "parent_thread_id", "kind"):
+                if key in meta:
+                    setattr(th, key, meta[key] or None)
             th.updated_at     = meta.get("updated_at",      datetime.now().isoformat())
             s.commit()
         return True

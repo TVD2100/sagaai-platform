@@ -486,6 +486,40 @@ def _show_db_archive_notice_once(lang) -> None:
     ))
 
 
+def _show_chat_db_archive_notice_once(lang) -> None:
+    """Tell the user once that assistant dialogues moved to files.
+
+    Assistant messages used to live inside ``sagaai.db``. They are now written
+    to one transcript file per dialogue, and the previous database is kept as
+    a zip beside itself. The message has to say so: the table is empty
+    afterwards, and a user opening an old dialogue deserves to know where the
+    previous copy is and that nothing else was touched.
+
+    Unlike the DevAgent database, the main database is not replaced, so the
+    archive is a safety net rather than the only copy of the old data. The
+    notice is taken exactly once per browser session: it is written at cold
+    start, and every rerun of the same session must keep showing it.
+    """
+    if st.session_state.get("_chat_db_archive_notice_shown"):
+        return
+    st.session_state["_chat_db_archive_notice_shown"] = True
+    try:
+        from core import chat_db_archive as _archive
+
+        notice = _archive.take_notice()
+    except Exception:
+        return
+    if not notice:
+        return
+    flash_warning(t(
+        "chat_db_archived",
+        lang=lang,
+        path=notice.get("archive_path", ""),
+        threads=int(notice.get("threads") or 0),
+        messages=int(notice.get("messages") or 0),
+    ))
+
+
 def main():
     """Entry point called from app.py after st.set_page_config."""
     # ── Authentication gate ────────────────────────────────────────────────
@@ -600,6 +634,7 @@ def main():
     page = st.session_state["current_page"]
 
     _show_db_archive_notice_once(lang)
+    _show_chat_db_archive_notice_once(lang)
 
     # One-time localStorage sync for the saved theme: after a cold start the
     # sidebar shows the saved theme, but the page is painted from the

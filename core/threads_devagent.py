@@ -264,16 +264,17 @@ def _mirror_rewrite(tid: str, messages: List[Dict[str, Any]],
     Used by a full save, which replaces the whole conversation: the file has
     to be replaced too, or the mirror would keep messages that the database
     no longer has and a reader would show deleted work.
+
+    The file work itself lives in ``core.thread_mirror``, shared with assistant
+    dialogues; this function only maintains the index row of this database.
     """
     try:
-        from dev_agent import transcript as T
-        records = [T.build_record(m, i + 1) for i, m in enumerate(messages)
-                   if isinstance(m, dict)]
-        result = T.rewrite_records(tid, records, parent)
+        from core import thread_mirror as mirror
+        result = mirror.rewrite_messages(tid, messages, parent)
         if not result.get("ok"):
             return
         repo_devagent_save_thread_meta(tid, {
-            "message_count": len(records),
+            "message_count": int(result.get("count") or 0),
             "total_bytes": int(result.get("bytes") or known_bytes or 0),
             "transcript_path": result.get("path") or None,
             "transcript_bytes": int(result.get("bytes") or 0),
@@ -288,12 +289,16 @@ def _mirror_rewrite(tid: str, messages: List[Dict[str, Any]],
 
 def _mirror_append(tid: str, message: Dict[str, Any],
                    parent: Optional[str]) -> None:
-    """Append one message to a thread's transcript."""
+    """Append one message to a thread's transcript.
+
+    The file work lives in ``core.thread_mirror``, shared with assistant
+    dialogues; this function only maintains the index row of this database.
+    """
     try:
-        from dev_agent import transcript as T
+        from core import thread_mirror as mirror
         meta = repo_devagent_load_thread_meta(tid) or {}
-        seq = int(meta.get("message_count") or 0) + 1
-        result = T.append_record(T.build_record(message, seq), tid, parent)
+        seq = mirror.next_seq(meta)
+        result = mirror.append_message(tid, message, seq, parent)
         if not result.get("ok"):
             return
         tokens = message.get("_tokens") if isinstance(

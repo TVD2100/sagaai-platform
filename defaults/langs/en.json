@@ -1139,5 +1139,6 @@
   "mp_type_skill": "skill",
   "mp_type_rag": "knowledge base",
   "mp_type_mcp": "connector",
-  "devagent_db_archived": "⚠️ The dialogue database has moved to a new storage format. The previous database is kept as an archive: {path}. It still holds all past dialogues ({threads} threads, {messages} messages) and can be opened from there if needed. New dialogues go to the new database."
+  "devagent_db_archived": "⚠️ The dialogue database has moved to a new storage format. The previous database is kept as an archive: {path}. It still holds all past dialogues ({threads} threads, {messages} messages) and can be opened from there if needed. New dialogues go to the new database.",
+  "chat_db_archived": "⚠️ Assistant conversations have moved to file storage: each dialogue is now a separate file. The previous database is kept intact as an archive: {path} (dialogues migrated: {threads}, messages: {messages}). Assistants, settings and connections stayed in place."
 }
