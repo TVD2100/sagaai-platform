@@ -20,7 +20,7 @@ def _text() -> str:
 
 
 def test_header_carries_the_version():
-    assert _text().startswith("# DevAgent - System Prompt (v3.26)")
+    assert _text().startswith("# DevAgent - System Prompt (v3.27)")
 
 
 def test_a_subagent_does_not_ask_for_plan_approval():

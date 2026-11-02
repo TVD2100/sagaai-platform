@@ -57,6 +57,7 @@ from core.orchestration.contracts import (
     STATUS_RUNNING,
     TERMINAL_STATUSES,
     error_result,
+    result_from_record,
 )
 from core.orchestration.resume import RESUMABLE_STATUSES
 
@@ -501,6 +502,113 @@ def subagent_status(run_id: Optional[str] = None, *,
     return payload
 
 
+def subagent_result(run_id: Optional[str] = None, *,
+                    wait_seconds: float = 0.0,
+                    parent_slug: str = "dev_agent",
+                    parent_run_id: Optional[str] = None,
+                    service=None) -> Dict[str, Any]:
+    """Return what a FINISHED run produced: text, artifacts, resources used.
+
+    ``subagent_status`` answers "what is happening"; this tool answers "what
+    did it produce", and the two questions are kept in separate tools on
+    purpose. The result is the same compact dict the blocking ``spawn_agent``
+    returns, built by the same contract (``AgentRunResult.to_dict``): two
+    shapes of one answer would make the model guess which one it is reading.
+
+    An unfinished run NEVER yields a result. The answer is ``ready: false``
+    plus the current state, because a partial result presented as a result is
+    the worst kind of error: it looks like success. ``wait_seconds`` waits up
+    to ``MAX_STATUS_WAIT_SECONDS`` for a terminal status, so a caller that
+    knows the child is about to finish does not have to poll in a loop.
+
+    Works for a run of any origin: blocking or background, live or already
+    released from the registry. Only the caller's own tree is readable.
+    """
+    if service is None:
+        from core.orchestration.service import get_service
+        service = get_service()
+
+    rid = str(run_id or "").strip()
+    if not rid:
+        return error_result(
+            "", "subagent_result needs run_id: the run whose result you want.",
+            ERR_INVALID_ARGS, missing=["run_id"])
+
+    checked = _confine_run(service, rid, parent_run_id)
+    if not checked.get("ok"):
+        return checked
+
+    waited = 0.0
+    record = _load_run_record(service, rid)
+    if record is None:
+        return error_result(rid, "Unknown run: " + rid + ".", ERR_RUN_NOT_FOUND)
+    status = str(record.get("status") or "")
+
+    wait_for = max(0.0, min(float(wait_seconds or 0.0), MAX_STATUS_WAIT_SECONDS))
+    if wait_for > 0 and status not in TERMINAL_STATUSES:
+        try:
+            service.wait([rid], timeout=wait_for)
+        except Exception:  # pragma: no cover - wait is best effort
+            pass
+        waited = wait_for
+        record = _load_run_record(service, rid)
+        if record is None:
+            return error_result(rid, "Unknown run: " + rid + ".", ERR_RUN_NOT_FOUND)
+        status = str(record.get("status") or "")
+
+    if status not in TERMINAL_STATUSES:
+        # No ``result`` key at all: an absent field cannot be mistaken for an
+        # empty result, while ``result: null`` or a partial summary could.
+        payload = {
+            "ok": True,
+            "ready": False,
+            "run_id": rid,
+            "status": status,
+            "run": record,
+            "waited_seconds": waited,
+        }
+        note = run_note(record)
+        if status == STATUS_AWAITING_INPUT:
+            note = ("The run stopped with work unfinished, so it has no result "
+                    "yet. Read its journal with read_subagent_state(run_id=...) "
+                    "and continue it with resume_subagent; do not report partial "
+                    "work as its result.")
+        return _attach_note(payload, note)
+
+    result = result_from_record(record)
+    if result is None:  # pragma: no cover - defensive
+        return error_result(rid, "Run " + rid + " has an unreadable record.",
+                            ERR_PROVIDER_ERROR)
+    payload = {
+        "ok": True,
+        "ready": True,
+        "run_id": rid,
+        "status": result.status,
+        "result": result.to_dict(),
+    }
+    if waited:
+        payload["waited_seconds"] = waited
+    if not _is_live_result(record):
+        # A record rebuilt from the store may predate the frozen result: say
+        # so instead of letting a shortened summary pass for the whole one.
+        payload = _attach_note(payload, (
+            "This run is no longer in the live registry and its stored record "
+            "carries no full result: the summary here may be truncated and the "
+            "artifact list may be missing. Read the child journal with "
+            "read_subagent_state(run_id=...) for the record it left."))
+    return payload
+
+
+def _is_live_result(record: Dict[str, Any]) -> bool:
+    """True when *record* carries a result frozen at finish time.
+
+    The nested ``result`` object is written when a run ends. A record without
+    it is either still running (and then it is never read as a result) or an
+    older one whose summary was already capped for the store.
+    """
+    return isinstance((record or {}).get("result"), dict)
+
+
 def read_subagent_state(run_id: Optional[str] = None, *,
                         section: Optional[str] = None,
                         service=None) -> Dict[str, Any]:
@@ -875,6 +983,41 @@ def resume_subagent(run_id: Optional[str] = None, *,
     ))
 
 
+def verify_result(
+    run_id: Optional[str] = None,
+    criteria: str = "",
+    *,
+    parent_slug: str = "dev_agent",
+    parent_run_id: Optional[str] = None,
+    thread_id: str = "",
+    parent_config: Optional[Dict[str, Any]] = None,
+    base_dir: Optional[str] = None,
+    lang: Optional[str] = None,
+    service=None,
+) -> Dict[str, Any]:
+    """Run the configured verifier against one finished run.
+
+    A thin entry point: the whole contract - the refusal order, the brief that
+    hides the transcript and the verdict parser - lives in
+    ``core.orchestration.verify``. Keeping the tool layer thin is what makes
+    the boundary testable: this function turns model arguments into a call and
+    nothing else, so a change here cannot quietly change what a verifier is
+    allowed to see.
+    """
+    from core.orchestration.verify import verify_result as _verify
+    return _verify(
+        str(run_id or ""),
+        criteria,
+        parent_slug=parent_slug,
+        parent_run_id=parent_run_id,
+        thread_id=thread_id,
+        parent_config=parent_config,
+        base_dir=base_dir,
+        lang=lang,
+        service=service,
+    )
+
+
 def _terminal_run_ids(service: Any, root: str,
                       exclude: Optional[set] = None) -> set:
     """Return the ``run_id`` values of the tree that are already terminal.
@@ -1169,6 +1312,30 @@ def cancel_subagent_tool_entry() -> Dict[str, str]:
     }
 
 
+def subagent_result_tool_entry() -> Dict[str, str]:
+    """Return the catalog entry of ``subagent_result``.
+
+    The description separates the two questions the model would otherwise
+    merge: ``subagent_status`` says what is happening, this tool says what the
+    run PRODUCED. It also states the one rule the answer enforces - an
+    unfinished run returns no result - because a model that expects a partial
+    summary would read ``ready: false`` as a failure.
+    """
+    return {
+        "name": "subagent_result",
+        "desc": (
+            "Fetch what a FINISHED subagent run produced: the final text, "
+            "the artifacts and the resources used - the same result object a "
+            "blocking spawn_agent returns, for a background or blocking run "
+            "alike. Args: run_id, [wait_seconds] (block up to 30s for the run "
+            "to finish). While the run is not terminal the answer is "
+            "ready=false with its current status and NO result: partial work "
+            "is never returned as a result. Use subagent_status to watch a "
+            "run, this tool to collect it."
+        ),
+    }
+
+
 def sleep_tool_entry() -> Dict[str, str]:
     """Return the catalog entry of ``sleep``.
 
@@ -1191,6 +1358,28 @@ def sleep_tool_entry() -> Dict[str, str]:
             "subagent_status(run_id=...) or read_subagent_state(run_id=...). "
             "A timeout does NOT cancel anything: it only ends your wait. "
             "Prefer this over polling subagent_status in a loop."
+        ),
+    }
+
+
+def verify_result_tool_entry() -> Dict[str, str]:
+    """Return the catalog entry of ``verify_result``.
+
+    The description carries the two boundaries the model would otherwise get
+    wrong: the verifier sees the RESULT, not the reasoning (so vague criteria
+    are useless), and ``inconclusive`` is not a success. Without those two
+    sentences the tool turns into a rubber stamp.
+    """
+    return {
+        "name": "verify_result",
+        "desc": (
+            "Verify the result of one finished subagent run with a separate "
+            "verifier agent. Args: run_id (the run to check), criteria (what "
+            "the result must satisfy; be concrete - the verifier sees only "
+            "the result, not the reasoning). The verifier does not see the "
+            "target's transcript; it reads the artifacts itself. Returns "
+            "verdict: passed | failed | inconclusive. \"inconclusive\" means "
+            "the result could not be checked - never report it as success."
         ),
     }
 

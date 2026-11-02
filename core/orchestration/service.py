@@ -105,6 +105,10 @@ CHILD_DISABLED_TOOLS = (
     "resume_subagent",
     "subagent_status",
     "read_subagent_state",
+    # A child does not check a check: verification is the parent's decision,
+    # and a verifier that could launch another verifier would multiply runs
+    # with no end condition.
+    "verify_result",
 )
 
 
@@ -224,7 +228,7 @@ class RunRecord:
         resume, and a runaway child summary would otherwise grow the file that
         is rewritten on every heartbeat.
         """
-        return {
+        payload: Dict[str, Any] = {
             "run_id": self.run_id,
             "parent_run_id": self.parent_run_id,
             "root_run_id": self.root_run_id,
@@ -252,6 +256,28 @@ class RunRecord:
             "boot_id": run_store.current_boot_id(),
             "retryable": bool(self.retryable),
         }
+        if self.is_terminal:
+            # A finished run keeps its RESULT, not only its bookkeeping. The
+            # top-level ``summary`` above is capped because the record is
+            # rewritten on every heartbeat while a run is alive; a terminal
+            # record is written once, and a caller asking what the run
+            # produced must receive the whole answer instead of its first
+            # two thousand characters. Everything the synchronous launch
+            # returns is frozen here for the same reason.
+            payload["result"] = {
+                "run_id": self.run_id,
+                "status": self.status,
+                "stop_reason": self.stop_reason,
+                "summary": self.summary or "",
+                "artifacts": [a.to_dict() if hasattr(a, "to_dict") else dict(a)
+                              for a in self.artifacts],
+                "error_code": self.error_code,
+                "steps_used": self.steps_used,
+                "tokens_used": dict(self.tokens_used),
+                "child_thread_id": self.child_thread_id,
+                "retryable": bool(self.retryable),
+            }
+        return payload
 
 
 class _PoolSlot:

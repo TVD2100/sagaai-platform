@@ -936,6 +936,18 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   длительность выбирает вызывающий, потолок - час, таймаут ничего не
   отменяет) и `resume_subagent` (продолжение с того места, где ребёнок
   остановился).
+- **Статус - не результат.** Забрать произведённое завершённым запуском -
+  отдельный инструмент `subagent_result(run_id, wait_seconds=0)`: он
+  возвращает итоговый текст, артефакты и израсходованные ресурсы в той же
+  форме, в которой их отдаёт блокирующий `spawn_agent` (`AgentRunResult`),
+  независимо от того, как запуск стартовал. Незавершённый запуск результата
+  не отдаёт: ответ - `ready=false` с текущим состоянием и без ключа
+  `result`, потому что частичная работа, выданная за результат, выглядит как
+  успех и потому опаснее явной ошибки. `wait_seconds` (потолок - те же 30 с)
+  позволяет забрать результат в том же шаге, если ребёнок уже заканчивает.
+  Адресация - только своё дерево (`not_your_run`), а завершённая запись
+  хранит полный результат, поэтому он остаётся доступным и после выгрузки
+  дерева из реестра.
 - **Родитель управляет своими детьми.** `cancel_subagent` останавливает
   запуск, который пошёл не туда, вместо ожидания его бюджета: запрос - это
   флаг в записи запуска, который цикл ребёнка проверяет на границах шагов
@@ -1039,6 +1051,56 @@ SagaAI - универсальный AI-ассистент с веб-интерф
 - Интерфейс: статус-строка диалога показывает живые фоновые запуски,
   плашка `_notice` помечает скрытое извещение в ленте, а обновление статуса
   выполняется через `st.fragment` - без перезапуска всей страницы.
+
+#### FR18a - Проверка результата делегирования (`verify_result`)
+
+- Веер возвращает результаты, но не проверяет их: родитель до сих пор верил
+  сводке ребёнка на слово. Отдельный шаг после веера закрывает этот разрыв -
+  инструмент `verify_result(run_id, criteria)` запускает настроенного
+  агента-верификатора и возвращает структурный вердикт (`core/orchestration/verify.py`).
+- Вердикт имеет ровно три значения: `passed` (результат соответствует
+  критериям), `failed` (не соответствует, причины перечислены) и
+  `inconclusive` (проверить не удалось: нет данных, критерии неконкретны,
+  ответ не разобран). `inconclusive` - честный ответ «не знаю», а не ошибка,
+  и выдавать его за успех запрещено.
+- **Верификатор видит только результат.** На вход идут `summary`, артефакты
+  (путь, вид, digest), `error_code`, `steps_used` и `tokens_used`, плюс текст
+  критериев. Транскрипт, журнал и ход рассуждений целевого запуска не
+  передаются: проверяющий, читающий мысли исполнителя, соглашается с ним
+  вместо проверки. Содержимое артефактов верификатор читает сам своими
+  инструментами по абсолютному пути.
+- **Разбор ответа консервативен** (`parse_verdict`): ищется последний
+  разбираемый JSON-объект (модель может предварить его рассуждением);
+  отсутствие JSON, неизвестное значение вердикта и `reasons` не-списком дают
+  `inconclusive`, а `passed` при непустых `reasons` превращается в `failed` -
+  правило не даёт подписать результат и в том же ответе перечислить его
+  дефекты.
+- **Отказ верификатора не ломает веер:** если запуск проверяющего завершился
+  `failed`/`error`/`timeout`, инструмент возвращает `ok: true` с вердиктом
+  `inconclusive` и кодом сбоя в причинах. Ошибкой вызова (`ok: false`)
+  считаются только нарушения контракта: пустой `run_id`, неназначенный
+  верификатор (`verifier_not_configured`), неизвестный запуск
+  (`run_not_found`), незавершённый запуск (`run_not_finished`) и попытка
+  проверить сам запуск-верификатор (`invalid_args`).
+- **Проверка проверки запрещена.** Запуск-верификатор распознаётся по слагу
+  агента И по маркеру цели `VERIFIER_GOAL_PREFIX`, поэтому переназначение
+  настройки не открывает обходной путь; сам инструмент выключен в каталоге
+  ребёнка (`CHILD_DISABLED_TOOLS`).
+- **Настройка - отдельное право.** Ключ конфига `verifier_agent` (пустая
+  строка - не назначен) с геттером/сеттером `get_verifier_agent` /
+  `set_verifier_agent`; сеттер отклоняет слаг, которого нет в реестре, и НЕ
+  требует присутствия в `allowed_agents` - право проверять не должно
+  зависеть от списка вызываемых. Инструмент появляется в каталоге и в блоке
+  промпта `## Verifying delegated work` только при непустом значении; сбой
+  чтения конфига скрывает его.
+- **Запуск - тем же путём.** `verify_result` вызывает `service.run`, поэтому
+  глубина, пул и суммарные запуски действуют как для любого ребёнка; дерево
+  берётся из треда целевого запуска (или из его корня), чтобы проверка не
+  сбрасывала лимиты. Верификатор получает собственный тред и журнал.
+- Где вызывается: `verify_result` запускает ребёнка, поэтому исполняется в
+  фазе веера (`_TREE_CALL_NAMES` в `dev_agent/agent_loop.py`), а не внутри
+  `dispatch` - иначе запуск ждал бы блокировку связывания рабочей папки,
+  которую держит родитель.
 
 ### FR19 - Персональная память (два хранилища)
 
@@ -1302,12 +1364,12 @@ Ed25519), а проверка подписи на стороне клиента 
     # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
     # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
-- Список базовых файлов (134):
+- Список базовых файлов (135):
   - Корень (2): __init__.py, app.py
   - UI (23): ui/__init__.py, ui/app.py, ui/components/__init__.py, ui/components/flash.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/access.py, ui/pages/assistants.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/marketplace.py, ui/pages/orchestrator.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrators.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/updates.py, ui/pages/updates_marketplace.py, ui/pages/welcome.py
   - Core (65): core/__init__.py, core/api_errors.py, core/api_layer.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/config.py, core/connector_presets.py, core/connectors.py, core/context_guard.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/dependency_check.py, core/document_images.py, core/document_text.py, core/entity_sync.py, core/env_loader.py, core/feed_autoscroll.py, core/files.py, core/folder_dialog.py, core/fs.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/mcp_client.py, core/mcp_tools.py, core/multimodal.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrator_tools.py, core/orchestrators.py, core/paths.py, core/personal_memory.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py, core/updater.py, core/updater_apply.py, core/url_fetch.py, core/version.py
   - Marketplace (19): core/marketplace/__init__.py, core/marketplace/agent_installer.py, core/marketplace/bootstrap.py, core/marketplace/bundles.py, core/marketplace/catalog.py, core/marketplace/config.py, core/marketplace/conflicts.py, core/marketplace/installer.py, core/marketplace/mcp_installer.py, core/marketplace/migration.py, core/marketplace/publish.py, core/marketplace/rag_installer.py, core/marketplace/registry.py, core/marketplace/rollback.py, core/marketplace/semver.py, core/marketplace/source.py, core/marketplace/store.py, core/marketplace/updates.py, core/marketplace/verify.py
-  - Orchestration (7): core/orchestration/__init__.py, core/orchestration/contracts.py, core/orchestration/invoke.py, core/orchestration/resume.py, core/orchestration/runs.py, core/orchestration/service.py, core/orchestration/tools.py
+  - Orchestration (8): core/orchestration/__init__.py, core/orchestration/contracts.py, core/orchestration/invoke.py, core/orchestration/resume.py, core/orchestration/runs.py, core/orchestration/service.py, core/orchestration/tools.py, core/orchestration/verify.py
   - Storage (5): storage/__init__.py, storage/db.py, storage/models.py, storage/repository.py, storage/repository_devagent.py
   - DevAgent (13): dev_agent/__init__.py, dev_agent/agent_loop.py, dev_agent/assistant_detector.py, dev_agent/assistant_model_resolver.py, dev_agent/backup_manager.py, dev_agent/config.py, dev_agent/llm_utils.py, dev_agent/safe_writer.py, dev_agent/task_state.py, dev_agent/tool_executor.py, dev_agent/universal_agent.py, dev_agent/workspace_binding.py, dev_agent/workspace_tools.py
 

@@ -100,6 +100,17 @@ ERR_STALE_RUN = "stale_run"
 ERR_RESUME_CHAIN_LIMIT = "resume_chain_limit"
 ERR_BACKGROUND_UNSUPPORTED = "background_unsupported"
 
+# ─── Result verification (o-4) ──────────────────────────────────────────────
+
+#: No verifier is appointed for the orchestrator. Kept apart from
+#: ``unknown_agent`` because the fix is a SETTING, not a different name: an
+#: agent is never substituted silently - that would hide the fact that nobody
+#: is appointed to check anything.
+ERR_VERIFIER_NOT_CONFIGURED = "verifier_not_configured"
+#: The run being verified is not terminal yet, so its result does not exist.
+#: A verification of work in progress would judge a moving target.
+ERR_RUN_NOT_FINISHED = "run_not_finished"
+
 #: Hard ceiling of a resume chain. ``resume_subagent`` starts a NEW run, so
 #: without a ceiling a caller could walk around ``total_subagent_runs`` one
 #: link at a time by resuming its own resumes. Two links cover the real case
@@ -436,5 +447,83 @@ def error_result(run_id: str, error: str, error_code: str,
     }
     payload.update(details)
     return payload
+
+
+# ─── Result view of a run record ────────────────────────────────────────────
+
+
+def _artifacts_of(raw: object) -> List["Artifact"]:
+    """Return the artifact list of a record field, dropping unusable items.
+
+    Two shapes reach here: already-built ``Artifact`` objects (a live record)
+    and plain dicts (a serialized one). An entry without a path names nothing
+    and is skipped instead of producing an artifact nobody can open.
+    """
+    out: List[Artifact] = []
+    if not isinstance(raw, (list, tuple)):
+        return out
+    for item in raw:
+        if isinstance(item, Artifact):
+            out.append(item)
+            continue
+        if isinstance(item, dict) and str(item.get("path") or "").strip():
+            out.append(Artifact(
+                path=str(item.get("path") or ""),
+                kind=str(item.get("kind") or "file"),
+                digest=str(item.get("digest") or ""),
+            ))
+    return out
+
+
+def _int_of(value: object) -> int:
+    """Return *value* as an int, or 0 when it is not a number."""
+    try:
+        return int(value or 0)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return 0
+
+
+def result_from_record(record: Dict[str, Any]) -> Optional[AgentRunResult]:
+    """Build an ``AgentRunResult`` view of a live or stored run record.
+
+    This is the ONE place where a record turns back into a result, so the
+    answer a caller receives does not depend on which layer produced it - the
+    same fields reach the model whether the run is still in the registry or
+    was rebuilt from the durable store.
+
+    Two record shapes are accepted. A record written AFTER the run finished
+    carries a nested ``result`` object with the full summary and artifacts. An
+    older or live-shaped record keeps those fields at the top level, so a
+    record from a previous version still answers instead of failing.
+
+    Returns None when *record* is not a mapping at all.
+    """
+    if not isinstance(record, dict):
+        return None
+    # The nested object is the authoritative one when present: it was frozen
+    # from the result itself, not reconstructed from the run bookkeeping.
+    nested = record.get("result")
+    source: Dict[str, Any]
+    if isinstance(nested, dict) and str(nested.get("run_id") or "").strip():
+        source = nested
+    else:
+        source = record
+    tokens = source.get("tokens_used")
+    pending = source.get("pending")
+    return AgentRunResult(
+        run_id=str(source.get("run_id") or record.get("run_id") or ""),
+        status=str(source.get("status") or record.get("status") or STATUS_RUNNING),
+        stop_reason=source.get("stop_reason"),
+        summary=str(source.get("summary") or ""),
+        artifacts=_artifacts_of(source.get("artifacts")),
+        error_code=source.get("error_code"),
+        steps_used=_int_of(source.get("steps_used")),
+        tokens_used=dict(tokens) if isinstance(tokens, dict) else {},
+        child_thread_id=str(source.get("child_thread_id")
+                             or record.get("child_thread_id") or ""),
+        pending=[str(item) for item in pending] if isinstance(pending, (list, tuple)) else [],
+        resume_hint=str(source.get("resume_hint") or ""),
+        retryable=bool(source.get("retryable", record.get("retryable", True))),
+    )
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

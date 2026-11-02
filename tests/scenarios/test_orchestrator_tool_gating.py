@@ -289,18 +289,18 @@ def test_canonical_prompts_do_not_duplicate_the_tool_catalog():
     when  they are inspected,
     then  each prompt delegates the full tool list to the auto-added
           '## Available tools' block, keeps its tool-usage rules in-line
-          and contains no duplicated tool-catalog table; dev_agent is v3.26
+          and contains no duplicated tool-catalog table; dev_agent is v3.27
           and ya_agent is v2.11. The batch-calls rule, the verbatim
           user-supplied-plan branch, the generated-PROJECT_MAP rule, the
           Stage 0 recent-workspaces menu (v3.21), the DSML-fallback
-          contract (v3.22) and the subagent stop/transcript rules (v3.26)
-          are pinned here as invariants.
+          contract (v3.22), the subagent stop/transcript rules (v3.26) and
+          the result-collection rule (v3.27) are pinned here as invariants.
     """
     dev = CANONICAL_PROMPT_FILES["dev_agent"].read_text(encoding="utf-8")
     ya = CANONICAL_PROMPT_FILES["ya_agent"].read_text(encoding="utf-8")
 
     # Version headers carry the bumped versions.
-    assert dev.splitlines()[0].endswith("(v3.26)"), dev.splitlines()[0]
+    assert dev.splitlines()[0].endswith("(v3.27)"), dev.splitlines()[0]
     assert ya.splitlines()[0].endswith("(v2.11)"), ya.splitlines()[0]
 
     # RAG context-restore invariant (v3.14): hits carry ids and the
@@ -362,6 +362,11 @@ def test_canonical_prompts_do_not_duplicate_the_tool_catalog():
     # stay technically self-sufficient and never name the source of an idea.
     assert "Never cite the origin of a requirement or a design idea" in dev
     assert "must not name the source of the idea" in dev
+
+    # Result-collection rule invariant (v3.27): a status is not a result -
+    # an unfinished run must not hand anything over as one.
+    assert "subagent_result" in dev
+    assert "ready: false" in dev
 
     # Stale single-call wording is gone from both prompts.
     assert "One tool call per message" not in dev

@@ -369,6 +369,23 @@
 # unfinished work rather than as a result. The blocking wait gained
 # until="all_children".
 
+# 2.25.0 lets a parent check what a child reported. A fan-out returns
+# several results in one step but never a check that they are right, so the
+# new verify_result tool runs a separately appointed verifier agent against
+# ONE finished run of the caller's own tree and answers a structured verdict:
+# passed, failed or inconclusive. The verifier is independent because of what
+# it does not see - the target's summary, artifacts, error code and counters
+# reach it, the transcript and the reasoning do not, and it opens the
+# artifacts itself; a verifier reading the executor's train of thought would
+# agree with it instead of checking the outcome. The answer is parsed
+# conservatively ("passed" next to objections is a failure; an unparsable or
+# unevaluable answer is "inconclusive", never success), and a verifier that
+# fails to do its work yields an inconclusive verdict rather than an error of
+# the call. Checking a check is refused by both the agent and the goal marker,
+# the tool is offered only while a verifier is appointed (its own right, next
+# to the spawn allowlist), and the launch goes through the same service path
+# so the depth, pool and total-run limits apply to a verifier as to any child.
+
 # 2.24.0 reads the pictures a document carries, not only its text. The
 # extract_document_images tool lifts embedded pictures out of PDF, DOCX,
 # PPTX and XLSX, writes them as files inside the project and hands them to
@@ -377,7 +394,23 @@
 # replaces the pictures stored on that page, so the same material is never
 # read twice. The analysis reply is fenced as untrusted image data.
 
-__version__ = "2.24.0"
+# 2.26.0 closes the background lifecycle. A parent could start a child in
+# the background and watch it, but never collect what it produced: the run
+# record is bookkeeping, its summary is capped and its artifact list is not
+# kept at all. The new subagent_result tool answers the second question -
+# the final text, the artifacts and the resources used - in the SAME shape a
+# blocking spawn returns, for a background or blocking run alike. An
+# unfinished run yields no result: the answer is ready=false plus the current
+# state, with no result key at all, because partial work presented as a
+# result looks like success and is therefore worse than an error. The wait is
+# bounded by the same 30-second ceiling as the status check. A terminal run
+# record now carries its frozen result, so the answer survives the registry
+# being released, and one builder (contracts.result_from_record) turns a
+# record back into a result for both this tool and the verifier. Stopping a
+# child already existed and was left untouched - a second stop tool with a
+# different name would only make the model guess.
+
+__version__ = "2.26.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

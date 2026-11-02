@@ -746,6 +746,14 @@ _DELEGATION_CALL_NAMES = ("spawn_agent", "invoke_assistant", "subagent_status",
                          "read_subagent_state", "resume_subagent", "sleep",
                          "cancel_subagent", "read_subagent_thread")
 
+#: Calls the fan-out phase must route, on top of the delegation set above.
+#: ``verify_result`` LAUNCHES a child, so it belongs to the same phase for the
+#: same reason ``spawn_agent`` does: a child started inside ``dispatch`` would
+#: wait for the workspace-binding lock the parent holds for the whole step.
+#: The delegation tuple keeps its documented shape - it is the contract of the
+#: tools that touch the run tree, not the phase's call filter.
+_TREE_CALL_NAMES = _DELEGATION_CALL_NAMES + ("verify_result", "subagent_result")
+
 
 def _agent_brief_from_args(args: Dict[str, Any]):
     """Build an ``AgentBrief`` from tool-call arguments, or None.
@@ -844,6 +852,22 @@ def _delegation_job(tool: str, args: Dict[str, Any], *,
             service=service,
             enable_injection_protection=enable_injection_protection,
         )
+    if tool == "verify_result":
+        # Verification LAUNCHES a verifier child, so it runs in this phase and
+        # not in dispatch. The closure supplies the caller identity the
+        # verifier tree hangs off.
+        from core.orchestration.tools import verify_result
+        return verify_result(
+            run_id=args.get("run_id"),
+            criteria=str(args.get("criteria") or ""),
+            parent_slug=parent_slug,
+            parent_run_id=parent_run_id or None,
+            thread_id=thread_id,
+            parent_config=parent_config,
+            base_dir=base_dir,
+            lang=lang,
+            service=service,
+        )
     if tool == "sleep":
         # The wait needs the parent run id and the service from this closure:
         # the tree root is derived from the record, and the generic dispatch
@@ -876,6 +900,17 @@ def _delegation_job(tool: str, args: Dict[str, Any], *,
             offset=int(args.get("offset") or 0),
             limit=int(args.get("limit") or 50),
             include_tool_results=bool(args.get("include_tool_results")),
+            parent_slug=parent_slug,
+            parent_run_id=parent_run_id or None,
+            service=service,
+        )
+    if tool == "subagent_result":
+        # The confinement check needs the caller's tree, and the wait needs the
+        # service: both come from this closure, not from the generic dispatch.
+        from core.orchestration.tools import subagent_result
+        return subagent_result(
+            run_id=args.get("run_id"),
+            wait_seconds=float(args.get("wait_seconds") or 0.0),
             parent_slug=parent_slug,
             parent_run_id=parent_run_id or None,
             service=service,
@@ -3572,7 +3607,7 @@ def _step_agent_loop_impl(
         # parent holds for the duration of the step.
         delegation_results: Dict[int, Dict[str, Any]] = {}
         delegation_calls = [(i, c) for i, c in enumerate(state.parsed_calls)
-                            if (c.get("tool") or "") in _DELEGATION_CALL_NAMES
+                            if (c.get("tool") or "") in _TREE_CALL_NAMES
                             and not c.get("_dsml")]
         if delegation_calls:
             for _i, _c in delegation_calls:

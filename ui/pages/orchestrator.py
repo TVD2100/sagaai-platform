@@ -68,6 +68,7 @@ from core.orchestrators import (
     get_allowed_agents, set_allowed_agents,
     get_allowed_assistants, set_allowed_assistants,
     get_delegation_limits, set_delegation_limits,
+    get_verifier_agent, set_verifier_agent,
     reset_builtin_prompt,
     DEVAGENT_SLUG,
 )
@@ -3035,6 +3036,37 @@ def _render_delegation_settings(slug: str, lang: str) -> None:
         st.warning(t("orch_delegation_stale_assistant", lang=lang, ident=stale))
     st.caption(t("orch_delegation_assistants_hint", lang=lang))
 
+    # ── Result verifier ──────────────────────────────────────────────────
+    # The verifier is a SEPARATE right: it is not required in the spawn
+    # allowlist above, and its only purpose is checking a finished result.
+    # "Not appointed" is the first entry, so an empty appointment is a
+    # deliberate choice rather than a missing selection.
+    st.markdown(t("orch_delegation_verifier", lang=lang))
+    current_verifier = get_verifier_agent(slug)
+    verifier_options: List[str] = [""]
+    verifier_labels: Dict[str, str] = {"": t("orch_delegation_verifier_none", lang=lang)}
+    for entry in live_orch:
+        other = str(entry.get("slug") or "")
+        if not other:
+            continue
+        verifier_options.append(other)
+        verifier_labels[other] = "%s `%s`" % (str(entry.get("name") or other), other)
+    if current_verifier and current_verifier not in verifier_options:
+        # A deleted employee must not vanish silently: it stays listed so the
+        # user sees what the stored configuration still names.
+        st.warning(t("orch_delegation_stale_verifier", lang=lang, slug=current_verifier))
+        verifier_options.append(current_verifier)
+        verifier_labels[current_verifier] = current_verifier
+    sel_verifier = st.selectbox(
+        t("orch_delegation_verifier_label", lang=lang),
+        options=verifier_options,
+        index=verifier_options.index(current_verifier) if current_verifier in verifier_options else 0,
+        format_func=lambda value: verifier_labels.get(value, value),
+        key=f"orch_delegation_verifier_{slug}",
+        help=t("orch_delegation_verifier_help", lang=lang),
+    )
+    st.caption(t("orch_delegation_verifier_hint", lang=lang))
+
     # ── Limits ───────────────────────────────────────────────────────────
     st.markdown(t("orch_delegation_limits", lang=lang))
     limits = get_delegation_limits(slug)
@@ -3077,6 +3109,13 @@ def _render_delegation_settings(slug: str, lang: str) -> None:
                  key=f"orch_save_delegation_{slug}", type="primary"):
         ok_agents = set_allowed_agents(slug, selected_agents)
         ok_assistants = set_allowed_assistants(slug, selected_assistants)
+        # Written only when the choice actually changed: a save of the other
+        # settings must not touch the verifier appointment, and a no-op write
+        # would still sync the orchestrator folder.
+        selected_verifier = str(sel_verifier or "")
+        ok_verifier = True
+        if selected_verifier != current_verifier:
+            ok_verifier = set_verifier_agent(slug, selected_verifier)
         ok_limits = set_delegation_limits(slug, {
             "max_depth": int(sel_depth),
             "max_active_subagents": int(sel_pool),
@@ -3085,7 +3124,7 @@ def _render_delegation_settings(slug: str, lang: str) -> None:
             "subagent_timeout_seconds": int(sel_timeout),
             "subagent_budget_tokens": int(sel_budget),
         })
-        if ok_agents and ok_assistants and ok_limits:
+        if ok_agents and ok_assistants and ok_limits and ok_verifier:
             pin_settings_section(slug, "delegation")
             flash_success(t("orch_delegation_saved", lang=lang))
             st.rerun()

@@ -218,6 +218,9 @@ def _devagent_default_config() -> Dict[str, Any]:
         "enabled_skills": _lst("enabled_skills"),
         "enabled_connections": _lst("enabled_connections"),
         "disabled_tools": _lst("disabled_tools"),
+        # Agent that checks delegated results: "" = not appointed, and the
+        # ``verify_result`` tool is then not offered at all.
+        "verifier_agent": _str1("verifier_agent", ""),
     }
 
 
@@ -1016,6 +1019,50 @@ def set_allowed_assistants(orchestrator_slug: str, assistant_ids: List[str]) -> 
     return ok
 
 
+def get_verifier_agent(orchestrator_slug: str = DEVAGENT_SLUG) -> str:
+    """Return the agent that checks this orchestrator's delegated results.
+
+    Stored in the config under ``verifier_agent``. An empty string means "not
+    appointed": the ``verify_result`` tool is not offered, and a call to it is
+    refused with ``verifier_not_configured`` rather than falling back to some
+    default agent - a silent substitution would hide the fact that nobody is
+    checking anything.
+
+    The slug is deliberately NOT required to appear in ``allowed_agents``:
+    the right to CHECK a result is a separate right, and folding it into the
+    call allowlist would make verification depend on an unrelated list.
+    """
+    orch = get_orchestrator(orchestrator_slug)
+    cfg = orch.get("config", {}) if orch else {}
+    if not isinstance(cfg, dict):
+        return ""
+    return str(cfg.get("verifier_agent") or "").strip()
+
+
+def set_verifier_agent(orchestrator_slug: str, agent_slug: str) -> bool:
+    """Appoint (or clear) the verifier of an orchestrator; syncs the folder.
+
+    An empty value clears the appointment. A non-empty value must name a LIVE
+    orchestrator: a stale slug would make every verification fail with
+    ``unknown_agent`` while the settings page shows a choice that looks valid.
+    """
+    slug = str(agent_slug or "").strip()
+    orch = get_orchestrator(orchestrator_slug)
+    if orch is None:
+        return False
+    if slug and get_orchestrator(slug) is None:
+        return False
+    cfg = orch.get("config", {})
+    if not isinstance(cfg, dict):
+        cfg = {}
+    cfg = dict(cfg)
+    cfg["verifier_agent"] = slug
+    ok = repo_update_orchestrator(orch["id"], config=cfg)
+    if ok:
+        _sync_orchestrator_folder(orchestrator_slug)
+    return ok
+
+
 #: Delegation limit keys with their documented defaults. The defaults live
 #: in core.orchestration.contracts; this table is the UI-facing order.
 DELEGATION_LIMIT_KEYS = (
@@ -1274,6 +1321,12 @@ def _extend_prompt_with_delegation(prompt: str, orchestrator_slug: str = DEVAGEN
             is_conditional_tool_enabled("invoke_assistant", orchestrator_slug))
     except Exception:
         assistants_available = False
+    verify_available = False
+    try:
+        verify_available = bool(
+            is_conditional_tool_enabled("verify_result", orchestrator_slug))
+    except Exception:
+        verify_available = False
 
     if agents_available:
         entries: List[str] = []
@@ -1313,7 +1366,11 @@ def _extend_prompt_with_delegation(prompt: str, orchestrator_slug: str = DEVAGEN
             "finished the job. When you have nothing else to do while a "
             "background child runs, call `sleep(seconds=...)` instead of "
             "polling `subagent_status`: it returns as soon as a child "
-            "finishes, or when the timeout expires.",
+            "finishes, or when the timeout expires. A status is not a "
+            "result: collect what the child produced with "
+            "`subagent_result(run_id=...)`, which returns the same result "
+            "object a blocking spawn does, and answers `ready: false` with "
+            "no result while the run is unfinished.",
             "",
         ])
         lines.extend(entries)
@@ -1340,6 +1397,22 @@ def _extend_prompt_with_delegation(prompt: str, orchestrator_slug: str = DEVAGEN
             "",
         ])
         lines.extend(a_entries)
+
+    if verify_available:
+        if lines:
+            lines.append("")
+        lines.extend([
+            "## Verifying delegated work",
+            "",
+            "A fan-out gives you several results in one step, but not a check "
+            "that they are right. When a fan-out returned two or more results "
+            "and the outcome matters, call `verify_result(run_id=..., "
+            "criteria=...)` for the result you intend to rely on, before you "
+            "report it as done. State the criteria concretely: the verifier "
+            "sees only the result and the artifacts, never the reasoning that "
+            "produced them. If the verdict is `inconclusive`, say so instead "
+            "of presenting the result as verified.",
+        ])
 
     if not lines:
         return prompt
@@ -2105,6 +2178,13 @@ def ensure_builtin_orchestrators() -> Dict[str, str]:
     # Add disabled_tools if missing (old configs created before the feature).
     if "disabled_tools" not in config:
         config["disabled_tools"] = []
+        backfilled = True
+
+    # Add verifier_agent if missing (old configs created before result
+    # verification): an existing installation must not need a manual edit
+    # before the setting can be chosen in the UI.
+    if "verifier_agent" not in config:
+        config["verifier_agent"] = ""
         backfilled = True
 
     # Legacy configs (created before cache-friendly economy mode) stored

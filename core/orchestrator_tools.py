@@ -101,8 +101,10 @@ _CONDITIONAL_TOOLS = {"url_fetch": "fetch"}
 #: when ``allowed_assistants`` is non-empty - there are no assistants by
 #: default, unlike the right to call yourself.
 _DELEGATION_TOOLS = ("spawn_agent", "invoke_assistant", "subagent_status",
+                     "subagent_result",
                      "read_subagent_state", "resume_subagent", "sleep",
-                     "cancel_subagent", "read_subagent_thread")
+                     "cancel_subagent", "read_subagent_thread",
+                     "verify_result")
 
 
 def _delegation_tool_enabled(tool_name: str,
@@ -125,6 +127,15 @@ def _delegation_tool_enabled(tool_name: str,
         try:
             from core.orchestrators import get_allowed_assistants
             return bool(get_allowed_assistants(orchestrator_slug))
+        except Exception:
+            return False
+    if name == "verify_result":
+        # Checking a result is its own right: the tool exists only while a
+        # verifier is appointed. A config read failure hides it - an entry the
+        # runtime would refuse anyway is a dead end for the model.
+        try:
+            from core.orchestrators import get_verifier_agent
+            return bool(get_verifier_agent(orchestrator_slug))
         except Exception:
             return False
     return True
@@ -190,14 +201,17 @@ def _delegation_catalog() -> List[Dict[str, str]]:
     try:
         from core.orchestration.tools import (
             spawn_tool_entry, invoke_tool_entry, subagent_status_tool_entry,
+            subagent_result_tool_entry,
             read_subagent_state_tool_entry, resume_subagent_tool_entry,
             sleep_tool_entry, cancel_subagent_tool_entry,
-            read_subagent_thread_tool_entry,
+            read_subagent_thread_tool_entry, verify_result_tool_entry,
         )
         return [spawn_tool_entry(), subagent_status_tool_entry(),
+                subagent_result_tool_entry(),
                 read_subagent_state_tool_entry(), resume_subagent_tool_entry(),
                 sleep_tool_entry(), cancel_subagent_tool_entry(),
-                read_subagent_thread_tool_entry(), invoke_tool_entry()]
+                read_subagent_thread_tool_entry(), verify_result_tool_entry(),
+                invoke_tool_entry()]
     except Exception:
         return []
 
