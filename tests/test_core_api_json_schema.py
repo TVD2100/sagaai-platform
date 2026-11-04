@@ -2,8 +2,9 @@
 # Targeted tests for the core.api_layer structured-output plumbing.
 
 import json
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from core.api_errors import ProviderHTTPError
 

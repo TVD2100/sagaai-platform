@@ -18,8 +18,9 @@ import json
 from unittest.mock import MagicMock, patch
 
 from core.api_layer import (
+    # Imported to keep the re-export reachable from this module's namespace.
+    _extract_deepseek_responses_text,  # noqa: F401
     _protect_history,
-    _extract_deepseek_responses_text,  # noqa: F401 (re-exported for clarity)
 )
 
 
@@ -529,8 +530,8 @@ def test_deepseek_responses_request_raises_on_failed_status():
     """HTTP 200 with status=failed raises ProviderResponseError, not an empty answer."""
     import pytest
 
-    from core.api_layer import _deepseek_responses_request
     from core.api_errors import ProviderResponseError
+    from core.api_layer import _deepseek_responses_request
 
     mock_resp = MagicMock()
     mock_resp.status_code = 200

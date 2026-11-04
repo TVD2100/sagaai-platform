@@ -9,12 +9,12 @@ dump_lang_file() гарантируют детерминированный по�
 """
 import json
 import os
-import sys
 import pathlib
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.i18n import dumps_lang, dump_lang_file
+from core.i18n import dump_lang_file, dumps_lang
 
 
 def test_dumps_lang_preserves_insertion_order():

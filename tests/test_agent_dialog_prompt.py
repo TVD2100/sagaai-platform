@@ -14,11 +14,12 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core import orchestrators  # noqa: E402
-from core import orchestrator_tools  # noqa: E402
+from core import (
+    orchestrator_tools,  # noqa: E402
+    orchestrators,  # noqa: E402
+)
 from core.orchestration import service as orchestration_service  # noqa: E402
 from core.orchestration import tools  # noqa: E402
-
 
 SLUG = "dev_agent"
 

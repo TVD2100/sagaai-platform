@@ -5,10 +5,11 @@ auto-attaches the RAG function tools on save.
 from __future__ import annotations
 
 import sys
-import pytest
 from unittest.mock import patch
 
-from tests._st_mock import install_streamlit_mock, StopRerun
+import pytest
+
+from tests._st_mock import StopRerun, install_streamlit_mock
 
 TOOL_CATALOG_MOCK = [{"name": "web_search"}, {"name": "read_file"}]
 

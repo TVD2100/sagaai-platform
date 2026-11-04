@@ -22,11 +22,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from core.orchestration import service as S  # noqa: E402
 from core.orchestration.contracts import (  # noqa: E402
+    STATUS_DONE,
+    STOP_COMPLETED,
     AgentBrief,
     AgentRunResult,
     SpawnRequest,
-    STATUS_DONE,
-    STOP_COMPLETED,
 )
 
 

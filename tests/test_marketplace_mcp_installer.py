@@ -23,7 +23,6 @@ from tests.marketplace_fixtures import (  # noqa: E402
     serve_catalog,
 )
 
-
 #: Preset of a remote server - the shape the catalog publishes.
 PRESET = {
     "name": {"en": "Demo MCP", "ru": "Демо MCP"},

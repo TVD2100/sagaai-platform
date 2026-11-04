@@ -27,8 +27,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from storage.db import reset_engine, reset_devagent_engine
-
+from storage.db import reset_devagent_engine, reset_engine
 
 FIXTURE_SERVER = Path(__file__).parent / "fixtures" / "mcp_demo_server.py"
 
@@ -193,8 +192,8 @@ def test_env_json_secret_never_appears_in_catalog_or_payload(orch_slug):
     """The plaintext env_json secret never surfaces in public results."""
     import core.mcp_tools as mcp_tools
     conn = _make_connection(orch_slug, env_secret=json.dumps({"MY_TOKEN": "top-secret-value"}))
-    from core.orchestrator_tools import build_tool_catalog
     import core.connectors as connectors
+    from core.orchestrator_tools import build_tool_catalog
 
     secret_plain = "top-secret-value"
     catalog = build_tool_catalog(orch_slug)

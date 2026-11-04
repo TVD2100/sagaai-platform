@@ -203,8 +203,9 @@ _SKILL = {
 
 def test_send_request_retries_transport_errors_then_succeeds():
     """ConnectionError -> Timeout -> success is one transparent call."""
-    import requests as real_requests
     from unittest.mock import MagicMock, patch
+
+    import requests as real_requests
 
     from core.api_layer import send_request
 
@@ -228,8 +229,9 @@ def test_send_request_retries_transport_errors_then_succeeds():
 
 def test_send_request_exhausted_raises_with_attempts():
     """Permanent outage re-raises NetworkError after 3 attempts."""
-    import requests as real_requests
     from unittest.mock import patch
+
+    import requests as real_requests
 
     from core.api_layer import send_request
 

@@ -102,11 +102,11 @@ class TestSeeding:
 
     def test_available_to_devagent_without_connections(self, isolated_data_dir,
                                                        monkeypatch):
+        import core.orchestrators as orch_mod
         from core.instructions import (
             ensure_global_instructions,
             list_instructions_for,
         )
-        import core.orchestrators as orch_mod
 
         ensure_global_instructions()
         # DevAgent with no enabled connections: non-connector global

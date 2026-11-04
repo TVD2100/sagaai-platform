@@ -27,7 +27,6 @@ if str(PKG_ROOT) not in sys.path:
 from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 from tests.marketplace_fixtures import marketplace_data_dir  # noqa: E402,F401 - fixture
 
-
 #: Attribute names that would reach the catalog.
 NETWORK_CALLS = frozenset({
     "fetch_index",

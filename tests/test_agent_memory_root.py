@@ -68,8 +68,8 @@ def test_set_memory_root_honours_an_external_override(roots, tmp_path):
         "editor", str(roots["project"]))
     assert root is not None
     # Now point the employee at an external folder through its config.
-    from core import orchestrators as orch
     from core import orchestrator_folders as of
+    from core import orchestrators as orch
     resolved = of.resolve_data_dir("editor", str(roots["project"]),
                                    prompt_text=f"MEMORY_DIR: {external}",
                                    config={})

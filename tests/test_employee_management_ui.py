@@ -6,9 +6,9 @@ Verifies that the employee management page (orchestrators) and the per-employee
 settings page render without errors and that the export/import employee UI has
 been removed from those pages.
 """
+import importlib
 import os
 import sys
-import importlib
 import tempfile
 
 import pytest
@@ -18,7 +18,7 @@ PKG_ROOT = os.path.dirname(HERE)              # .../sagaai
 if PKG_ROOT not in sys.path:
     sys.path.insert(0, PKG_ROOT)
 
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 
 @pytest.fixture()
@@ -55,7 +55,7 @@ def test_orchestrators_management_page_renders(isolated_data):
     """Employee management page must render without errors and without
     export/import widgets."""
     with install_streamlit_mock() as st:
-        ui_app = _fresh_ui()
+        _fresh_ui()
         from ui.pages.orchestrators import page_orchestrators
 
         st.session_state.update(dict(ui_lang="English", current_page="orchestrators"))
@@ -75,7 +75,7 @@ def test_orchestrator_settings_page_has_no_export_import_tab(isolated_data):
     """Per-employee settings page must render without errors and without the
     Export/Import tab."""
     with install_streamlit_mock() as st:
-        ui_app = _fresh_ui()
+        _fresh_ui()
 
         # Seed the built-in DevAgent orchestrator so get_orchestrator()
         # resolves for the settings page.

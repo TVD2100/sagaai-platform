@@ -10,8 +10,8 @@ are in test_core_api_send.py.
 """
 
 import json
-import pytest
 
+import pytest
 
 # ─── _normalise_tools ──────────────────────────────────────────────────────
 

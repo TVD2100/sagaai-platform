@@ -19,7 +19,6 @@ from unittest.mock import MagicMock, patch
 import core.api_layer as api_layer
 from core.api_layer import _clamp_max_tokens, _gigachat_messages
 
-
 GIGACHAT_SVC = {
     "name": "GigaChat",
     "auth_type": "gigachat_oauth",

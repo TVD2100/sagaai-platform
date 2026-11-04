@@ -5,9 +5,9 @@ These do NOT require streamlit to be installed. They execute ui.app.main()
 and each page render function, catching real runtime errors, and they
 simulate button clicks to verify handlers fire (mutate session_state / rerun).
 """
+import importlib
 import os
 import sys
-import importlib
 import tempfile
 
 import pytest
@@ -17,7 +17,7 @@ PKG_ROOT = os.path.dirname(HERE)              # .../sagaai
 if PKG_ROOT not in sys.path:
     sys.path.insert(0, PKG_ROOT)
 
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 
 @pytest.fixture()
@@ -55,13 +55,13 @@ def test_main_renders_without_error(isolated_data):
 def test_every_page_renders(isolated_data):
     """Each page function must execute without raising (StopRerun allowed)."""
     with install_streamlit_mock() as st:
-        ui_app = _fresh_ui()
-        from ui.pages.chat        import page_run_query
-        from ui.pages.skills      import page_skills
-        from ui.pages.settings    import page_settings
-        from ui.pages.history     import page_history
-        from ui.pages.orchestrator import page_orchestrator, DEVAGENT_SLUG
-        from ui.pages.stats       import page_stats
+        _fresh_ui()
+        from ui.pages.chat import page_run_query
+        from ui.pages.history import page_history
+        from ui.pages.orchestrator import DEVAGENT_SLUG, page_orchestrator
+        from ui.pages.settings import page_settings
+        from ui.pages.skills import page_skills
+        from ui.pages.stats import page_stats
 
         # seed minimal session state the pages expect
         st.session_state.update(dict(
@@ -92,7 +92,7 @@ def test_create_skill_button_fires(isolated_data):
     show_skill_form in session_state (proves the handler runs).
     """
     with install_streamlit_mock() as st:
-        ui_app = _fresh_ui()
+        _fresh_ui()
         from ui.pages.skills import page_skills
 
         st.session_state.update(dict(
@@ -192,11 +192,11 @@ def test_no_duplicate_widget_keys(isolated_data):
     # ── render main() ─────────────────────────────────────────────────────────
     with install_streamlit_mock() as st:
         ui_app = _fresh_ui()
-        from ui.pages.chat        import page_run_query
-        from ui.pages.skills      import page_skills
-        from ui.pages.settings    import page_settings
-        from ui.pages.history     import page_history
-        from ui.pages.orchestrator import page_orchestrator, DEVAGENT_SLUG
+        from ui.pages.chat import page_run_query
+        from ui.pages.history import page_history
+        from ui.pages.orchestrator import DEVAGENT_SLUG, page_orchestrator
+        from ui.pages.settings import page_settings
+        from ui.pages.skills import page_skills
 
         base_state = dict(
             show_skill_form=False, edit_skill_id=None, user_input_value="",

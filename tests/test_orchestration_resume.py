@@ -18,19 +18,18 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from core.orchestration import resume as RES  # noqa: E402
 from core.orchestration import service as S  # noqa: E402
 from core.orchestration.contracts import (  # noqa: E402
-    AgentBrief,
-    AgentRunResult,
     ERR_NOT_YOUR_RUN,
     ERR_RESUME_CHAIN_LIMIT,
     ERR_RESUME_UNAVAILABLE,
     STATUS_AWAITING_INPUT,
     STATUS_DONE,
     STATUS_FAILED,
-    SpawnRequest,
     STOP_COMPLETED,
     STOP_ERROR,
+    AgentBrief,
+    AgentRunResult,
+    SpawnRequest,
 )
-
 
 JOURNAL_SECTIONS = {
     "task": "Refactor the storage layer and add tests.",

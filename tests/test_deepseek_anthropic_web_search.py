@@ -26,11 +26,10 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 from core.api_layer import (
-    _deepseek_anthropic_web_search,
     _anthropic_web_search_used,
+    _deepseek_anthropic_web_search,
     _extract_anthropic_text,
 )
-
 
 WS_URL = "https://api.deepseek.com/anthropic/v1/messages"
 
@@ -250,6 +249,7 @@ def test_provider_http_error_is_raised():
 
 def test_network_error_is_raised():
     import requests as _requests
+
     from core.api_errors import NetworkError
 
     with patch("core.api_layer.requests.post",

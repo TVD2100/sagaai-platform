@@ -49,9 +49,9 @@ class _NoThreadState:
 def test_thread_context_lists_dialog_uploads(tmp_path):
     """The injected block reports thread uploads as facts (name, path, size,
     text/binary kind) without embedding any file content."""
-    from dev_agent import agent_loop as al
-    from core.threads_devagent import save_thread_file_data
     from core.paths import get_thread_dir
+    from core.threads_devagent import save_thread_file_data
+    from dev_agent import agent_loop as al
 
     save_thread_file_data("ctx_thread_01", "note.txt", "hello\nworld\n".encode())
     save_thread_file_data("ctx_thread_01", "data.zip", b"PK\x03\x04" + bytes(range(8)))
@@ -93,8 +93,8 @@ def test_thread_context_no_thread_id_returns_none(tmp_path):
 
 def test_refresh_appends_thread_context_snapshot(tmp_path, monkeypatch):
     """refresh_context_snapshots appends ONE hidden thread-context snapshot."""
-    from dev_agent import agent_loop as al
     from core.threads_devagent import save_thread_file_data
+    from dev_agent import agent_loop as al
 
     # Isolate the thread-context kind: no task-state block in this test.
     monkeypatch.setattr(al, "_maybe_task_state_context", lambda: None)

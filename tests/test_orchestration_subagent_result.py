@@ -26,8 +26,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from core.orchestration import tools  # noqa: E402
 from core.orchestration.contracts import (  # noqa: E402
-    AgentRunResult,
-    Artifact,
     ERR_CANCELLED_BY_PARENT,
     ERR_INVALID_ARGS,
     ERR_NOT_YOUR_RUN,
@@ -35,6 +33,8 @@ from core.orchestration.contracts import (  # noqa: E402
     STATUS_CANCELLED,
     STATUS_DONE,
     STATUS_RUNNING,
+    AgentRunResult,
+    Artifact,
 )
 
 #: The keys a result carries to the model. Pinned literally: a new field

@@ -23,7 +23,6 @@ from core.assistant_tools import (
     run_yandex_responses_tool_loop,
 )
 
-
 _FUNCTION_TOOL = {
     "type": "function",
     "name": "rag_search",
@@ -275,9 +274,12 @@ def test_loop_400_fallback_textual():
         idx = _side_effect.calls
         _side_effect.calls += 1
         if idx == 1:
-            r = MagicMock(); r.status_code = 400; r.text = '{"error": {"message": "bad"}}'
+            r = MagicMock()
+            r.status_code = 400
+            r.text = '{"error": {"message": "bad"}}'
             return r
-        r = MagicMock(); r.status_code = 200
+        r = MagicMock()
+        r.status_code = 200
         r.json.return_value = first if idx == 0 else final
         return r
 

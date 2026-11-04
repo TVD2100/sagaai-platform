@@ -23,7 +23,6 @@ from tests.marketplace_fixtures import (  # noqa: E402
     sha256_hex,
 )
 
-
 #: Chunks of the first published index.
 CHUNKS_V1 = [
     "Документ: Yandex Cloud. Продукт: Object Storage. Заголовок: Бакеты",

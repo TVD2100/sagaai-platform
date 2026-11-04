@@ -73,7 +73,7 @@ def test_key_file_permissions_are_0600():
 
 
 def test_encrypt_decrypt_round_trip():
-    from core.crypto import encrypt, decrypt
+    from core.crypto import decrypt, encrypt
 
     plain = "sk-test-secret-123"
     token = encrypt(plain)
@@ -82,7 +82,7 @@ def test_encrypt_decrypt_round_trip():
 
 
 def test_encrypt_empty_returns_empty():
-    from core.crypto import encrypt, decrypt
+    from core.crypto import decrypt, encrypt
 
     assert encrypt("") == ""
     assert decrypt("") == ""
@@ -96,8 +96,9 @@ def test_decrypt_invalid_token_raises():
 
 
 def test_decrypt_token_from_foreign_key_raises():
-    from core.crypto import encrypt, decrypt
     from cryptography.fernet import Fernet as F
+
+    from core.crypto import decrypt, encrypt
 
     other_key = F.generate_key()
     other = F(other_key)

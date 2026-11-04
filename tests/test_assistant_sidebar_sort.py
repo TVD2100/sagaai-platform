@@ -12,10 +12,10 @@ from datetime import datetime
 
 from core.assistant_nav import (
     DEFAULT_VISIBLE_ASSISTANTS,
+    _parse_ts,
     last_dialogue_at,
     sort_assistants,
     split_nav_lists,
-    _parse_ts,
 )
 
 

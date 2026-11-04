@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from tests._st_mock import install_streamlit_mock  # noqa: E402
 
 with install_streamlit_mock():
-    from ui.pages.assistants import _temperature_bounds, _clamp_temperature  # noqa: E402
+    from ui.pages.assistants import _clamp_temperature, _temperature_bounds  # noqa: E402
 
 
 def test_temperature_bounds_from_service():

@@ -80,9 +80,7 @@ def test_create_devagent_thread_saves_workspace(tmp_path):
 
 def test_save_thread_workspace_updates_last_workspace(tmp_path):
     """save_thread_workspace must overwrite previous workspace/target_file."""
-    from core.threads_devagent import (
-        create_devagent_thread, load_thread_meta, save_thread_workspace
-    )
+    from core.threads_devagent import create_devagent_thread, load_thread_meta, save_thread_workspace
 
     ws1, ws2, target = _create_temp_workspaces(tmp_path)
     tid = create_devagent_thread(
@@ -108,9 +106,7 @@ def test_save_thread_workspace_updates_last_workspace(tmp_path):
 
 def test_repo_devagent_create_thread_persists_columns(tmp_path):
     """Repository-level create must store the new fields directly."""
-    from storage.repository_devagent import (
-        repo_devagent_create_thread, repo_devagent_load_thread_meta
-    )
+    from storage.repository_devagent import repo_devagent_create_thread, repo_devagent_load_thread_meta
 
     ws1, ws2, target = _create_temp_workspaces(tmp_path)
     ok = repo_devagent_create_thread(
@@ -129,6 +125,7 @@ def test_thread_columns_are_migrated(tmp_path):
     creating the engine must add the missing columns without dropping rows.
     """
     import sqlite3
+
     from sqlalchemy import create_engine
 
     # Create a legacy-shaped table with an existing row.
@@ -184,12 +181,12 @@ def test_to_dict_contains_new_columns(tmp_path):
 
 def test_migration_clears_platform_folders_for_foreign_threads(tmp_path):
     """Platform folders in non-dev_agent meta are cleared; others survive."""
-    from dev_agent import config
     from core.threads_devagent import (
         create_devagent_thread,
         load_thread_meta,
         migrate_platform_workspace_meta,
     )
+    from dev_agent import config
 
     install = str(config.INSTALL_ROOT.resolve())
     inside = os.path.join(install, "apps", "some_project")
@@ -232,12 +229,12 @@ def test_migration_clears_platform_folders_for_foreign_threads(tmp_path):
 
 def test_migration_clears_platform_target_file(tmp_path):
     """A single-file target inside the platform root is cleaned too."""
-    from dev_agent import config
     from core.threads_devagent import (
         create_devagent_thread,
         load_thread_meta,
         migrate_platform_workspace_meta,
     )
+    from dev_agent import config
 
     install = str(config.INSTALL_ROOT.resolve())
     tid = create_devagent_thread(

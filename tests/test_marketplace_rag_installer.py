@@ -23,7 +23,6 @@ from tests.marketplace_fixtures import (  # noqa: E402
     sha256_hex,
 )
 
-
 #: Chunk texts of a small but realistic prebuilt index.
 CHUNKS = [
     "Документ: Yandex Cloud. Продукт: Object Storage. Заголовок: Бакеты",

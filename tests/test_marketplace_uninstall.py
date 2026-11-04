@@ -75,7 +75,7 @@ def test_removal_marker_survives_a_default_import(marketplace_data_dir, monkeypa
 
     # Register a folder that looks like the bundled default skill, then
     # remove it through the marketplace and let the importer run again.
-    from core.skills_library import register_skill, ensure_skills_root
+    from core.skills_library import ensure_skills_root, register_skill
 
     folder_name = "rag_base_creator"
     target = Path(ensure_skills_root()) / folder_name

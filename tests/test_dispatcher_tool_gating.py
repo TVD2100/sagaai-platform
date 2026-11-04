@@ -6,16 +6,16 @@ tool (including custom functions and connection tools) must return a
 structured ``disabled: true`` error instead of executing.
 """
 import os
+import shutil
 import sys
 import tempfile
-import shutil
 from pathlib import Path
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from storage.db import reset_engine, reset_devagent_engine
+from storage.db import reset_devagent_engine, reset_engine
 
 
 @pytest.fixture
@@ -114,7 +114,7 @@ class TestDispatchToolGating:
 
     def test_disabled_connection_tool_is_blocked(self, orch_slug):
         from core.connectors import create_connection
-        from core.orchestrators import set_enabled_connections, set_disabled_tools
+        from core.orchestrators import set_disabled_tools, set_enabled_connections
         conn = create_connection("github_rest", "Rest Conn", "tok")
         set_enabled_connections(orch_slug, [conn["id"]])
         set_disabled_tools(orch_slug, ["ghr_list_repos"])

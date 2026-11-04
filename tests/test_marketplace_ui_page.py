@@ -25,7 +25,6 @@ if str(PKG_ROOT) not in sys.path:
 
 from tests._st_mock import WidgetLockedError, install_streamlit_mock  # noqa: E402
 
-
 CATALOG_ANSWER = {
     "ok": True,
     "stale": False,

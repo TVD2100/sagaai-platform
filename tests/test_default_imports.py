@@ -15,8 +15,8 @@ Verifies that:
 """
 import json
 import os
-import sys
 import shutil
+import sys
 from pathlib import Path
 
 import pytest
@@ -73,6 +73,7 @@ def isolated_data_dir(tmp_path):
     # Reload it so the default RAG bases seeding stays under the temporary
     # DATA_DIR instead of leaking into the real (package-root) DATA_DIR.
     import importlib
+
     import core.rag as rag_mod
     importlib.reload(rag_mod)
 
@@ -80,7 +81,7 @@ def isolated_data_dir(tmp_path):
     db_mod.DB_PATH = paths_mod.DB_PATH
     db_mod.DEVAGENT_DB_PATH = paths_mod.DEVAGENT_DB_PATH
 
-    from storage.db import reset_engine, reset_devagent_engine
+    from storage.db import reset_devagent_engine, reset_engine
     reset_engine()
     reset_devagent_engine()
 
@@ -131,8 +132,8 @@ class TestDefaultsLoaders:
         assert data["prompt_text"].strip()
 
     def test_dev_agent_instructions_loaded(self):
-        from core import defaults as d
         import core.defaults as defaults_mod
+        from core import defaults as d
         instr_dir = os.path.join(defaults_mod.orchestrators_dir(), "dev_agent", "instructions")
         assert os.path.isdir(instr_dir)
         files = [f for f in sorted(os.listdir(instr_dir)) if f.endswith(".md")]
@@ -224,12 +225,12 @@ class TestBootstrapDefaults:
         """Per-assistant web-search overrides are stored in the runtime folder
         manifest of a created assistant (constrains where its web search may
         look). The bundled 'ai_studio_docs' preset was intentionally removed."""
-        from core.default_imports import ensure_all_defaults
-        from core.assistants import create_assistant, get_assistant_by_id
         from core.assistant_folders import (
             get_assistant_web_search_settings,
             set_assistant_web_search_settings,
         )
+        from core.assistants import create_assistant, get_assistant_by_id
+        from core.default_imports import ensure_all_defaults
 
         ensure_all_defaults()
         pid = create_assistant(
@@ -264,12 +265,12 @@ class TestBootstrapDefaults:
         """A pre-existing 'orchestrator_creator' instruction (old id) is migrated
         into the canonical 'employee_creator' instruction, keeping user-edited
         text, and the legacy row is removed."""
+        from core.default_imports import ensure_all_defaults
         from core.orchestrators import (
             DEVAGENT_SLUG,
             orch_get_instruction,
             orch_save_instruction,
         )
-        from core.default_imports import ensure_all_defaults
 
         legacy_text = (
             "Legacy Employee Creator prompt (user-edited).\n"
@@ -327,7 +328,9 @@ class TestBuiltinPromptPersistence:
 
     def test_user_edited_prompt_survives_bootstrap(self, isolated_data_dir):
         from core.orchestrators import (
-            ensure_builtin_orchestrators, get_orchestrator, save_orchestrator,
+            ensure_builtin_orchestrators,
+            get_orchestrator,
+            save_orchestrator,
         )
 
         ensure_builtin_orchestrators()
@@ -359,7 +362,9 @@ class TestBuiltinPromptPersistence:
 
     def test_reset_restores_shipped_prompt(self, isolated_data_dir):
         from core.orchestrators import (
-            ensure_builtin_orchestrators, get_orchestrator, reset_builtin_prompt,
+            ensure_builtin_orchestrators,
+            get_orchestrator,
+            reset_builtin_prompt,
             save_orchestrator,
         )
 
@@ -377,7 +382,9 @@ class TestBuiltinPromptPersistence:
         """The marker is only for built-in orchestrators."""
         from core.default_imports import ensure_all_defaults
         from core.orchestrators import (
-            create_orchestrator, get_orchestrator, save_orchestrator,
+            create_orchestrator,
+            get_orchestrator,
+            save_orchestrator,
         )
 
         ensure_all_defaults()
@@ -429,8 +436,8 @@ class TestLegacyFallbacks:
     def test_no_defaults_means_no_orchestrator_import(self, isolated_data_dir, monkeypatch):
         """Without defaults/orchestrators/ nothing is imported - presets
         fallback no longer exists."""
-        from core.default_imports import ensure_default_orchestrators
         import core.defaults as defaults_mod
+        from core.default_imports import ensure_default_orchestrators
 
         missing_dir = str(Path(isolated_data_dir) / "no_defaults_orchestrators")
         monkeypatch.setattr(defaults_mod, "orchestrators_dir", lambda: missing_dir)

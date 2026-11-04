@@ -16,13 +16,13 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from core.marketplace import catalog  # noqa: E402
 from core.marketplace import publish as publish_mod  # noqa: E402
-from core.marketplace import catalog, source as source_mod  # noqa: E402
+from core.marketplace import source as source_mod
 from tests.marketplace_fixtures import (  # noqa: E402
     marketplace_data_dir,  # noqa: F401 - fixture
     serve_catalog,  # noqa: F401 - fixture
 )
-
 
 SKILL_FILES = {
     "SKILL.md": "# Demo\n\nInstructions.\n",

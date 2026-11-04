@@ -14,7 +14,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from core.orchestration import contracts as C  # noqa: E402
 
-
 # ─── stop reasons ────────────────────────────────────────────────────────────
 
 

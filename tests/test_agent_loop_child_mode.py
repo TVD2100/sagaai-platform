@@ -16,7 +16,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from dev_agent import agent_loop as AL  # noqa: E402
 
-
 # ─── state defaults ────────────────────────────────────────────────────────
 
 
@@ -134,8 +133,9 @@ def test_child_mode_answers_a_confirmation_with_a_refusal():
 
 def test_the_child_runner_enables_child_mode():
     """The service must not rely on the caller remembering the flag."""
-    from core.orchestration import service as S
     import inspect
+
+    from core.orchestration import service as S
 
     source = inspect.getsource(S._default_child_runner)
     assert "child_mode=True" in source

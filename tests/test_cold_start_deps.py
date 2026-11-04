@@ -12,16 +12,17 @@ chat page emits unrelated warnings of its own during a full main() render.
 from __future__ import annotations
 
 import sys
-import pytest
 from unittest.mock import patch
 
-from tests._st_mock import install_streamlit_mock, StopRerun
+import pytest
+
+from tests._st_mock import StopRerun, install_streamlit_mock
 from tests.test_ui_pages import (
-    PATCHES_CORE,
     PATCHES_API,
-    PATCHES_SKILLS,
-    PATCHES_MISC,
+    PATCHES_CORE,
     PATCHES_INSTRUCTIONS,
+    PATCHES_MISC,
+    PATCHES_SKILLS,
     _apply_all,
 )
 

@@ -7,8 +7,8 @@ These tests catch ModuleNotFoundError regressions like the one where
 was missing from sys.path.
 """
 import os
-import sys
 import re
+import sys
 
 # Path to the project root (parent of tests/)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -25,38 +25,35 @@ def test_all_core_packages_importable():
         sys.path.insert(0, PROJECT_ROOT)
 
     import core
-    import core.paths
+    import core.api_layer
+    import core.bootstrap
     import core.config
     import core.crypto
     import core.env_loader
     import core.files
     import core.fs
     import core.i18n
+    import core.paths
     import core.render
     import core.services
     import core.skills
     import core.threads
-    import core.bootstrap
-    import core.api_layer
-
+    import dev_agent
+    import dev_agent.agent_loop
+    import dev_agent.backup_manager
+    import dev_agent.config
+    import dev_agent.safe_writer
+    import dev_agent.tool_executor
+    import dev_agent.universal_agent
+    import dev_agent.workspace_tools
+    import storage
+    import storage.db
+    import storage.models
+    import storage.repository
     import ui
     import ui.app
     import ui.components
     import ui.pages
-
-    import storage
-    import storage.models
-    import storage.db
-    import storage.repository
-
-    import dev_agent
-    import dev_agent.config
-    import dev_agent.backup_manager
-    import dev_agent.safe_writer
-    import dev_agent.tool_executor
-    import dev_agent.workspace_tools
-    import dev_agent.agent_loop
-    import dev_agent.universal_agent
 
 
 def test_no_st_get_option_with_two_args():

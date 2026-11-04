@@ -15,7 +15,6 @@ import sqlite3
 import sys
 
 import pytest
-
 from sqlalchemy import inspect
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -148,7 +147,7 @@ def test_query_plan_uses_index(tmp_path, monkeypatch,
     """Per-thread message loads use the index, not a full scan."""
     eng, db_path = _fresh_engine(tmp_path, monkeypatch, isolated_app_modules)
     try:
-        from storage.repository import repo_create_thread, repo_append_message
+        from storage.repository import repo_append_message, repo_create_thread
         repo_create_thread("t1", None, "Dev")
         repo_append_message("t1", "user", "hello")
         with sqlite3.connect(db_path) as con:

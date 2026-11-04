@@ -9,17 +9,18 @@ interference.
 
 import json
 import sys
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 import requests as real_requests
 
 from core.api_errors import (
     ApiKeyMissingError,
-    ServiceNotFoundError,
     AuthTypeUnknownError,
+    NetworkError,
     ProviderHTTPError,
     RequestTimeoutError,
-    NetworkError,
+    ServiceNotFoundError,
 )
 
 

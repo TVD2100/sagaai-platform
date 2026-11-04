@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 """Tests for UniversalDevAgent connection tool registration."""
 import os
+import shutil
 import sys
 import tempfile
-import shutil
 from pathlib import Path
+
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from storage.db import reset_engine, reset_devagent_engine
+from storage.db import reset_devagent_engine, reset_engine
 
 
 @pytest.fixture
@@ -66,9 +67,9 @@ class TestDispatcherConnectionTools:
             assert name not in agent._extra
 
     def test_enabled_connections_do_not_register_legacy_github_tools(self, orch_slug):
-        from dev_agent.universal_agent import UniversalDevAgent
         from core.connectors import create_connection
         from core.orchestrators import set_enabled_connections
+        from dev_agent.universal_agent import UniversalDevAgent
         conn = create_connection('github_rest', 'Rest Conn', 'tok')
         set_enabled_connections(orch_slug, [conn['id']])
         agent = UniversalDevAgent()
@@ -79,9 +80,9 @@ class TestDispatcherConnectionTools:
             assert name not in agent._extra
 
     def test_enabled_connections_register_github_rest_tools(self, orch_slug):
-        from dev_agent.universal_agent import UniversalDevAgent
         from core.connectors import create_connection
         from core.orchestrators import set_enabled_connections
+        from dev_agent.universal_agent import UniversalDevAgent
         conn = create_connection('github_rest', 'Rest Conn', 'tok')
         set_enabled_connections(orch_slug, [conn['id']])
         agent = UniversalDevAgent()
@@ -97,9 +98,9 @@ class TestDispatcherConnectionTools:
             assert name in agent._extra, name
 
     def test_dispatch_github_rest_tool_missing_connector_id(self, orch_slug):
-        from dev_agent.universal_agent import UniversalDevAgent
         from core.connectors import create_connection
         from core.orchestrators import set_enabled_connections
+        from dev_agent.universal_agent import UniversalDevAgent
         conn = create_connection('github_rest', 'Rest Conn', 'tok')
         set_enabled_connections(orch_slug, [conn['id']])
         agent = UniversalDevAgent()
@@ -109,9 +110,9 @@ class TestDispatcherConnectionTools:
         assert 'connector_id' in result.get('error', '')
 
     def test_disable_connections_removes_github_rest_tools(self, orch_slug):
-        from dev_agent.universal_agent import UniversalDevAgent
         from core.connectors import create_connection
         from core.orchestrators import set_enabled_connections
+        from dev_agent.universal_agent import UniversalDevAgent
         conn = create_connection('github_rest', 'Rest Conn', 'tok')
         set_enabled_connections(orch_slug, [conn['id']])
         agent = UniversalDevAgent()
@@ -122,9 +123,9 @@ class TestDispatcherConnectionTools:
         assert 'ghr_list_repos' not in agent._extra
 
     def test_dispatch_create_tag_requires_connector_id(self, orch_slug):
-        from dev_agent.universal_agent import UniversalDevAgent
         from core.connectors import create_connection
         from core.orchestrators import set_enabled_connections
+        from dev_agent.universal_agent import UniversalDevAgent
         conn = create_connection('github_rest', 'Rest Conn', 'tok')
         set_enabled_connections(orch_slug, [conn['id']])
         agent = UniversalDevAgent()
@@ -145,8 +146,8 @@ class TestDispatcherSshConnectionTools:
         )
 
     def test_enabled_ssh_connection_registers_ssh_tools(self, orch_slug):
-        from dev_agent.universal_agent import UniversalDevAgent
         from core.orchestrators import set_enabled_connections
+        from dev_agent.universal_agent import UniversalDevAgent
         conn = self._make_ssh()
         set_enabled_connections(orch_slug, [conn['id']])
         agent = UniversalDevAgent()
@@ -163,9 +164,9 @@ class TestDispatcherSshConnectionTools:
         assert 'connector_id' in result.get('error', '')
 
     def test_switch_from_github_to_ssh_drops_github_tools(self, orch_slug):
-        from dev_agent.universal_agent import UniversalDevAgent
         from core.connectors import create_connection
         from core.orchestrators import set_enabled_connections
+        from dev_agent.universal_agent import UniversalDevAgent
         gh = create_connection('github_rest', 'GH', 'tok')
         ssh = self._make_ssh()
         set_enabled_connections(orch_slug, [gh['id']])
@@ -178,8 +179,8 @@ class TestDispatcherSshConnectionTools:
         assert 'ssh_exec' in agent._extra
 
     def test_disable_connections_removes_ssh_tools(self, orch_slug):
-        from dev_agent.universal_agent import UniversalDevAgent
         from core.orchestrators import set_enabled_connections
+        from dev_agent.universal_agent import UniversalDevAgent
         ssh = self._make_ssh()
         set_enabled_connections(orch_slug, [ssh['id']])
         agent = UniversalDevAgent()

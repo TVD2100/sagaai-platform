@@ -14,7 +14,6 @@ import pytest
 
 from core import connector_presets
 
-
 _BASE_CONFIG = {
     "transport": "http",
     "url": "https://example.test/mcp",

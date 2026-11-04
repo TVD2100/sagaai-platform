@@ -2,7 +2,6 @@
 
 import pytest
 
-
 SCHEMA = {
     "type": "object",
     "properties": {"ok": {"type": "boolean"}},

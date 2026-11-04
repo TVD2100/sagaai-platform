@@ -1,11 +1,12 @@
 """Tests for backup_manager and safe_writer, incl. PROTECTED_FILES enforcement."""
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from dev_agent import config
 from dev_agent.backup_manager import BackupManager
-from dev_agent.safe_writer import SafeWriter, ProtectedFileError
+from dev_agent.safe_writer import ProtectedFileError, SafeWriter
 
 
 @pytest.fixture

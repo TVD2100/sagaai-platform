@@ -29,7 +29,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from dev_agent import agent_loop as al
 
-
 TS_TEXT = "CURRENT TASK STATE:\ntask: demo\nprogress: 1/2"
 TC_TEXT = "## CURRENT THREAD ARTIFACTS DIR\nthread_id: t1"
 

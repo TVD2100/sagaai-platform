@@ -19,13 +19,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from core.orchestration import tools  # noqa: E402
 from core.orchestration.contracts import (  # noqa: E402
-    AgentBrief,
     ERR_INVALID_ARGS,
     ERR_RESUME_UNAVAILABLE,
     ERR_RUN_NOT_FOUND,
     STATUS_AWAITING_INPUT,
     STATUS_DONE,
     STATUS_RUNNING,
+    AgentBrief,
     SpawnRequest,
 )
 

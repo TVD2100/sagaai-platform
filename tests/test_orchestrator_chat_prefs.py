@@ -17,7 +17,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 
 @pytest.fixture()
@@ -80,8 +80,8 @@ def _render_chat(ui_env, monkeypatch, slug, orch_dict, history=()):
 
 def test_devagent_page_uses_devagent_welcome(ui_env, monkeypatch):
     """DevAgent must greet with orch_welcome_msg_devagent, not the generic text."""
-    from core.i18n import t
     import ui.pages.orchestrator as orch_page
+    from core.i18n import t
 
     slug = orch_page.DEVAGENT_SLUG
     _render_chat(ui_env, monkeypatch, slug, _orch_dict(slug=slug))

@@ -18,7 +18,6 @@ from core.orchestration import runs  # noqa: E402
 from core.orchestration.tools import fence_question_payload  # noqa: E402
 from dev_agent.agent_loop import format_subagent_notice  # noqa: E402
 
-
 QUESTION = {
     "text": "Which date format should the report use?",
     "options": ["ISO 8601", "DD.MM.YYYY"],

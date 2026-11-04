@@ -286,9 +286,9 @@ class TestAssistantInUpdates:
         self, marketplace_data_dir, serve_catalog, tmp_path, monkeypatch
     ):
         from core.marketplace import config as marketplace_config
-        from core.marketplace.source import MarketplaceSource
         from core.marketplace import updates
         from core.marketplace.installer import install_skill
+        from core.marketplace.source import MarketplaceSource
 
         monkeypatch.setattr(
             marketplace_config,

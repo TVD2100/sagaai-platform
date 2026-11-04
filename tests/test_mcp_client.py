@@ -22,18 +22,17 @@ import pytest
 
 from core import mcp_client
 from core.mcp_client import (
+    _PROCESS_REGISTRY,
     McpClient,
     McpClientError,
     McpHttpClient,
     McpServerStartError,
     McpTimeoutError,
-    _PROCESS_REGISTRY,
     _http_error_hint,
     _resolve_http_auth_header,
     get_client,
     translate_schema_parameters,
 )
-
 
 FIXTURE_SERVER = Path(__file__).parent / "fixtures" / "mcp_demo_server.py"
 

@@ -25,7 +25,6 @@ from core.orchestration.contracts import (  # noqa: E402
 )
 from core.orchestration.service import OrchestrationService, read_limits  # noqa: E402
 
-
 BASE = {
     "max_depth": 1,
     "max_active_subagents": 1,

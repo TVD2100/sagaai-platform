@@ -21,7 +21,6 @@ if str(PKG_ROOT) not in sys.path:
 
 from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
-
 #: Card of an agent whose package mixes three entity types.
 AGENT_CARD = {
     "ok": True,

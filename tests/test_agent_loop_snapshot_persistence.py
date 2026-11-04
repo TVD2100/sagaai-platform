@@ -20,7 +20,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from dev_agent import agent_loop as al
 
-
 TS_TEXT = "CURRENT TASK STATE:\ntask: demo\nprogress: 1/2"
 TC_TEXT = "## CURRENT THREAD ARTIFACTS DIR\nthread_id: t1"
 
@@ -126,7 +125,9 @@ def test_saved_count_anchor_after_reload(monkeypatch):
 def test_save_thread_messages_keeps_hidden_marker():
     """The full-history save path embeds hidden the same way as append."""
     from core.threads_devagent import (
-        create_devagent_thread, save_thread_messages, load_thread_messages,
+        create_devagent_thread,
+        load_thread_messages,
+        save_thread_messages,
     )
 
     tid = create_devagent_thread(title="save hidden", orchestrator_slug="dev_agent")

@@ -26,7 +26,7 @@ COPYRIGHT_TAIL = "\n".join(COPYRIGHT_LINES)
 
 # Groups of base files as AGENT.md presents them: (label, paths).
 ROOT_FILES = ("__init__.py", "app.py")
-BASE_DIRS = ("core", "ui", "storage", "dev_agent")
+BASE_DIRS = ("core", "ui", "storage", "dev_agent", "server")
 
 
 def _walk_python(directory):
@@ -111,14 +111,18 @@ class TestAgentInventory:
             "Storage": _walk_python("storage"),
             "DevAgent": _walk_python("dev_agent"),
         }
-        # The core package is split across three groups so that each line
-        # stays readable: top-level modules, the marketplace package and the
-        # orchestration package.
+        # The core package is split across several groups so that each line
+        # stays readable: top-level modules, the marketplace package, the
+        # orchestration package, the schedules feature and the transport-facing
+        # gateway facade. The server package has its own group because it is a
+        # separate top-level package with its own dependency direction.
         core = _walk_python("core")
         groups["Core"] = [p for p in core if p.count("/") == 1]
         groups["Marketplace"] = [p for p in core if p.startswith("core/marketplace/")]
         groups["Orchestration"] = [p for p in core if p.startswith("core/orchestration/")]
         groups["Schedules"] = [p for p in core if p.startswith("core/schedules/")]
+        groups["Gateway"] = [p for p in core if p.startswith("core/gateway/")]
+        groups["Server"] = _walk_python("server")
 
         assert set(listed) == set(groups), "unexpected inventory groups: %s" % sorted(listed)
         for label, expected in groups.items():

@@ -23,8 +23,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
-
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 _LANG_RELS = (
     "defaults/langs/en.json",
@@ -127,7 +126,6 @@ def test_show_earlier_clicks_widen_the_window(ui_env, monkeypatch):
     the button and renders the complete history."""
     slug = "custom1"
     orch_page = _prepare_page(ui_env, monkeypatch, slug, n=120)
-    step = orch_page.CHAT_PAGE_SIZE
 
     _rerender(ui_env, lambda: orch_page.page_orchestrator(slug))
 

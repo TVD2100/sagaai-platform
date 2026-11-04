@@ -26,20 +26,20 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from core.orchestration import service as S  # noqa: E402
 from core.orchestration import runs as R  # noqa: E402
+from core.orchestration import service as S  # noqa: E402
 from core.orchestration.contracts import (  # noqa: E402
-    AgentBrief,
-    AgentRunResult,
     ERR_LIMIT_EXCEEDED,
     ERR_NO_RUN_IDENTITY,
     ERR_RUN_NOT_FOUND,
-    SpawnRequest,
     STATUS_CANCELLED,
     STATUS_DONE,
     STATUS_RUNNING,
     STOP_ABORTED,
     STOP_COMPLETED,
+    AgentBrief,
+    AgentRunResult,
+    SpawnRequest,
 )
 
 

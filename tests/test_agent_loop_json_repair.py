@@ -15,12 +15,11 @@ import pytest
 
 from dev_agent import config
 from dev_agent.agent_loop import (
-    parse_tool_calls,
+    _fallback_parse_propose_file,
     _repair_unclosed_braces,
     _repair_unclosed_tool_json,
-    _fallback_parse_propose_file,
+    parse_tool_calls,
 )
-
 
 # ── _repair_unclosed_braces (helper unit) ────────────────────────────────────
 

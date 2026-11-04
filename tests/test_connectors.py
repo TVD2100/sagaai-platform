@@ -2,10 +2,10 @@
 """
 Tests for core.connectors: CRUD, encrypted token storage, public view.
 """
-import os
-import sys
 import json
+import os
 import shutil
+import sys
 import tempfile
 
 import pytest
@@ -136,7 +136,7 @@ def test_create_github_rest_connection_encrypted_token(isolated_data_dir):
 
 def test_public_manifest_never_leaks_token(isolated_data_dir):
     import core.connectors as c
-    created = c.create_connection("github_rest", "Safe", "not-a-real-token")
+    c.create_connection("github_rest", "Safe", "not-a-real-token")
     items = c.list_connections()
     raw_json = json.dumps(items)
     assert "not-a-real-token" not in raw_json

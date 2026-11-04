@@ -18,9 +18,9 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from tests.marketplace_fixtures import (  # noqa: E402
-    marketplace_data_dir,  # noqa: F401 - fixture
     make_entity,
     make_package_tar,
+    marketplace_data_dir,  # noqa: F401 - fixture
 )
 
 

@@ -21,7 +21,6 @@ from tests.marketplace_fixtures import (  # noqa: E402
     serve_catalog,
 )
 
-
 # ─── Helpers ──────────────────────────────────────────────────────────────
 
 def _settings(monkeypatch, **overrides):

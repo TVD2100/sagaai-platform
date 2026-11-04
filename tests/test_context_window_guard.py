@@ -6,8 +6,8 @@ core.context_guard.apply_context_guard and its wiring into send_request.
 import pytest
 
 import core.api_layer as api_layer
-from core.context_guard import apply_context_guard
 from core.api_errors import ContextWindowError
+from core.context_guard import apply_context_guard
 
 
 def _calls(counter):
@@ -177,7 +177,7 @@ def test_history_cap_exposes_the_guard_history_budget():
     ``int(0.75 * (window - max_out)) - prompt`` - the SAME budget the
     economy mode builds its window on, so the pre-flight guard never has
     to slide an economy payload."""
-    from core.context_guard import history_cap, input_ceiling, input_budget
+    from core.context_guard import history_cap, input_budget, input_ceiling
 
     # input ceiling = window - declared output limit.
     assert input_ceiling(1_000_000, 384_000) == 616_000

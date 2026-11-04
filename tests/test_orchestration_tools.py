@@ -17,7 +17,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from core.orchestration import tools  # noqa: E402
 from core.orchestration.contracts import (  # noqa: E402
-    AgentBrief,
     ERR_AGENT_NOT_ALLOWED,
     ERR_ASSISTANT_NOT_ALLOWED,
     ERR_INVALID_ARGS,
@@ -25,6 +24,7 @@ from core.orchestration.contracts import (  # noqa: E402
     ERR_NOT_IMPLEMENTED,
     ERR_UNKNOWN_AGENT,
     ERR_UNKNOWN_ASSISTANT,
+    AgentBrief,
     InvokeRequest,
     SpawnRequest,
 )
@@ -456,9 +456,9 @@ def test_a_refused_resume_explains_why_a_retry_will_not_help(allowlists):
         def record_from_store(self, rid):
             return {"run_id": rid, "status": "failed", "journal_path": ""}
 
-    import core.orchestration.resume as R
-
     import pytest as _pytest
+
+    import core.orchestration.resume as R
     with _pytest.MonkeyPatch.context() as mp:
         mp.setattr(R, "build_resume",
                    lambda record, read_state=None, read_checkpoint=None, **kw: {

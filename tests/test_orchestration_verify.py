@@ -40,9 +40,10 @@ from core.orchestration.contracts import (  # noqa: E402
     ERR_VERIFIER_NOT_CONFIGURED,
     STATUS_DONE,
     STATUS_RUNNING,
+    STOP_COMPLETED,
+    AgentRunResult,
 )
 from core.orchestration.service import OrchestrationService  # noqa: E402
-from core.orchestration.contracts import AgentRunResult, STOP_COMPLETED  # noqa: E402
 from storage.db import reset_devagent_engine, reset_engine  # noqa: E402
 
 SLUG = "verify_orch"
@@ -491,8 +492,7 @@ def test_the_tool_is_hidden_until_a_verifier_is_appointed(two_employees):
     An offered tool the runtime refuses is a dead end that costs the model a
     step, so the catalogue and the runtime read the SAME setting.
     """
-    from core.orchestrator_tools import (build_tool_catalog,
-                                         is_conditional_tool_enabled)
+    from core.orchestrator_tools import build_tool_catalog, is_conditional_tool_enabled
     from core.orchestrators import set_verifier_agent
 
     assert is_conditional_tool_enabled("verify_result", SLUG) is False
@@ -512,8 +512,7 @@ def test_the_tool_is_hidden_until_a_verifier_is_appointed(two_employees):
 
 def test_the_prompt_block_appears_only_with_a_verifier(two_employees):
     """Test 15: the rule reaches the model through the prompt, not a hope."""
-    from core.orchestrators import (_extend_prompt_with_delegation,
-                                    set_verifier_agent)
+    from core.orchestrators import _extend_prompt_with_delegation, set_verifier_agent
 
     without = _extend_prompt_with_delegation("BASE", SLUG)
     assert "Verifying delegated work" not in without
@@ -551,8 +550,8 @@ def test_a_fan_out_is_verified_without_disturbing_its_order(
     the chosen run instead of adding a fourth "result".
     """
     import core.orchestrators as orch_mod
-    from dev_agent import agent_loop as L
     from core.orchestration.contracts import AgentBrief
+    from dev_agent import agent_loop as L
 
     # Rights are checked on the loop branch before the runtime sees the call,
     # so the fan-out must be allowed to address the worker - and the registry

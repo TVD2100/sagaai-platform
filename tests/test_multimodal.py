@@ -9,11 +9,11 @@ is run separately via scripts (see the task journal).
 """
 import base64
 import os
-import requests
 import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -24,7 +24,6 @@ from core.api_errors import (
     ProviderHTTPError,
     RequestTimeoutError,
 )
-
 
 JPEG_BYTES = b"\xff\xd8\xff\xe0" + b"\x00" * 32
 

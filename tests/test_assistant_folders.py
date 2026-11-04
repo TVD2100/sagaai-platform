@@ -3,11 +3,11 @@
 Tests for core.assistant_folders and the folder-based assistant CRUD.
 Uses a temporary DATA_DIR so no real DB or config is touched.
 """
-import os
-import sys
 import json
-import tempfile
+import os
 import shutil
+import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -15,7 +15,7 @@ import pytest
 # Allow importing the sagaai package from the project root.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from storage.db import reset_engine, reset_devagent_engine
+from storage.db import reset_devagent_engine, reset_engine
 
 
 @pytest.fixture
@@ -70,7 +70,9 @@ class TestAssistantFolders:
 
     def test_ensure_and_remove_dir(self, isolated_data_dir):
         from core.assistant_folders import (
-            ensure_assistant_dir, remove_assistant_dir, assistant_folder_exists,
+            assistant_folder_exists,
+            ensure_assistant_dir,
+            remove_assistant_dir,
         )
         slug = "my_assistant"
         ensure_assistant_dir(slug)
@@ -79,7 +81,7 @@ class TestAssistantFolders:
         assert not assistant_folder_exists(slug)
 
     def test_bundle_save_and_load(self, isolated_data_dir):
-        from core.assistant_folders import save_assistant_bundle, load_assistant_bundle
+        from core.assistant_folders import load_assistant_bundle, save_assistant_bundle
         slug = "bundle_test"
         data = {"slug": slug, "name": "Test", "model": "deepseek-v4-pro"}
         assert save_assistant_bundle(slug, data)
@@ -93,15 +95,17 @@ class TestAssistantFolders:
         assert load_assistant_bundle("nonexistent") is None
 
     def test_prompt_save_and_load(self, isolated_data_dir):
-        from core.assistant_folders import save_assistant_prompt, load_assistant_prompt
+        from core.assistant_folders import load_assistant_prompt, save_assistant_prompt
         slug = "prompt_test"
         assert save_assistant_prompt(slug, "## Role\nYou are a test assistant.")
         assert load_assistant_prompt(slug) == "## Role\nYou are a test assistant."
 
     def test_files_crud(self, isolated_data_dir):
         from core.assistant_folders import (
-            save_assistant_file, list_assistant_files,
-            load_assistant_file_content, delete_assistant_file,
+            delete_assistant_file,
+            list_assistant_files,
+            load_assistant_file_content,
+            save_assistant_file,
         )
         slug = "files_test"
         assert save_assistant_file(slug, "doc", "content one")
@@ -114,9 +118,14 @@ class TestAssistantFolders:
 
     def test_export_import_folder_roundtrip(self, isolated_data_dir):
         from core.assistant_folders import (
-            save_assistant_bundle, save_assistant_prompt, save_assistant_file,
-            export_assistant_folder, import_assistant_folder,
-            load_assistant_bundle, load_assistant_prompt, list_assistant_files,
+            export_assistant_folder,
+            import_assistant_folder,
+            list_assistant_files,
+            load_assistant_bundle,
+            load_assistant_prompt,
+            save_assistant_bundle,
+            save_assistant_file,
+            save_assistant_prompt,
         )
         slug = "export_me"
         save_assistant_bundle(slug, {"slug": slug, "name": "Export", "model": "m1"})
@@ -145,9 +154,10 @@ class TestAssistantFolders:
         assert list_assistant_folder_names() == ["alpha", "beta"]
 
     def test_sync_assistant_to_folder(self, isolated_data_dir):
-        from core.assistant_folders import sync_assistant_to_folder
         from core.assistant_folders import (
-            load_assistant_bundle, load_assistant_prompt,
+            load_assistant_bundle,
+            load_assistant_prompt,
+            sync_assistant_to_folder,
         )
         assistant = {
             "id": "abc12345",
@@ -170,8 +180,9 @@ class TestAssistantFolders:
 
     def test_set_and_get_web_search_settings(self, isolated_data_dir):
         from core.assistant_folders import (
-            save_assistant_bundle, set_assistant_web_search_settings,
             get_assistant_web_search_settings,
+            save_assistant_bundle,
+            set_assistant_web_search_settings,
         )
         slug = "websearch_test"
         save_assistant_bundle(slug, {"slug": slug, "name": "WS"})
@@ -191,8 +202,10 @@ class TestAssistantFolders:
 
     def test_sync_preserves_web_search_settings(self, isolated_data_dir):
         from core.assistant_folders import (
-            save_assistant_bundle, set_assistant_web_search_settings,
-            sync_assistant_to_folder, load_assistant_bundle,
+            load_assistant_bundle,
+            save_assistant_bundle,
+            set_assistant_web_search_settings,
+            sync_assistant_to_folder,
         )
         slug = "ws_sync_test"
         save_assistant_bundle(slug, {"slug": slug, "name": "WSSync"})
@@ -214,8 +227,8 @@ class TestAssistantFolders:
 
 class TestAssistantCRUDWithFolders:
     def test_create_assistant_creates_folder_and_slug(self, isolated_data_dir):
-        from core.assistants import create_assistant, get_assistant_by_slug, delete_assistant
         from core.assistant_folders import assistant_folder_exists
+        from core.assistants import create_assistant, delete_assistant, get_assistant_by_slug
         pid = create_assistant(
             "My Test Assistant", "DeepSeek", "deepseek-v4-pro", 0.5,
             "## Role\nYou are a test assistant.",
@@ -229,8 +242,7 @@ class TestAssistantCRUDWithFolders:
         assert not assistant_folder_exists("my_test_assistant")
 
     def test_unique_slug_on_duplicate_name(self, isolated_data_dir):
-        from core.assistants import create_assistant, delete_assistant
-        from core.assistants import load_assistants_index
+        from core.assistants import create_assistant, delete_assistant, load_assistants_index
         pid1 = create_assistant("Same Name", "DeepSeek", "m", 0.5, "## Role\nOne")
         pid2 = create_assistant("Same Name", "DeepSeek", "m", 0.5, "## Role\nTwo")
         assert pid1 is not None and pid2 is not None
@@ -241,8 +253,8 @@ class TestAssistantCRUDWithFolders:
         delete_assistant(pid2)
 
     def test_update_assistant_resyncs_folder(self, isolated_data_dir):
-        from core.assistants import create_assistant, update_assistant, delete_assistant
         from core.assistant_folders import load_assistant_prompt
+        from core.assistants import create_assistant, delete_assistant, update_assistant
         pid = create_assistant("Updatable", "DeepSeek", "m", 0.5, "## Role\nBefore")
         assert pid
         assert update_assistant(pid, "Updatable", "DeepSeek", "m", 0.7,
@@ -251,8 +263,8 @@ class TestAssistantCRUDWithFolders:
         delete_assistant(pid)
 
     def test_save_prompt_text_resyncs_folder(self, isolated_data_dir):
-        from core.assistants import create_assistant, save_assistant_prompt_text, delete_assistant
         from core.assistant_folders import load_assistant_prompt
+        from core.assistants import create_assistant, delete_assistant, save_assistant_prompt_text
         pid = create_assistant("PromptSync", "DeepSeek", "m", 0.5, "## Role\nOld")
         assert pid
         assert save_assistant_prompt_text(pid, "## Role\nNew Prompt")
@@ -261,8 +273,11 @@ class TestAssistantCRUDWithFolders:
 
     def test_export_and_import_assistant(self, isolated_data_dir):
         from core.assistants import (
-            create_assistant, export_assistant, import_assistant, delete_assistant,
+            create_assistant,
+            delete_assistant,
+            export_assistant,
             get_assistant_by_slug,
+            import_assistant,
         )
         pid = create_assistant(
             "Exporter", "DeepSeek", "deepseek-v4-pro", 0.5,
@@ -289,7 +304,7 @@ class TestAssistantCRUDWithFolders:
 
     def test_reload_assistant_from_folder(self, isolated_data_dir):
         from core.assistant_folders import save_assistant_bundle, save_assistant_prompt
-        from core.assistants import reload_assistant_from_folder, get_assistant_by_slug
+        from core.assistants import get_assistant_by_slug, reload_assistant_from_folder
         slug = "from_folder"
         save_assistant_bundle(slug, {
             "slug": slug, "name": "From Folder", "service": "YandexAI",
@@ -317,8 +332,8 @@ class TestAssistantCRUDWithFolders:
 class TestEntitySync:
     def test_sync_assistants_imports_folder(self, isolated_data_dir):
         from core.assistant_folders import save_assistant_bundle, save_assistant_prompt
-        from core.entity_sync import sync_assistants
         from core.assistants import get_assistant_by_slug
+        from core.entity_sync import sync_assistants
         slug = "synced_in"
         save_assistant_bundle(slug, {"slug": slug, "name": "Synced In", "model": "m"})
         save_assistant_prompt(slug, "## Role\nSynced.")
@@ -327,8 +342,8 @@ class TestEntitySync:
         assert get_assistant_by_slug(slug) is not None
 
     def test_sync_assistants_backfills_legacy_db_records(self, isolated_data_dir):
-        from core.entity_sync import sync_assistants
         from core.assistant_folders import assistant_folder_exists
+        from core.entity_sync import sync_assistants
         from storage.repository import repo_create_assistant
         # Legacy record without slug and without folder.
         ok = repo_create_assistant(

@@ -31,7 +31,6 @@ from tests.marketplace_fixtures import (  # noqa: E402,F401 - fixtures
     serve_catalog,
 )
 
-
 # ─── Helpers ──────────────────────────────────────────────────────────────
 
 @pytest.fixture

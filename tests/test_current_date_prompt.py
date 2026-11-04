@@ -13,7 +13,6 @@ import pytest
 
 from core import orchestrators as orch
 
-
 FIXED = datetime(2026, 11, 2, 9, 30, tzinfo=timezone(timedelta(hours=3)))
 
 # The block itself, with its blank-line framing. A bare '## Current date'

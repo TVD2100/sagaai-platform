@@ -21,7 +21,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core import document_text as dt  # noqa: E402
 
-
 # ─── helpers ────────────────────────────────────────────────────────────────
 
 

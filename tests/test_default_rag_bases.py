@@ -21,11 +21,11 @@ import importlib
 import json
 import os
 import shutil
+import sys
 from pathlib import Path
 
 import pytest
 
-import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
@@ -146,8 +146,8 @@ class TestDefaultsRagHelpers:
 
 class TestDefaultRagImport:
     def test_first_run_creates_runtime_base_with_source(self, isolated_data_dir):
-        from core.default_imports import ensure_default_rag_bases
         from core import rag
+        from core.default_imports import ensure_default_rag_bases
 
         _write_bundled_base()
         try:
@@ -167,8 +167,8 @@ class TestDefaultRagImport:
 
     def test_the_catalog_base_is_not_seeded(self, isolated_data_dir):
         """A base moved to the catalog arrives from there, not from defaults."""
-        from core.default_imports import ensure_default_rag_bases
         from core import rag
+        from core.default_imports import ensure_default_rag_bases
 
         result = ensure_default_rag_bases()
 
@@ -315,8 +315,8 @@ class TestPresetRagAssignment:
 
             from core.orchestrators import (
                 get_orchestrator,
-                save_orchestrator,
                 get_orchestrator_rag_bases,
+                save_orchestrator,
             )
 
             cfg = dict(get_orchestrator(PRESET_SLUG)["config"])

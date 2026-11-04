@@ -20,7 +20,7 @@ PKG_ROOT = os.path.dirname(HERE)
 if PKG_ROOT not in sys.path:
     sys.path.insert(0, PKG_ROOT)
 
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 
 class _FakeLoopState:
@@ -214,7 +214,7 @@ def test_invalid_reask_hours_fall_back_to_default(auth_env):
         auth.save_auth_settings(True, password="pass", reask_hours=-5)
         assert auth.load_auth_settings()["reask_hours"] == 12.0
 
-        from storage.repository import repo_save_config, repo_load_config
+        from storage.repository import repo_load_config, repo_save_config
         cfg = repo_load_config()
         cfg["auth_reask_hours"] = "not-a-number"
         repo_save_config(cfg)

@@ -22,7 +22,6 @@ if str(PKG_ROOT) not in sys.path:
 
 from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
-
 # ─── Helpers ──────────────────────────────────────────────────────────────
 
 def _settings(monkeypatch, **overrides):

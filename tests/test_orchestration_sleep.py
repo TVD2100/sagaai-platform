@@ -22,12 +22,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from core.orchestration import service as S  # noqa: E402
 from core.orchestration import tools as T  # noqa: E402
 from core.orchestration.contracts import (  # noqa: E402
-    AgentRunResult,
     ERR_INVALID_ARGS,
     STATUS_DONE,
     STOP_COMPLETED,
+    AgentRunResult,
 )
-
 
 # ─── fixtures ──────────────────────────────────────────────────────────────
 
@@ -435,8 +434,8 @@ def test_a_background_spawn_and_a_sleep_in_one_step(monkeypatch, tmp_path):
     the sleep is interrupted by the child's finish and reports its run id.
     Only the child runner is a fake, so no provider call happens.
     """
-    from dev_agent import agent_loop as L
     import core.orchestrators as orch_mod
+    from dev_agent import agent_loop as L
 
     monkeypatch.setenv("SAGAAI_DATA_DIR", str(tmp_path))
     service = S.OrchestrationService()

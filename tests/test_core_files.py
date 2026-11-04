@@ -2,11 +2,16 @@
 from unittest.mock import patch
 
 from core.files import (
-    check_upload_tokens, MAX_UPLOAD_TOKENS, estimate_tokens,
-    MAX_INLINE_UPLOAD_CHARS, should_store_uploaded_file,
-    build_attachment_metadata, build_attachments_context,
-    build_saved_files_registry, build_thread_files_notice,
+    MAX_INLINE_UPLOAD_CHARS,
     MAX_THREAD_FILE_BYTES,
+    MAX_UPLOAD_TOKENS,
+    build_attachment_metadata,
+    build_attachments_context,
+    build_saved_files_registry,
+    build_thread_files_notice,
+    check_upload_tokens,
+    estimate_tokens,
+    should_store_uploaded_file,
 )
 
 

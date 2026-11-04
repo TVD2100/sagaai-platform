@@ -12,7 +12,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import core.dependency_check as dc  # noqa: E402
 
-
 # ── parse_version / version_lt ───────────────────────────────────────────────
 
 def test_parse_version_components():

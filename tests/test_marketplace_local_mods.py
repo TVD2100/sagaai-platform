@@ -91,7 +91,8 @@ def test_allow_code_false_does_not_report_a_permanent_edit(
     marketplace_data_dir, serve_catalog, tmp_path, monkeypatch
 ):
     """A skipped ``scripts/`` file must not look like a modification."""
-    from core.marketplace import conflicts, config as marketplace_config
+    from core.marketplace import config as marketplace_config
+    from core.marketplace import conflicts
 
     monkeypatch.setattr(
         marketplace_config, "marketplace_settings",
