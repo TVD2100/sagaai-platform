@@ -202,7 +202,7 @@ def isolated_data_dir():
     core.paths.HISTORY_DIR = os.path.join(tmp, "history")
     core.paths.SYSTEM_PROMPTS_DIR = os.path.join(tmp, "system_prompts")
 
-    from storage.db import reset_engine, reset_devagent_engine
+    from storage.db import reset_devagent_engine, reset_engine
     reset_engine()
     reset_devagent_engine()
 
@@ -236,9 +236,8 @@ def isolated_data_dir():
 
 def test_mcp_preset_draft_credentials_call_scenario(isolated_data_dir):
     """Full user path: preset -> draft -> token -> HTTP tool call."""
-    from core import connector_presets
-    from core import connectors
     import core.mcp_tools as mcp_tools
+    from core import connector_presets, connectors
 
     fake = _FakeVkusvillServer()
     url = fake.start()
@@ -317,8 +316,7 @@ def test_mcp_preset_draft_credentials_call_scenario(isolated_data_dir):
         assert _FakeVkusvillServer.session_id in fake.session_seen
 
         # 7. The public tool goes through the dispatcher by dynamic name.
-        from core.orchestrators import create_orchestrator
-        from core.orchestrators import set_enabled_connections
+        from core.orchestrators import create_orchestrator, set_enabled_connections
         slug = "mcp_preset_e2e_orch"
         create_orchestrator(slug, "Mcp Preset E2E", "Test")
         assert set_enabled_connections(slug, [conn_id]) is True

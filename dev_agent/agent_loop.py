@@ -66,17 +66,19 @@ from __future__ import annotations
 
 import inspect
 import json
+import logging
 import os
 import re
 import uuid
-from datetime import datetime
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 from core.api_layer import send_request
-from core.dangerous import format_reasons_for_ui
 from storage.models import DEFAULT_MAX_STEPS
+
+log = logging.getLogger("dev_agent.agent_loop")
 
 # Strong tools
 _STRONG_TOOLS: Set[str] = {
@@ -1209,7 +1211,7 @@ def _summarise_result(tool: str, result: Dict[str, Any]) -> str:
     elif tool == "scan_folder":
         files = result.get("files", [])
         langs = result.get("languages", {})
-        top_langs = ", ".join(f"{l}:{c}" for l, c in sorted(langs.items(), key=lambda x: -x[1])[:3])
+        top_langs = ", ".join(f"{name}:{count}" for name, count in sorted(langs.items(), key=lambda x: -x[1])[:3])
         return f"Scanned workspace: {len(files)} files, {top_langs}"
     elif tool == "assess_workspace":
         state = result.get("state", "?")
@@ -2364,8 +2366,8 @@ def _maybe_thread_context(state: "AgentLoopState") -> Optional[str]:
     # and how to read/extract it (list_thread_files / read_thread_file for
     # text, run_code for other formats).
     try:
-        from core.threads_devagent import list_thread_files
         from core.files import build_thread_files_notice
+        from core.threads_devagent import list_thread_files
         notice = build_thread_files_notice(
             list_thread_files(tid),
             header="Dialog uploads available to this thread:",
@@ -2412,8 +2414,8 @@ def _make_short_summary(msg: Dict[str, Any], category: str) -> str:
     if content.startswith(_AUTO_CONTINUE_PREFIX):
         return content[len(_AUTO_CONTINUE_PREFIX):].strip()[:80]
     if msg.get("role") == "assistant":
-        lines = [l.strip() for l in content.split("\n") if l.strip()
-                 and not l.strip().startswith("```") and not l.strip().startswith("{")]
+        lines = [line.strip() for line in content.split("\n") if line.strip()
+                 and not line.strip().startswith("```") and not line.strip().startswith("{")]
         if lines:
             return lines[0][:80]
         return content[:80]
@@ -2565,10 +2567,10 @@ def _enforce_history_token_budget(messages: List[Dict[str, Any]],
     if not svc_name:
         return messages
     try:
+        from core.api_layer import _clamp_max_tokens, _get_model_max_tokens
         from core.context_guard import history_cap
         from core.files import get_model_context_window
         from core.services import get_services
-        from core.api_layer import _clamp_max_tokens, _get_model_max_tokens
 
         services = get_services()
         window = int(get_model_context_window(assistant, services))
@@ -3125,7 +3127,7 @@ def _update_workspace_info(state: AgentLoopState, result: Dict[str, Any]) -> Non
         target = result.get("target_file", "")
         parts = [f"root={root}"]
         if mode:
-            parts.append(f"single_file_mode=true")
+            parts.append("single_file_mode=true")
             if target:
                 parts.append(f"target_file={target}")
         state.workspace_info = ", ".join(parts)

@@ -37,8 +37,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from storage.db import reset_engine, reset_devagent_engine
-
+from storage.db import reset_devagent_engine, reset_engine
 
 TID = "scen_thread_files"
 
@@ -110,13 +109,16 @@ def test_scenario_any_format_upload_lands_in_thread_files(isolated_data_dir):
           sizes and text/binary classification, and the notice contains a
           line per file with name, absolute path, size and kind.
     """
-    from core.threads_devagent import (
-        save_thread_file_data, list_thread_files, read_thread_file,
-    )
     from core.files import build_thread_files_notice
     from core.paths import get_thread_dir
+    from core.threads_devagent import (
+        list_thread_files,
+        read_thread_file,
+        save_thread_file_data,
+    )
     from ui.pages.orchestrator import (
-        _attachments_manifest_path, _load_attachments_manifest,
+        _attachments_manifest_path,
+        _load_attachments_manifest,
     )
 
     zip_blob = _make_zip_bytes({"inner.txt": "hello from zip\n"})
@@ -222,10 +224,10 @@ def test_scenario_boundary_errors_stay_inside_sandbox(active_thread, isolated_da
           oversized save raises without writing, and dispatch without an
           active thread refuses with an explanatory error.
     """
-    from core.threads_devagent import save_thread_file_data, read_thread_file
     from core.paths import get_thread_dir
-    from dev_agent.universal_agent import UniversalDevAgent
+    from core.threads_devagent import read_thread_file, save_thread_file_data
     from dev_agent import config as dagent_config
+    from dev_agent.universal_agent import UniversalDevAgent
 
     agent = UniversalDevAgent()
     files_dir = os.path.join(get_thread_dir(TID), "files")

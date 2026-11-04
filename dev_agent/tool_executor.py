@@ -10,25 +10,48 @@
 # token-efficient patch workflow possible: the model sees exact line numbers
 # and emits small fragments instead of whole files.
 
-import os
-import sys
-import subprocess
-import tempfile
-import re
 import ast
 import inspect
+import os
+import re
+import subprocess
+import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, get_args, get_origin
 
+from core.api_errors import APIError, api_error_message
+from core.api_layer import send_request
+from core.assistants import create_assistant, get_assistant_by_id, update_assistant
+from core.config import load_config, load_devagent_config
+from core.dangerous import (
+    tool_needs_confirmation,
+)
+
+# Import lang cache invalidation so newly added language files appear immediately
+from core.i18n import invalidate_langs_cache
+from core.instructions import (
+    get_instruction,
+    get_instruction_for,
+    get_instruction_prompt,
+    list_instructions,
+    list_instructions_for,
+)
+from core.prompt_guard import (
+    is_tool_result_text,
+    sanitize_fetched_page,
+    sanitize_search_result,
+    sanitize_tool_result_content,
+)
+from core.services import get_services
+
 from . import config
-from .backup_manager import BackupManager
-from .safe_writer import SafeWriter, ProtectedFileError
 
 # Import assistant detection functionality
 from .assistant_detector import (
+    ASSISTANT_CREATOR_INSTRUCTION_ID,
     detect_and_select_assistant,
     list_all_assistants_for_detection,
-    ASSISTANT_CREATOR_INSTRUCTION_ID,
 )
 
 # Import new automatic model resolution
@@ -36,35 +59,9 @@ from .assistant_model_resolver import (
     classify_assistant_requirements,
     resolve_service_model_for_assistant,
 )
-
-# Import lang cache invalidation so newly added language files appear immediately
-from core.i18n import invalidate_langs_cache
-from core.assistants import get_assistant_by_id, create_assistant, update_assistant
-from core.instructions import (
-    get_instruction_prompt,
-    list_instructions,
-    get_instruction,
-    get_instruction_for,
-    list_instructions_for,
-)
-from core.api_layer import send_request
-from core.api_errors import APIError, api_error_message
-from core.services import get_services
-from core.config import load_config, load_devagent_config
-from core.prompt_guard import (
-    is_tool_result_text,
-    sanitize_fetched_page,
-    sanitize_search_result,
-    sanitize_tool_result_content,
-    wrap_data,
-)
-from core.dangerous import (
-    tool_needs_confirmation,
-    format_reasons_for_ui,
-    DangerAssessment,
-)
+from .backup_manager import BackupManager
 from .llm_utils import call_llm_with_system
-
+from .safe_writer import SafeWriter
 
 # --- Line-number prefix cleanup -------------------------------------------------------------
 # NOTE: _strip_line_numbers is kept as a utility but is NO LONGER called
@@ -184,7 +181,7 @@ def _suggest_anchor_lines(old: str, working: str, limit: int = 3) -> list:
     out = []
     if len(old_lines) == 1 and old_lines[0].strip():
         for cand in difflib.get_close_matches(old_lines[0].strip(),
-                                              [l.strip() for l in work_lines],
+                                              [line.strip() for line in work_lines],
                                               n=limit, cutoff=0.35):
             for idx, wl in enumerate(work_lines):
                 if wl.strip() == cand:
@@ -2141,8 +2138,10 @@ class ToolExecutor:
         try:
             from core.multimodal import (
                 MultimodalError,
-                analyze_image as _analyze_image,
                 format_api_error,
+            )
+            from core.multimodal import (
+                analyze_image as _analyze_image,
             )
         except Exception as exc:
             return {"ok": False, "error": f"Multimodal runtime unavailable: {exc}"}
@@ -2210,8 +2209,10 @@ class ToolExecutor:
         try:
             from core.multimodal import (
                 MultimodalError,
-                generate_image as _generate_image,
                 format_api_error,
+            )
+            from core.multimodal import (
+                generate_image as _generate_image,
             )
         except Exception as exc:
             return {"ok": False, "error": f"Multimodal runtime unavailable: {exc}"}
@@ -2366,7 +2367,7 @@ class ToolExecutor:
                 "error": f"Access denied: knowledge base '{norm_slug}' is not assigned to this orchestrator.",
             }
         try:
-            from core.rag_search import search_base, build_search_context, RagSearchError
+            from core.rag_search import RagSearchError, build_search_context, search_base
             hits = search_base(
                 norm_slug, str(query).strip(),
                 top_k=int(top_k or 5), min_score=float(min_score or 0.0),
@@ -2459,7 +2460,7 @@ class ToolExecutor:
                 "error": f"Access denied: knowledge base '{norm_slug}' is not assigned to this orchestrator.",
             }
         try:
-            from core.rag_search import get_chunks, build_search_context, RagSearchError
+            from core.rag_search import RagSearchError, build_search_context, get_chunks
             result = get_chunks(
                 norm_slug, chunk_ids=chunk_ids, source=str(source or ""),
                 chunk_indices=chunk_indices,
@@ -2615,7 +2616,12 @@ class ToolExecutor:
         """
         try:
             from core.skills_library import (
-                get_skill, get_skill_folder as lib_get_folder,
+                get_skill,
+            )
+            from core.skills_library import (
+                get_skill_folder as lib_get_folder,
+            )
+            from core.skills_library import (
                 list_skill_files as lib_list_files,
             )
         except Exception as e:
@@ -2649,7 +2655,12 @@ class ToolExecutor:
         """
         try:
             from core.skills_library import (
-                get_skill, get_skill_folder as lib_get_folder,
+                get_skill,
+            )
+            from core.skills_library import (
+                get_skill_folder as lib_get_folder,
+            )
+            from core.skills_library import (
                 list_skill_files as lib_list_files,
             )
         except Exception as e:
@@ -2695,7 +2706,10 @@ class ToolExecutor:
         """
         try:
             from core.skills_library import (
-                get_skill, get_skill_folder as lib_get_folder,
+                get_skill,
+            )
+            from core.skills_library import (
+                get_skill_folder as lib_get_folder,
             )
         except Exception as e:
             return {"ok": False, "error": f"Skills library unavailable: {e}"}
@@ -2725,7 +2739,7 @@ class ToolExecutor:
         of a third-party skill. Returns the current record on success.
         """
         try:
-            from core.skills_library import set_skill_adapted, get_skill
+            from core.skills_library import get_skill, set_skill_adapted
         except Exception as e:
             return {"ok": False, "error": f"Skills library unavailable: {e}"}
         if not set_skill_adapted(skill_id, True):

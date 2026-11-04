@@ -144,7 +144,6 @@ class SafeWriter:
 
         # ── Force flush to disk (critical for cloud-synced directories) ─────
         try:
-            import fcntl
             fd = os.open(str(dst), os.O_RDONLY)
             os.fsync(fd)
             os.close(fd)

@@ -16,18 +16,18 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from core.orchestration.service import OrchestrationService  # noqa: E402
 from core.orchestration.contracts import (  # noqa: E402
-    AgentBrief,
-    AgentRunResult,
     ERR_CANCELLED_BY_PARENT,
     ERR_LIMIT_EXCEEDED,
-    SpawnRequest,
     STATUS_CANCELLED,
     STATUS_DONE,
     STOP_ABORTED,
     STOP_COMPLETED,
+    AgentBrief,
+    AgentRunResult,
+    SpawnRequest,
 )
+from core.orchestration.service import OrchestrationService  # noqa: E402
 
 
 @pytest.fixture

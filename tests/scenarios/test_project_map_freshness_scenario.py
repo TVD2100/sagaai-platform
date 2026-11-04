@@ -43,6 +43,7 @@ def isolated_db(tmp_path, monkeypatch):
     """Keep workspace-history writes out of the real sagaai.db."""
     monkeypatch.setenv("SAGAAI_DATA_DIR", str(tmp_path / "data"))
     import importlib
+
     import storage.db as db_mod
     db_mod.reset_engine()
     import core.paths as paths_mod
@@ -129,7 +130,6 @@ def test_publish_set_from_manifest_and_malformed_tolerance(repo_ws):
 
 def test_regeneration_scopes_table_to_published_files(repo_ws):
     mod = _load_script()
-    before = hashlib.sha256((repo_ws / "PROJECT_MAP.md").read_bytes()).hexdigest() if (repo_ws / "PROJECT_MAP.md").exists() else ""
     res = mod.main()
     assert res["ok"], res
     md = (repo_ws / "PROJECT_MAP.md").read_text(encoding="utf-8")

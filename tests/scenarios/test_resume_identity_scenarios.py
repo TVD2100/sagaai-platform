@@ -12,7 +12,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from storage.db import reset_engine, reset_devagent_engine
+from storage.db import reset_devagent_engine, reset_engine
 
 NL = chr(10)
 FENCE = chr(96) * 3 + "json" + NL
@@ -129,8 +129,8 @@ def _run_batch(root, monkeypatch):
 def test_scenario_wire_survives_append_reload(env, monkeypatch):
     # The appended wire bytes survive an append plus reload round-trip.
     from core.threads_devagent import (
-        create_devagent_thread,
         append_thread_message,
+        create_devagent_thread,
         load_thread_messages,
     )
 
@@ -168,8 +168,8 @@ def test_scenario_wire_survives_full_save(env, monkeypatch):
     # The same wire bytes survive a full-history save plus reload round-trip.
     from core.threads_devagent import (
         create_devagent_thread,
-        save_thread_messages,
         load_thread_messages,
+        save_thread_messages,
     )
 
     wire, entry = _run_batch(env, monkeypatch)

@@ -38,7 +38,6 @@ import shutil
 import sys
 import tempfile
 
-
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
@@ -116,8 +115,8 @@ def build_index(corpus: list, db_path: str) -> None:
     Uses the real production path (core.rag_index create/add + the
     core.rag_bm25 rebuild), so the benchmark measures shipped code.
     """
-    from core.rag_index import add_chunk, create_index_db
     from core.rag_bm25 import rebuild_index
+    from core.rag_index import add_chunk, create_index_db
 
     parent = os.path.dirname(db_path)
     if parent:

@@ -25,7 +25,6 @@ import pytest
 
 import core.paths
 
-
 FIXTURE_SERVER = Path(__file__).parent.parent / "fixtures" / "mcp_demo_server.py"
 
 
@@ -49,7 +48,7 @@ def isolated_data_dir():
     core.paths.HISTORY_DIR = os.path.join(tmp, "history")
     core.paths.SYSTEM_PROMPTS_DIR = os.path.join(tmp, "system_prompts")
 
-    from storage.db import reset_engine, reset_devagent_engine
+    from storage.db import reset_devagent_engine, reset_engine
     reset_engine()
     reset_devagent_engine()
 

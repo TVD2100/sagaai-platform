@@ -69,11 +69,11 @@ def _load_default_assistant():
     '''Create a scoped replacement for the removed 'AI Studio Docs' preset:
     the same tool set (web_search + native rag_search) and the same bindings
     (rag base yaagentai_2020, web-search overrides).'''
-    from core.assistants import create_assistant
     from core.assistant_folders import (
         set_assistant_rag_bases,
         set_assistant_web_search_settings,
     )
+    from core.assistants import create_assistant
     from core.tools_utils import build_rag_search_tool
 
     pid = create_assistant(
@@ -188,11 +188,11 @@ def test_rag_assistant_without_bases_has_no_function_tool(isolated_data):
 def test_rag_assistant_manifest_web_search_overrides_in_payload(isolated_data):
     '''Given an assistant with per-assistant web-search settings, when a
     RAG dialog runs, then every payload carries the manifest overrides.'''
-    from core.assistants import create_assistant, get_assistant_by_id
     from core.assistant_folders import (
         set_assistant_rag_bases,
         set_assistant_web_search_settings,
     )
+    from core.assistants import create_assistant, get_assistant_by_id
     from core.tools_utils import build_rag_search_tool
 
     pid = create_assistant(

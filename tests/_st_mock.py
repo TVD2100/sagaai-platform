@@ -7,6 +7,7 @@ simulate a button click by pre-seeding which button keys/labels should return
 True on the next render pass. A StopRerun exception models st.rerun().
 """
 from __future__ import annotations
+
 import sys
 import types
 from contextlib import contextmanager

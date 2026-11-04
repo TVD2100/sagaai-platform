@@ -44,8 +44,7 @@ def _legacy_installation(tmp_path):
     real installation has, and its messages are inserted straight into the
     table - which is how every dialogue written before the file store looks.
     """
-    from storage.repository import repo_create_thread, repo_append_message
-    from storage.repository import repo_save_thread_meta
+    from storage.repository import repo_append_message, repo_create_thread, repo_save_thread_meta
 
     tid = "20260101_120000_legacy"
     assert repo_create_thread(tid, None, "Proofreader") is True
@@ -156,7 +155,7 @@ def test_a_new_dialogue_after_the_upgrade_is_mirrored_from_the_start(tmp_path):
     _legacy_installation(tmp_path)
     A.ensure_database_format(_db_path(tmp_path), data_dir=str(tmp_path))
 
-    from core.threads import create_thread, append_thread_message
+    from core.threads import append_thread_message, create_thread
     new_tid = create_thread(None, "Proofreader", title="A new dialogue")
     append_thread_message(new_tid, "user", "a fresh question")
 
@@ -168,7 +167,7 @@ def test_the_other_tables_are_left_untouched(tmp_path):
     """Given assistants and settings in the same file, when the switch runs,
     then only the message rows move."""
     from core import chat_db_archive as A
-    from storage.repository import repo_save_config, repo_load_config
+    from storage.repository import repo_load_config, repo_save_config
     _legacy_installation(tmp_path)
     db_path = _db_path(tmp_path)
     repo_save_config({"ui_lang": "Русский"})

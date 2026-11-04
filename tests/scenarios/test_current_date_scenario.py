@@ -26,7 +26,6 @@ import pytest
 import core.paths
 from core import orchestrators as orch
 
-
 BLOCK_MARK = "\n\n## Current date\n\n"
 DAY = timedelta(days=1)
 

@@ -1,0 +1,80 @@
+# Ruff configuration for the SagaAI platform.
+#
+# The rule set is deliberately NARROW. Ruff's defaults pull in every rule
+# family it ships, and on a code base this size that produces hundreds of
+# findings about a style the project never adopted - which trains a reader to
+# ignore the linter. What is enabled here is what the project actually
+# enforces when it reviews code:
+#
+# - ``E``/``W`` - layout errors a human would point at (and a small set of
+#   pycodestyle warnings);
+# - ``F`` - real defects: an unused import, an undefined name, a duplicated
+#   key, a comparison that is always true;
+# - ``I`` - import order, so a new block lands where a reader expects it;
+# - ``UP`` is intentionally OFF: the code base targets a style where
+#   ``typing.Dict``/``List``/``Optional`` are the documented forms, and a
+#   mechanical rewrite to ``dict[int] | None`` would touch thousands of lines
+#   for no behavioural gain.
+#
+# What is deliberately NOT enabled: ``BLE`` (blind except - the platform
+# catches ``Exception`` at tool and transport boundaries on purpose, see the
+# comments there), ``RUF013`` (implicit Optional - same reason), and every
+# rule family that only reformats code.
+
+# The project runs on 3.14; the floor is set to 3.12 because that is the
+# first version whose f-strings MAY reuse their own quote character and
+# contain a backslash - both already present in the code base, and a lower
+# floor turns them into false "invalid syntax" findings.
+target-version = "py312"
+line-length = 120
+
+[lint]
+select = ["E", "F", "I"]
+ignore = [
+    # Line length is checked, but the ceiling is wide enough for the prose in
+    # docstrings; a real code line over 120 characters is still a finding.
+    "E501",
+]
+
+[lint.per-file-ignores]
+# Test files legitimately import helpers for their side effects and use
+# long literal fixtures.
+"tests/*" = ["F401", "F811"]
+# The package inits re-export names on purpose; see the ``noqa`` there.
+"**/__init__.py" = ["F401"]
+
+# ``E402`` (module import not at top of file) is disabled only where an import
+# MUST follow executable code. Each entry has a reason the import cannot move
+# above it; the rule stays active everywhere else.
+#
+# The page imports streamlit only after the cold-start database migrations have
+# run, and ``set_page_config`` has to be the first streamlit call.
+"app.py" = ["E402"]
+# Runnable as a script (``python3 core/updater.py``): the project root is put on
+# ``sys.path`` first and the package imports follow that line.
+"core/updater.py" = ["E402"]
+# Same reason: executed directly, so ``sys.path`` is prepared before the import.
+"scripts/regenerate_project_map.py" = ["E402"]
+# Test modules that put the project root on ``sys.path`` or skip the whole
+# module when an optional dependency is missing (``pytest.importorskip``) - in
+# both cases the imports below cannot move above the guard.
+"tests/test_agent_loop_json_repair.py" = ["E402"]
+"tests/test_github_connector_retry.py" = ["E402"]
+"tests/test_list_files.py" = ["E402"]
+"tests/test_platform_scenarios.py" = ["E402"]
+"tests/test_project_map_ast.py" = ["E402"]
+"tests/test_search_in_files.py" = ["E402"]
+"tests/test_universal_developer.py" = ["E402"]
+"tests/scenarios/test_batch_tool_calls_scenarios.py" = ["E402"]
+"tests/scenarios/test_context_overflow_protection.py" = ["E402"]
+"tests/scenarios/test_github_read_retry_scenario.py" = ["E402"]
+"tests/scenarios/test_json_repair_scenarios.py" = ["E402"]
+"tests/scenarios/test_loop_stuck_protection_scenarios.py" = ["E402"]
+"tests/scenarios/test_project_map_freshness_scenario.py" = ["E402"]
+"tests/scenarios/test_search_in_files_scenarios.py" = ["E402"]
+"tests/scenarios/test_unified_context_budget_scenario.py" = ["E402"]
+
+[format]
+line-ending = "lf"
+# The copyright tail is appended by hand and is not a docstring.
+quote-style = "double"

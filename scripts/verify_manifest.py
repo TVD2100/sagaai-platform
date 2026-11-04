@@ -38,7 +38,6 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 
-
 MANIFEST_NAME = "file_versions.json"
 # Files kept local-only: tracked by git but never published in the manifest.
 COVERAGE_SKIP = {

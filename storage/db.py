@@ -8,9 +8,10 @@ Two separate databases:
 Each has its own engine and session factory, isolated from the other.
 DB file locations are read from core.paths (overridable via SAGAAI_DATA_DIR).
 """
-import os
 from sqlalchemy import create_engine, event, inspect, text
-from sqlalchemy.orm import sessionmaker, Session as _Session
+from sqlalchemy.orm import Session as _Session
+from sqlalchemy.orm import sessionmaker
+
 from storage.models import Base
 
 # SQLite journal mode: WAL lets readers run concurrently with a single

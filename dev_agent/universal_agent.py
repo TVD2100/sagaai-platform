@@ -19,13 +19,14 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Callable, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+from storage.models import DEFAULT_MAX_STEPS
 
 from . import config
-from . import workspace_tools as wt
 from . import workspace_binding as wb
+from . import workspace_tools as wt
 from .tool_executor import _coerce_numeric_args, workspace_guard_error
-from storage.models import DEFAULT_MAX_STEPS
 
 
 def load_system_prompt() -> str:
@@ -304,8 +305,8 @@ def validate_tool_call(tool_name: str, args: Dict[str, Any],
 
     # 1. disabled_tools (plus the ban a parent imposes on its children).
     try:
-        from core.orchestrators import get_disabled_tools
         from core.orchestrator_tools import is_tool_disabled
+        from core.orchestrators import get_disabled_tools
         disabled = set(get_disabled_tools(orchestrator_slug))
     except Exception:
         disabled = set()
@@ -534,8 +535,8 @@ class UniversalDevAgent:
         failure can never break dispatching.
         """
         try:
-            from core.orchestrators import get_disabled_tools
             from core.orchestrator_tools import is_tool_disabled
+            from core.orchestrators import get_disabled_tools
             disabled = set(get_disabled_tools(self._current_orchestrator_slug()))
             return is_tool_disabled(tool_name, disabled)
         except Exception:
@@ -679,8 +680,8 @@ class UniversalDevAgent:
         do not keep accepting connection calls.
         """
         try:
-            from core.orchestrators import get_enabled_connections
             from core.connectors import get_connection
+            from core.orchestrators import get_enabled_connections
             enabled = get_enabled_connections(slug)
             if not enabled:
                 for name in (self._CONNECTION_TOOL_NAMES_REST +
@@ -960,7 +961,6 @@ class UniversalDevAgent:
         """
         import os
 
-        from dev_agent import config as dagent_config
         from core import document_images as images_module
 
         source_path = str(path or "").strip()
@@ -1436,8 +1436,8 @@ class UniversalDevAgent:
                              tools: Optional[list] = None, max_steps: int = DEFAULT_MAX_STEPS,
                              auto_apply: bool = True, memory_dir: str = "",
                              **kwargs) -> Dict[str, Any]:
-        from core.orchestrators import create_orchestrator
         from core.orchestrator_folders import safe_orchestrator_slug
+        from core.orchestrators import create_orchestrator
         effective_slug = safe_orchestrator_slug(slug)
         if not effective_slug or not name.strip():
             return {"ok": False, "error": "Both 'slug' and 'name' are required."}

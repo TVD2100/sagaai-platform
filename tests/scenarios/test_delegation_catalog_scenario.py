@@ -76,8 +76,8 @@ def test_spawn_agent_is_always_in_the_catalog(employee):
 
 
 def test_invoke_assistant_appears_once_an_assistant_is_allowed(employee):
-    from core.orchestrators import set_allowed_assistants
     from core.orchestrator_tools import build_tool_catalog
+    from core.orchestrators import set_allowed_assistants
 
     set_allowed_assistants(employee, [_make_assistant()])
 
@@ -88,8 +88,8 @@ def test_invoke_assistant_appears_once_an_assistant_is_allowed(employee):
 def test_assistant_allowlist_is_validated_against_live_cards(employee):
     """A stale id never survives the setter, so the catalog cannot offer a
     tool whose only listed assistant no longer exists."""
-    from core.orchestrators import get_allowed_assistants, set_allowed_assistants
     from core.orchestrator_tools import build_tool_catalog
+    from core.orchestrators import get_allowed_assistants, set_allowed_assistants
 
     set_allowed_assistants(employee, ["ghost999"])
 
@@ -99,8 +99,8 @@ def test_assistant_allowlist_is_validated_against_live_cards(employee):
 
 
 def test_catalog_descriptions_state_the_boundaries(employee):
-    from core.orchestrators import set_allowed_assistants
     from core.orchestrator_tools import build_tool_catalog
+    from core.orchestrators import set_allowed_assistants
 
     set_allowed_assistants(employee, [_make_assistant()])
 
@@ -116,9 +116,8 @@ def test_disabling_a_delegation_tool_removes_it_from_the_catalog(employee):
     The catalog is built with the caller's disabled set - the same set the
     prompt builder passes - so this pins the filtering contract itself.
     """
-    from core.orchestrators import (get_disabled_tools, set_allowed_assistants,
-                                    set_disabled_tools)
     from core.orchestrator_tools import build_tool_catalog
+    from core.orchestrators import get_disabled_tools, set_allowed_assistants, set_disabled_tools
 
     set_allowed_assistants(employee, [_make_assistant()])
     set_disabled_tools(employee, ["spawn_agent", "invoke_assistant"])
@@ -150,8 +149,7 @@ def test_self_slug_is_not_stored_in_the_allowlist(employee):
 
 
 def test_allowlist_survives_a_config_round_trip(employee):
-    from core.orchestrators import (get_allowed_agents, get_delegation_limits,
-                                    set_allowed_agents, set_delegation_limits)
+    from core.orchestrators import get_allowed_agents, get_delegation_limits, set_allowed_agents, set_delegation_limits
 
     set_allowed_agents(employee, ["other_agent"])
     set_delegation_limits(employee, {"max_depth": 2, "total_subagent_runs": 8})
@@ -187,8 +185,7 @@ def test_unknown_limit_keys_are_ignored(employee):
 
 
 def test_settings_for_an_unknown_orchestrator_are_refused():
-    from core.orchestrators import (set_allowed_agents, set_allowed_assistants,
-                                    set_delegation_limits)
+    from core.orchestrators import set_allowed_agents, set_allowed_assistants, set_delegation_limits
 
     assert set_allowed_agents("nobody_here", ["x"]) is False
     assert set_allowed_assistants("nobody_here", ["x"]) is False
@@ -202,8 +199,8 @@ def test_catalog_and_runtime_read_the_same_allowlist(employee):
     """The check the loop performs and the check the catalog is built from
     must not diverge - otherwise the model is offered a refused tool."""
     from core.orchestration.tools import check_agent_allowed
-    from core.orchestrators import set_allowed_agents
     from core.orchestrator_tools import build_tool_catalog
+    from core.orchestrators import set_allowed_agents
 
     set_allowed_agents(employee, ["helper_agent"])
 

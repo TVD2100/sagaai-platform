@@ -33,7 +33,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from storage.db import reset_engine, reset_devagent_engine
+from storage.db import reset_devagent_engine, reset_engine
 
 
 @pytest.fixture
@@ -189,7 +189,7 @@ def test_scenario_import_validation_gate(isolated_data_dir):
           the normalized slug with its folder + prompt, and cleanup removes
           it again.
     """
-    from core.orchestrators import import_orchestrator, delete_orchestrator, get_orchestrator_by_slug
+    from core.orchestrators import delete_orchestrator, get_orchestrator_by_slug, import_orchestrator
 
     bad = import_orchestrator({"format": "sagaai_orchestrator/v1", "slug": "../evil", "name": "Evil"})
     assert bad["ok"] is False

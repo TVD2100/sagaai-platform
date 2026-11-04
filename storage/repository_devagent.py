@@ -11,11 +11,10 @@ Since the workspace-restoration feature, each thread also persists the LAST
 active workspace (``workspace`` / ``target_file``) so reopening a saved dialog
 switches DevAgent back to the correct project folder.
 """
-import json
 from datetime import datetime
-from storage.db import get_devagent_session
-from storage.models import Thread, Message
 
+from storage.db import get_devagent_session
+from storage.models import Message, Thread
 
 # ─── Threads (DevAgent DB) ────────────────────────────────────────────────────
 

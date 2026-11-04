@@ -37,7 +37,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 DEEPSEEK = {
     "name": "DeepSeek",
@@ -79,7 +79,7 @@ def isolated_env():
     core.paths.HISTORY_DIR = os.path.join(tmp, "history")
     core.paths.SYSTEM_PROMPTS_DIR = os.path.join(tmp, "system_prompts")
 
-    from storage.db import reset_engine, reset_devagent_engine
+    from storage.db import reset_devagent_engine, reset_engine
     reset_engine()
     reset_devagent_engine()
 
@@ -120,8 +120,8 @@ def _prompt():
 
 def _dispatcher():
     """Real dispatcher bound to the employee, as the chat page builds it."""
-    from dev_agent.universal_agent import UniversalDevAgent
     from core.orchestrators import get_fetch_config
+    from dev_agent.universal_agent import UniversalDevAgent
     dispatcher = UniversalDevAgent()
     dispatcher.attach_orchestrator(SLUG)
     dispatcher.core._url_fetch_config = get_fetch_config(SLUG)
@@ -149,8 +149,8 @@ def test_scenario_1_no_model_no_tool(isolated_env):
 def test_scenario_2_assigning_model_switches_the_tool_on(isolated_env):
     """GIVEN no model, WHEN DeepSeek/deepseek-flash is saved, THEN the tool."""
     _make_employee()
-    from core.orchestrators import get_fetch_config, save_orchestrator
     from core.orchestrator_tools import list_system_tools
+    from core.orchestrators import get_fetch_config, save_orchestrator
 
     with patch("core.orchestrators._get_services",
                return_value={"DeepSeek": DEEPSEEK, "Plain": PLAIN}):
@@ -279,8 +279,8 @@ def test_scenario_4_models_tab_lists_only_fetch_capable_providers(isolated_env):
 def test_scenario_5_selenium_alone_switches_the_tool_on(isolated_env):
     """GIVEN no fetch model, WHEN Selenium is ticked, THEN the tool works."""
     _make_employee()
-    from core.orchestrators import get_fetch_config, save_orchestrator
     from core.orchestrator_tools import list_system_tools
+    from core.orchestrators import get_fetch_config, save_orchestrator
 
     with patch("core.orchestrators._get_services", return_value={}):
         from core.orchestrators import get_orchestrator

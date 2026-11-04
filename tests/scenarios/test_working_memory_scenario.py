@@ -134,7 +134,7 @@ def test_scenario_listing_the_memory_folder_works_without_a_project(sandbox, age
 
 def test_scenario_prompt_announces_the_same_folder_the_tools_use(sandbox, agent_factory):
     # given: a freshly created employee
-    agent = agent_factory("scenario_prompt")
+    agent_factory("scenario_prompt")
 
     # when: the prompt is assembled and a file is resolved
     from core.orchestrators import _extend_prompt_with_working_memory

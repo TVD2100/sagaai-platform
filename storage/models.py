@@ -4,10 +4,7 @@ storage.models - SQLAlchemy ORM models for SagaAI.
 Tables: Assistant, Thread, Message, ConfigKV, Instruction, Orchestrator,
         OrchestratorInstruction.
 """
-from datetime import datetime
-from sqlalchemy import (
-    Column, String, Float, Text, Integer, ForeignKey, DateTime, Boolean, Index
-)
+from sqlalchemy import Boolean, Column, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()

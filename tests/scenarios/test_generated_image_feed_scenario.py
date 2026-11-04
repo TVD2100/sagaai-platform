@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 JPEG_BYTES = bytes([255, 216, 255, 224]) + bytes(16)
 SLUG = 'imgfeed'

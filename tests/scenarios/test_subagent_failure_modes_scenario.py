@@ -29,14 +29,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from core.orchestration import service as S  # noqa: E402
 from core.orchestration import tools as T  # noqa: E402
 from core.orchestration.contracts import (  # noqa: E402
-    AgentBrief,
-    AgentRunResult,
     ERR_INTERNAL_ERROR,
     ERR_PROVIDER_ERROR,
     STATUS_DONE,
     STATUS_FAILED,
     STOP_COMPLETED,
     STOP_ERROR,
+    AgentBrief,
+    AgentRunResult,
 )
 
 CONFIG = {"max_depth": 1, "max_active_subagents": 2,

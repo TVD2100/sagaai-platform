@@ -22,7 +22,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 DEVAGENT_SLUG = "dev_agent"
 MAX_STEPS_KEY = f"orch_max_steps_{DEVAGENT_SLUG}"
@@ -77,9 +77,9 @@ def test_scenario_other_tab_shows_default_500(isolated_data):
     then  the step-limit widget renders with the 500-step default,
           clamped to [1, 10000], a real tooltip and no errors.
     """
+    from core.i18n import t
     from core.orchestrators import ensure_builtin_orchestrators, get_orchestrator
     from storage.models import DEFAULT_MAX_STEPS
-    from core.i18n import t
 
     ensure_builtin_orchestrators()
     assert get_orchestrator(DEVAGENT_SLUG)["max_steps"] == DEFAULT_MAX_STEPS
@@ -106,8 +106,8 @@ def test_scenario_other_tab_save_persists_to_repository(isolated_data):
     then  the value is persisted in the real repository and a localized
           success message is shown.
     """
-    from core.orchestrators import ensure_builtin_orchestrators, get_orchestrator
     from core.i18n import t
+    from core.orchestrators import ensure_builtin_orchestrators, get_orchestrator
 
     ensure_builtin_orchestrators()
 

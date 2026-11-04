@@ -15,7 +15,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .llm_utils import call_llm_with_system
 
-
 # --- Classification prompt ----------------------------------------------------
 
 CLASSIFICATION_PROMPT = (
@@ -127,8 +126,8 @@ def _validate_classification(data: dict) -> Dict[str, Any]:
 
 
 def _get_available_services_with_keys() -> List[Dict[str, Any]]:
-    from core.services import get_services
     from core.config import has_key
+    from core.services import get_services
     services = get_services()
     result = []
     for name, svc in services.items():
@@ -250,8 +249,7 @@ def resolve_service_model_for_assistant(
              reasoning_effort, max_tool_calls).
     """
     from core.config import load_devagent_config
-    from core.services import service_supports_reasoning_effort
-    from core.services import default_reasoning_effort
+    from core.services import default_reasoning_effort, service_supports_reasoning_effort
 
     available = _get_available_services_with_keys()
     tools: List[str] = []

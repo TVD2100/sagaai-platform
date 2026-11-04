@@ -43,7 +43,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 
 @pytest.fixture
@@ -68,7 +68,7 @@ def isolated_data_dir():
     core.paths.HISTORY_DIR = os.path.join(tmp, "history")
     core.paths.SYSTEM_PROMPTS_DIR = os.path.join(tmp, "system_prompts")
 
-    from storage.db import reset_engine, reset_devagent_engine
+    from storage.db import reset_devagent_engine, reset_engine
     reset_engine()
     reset_devagent_engine()
 
@@ -108,7 +108,9 @@ def test_prompt_gets_tool_catalog_excluding_disabled(isolated_data_dir, orchid):
           is present, and the model is never told it could call read_file.
     """
     from core.orchestrators import (
-        build_assistant_dicts, set_disabled_tools, get_disabled_tools,
+        build_assistant_dicts,
+        get_disabled_tools,
+        set_disabled_tools,
     )
 
     assert set_disabled_tools(orchid, ["read_file"])
@@ -136,8 +138,8 @@ def test_gating_end_to_end_through_dispatcher(isolated_data_dir, orchid):
           nothing, the enabled tool works, and the prompt catalog hides both
           disabled names (the model cannot be misled).
     """
-    from core.orchestrators import set_disabled_tools, build_assistant_dicts
     from core.orchestrator_folders import save_orchestrator_function
+    from core.orchestrators import build_assistant_dicts, set_disabled_tools
     from dev_agent.universal_agent import UniversalDevAgent
 
     assert save_orchestrator_function(orchid, "sink_probe", CUSTOM_FN_CODE)
@@ -177,7 +179,7 @@ def test_functions_tab_uncheck_and_save_persists(isolated_data_dir, orchid):
     then  the real repository stores disabled_tools=['read_file'], the newly
           built prompt no longer lists read_file, and dispatch blocks it.
     """
-    from core.orchestrators import get_disabled_tools, build_assistant_dicts
+    from core.orchestrators import build_assistant_dicts, get_disabled_tools
     from dev_agent.universal_agent import UniversalDevAgent
 
     with install_streamlit_mock() as st:
@@ -234,7 +236,8 @@ def test_reenable_restores_checkbox_prompt_and_dispatch(isolated_data_dir, orchi
           the dispatcher executes it normally.
     """
     from core.orchestrators import (
-        set_disabled_tools, build_assistant_dicts,
+        build_assistant_dicts,
+        set_disabled_tools,
     )
     from dev_agent.universal_agent import UniversalDevAgent
 

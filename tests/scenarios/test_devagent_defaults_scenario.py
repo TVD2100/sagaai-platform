@@ -30,7 +30,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 
 @pytest.fixture
@@ -56,7 +56,7 @@ def isolated_env():
     core.paths.HISTORY_DIR = os.path.join(tmp, "history")
     core.paths.SYSTEM_PROMPTS_DIR = os.path.join(tmp, "system_prompts")
 
-    from storage.db import reset_engine, reset_devagent_engine
+    from storage.db import reset_devagent_engine, reset_engine
 
     reset_engine()
     reset_devagent_engine()
@@ -154,7 +154,9 @@ def test_scenario_2_backfill_keeps_user_chosen_models(isolated_env):
     _bootstrap()
 
     from core.orchestrators import (
-        DEVAGENT_SLUG, ensure_builtin_orchestrators, get_orchestrator,
+        DEVAGENT_SLUG,
+        ensure_builtin_orchestrators,
+        get_orchestrator,
         save_orchestrator,
     )
 
@@ -174,7 +176,9 @@ def test_scenario_2b_backfill_fills_fields_that_were_never_set(isolated_env):
     _bootstrap()
 
     from core.orchestrators import (
-        DEVAGENT_SLUG, ensure_builtin_orchestrators, get_orchestrator,
+        DEVAGENT_SLUG,
+        ensure_builtin_orchestrators,
+        get_orchestrator,
         save_orchestrator,
     )
 

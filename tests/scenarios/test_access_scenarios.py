@@ -22,7 +22,7 @@ PKG_ROOT = os.path.dirname(os.path.dirname(HERE))
 if PKG_ROOT not in sys.path:
     sys.path.insert(0, PKG_ROOT)
 
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 
 class _FakeLoopState:

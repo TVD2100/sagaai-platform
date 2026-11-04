@@ -33,7 +33,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from storage.db import reset_engine, reset_devagent_engine  # noqa: E402
+from storage.db import reset_devagent_engine, reset_engine  # noqa: E402
 from tests._st_mock import install_streamlit_mock  # noqa: E402
 
 SLUG = "dev_agent"
@@ -113,10 +113,10 @@ def _make_project(tmp_path, name):
 
 def test_scenario_reopen_restores_saved_folder(st_mock, tmp_path):
     """Scenario 1: reopening a saved dialog restores its folder."""
+    import ui.pages.orchestrator as orch_page
+    from core.threads_devagent import create_devagent_thread
     from dev_agent import config
     from dev_agent import workspace_binding as wb
-    from core.threads_devagent import create_devagent_thread
-    import ui.pages.orchestrator as orch_page
 
     proj = _make_project(tmp_path, "saved_proj")
     tid = create_devagent_thread(
@@ -141,10 +141,10 @@ def test_scenario_reopen_restores_saved_folder(st_mock, tmp_path):
 
 def test_scenario_missing_folder_opens_empty_state(st_mock, tmp_path):
     """Scenario 2: a vanished folder opens the dialog in the empty state."""
+    import ui.pages.orchestrator as orch_page
+    from core.threads_devagent import create_devagent_thread, load_thread_meta
     from dev_agent import config
     from dev_agent import workspace_binding as wb
-    from core.threads_devagent import create_devagent_thread, load_thread_meta
-    import ui.pages.orchestrator as orch_page
 
     vanished = _make_project(tmp_path, "vanished_proj")
     tid = create_devagent_thread(
@@ -174,10 +174,10 @@ def test_scenario_missing_folder_opens_empty_state(st_mock, tmp_path):
 
 def test_scenario_workspaceless_meta_not_polluted_by_neighbour(st_mock, tmp_path):
     """Scenario 3: a folder-less dialog never records a neighbour's folder."""
+    import ui.pages.orchestrator as orch_page
+    from core.threads_devagent import create_devagent_thread, load_thread_meta
     from dev_agent import config
     from dev_agent import workspace_binding as wb
-    from core.threads_devagent import create_devagent_thread, load_thread_meta
-    import ui.pages.orchestrator as orch_page
 
     proj = _make_project(tmp_path, "neighbour_proj")
     config.apply_paths(str(proj), create_dirs=False)
@@ -209,10 +209,12 @@ def test_scenario_workspaceless_meta_not_polluted_by_neighbour(st_mock, tmp_path
 
 def test_scenario_delete_thread_drops_binding(tmp_path):
     """Scenario 4: deleting a dialog forgets its workspace binding."""
-    from dev_agent import workspace_binding as wb
     from core.threads_devagent import (
-        create_devagent_thread, delete_thread, load_thread_meta,
+        create_devagent_thread,
+        delete_thread,
+        load_thread_meta,
     )
+    from dev_agent import workspace_binding as wb
 
     proj = _make_project(tmp_path, "deleted_proj")
     tid = create_devagent_thread(
@@ -230,9 +232,9 @@ def test_scenario_delete_thread_drops_binding(tmp_path):
 
 def test_scenario_dispatcher_switch_and_empty_state_persist(tmp_path):
     """Scenario 5: switch drops a stale target; empty state clears the meta."""
+    from core.threads_devagent import create_devagent_thread, load_thread_meta
     from dev_agent import config
     from dev_agent.universal_agent import UniversalDevAgent
-    from core.threads_devagent import create_devagent_thread, load_thread_meta
 
     proj = _make_project(tmp_path, "switch_proj")
     target = proj / "f.txt"
@@ -272,12 +274,13 @@ def test_scenario_legacy_platform_folder_migrated_before_reopen(st_mock, tmp_pat
     and the dialog is reopened from history, then it opens in the EMPTY
     state instead of switching the agent to the platform folder.
     """
+    import ui.pages.orchestrator as orch_page
+    from core.threads_devagent import (
+        create_devagent_thread,
+        migrate_platform_workspace_meta,
+    )
     from dev_agent import config
     from dev_agent import workspace_binding as wb
-    from core.threads_devagent import (
-        create_devagent_thread, migrate_platform_workspace_meta,
-    )
-    import ui.pages.orchestrator as orch_page
 
     install = str(config.INSTALL_ROOT.resolve())
     tid = create_devagent_thread(

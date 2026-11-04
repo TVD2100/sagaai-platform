@@ -39,7 +39,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 GIGACHAT_ENDPOINT = "https://api.giga.chat/v1/chat/completions"
 EMPLOYEE_PROMPT = "You are the orchestrator."
@@ -124,8 +124,8 @@ def _patch_transport(monkeypatch, session: MagicMock) -> None:
 
 def _setup_page(monkeypatch):
     """Import the orchestrator page and wire the employee seams."""
-    import ui.pages.orchestrator as orch_page
     import dev_agent.agent_loop as al
+    import ui.pages.orchestrator as orch_page
 
     # Context snapshots are covered by test_agent_loop_snapshot_chain.py;
     # neutralize the ambient runtime sources so the scenario expectations

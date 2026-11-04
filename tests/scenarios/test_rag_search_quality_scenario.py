@@ -145,10 +145,11 @@ def test_previous_release_index_is_upgraded_on_first_search(rag_data):
     then: the index is upgraded in place, the search succeeds and a word
           form written differently in the document is found afterwards
     """
+    import sqlite3
+
     import core.rag as rag
     import core.rag_index as rag_index
     import core.rag_search as rag_search
-    import sqlite3
 
     base = rag.create_base(name="Legacy KB")
     slug = base["slug"]

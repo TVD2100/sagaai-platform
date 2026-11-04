@@ -23,13 +23,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from core.orchestration import tools  # noqa: E402
 from core.orchestration.contracts import (  # noqa: E402
-    AgentBrief,
-    AgentRunResult,
     ERR_NOT_YOUR_RUN,
     ERR_RESUME_CHAIN_LIMIT,
     STATUS_AWAITING_INPUT,
     STATUS_DONE,
     STOP_COMPLETED,
+    AgentBrief,
+    AgentRunResult,
 )
 from core.orchestration.service import OrchestrationService  # noqa: E402
 

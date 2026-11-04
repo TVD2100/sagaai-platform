@@ -25,8 +25,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from storage.db import reset_engine, reset_devagent_engine  # noqa: E402
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
+from storage.db import reset_devagent_engine, reset_engine  # noqa: E402
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 SLUG = "dev_agent"
 NEIGHBOUR_TID = "scen_artifacts_neighbour"
@@ -148,12 +148,12 @@ def test_scenario_empty_state_journal_stays_in_dialog_folder(st_mock, tmp_path, 
           owns its external memory) and the neighbour's project directory
           receives no new files.
     """
-    from dev_agent import config
-    from dev_agent import workspace_binding as wb
-    from dev_agent import task_state as ts
-    from dev_agent.universal_agent import UniversalDevAgent
-    from core.paths import get_thread_dir
     import ui.pages.orchestrator as orch_page
+    from core.paths import get_thread_dir
+    from dev_agent import config
+    from dev_agent import task_state as ts
+    from dev_agent import workspace_binding as wb
+    from dev_agent.universal_agent import UniversalDevAgent
 
     proj = _make_neighbour_project(tmp_path)
     before = sorted(os.listdir(proj))
@@ -191,10 +191,10 @@ def test_scenario_empty_state_attachment_never_touches_foreign_project(st_mock, 
     then  the upload lands under history/<tid>/files and the neighbour's
           project directory receives no new files.
     """
+    import ui.pages.orchestrator as orch_page
+    from core.paths import get_thread_dir
     from dev_agent import config
     from dev_agent import workspace_binding as wb
-    from core.paths import get_thread_dir
-    import ui.pages.orchestrator as orch_page
 
     proj = _make_neighbour_project(tmp_path)
     before = sorted(os.listdir(proj))

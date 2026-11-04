@@ -10,7 +10,6 @@ import sys
 from contextlib import contextmanager
 from typing import Dict, List
 
-
 # Prefixes of project packages that tests reload/restore wholesale.
 APP_MODULE_PREFIXES = ("core", "storage", "ui")
 

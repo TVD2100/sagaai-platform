@@ -70,7 +70,7 @@ def marketplace_data_dir(tmp_path):
     db_mod.DB_PATH = paths_mod.DB_PATH
     db_mod.DEVAGENT_DB_PATH = paths_mod.DEVAGENT_DB_PATH
 
-    from storage.db import reset_engine, reset_devagent_engine
+    from storage.db import reset_devagent_engine, reset_engine
     reset_engine()
     reset_devagent_engine()
 

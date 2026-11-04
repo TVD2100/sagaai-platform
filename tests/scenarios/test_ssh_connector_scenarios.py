@@ -56,7 +56,7 @@ def isolated_data_dir():
     core.paths.HISTORY_DIR = os.path.join(tmp, "history")
     core.paths.SYSTEM_PROMPTS_DIR = os.path.join(tmp, "system_prompts")
 
-    from storage.db import reset_engine, reset_devagent_engine
+    from storage.db import reset_devagent_engine, reset_engine
     reset_engine()
     reset_devagent_engine()
     yield tmp
@@ -87,8 +87,7 @@ def _ssh_connection(name="Prod SSH", host="203.0.113.10", port=2222,
 # 1. Happy path ---------------------------------------------------------------
 def test_scenario_ssh_connection_lifecycle(isolated_data_dir, monkeypatch):
     """A user creates, lists, tests, rotates and deletes an SSH connection."""
-    from core import connectors
-    from core import ssh_connector
+    from core import connectors, ssh_connector
 
     env = install_fake_paramiko(monkeypatch)
     created = _ssh_connection(name="Prod SSH")
@@ -139,8 +138,7 @@ def test_scenario_ssh_connection_lifecycle(isolated_data_dir, monkeypatch):
 # 2. Secret safety ------------------------------------------------------------
 def test_scenario_ssh_secrets_never_leak(isolated_data_dir, monkeypatch):
     """Private key material and passphrases never reach public views/errors."""
-    from core import connectors
-    from core import ssh_tools
+    from core import connectors, ssh_tools
 
     env = install_fake_paramiko(monkeypatch)
     key_body = "-----BEGIN OPENSSH PRIVATE KEY-----\nSCENARIO-KEY\n"
@@ -179,10 +177,10 @@ def test_scenario_ssh_secrets_never_leak(isolated_data_dir, monkeypatch):
 def test_scenario_orchestrator_prompt_advertises_ssh_tools(isolated_data_dir):
     """An orchestrator bound to an SSH connection advertises the ssh_* tools."""
     from core.orchestrators import (
+        _extend_prompt_with_connections,
         create_orchestrator,
         get_enabled_connections,
         set_enabled_connections,
-        _extend_prompt_with_connections,
     )
 
     conn = _ssh_connection(name="Bound SSH")

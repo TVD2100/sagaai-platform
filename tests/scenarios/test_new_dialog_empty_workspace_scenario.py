@@ -29,8 +29,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from storage.db import reset_engine, reset_devagent_engine  # noqa: E402
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
+from storage.db import reset_devagent_engine, reset_engine  # noqa: E402
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 SLUG = "dev_agent"
 NEIGHBOUR_TID = "scen_neighbour_tid"
@@ -146,9 +146,9 @@ def test_scenario_new_dialog_switches_to_empty_state(st_mock, tmp_path):
     then  the live state becomes the empty workspace state and the
           neighbour's binding is untouched.
     """
+    import ui.pages.orchestrator as orch_page
     from dev_agent import config
     from dev_agent import workspace_binding as wb
-    import ui.pages.orchestrator as orch_page
 
     proj = _make_neighbour_project(tmp_path)
     config.apply_paths(str(proj), create_dirs=False)
@@ -177,10 +177,10 @@ def test_scenario_first_message_creates_workspaceless_thread(st_mock, tmp_path, 
           dispatcher registers a workspace-less binding, and the
           neighbour's project directory receives no new files.
     """
+    from core.threads_devagent import load_thread_meta
     from dev_agent import config
     from dev_agent import workspace_binding as wb
     from dev_agent.universal_agent import UniversalDevAgent
-    from core.threads_devagent import load_thread_meta
 
     proj = _make_neighbour_project(tmp_path)
     before = sorted(os.listdir(proj))

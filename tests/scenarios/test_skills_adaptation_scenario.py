@@ -22,7 +22,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 
 @pytest.fixture
@@ -89,14 +89,17 @@ def test_external_skill_hidden_from_prompt_until_adapted(isolated_data_dir, monk
           the "Available skills" block of the system prompt.
     """
     skill = _import_external_skill(isolated_data_dir)
-    from core.skills_library import get_skill, get_enabled_skills_metadata
+    from core.skills_library import get_enabled_skills_metadata, get_skill
     rec = get_skill(skill["id"])
     assert rec["adapted"] is False
     assert rec["developer"] == "unknown"
     assert get_enabled_skills_metadata([skill["id"]]) == []
 
     from core.orchestrators import (
-        create_orchestrator, set_enabled_skills, build_skill_dicts, delete_orchestrator,
+        build_skill_dicts,
+        create_orchestrator,
+        delete_orchestrator,
+        set_enabled_skills,
     )
     slug = "scn_adapt_orch"
     assert create_orchestrator(slug, "Scenario Orch", prompt_text="Base prompt")
@@ -189,7 +192,10 @@ def test_mark_adapted_reveals_skill_in_prompt(isolated_data_dir, monkeypatch, tm
     assert [m["id"] for m in metas] == [skill["id"]]
 
     from core.orchestrators import (
-        create_orchestrator, set_enabled_skills, build_skill_dicts, delete_orchestrator,
+        build_skill_dicts,
+        create_orchestrator,
+        delete_orchestrator,
+        set_enabled_skills,
     )
     slug = "scn_adapt_orch_2"
     assert create_orchestrator(slug, "Scenario Orch 2", prompt_text="Base prompt")

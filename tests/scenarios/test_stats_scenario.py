@@ -43,8 +43,7 @@ def stats_data(isolated_app_modules, monkeypatch, tmp_path):
     from tests._test_isolation import drop_app_modules
     drop_app_modules()
 
-    from core import assistants, orchestrators, statistics, threads
-    from core import threads_devagent
+    from core import assistants, orchestrators, statistics, threads, threads_devagent
 
     now = datetime.now().replace(microsecond=0)
 

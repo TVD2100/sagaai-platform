@@ -25,12 +25,8 @@ Explicit assistant creation:
    - If the user explicitly specifies a service or model in the request, that is used.
 """
 
-import json
-import re
-import uuid
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List
 
-from core.assistants import get_assistant_by_id, create_assistant
 from storage.repository import repo_load_assistants
 
 # The stable ID of the built-in Assistant Creator instruction (seeded in bootstrap.py).

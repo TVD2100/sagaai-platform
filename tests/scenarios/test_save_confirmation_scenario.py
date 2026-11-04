@@ -18,7 +18,7 @@ from unittest.mock import patch
 
 import pytest
 
-from tests._st_mock import install_streamlit_mock, StopRerun
+from tests._st_mock import StopRerun, install_streamlit_mock
 
 
 @pytest.fixture

@@ -70,10 +70,10 @@ def test_gigachat_env_fallback_limited_to_single_key(monkeypatch):
     SAGAAI_GIGACHAT_KEY2 is set, then it is invisible to env checks and env
     merging; only SAGAAI_GIGACHAT_KEY fills the API key."""
     from core.config import (
-        env_key_fields_for_service,
-        is_env_key_set_for_service,
-        env_key_name_for_service,
         _merge_env_keys,
+        env_key_fields_for_service,
+        env_key_name_for_service,
+        is_env_key_set_for_service,
     )
 
     monkeypatch.delenv("SAGAAI_GIGACHAT_KEY", raising=False)
@@ -109,10 +109,10 @@ def test_economy_defaults_tail_50_multiplier_x2():
     YaAgent preset both default to tail=50 and multiplier=x2 with the
     cache-friendly mode enabled."""
     from core.config import (
-        get_default_economy_tail_messages,
-        get_default_economy_cache_multiplier,
-        get_default_economy_cache_enabled,
         _DEVAGENT_FALLBACK_DEFAULTS,
+        get_default_economy_cache_enabled,
+        get_default_economy_cache_multiplier,
+        get_default_economy_tail_messages,
     )
 
     assert get_default_economy_tail_messages() == 50

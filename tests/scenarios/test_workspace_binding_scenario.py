@@ -139,9 +139,9 @@ def test_scenario_switched_workspace_survives_restart(tmp_path):
     the dialog is "reopened" (fresh dispatcher + the UI restore path), then
     the fresh dispatcher sees the switched workspace and reads its files.
     """
+    from core.threads_devagent import create_devagent_thread, load_thread_meta
     from dev_agent import workspace_tools as wt
     from dev_agent.universal_agent import UniversalDevAgent
-    from core.threads_devagent import create_devagent_thread, load_thread_meta
 
     ws_a = _make_ws(tmp_path, "proj_a")
     ws_b = _make_ws(tmp_path, "proj_b")

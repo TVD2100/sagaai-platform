@@ -8,13 +8,12 @@
 # ("Inviolable Core" recovery logic) and the DevAgent tool set (create_backup,
 # restore_backup, show_history) in section 7.3.
 
-import json
 import hashlib
-import shutil
-from dataclasses import dataclass, asdict
+import json
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 from . import config
 

@@ -24,7 +24,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from storage.db import reset_engine, reset_devagent_engine  # noqa: E402
+from storage.db import reset_devagent_engine, reset_engine  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -91,8 +91,8 @@ def _menu_paths(executor):
 
 def test_scenario_teacher_menu_excludes_devagent_folders(tmp_path):
     """Scenario 1: menus never mix folders of different orchestrators."""
-    from dev_agent.tool_executor import ToolExecutor
     from core.threads_devagent import create_devagent_thread
+    from dev_agent.tool_executor import ToolExecutor
 
     dev_proj = tmp_path / "dev_only"
     dev_proj.mkdir()
@@ -126,8 +126,8 @@ def test_scenario_teacher_menu_excludes_devagent_folders(tmp_path):
 def test_scenario_platform_folder_hidden_from_teacher(tmp_path):
     """Scenario 2: the platform root is not suggested to other employees."""
     import dev_agent.config as dagent_config
-    from dev_agent.tool_executor import ToolExecutor
     from core.threads_devagent import create_devagent_thread
+    from dev_agent.tool_executor import ToolExecutor
 
     install = str(Path(dagent_config.INSTALL_ROOT).resolve())
     # given: a teacher dialog left over from older builds carries the
@@ -155,8 +155,8 @@ def test_scenario_platform_folder_hidden_from_teacher(tmp_path):
 
 def test_scenario_switch_records_into_own_scope(tmp_path):
     """Scenario 3: a folder picked in a dialog lands in ITS shelf only."""
-    from dev_agent.universal_agent import UniversalDevAgent
     from dev_agent.tool_executor import ToolExecutor
+    from dev_agent.universal_agent import UniversalDevAgent
 
     proj = tmp_path / "picked_project"
     proj.mkdir()

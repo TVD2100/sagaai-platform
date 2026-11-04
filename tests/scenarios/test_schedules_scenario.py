@@ -47,8 +47,8 @@ DONE_ANSWER = '{"loop_status": "done"} The report is ready.'
 @pytest.fixture
 def env(tmp_path, monkeypatch):
     """Fresh databases, history folder, scheduler loop and a Streamlit mock."""
-    import storage.db as db
     import core.paths as paths
+    import storage.db as db
     from core.orchestration import runs as run_store
     from core.schedules import daemon, form, store
 

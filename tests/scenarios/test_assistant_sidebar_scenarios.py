@@ -75,8 +75,9 @@ def _ids(entries):
 
 
 def _fresh_app_mod():
-    from tests._st_mock import install_streamlit_mock
     import importlib
+
+    from tests._st_mock import install_streamlit_mock
     # Drop cached app modules so the fresh DATA_DIR is picked up.
     for m in list(sys.modules):
         if m.startswith(("core", "storage", "ui")):

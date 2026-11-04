@@ -18,35 +18,35 @@ __version__ = "0.1.0"
 __phase__ = "0"
 
 from . import config  # noqa: F401
-
-# Convenience re-exports — the public API of the dev_agent package.
-from .backup_manager import BackupManager, BackupEntry  # noqa: F401
-from .safe_writer import SafeWriter, ProtectedFileError, render_diff, DraftResult, ApplyResult  # noqa: F401
-from .tool_executor import ToolExecutor, TOOL_CATALOG  # noqa: F401
 from .agent_loop import (  # noqa: F401
-    step_agent_loop,
-    run_agent_loop,
-    parse_tool_calls,
-    classify_step_strength,
     AgentLoopState,
     AgentResult,
     approve_and_apply,
+    classify_step_strength,
     discard,
+    parse_tool_calls,
+    run_agent_loop,
+    step_agent_loop,
 )
-from .universal_agent import UniversalDevAgent, load_system_prompt, build_skill_dict_from_config  # noqa: F401
+
+# Convenience re-exports — the public API of the dev_agent package.
+from .backup_manager import BackupEntry, BackupManager  # noqa: F401
+from .safe_writer import ApplyResult, DraftResult, ProtectedFileError, SafeWriter, render_diff  # noqa: F401
+from .tool_executor import TOOL_CATALOG, ToolExecutor  # noqa: F401
+from .universal_agent import UniversalDevAgent, build_skill_dict_from_config, load_system_prompt  # noqa: F401
 from .workspace_tools import (  # noqa: F401
-    set_workspace,
-    set_target_file,
-    current_workspace,
-    scan_folder,
     assess_workspace,
     build_project_map,
-    write_project_map,
-    write_doc,
-    read_doc,
-    snapshot_all,
+    current_workspace,
     list_snapshots,
+    read_doc,
     restore_all,
+    scan_folder,
+    set_target_file,
+    set_workspace,
+    snapshot_all,
+    write_doc,
+    write_project_map,
 )
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

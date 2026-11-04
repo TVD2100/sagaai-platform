@@ -17,7 +17,6 @@ import pytest
 from dev_agent import config
 from dev_agent.tool_executor import ToolExecutor
 
-
 CLASSIFICATION_SCHEMA = {
     "type": "object",
     "properties": {

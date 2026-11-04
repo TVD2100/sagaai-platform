@@ -37,15 +37,17 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
-
 import core.updater as updater  # noqa: E402
 from core.updater_apply import (  # noqa: E402
     list_backup_runs as real_list_backup_runs,
+)
+from core.updater_apply import (
     load_health as real_load_health,
+)
+from core.updater_apply import (
     read_pending as real_read_pending,
 )
-
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 # ─── helpers ────────────────────────────────────────────────────────────────
 

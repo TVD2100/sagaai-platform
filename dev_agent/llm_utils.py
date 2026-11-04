@@ -24,7 +24,6 @@ from __future__ import annotations
 import inspect
 from typing import Any, Callable, Dict, List, Optional
 
-
 # Sentinels for detecting whether a callable accepts our optional keywords.
 _MISSING = inspect.Parameter.empty
 

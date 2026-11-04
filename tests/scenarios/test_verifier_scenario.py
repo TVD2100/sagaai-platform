@@ -58,8 +58,7 @@ def platform(tmp_path, monkeypatch):
 @pytest.fixture
 def employees(platform):
     """Родитель, исполнитель и назначенный верификатор."""
-    from core.orchestrators import (create_orchestrator, set_allowed_agents,
-                                    set_verifier_agent)
+    from core.orchestrators import create_orchestrator, set_allowed_agents, set_verifier_agent
 
     for slug, name in ((PARENT, "Scenario Parent"),
                        (WORKER, "Scenario Worker"),
@@ -227,9 +226,8 @@ def test_without_a_verifier_the_result_stays_unchecked(employees, platform):
     считал бы результат проверенным.
     """
     from core.orchestration import tools as T
-    from core.orchestrators import set_verifier_agent
     from core.orchestrator_tools import build_tool_catalog
-    from core.orchestrators import _extend_prompt_with_delegation
+    from core.orchestrators import _extend_prompt_with_delegation, set_verifier_agent
 
     assert set_verifier_agent(PARENT, "") is True
 

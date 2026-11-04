@@ -4,11 +4,18 @@ All public functions accept/return plain dicts or primitives (no ORM objects lea
 """
 import json
 from datetime import datetime
-from storage.db import get_session
-from storage.models import (Assistant, Thread, Message, ConfigKV, Instruction,
-                            Orchestrator, OrchestratorInstruction,
-                            DEFAULT_MAX_STEPS)
 
+from storage.db import get_session
+from storage.models import (
+    DEFAULT_MAX_STEPS,
+    Assistant,
+    ConfigKV,
+    Instruction,
+    Message,
+    Orchestrator,
+    OrchestratorInstruction,
+    Thread,
+)
 
 # ─── Assistants ───────────────────────────────────────────────────────────────
 

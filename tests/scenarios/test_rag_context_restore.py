@@ -140,8 +140,8 @@ def test_assistant_restores_context_around_a_hit(scenario_data):
         ('doc.md', 2, 'part three: rate limits'),
     ])
 
-    from core.assistants import create_assistant, get_assistant_by_id
     from core.assistant_folders import set_assistant_rag_bases
+    from core.assistants import create_assistant, get_assistant_by_id
     from core.tools_utils import build_rag_chunks_tool, build_rag_search_tool
 
     pid = create_assistant(

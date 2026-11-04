@@ -28,7 +28,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from dev_agent.universal_agent import UniversalDevAgent  # noqa: E402
 
-
 # ─── fixtures ──────────────────────────────────────────────────────────────
 
 

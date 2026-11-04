@@ -65,8 +65,7 @@ def platform(tmp_path, monkeypatch):
 def employee(platform):
     """An employee that may spawn one subagent and call one assistant."""
     from core.assistants import create_assistant
-    from core.orchestrators import (create_orchestrator, set_allowed_agents,
-                                    set_allowed_assistants)
+    from core.orchestrators import create_orchestrator, set_allowed_agents, set_allowed_assistants
 
     slug = "scenario_lead"
     assert create_orchestrator(slug, "Scenario Lead", "Leads the work") is not None

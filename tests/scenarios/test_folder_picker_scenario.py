@@ -31,8 +31,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from storage.db import reset_engine, reset_devagent_engine  # noqa: E402
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
+from storage.db import reset_devagent_engine, reset_engine  # noqa: E402
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 SLUG = "dev_agent"
 
@@ -153,9 +153,9 @@ def test_scenario_picked_folder_applied_on_first_send(st_mock, tmp_path, monkeyp
           folder, the selector snaps back to "Авто", and the second send
           does not call set_workspace again.
     """
-    from dev_agent import workspace_binding as wb
-    from core.threads_devagent import load_thread_meta
     import ui.pages.orchestrator as orch_page
+    from core.threads_devagent import load_thread_meta
+    from dev_agent import workspace_binding as wb
 
     proj = _make_project(tmp_path, "picked_proj")
     picked = str(proj.resolve())
@@ -201,9 +201,9 @@ def test_scenario_mid_dialog_switch_applies_new_folder(st_mock, tmp_path, monkey
     then  set_workspace(Y) runs, the thread binding moves X -> Y and the
     selector returns to "Авто".
     """
-    from dev_agent import workspace_binding as wb
-    from core.threads_devagent import create_devagent_thread, load_thread_meta
     import ui.pages.orchestrator as orch_page
+    from core.threads_devagent import create_devagent_thread, load_thread_meta
+    from dev_agent import workspace_binding as wb
 
     proj_x = _make_project(tmp_path, "proj_x")
     proj_y = _make_project(tmp_path, "proj_y")
@@ -243,10 +243,10 @@ def test_scenario_agent_detour_does_not_change_reported_folder(st_mock, tmp_path
     then  the displayed working folder is X (the thread binding stays the
           single source of truth) and nothing is re-applied.
     """
+    import ui.pages.orchestrator as orch_page
+    from core.threads_devagent import create_devagent_thread
     from dev_agent import config
     from dev_agent import workspace_binding as wb
-    from core.threads_devagent import create_devagent_thread
-    import ui.pages.orchestrator as orch_page
 
     proj_x = _make_project(tmp_path, "bound_proj")
     other = _make_project(tmp_path, "inspection_proj")

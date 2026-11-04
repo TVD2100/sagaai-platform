@@ -25,12 +25,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 import dev_agent.agent_loop as AL  # noqa: E402
 from core.orchestration import tools  # noqa: E402
 from core.orchestration.contracts import (  # noqa: E402
-    AgentBrief,
-    AgentRunResult,
     STATUS_CANCELLED,
     STATUS_DONE,
     STOP_ABORTED,
     STOP_COMPLETED,
+    AgentBrief,
+    AgentRunResult,
 )
 from core.orchestration.service import OrchestrationService  # noqa: E402
 
