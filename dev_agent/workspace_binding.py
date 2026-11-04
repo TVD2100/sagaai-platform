@@ -31,11 +31,14 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from . import config
+
+log = logging.getLogger(__name__)
 
 # ─── Registry ─────────────────────────────────────────────────────────────────
 _BINDING_LOCK: threading.RLock = threading.RLock()
@@ -175,10 +178,75 @@ def _apply_state_unlocked(tid: str, state: Dict[str, Optional[str]]) -> None:
                            create_dirs=False, selected=False)
 
 
+def _ensure_child_index_row(tid: str, parent: str, workspace: Optional[str],
+                            slug: str = "", display_name: str = "",
+                            title: str = "") -> bool:
+    """Create the thread index row a child transcript is read through.
+
+    A child writes its conversation to a file, and every reader reaches that
+    file through the thread index row: without the row the transcript is
+    unreachable and each read answers "thread not found" while the file sits
+    on disk. Creating the row here - at bind time, before the child takes its
+    first step - is what makes a run readable from the start, including a run
+    that dies before writing anything: an empty transcript is then the truth
+    rather than an error.
+
+    Idempotent: an existing row is reused untouched, so a resumed or retried
+    run keeps the row it already owns. Failure-tolerant: the index is an aid
+    to debugging, and a database problem must never stop the child working.
+
+    Returns True when the row exists afterwards.
+    """
+    try:
+        from storage.repository_devagent import (
+            repo_devagent_create_thread,
+            repo_devagent_load_thread_meta,
+        )
+        if repo_devagent_load_thread_meta(tid):
+            return True
+    except Exception as exc:  # pragma: no cover - index is best effort
+        log.warning("child thread index unavailable for %s: %s", tid, exc)
+        return False
+    try:
+        from core.orchestration.transcript_sink import KIND_SUBAGENT, TITLE_CHARS
+    except Exception:  # pragma: no cover - constants are stable
+        KIND_SUBAGENT, TITLE_CHARS = "subagent", 60
+    rel_path = ""
+    try:
+        from dev_agent import transcript as T
+        rel_path = T._relative_to_history(T.transcript_path(tid, parent or None))
+    except Exception as exc:  # pragma: no cover - path is best effort
+        log.debug("child transcript path resolution failed for %s: %s", tid, exc)
+    try:
+        created = repo_devagent_create_thread(
+            tid,
+            title=" ".join(str(title or "").split())[:TITLE_CHARS],
+            orchestrator_slug=slug or None,
+            orchestrator_name=display_name or slug or "DevAgent",
+            workspace=workspace or None,
+            parent_thread_id=parent or None,
+            kind=KIND_SUBAGENT,
+            transcript_path=rel_path or None,
+        )
+    except Exception as exc:  # pragma: no cover - index is best effort
+        log.warning("child thread index row failed for %s: %s", tid, exc)
+        return False
+    if not created:
+        # The repository swallows its own errors and reports False; losing the
+        # row silently is what made the transcript unreadable in the first
+        # place, so the failure is at least visible in the log.
+        log.warning("child thread index row was not created for %s", tid)
+    return bool(created)
+
+
 def bind_child_thread(child_thread_id: str, parent_thread_id: str = "",
                       workspace: Optional[str] = None,
-                      target_file: Optional[str] = None) -> Dict[str, Optional[str]]:
-    """Bind a child run's thread: parent's WORKSPACE, its OWN journal.
+                      target_file: Optional[str] = None,
+                      *,
+                      slug: str = "",
+                      display_name: str = "",
+                      title: str = "") -> Dict[str, Optional[str]]:
+    """Bind a child run's thread: parent's WORKSPACE, its OWN journal and row.
 
     A child run needs an isolation entry, otherwise its tool dispatches run
     against whatever globals happen to be live and two children of one parent
@@ -192,8 +260,13 @@ def bind_child_thread(child_thread_id: str, parent_thread_id: str = "",
     child starts in full-workspace mode even when the parent is pinned to
     one file, because a child that cannot see the tree cannot do its part.
 
-    No DB write happens here: a derived thread has no dialog row, and its
-    binding lives for the duration of the run (``unbind_thread`` on exit).
+    The thread index row is created here as well, before the child runs (see
+    :func:`_ensure_child_index_row`): a transcript reader resolves a child
+    through that row, so a run without one answers "thread not found" for as
+    long as it lives. *slug*, *display_name* and *title* describe the child in
+    that row and stay optional, so a caller that only needs path isolation
+    keeps working. The in-process binding still lasts for the duration of the
+    run (``unbind_thread`` on exit); only the row outlives it.
     """
     tid = _norm_tid(child_thread_id)
     if not tid:
@@ -209,6 +282,11 @@ def bind_child_thread(child_thread_id: str, parent_thread_id: str = "",
     state = {"workspace": resolved or None, "target_file": target_file or None}
     with _BINDING_LOCK:
         _REGISTRY[tid] = dict(state)
+    # Outside the lock on purpose: creating the row touches the database, and
+    # holding the binding lock across IO would serialize every dispatch of
+    # every dialog behind one child's insert.
+    _ensure_child_index_row(tid, parent, state["workspace"], slug=slug,
+                            display_name=display_name, title=title)
     return dict(state)
 
 

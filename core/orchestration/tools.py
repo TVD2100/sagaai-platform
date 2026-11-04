@@ -764,6 +764,29 @@ def read_subagent_state(run_id: Optional[str] = None, *,
             "note": _journal_note(trimmed, str(record.get("status") or ""))}
 
 
+def _child_thread_row_missing(thread_id: str) -> bool:
+    """True when a thread has no index row at all.
+
+    ``transcript_reader`` resolves a thread to its transcript THROUGH the
+    index row, and a row that does not exist makes every reader answer "thread
+    not found" - even for a child whose transcript file is complete on disk.
+    Telling that case apart from a damaged file matters to the caller: a
+    missing row is fixed by reading the journal, a broken file by retrying the
+    reader.
+
+    A store failure answers False: the unknown case must fall back to the
+    ordinary error, never be reported as a missing row.
+    """
+    tid = str(thread_id or "").strip()
+    if not tid:
+        return False
+    try:
+        from storage.repository_devagent import repo_devagent_load_thread_meta
+        return not repo_devagent_load_thread_meta(tid)
+    except Exception:  # pragma: no cover - an unreadable store is not an answer
+        return False
+
+
 def _load_run_record(service, run_id: str) -> Optional[Dict[str, Any]]:
     """Return a run record as a dict: the live copy first, the store second.
 
@@ -913,6 +936,26 @@ def read_subagent_thread(run_id: Optional[str] = None, *,
         return error_result(rid, "Thread read failed: " + str(exc),
                             ERR_INTERNAL_ERROR)
     if not window.get("ok"):
+        # Two different failures used to look alike here. A child whose index
+        # row is missing cannot be read by ANY reader - the transcript file
+        # may be complete on disk and still be unreachable - and the answer
+        # for that is the journal, not a retry. A damaged transcript is a
+        # different problem: the row exists, the file does not answer.
+        #
+        # The "not found" wording is part of the test, not decoration: it is
+        # what the legacy reader answers when the row does not exist, and a
+        # reader that failed for some OTHER reason must keep its own error
+        # instead of being relabelled as a missing row.
+        if ("not found" in str(window.get("error") or "").lower()
+                and _child_thread_row_missing(thread_id)):
+            return error_result(
+                rid, "Child thread " + thread_id + " has no index row, so its "
+                "transcript cannot be read.", ERR_RESUME_UNAVAILABLE,
+                child_thread_id=thread_id,
+                note=("The run exists and its journal is readable: use "
+                      "read_subagent_state for what it planned and finished. "
+                      "A transcript without an index row is not addressable by "
+                      "any reader, because the row is what names the file."))
         return error_result(rid, str(window.get("error") or "Thread unreadable."),
                             ERR_PROVIDER_ERROR, child_thread_id=thread_id)
 
@@ -924,7 +967,10 @@ def read_subagent_thread(run_id: Optional[str] = None, *,
         # A description carries no messages on purpose: it answers "how long,
         # how large, how expensive" without reading the content.
         return window
-    if not window.get("messages"):
+    if not window.get("messages") and not window.get("note"):
+        # The reader's own note wins: it knows WHY the window is empty (a child
+        # that has not written yet vs. an offset past the end), and overwriting
+        # it here flattened that distinction into one vague sentence.
         window["note"] = ("The transcript window is empty. Either the offset is "
                           "past the end, or the child has not produced a "
                           "visible message yet.")

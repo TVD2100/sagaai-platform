@@ -344,11 +344,11 @@
           }
         },
         "dev_agent/workspace_binding.py": {
-          "version": "1.2.1",
-          "sha256": "cfeaf2b6f016b8921528dac4e4146ccfc22f9eebec64a74f66fa86f780feb829",
+          "version": "1.3.0",
+          "sha256": "d300f48af436252c859cadc2bfc5f512fb27b112cf022c5f5fcc82182721b2f8",
           "note": {
-            "ru": "bind_child_thread/unbind_thread: ребёнок наследует рабочую папку родителя, получает производный тред {parent}__s{run_id[:8]} без target_file и освобождает связывание по завершении.",
-            "en": "bind_child_thread/unbind_thread: a child inherits the parent workspace, gets a derived thread {parent}__s{run_id[:8]} without target_file and releases the binding on exit."
+            "ru": "Привязка дочернего запуска создаёт строку индекса треда ребёнка (kind=subagent, родитель, относительный путь переписки, рабочая папка) идемпотентно и без права уронить запуск сбоем хранилища - без неё любой читатель переписки отвечал «Thread not found».",
+            "en": "Binding a child run writes the child thread index row (kind=subagent, parent, history-relative transcript path, workspace) idempotently and without letting a store failure break the run - without it every transcript reader answered \"Thread not found\"."
           }
         },
         "dev_agent/workspace_tools.py": {
@@ -368,8 +368,8 @@
           "sha256": "d243711998803755df65bf05630e6ce2c22ec031241399bcf5788dfc32d0dddf"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.30.0",
-          "sha256": "34339a525e4cd9a4e31844c86c79ea26be6d83e27f0e1696f60b8a35c09cc913",
+          "version": "1.30.1",
+          "sha256": "32806c25e87b560e4ad888b8986f5dd69326491d61f5f25a89755beee394581a",
           "note": {
             "ru": "Описания файлов Task Scout в карте проекта.",
             "en": "Task Scout file descriptions in the project map."
@@ -1418,19 +1418,19 @@
           }
         },
         "core/orchestration/service.py": {
-          "version": "1.10.0",
-          "sha256": "b5eca7a48e5501980629c52cf8c7f05ecf0b6b73b09ee30329c9c15d32273fad",
+          "version": "1.10.1",
+          "sha256": "54f57db0d56e4f8d1a88cd0d2f3da14111a19ab93dfaef2f945b21d853806acd",
           "note": {
-            "ru": "Терминальная запись запуска несёт вложенный результат: полный summary и артефакты сохраняются, поэтому результат переживает выгрузку дерева из реестра.",
-            "en": "A terminal run record carries its frozen result: the full summary and artifacts are stored, so the result survives the registry being released."
+            "ru": "Дочерний раннер передаёт в связывание имя оркестратора и текст задачи, поэтому строка индекса ребёнка описывает запуск.",
+            "en": "The child runner passes the orchestrator name and the task text into the binding, so the child index row describes the run."
           }
         },
         "core/orchestration/tools.py": {
-          "version": "1.11.0",
-          "sha256": "a3c57e35b611247c40f5e2551ec324539732f297c1c2903eb74cf728320cef22",
+          "version": "1.12.0",
+          "sha256": "de493d779147f366fa59e55e8593dbc561c15fa6fb557584c2bd416ac0fd0444",
           "note": {
-            "ru": "subagent_result - сбор результата завершённого запуска (текст, артефакты, ресурсы) в форме блокирующего spawn_agent; незавершённый запуск отдаёт ready=false без ключа result.",
-            "en": "subagent_result - collect what a finished run produced (text, artifacts, resources) in the shape of a blocking spawn_agent; an unfinished run answers ready=false with no result key."
+            "ru": "read_subagent_thread сохраняет пояснение ридера о пустой переписке и отвечает resume_unavailable с указанием на журнал, когда у ребёнка нет строки индекса; прочие сбои чтения сохраняют собственную ошибку.",
+            "en": "read_subagent_thread keeps the reader note about an empty conversation and answers resume_unavailable pointing at the journal when a child has no index row; other read failures keep their own error."
           }
         },
         "tests/test_orchestration_contracts.py": {
@@ -1990,8 +1990,12 @@
           "sha256": "f6b2cdf782919af404cc396ec5920f19db4b2f361f1ddd0bf8ecfa67ba7bab63"
         },
         "core/orchestration/transcript_reader.py": {
-          "version": "1.0.0",
-          "sha256": "7ea557d4ea891f06b4de77d6012ba015da7e95c198ad1236a55174960d8be76f"
+          "version": "1.1.0",
+          "sha256": "8a5f9fc6e1608d8abc5e7de21a63a4f9f5313dd1828d4902c0a2d9176e5d3262",
+          "note": {
+            "ru": "Ребёнок со строкой индекса, но ещё без файла переписки, отдаёт честное пустое окно с пояснением во всех режимах чтения; диалог без транскрипта сохраняет прежний путь.",
+            "en": "A child that has an index row but no transcript file yet answers an honest empty window with a note in every read mode; a dialog without a transcript keeps the previous path."
+          }
         },
         "core/orchestration/transcript_sink.py": {
           "version": "1.0.0",
@@ -2172,17 +2176,25 @@
         "tests/scenarios/test_task_scout_scenario.py": {
           "version": "1.0.0",
           "sha256": "ac6ba733d3d21fe1afe50d3ef3b20f14c081cc3d283140372cdf1a559ae69e60"
+        },
+        "tests/test_child_thread_binding_index.py": {
+          "version": "1.0.0",
+          "sha256": "3a7ec8fb1dc77c1594c9ee1aa330f7e36361f841674d6dddc61749e7b02f5080"
+        },
+        "tests/scenarios/test_child_transcript_readability_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "ec4b2ac01afcba606a5701a5807563f928a1432ed9f0237ed9dc8f5f485dc74a"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.62.0",
-      "sha256": "94056c980a1ac0e148feb1c0e6d05231ebd594b0c0b1102277dd8ea90527ad80",
+      "version": "1.62.1",
+      "sha256": "ffcd3a0b92038e3f0e3c6d4858ff7ed31fe0d186a987059472f924418be879f6",
       "note": {
-        "ru": "Права встроенного исполнителя в строке модуля orchestrators и абзац о нём в разделе встроенных сотрудников.",
-        "en": "The bundled executor rights in the orchestrators module row and the paragraph about it in the built-in employees section."
+        "ru": "Индекс треда ребёнка создаётся при связывании, а не при первом закрытом шаге; раздел о хранилище транскриптов и об инструментах управления ребёнком приведён в соответствие.",
+        "en": "The child thread index is created at bind time rather than at the first closed step; the transcript store and child-control sections are brought in line."
       }
     },
     "LICENSE": {
@@ -2194,11 +2206,11 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.61.0",
-      "sha256": "389c375c24584f4fb343b2b7fdbee6a2671fa528d0440ac5dc1e043f34ae4892",
+      "version": "1.61.1",
+      "sha256": "517481cb54c29f7f810011316e67ea73d09f433f770da70db19db1fbb87742dd",
       "note": {
-        "ru": "Карта перегенерирована: файлы встроенного Task Scout (промпт, orchestrator.json, две функции) и его тесты.",
-        "en": "The map is regenerated: the bundled Task Scout files (prompt, orchestrator.json, two functions) and its tests."
+        "ru": "Регенерация карты: описания новых тестов строки индекса ребёнка и обновлённые описания модулей привязки, читателя переписки и инструментов делегирования.",
+        "en": "Map regeneration: descriptions of the new child-index tests and updated descriptions of the binding, transcript reader and delegation tool modules."
       }
     },
     "README.md": {
@@ -2618,11 +2630,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.38.0",
-      "sha256": "feda55c4911376166b0b8ccaaef0f0fae8c8f3c46a1dff1b0697b21daeac135c",
+      "version": "1.38.1",
+      "sha256": "3642dc228837f5ba5438b0df2d93348da027ed71f344176dfc7b52f5b284a7c9",
       "note": {
-        "ru": "FR6: второй встроенный сотрудник Task Scout - принцип «сначала спросить», пустой список делегирования по умолчанию и два read-only инструмента, проверяющих тот же список.",
-        "en": "FR6: the second bundled employee Task Scout - the ask-first principle, an empty delegation list by default and two read-only helpers that enforce that same roster."
+        "ru": "Строка индекса треда ребёнка создаётся при связывании; семантика чтения переписки ребёнка (пустое окно против отсутствующей строки).",
+        "en": "The child thread index row is created at bind time; the semantics of reading a child conversation (an empty window versus a missing row)."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/connector_creator.md": {

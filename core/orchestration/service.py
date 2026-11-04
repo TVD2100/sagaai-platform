@@ -2409,13 +2409,21 @@ def _default_child_runner(*, child_slug: str, brief: AgentBrief,
                 log.warning("child history restore failed for %s: %s", run_id, exc)
                 resume_history = []
 
-    # Bind the derived child thread (workspace of the parent, own journal).
+    # Bind the derived child thread (workspace of the parent, own journal and
+    # its own index row). The row is what a transcript reader resolves the
+    # child through, so it is created here - before the first step - rather
+    # than only when the sink opens: a child that dies before writing anything
+    # stays readable as an empty transcript instead of "thread not found".
     try:
         from dev_agent import workspace_binding as wb
         binder = getattr(wb, "bind_child_thread", None)
         if callable(binder):
             binder(child_thread_id, parent_thread_id=parent_thread_id,
-                   workspace=base_dir, target_file=None)
+                   workspace=base_dir, target_file=None,
+                   slug=slug,
+                   display_name=str(orch.get("name") or "") if isinstance(orch, dict)
+                   else str(getattr(orch, "name", "") or ""),
+                   title=task_text)
     except Exception as exc:  # pragma: no cover - binding is best effort
         log.warning("child thread binding failed: %s", exc)
 

@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-04T11:33:27+00:00`
-- Файлов: **538**
+- Обновлено: `2026-11-04T15:32:04+00:00`
+- Файлов: **540**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **8327**
-- Отпечаток содержимого: `sha256:267ad3f66e10570b3ac20b0e5b6f03377b420ad547ad661bf8f76ee99aebd575` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 1, JSON: 25, Markdown: 40, PEM certificate: 1, Python: 474, Text: 1
+- Python-символов: **8371**
+- Отпечаток содержимого: `sha256:baba4b7e10d160a8052d896b500cdc27ce1f7a7646f5279abc8e3a8b5acf1bc7` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 1, JSON: 25, Markdown: 40, PEM certificate: 1, Python: 476, Text: 1
 
 ## Файлы и назначение
 
@@ -136,8 +136,8 @@
 | `core/orchestration/runs.py` | Python | Durable run store for delegated runs: save/load/list_runs with atomically written timestamped records under <install>/.dev_agent/orchestration/runs/<root_run_id>, duplicate sweeping, corrupt files set aside, heal() that turns a dead running claim into failed/stale_run, the parked fields of a run (question, round, deadline, dialog_limits frozen at spawn), expire_unanswered for a wait that ran out, prune_root/remove_older_than housekeeping and the atomic claim_notice/notice_claimed pair with a round discriminator, so two questions of one run publish two notices instead of one | - |
 | `core/orchestration/service.py` | Python | OrchestrationService: run registry and run tree, ensure_run/run/release_tree, cascade cancel with a CancelledByParent reason, subscriber feed, slot pool (max_active_subagents), max_depth, total_subagent_runs accounting, per-run timeout and step cap, derived child thread ids ({parent}__s{run_id[:8]}) and the child tool bans; the agent dialog lives here too - park_run freezes the run as awaiting_input with await_reason=question and its deadline, answer_run resumes the same run with the parent answer while refusing an expired wait, expire_parked/expire_parked_in finish an unanswered run as failed/answer_not_received, roots_for_thread restores the tree root of a dialog after a restart and revive_parked_run lifts a durable record back into the registry; a cancellation request is a record flag the child loop checks at step boundaries | - |
 | `core/orchestration/tool_classes.py` | Python | Classifies the tools a run called into the documented groups of read_subagent_thread and read_subagent_state, so the parent sees what the child touched without parsing its log | - |
-| `core/orchestration/tools.py` | Python | Delegation tool wrappers: spawn_agent and invoke_assistant with argument validation, allowlist rights, invalid_args and not_implemented; ask_parent parks the calling child with its question and returns the spent rounds, answer_child resumes a parked run with the parent answer and reports the next question when the child asks again; cancel_subagent, read_subagent_thread, subagent_status/result/state, resume_subagent and sleep complete the child-control surface | - |
-| `core/orchestration/transcript_reader.py` | Python | Read side of the transcript store: resolve a child's folder from its index row, tolerantly read every segment in order (a torn last line is skipped, a compressed segment is read through gzip), and return a window with roles, contents and an optional sequence range | storage |
+| `core/orchestration/tools.py` | Python | Delegation tool wrappers: spawn_agent and invoke_assistant with argument validation, allowlist rights, invalid_args and not_implemented; ask_parent parks the calling child with its question and returns the spent rounds, answer_child resumes a parked run with the parent answer and reports the next question when the child asks again; cancel_subagent, read_subagent_thread, subagent_status/result/state, resume_subagent and sleep complete the child-control surface; read_subagent_thread keeps the reader's own note about an empty conversation and reports a child without an index row as resume_unavailable pointing at the journal, while any other reader failure keeps its original error | storage |
+| `core/orchestration/transcript_reader.py` | Python | Read side of the transcript store: resolve a child's folder from its index row, tolerantly read every segment in order (a torn last line is skipped, a compressed segment is read through gzip), and return a window with roles, contents and an optional sequence range; a child whose row exists but whose file has not been written yet answers an honest empty window with a note (read_window, read_tail, read_around, describe) instead of falling back to a messages table that never held it, while a dialog without a transcript keeps the legacy path unchanged | storage |
 | `core/orchestration/transcript_sink.py` | Python | Bridges the runner and the transcript store: turns the messages of one step into records, strips UI render data, appends them without raising into the run, and flushes the index fields of the thread (transcript path, parent, size) so a reader can find the folder | storage |
 | `core/orchestration/verify.py` | Python | Verification of a delegated result: Verdict (passed/failed/inconclusive), resolve_verifier, build_verifier_brief (summary and artifacts only - never the transcript), parse_verdict (conservative), verify_result launching the verifier as a child of the target tree | - |
 | `tests/__init__.py` | Python | Package marker | - |
@@ -171,6 +171,7 @@
 | `tests/test_backup_and_safewriter.py` | Python | Backup/safe-writer tests | - |
 | `tests/test_chat_db_archive.py` | Python | Unit tests for the switch of the assistant dialogues: legacy detection, the layout stamp, the verified archive including messages that live only in the write-ahead log, the exact moment rows may leave the table, reuse of an identical archive and refusal of a stale one, reuse of the plain name only once, the notice read exactly once, and the failure modes (unverifiable archive, failed transcript write, unreadable database, a lock held by another connection) | storage |
 | `tests/test_chat_pagination.py` | Python | _(описание не задано)_ | - |
+| `tests/test_child_thread_binding_index.py` | Python | Unit tests for the child thread index row and the transcript read path: binding creates the row with parent, kind, title and a history-relative path, a second bind keeps one row, an empty id is a no-op, a failing store never breaks the binding, a child never appears in the dialog list, a bound child reads as an empty conversation until its first message, the tool answers ok/empty/resume_unavailable, and a legacy dialog still falls back to the messages table | storage |
 | `tests/test_cold_start_deps.py` | Python | UI tests for the cold-start dependency warning in ui.app: missing/outdated reports render deps_missing/deps_outdated, no warning when up to date, audit runs once per session, probe errors are swallowed | - |
 | `tests/test_connector_presets.py` | Python | Preset catalogue tests: hidden presets drop out of list_presets but stay resolvable by id (and with include_hidden=True), the hidden flag coerces booleans/strings/numbers and treats unknown values as visible, an invalid flag never breaks loading, instantiate_preset still works for a hidden preset, and the bundled catalogue ships vkusvill only while github_mcp stays resolvable with hidden=true | - |
 | `tests/test_connectors.py` | Python | Unit tests for core.connectors: CRUD, encrypted token/secrets storage, public-view leak guard, pending drafts, connection memory | - |
@@ -382,6 +383,7 @@
 | `tests/scenarios/test_background_delegation_scenario.py` | Python | Scenario tests (given->when->then) for two background children: the dialog keeps working, status answers for one run and for the tree, each child reports exactly once through a hidden system line, Stop wins over the child's own done and a cancelled child stays resumable | - |
 | `tests/scenarios/test_batch_tool_calls_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_chat_db_archive_scenario.py` | Python | Scenario tests for the upgrade of an existing installation (given->when->then): a previous build's dialogues move to files while the database and the other tables stay intact, the archive reopens as the old build knew it, an upgraded dialogue reads back unchanged, a restart changes nothing, a new dialogue is mirrored from the first message, and a damaged step keeps every dialogue readable from the table | storage |
+| `tests/scenarios/test_child_transcript_readability_scenario.py` | Python | Scenario tests (given->when->then) for the parent's view of delegated work: a child that died before its first step is readable as an empty conversation, a child that worked returns what it actually said in order, a child recorded before the fix gets a named problem pointing at the journal, and a plain dialog keeps its own reading path | storage |
 | `tests/scenarios/test_connection_retry_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_connectors_scenarios.py` | Python | Scenario tests for the connectors feature: lifecycle, token safety, validation, orchestrator binding/prompt, GitHub tools, dispatcher integration, draft flow | storage |
 | `tests/scenarios/test_context_overflow_protection.py` | Python | Scenario: context-overflow protection - spill of a huge tool result and the failed-spill hard error | - |
@@ -546,7 +548,7 @@
 | `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools, legacy skill aliases, skills-library and multimodal tools; the file tools resolve a path against the project root and the working-memory root (memory:<subpath>) and lift the empty-state guard for memory access, while a path outside both roots is refused; current_datetime answers what the prompt fact cannot - the time of day, the weekday of a date, epoch - and builds date_line with the same helper the prompt block uses, so the two sources cannot drift apart | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
 | `dev_agent/transcript.py` | Python | Append-only file store of delegated conversations, kept out of devagent.db: one JSONL segment per child under <history>/<parent>/subagents/<child>/ with rotation and a gzip-compressed cold segment, a single-line append under a per-path lock so a crash truncates at most the last line, event-prefix stripping, checkpoint records for resume, and retention (compress cold segments, drop whole segments of quiet threads, report - never silently delete - a folder whose index row is gone) | storage |
 | `dev_agent/universal_agent.py` | Python | Tool dispatcher for orchestrators: validate_tool_call resolves the run's disabled_tools first, then the argument specs, then the rights, without touching process globals; WORKSPACE_TOOL_ARGS describes the arguments of the delegation tools; get/set/list_personal_memory read and write the personal memory layer, and the file tools reach the working folder through the memory: prefix even with no project selected | storage, tool_executor |
-| `dev_agent/workspace_binding.py` | Python | Per-thread workspace binding registry under an RLock; thread_context applies and restores a thread's state, bind_child_thread gives a child run the parent's workspace with its own derived thread ({parent}__s{run_id[:8]}, no target_file) and unbind_thread releases it when the run ends | - |
+| `dev_agent/workspace_binding.py` | Python | Per-thread workspace binding registry under an RLock; thread_context applies and restores a thread's state, bind_child_thread gives a child run the parent's workspace with its own derived thread ({parent}__s{run_id[:8]}, no target_file), writes the child's thread index row (kind=subagent, parent_thread_id, a history-relative transcript_path, the workspace) idempotently and without letting a store failure break the run, and unbind_thread releases it when the run ends | storage |
 | `dev_agent/workspace_tools.py` | Python | Workspace layer: folders, project map (AST symbols, content fingerprint, GitHub-published scope filter), docs, snapshots; workspace_selected reporting and per-orchestrator recent workspaces (top 10) | backup_manager |
 | `services/deepseek.json` | JSON | DeepSeek service definition (vision_base_url + vision_models catalog) | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
@@ -2707,9 +2709,9 @@
 - `_build_child_task_text` (func, строка 2275)
 - `_tree_root_of` (func, строка 2328)
 - `_default_child_runner` (func, строка 2347)
-- `_default_child_runner._send` (func, строка 2458)
-- `_default_child_runner._child_event` (func, строка 2535)
-- `get_service` (func, строка 2676)
+- `_default_child_runner._send` (func, строка 2466)
+- `_default_child_runner._child_event` (func, строка 2543)
+- `get_service` (func, строка 2684)
 
 ### `core/orchestration/tool_classes.py`
 - `_CallBlock` (class, строка 63)
@@ -2737,46 +2739,49 @@
 - `subagent_result` (func, строка 577)
 - `_is_live_result` (func, строка 674)
 - `read_subagent_state` (func, строка 684)
-- `_load_run_record` (func, строка 767)
-- `_resolve_run_root` (func, строка 793)
-- `_confine_run` (func, строка 806)
-- `read_subagent_thread` (func, строка 834)
-- `cancel_subagent` (func, строка 934)
-- `resume_subagent` (func, строка 994)
-- `verify_result` (func, строка 1093)
-- `_terminal_run_ids` (func, строка 1128)
-- `_active_run_ids` (func, строка 1152)
-- `sleep_tool` (func, строка 1175)
-- `ask_parent` (func, строка 1318)
-- `answer_child` (func, строка 1414)
-- `read_dialog_limits` (func, строка 1455)
-- `ask_parent_tool_entry` (func, строка 1480)
-- `answer_child_tool_entry` (func, строка 1503)
-- `spawn_tool_entry` (func, строка 1519)
-- `subagent_status_tool_entry` (func, строка 1548)
-- `read_subagent_state_tool_entry` (func, строка 1563)
-- `resume_subagent_tool_entry` (func, строка 1577)
-- `read_subagent_thread_tool_entry` (func, строка 1592)
-- `cancel_subagent_tool_entry` (func, строка 1612)
-- `subagent_result_tool_entry` (func, строка 1628)
-- `sleep_tool_entry` (func, строка 1652)
-- `verify_result_tool_entry` (func, строка 1678)
-- `invoke_tool_entry` (func, строка 1700)
+- `_child_thread_row_missing` (func, строка 767)
+- `_load_run_record` (func, строка 790)
+- `_resolve_run_root` (func, строка 816)
+- `_confine_run` (func, строка 829)
+- `read_subagent_thread` (func, строка 857)
+- `cancel_subagent` (func, строка 980)
+- `resume_subagent` (func, строка 1040)
+- `verify_result` (func, строка 1139)
+- `_terminal_run_ids` (func, строка 1174)
+- `_active_run_ids` (func, строка 1198)
+- `sleep_tool` (func, строка 1221)
+- `ask_parent` (func, строка 1364)
+- `answer_child` (func, строка 1460)
+- `read_dialog_limits` (func, строка 1501)
+- `ask_parent_tool_entry` (func, строка 1526)
+- `answer_child_tool_entry` (func, строка 1549)
+- `spawn_tool_entry` (func, строка 1565)
+- `subagent_status_tool_entry` (func, строка 1594)
+- `read_subagent_state_tool_entry` (func, строка 1609)
+- `resume_subagent_tool_entry` (func, строка 1623)
+- `read_subagent_thread_tool_entry` (func, строка 1638)
+- `cancel_subagent_tool_entry` (func, строка 1658)
+- `subagent_result_tool_entry` (func, строка 1674)
+- `sleep_tool_entry` (func, строка 1698)
+- `verify_result_tool_entry` (func, строка 1724)
+- `invoke_tool_entry` (func, строка 1746)
 
 ### `core/orchestration/transcript_reader.py`
 - `_as_int` (func, строка 50)
 - `_meta` (func, строка 58)
 - `_parent_of` (func, строка 67)
-- `_file_records` (func, строка 73)
-- `_is_hidden` (func, строка 101)
-- `_preview` (func, строка 117)
-- `_envelope` (func, строка 138)
-- `_window_span` (func, строка 162)
-- `_count_and_collect` (func, строка 169)
-- `read_window` (func, строка 235)
-- `read_tail` (func, строка 285)
-- `read_around` (func, строка 331)
-- `describe` (func, строка 375)
+- `_is_child_row` (func, строка 73)
+- `_pending_child_window` (func, строка 81)
+- `_file_records` (func, строка 115)
+- `_is_hidden` (func, строка 143)
+- `_preview` (func, строка 159)
+- `_envelope` (func, строка 180)
+- `_window_span` (func, строка 204)
+- `_count_and_collect` (func, строка 211)
+- `read_window` (func, строка 277)
+- `read_tail` (func, строка 333)
+- `read_around` (func, строка 385)
+- `describe` (func, строка 433)
 
 ### `core/orchestration/transcript_sink.py`
 - `_one_line` (func, строка 49)
@@ -3398,6 +3403,34 @@
 - `test_show_earlier_clicks_widen_the_window` (func, строка 125)
 - `test_short_history_renders_without_pagination` (func, строка 151)
 - `test_show_earlier_key_in_all_langs` (func, строка 163)
+
+### `tests/test_child_thread_binding_index.py`
+- `isolated_data` (func, строка 25)
+- `_meta` (func, строка 47)
+- `_bind` (func, строка 53)
+- `test_binding_creates_the_child_index_row` (func, строка 66)
+- `test_the_row_points_at_the_transcript_relative_to_history` (func, строка 79)
+- `test_binding_twice_keeps_one_row` (func, строка 90)
+- `test_an_empty_child_id_binds_nothing` (func, строка 104)
+- `test_a_failing_store_never_breaks_the_binding` (func, строка 113)
+- `test_a_child_row_never_appears_in_the_dialog_list` (func, строка 125)
+- `_reader` (func, строка 137)
+- `test_a_bound_child_reads_as_an_empty_conversation` (func, строка 143)
+- `test_tail_and_around_of_a_pending_child_are_empty_too` (func, строка 161)
+- `test_describing_a_pending_child_names_the_transcript_source` (func, строка 174)
+- `test_a_child_message_appears_once_it_is_written` (func, строка 187)
+- `_Record` (class, строка 205)
+- `_Record.__init__` (func, строка 208)
+- `_Record.to_record` (func, строка 211)
+- `_Service` (class, строка 215)
+- `_Service.__init__` (func, строка 218)
+- `_Service.get_record` (func, строка 221)
+- `_Service.record_from_store` (func, строка 224)
+- `_tool_for` (func, строка 228)
+- `test_the_tool_reads_the_transcript_of_a_bound_child` (func, строка 237)
+- `test_the_tool_reports_a_child_without_a_row_as_unaddressable` (func, строка 259)
+- `test_an_empty_window_is_not_mistaken_for_a_failure` (func, строка 269)
+- `test_a_legacy_dialog_still_falls_back_to_the_messages_table` (func, строка 283)
 
 ### `tests/test_cold_start_deps.py`
 - `st_env` (func, строка 31)
@@ -8189,6 +8222,22 @@
 - `test_a_damaged_installation_keeps_its_dialogues` (func, строка 182)
 - `test_a_damaged_installation_keeps_its_dialogues._fail` (func, строка 192)
 
+### `tests/scenarios/test_child_transcript_readability_scenario.py`
+- `isolated_data` (func, строка 23)
+- `_spawn_child` (func, строка 44)
+- `_read_as_parent` (func, строка 60)
+- `_read_as_parent._Record` (class, строка 64)
+- `_read_as_parent._Record.__init__` (func, строка 65)
+- `_read_as_parent._Record.to_record` (func, строка 68)
+- `_read_as_parent._Service` (class, строка 71)
+- `_read_as_parent._Service.get_record` (func, строка 72)
+- `_read_as_parent._Service.record_from_store` (func, строка 76)
+- `test_scenario_a_child_that_never_started_is_readable_as_empty` (func, строка 85)
+- `test_scenario_the_parent_reads_what_the_child_actually_said` (func, строка 103)
+- `test_scenario_an_old_child_without_a_row_gets_a_usable_answer` (func, строка 129)
+- `test_scenario_a_dialog_keeps_its_own_reading_path` (func, строка 151)
+- `test_scenario_a_dialog_keeps_its_own_reading_path._legacy` (func, строка 161)
+
 ### `tests/scenarios/test_connection_retry_scenarios.py`
 - `fast_retries` (func, строка 28)
 - `_FakeCore` (class, строка 34)
@@ -9753,25 +9802,26 @@
 - `UniversalDevAgent._set_connection_memory` (func, строка 1815)
 
 ### `dev_agent/workspace_binding.py`
-- `_norm_tid` (func, строка 47)
-- `_state_from_meta` (func, строка 52)
-- `register_thread` (func, строка 61)
-- `get_thread_state` (func, строка 90)
-- `get_thread_workspace` (func, строка 100)
-- `clear_thread` (func, строка 108)
-- `has_thread` (func, строка 117)
-- `sync_lock` (func, строка 122)
-- `sync_registry_from_config` (func, строка 128)
-- `snapshot_config` (func, строка 149)
-- `restore_config_state` (func, строка 155)
-- `_apply_state_unlocked` (func, строка 163)
-- `bind_child_thread` (func, строка 178)
-- `unbind_thread` (func, строка 215)
-- `ensure_thread_active` (func, строка 226)
-- `thread_context` (class, строка 246)
-- `thread_context.__init__` (func, строка 264)
-- `thread_context.__enter__` (func, строка 269)
-- `thread_context.__exit__` (func, строка 288)
+- `_norm_tid` (func, строка 50)
+- `_state_from_meta` (func, строка 55)
+- `register_thread` (func, строка 64)
+- `get_thread_state` (func, строка 93)
+- `get_thread_workspace` (func, строка 103)
+- `clear_thread` (func, строка 111)
+- `has_thread` (func, строка 120)
+- `sync_lock` (func, строка 125)
+- `sync_registry_from_config` (func, строка 131)
+- `snapshot_config` (func, строка 152)
+- `restore_config_state` (func, строка 158)
+- `_apply_state_unlocked` (func, строка 166)
+- `_ensure_child_index_row` (func, строка 181)
+- `bind_child_thread` (func, строка 242)
+- `unbind_thread` (func, строка 293)
+- `ensure_thread_active` (func, строка 304)
+- `thread_context` (class, строка 324)
+- `thread_context.__init__` (func, строка 342)
+- `thread_context.__enter__` (func, строка 347)
+- `thread_context.__exit__` (func, строка 366)
 
 ### `dev_agent/workspace_tools.py`
 - `detect_language` (func, строка 69)

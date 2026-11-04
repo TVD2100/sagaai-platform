@@ -70,6 +70,48 @@ def _parent_of(meta: Dict[str, Any]) -> Optional[str]:
     return parent or None
 
 
+def _is_child_row(meta: Dict[str, Any]) -> bool:
+    """True for an index row that describes a delegated child."""
+    if not meta:
+        return False
+    kind = str(meta.get("kind") or "").strip().lower()
+    return bool(_parent_of(meta)) or kind == "subagent"
+
+
+def _pending_child_window(thread_id: str, meta: Dict[str, Any], *,
+                          offset: int, limit: int,
+                          note_extra: str = "") -> Optional[Dict[str, Any]]:
+    """Answer a child whose transcript file does not exist YET, or None.
+
+    A child's index row is created when its thread is bound, before the first
+    step; the first message appears only when that step finishes. Until then
+    there is no file, and the honest answer is an EMPTY conversation - not the
+    legacy ``messages`` table, which never held a child's messages and would
+    report the run as missing. That distinction is the whole point: "this run
+    has not spoken yet" and "this run does not exist" lead a parent to
+    different decisions.
+
+    None means the caller should keep its normal path: a dialog row (legacy
+    threads really are backed by the table) or a child that already has a
+    file on disk.
+    """
+    if not _is_child_row(meta):
+        return None
+    try:
+        from dev_agent import transcript as T
+        if T.exists(thread_id, _parent_of(meta)):
+            return None
+    except Exception:  # pragma: no cover - fall through to the empty answer
+        pass
+    out = _envelope(thread_id, meta, total=0, offset=offset, limit=limit,
+                    messages=[], source="transcript")
+    out["note"] = (
+        "The child has not written anything yet: its transcript file appears "
+        "after the first step. This is an empty conversation, not a missing "
+        "run." + ((" " + note_extra) if note_extra else ""))
+    return out
+
+
 def _file_records(thread_id: str, meta: Dict[str, Any],
                   max_bytes: int = 0) -> Iterator[Dict[str, Any]]:
     """Yield the records of a thread from its transcript file.
@@ -251,6 +293,12 @@ def read_window(thread_id: str, offset: int = 0, limit: int = 50,
 
     stored_path = str(meta.get("transcript_path") or "").strip()
     if stored_path:
+        # Before the scan: a child whose file does not exist yet has an empty
+        # conversation to report, and a scan cannot tell that apart from a
+        # window that simply landed past the end.
+        pending = _pending_child_window(tid, meta, offset=offset, limit=limit)
+        if pending is not None:
+            return pending
         try:
             from dev_agent import transcript as T
             parent = _parent_of(meta)
@@ -297,6 +345,12 @@ def read_tail(thread_id: str, limit: int = 20,
     limit = max(1, min(_as_int(limit, 20), MAX_READ_LIMIT))
     meta = _meta(tid)
     if str(meta.get("transcript_path") or "").strip():
+        # Checked BEFORE the scan: a missing file scans as zero records, which
+        # would return an ordinary empty window and hide the one thing worth
+        # saying - the child has not written anything yet.
+        pending = _pending_child_window(tid, meta, offset=0, limit=limit)
+        if pending is not None:
+            return pending
         try:
             collected = _count_and_collect(
                 tid, meta, offset=0, limit=limit,
@@ -345,6 +399,10 @@ def read_around(thread_id: str, index: int, before: int = 5, after: int = 5,
     after = max(1, min(_as_int(after, 5), MAX_READ_LIMIT))
     meta = _meta(tid)
     if str(meta.get("transcript_path") or "").strip():
+        pending = _pending_child_window(
+            tid, meta, offset=max(0, centre - before), limit=before + after)
+        if pending is not None:
+            return pending
         try:
             collected = _count_and_collect(
                 tid, meta, offset=0, limit=0,
@@ -405,7 +463,11 @@ def describe(thread_id: str) -> Dict[str, Any]:
                         pass
     except Exception:
         pass
-    return {
+    # A child whose row exists but whose file does not is a run that has not
+    # spoken yet, not a legacy table-backed thread: reporting it as "messages"
+    # would send the caller looking for content that was never stored there.
+    pending_child = bool(stored_path) and not on_disk and _is_child_row(meta)
+    out = {
         "ok": True,
         "thread_id": tid,
         "title": str(meta.get("title") or ""),
@@ -418,12 +480,16 @@ def describe(thread_id: str) -> Dict[str, Any]:
         "tokens_out": _as_int(meta.get("tokens_out"), 0),
         "tokens_cache": _as_int(meta.get("tokens_cache"), 0),
         "last_message_at": str(meta.get("last_message_at") or ""),
-        "source": "transcript" if on_disk else "messages",
+        "source": "transcript" if (on_disk or pending_child) else "messages",
         "transcript_path": stored_path,
         "transcript_on_disk": on_disk,
         "segments": segments,
         "file_bytes": file_bytes,
     }
+    if pending_child:
+        out["note"] = ("The child has not written anything yet: its transcript "
+                       "file appears after the first step.")
+    return out
 
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
