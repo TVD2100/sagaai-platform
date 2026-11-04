@@ -35,8 +35,8 @@ def isolated_data(tmp_path, monkeypatch):
 
 def test_create_thread_creates_files_dir(tmp_path):
     """A thread created via create_thread() gets its files dir on disk."""
-    from core.threads import create_thread
     from core.paths import get_thread_dir
+    from core.threads import create_thread
 
     tid = create_thread("asst_1", "Assistant")
     files_dir = os.path.join(get_thread_dir(tid), "files")
@@ -45,8 +45,8 @@ def test_create_thread_creates_files_dir(tmp_path):
 
 def test_save_thread_file_creates_files_dir(tmp_path):
     """save_thread_file() must succeed even if the files dir is missing."""
-    from core.threads import save_thread_file
     from core.paths import get_thread_dir
+    from core.threads import save_thread_file
 
     # Simulate the pre-fix state: thread dir exists but no files/ subdir.
     tid = "20260101_000000_abcdef"

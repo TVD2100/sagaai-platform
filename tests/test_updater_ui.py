@@ -17,8 +17,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
-
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 MANIFEST = {
     "app_version": "0.1.0-preview.9",

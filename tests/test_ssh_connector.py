@@ -516,6 +516,7 @@ def test_write_file_top_level_without_hint(isolated_data_dir, monkeypatch):
 
 def test_upload_file_streams_and_verifies(isolated_data_dir, monkeypatch, tmp_path):
     import hashlib
+
     import core.ssh_connector as sc
     env = install_fake_paramiko(monkeypatch)
     conn = _make_password_conn()
@@ -537,6 +538,7 @@ def test_upload_file_streams_and_verifies(isolated_data_dir, monkeypatch, tmp_pa
 
 def test_upload_file_without_verify_skips_reread(isolated_data_dir, monkeypatch, tmp_path):
     import hashlib
+
     import core.ssh_connector as sc
     env = install_fake_paramiko(monkeypatch)
     conn = _make_password_conn()

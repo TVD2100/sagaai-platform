@@ -381,7 +381,9 @@ def test_get_fetch_config_resolves_only_usable_pairs():
 def test_catalog_offers_url_fetch_only_with_a_model():
     """The tool appears in the catalog, prompt block and tool list on demand."""
     from core.orchestrator_tools import (
-        build_tool_catalog, list_system_tools, render_available_tools_block,
+        build_tool_catalog,
+        list_system_tools,
+        render_available_tools_block,
     )
 
     with patch("core.orchestrators.get_orchestrator",
@@ -408,7 +410,9 @@ def test_catalog_offers_url_fetch_only_with_a_model():
 def test_catalog_offers_url_fetch_with_selenium_alone():
     """Selenium alone opens the gate; a provider pair is not required."""
     from core.orchestrator_tools import (
-        build_tool_catalog, is_conditional_tool_enabled, list_system_tools,
+        build_tool_catalog,
+        is_conditional_tool_enabled,
+        list_system_tools,
         render_available_tools_block,
     )
 
@@ -428,7 +432,7 @@ def test_catalog_offers_url_fetch_with_selenium_alone():
 
 def test_models_tab_offers_only_fetch_capable_services():
     """The url-fetch selectors list only providers with a fetch catalog."""
-    from tests._st_mock import install_streamlit_mock, StopRerun
+    from tests._st_mock import StopRerun, install_streamlit_mock
 
     for name in list(sys.modules):
         if name == "ui" or name.startswith("ui."):
@@ -489,7 +493,7 @@ def test_dispatcher_receives_fetch_config():
     for name in list(sys.modules):
         if name == "ui" or name.startswith("ui."):
             sys.modules.pop(name, None)
-    with install_streamlit_mock() as st_mock:
+    with install_streamlit_mock():
         import ui.pages.orchestrator as orch_mod
 
         expected = {"service": "DeepSeek", "model": "deepseek-flash",

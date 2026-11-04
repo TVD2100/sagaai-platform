@@ -22,7 +22,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from storage.db import reset_engine, reset_devagent_engine
+from storage.db import reset_devagent_engine, reset_engine
 
 
 @pytest.fixture(autouse=True)
@@ -199,7 +199,7 @@ def test_search_snapshot_service_blocks_hidden_by_default():
     _add_message("t_snap", "system", "CURRENT TASK STATE:\ntask: demo")
     _add_message("t_snap", "system", "## CURRENT THREAD ARTIFACTS DIR\nthread_id: t1")
     _add_message("t_snap", "user", "обычный вопрос про demo")
-    from core.threads_devagent import search_thread_messages, read_thread_window
+    from core.threads_devagent import read_thread_window, search_thread_messages
 
     visible = search_thread_messages("demo", thread_ids=["t_snap"])
     assert visible["count"] == 1

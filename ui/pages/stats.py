@@ -18,8 +18,8 @@ import datetime as _dt
 
 import streamlit as st
 
-from core.i18n import t
 from core import statistics
+from core.i18n import t
 
 
 def page_stats() -> None:

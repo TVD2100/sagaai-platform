@@ -12,19 +12,18 @@ import pytest
 from dev_agent.agent_loop import (
     AgentLoopState,
     AgentResult,
+    _parse_loop_status,
+    _prose_looks_like_question,
+    apply_economy_cache,
+    approve_and_apply,
+    build_economy_context,
+    carry_over_economy_cache,
+    discard,
+    economy_cache_to_dict,
     parse_tool_calls,
     run_agent_loop,
     step_agent_loop,
-    approve_and_apply,
-    discard,
-    _prose_looks_like_question,
-    _parse_loop_status,
-    build_economy_context,
-    carry_over_economy_cache,
-    economy_cache_to_dict,
-    apply_economy_cache,
 )
-
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -852,7 +851,7 @@ class TestEconomyCacheMode:
     def test_cache_enabled_anchor_stays_stable_across_requests(self, monkeypatch):
         self._patch_tail(monkeypatch, 5)
         state = self._state(11)
-        first = build_economy_context(state)
+        build_economy_context(state)
         anchor_after_first = state.economy_anchor
         assert anchor_after_first == 6
 
@@ -1577,7 +1576,12 @@ class TestToolFailCounts:
         assert state.tool_fail_counts == {}
 
     def test_helper_functions_directly(self):
-        from dev_agent.agent_loop import _record_tool_failure, _tool_fail_guidance, _mark_tool_failure, _reset_tool_failures
+        from dev_agent.agent_loop import (
+            _mark_tool_failure,
+            _record_tool_failure,
+            _reset_tool_failures,
+            _tool_fail_guidance,
+        )
         state = AgentLoopState()
         assert _tool_fail_guidance(state, "apply_patch") == ""
         for _ in range(3):
@@ -1638,7 +1642,7 @@ class TestDiagnosticsDedup:
         assert "IDENTICAL tool calls" in result["error"]
 
     def test_dedupe_into_max_five(self):
-        from dev_agent.agent_loop import _dedupe_diagnostics, _MAX_DIAGNOSTIC_ENTRIES
+        from dev_agent.agent_loop import _MAX_DIAGNOSTIC_ENTRIES, _dedupe_diagnostics
         many = [{"snippet": f"block-{i}", "cause": "bad json"} for i in range(1000)]
         deduped = _dedupe_diagnostics(many)
         assert len(deduped) <= _MAX_DIAGNOSTIC_ENTRIES
@@ -1650,8 +1654,8 @@ class TestDiagnosticsDedup:
 def test_spiral_never_grows_context(monkeypatch):
     """Regression: flooding with identical malformed blocks must never
     re-feed a huge payload back into the model. History/growth sanity."""
-    from dev_agent.agent_loop import step_agent_loop
     import dev_agent.agent_loop as al
+    from dev_agent.agent_loop import step_agent_loop
     text = _spiral_text(2000)
     state = AgentLoopState()
     state.phase = "parsing"

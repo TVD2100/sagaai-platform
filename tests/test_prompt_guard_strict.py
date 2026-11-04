@@ -1,6 +1,7 @@
 """Tests for prompt_guard sanitization with strict parameter."""
 import pytest
-from core.prompt_guard import sanitize_tool_result_content, is_wrapped_data, DATA_BEGIN_PREFIX, DATA_END_TAG
+
+from core.prompt_guard import DATA_BEGIN_PREFIX, DATA_END_TAG, is_wrapped_data, sanitize_tool_result_content
 
 
 class TestSanitizeToolResultStrict:

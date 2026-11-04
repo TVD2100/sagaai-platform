@@ -11,25 +11,26 @@ after its st.rerun() the page reopens on the tab the user was editing and
 the queued confirmation is visible next to the section it belongs to.
 """
 import streamlit as st
+
 from core.i18n import t
-from core.orchestrators import get_orchestrator, DEVAGENT_SLUG
+from core.orchestrators import DEVAGENT_SLUG, get_orchestrator
 
 # Import rendering helpers from the main orchestrator module
 from ui.pages.orchestrator import (
     SETTINGS_SECTIONS,
-    settings_section_key,
-    settings_tabs_key,
-    _render_models_settings,
-    _render_prompt_settings,
+    _render_delegation_settings,
     _render_economy_settings,
-    _render_orchestrator_functions_settings,
-    _render_orchestrator_instructions_settings,
-    _render_orch_skills_settings,
-    _render_orch_rag_bases,
+    _render_models_settings,
     _render_orch_connections,
     _render_orch_memory,
-    _render_delegation_settings,
+    _render_orch_rag_bases,
+    _render_orch_skills_settings,
+    _render_orchestrator_functions_settings,
+    _render_orchestrator_instructions_settings,
     _render_other_settings,
+    _render_prompt_settings,
+    settings_section_key,
+    settings_tabs_key,
 )
 
 

@@ -242,7 +242,6 @@ def test_rollback_whole_run(tmp_path):
     os.makedirs(os.path.join(root, "d"), exist_ok=True)
     with open(os.path.join(root, "d", "1.txt"), "w", encoding="utf-8") as f:
         f.write("old1")
-    content2 = "old2"
     # second file does not exist yet
     c1, c2 = "new1", "new2"
     _write_staged(root, "d/1.txt", c1)

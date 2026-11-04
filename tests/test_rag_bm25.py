@@ -19,7 +19,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import core.rag_bm25 as rag_bm25  # noqa: E402
 
-
 # ─── helpers ─────────────────────────────────────────────────────────────────
 
 def _make_db(tmp_path, name="idx.db") -> str:
@@ -219,7 +218,7 @@ class TestIncrementalHooks:
 
     def test_added_chunk_becomes_searchable(self, tmp_path):
         db = _make_db(tmp_path)
-        cid = _add_raw(db, "исходный текст")
+        _add_raw(db, "исходный текст")
         rag_bm25.rebuild_index(db)
         assert rag_bm25.search(db, "исходный") != []
         # Simulate the rag_index.add_chunk hook.

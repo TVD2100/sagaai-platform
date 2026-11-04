@@ -20,17 +20,16 @@ All external HTTP / provider logic is mocked; no network access is needed.
 
 from __future__ import annotations
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from core.orchestrators import (
     DEFAULT_WEB_SEARCH_PROMPT,
-    get_web_search_prompt,
-    get_web_search_config,
     DEVAGENT_SLUG,
+    get_web_search_config,
+    get_web_search_prompt,
 )
-
 
 BASE_PROMPT = DEFAULT_WEB_SEARCH_PROMPT
 

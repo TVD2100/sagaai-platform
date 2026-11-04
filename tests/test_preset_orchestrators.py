@@ -21,8 +21,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from storage.db import reset_engine, reset_devagent_engine
-
+from storage.db import reset_devagent_engine, reset_engine
 
 PRESET_SLUG = "test_preset"
 DEFAULTS_ORCH_DIR = (
@@ -207,8 +206,8 @@ def _set_max_steps(slug, value):
 def test_devagent_legacy_100_migrates_to_default(isolated_data_dir):
     """The built-in dev_agent with the legacy 100-step limit is upgraded to
     the current DEFAULT_MAX_STEPS exactly once."""
-    from storage.models import DEFAULT_MAX_STEPS
     from core.orchestrators import get_orchestrator
+    from storage.models import DEFAULT_MAX_STEPS
 
     _run_bootstrap()
     assert _set_max_steps("dev_agent", 100)["max_steps"] == 100

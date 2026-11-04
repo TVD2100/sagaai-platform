@@ -25,8 +25,8 @@ from core.schedules.model import Schedule  # noqa: E402
 @pytest.fixture
 def isolated_state(tmp_path, monkeypatch):
     """Give the test its own databases and history folder."""
-    import storage.db as db
     import core.paths as paths
+    import storage.db as db
 
     monkeypatch.setattr(db, "_engine", None)
     monkeypatch.setattr(db, "_SessionLocal", None)
@@ -83,6 +83,15 @@ class TestTaskText:
         assert title.startswith("\u23f0 Nightly digest")
         assert "." in title
 
+    def test_the_moment_reads_in_the_rules_own_zone(self):
+        """A run stated in the rule's zone, not the server's."""
+        from core.schedules.form import format_moment
+
+        rule = _rule(tz="Asia/Vladivostok")
+        expected = format_moment(1772000000, "Asia/Vladivostok")
+        assert expected in runner.build_task_text(rule, 1772000000)
+        assert expected in runner._thread_title(rule, 1772000000)
+
 
 class TestEffectiveConfig:
     def test_the_limits_come_from_the_rule(self):
@@ -134,6 +143,7 @@ class TestDialogIsARealThread:
 
     def test_the_workspace_is_persisted_with_the_thread(self, isolated_state):
         import os
+
         from core.threads_devagent import list_devagent_threads
 
         thread_id = runner._create_dialog(_rule(workspace=str(isolated_state)), 1772000000)

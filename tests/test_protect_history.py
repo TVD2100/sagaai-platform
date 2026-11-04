@@ -2,7 +2,8 @@
 import json
 
 import pytest
-from core.api_layer import _protect_history, _parse_sanitized_info
+
+from core.api_layer import _parse_sanitized_info, _protect_history
 from core.prompt_guard import sanitize_tool_result_content
 
 

@@ -12,27 +12,35 @@ can immediately press Send again without retyping anything.
 """
 import streamlit as st
 
-from core.i18n import t
+from core.api_errors import APIError, api_error_message
+from core.api_layer import send_request
 from core.assistants import (
-    load_assistants_index, get_assistant_by_id, list_assistant_files,
+    get_assistant_by_id,
+    list_assistant_files,
     load_assistant_files_context,
-)
-from core.threads import (
-    load_thread_meta, load_thread_messages,
-    create_thread, append_thread_message,
-    messages_to_api_history, save_thread_file,
-    sum_thread_tokens,
+    load_assistants_index,
 )
 from core.files import (
-    get_file_uploader_types, extract_file_content, check_context,
-    check_upload_tokens, MAX_UPLOAD_TOKENS,
+    MAX_UPLOAD_TOKENS,
+    check_context,
+    check_upload_tokens,
+    extract_file_content,
+    get_file_uploader_types,
 )
-from core.services import get_services
 from core.fs import combine_nonempty
-from core.api_layer import send_request
-from core.api_errors import APIError, api_error_message
-from core.render import _md_to_txt, clipboard_button, format_token_line, format_ts_label
+from core.i18n import t
 from core.recent_assistants import record_assistant_use
+from core.render import _md_to_txt, clipboard_button, format_token_line, format_ts_label
+from core.services import get_services
+from core.threads import (
+    append_thread_message,
+    create_thread,
+    load_thread_messages,
+    load_thread_meta,
+    messages_to_api_history,
+    save_thread_file,
+    sum_thread_tokens,
+)
 
 
 def _get_preselected(assistant_id_by_name: dict):

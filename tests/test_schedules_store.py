@@ -17,7 +17,7 @@ if str(PKG_ROOT) not in sys.path:
     sys.path.insert(0, str(PKG_ROOT))
 
 from core.schedules import store  # noqa: E402
-from core.schedules.model import Schedule, STATUS_ACTIVE  # noqa: E402
+from core.schedules.model import STATUS_ACTIVE, Schedule  # noqa: E402
 
 
 @pytest.fixture
@@ -37,6 +37,7 @@ def isolated_db(tmp_path, monkeypatch):
 def _rule(**overrides):
     """Return a valid daily schedule (10:00 local) for the store tests."""
     from datetime import datetime
+
     from core.schedules.calc import resolve_zone
 
     anchor = int(datetime(2026, 3, 2, 10, 0, tzinfo=resolve_zone("Europe/Moscow")).timestamp())
@@ -219,6 +220,7 @@ class TestDueSelection:
 
     def test_runs_today_counts_only_today(self, isolated_db):
         from datetime import datetime
+
         from core.schedules.calc import resolve_zone
 
         zone = resolve_zone("Europe/Moscow")

@@ -23,7 +23,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import storage.db as db_mod  # noqa: E402
 from storage.models import Base, Thread  # noqa: E402
 
-
 #: The columns a transcript index adds. Listed here once so a missing column
 #: fails one assertion instead of silently disabling the reader.
 INDEX_COLUMNS = (

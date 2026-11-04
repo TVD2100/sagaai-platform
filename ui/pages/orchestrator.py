@@ -8,72 +8,25 @@ render through this module. History and Settings live on dedicated pages
 
 All user-facing strings go through t(key, lang=lang).
 """
-import os
-import streamlit as st
 import json
-from typing import Any, Dict, List, Optional, Callable
+import os
+from typing import Any, Callable, Dict, List, Optional
 
-from core.i18n import t
-from ui.components.flash import flash_success, flash_error
-from core.services import (
-    get_services,
-    get_vision_models,
-    get_image_models,
-    get_fetch_models,
-    service_supports_reasoning_effort,
-    get_model_reasoning_effort_options,
-    default_reasoning_effort,
-)
+import streamlit as st
+
+from core import folder_dialog
+from core.api_layer import send_request
 from core.config import load_config
+from core.connectors import list_connections
+from core.feed_autoscroll import render_autoscroll
 from core.files import (
+    MAX_THREAD_FILE_BYTES,
+    build_saved_files_registry,
+    build_thread_files_notice,
     check_context,
-    build_saved_files_registry, build_thread_files_notice, MAX_THREAD_FILE_BYTES,
 )
 from core.fs import combine_nonempty
-from core.api_layer import send_request
-from core.render import _md_to_txt, clipboard_button, format_token_line, format_ts_label
-from core.feed_autoscroll import render_autoscroll
-from core.threads_devagent import (
-    create_devagent_thread, load_thread_messages,
-    append_thread_message, load_thread_meta,
-    sum_thread_tokens, save_thread_workspace,
-    save_thread_file_data, list_thread_files,
-)
-from dev_agent.universal_agent import UniversalDevAgent
-from dev_agent.agent_loop import (
-    step_agent_loop, AgentLoopState, _extract_balanced_json_objects,
-    build_economy_context, carry_over_economy_cache,
-    economy_cache_to_dict, apply_economy_cache,
-    approve_pending_confirmation, deny_pending_confirmation,
-    approve_sanitized_content, deny_sanitized_content,
-    parse_tool_calls,
-)
-from dev_agent import workspace_tools as wt
-from dev_agent import workspace_binding as wb
-from dev_agent import config as dagent_config
-from storage.models import DEFAULT_MAX_STEPS
-
-from core.orchestrators import (
-    get_orchestrator, save_orchestrator,
-    build_assistant_dicts, get_web_search_config, get_fetch_config,
-    get_economy_config,
-    get_economy_tail_messages,
-    orch_list_functions, orch_get_function, orch_save_function, orch_delete_function,
-    orch_list_instructions, orch_get_instruction, orch_save_instruction, orch_delete_instruction,
-    get_enabled_skills, set_enabled_skills,
-    get_enabled_connections, set_enabled_connections,
-    get_orchestrator_rag_bases, set_orchestrator_rag_bases,
-    get_disabled_tools, set_disabled_tools,
-    list_orchestrators,
-    get_allowed_agents, set_allowed_agents,
-    get_allowed_assistants, set_allowed_assistants,
-    get_universal_agent_enabled, set_universal_agent_enabled,
-    UNIVERSAL_AGENT_SLUG,
-    get_delegation_limits, set_delegation_limits,
-    get_verifier_agent, set_verifier_agent,
-    reset_builtin_prompt,
-    DEVAGENT_SLUG,
-)
+from core.i18n import t
 from core.orchestration.contracts import (
     DEFAULT_ANSWER_MAX_CHARS,
     DEFAULT_ANSWER_WAIT_SECONDS,
@@ -81,13 +34,89 @@ from core.orchestration.contracts import (
     DEFAULT_MAX_PARKED_RUNS,
     DEFAULT_QUESTION_MAX_CHARS,
 )
-from core.skills_library import list_skills as list_library_skills
-from core.rag import list_bases_with_activity
-from core.connectors import list_connections
 from core.orchestrator_tools import list_system_tools
-from core.recent_workspaces import get_recent_workspaces, add_recent_workspace
-from core import folder_dialog
-
+from core.orchestrators import (
+    DEVAGENT_SLUG,
+    UNIVERSAL_AGENT_SLUG,
+    build_assistant_dicts,
+    get_allowed_agents,
+    get_allowed_assistants,
+    get_delegation_limits,
+    get_disabled_tools,
+    get_economy_config,
+    get_economy_tail_messages,
+    get_enabled_connections,
+    get_enabled_skills,
+    get_fetch_config,
+    get_orchestrator,
+    get_orchestrator_rag_bases,
+    get_universal_agent_enabled,
+    get_verifier_agent,
+    get_web_search_config,
+    list_orchestrators,
+    orch_delete_function,
+    orch_delete_instruction,
+    orch_get_function,
+    orch_get_instruction,
+    orch_list_functions,
+    orch_list_instructions,
+    orch_save_function,
+    orch_save_instruction,
+    reset_builtin_prompt,
+    save_orchestrator,
+    set_allowed_agents,
+    set_allowed_assistants,
+    set_delegation_limits,
+    set_disabled_tools,
+    set_enabled_connections,
+    set_enabled_skills,
+    set_orchestrator_rag_bases,
+    set_universal_agent_enabled,
+    set_verifier_agent,
+)
+from core.rag import list_bases_with_activity
+from core.recent_workspaces import add_recent_workspace, get_recent_workspaces
+from core.render import _md_to_txt, clipboard_button, format_token_line, format_ts_label
+from core.services import (
+    default_reasoning_effort,
+    get_fetch_models,
+    get_image_models,
+    get_model_reasoning_effort_options,
+    get_services,
+    get_vision_models,
+    service_supports_reasoning_effort,
+)
+from core.skills_library import list_skills as list_library_skills
+from core.threads_devagent import (
+    append_thread_message,
+    create_devagent_thread,
+    list_thread_files,
+    load_thread_messages,
+    load_thread_meta,
+    save_thread_file_data,
+    save_thread_workspace,
+    sum_thread_tokens,
+)
+from dev_agent import config as dagent_config
+from dev_agent import workspace_binding as wb
+from dev_agent import workspace_tools as wt
+from dev_agent.agent_loop import (
+    AgentLoopState,
+    _extract_balanced_json_objects,
+    apply_economy_cache,
+    approve_pending_confirmation,
+    approve_sanitized_content,
+    build_economy_context,
+    carry_over_economy_cache,
+    deny_pending_confirmation,
+    deny_sanitized_content,
+    economy_cache_to_dict,
+    parse_tool_calls,
+    step_agent_loop,
+)
+from dev_agent.universal_agent import UniversalDevAgent
+from storage.models import DEFAULT_MAX_STEPS
+from ui.components.flash import flash_error, flash_success
 
 # Pagination window for the chat feed: render at most this many messages
 # initially and widen the window by the same amount on "show earlier".
@@ -1761,10 +1790,10 @@ def _render_chat_tab(slug: str, lang: str) -> None:
     st.markdown(
         "<style>\n"
         "[data-testid=\"stFileUploader\"] [data-testid=\"stFileUploaderFile\"] { display: none !important; }\n"
-        f"button[key^=\"orch_reset_\"] {{ background-color: #28a745 !important; color: white !important; border-color: #28a745 !important; }}\n"
-        f"button[key^=\"orch_reset_\"]:hover {{ background-color: #218838 !important; border-color: #1e7e34 !important; }}\n"
-        f"button[key^=\"orch_stop_\"] {{ background-color: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }}\n"
-        f"button[key^=\"orch_stop_\"]:hover {{ background-color: #c82333 !important; border-color: #bd2130 !important; }}\n"
+        "button[key^=\"orch_reset_\"] { background-color: #28a745 !important; color: white !important; border-color: #28a745 !important; }\n"
+        "button[key^=\"orch_reset_\"]:hover { background-color: #218838 !important; border-color: #1e7e34 !important; }\n"
+        "button[key^=\"orch_stop_\"] { background-color: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }\n"
+        "button[key^=\"orch_stop_\"]:hover { background-color: #c82333 !important; border-color: #bd2130 !important; }\n"
         "</style>",
         unsafe_allow_html=True,
     )
@@ -2194,8 +2223,8 @@ def _services_with_web_search() -> dict:
     result = {}
     for name, svc in all_svc.items():
         tools = svc.get("tools_options", [])
-        for t in tools:
-            if t.get("key") == "web_search":
+        for tool in tools:
+            if tool.get("key") == "web_search":
                 result[name] = svc
                 break
     return result
@@ -3026,7 +3055,7 @@ def _render_orch_memory(slug: str, lang: str) -> None:
     single source of truth the prompt assembly reads.
     """
     from core import personal_memory as pm
-    from core.orchestrator_folders import resolve_data_dir, default_data_dir_name
+    from core.orchestrator_folders import default_data_dir_name, resolve_data_dir
 
     st.markdown(t("orch_memory_section_title", lang=lang))
     st.markdown(t("orch_memory_section_desc", lang=lang))

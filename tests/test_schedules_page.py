@@ -24,8 +24,8 @@ from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 @pytest.fixture
 def env(tmp_path, monkeypatch):
     """Fresh databases, a scheduler store and a Streamlit mock."""
-    import storage.db as db
     import core.paths as paths
+    import storage.db as db
     from core.orchestration import runs as run_store
 
     monkeypatch.setattr(db, "_engine", None)

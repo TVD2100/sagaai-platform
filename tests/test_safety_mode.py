@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from dev_agent.tool_executor import ToolExecutor
 
-
 # A payload that the danger classifier flags as dangerous but that is
 # actually harmless when executed. subprocess.run with shell=True (a string
 # command) is deliberately flagged by core.dangerous while "echo" is safe to

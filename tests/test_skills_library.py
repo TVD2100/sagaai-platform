@@ -12,8 +12,8 @@ Covers:
 
 Uses a temporary DATA_DIR so no real user data is touched.
 """
-import io
 import importlib
+import io
 import os
 import shutil
 import sys
@@ -74,7 +74,7 @@ class TestRegistry:
         assert list_skills() == []
 
     def test_install_from_folder_and_registry(self, isolated_data_dir):
-        from core.skills_library import import_skill_from_folder, list_skills, get_skill, list_skill_files
+        from core.skills_library import get_skill, import_skill_from_folder, list_skill_files, list_skills
         src = os.path.join(isolated_data_dir, "src_skill")
         os.makedirs(os.path.join(src, "scripts"), exist_ok=True)
         with open(os.path.join(src, "SKILL.md"), "w", encoding="utf-8") as f:
@@ -100,7 +100,7 @@ class TestRegistry:
             assert f.read() == "# My skill\n"
 
     def test_update_metadata_and_rename_folder(self, isolated_data_dir):
-        from core.skills_library import import_skill_from_folder, update_skill, get_skill, get_skill_folder
+        from core.skills_library import get_skill, get_skill_folder, import_skill_from_folder, update_skill
         src = os.path.join(isolated_data_dir, "src2")
         os.makedirs(src)
         with open(os.path.join(src, "note.txt"), "w", encoding="utf-8") as f:
@@ -118,13 +118,13 @@ class TestRegistry:
         assert os.path.isdir(get_skill_folder(sid))
 
     def test_update_unknown_fails(self, isolated_data_dir):
-        from core.skills_library import update_skill, delete_skill, get_skill
+        from core.skills_library import delete_skill, get_skill, update_skill
         assert not update_skill("deadbeef", name="X")
         assert not delete_skill("deadbeef")
         assert get_skill("deadbeef") is None
 
     def test_delete_removes_registry_and_folder(self, isolated_data_dir):
-        from core.skills_library import import_skill_from_folder, delete_skill, list_skills
+        from core.skills_library import delete_skill, import_skill_from_folder, list_skills
         src = os.path.join(isolated_data_dir, "src3")
         os.makedirs(src)
         with open(os.path.join(src, "a.txt"), "w", encoding="utf-8") as f:
@@ -177,13 +177,13 @@ class TestZipImport:
         assert files == ["SKILL.md"]
 
     def test_zip_missing_subfolder_raises(self, isolated_data_dir):
-        from core.skills_library import import_skill_from_zip, SkillsLibraryError
+        from core.skills_library import SkillsLibraryError, import_skill_from_zip
         zip_bytes = make_zip({"repo-main/SKILL.md": "x"})
         with pytest.raises(SkillsLibraryError):
             import_skill_from_zip(zip_bytes, subfolder="nope")
 
     def test_path_traversal_rejected(self, isolated_data_dir):
-        from core.skills_library import import_skill_from_zip, SkillsLibraryError
+        from core.skills_library import SkillsLibraryError, import_skill_from_zip
         zip_bytes = make_zip({
             "../evil.txt": "evil",
         })
@@ -193,12 +193,12 @@ class TestZipImport:
         assert not os.path.exists(os.path.join(isolated_data_dir, "evil.txt"))
 
     def test_invalid_zip_rejected(self, isolated_data_dir):
-        from core.skills_library import import_skill_from_zip, SkillsLibraryError
+        from core.skills_library import SkillsLibraryError, import_skill_from_zip
         with pytest.raises(SkillsLibraryError):
             import_skill_from_zip(b"not a zip file at all")
 
     def test_empty_zip_rejected(self, isolated_data_dir):
-        from core.skills_library import import_skill_from_zip, SkillsLibraryError
+        from core.skills_library import SkillsLibraryError, import_skill_from_zip
         with pytest.raises(SkillsLibraryError):
             import_skill_from_zip(make_zip({}))
 
@@ -224,8 +224,10 @@ class TestHelpers:
 
     def test_metadata_text(self, isolated_data_dir):
         from core.skills_library import (
-            import_skill_from_folder, get_enabled_skills_metadata,
-            build_skills_metadata_text, get_skills_root,
+            build_skills_metadata_text,
+            get_enabled_skills_metadata,
+            get_skills_root,
+            import_skill_from_folder,
         )
         src = os.path.join(isolated_data_dir, "meta_src")
         os.makedirs(src)
@@ -255,7 +257,7 @@ class TestHelpers:
         wording ("you may also read files inside them with read_file")
         produced a stream of failing read_file calls in real dialogs.
         """
-        from core.skills_library import import_skill_from_folder, build_skills_metadata_text
+        from core.skills_library import build_skills_metadata_text, import_skill_from_folder
         src = os.path.join(isolated_data_dir, "hint_src")
         os.makedirs(src)
         with open(os.path.join(src, "SKILL.md"), "w", encoding="utf-8") as f:
@@ -277,7 +279,7 @@ class TestHelpers:
 
 class TestOrchestratorIntegration:
     def test_enabled_skills_persist_in_config(self, isolated_data_dir):
-        from core.orchestrators import create_orchestrator, get_enabled_skills, set_enabled_skills, delete_orchestrator
+        from core.orchestrators import create_orchestrator, delete_orchestrator, get_enabled_skills, set_enabled_skills
         slug = "slib_int_orch"
         created = create_orchestrator(slug, "Slib Int")
         assert created is not None
@@ -287,10 +289,13 @@ class TestOrchestratorIntegration:
         delete_orchestrator(slug)
 
     def test_build_skill_dicts_appends_skills_metadata(self, isolated_data_dir):
-        from core.skills_library import import_skill_from_folder
         from core.orchestrators import (
-            create_orchestrator, set_enabled_skills, build_skill_dicts, delete_orchestrator,
+            build_skill_dicts,
+            create_orchestrator,
+            delete_orchestrator,
+            set_enabled_skills,
         )
+        from core.skills_library import import_skill_from_folder
         src = os.path.join(isolated_data_dir, "prompt_src")
         os.makedirs(src)
         with open(os.path.join(src, "k.md"), "w", encoding="utf-8") as f:
@@ -311,7 +316,9 @@ class TestOrchestratorIntegration:
 
     def test_foreign_skills_not_in_prompt(self, isolated_data_dir):
         from core.orchestrators import (
-            create_orchestrator, build_skill_dicts, delete_orchestrator,
+            build_skill_dicts,
+            create_orchestrator,
+            delete_orchestrator,
         )
         slug = "no_skills_orch"
         assert create_orchestrator(slug, "NoSkills", prompt_text="Plain")

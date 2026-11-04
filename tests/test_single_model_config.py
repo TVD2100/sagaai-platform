@@ -28,7 +28,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from storage.db import reset_engine, reset_devagent_engine
+from storage.db import reset_devagent_engine, reset_engine
 
 
 @pytest.fixture
@@ -155,10 +155,13 @@ def test_legacy_weak_config_is_tolerated_and_single_model(isolated_data_dir):
     """A stored config that still carries weak_* keys loads fine; the flat
     view and build_assistant_dicts map everything onto the main model."""
     _bootstrap()
-    from core.orchestrators import (
-        DEVAGENT_SLUG, build_assistant_dicts, get_orchestrator, save_orchestrator,
-    )
     from core.config import load_devagent_config
+    from core.orchestrators import (
+        DEVAGENT_SLUG,
+        build_assistant_dicts,
+        get_orchestrator,
+        save_orchestrator,
+    )
 
     legacy = dict(get_orchestrator(DEVAGENT_SLUG)["config"])
     legacy.update({
@@ -219,7 +222,10 @@ def test_export_import_roundtrip_keeps_multimodal_fields(isolated_data_dir):
     as a new orchestrator keeps them and never reintroduces weak_* keys."""
     _bootstrap()
     from core.orchestrators import (
-        DEVAGENT_SLUG, export_orchestrator, get_orchestrator, import_orchestrator,
+        DEVAGENT_SLUG,
+        export_orchestrator,
+        get_orchestrator,
+        import_orchestrator,
     )
 
     assert _save(

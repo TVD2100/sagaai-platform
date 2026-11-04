@@ -3,10 +3,12 @@ ui.pages.welcome - welcome page content, shown inside the standard layout.
 Displays platform introduction and user guide loaded from language-specific MD files.
 """
 import os
+
 import streamlit as st
+
 from core.i18n import t
-from core.paths import LANGS_DIR
 from core.orchestrators import DEVAGENT_SLUG
+from core.paths import LANGS_DIR
 from core.version import __version__ as PLATFORM_VERSION
 
 

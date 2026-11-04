@@ -23,7 +23,6 @@ from core.marketplace import registry as marketplace_registry
 from core.marketplace import store as marketplace_store
 from ui.components.flash import flash_error, flash_info, flash_success
 
-
 #: session_state key holding the last rendered catalog answer.
 _ITEMS_KEY = "mp_items"
 

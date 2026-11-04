@@ -19,46 +19,42 @@ import json
 
 import streamlit as st
 
-from core.i18n import t, get_langs
-from core.config import load_config, save_config, get_default_ui_lang
+import core.default_imports as default_imports
+from core.assistant_nav import DEFAULT_VISIBLE_ASSISTANTS, sort_assistants, split_nav_lists
 from core.assistants import load_assistants_index
-from core.threads import load_thread_meta, list_chat_threads
+from core.auth import require_auth
+from core.config import get_default_ui_lang, load_config, save_config
 from core.dependency_check import (
     check_dependencies,
     missing_packages,
     outdated_lines,
 )
-from core.bootstrap import ensure_instructions, ensure_devagent_settings
-import core.default_imports as default_imports
 from core.env_loader import load_env_from_shell_profiles
-from core.auth import require_auth
+from core.i18n import get_langs, t
+from core.marketplace import is_enabled as marketplace_enabled
+from core.orchestrator_nav import DEFAULT_VISIBLE_ORCHESTRATORS, sort_orchestrators
+from core.orchestrators import DEVAGENT_SLUG, list_orchestrators
 from core.recent_assistants import record_assistant_use
-from core.assistant_nav import sort_assistants, split_nav_lists, DEFAULT_VISIBLE_ASSISTANTS
-from core.orchestrator_nav import sort_orchestrators, DEFAULT_VISIBLE_ORCHESTRATORS
+from core.threads import list_chat_threads, load_thread_meta
 from core.threads_devagent import list_devagent_threads, migrate_platform_workspace_meta
-
-from ui.pages.welcome  import page_welcome
-from ui.pages.chat     import page_run_query
-from ui.pages.skills   import page_skills
-from ui.pages.settings import page_settings
-from ui.pages.history  import page_history
-from ui.components.flash import render_flash, flash_warning
-
-from core.orchestrators import list_orchestrators, DEVAGENT_SLUG
 from core.version import __version__ as PLATFORM_VERSION
+from ui.components.flash import flash_warning, render_flash
+from ui.pages.access import page_access
+from ui.pages.chat import page_run_query
+from ui.pages.connectors import page_connectors
+from ui.pages.history import page_history
+from ui.pages.marketplace import page_marketplace
 from ui.pages.orchestrator import page_orchestrator
 from ui.pages.orchestrator_settings import page_orchestrator_settings
 from ui.pages.orchestrators import page_orchestrators
-from ui.pages.skills_library import page_skills_library
-from ui.pages.marketplace import page_marketplace
-from core.marketplace import is_enabled as marketplace_enabled
-from ui.pages.storage import page_storage
 from ui.pages.schedules import page_schedules
-from ui.pages.connectors import page_connectors
+from ui.pages.settings import page_settings
+from ui.pages.skills import page_skills
+from ui.pages.skills_library import page_skills_library
 from ui.pages.stats import page_stats
+from ui.pages.storage import page_storage
 from ui.pages.updates import page_updates
-from ui.pages.access import page_access
-
+from ui.pages.welcome import page_welcome
 
 # ── Icons ─────────────────────────────────────────────────────────────────────
 _ORCH_ICON = "\U0001f916"          # custom orchestrators: robot

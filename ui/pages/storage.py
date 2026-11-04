@@ -18,11 +18,10 @@ made during agent-side re-embedding (BYOK).
 """
 import streamlit as st
 
-from core.i18n import t
-from ui.components.flash import flash_success, flash_warning
 from core import rag
+from core.i18n import t
 from core.rag_search import search_base
-
+from ui.components.flash import flash_success, flash_warning
 
 _STATUS_LABELS = {
     "draft": "storage_status_draft",

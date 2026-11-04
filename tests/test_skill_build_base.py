@@ -16,9 +16,9 @@ requires --replace.
 import importlib
 import importlib.util
 import os
+import shutil
 import sys
 import tempfile
-import shutil
 from argparse import Namespace
 from pathlib import Path
 

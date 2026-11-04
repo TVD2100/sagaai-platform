@@ -103,13 +103,20 @@ def test_assistant_full_lifecycle_scenario(isolated_data):
     """Create -> files/prompt on disk+DB -> chat thread -> edit -> delete."""
     import core.assistant_folders as af
     from core.assistants import (
-        create_assistant, get_assistant_by_id, update_assistant,
-        delete_assistant, load_assistant_files_context,
+        create_assistant,
+        delete_assistant,
+        get_assistant_by_id,
+        load_assistant_files_context,
+        update_assistant,
     )
     from core.threads import (
-        create_thread, append_thread_message, load_thread_messages,
-        list_chat_threads, delete_thread, sum_thread_tokens,
+        append_thread_message,
+        create_thread,
+        delete_thread,
+        list_chat_threads,
+        load_thread_messages,
         messages_to_api_history,
+        sum_thread_tokens,
     )
 
     # 1. Create an assistant.
@@ -179,10 +186,12 @@ def test_chat_with_model_and_files_scenario(isolated_data):
     """A full chat round trip: file context is forwarded to the provider."""
     from unittest.mock import MagicMock, patch
 
-    from core.files import (
-        estimate_tokens, check_upload_tokens, build_attachments_context,
-    )
     from core.api_layer import send_request
+    from core.files import (
+        build_attachments_context,
+        check_upload_tokens,
+        estimate_tokens,
+    )
 
     # Token helpers used by the chat page before sending.
     att, names = build_attachments_context([
@@ -237,13 +246,18 @@ def test_chat_with_model_and_files_scenario(isolated_data):
 
 def test_employee_orchestrator_scenario(isolated_data):
     """Create an employee, attach instructions/functions/RAG, run agent views."""
+    import core.orchestrator_folders as of
     from core import rag
     from core.orchestrators import (
-        create_orchestrator, build_assistant_dicts, get_economy_config,
-        set_orchestrator_rag_bases, get_orchestrator_rag_bases,
-        export_orchestrator, import_orchestrator, delete_orchestrator,
+        build_assistant_dicts,
+        create_orchestrator,
+        delete_orchestrator,
+        export_orchestrator,
+        get_economy_config,
+        get_orchestrator_rag_bases,
+        import_orchestrator,
+        set_orchestrator_rag_bases,
     )
-    import core.orchestrator_folders as of
 
     base = rag.create_base(
         "Platform Docs", description="Справочник платформы",
@@ -309,9 +323,13 @@ def test_employee_orchestrator_scenario(isolated_data):
     }
 
     from core.threads_devagent import (
-        create_devagent_thread, append_thread_message, save_thread_workspace,
-        load_thread_meta, load_thread_messages, list_orchestrator_threads,
+        append_thread_message,
+        create_devagent_thread,
         delete_thread,
+        list_orchestrator_threads,
+        load_thread_messages,
+        load_thread_meta,
+        save_thread_workspace,
     )
     tid = create_devagent_thread(
         "Проверь проект", orchestrator_slug="review_bot",
@@ -498,9 +516,9 @@ def test_universal_developer_external_project_scenario(tmp_path, isolated_data):
 
 def test_rag_base_full_scenario(isolated_data, monkeypatch):
     """Create base -> add files -> index (mocked embeddings) -> search -> delete."""
-    from core import rag
     import core.rag_indexer as indexer
     import core.rag_search as rs
+    from core import rag
 
     # 1. Create the base; folder + manifest + empty index appear.
     base = rag.create_base(
@@ -588,7 +606,7 @@ def test_rag_base_full_scenario(isolated_data, monkeypatch):
 
 def test_i18n_scenario(isolated_data):
     """Discover languages, translate, fall back to English, then to the key."""
-    from core.i18n import get_langs, t, invalidate_langs_cache, discover_langs
+    from core.i18n import discover_langs, get_langs, invalidate_langs_cache, t
 
     langs = get_langs()
     assert langs
@@ -627,8 +645,12 @@ def test_config_secrets_and_connection_scenario(isolated_data, monkeypatch):
     from unittest.mock import MagicMock, patch
 
     from core.config import (
-        save_config, load_config, load_stored_config, has_key, list_env_keys,
+        has_key,
         is_env_key_set_for_service,
+        list_env_keys,
+        load_config,
+        load_stored_config,
+        save_config,
     )
     from storage.repository import repo_load_config
 
@@ -725,8 +747,8 @@ def test_api_roundtrip_scenarios(isolated_data):
     """Yandex and DeepSeek send_request round trips + error classification."""
     from unittest.mock import MagicMock, patch
 
-    from core.api_layer import send_request
     from core.api_errors import ApiKeyMissingError
+    from core.api_layer import send_request
 
     # --- YandexAI round trip -----------------------------------------------
     assistant = {

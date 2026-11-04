@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 """Tests for orchestrator connection integration (enabled_connections)."""
 import os
+import shutil
 import sys
 import tempfile
-import shutil
 from pathlib import Path
 from unittest import mock
+
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from storage.db import reset_engine, reset_devagent_engine
+from storage.db import reset_devagent_engine, reset_engine
 
 
 @pytest.fixture

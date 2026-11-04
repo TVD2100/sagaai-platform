@@ -6,29 +6,44 @@ Session-state keys use the "assistant" naming. For backward compatibility the
 legacy "skill" keys (show_skill_form / edit_skill_id) are also read and
 mirrored when present.
 """
-import streamlit as st
 from datetime import datetime
-from core.assistants import (
-    load_assistants_index, get_assistant_by_id,
-    create_assistant, update_assistant, delete_assistant,
-    list_assistant_files, save_assistant_file, delete_assistant_file,
-    load_assistant_prompt_text,
-)
-from core.prompt_improver import improve_prompt_with_main_model
-from core.i18n import t
-from ui.components.flash import flash_error, flash_success
-from core.services import get_services, service_supports_reasoning_effort, default_reasoning_effort, get_model_reasoning_effort_options
-from core.tools_utils import (
-    list_tool_definitions, service_supported_tools, build_rag_search_tool,
-    build_rag_chunks_tool,
-)
-from core.rag import list_bases as list_rag_bases
+
+import streamlit as st
+
 from core.assistant_folders import (
-    load_assistant_bundle as folder_load_bundle,
+    get_assistant_web_search_settings,
     set_assistant_rag_bases,
     set_assistant_web_search_settings,
-    get_assistant_web_search_settings,
 )
+from core.assistant_folders import (
+    load_assistant_bundle as folder_load_bundle,
+)
+from core.assistants import (
+    create_assistant,
+    delete_assistant,
+    delete_assistant_file,
+    get_assistant_by_id,
+    list_assistant_files,
+    load_assistants_index,
+    save_assistant_file,
+    update_assistant,
+)
+from core.i18n import t
+from core.prompt_improver import improve_prompt_with_main_model
+from core.rag import list_bases as list_rag_bases
+from core.services import (
+    default_reasoning_effort,
+    get_model_reasoning_effort_options,
+    get_services,
+    service_supports_reasoning_effort,
+)
+from core.tools_utils import (
+    build_rag_chunks_tool,
+    build_rag_search_tool,
+    list_tool_definitions,
+    service_supported_tools,
+)
+from ui.components.flash import flash_error, flash_success
 
 # built-in assistant IDs that should never be editable
 _BUILTIN_ASSISTANT_IDS = {"dev_agent", "skill_creator", "assistant_creator"}
@@ -66,12 +81,12 @@ def _format_tools_badge(tools) -> str:
     if not tools:
         return ""
     parts = []
-    for t in tools:
-        if isinstance(t, dict):
-            name = t.get("name") or t.get("type") or "tool"
+    for tool in tools:
+        if isinstance(tool, dict):
+            name = tool.get("name") or tool.get("type") or "tool"
             parts.append(str(name))
         else:
-            parts.append(str(t))
+            parts.append(str(tool))
     return ", ".join(parts)
 
 

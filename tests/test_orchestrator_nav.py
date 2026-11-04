@@ -10,12 +10,12 @@ Covers the employee-sidebar ordering rules:
 """
 from datetime import datetime
 
+from core.assistant_nav import split_nav_lists
 from core.orchestrator_nav import (
     DEFAULT_VISIBLE_ORCHESTRATORS,
     last_used_at,
     sort_orchestrators,
 )
-from core.assistant_nav import split_nav_lists
 
 
 def _o(slug, name, created="", updated=""):

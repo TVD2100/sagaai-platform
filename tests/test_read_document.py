@@ -20,7 +20,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from storage.db import reset_engine, reset_devagent_engine  # noqa: E402
+from storage.db import reset_devagent_engine, reset_engine  # noqa: E402
 
 
 @pytest.fixture

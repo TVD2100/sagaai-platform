@@ -11,9 +11,9 @@ Covers:
 """
 import importlib
 import os
+import shutil
 import sys
 import tempfile
-import shutil
 from pathlib import Path
 
 import pytest
@@ -56,7 +56,7 @@ def isolated_data_dir():
 
 def _make_index_db(tmp: str) -> str:
     """Create a small index DB and return its path."""
-    from core.rag_index import create_index_db, add_chunk
+    from core.rag_index import add_chunk, create_index_db
     db = os.path.join(tmp, "idx.db")
     assert create_index_db(db, dimension=3, provider="YandexAI",
                            embedding_model="text-search-doc")
@@ -105,7 +105,7 @@ class TestRagIndexChunkOps:
         assert page2["total"] == 0
 
     def test_update_chunk_text_resets_embedding(self, isolated_data_dir):
-        from core.rag_index import update_chunk_text, get_chunk, add_embedding
+        from core.rag_index import add_embedding, get_chunk, update_chunk_text
         db = _make_index_db(isolated_data_dir)
         assert update_chunk_text(db, 2, "Updated banana text")
         c = get_chunk(db, 2)
@@ -120,7 +120,7 @@ class TestRagIndexChunkOps:
         assert update_chunk_text(db, 999, "x") is False
 
     def test_delete_chunk_and_embedding(self, isolated_data_dir):
-        from core.rag_index import delete_chunk, get_chunk, count_chunks, index_stats
+        from core.rag_index import count_chunks, delete_chunk, get_chunk, index_stats
         db = _make_index_db(isolated_data_dir)
         assert delete_chunk(db, 1)
         assert get_chunk(db, 1) == {}
@@ -224,6 +224,7 @@ class TestRagSearchGetChunks:
 
     def test_get_chunks_raises_for_missing_or_draft_base(self, isolated_data_dir):
         import pytest
+
         from core import rag
         from core.rag_search import RagSearchError, get_chunks
         with pytest.raises(RagSearchError):
@@ -322,9 +323,9 @@ class TestPresetSkillAutoRegistration:
         return preset
 
     def test_seeds_into_nonempty_library(self, isolated_data_dir, monkeypatch):
+        import core.defaults as defaults_mod
         import core.skills_library as sl
         from core.default_imports import ensure_default_skills
-        import core.defaults as defaults_mod
 
         # Seed one existing skill to make the library non-empty.
         src = os.path.join(isolated_data_dir, "existing_skill")
@@ -355,9 +356,9 @@ class TestPresetSkillAutoRegistration:
         assert len(sl.list_skills()) == 2
 
     def test_deleted_preset_is_not_resurrected(self, isolated_data_dir, monkeypatch):
+        import core.defaults as defaults_mod
         import core.skills_library as sl
         from core.default_imports import ensure_default_skills
-        import core.defaults as defaults_mod
 
         preset = self._make_preset(isolated_data_dir)
         monkeypatch.setattr(defaults_mod, "skills_dir", lambda: os.path.dirname(preset))

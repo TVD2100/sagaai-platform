@@ -14,7 +14,6 @@ import pytest
 from dev_agent import config
 from dev_agent import task_state as ts
 
-
 OLD = 40  # days: comfortably past the default 7-day threshold
 
 

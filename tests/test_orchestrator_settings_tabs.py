@@ -24,7 +24,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from tests._st_mock import install_streamlit_mock, StopRerun
+from tests._st_mock import StopRerun, install_streamlit_mock
 
 SLUG = "myorch"
 LANG = "English"

@@ -23,7 +23,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import core.rag_index as rag_index
 
-
 _VEC4 = [1.0, 0.0, 0.0, 0.0]
 
 

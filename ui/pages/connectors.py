@@ -32,19 +32,17 @@ never passed to the frontend in plain text.
 """
 import streamlit as st
 
-from core.i18n import t
-from ui.components.flash import flash_error, flash_success
-from core import connectors
-from core import connector_presets
+from core import connector_presets, connectors
 from core import personal_memory as pm
 from core.connectors import (
+    create_connection,
+    delete_connection,
     list_connections,
     list_services,
-    create_connection,
     update_connection,
-    delete_connection,
 )
-
+from core.i18n import t
+from ui.components.flash import flash_error, flash_success
 
 # Number of tiles per row on the general-services and MCP tabs.
 _GENERAL_TILES_PER_ROW = 3

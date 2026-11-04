@@ -63,8 +63,8 @@ def test_get_improver_instruction_returns_text(monkeypatch):
 
 
 def test_get_improver_instruction_missing_returns_empty(monkeypatch):
-    from core import prompt_improver
     import core.orchestrators as orch_mod
+    from core import prompt_improver
     monkeypatch.setattr(orch_mod, "orch_get_instruction", lambda slug, iid: None)
     assert prompt_improver.get_improver_instruction() == ""
 
@@ -133,8 +133,8 @@ def test_improve_missing_instruction_raises(monkeypatch):
 
 
 def test_improve_no_main_model_raises(monkeypatch):
-    from core import prompt_improver
     import core.orchestrators as orch_mod
+    from core import prompt_improver
 
     def fake_build_assistant_dicts(slug):
         return (

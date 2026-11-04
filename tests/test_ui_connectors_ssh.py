@@ -21,11 +21,11 @@ from __future__ import annotations
 
 import os
 import sys
-
-import pytest
 from unittest.mock import MagicMock, patch
 
-from tests._st_mock import install_streamlit_mock, StopRerun
+import pytest
+
+from tests._st_mock import StopRerun, install_streamlit_mock
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _EN_LANG = {"English": os.path.join(_REPO_ROOT, "defaults", "langs", "en.json")}

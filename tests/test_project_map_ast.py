@@ -30,6 +30,7 @@ def isolated_db(tmp_path, monkeypatch):
     """Keep workspace-history writes out of the real sagaai.db."""
     monkeypatch.setenv("SAGAAI_DATA_DIR", str(tmp_path / "data"))
     import importlib
+
     import storage.db as db_mod
     db_mod.reset_engine()
     import core.paths as paths_mod

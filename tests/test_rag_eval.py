@@ -18,7 +18,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import scripts.rag_eval as rag_eval  # noqa: E402
 
-
 FIXTURE_CORPUS = Path(__file__).resolve().parent / "fixtures" / "rag_eval" / "corpus.json"
 FIXTURE_QUERIES = Path(__file__).resolve().parent / "fixtures" / "rag_eval" / "queries.json"
 MP_CORPUS = Path(__file__).resolve().parent / "fixtures" / "rag_eval" / "multiproduct_corpus.json"

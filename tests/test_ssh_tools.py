@@ -13,7 +13,6 @@ from tests.test_ssh_connector import (
     isolated_data_dir,  # noqa: F401 - re-exported pytest fixture
 )
 
-
 # ─── Catalog metadata ───────────────────────────────────────────────────────
 
 

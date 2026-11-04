@@ -19,8 +19,8 @@ import pytest
 
 from dev_agent import config
 from dev_agent.agent_loop import (
-    MAX_TOOL_RESULT_CHARS,
     _TOOL_RESULT_INLINE_LIMIT,
+    MAX_TOOL_RESULT_CHARS,
     _apply_tool_result_cap,
 )
 from dev_agent.tool_executor import ToolExecutor

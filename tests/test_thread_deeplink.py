@@ -35,6 +35,7 @@ def _drop_ui_modules():
 def deeplink_context():
     """Import ui.app under the shared Streamlit mock; yield (app, mock)."""
     import importlib
+
     from tests._st_mock import install_streamlit_mock
 
     _drop_ui_modules()
@@ -112,7 +113,7 @@ def test_deeplink_runs_only_once_per_session(deeplink_context):
     """A second run with (stale) params must not navigate again."""
     app_mod, st_mock = deeplink_context
     st_mock.query_params["orchestrator"] = "dev_agent"
-    with patch("ui.pages.orchestrator._init_orch_state") as init_fn:
+    with patch("ui.pages.orchestrator._init_orch_state"):
         app_mod._handle_thread_deeplink()
     assert st_mock.session_state["current_page"] == "orchestrator:dev_agent"
     # Simulate a later manual reload with stale params still in the URL.

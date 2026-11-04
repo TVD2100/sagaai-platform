@@ -32,7 +32,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 
 @pytest.fixture
@@ -75,7 +75,9 @@ class TestAdaptationRegistry:
 
     def test_external_import_defaults_to_not_adapted(self, isolated_data_dir):
         from core.skills_library import (
-            get_skill, get_enabled_skills_metadata, UNKNOWN_DEVELOPER,
+            UNKNOWN_DEVELOPER,
+            get_enabled_skills_metadata,
+            get_skill,
         )
         sid = self._import_ext(isolated_data_dir)
         rec = get_skill(sid)
@@ -85,7 +87,9 @@ class TestAdaptationRegistry:
 
     def test_explicit_platform_import_is_adapted(self, isolated_data_dir):
         from core.skills_library import (
-            import_skill_from_folder, get_skill, PLATFORM_DEVELOPER,
+            PLATFORM_DEVELOPER,
+            get_skill,
+            import_skill_from_folder,
         )
         src = os.path.join(isolated_data_dir, "plat_src")
         os.makedirs(src)
@@ -100,7 +104,9 @@ class TestAdaptationRegistry:
 
     def test_set_skill_adapted_marks_it(self, isolated_data_dir):
         from core.skills_library import (
-            set_skill_adapted, get_skill, get_enabled_skills_metadata,
+            get_enabled_skills_metadata,
+            get_skill,
+            set_skill_adapted,
         )
         sid = self._import_ext(isolated_data_dir)
         assert set_skill_adapted(sid) is True
@@ -133,8 +139,12 @@ class TestAdaptationRegistry:
 
     def test_legacy_records_are_backfilled(self, isolated_data_dir):
         from core.skills_library import (
-            _load_registry, _save_registry, get_skill,
-            get_enabled_skills_metadata, PLATFORM_DEVELOPER, UNKNOWN_DEVELOPER,
+            PLATFORM_DEVELOPER,
+            UNKNOWN_DEVELOPER,
+            _load_registry,
+            _save_registry,
+            get_enabled_skills_metadata,
+            get_skill,
         )
         registry = _load_registry()
         registry["abcd1234"] = {
@@ -171,7 +181,7 @@ class TestDevAgentMarkSkillAdapted:
         monkeypatch.setattr(dconfig, "CHANGELOG_FILE", root / "CHANGELOG.md")
         monkeypatch.setattr(dconfig, "PROTECTED_FILES", ())
 
-        from core.skills_library import import_skill_from_folder, get_skill
+        from core.skills_library import get_skill, import_skill_from_folder
         src = os.path.join(isolated_data_dir, "tool_src")
         os.makedirs(src)
         with open(os.path.join(src, "s.md"), "w", encoding="utf-8") as f:

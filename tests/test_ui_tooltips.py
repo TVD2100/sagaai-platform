@@ -29,7 +29,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 BANNED_LINK = 'github.com/anthropics/skills'
@@ -191,8 +191,8 @@ SAMPLE_SERVICE = {
 
 def test_settings_api_key_widgets_use_service_key_help(mock_env):
     'The settings page resolves key_help/key2_help from the real service JSONs.'
-    from core.services import discover_services
     import ui.pages.settings as settings_mod
+    from core.services import discover_services
 
     services = discover_services()
     expected = {}
@@ -301,6 +301,7 @@ def test_skills_library_widgets_have_tooltips(mock_env):
 def test_storage_widgets_have_tooltips(mock_env):
     'Test-search, chunk-search and chunk-text widgets carry tooltips.'
     import types
+
     import ui.pages.storage as storage_mod
 
     storage_mod.rag = types.SimpleNamespace(

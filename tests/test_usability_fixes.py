@@ -13,7 +13,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 
 @pytest.fixture()
@@ -449,8 +449,8 @@ def test_sidebar_settings_providers_label_updated(ui_env, monkeypatch):
 def test_assistant_form_switch_clears_stale_prompt_keys(ui_env, monkeypatch):
     """Opening the edit form for a different assistant must drop stale
     assistant_prompt_text_* session keys and reset the prompt revision."""
-    import core.services as services_mod
     import core.assistants as core_assistants
+    import core.services as services_mod
 
     svc = {
         "auth_type": "bearer",

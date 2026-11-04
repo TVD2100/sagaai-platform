@@ -13,12 +13,12 @@ This page is reachable from the sidebar section "Orchestrators".
 import streamlit as st
 
 from core.i18n import t
-from ui.components.flash import flash_success
 from core.orchestrators import (
-    list_orchestrators,
-    delete_orchestrator,
     DEVAGENT_SLUG,
+    delete_orchestrator,
+    list_orchestrators,
 )
+from ui.components.flash import flash_error, flash_success
 
 
 def _go_to_page(page_id: str) -> None:

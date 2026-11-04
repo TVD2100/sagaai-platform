@@ -12,18 +12,18 @@ ui/pages/skills_library.py - страница управления библио�
 import streamlit as st
 
 from core.i18n import t
-from ui.components.flash import flash_error, flash_success
 from core.skills_library import (
-    list_skills,
-    get_skill,
-    update_skill,
+    SkillsLibraryError,
     delete_skill,
-    import_skill_from_zip,
+    get_skill,
+    get_skills_root,
     import_skill_from_folder,
     import_skill_from_github,
-    get_skills_root,
-    SkillsLibraryError,
+    import_skill_from_zip,
+    list_skills,
+    update_skill,
 )
+from ui.components.flash import flash_error, flash_success
 
 
 def page_skills_library() -> None:
@@ -176,8 +176,8 @@ def _request_skill_adaptation(skill_id: str, name: str, lang: str) -> None:
     Кнопка «Адаптировать» не меняет статус навыка напрямую: статус поменяет
     только DevAgent по завершении адаптации (инструмент mark_skill_adapted).
     """
-    from core.orchestrators import DEVAGENT_SLUG
     import ui.pages.orchestrator as _orch_page
+    from core.orchestrators import DEVAGENT_SLUG
 
     slug = DEVAGENT_SLUG
     _orch_page._init_orch_state(slug)

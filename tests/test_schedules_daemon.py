@@ -23,8 +23,8 @@ from core.schedules.model import Schedule  # noqa: E402
 @pytest.fixture
 def isolated_state(tmp_path, monkeypatch):
     """Give the test its own database, history folder and run store."""
-    import storage.db as db
     import core.paths as paths
+    import storage.db as db
     from core.orchestration import runs as run_store
 
     monkeypatch.setattr(db, "_engine", None)
@@ -176,6 +176,7 @@ class TestOverlap:
 class TestDailyLimit:
     def test_the_daily_cap_skips_the_point(self, isolated_state):
         from datetime import datetime
+
         from core.schedules.calc import resolve_zone
 
         zone = resolve_zone("Europe/Moscow")

@@ -9,16 +9,16 @@ Verifies that the redesigned storage page:
 """
 import importlib
 import os
+import shutil
 import sys
 import tempfile
-import shutil
 from pathlib import Path
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from tests._st_mock import install_streamlit_mock, StopRerun  # noqa: E402
+from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
 
 @pytest.fixture

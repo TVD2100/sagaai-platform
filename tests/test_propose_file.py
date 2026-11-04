@@ -12,6 +12,7 @@ auto_apply=False.
 """
 
 import json
+
 import pytest
 
 from dev_agent import config

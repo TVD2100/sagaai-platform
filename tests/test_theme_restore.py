@@ -30,6 +30,7 @@ def _drop_ui_modules():
 def app_under_mock():
     """Import ui.app under the shared Streamlit mock; yield (module, mock)."""
     import importlib
+
     from tests._st_mock import install_streamlit_mock
 
     _drop_ui_modules()

@@ -32,7 +32,6 @@ from dev_agent.tool_executor import (  # noqa: E402
 )
 from dev_agent.universal_agent import UniversalDevAgent  # noqa: E402
 
-
 FILE_TOOLS = [
     "read_file", "list_files", "propose_file", "apply_patch", "verify_file",
     "create_backup", "restore_backup", "show_history", "search_in_files",

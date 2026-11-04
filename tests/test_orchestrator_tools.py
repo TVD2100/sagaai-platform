@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 """Tests for core.orchestrator_tools (tool catalog + Available tools block)."""
 import os
+import shutil
 import sys
 import tempfile
-import shutil
 from pathlib import Path
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from storage.db import reset_engine, reset_devagent_engine
+from storage.db import reset_devagent_engine, reset_engine
 
 
 @pytest.fixture
@@ -200,10 +200,13 @@ def test_devagent_default_config_has_disabled_tools_key():
 def test_ensure_builtin_backfills_disabled_tools(isolated_data_dir):
     """ensure_builtin_orchestrators backfills 'disabled_tools' for old configs."""
     import uuid
-    from storage.repository import repo_create_orchestrator
+
     from core.orchestrators import (
-        DEVAGENT_SLUG, ensure_builtin_orchestrators, get_orchestrator,
+        DEVAGENT_SLUG,
+        ensure_builtin_orchestrators,
+        get_orchestrator,
     )
+    from storage.repository import repo_create_orchestrator
     repo_create_orchestrator(
         orchestrator_id=uuid.uuid4().hex[:8],
         slug=DEVAGENT_SLUG,

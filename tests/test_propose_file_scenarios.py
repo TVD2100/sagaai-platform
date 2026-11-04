@@ -1,4 +1,4 @@
-"""Scenario-based tests for ToolExecutor.propose_file.
+r"""Scenario-based tests for ToolExecutor.propose_file.
 
 These tests focus on the reported production issue: propose_file sometimes
 writes files that claim success (verified=True) but the on-disk content is
@@ -16,6 +16,7 @@ nested directories, JSON/Markdown/py content, large files, and rewrites.
 """
 
 import json
+
 import pytest
 
 from dev_agent import config

@@ -18,7 +18,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from core.orchestration import tool_classes as C  # noqa: E402
 
-
 # ─── the classification ────────────────────────────────────────────────────
 
 def test_a_read_tool_is_not_mutating():

@@ -29,7 +29,6 @@ from core.marketplace import rollback, store
 from core.marketplace import updates as marketplace_updates
 from ui.components.flash import flash_error, flash_success
 
-
 #: The four entity types, in the order the page lists them.
 SECTIONS = (
     ("skill", "mp_upd_skills"),

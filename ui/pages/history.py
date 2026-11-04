@@ -11,19 +11,26 @@ so the dialog's saved workspace / target file is restored together with the
 message history: the history page and the orchestrator page's own History tab
 now behave identically.
 """
-import os
 import streamlit as st
 
 from core.i18n import t
+from core.orchestrators import DEVAGENT_SLUG, list_orchestrators
 from core.threads import (
-    list_chat_threads, load_thread_messages,
-    get_thread_dir, delete_thread as delete_chat_thread,
+    delete_thread as delete_chat_thread,
+)
+from core.threads import (
+    list_chat_threads,
+    load_thread_messages,
 )
 from core.threads_devagent import (
-    list_devagent_threads, load_thread_messages as load_orch_thread_messages,
     delete_thread as delete_orch_thread,
 )
-from core.orchestrators import list_orchestrators, DEVAGENT_SLUG
+from core.threads_devagent import (
+    list_devagent_threads,
+)
+from core.threads_devagent import (
+    load_thread_messages as load_orch_thread_messages,
+)
 
 
 def _active_orch_thread_id() -> str:
@@ -278,14 +285,12 @@ def page_history():
             type_badge = (
                 '🔧'  # same wrench as current history page
             )
-            type_label = t("history_type_assistant", lang=lang)
         else:
             # DevAgent gets its own icon
             if entity_slug == DEVAGENT_SLUG:
                 type_badge = "🛠️"
             else:
                 type_badge = "🤖"
-            type_label = t("history_type_employee", lang=lang)
 
         with st.container(border=True):
             if is_active:

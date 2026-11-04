@@ -3,13 +3,14 @@ test_phase1_core_pure.py — verifies that core modules import cleanly (no strea
 that fs utilities work correctly (round-trip), render functions produce expected output,
 and i18n.t returns the key when no translation is available.
 """
-import os
-import sys
-import json
 import importlib
-import subprocess
-import tempfile
+import json
+import os
 import py_compile
+import subprocess
+import sys
+import tempfile
+
 import pytest
 
 # Ensure the sagaai package is on sys.path
@@ -109,7 +110,7 @@ print('OK')
 
 def test_fs_json_roundtrip(tmp_path):
     """write_json_file / read_json_file round-trip."""
-    from core.fs import write_json_file, read_json_file
+    from core.fs import read_json_file, write_json_file
     data = {"key": "value", "num": 42, "list": [1, 2, 3]}
     path = str(tmp_path / "test.json")
     assert write_json_file(path, data) is True
@@ -126,7 +127,7 @@ def test_fs_json_missing_returns_default(tmp_path):
 
 def test_fs_text_roundtrip(tmp_path):
     """write_text_file / read_text_file round-trip."""
-    from core.fs import write_text_file, read_text_file
+    from core.fs import read_text_file, write_text_file
     text = "Hello, мир!\nLine 2\n"
     path = str(tmp_path / "test.txt")
     assert write_text_file(path, text) is True

@@ -18,12 +18,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from dev_agent import config
 from dev_agent.agent_loop import (
-    summarize_tool_result_for_storage,
-    _TOOL_RESULT_STORAGE_KEEP_LIMIT,
+    _TOOL_RESULT_INLINE_LIMIT,
     _TOOL_RESULT_STORAGE_FALLBACK_LIMIT,
     _TOOL_RESULT_STORAGE_FIELD_LIMIT,
-    _TOOL_RESULT_INLINE_LIMIT,
+    _TOOL_RESULT_STORAGE_KEEP_LIMIT,
     _apply_tool_result_cap,
+    summarize_tool_result_for_storage,
 )
 
 
@@ -141,8 +141,8 @@ def isolated_data(tmp_path, monkeypatch):
 def test_append_thread_message_compacts_giant_tool_result(tmp_path):
     """append_thread_message must not store a giant tool_result raw in the DB."""
     from core.threads_devagent import (
-        create_devagent_thread,
         append_thread_message,
+        create_devagent_thread,
         load_thread_messages,
     )
 
@@ -163,8 +163,8 @@ def test_save_thread_messages_compacts_giant_tool_result(tmp_path):
     """The full-history save path also compacts giant tool_results."""
     from core.threads_devagent import (
         create_devagent_thread,
-        save_thread_messages,
         load_thread_messages,
+        save_thread_messages,
     )
 
     tid = create_devagent_thread(title="m2 save", orchestrator_slug="dev_agent")
@@ -186,8 +186,8 @@ def test_save_thread_messages_compacts_giant_tool_result(tmp_path):
 def test_small_tool_result_saved_verbatim(tmp_path):
     """Small results still round-trip unmodified through the DB."""
     from core.threads_devagent import (
-        create_devagent_thread,
         append_thread_message,
+        create_devagent_thread,
         load_thread_messages,
     )
 
@@ -201,8 +201,8 @@ def test_small_tool_result_saved_verbatim(tmp_path):
 def test_events_survive_compaction(tmp_path):
     """The _events JSON prefix must still be restored after compaction."""
     from core.threads_devagent import (
-        create_devagent_thread,
         append_thread_message,
+        create_devagent_thread,
         load_thread_messages,
     )
 
@@ -261,8 +261,8 @@ def test_spilled_preview_and_wire_round_trip_verbatim(tmp_path, monkeypatch):
     assert len(wire) <= _TOOL_RESULT_STORAGE_KEEP_LIMIT
 
     from core.threads_devagent import (
-        create_devagent_thread,
         append_thread_message,
+        create_devagent_thread,
         load_thread_messages,
     )
 
@@ -292,10 +292,10 @@ def test_batch_wire_round_trips_verbatim_through_both_paths(tmp_path, monkeypatc
         assert len(doc) <= _TOOL_RESULT_STORAGE_KEEP_LIMIT
 
     from core.threads_devagent import (
-        create_devagent_thread,
         append_thread_message,
-        save_thread_messages,
+        create_devagent_thread,
         load_thread_messages,
+        save_thread_messages,
     )
 
     tid_a = create_devagent_thread(title="c2 batch append", orchestrator_slug="dev_agent")

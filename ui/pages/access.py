@@ -18,11 +18,11 @@ All user-facing strings go through t(key, lang=lang).
 """
 import streamlit as st
 
-from core.i18n import t
 from core.auth import (
     load_auth_settings,
     save_auth_settings,
 )
+from core.i18n import t
 
 
 def page_access() -> None:

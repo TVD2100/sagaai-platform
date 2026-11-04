@@ -12,12 +12,12 @@ from __future__ import annotations
 
 import os
 import sys
-import pytest
 from contextlib import ExitStack
 from unittest.mock import patch
 
-from tests._st_mock import install_streamlit_mock, StopRerun
+import pytest
 
+from tests._st_mock import StopRerun, install_streamlit_mock
 
 # ── bundles of patches to stay within Python's block-nesting limit ────────────
 
@@ -188,6 +188,7 @@ def test_theme_dark_select_writes_native_streamlit_theme_key(mock_env):
 def test_theme_system_and_light_select_emit_correct_mode(mock_env):
     """System and Light selections must emit \"System\" and \"Light\" payloads."""
     from unittest.mock import patch
+
     from ui.app import main
 
     # Skip the cold-start theme sync so the first emitted script belongs
@@ -266,8 +267,8 @@ def test_instructions_tab_renders():
 
 def test_settings_provider_save_shows_success(mock_env):
     """Saving a provider form should render a success notification in place."""
-    from ui.pages.settings import page_settings
     import ui.pages.settings as settings_mod
+    from ui.pages.settings import page_settings
 
     # Ensure the cached module uses the current Streamlit mock.
     settings_mod.st = mock_env
@@ -287,8 +288,8 @@ def test_settings_provider_save_shows_success(mock_env):
 
 def test_settings_global_save_button_absent(mock_env):
     """The global Save button under provider blocks must be gone."""
-    from ui.pages.settings import page_settings
     import ui.pages.settings as settings_mod
+    from ui.pages.settings import page_settings
 
     settings_mod.st = mock_env
 
@@ -337,8 +338,8 @@ def test_orchestrator_favicon_is_static_only(mock_env):
 def test_orchestrator_models_settings_renders_search_prompt_area(mock_env):
     """The models-settings renderer must show the search-agent prompt textarea
     and persist its value into the orchestrator config on save."""
-    from ui.pages.orchestrator import _render_models_settings
     import ui.pages.orchestrator as orch_mod
+    from ui.pages.orchestrator import _render_models_settings
 
     orch_mod.st = mock_env
 
@@ -392,8 +393,8 @@ def test_orchestrator_models_settings_renders_search_prompt_area(mock_env):
 
 def test_orchestrator_models_settings_saves_reasoning_effort(mock_env):
     """Reasoning-effort selects persist strong/weak/search values into config."""
-    from ui.pages.orchestrator import _render_models_settings
     import ui.pages.orchestrator as orch_mod
+    from ui.pages.orchestrator import _render_models_settings
 
     orch_mod.st = mock_env
 
@@ -445,8 +446,8 @@ def test_assistants_improve_prompt_does_not_mutate_existing_widget(mock_env):
     the improved text under the NEW key, and reruns; the next render uses that
     new key.
     """
-    from ui.pages.assistants import page_assistants
     import ui.pages.assistants as assistants_mod
+    from ui.pages.assistants import page_assistants
 
     assistants_mod.st = mock_env
     mock_env.session_state.update({
@@ -507,8 +508,8 @@ def _open_assistant_create_form(mock_env):
 
 def test_assistant_form_field_order(mock_env):
     """The create form renders basic fields before model/limits fields."""
-    from ui.pages.assistants import page_assistants
     import ui.pages.assistants as assistants_mod
+    from ui.pages.assistants import page_assistants
 
     assistants_mod.st = mock_env
     _open_assistant_create_form(mock_env)
@@ -542,8 +543,8 @@ def test_assistant_form_field_order(mock_env):
 
 def test_assistant_form_max_tool_calls_default_three(mock_env):
     """New assistant form defaults max tool calls to 3."""
-    from ui.pages.assistants import page_assistants
     import ui.pages.assistants as assistants_mod
+    from ui.pages.assistants import page_assistants
 
     assistants_mod.st = mock_env
     _open_assistant_create_form(mock_env)
@@ -562,8 +563,8 @@ def test_assistant_form_max_tool_calls_default_three(mock_env):
 
 def test_assistant_form_renders_reasoning_effort_select(mock_env):
     """Reasoning-effort select appears for services that support it."""
-    from ui.pages.assistants import page_assistants
     import ui.pages.assistants as assistants_mod
+    from ui.pages.assistants import page_assistants
 
     assistants_mod.st = mock_env
     _open_assistant_create_form(mock_env)
@@ -589,8 +590,8 @@ def test_assistant_form_renders_reasoning_effort_select(mock_env):
 
 def test_assistant_create_saves_reasoning_effort(mock_env):
     """Saving a new assistant persists reasoning_effort (default high)."""
-    from ui.pages.assistants import page_assistants
     import ui.pages.assistants as assistants_mod
+    from ui.pages.assistants import page_assistants
 
     assistants_mod.st = mock_env
     _open_assistant_create_form(mock_env)
@@ -620,8 +621,8 @@ def test_assistant_create_saves_reasoning_effort(mock_env):
 def test_assistants_page_back_to_chat_returns_to_chat(mock_env):
     """The '← Chat' button on the assistants page returns to chat with the
     currently edited/last active assistant preselected."""
-    from ui.pages.assistants import page_assistants
     import ui.pages.assistants as assistants_mod
+    from ui.pages.assistants import page_assistants
 
     assistants_mod.st = mock_env
     mock_env.session_state.update({
@@ -782,8 +783,8 @@ def test_render_events_standalone_tool_call_falls_back(mock_env):
 
 def test_chat_page_has_settings_and_new_dialog_buttons(mock_env):
     """The assistant chat page offers 'Settings' and 'New dialog' actions."""
-    from ui.pages.chat import page_run_query
     import ui.pages.chat as chat_mod
+    from ui.pages.chat import page_run_query
 
     chat_mod.st = mock_env
     mock_env.session_state.update({
@@ -830,8 +831,8 @@ def test_chat_page_keeps_selected_assistant_across_reruns(mock_env):
     NOT remove selected_assistant_id/selected_skill_id from session_state,
     must NOT render the fallback assistant selector, and the settings/new
     dialog buttons must be bound to the actually selected assistant."""
-    from ui.pages.chat import page_run_query
     import ui.pages.chat as chat_mod
+    from ui.pages.chat import page_run_query
 
     chat_mod.st = mock_env
     mock_env.session_state.update({
@@ -1019,8 +1020,8 @@ def test_do_step_first_step_failure_is_visible_on_user_message(mock_env, monkeyp
     """When the first LLM call of a turn fails (e.g. the provider rejects
     the request), the error events are attached to the user message and the
     loop state is cleared, so the feed still shows what went wrong."""
-    from ui.pages import orchestrator as orch_mod
     import dev_agent.agent_loop as al
+    from ui.pages import orchestrator as orch_mod
 
     class _Core:
         _safety_enabled = True

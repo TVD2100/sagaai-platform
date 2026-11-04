@@ -6,6 +6,7 @@ schema integrity, and column usage consistency.
 import os
 import sys
 import tempfile
+
 import pytest
 
 # Ensure the sagaai package is on sys.path
@@ -15,10 +16,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 @pytest.fixture(autouse=True)
 def isolated_db(tmp_path, monkeypatch):
     """Each test gets its own temporary SQLite database."""
-    db_file = str(tmp_path / "test_sagaai.db")
     monkeypatch.setenv("SAGAAI_DATA_DIR", str(tmp_path))
     # Reset cached engine so it picks up the new env var
     import importlib
+
     import storage.db as db_mod
     db_mod.reset_engine()
     # Reload core.paths so DB_PATH reflects the new env
@@ -34,8 +35,9 @@ def isolated_db(tmp_path, monkeypatch):
 
 def test_db_creates_tables(tmp_path):
     """Engine creation should create all expected tables."""
-    from storage.db import get_engine
     from sqlalchemy import inspect
+
+    from storage.db import get_engine
     engine = get_engine()
     inspector = inspect(engine)
     tables = set(inspector.get_table_names())
@@ -52,9 +54,10 @@ def test_orm_models_match_actual_schema():
     This catches situations where the code added a column but the
     database was not migrated (e.g. via ALTER TABLE ADD COLUMN).
     """
+    from sqlalchemy import inspect
+
     from storage.db import get_engine
     from storage.models import Base
-    from sqlalchemy import inspect
     engine = get_engine()
     inspector = inspect(engine)
     # Iterate over all registered ORM tables
@@ -76,9 +79,10 @@ def test_orm_to_dict_keys_match_real_columns():
     whose keys are a subset of the actual DB columns.  This catches
     stale to_dict implementations that still reference removed columns.
     """
-    from storage.db import get_engine
-    from storage.models import Assistant, Thread, Message, ConfigKV, Instruction
     from sqlalchemy import inspect
+
+    from storage.db import get_engine
+    from storage.models import Assistant, ConfigKV, Instruction, Message, Thread
 
     engine = get_engine()
     inspector = inspect(engine)
@@ -125,8 +129,12 @@ def test_repo_functions_use_only_existing_columns():
     exist in the freshly‑created database.
     """
     from storage.repository import (
-        repo_create_thread, repo_load_thread_meta, repo_save_thread_meta,
-        repo_append_message, repo_list_all_threads, repo_list_threads_by_type,
+        repo_append_message,
+        repo_create_thread,
+        repo_list_all_threads,
+        repo_list_threads_by_type,
+        repo_load_thread_meta,
+        repo_save_thread_meta,
     )
 
     # Create threads of different types
@@ -181,9 +189,7 @@ def test_skill_create_and_load():
 
 def test_skill_update():
     """Create then update a skill."""
-    from storage.repository import (
-        repo_create_skill, repo_update_skill, repo_get_skill_with_text
-    )
+    from storage.repository import repo_create_skill, repo_get_skill_with_text, repo_update_skill
     repo_create_skill("sk000001", "Old Name", "openai", "gpt-3.5-turbo", 0.5,
                       "Old prompt", "")
     ok = repo_update_skill("sk000001", "New Name", "openai", "gpt-4", 0.9,
@@ -209,8 +215,11 @@ def test_skill_delete():
 def test_skill_round_trip():
     """Full create -> load -> update -> delete cycle."""
     from storage.repository import (
-        repo_create_skill, repo_get_skill_with_text,
-        repo_save_prompt_text, repo_load_prompt_text, repo_delete_skill,
+        repo_create_skill,
+        repo_delete_skill,
+        repo_get_skill_with_text,
+        repo_load_prompt_text,
+        repo_save_prompt_text,
     )
     repo_create_skill("rt000001", "RT Skill", "svc", "mdl", 0.3, "v1 prompt", "desc")
     sk = repo_get_skill_with_text("rt000001")
@@ -261,9 +270,7 @@ def test_thread_create_and_load():
 
 def test_thread_messages_round_trip():
     """Save and reload thread messages."""
-    from storage.repository import (
-        repo_create_thread, repo_save_thread_messages, repo_load_thread_messages
-    )
+    from storage.repository import repo_create_thread, repo_load_thread_messages, repo_save_thread_messages
     repo_create_thread("tid_002", None, "Skill")
     msgs = [
         {"role": "user",      "content": "Hello",   "ts": "2024-01-01T00:00:00",
@@ -282,8 +289,10 @@ def test_thread_messages_round_trip():
 def test_thread_append_message():
     """Append a message and verify it updates thread title and updated_at."""
     from storage.repository import (
-        repo_create_thread, repo_append_message,
-        repo_load_thread_messages, repo_load_thread_meta
+        repo_append_message,
+        repo_create_thread,
+        repo_load_thread_messages,
+        repo_load_thread_meta,
     )
     repo_create_thread("tid_003", None, "S")
     repo_append_message("tid_003", "user", "My first message")
@@ -298,8 +307,11 @@ def test_thread_append_message():
 def test_thread_delete():
     """Delete a thread removes it and its messages."""
     from storage.repository import (
-        repo_create_thread, repo_append_message,
-        repo_delete_thread, repo_load_thread_meta, repo_load_thread_messages
+        repo_append_message,
+        repo_create_thread,
+        repo_delete_thread,
+        repo_load_thread_messages,
+        repo_load_thread_meta,
     )
     repo_create_thread("tid_del", None, "S")
     repo_append_message("tid_del", "user", "msg")
@@ -310,13 +322,13 @@ def test_thread_delete():
 
 def test_list_all_threads_sorted():
     """list_all_threads returns threads sorted by updated_at desc."""
-    from storage.repository import (
-        repo_create_thread, repo_append_message, repo_list_all_threads
-    )
+    from storage.repository import repo_append_message, repo_create_thread, repo_list_all_threads
     repo_create_thread("older", None, "S")
     repo_append_message("older", "user", "old msg")
 
-    import time; time.sleep(0.01)  # ensure different timestamps
+    import time
+
+    time.sleep(0.01)  # ensure different timestamps
 
     repo_create_thread("newer", None, "S")
     repo_append_message("newer", "user", "new msg")
@@ -328,9 +340,7 @@ def test_list_all_threads_sorted():
 
 def test_delete_all_threads():
     """delete_all_threads removes every thread."""
-    from storage.repository import (
-        repo_create_thread, repo_delete_all_threads, repo_list_all_threads
-    )
+    from storage.repository import repo_create_thread, repo_delete_all_threads, repo_list_all_threads
     for i in range(3):
         repo_create_thread(f"bulk_{i}", None, "S")
     assert len(repo_list_all_threads()) == 3
@@ -342,7 +352,7 @@ def test_delete_all_threads():
 
 def test_config_save_and_load():
     """Save a config dict and reload it."""
-    from storage.repository import repo_save_config, repo_load_config
+    from storage.repository import repo_load_config, repo_save_config
     cfg = {"openai_key": "sk-test123", "ui_lang": "English", "count": 42}
     ok = repo_save_config(cfg)
     assert ok is True
@@ -354,7 +364,7 @@ def test_config_save_and_load():
 
 def test_config_overwrite():
     """Saving a new config replaces the old one."""
-    from storage.repository import repo_save_config, repo_load_config
+    from storage.repository import repo_load_config, repo_save_config
     repo_save_config({"old_key": "old_val"})
     repo_save_config({"new_key": "new_val"})
     loaded = repo_load_config()
@@ -364,7 +374,7 @@ def test_config_overwrite():
 
 def test_config_empty():
     """Saving empty config and reloading returns empty dict."""
-    from storage.repository import repo_save_config, repo_load_config
+    from storage.repository import repo_load_config, repo_save_config
     repo_save_config({})
     assert repo_load_config() == {}
 
@@ -373,7 +383,7 @@ def test_config_empty():
 
 def test_core_config_has_key():
     """has_key returns True when key is configured."""
-    from core.config import save_config, has_key
+    from core.config import has_key, save_config
     save_config({"my_api_key": "abc123"})
     svc_def = {"config_key": "my_api_key"}
     assert has_key(svc_def) is True
@@ -381,7 +391,7 @@ def test_core_config_has_key():
 
 def test_core_config_has_key_missing():
     """has_key returns False when key is empty or absent."""
-    from core.config import save_config, has_key
+    from core.config import has_key, save_config
     save_config({"my_api_key": ""})
     svc_def = {"config_key": "my_api_key"}
     assert has_key(svc_def) is False

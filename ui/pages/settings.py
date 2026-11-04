@@ -24,14 +24,18 @@ All user-facing strings go through t(key, lang=lang).
 """
 import streamlit as st
 
-from core.i18n import t
-from core.config import (
-    load_stored_config, save_config, has_key, list_env_keys,
-    is_env_key_set_for_service, env_key_name_for_service,
-    env_key_fields_for_service,
-)
-from core.services import get_services
 from core.api_layer import test_connection
+from core.config import (
+    env_key_fields_for_service,
+    env_key_name_for_service,
+    has_key,
+    is_env_key_set_for_service,
+    list_env_keys,
+    load_stored_config,
+    save_config,
+)
+from core.i18n import t
+from core.services import get_services
 from ui.components.flash import flash_success
 
 

@@ -10,8 +10,9 @@ Uses an isolated temporary workspace via set_target_root so the tests never
 write into the real project root, and an isolated thread id so journal files
 are written into TASK_STATE__<thread_id>.md under the temp root.
 """
-import pytest
 from pathlib import Path
+
+import pytest
 
 from dev_agent import config
 from dev_agent import task_state as ts

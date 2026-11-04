@@ -42,8 +42,8 @@ EXPECTED_TID = "20260101_000000_test01"
 
 def test_save_thread_file_data_writes_history_files_dir(tmp_path):
     """Raw bytes land in DATA_DIR/history/<tid>/files under the original name."""
-    from core.threads_devagent import save_thread_file_data
     from core.paths import get_thread_dir
+    from core.threads_devagent import save_thread_file_data
 
     saved = save_thread_file_data(EXPECTED_TID, "Отчёт.csv", "a;b\n" .encode())
     expected_dir = os.path.join(get_thread_dir(EXPECTED_TID), "files")
@@ -88,7 +88,7 @@ def test_save_thread_file_data_rejects_oversize(tmp_path, monkeypatch):
 
 def test_list_thread_files_sorted_with_text_probe(tmp_path):
     """Listing returns sorted records with size and a short text probe."""
-    from core.threads_devagent import save_thread_file_data, list_thread_files
+    from core.threads_devagent import list_thread_files, save_thread_file_data
 
     save_thread_file_data(EXPECTED_TID, "b.txt", "line1\nline2".encode())
     save_thread_file_data(EXPECTED_TID, "a.txt", "one".encode())
@@ -103,7 +103,7 @@ def test_list_thread_files_sorted_with_text_probe(tmp_path):
 
 def test_list_thread_files_marks_binary_without_crash(tmp_path):
     """A non-decodable binary payload is reported as is_text=False."""
-    from core.threads_devagent import save_thread_file_data, list_thread_files
+    from core.threads_devagent import list_thread_files, save_thread_file_data
 
     save_thread_file_data(EXPECTED_TID, "img.bin", b"\xf0\x9f\x00\xff")
     records = list_thread_files(EXPECTED_TID)
@@ -121,7 +121,7 @@ def test_list_thread_files_missing_thread_returns_empty(tmp_path):
 
 def test_read_thread_file_full_text(tmp_path):
     """A UTF-8 text file is returned whole with metadata."""
-    from core.threads_devagent import save_thread_file_data, read_thread_file
+    from core.threads_devagent import read_thread_file, save_thread_file_data
 
     save_thread_file_data(EXPECTED_TID, "notes.txt", "alpha\nbeta\n".encode())
     res = read_thread_file(EXPECTED_TID, "notes.txt")
@@ -135,7 +135,7 @@ def test_read_thread_file_full_text(tmp_path):
 
 def test_read_thread_file_cp1251_fallback(tmp_path):
     """Legacy cp1251 text is decoded via the fallback."""
-    from core.threads_devagent import save_thread_file_data, read_thread_file
+    from core.threads_devagent import read_thread_file, save_thread_file_data
 
     cp1251 = "Привет мир".encode("cp1251")
     save_thread_file_data(EXPECTED_TID, "legacy.txt", cp1251)
@@ -147,7 +147,7 @@ def test_read_thread_file_cp1251_fallback(tmp_path):
 
 def test_read_thread_file_offset_limit_window(tmp_path):
     """offset/limit return a line window and report remaining lines."""
-    from core.threads_devagent import save_thread_file_data, read_thread_file
+    from core.threads_devagent import read_thread_file, save_thread_file_data
 
     save_thread_file_data(EXPECTED_TID, "lines.txt", "1\n2\n3\n4\n5".encode())
     res = read_thread_file(EXPECTED_TID, "lines.txt", offset=1, limit=2)
@@ -160,7 +160,7 @@ def test_read_thread_file_offset_limit_window(tmp_path):
 
 def test_read_thread_file_binary_reports_hint(tmp_path):
     """A non-extractable binary: ok=True, empty content, is_text=False, a hint."""
-    from core.threads_devagent import save_thread_file_data, read_thread_file
+    from core.threads_devagent import read_thread_file, save_thread_file_data
 
     save_thread_file_data(EXPECTED_TID, "photo.jpg", b"\xff\xd8\xff\xe0")
     res = read_thread_file(EXPECTED_TID, "photo.jpg")
@@ -191,7 +191,7 @@ def _docx_bytes(paragraphs, tables=None) -> bytes:
 
 def test_read_thread_file_extracts_docx_text(tmp_path):
     """A DOCX upload is returned as text by the same call - no run_code needed."""
-    from core.threads_devagent import save_thread_file_data, read_thread_file
+    from core.threads_devagent import read_thread_file, save_thread_file_data
 
     data = _docx_bytes(["Балльно-рейтинговая система"], tables=[[['Раздел', 'Баллы']]])
     save_thread_file_data(EXPECTED_TID, "program.docx", data)
@@ -209,7 +209,7 @@ def test_read_thread_file_extracts_docx_text(tmp_path):
 
 def test_read_thread_file_extracted_docx_supports_a_window(tmp_path):
     """The extracted text honours offset/limit and reports remaining lines."""
-    from core.threads_devagent import save_thread_file_data, read_thread_file
+    from core.threads_devagent import read_thread_file, save_thread_file_data
 
     data = _docx_bytes(["строка %d" % i for i in range(1, 11)])
     save_thread_file_data(EXPECTED_TID, "long.docx", data)
@@ -224,7 +224,7 @@ def test_read_thread_file_extracted_docx_supports_a_window(tmp_path):
 
 def test_read_thread_file_broken_docx_keeps_warnings(tmp_path):
     """A corrupt document does not raise: warnings explain what happened."""
-    from core.threads_devagent import save_thread_file_data, read_thread_file
+    from core.threads_devagent import read_thread_file, save_thread_file_data
 
     save_thread_file_data(EXPECTED_TID, "broken.docx", b"not a zip at all")
     res = read_thread_file(EXPECTED_TID, "broken.docx")
@@ -237,7 +237,7 @@ def test_read_thread_file_broken_docx_keeps_warnings(tmp_path):
 
 def test_list_thread_files_marks_documents_extractable(tmp_path):
     """The listing tells which uploads need no run_code to become text."""
-    from core.threads_devagent import save_thread_file_data, list_thread_files
+    from core.threads_devagent import list_thread_files, save_thread_file_data
 
     save_thread_file_data(EXPECTED_TID, "report.docx", _docx_bytes(["текст"]))
     save_thread_file_data(EXPECTED_TID, "notes.txt", b"plain")
@@ -262,7 +262,7 @@ def test_read_thread_file_missing_returns_error(tmp_path):
 
 def test_read_thread_file_traversal_cannot_escape(tmp_path):
     """A name with directory components stays inside the thread files dir."""
-    from core.threads_devagent import save_thread_file_data, read_thread_file
+    from core.threads_devagent import read_thread_file, save_thread_file_data
 
     save_thread_file_data(EXPECTED_TID, "secret.txt", "top".encode())
     res = read_thread_file(EXPECTED_TID, "../../secret.txt")

@@ -14,7 +14,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-
 # ─── payload helpers ────────────────────────────────────────────────────────
 
 _YANDEX_SVC = {
@@ -620,8 +619,8 @@ def test_yandex_responses_request_raises_on_failed_status():
     """HTTP 200 with status=failed raises ProviderResponseError, not an empty answer."""
     import pytest
 
-    from core.api_layer import _yandex_responses_request
     from core.api_errors import ProviderResponseError
+    from core.api_layer import _yandex_responses_request
 
     mock_resp = MagicMock()
     mock_resp.status_code = 200

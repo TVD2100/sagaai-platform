@@ -20,9 +20,9 @@ test files. Instead we check bootstrap return values and the in-code
 prompt constants directly.
 """
 import os
+import shutil
 import sys
 import tempfile
-import shutil
 from pathlib import Path
 
 import pytest
@@ -30,7 +30,7 @@ import pytest
 # Allow importing the sagaai package from the project root.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from storage.db import reset_engine, reset_devagent_engine
+from storage.db import reset_devagent_engine, reset_engine
 
 
 @pytest.fixture
@@ -198,8 +198,8 @@ def test_ensure_devagent_settings_seeds_economy_defaults(isolated_data_dir):
     tail_messages=50, cache_enabled=True, cache_multiplier=2. The on-disk
     bundle (orchestrator.json) is created with the same defaults."""
     from core.bootstrap import ensure_devagent_settings
-    from core.orchestrators import DEVAGENT_SLUG, get_orchestrator
     from core.orchestrator_folders import load_orchestrator_bundle
+    from core.orchestrators import DEVAGENT_SLUG, get_orchestrator
 
     ensure_devagent_settings()
     orch = get_orchestrator(DEVAGENT_SLUG)
@@ -219,8 +219,8 @@ def test_ensure_devagent_settings_seeds_economy_defaults(isolated_data_dir):
 def test_ensure_devagent_settings_seeds_max_tokens_in_bundle(isolated_data_dir):
     """The fresh on-disk bundle carries the main model's max_tokens=384000."""
     from core.bootstrap import ensure_devagent_settings
-    from core.orchestrators import DEVAGENT_SLUG
     from core.orchestrator_folders import load_orchestrator_bundle
+    from core.orchestrators import DEVAGENT_SLUG
 
     ensure_devagent_settings()
     bundle = load_orchestrator_bundle(DEVAGENT_SLUG)

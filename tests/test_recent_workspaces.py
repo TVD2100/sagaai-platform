@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 """Tests for core.recent_workspaces - persistent workspace history."""
-import pytest
-import tempfile
-import os
-import sys
 import importlib
+import os
 import shutil
+import sys
+import tempfile
 from pathlib import Path
+
+import pytest
 
 # Ensure the sagaai package is on sys.path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -79,7 +80,9 @@ def test_duplicates_are_deduplicated(two_dirs):
 def test_max_limit_is_ten(tmp_path):
     """Adding more than 10 projects trims the oldest."""
     from core.recent_workspaces import (
-        add_recent_workspace, get_recent_workspaces, MAX_RECENT_WORKSPACES,
+        MAX_RECENT_WORKSPACES,
+        add_recent_workspace,
+        get_recent_workspaces,
     )
 
     assert MAX_RECENT_WORKSPACES == 10
@@ -133,7 +136,7 @@ def test_nonexistent_folders_are_filtered(two_dirs):
 
 def test_clear_removes_all(two_dirs):
     """clear_recent_workspaces() empties the history."""
-    from core.recent_workspaces import add_recent_workspace, get_recent_workspaces, clear_recent_workspaces
+    from core.recent_workspaces import add_recent_workspace, clear_recent_workspaces, get_recent_workspaces
 
     a, b = two_dirs
     add_recent_workspace(a)
@@ -196,8 +199,8 @@ def test_scopes_are_independent(tmp_path):
 
 def test_legacy_flat_list_read_as_dev_agent_scope(tmp_path):
     """The old flat-list ConfigKV format still feeds the dev_agent shelf."""
+    from core.recent_workspaces import RECENT_WORKSPACES_KEY, get_recent_workspaces
     from storage.repository import repo_load_config, repo_save_config
-    from core.recent_workspaces import get_recent_workspaces, RECENT_WORKSPACES_KEY
 
     proj = tmp_path / "legacy_flat"
     proj.mkdir()
@@ -211,11 +214,13 @@ def test_legacy_flat_list_read_as_dev_agent_scope(tmp_path):
 
 def test_neutral_root_is_never_suggested(monkeypatch, tmp_path):
     """The empty-state placeholder is refused on write and filtered on read."""
-    from storage.repository import repo_load_config, repo_save_config
-    from dev_agent import config
     from core.recent_workspaces import (
-        add_recent_workspace, get_recent_workspaces, RECENT_WORKSPACES_KEY,
+        RECENT_WORKSPACES_KEY,
+        add_recent_workspace,
+        get_recent_workspaces,
     )
+    from dev_agent import config
+    from storage.repository import repo_load_config, repo_save_config
 
     neutral = tmp_path / "neutral_root"
     neutral.mkdir()
@@ -234,9 +239,9 @@ def test_neutral_root_is_never_suggested(monkeypatch, tmp_path):
 
 def test_platform_root_hidden_from_foreign_scopes(tmp_path):
     """The SagaAI install root is hidden everywhere except dev_agent."""
-    from storage.repository import repo_load_config, repo_save_config
+    from core.recent_workspaces import RECENT_WORKSPACES_KEY, get_recent_workspaces
     from dev_agent import config
-    from core.recent_workspaces import get_recent_workspaces, RECENT_WORKSPACES_KEY
+    from storage.repository import repo_load_config, repo_save_config
 
     install = str(config.INSTALL_ROOT.resolve())
     cfg = repo_load_config()
@@ -252,8 +257,8 @@ def test_platform_root_hidden_from_foreign_scopes(tmp_path):
 
 def test_seed_from_own_threads_only(tmp_path):
     """Dialogs seed their OWN scope's menu and never a neighbour's."""
-    from core.threads_devagent import create_devagent_thread
     from core.recent_workspaces import get_recent_workspaces
+    from core.threads_devagent import create_devagent_thread
 
     dev_proj = tmp_path / "seed_dev"
     dev_proj.mkdir()
@@ -272,7 +277,9 @@ def test_seed_from_own_threads_only(tmp_path):
 def test_clear_one_scope_keeps_others(tmp_path):
     """Clearing one shelf leaves the other orchestrators' history intact."""
     from core.recent_workspaces import (
-        add_recent_workspace, get_recent_workspaces, clear_recent_workspaces,
+        add_recent_workspace,
+        clear_recent_workspaces,
+        get_recent_workspaces,
     )
 
     dev_proj = tmp_path / "clear_dev"

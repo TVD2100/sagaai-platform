@@ -7,9 +7,9 @@ These never touch the SagaAI install: every test points the workspace at a
 fresh temporary folder, exercises the deterministic tools and the unified
 dispatcher, then lets the OS clean up the tmpdir.
 """
+import importlib
 import os
 import sys
-import importlib
 
 import pytest
 
@@ -32,6 +32,7 @@ def isolated_db(tmp_path, monkeypatch):
     """
     monkeypatch.setenv("SAGAAI_DATA_DIR", str(tmp_path))
     import importlib
+
     import storage.db as db_mod
     db_mod.reset_engine()
     import core.paths as paths_mod
@@ -487,6 +488,7 @@ def test_connector_tools_reject_unknown_args(code_ws):
 
 def test_create_connection_via_dispatch_keeps_secrets_out(tmp_path):
     import json
+
     import core.paths
     agent = UniversalDevAgent()
     # Sandbox: connectors live inside core.paths.DATA_DIR/connectors.
