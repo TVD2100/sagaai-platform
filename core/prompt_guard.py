@@ -42,7 +42,12 @@ def wrap_data(text: str, source: str = "data") -> str:
         return text or ""
     text = str(text)
     label = re.sub(r"[^A-Za-z0-9_.-]", "_", str(source))[:40]
-    return f"{DATA_BEGIN_PREFIX} {label}{DATA_END_TAG}\n{text}\n{DATA_END_TAG}"
+    # The opening marker is closed with DATA_BEGIN_SUFFIX, NOT with the end
+    # tag: writing the end tag here put the payload after a stray [DATA_END]
+    # and left the boundary open, so the model saw untrusted text outside
+    # the fence it was told to distrust.
+    return (f"{DATA_BEGIN_PREFIX} {label}{DATA_BEGIN_SUFFIX}\n"
+            f"{text}\n{DATA_END_TAG}")
 
 
 def is_wrapped_data(text: str) -> bool:
@@ -155,7 +160,7 @@ def sanitize_tool_result_content(text: str, source: str = "tool_result",
     raw = sanitize_text(text, max_len=max_len)
     if strict and detect_injection_signatures(raw):
         return (
-            f"{DATA_BEGIN_PREFIX} {source}{DATA_END_TAG}\n"
+            f"{DATA_BEGIN_PREFIX} {source}{DATA_BEGIN_SUFFIX}\n"
             "[SANITIZED: potential prompt-injection signature detected; "
             "original content withheld]\n"
             f"{DATA_END_TAG}"

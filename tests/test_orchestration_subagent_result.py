@@ -37,12 +37,16 @@ from core.orchestration.contracts import (  # noqa: E402
     STATUS_RUNNING,
 )
 
-#: The twelve keys a result carries to the model. Pinned literally: a new
-#: field must be a deliberate decision, not a side effect of a refactor.
+#: The keys a result carries to the model. Pinned literally: a new field
+#: must be a deliberate decision, not a side effect of a refactor.
+#:
+#: The last three describe the agent dialog and travel WITH the result on
+#: purpose: a parked run has no summary to read, and the question the parent
+#: has to answer would otherwise be reachable only through a second call.
 RESULT_KEYS = {
     "run_id", "status", "stop_reason", "summary", "artifacts", "error_code",
     "steps_used", "tokens_used", "child_thread_id", "pending", "resume_hint",
-    "retryable",
+    "retryable", "await_reason", "question", "dialog_rounds",
 }
 
 

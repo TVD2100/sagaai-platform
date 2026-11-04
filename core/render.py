@@ -157,13 +157,67 @@ def clipboard_button(text: str, key: str, label: str = "📋 MD",
     )
 
 
+def _inline_md(text: str) -> str:
+    """Render inline Markdown (code, links, emphasis) as escaped HTML.
+
+    The text is HTML-escaped first, so model output cannot inject markup.
+    Code spans are stashed behind placeholders before the emphasis pass, so
+    ``*`` or ``_`` inside them survive unchanged.
+    """
+    raw = html_lib.escape(str(text or ""), quote=False)
+    spans: list = []
+
+    def _stash_code(match):
+        spans.append("<code>" + match.group(1) + "</code>")
+        return "\x00%d\x00" % (len(spans) - 1)
+
+    raw = re.sub(r"`([^`]+)`", _stash_code, raw)
+    raw = re.sub(r"!\[([^\]]*)\]\(([^)\s]+)\)", r'<img alt="\1" src="\2" />', raw)
+    raw = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", r'<a href="\2">\1</a>', raw)
+    raw = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", raw)
+    raw = re.sub(r"__([^_]+)__", r"<strong>\1</strong>", raw)
+    raw = re.sub(r"~~([^~]+)~~", r"<del>\1</del>", raw)
+    raw = re.sub(r"(?<![*\w])\*([^*\n]+)\*(?![*\w])", r"<em>\1</em>", raw)
+    raw = re.sub(r"(?<![_\w])_([^_\n]+)_(?![_\w])", r"<em>\1</em>", raw)
+    return re.sub(r"\x00(\d+)\x00", lambda m: spans[int(m.group(1))], raw)
+
+
 def _md_to_html(text: str) -> str:
-    """Convert Markdown to a self-contained HTML document string."""
-    try:
-        import markdown
-        body = markdown.markdown(text, extensions=["fenced_code", "tables", "sane_lists"])
-    except Exception:
-        body = "<pre>" + html_lib.escape(text) + "</pre>"
+    """Convert Markdown to a self-contained HTML document string.
+
+    Blocks come from the module's own parser (``_iter_md_blocks``): headings,
+    fenced code, ordered/unordered lists, tables, blockquotes and paragraphs.
+    Inline emphasis, code spans and links go through ``_inline_md``. No
+    third-party Markdown package is involved.
+    """
+    parts = []
+    for block in _iter_md_blocks(str(text or "")):
+        kind = block[0]
+        if kind == "heading":
+            level = min(6, max(1, int(block[1])))
+            parts.append("<h%d>%s</h%d>" % (level, _inline_md(block[2]), level))
+        elif kind == "code":
+            parts.append("<pre><code>%s</code></pre>"
+                         % html_lib.escape(str(block[1] or "")))
+        elif kind in ("ul", "ol"):
+            items = "".join("<li>%s</li>" % _inline_md(item) for item in block[1])
+            parts.append("<%s>%s</%s>" % (kind, items, kind))
+        elif kind == "table":
+            header, rows = block[1], block[2]
+            head = "".join("<th>%s</th>" % _inline_md(cell) for cell in header)
+            body = "".join(
+                "<tr>%s</tr>" % "".join("<td>%s</td>" % _inline_md(cell) for cell in row)
+                for row in rows
+            )
+            parts.append("<table><thead><tr>%s</tr></thead><tbody>%s</tbody></table>"
+                         % (head, body))
+        elif kind == "blockquote":
+            parts.append("<blockquote>%s</blockquote>" % _inline_md(block[1]))
+        else:
+            parts.append("<p>%s</p>" % _inline_md(block[1]))
+    body = "\n".join(parts)
+    if not body:
+        body = "<pre>" + html_lib.escape(str(text or "")) + "</pre>"
     return f"""
     <html>
     <head>

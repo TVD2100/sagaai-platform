@@ -484,7 +484,56 @@
 # weekday of an arbitrary date, epoch - and builds its sentence with the same
 # helper the prompt block uses, so the two sources cannot drift apart.
 
-__version__ = "2.30.0"
+# 2.31.0 lets a subagent ask its own agent a question. A child that misses a
+# fact in its brief had no way to ask: guessing cost an hour of work, and the
+# only channel left was stopping the run and starting a new one through
+# resume_subagent, which threw away the same run's context and budget. The
+# new ask_parent tool parks the run in place: the record becomes
+# awaiting_input with await_reason=question, the question, its options, the
+# spent round and an absolute deadline are written next to the run, and the
+# loop stops at a step boundary - same run_id, same journal, same files on
+# disk. answer_child (parent only) resumes that very run with the delivered
+# [PARENT ANSWER] message and refuses an expired wait; a second question comes
+# back as a new parked question instead of a silent loss. Questions travel to
+# the parent as fenced data, both in a blocking result and in the hidden
+# background notice, because a child quotes files and web pages. Five dialog
+# limits (rounds, question and answer length, answer wait, simultaneous
+# waits) are frozen into the record at spawn, clamped to documented defaults
+# so a missing value never disables a limit, and expire_parked finishes an
+# unanswered run as failed/answer_not_received while keeping its partial
+# work. The dialog survives a restart: roots_for_thread restores the tree
+# from the dialog id and revive_parked_run lifts the record back into the
+# registry on the first answer. The chat shows a waiting row with the agent
+# and the question, and the step feed renders the question as an expandable
+# block.
+
+# 2.32.0 ships a general-purpose executor with the platform. A user who
+# started from an empty installation had no employee to delegate real work
+# to: the only way to get one was to find it in the marketplace, and anyone
+# who never opened that page simply did without. The bundled
+# Universal-Agent (defaults/orchestrators/universal_agent/) is seeded by the
+# same idempotent bootstrap as the other built-ins, takes its role from the
+# brief instead of a fixed specialisation, and is available to every
+# employee out of the box: the right lives in config.universal_agent_enabled,
+# a key whose absence reads as enabled, so a new employee is granted it
+# without a migration and a user revokes it with one checkbox above the
+# agent list. revoking never rewrites allowed_agents, and get_effective_agents
+# is the single list the prompt advertises and the dispatcher enforces, so
+# a refused call is never advertised. The same entity also ships in the
+# catalog: LEGACY_DEFAULTS adopts the preinstalled copy (registry row, no
+# second install), so the storefront shows an update rather than a duplicate
+# and an install refreshes the same folder.
+
+# 2.32.1 trims the optional dependency set without losing a feature. Office
+# text now comes from core.ooxml (zipfile plus ElementTree), so python-docx,
+# python-pptx and openpyxl are gone; pdfminer.six went with pdfplumber, whose
+# PDF text path moves to pypdf and whose page rendering moves to the
+# pypdfium2 build it already pulled in. tiktoken, reportlab, markdown, PyPDF2
+# and xlrd leave a codebase that no longer reached them. Pillow and paramiko
+# stay: the first decodes and re-encodes picture formats no header parser can
+# handle, the second is the only credential-safe path to SFTP attributes.
+
+__version__ = "2.32.1"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

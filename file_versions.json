@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "2.30.0",
+  "app_version": "2.32.1",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Каждый сотрудник теперь знает текущую дату: системный промпт получает блок с сегодняшним числом и часовым поясом установки, а новый инструмент current_datetime отвечает про время суток, день недели и сроки. Ответы вроде «что сегодня по плану» больше не опираются на дату, записанную в файл неделю назад.",
-    "en": "Every employee now knows the current date: the system prompt gains a block with today’s date and the installation timezone, and the new current_datetime tool answers about the time of day, weekdays and deadlines. Answers such as \"what is on today\" no longer lean on a date a file recorded a week ago."
+    "ru": "Платформа догоняет три релиза сразу. Universal-Agent - универсальный исполнитель, который берёт роль из постановки задачи и доступен каждому сотруднику без настройки, а снимается одним чек-боксом на вкладке «Делегирование»; та же сущность есть в каталоге Marketplace, поэтому предустановленная копия усыновляется каталогом, а не дублируется второй установкой. Субагент научился спрашивать своего агента: ask_parent паркует запуск на месте, answer_child продолжает тот же запуск с сохранением журнала, файлов и бюджета раундов, а неотвеченный вопрос закрывается как failed/answer_not_received с сохранением частичной работы. Из поставки ушло десять сторонних пакетов: текст DOCX/PPTX/XLSX читает собственный core/ooxml.py на zipfile и ElementTree, PDF-текст идёт через pypdf, страницы рендерит pypdfium2, tiktoken заменён символьной оценкой, а reportlab, markdown, PyPDF2 и xlrd не использовались вовсе. Pillow и paramiko остались: первая перекодирует JPEG2000, CCITT-сканы и CMYK в PNG для vision-модели, второй - единственный безопасный путь к атрибутам SFTP.",
+    "en": "The platform catches up three releases at once. Universal-Agent is a general-purpose executor that takes its role from the task brief and is available to every employee without configuration, revoked by one checkbox on the Delegation tab; the same entity ships in the marketplace catalog, so the preinstalled copy is adopted instead of being duplicated by a second install. A subagent can now ask its own agent: ask_parent parks the run in place, answer_child resumes that very run keeping its journal, files and round budget, and an unanswered question closes as failed/answer_not_received while keeping the partial work. Ten third-party packages leave the distribution: DOCX/PPTX/XLSX text is read by the bundled core/ooxml.py on zipfile and ElementTree, PDF text goes through pypdf, pages are rendered by pypdfium2, tiktoken is replaced by a character estimate, and reportlab, markdown, PyPDF2 and xlrd were never reached at all. Pillow and paramiko stay: the first re-encodes JPEG2000, CCITT scans and CMYK into PNG for the vision model, the second is the only safe path to SFTP attributes."
   },
-  "updated": "2026-11-02T11:36:02Z",
+  "updated": "2026-11-04T08:42:34Z",
   "units": {
     "core": {
-      "version": "1.65.0",
+      "version": "1.68.0",
       "note": {
-        "ru": "Пакет: блок текущей даты в системном промпте (общий для всех сотрудников), инструмент current_datetime, тесты и документация; релиз платформы 2.30.0.",
-        "en": "The package: the current-date block in the system prompt (shared by every employee), the current_datetime tool, tests and documentation; platform release 2.30.0."
+        "ru": "Пакет: встроенный Universal-Agent и его идемпотентный сидинг, диалог субагента с родителем (ask_parent/answer_child, парковка и возобновление запуска, пять лимитов), сокращение набора зависимостей (core/ooxml.py, pypdf/pypdfium2 вместо pdfplumber/pdfminer.six, DOCX/PPTX/XLSX без python-docx/pptx/openpyxl), тесты и документация; релизы платформы 2.31.0-2.32.1.",
+        "en": "The package: the bundled Universal-Agent and its idempotent seeding, the subagent-parent dialog (ask_parent/answer_child, parking and resuming a run, five limits), the dependency trim (core/ooxml.py, pypdf/pypdfium2 instead of pdfplumber/pdfminer.six, DOCX/PPTX/XLSX without python-docx/pptx/openpyxl), tests and documentation; platform releases 2.31.0-2.32.1."
       },
       "files": {
         "__init__.py": {
@@ -108,8 +108,8 @@
           "sha256": "52f7a8595c456dd0c4f81e99c606cac3c7763ceb5f49befe26748ea78e9998c7"
         },
         "core/dependency_check.py": {
-          "version": "1.0.3",
-          "sha256": "dc33f4b364a5ce8ff81b7ac4140263631b9f0466708cae3503ef06e3c72eb6c4"
+          "version": "1.0.4",
+          "sha256": "5621738de09b31d22d85e01ea2caa6a668ce931411970c3fec3324d430ed58de"
         },
         "core/entity_sync.py": {
           "version": "1.0.1",
@@ -124,8 +124,8 @@
           "sha256": "51d82318d3042e51377f59e1ed4ed7341a248d51bd5ed2f20e6227155403de90"
         },
         "core/files.py": {
-          "version": "1.1.1",
-          "sha256": "2a185dfe107d3156664fa3d4cb62dafde97ddeead32c10c89eaa89d96119b098"
+          "version": "1.1.2",
+          "sha256": "9ee54c06a70cf8a90624fdba3a245f75b154d07dda8ff34c41c1ac87077af411"
         },
         "core/folder_dialog.py": {
           "version": "1.0.0",
@@ -164,16 +164,16 @@
           "sha256": "4f40a4acf45a15107cbe8ac2ed62d34e2ff12658a42fdd2c980a860c8b76108b"
         },
         "core/orchestrator_tools.py": {
-          "version": "1.7.1",
-          "sha256": "0312bf6f25518508b5a08d6b5a324c29d437b004577bceb506bee98a8a6920e9",
+          "version": "1.8.0",
+          "sha256": "d3359dc7568a44694cf8b65ea07de8f452dd6b59db0b8d12ec4a99a841bb0104",
           "note": {
             "ru": "subagent_result в каталоге делегации: виден модели без дополнительной настройки.",
             "en": "subagent_result in the delegation catalog: visible to the model without extra configuration."
           }
         },
         "core/orchestrators.py": {
-          "version": "1.19.0",
-          "sha256": "db851f4f6905abf90b5f279d8d80838ce90594f612b8506815bbc0a6eb07a249",
+          "version": "1.21.0",
+          "sha256": "f1b8ebb6dca7d4d768b680e937a36f333aa97f9e9eb6eacbf39395a4b5bb0103",
           "note": {
             "ru": "Блок ## Current date в сборке системного промпта и общая функция строки даты.",
             "en": "The ## Current date block in the system-prompt assembly and the shared date-line helper."
@@ -184,8 +184,8 @@
           "sha256": "a2a5628bf9ceed60fa66c863c1add1ff358aec3b946bfaea7d9931e71728a0ec"
         },
         "core/prompt_guard.py": {
-          "version": "1.1.0",
-          "sha256": "124c1c219fdf86adb13824763cfbc210792c5cee7130d78b855f51b69f7d69a4"
+          "version": "1.1.1",
+          "sha256": "01dfb3a64195616ffe87a6e204f24d9fde0e29e2de0e10940bb0c6e35b96b285"
         },
         "core/prompt_improver.py": {
           "version": "1.1.1",
@@ -228,8 +228,8 @@
           "sha256": "3f9117cb22252787abf4825056d8e39aa14aa569d600d1c4c6db9070c3b592e8"
         },
         "core/render.py": {
-          "version": "1.1.1",
-          "sha256": "4462a66d9122b84b93263cfde04cfdaf8436f9bfa12954c29cc28ddc3b6aa944"
+          "version": "1.1.2",
+          "sha256": "683e184258f566a529dcaa161c2f64661f9adfaf487f908ba9c02c0aea2f24c1"
         },
         "core/services.py": {
           "version": "1.2.0",
@@ -276,8 +276,8 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.66.0",
-          "sha256": "6a098aeed0be7b0595af579fc2059fb4595c4d5ee24543ba16dfe7f214ade509",
+          "version": "1.69.0",
+          "sha256": "b2fa2ee8afa0b59837488f360d57b82c15ed9eab00ae7aa4a092a8f90837088e",
           "note": {
             "ru": "Релиз 2.30.0: дата в системном промпте и инструмент current_datetime.",
             "en": "Release 2.30.0: the date in the system prompt and the current_datetime tool."
@@ -288,8 +288,8 @@
           "sha256": "db2e313abe2dd0a76081c0c9b9b2dfb4d3dc3b16dfbfbb833328c4a6d8d42216"
         },
         "dev_agent/agent_loop.py": {
-          "version": "1.20.0",
-          "sha256": "8e53f93bb0ee138064d1b08fac36a0e0a4918790a4d6b876499deab46624662d",
+          "version": "1.21.0",
+          "sha256": "59429b22371e38a835bf66e72e85e21fc3a4c48196e4cf8cac4dc8cf11e53a94",
           "note": {
             "ru": "subagent_result маршрутизируется фазой веера вместе с остальными вызовами дерева.",
             "en": "subagent_result is routed by the fan-out phase together with the other tree calls."
@@ -336,8 +336,8 @@
           }
         },
         "dev_agent/universal_agent.py": {
-          "version": "1.24.0",
-          "sha256": "5569d977b35b4557531dea27e2fa48fdcc6e685f6bc7ff099324337a17e04c30",
+          "version": "1.25.0",
+          "sha256": "85741afbc0322616ea536ec8aa3af85185533f15db8f1f681014f8c40d183d34",
           "note": {
             "ru": "Описание current_workspace: сначала логика выбора рабочей папки из системного промпта, затем папка по запросу пользователя, и только потом меню недавних папок.",
             "en": "current_workspace description: workspace selection follows the system prompt first, then the folder named in the user request, and only then the recent-folders menu."
@@ -360,24 +360,24 @@
           "sha256": "208d0f9e48700f367ab579de3a91d02a259c8e0322dbfae0758d0cb90cefddb1"
         },
         "requirements.txt": {
-          "version": "1.3.0",
-          "sha256": "d6aebd83f9ccb5b6718d457445774a9bf3e6af947c6e1f57bcd4411e0eb45e31"
+          "version": "1.4.0",
+          "sha256": "11c3ea33f0c9deb31d4a4d6e797bdd1d689612c0e1132d3c092027b79b151713"
         },
         "scripts/rag_eval.py": {
           "version": "1.0.1",
           "sha256": "d243711998803755df65bf05630e6ce2c22ec031241399bcf5788dfc32d0dddf"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.26.0",
-          "sha256": "d3e69d39d78a51eef34323c52cef5b529358602375fb3e14bca07022d2439604",
+          "version": "1.29.0",
+          "sha256": "22c44e2562eec00ce7f307b4eeea22a662d5b8826fd2d775c3509f2fce1c1fe8",
           "note": {
             "ru": "Описания новых тестов даты и обновлённых модулей.",
             "en": "Descriptions of the new date tests and the updated modules."
           }
         },
         "scripts/verify_manifest.py": {
-          "version": "1.0.3",
-          "sha256": "d8139bc88ea8658614333176ce506fac86a7778a1ca10d0d64be067d311bbd13"
+          "version": "1.1.0",
+          "sha256": "201cb29555ca8f1523962f242f1822eb7e408782933b4bdc15134a3aa417fe58"
         },
         "storage/__init__.py": {
           "version": "1.0.1",
@@ -524,8 +524,8 @@
           "sha256": "b1d500f175b3ddedc8b9dd0376988f90af5e2ff18f72496a3a0e3f89111d9dcb"
         },
         "tests/scenarios/test_multimodal_scenarios.py": {
-          "version": "1.3.1",
-          "sha256": "c7dfdd39f227e7254a5898fb591351bd98ebf57277c3c4c2bc3445a156222755"
+          "version": "1.3.2",
+          "sha256": "43e7e51b432053c2b01e848a57f736ee0246fc150a1d96f1666f9326aceb87d1"
         },
         "tests/scenarios/test_new_dialog_empty_workspace_scenario.py": {
           "version": "1.0.0",
@@ -736,16 +736,16 @@
           "sha256": "243eb56ca99bb472d0295c11db04e8cbb4c365eb2c6381971fc6395083b2fac8"
         },
         "tests/test_cold_start_deps.py": {
-          "version": "1.0.0",
-          "sha256": "6ff9dd7c8aa2bad2196735107ce503b830de583b428e24ad28df6b326a92542e"
+          "version": "1.0.1",
+          "sha256": "ad3553d6297151a8d6e07204762e9762c47b8d0064e1f8848e5441c441c01c9c"
         },
         "tests/test_connectors.py": {
           "version": "1.4.0",
           "sha256": "3381067f1b5c334443b40545287f4c31464a51450a7e970874dbeb88575e0b15"
         },
         "tests/test_context_window_guard.py": {
-          "version": "1.1.1",
-          "sha256": "f63d96e9bf23fd3d1ce864cedc9c75610bdfe5e4236f029d04487f926defa99d"
+          "version": "1.1.2",
+          "sha256": "b7ee547cf4fc11b0a30cf730524b23c65c0d26d396be47400b28bd3421dd30c1"
         },
         "tests/test_core_api_json_schema.py": {
           "version": "1.0.1",
@@ -788,8 +788,8 @@
           "sha256": "37f3235c778a88538410aba6aefd8f766be656524ae0f3b6cdca56051610886f"
         },
         "tests/test_dependency_check.py": {
-          "version": "1.0.2",
-          "sha256": "8dc9caf0cd73ac094cb0abdf0f83b2ebb9e72c912fca81f9c8f6c5087ca8abef"
+          "version": "1.0.3",
+          "sha256": "1a2b9fe2d4c66b11215521a9d27538412b8711189fbb2d676e1559de094e1c77"
         },
         "tests/test_devagent_thread_workspace.py": {
           "version": "1.1.0",
@@ -804,8 +804,8 @@
           "sha256": "5e8189d4e8a99a10afb6992f28bbadd3ff9fc684464938bc00c191a76a32a12b"
         },
         "tests/test_economy_history_budget.py": {
-          "version": "1.2.0",
-          "sha256": "18bd5f9e254688c78d41538dfea08cb9361179bbc27f1a22b625ea04d6281070"
+          "version": "1.2.1",
+          "sha256": "e90aa1d4f0334b4188facf3f2a785f3ad50d8255a0f64907879990533efef695"
         },
         "tests/test_employee_management_ui.py": {
           "version": "1.0.0",
@@ -1229,8 +1229,8 @@
           "sha256": "9b4054227ddd01bef1c3efb3c8135c1fa8b49d4d6b26d9aa4e15e93e08e34807"
         },
         "ui/pages/orchestrator.py": {
-          "version": "1.24.0",
-          "sha256": "f2d75110880b1432da21c7e67c8f737fe1266eab3ad7598e2924be20bd4dd81c",
+          "version": "1.26.0",
+          "sha256": "4a68994b0c6118632df479b777f1aa107429a45c91088c62fa7b1a36077e6a5c",
           "note": {
             "ru": "Выбор верификатора в блоке делегирования: пункт «не назначен» первым, предупреждение об устаревшем слаге.",
             "en": "Verifier selector in the delegation block: a not-appointed entry first, a warning for a stale slug."
@@ -1374,8 +1374,8 @@
           "sha256": "494104e3361adf9f9261b483b229ca8102be5a86e876ebb841ad622ebfbe1d3e"
         },
         "core/url_fetch.py": {
-          "version": "1.0.0",
-          "sha256": "bf94b1c6477c87cf8c45f404dec28609203af2253218ba5b42a16c2145edae57"
+          "version": "1.1.0",
+          "sha256": "f4fcfd20d3b909297059eecf31d8e3268068f18f1ebee795775b1751845b11c9"
         },
         "tests/test_url_fetch.py": {
           "version": "1.0.0",
@@ -1386,8 +1386,8 @@
           "sha256": "bf32e96c03538047cb3d6167c252126d058c4455b1ea2f5f99f787c4159179fb"
         },
         "tests/test_url_fetch_transport.py": {
-          "version": "1.0.0",
-          "sha256": "f5ae7e5600a6096a925a5bfc7cef75ec07c80e1eb35fd880062ce788ce341f67"
+          "version": "1.1.0",
+          "sha256": "a632382aa14c7e6a2399b22fab05da76805480eec111d9b623443ca0ca6faf68"
         },
         "tests/scenarios/test_devagent_defaults_scenario.py": {
           "version": "1.0.0",
@@ -1402,8 +1402,8 @@
           }
         },
         "core/orchestration/contracts.py": {
-          "version": "1.7.0",
-          "sha256": "2df3762b7814ca595eca75e6aafb8de0b967727a83ba024e5db44e070bebcbc2",
+          "version": "1.8.0",
+          "sha256": "5b4efff056f0af8a4607f51fcfb9a21dd5454427a76a9cc04f202787d1a6e002",
           "note": {
             "ru": "result_from_record - единый сборщик результата из живой или сохранённой записи запуска (полный summary, артефакты, ресурсы), общий для subagent_result и verify_result.",
             "en": "result_from_record - the single builder of a result from a live or stored run record (full summary, artifacts, resources), shared by subagent_result and verify_result."
@@ -1418,24 +1418,24 @@
           }
         },
         "core/orchestration/service.py": {
-          "version": "1.9.0",
-          "sha256": "d082d798fb87e4fb560ce800911b46f691367b3eb7a65400831357e74028af2c",
+          "version": "1.10.0",
+          "sha256": "b5eca7a48e5501980629c52cf8c7f05ecf0b6b73b09ee30329c9c15d32273fad",
           "note": {
             "ru": "Терминальная запись запуска несёт вложенный результат: полный summary и артефакты сохраняются, поэтому результат переживает выгрузку дерева из реестра.",
             "en": "A terminal run record carries its frozen result: the full summary and artifacts are stored, so the result survives the registry being released."
           }
         },
         "core/orchestration/tools.py": {
-          "version": "1.9.0",
-          "sha256": "8bfed852d7537d0a2967120f7e5da091af7528f447e95e9d70eb4c333fd3edc6",
+          "version": "1.11.0",
+          "sha256": "a3c57e35b611247c40f5e2551ec324539732f297c1c2903eb74cf728320cef22",
           "note": {
             "ru": "subagent_result - сбор результата завершённого запуска (текст, артефакты, ресурсы) в форме блокирующего spawn_agent; незавершённый запуск отдаёт ready=false без ключа result.",
             "en": "subagent_result - collect what a finished run produced (text, artifacts, resources) in the shape of a blocking spawn_agent; an unfinished run answers ready=false with no result key."
           }
         },
         "tests/test_orchestration_contracts.py": {
-          "version": "1.0.3",
-          "sha256": "38f5d1b2a9a85e75864eb0d37d4bfb7a3e833c53f6e0419faa2a20b0552831cd",
+          "version": "1.0.4",
+          "sha256": "aca60b36f2a1ca9dc8c7781dd20196168f739f17b2be7a840b055f249770f9e3",
           "note": {
             "ru": "Тесты ADR-003: Contract types: defaults, serialization, status vocabulary.",
             "en": "ADR-003 tests: Contract types: defaults, serialization, status vocabulary."
@@ -1466,11 +1466,11 @@
           }
         },
         "tests/test_delegation_fanout.py": {
-          "version": "1.0.3",
-          "sha256": "5dae028ba1a678db4f403f0cfbc9732c7c0ee43c0eb5c4da42be5a0b37bb2ecd",
+          "version": "1.1.0",
+          "sha256": "ffcaf3f2343af9c2d25386003dccb1b53c9aff2df38cbddb3e3ac7281ec9838b",
           "note": {
-            "ru": "Тесты ADR-003: Fan-out: batch validation before the pool, parallel runs, event attribution; the routed delegation call tuple includes sleep.",
-            "en": "ADR-003 tests: Fan-out: batch validation before the pool, parallel runs, event attribution; the routed delegation call tuple includes sleep."
+            "ru": "Тесты ADR-003: Fan-out - проверка всего батча до пула, параллельные запуски, привязка событий; фикстура подменяет эффективный список агентов, поэтому право встроенного исполнителя не протекает в тесты веера.",
+            "en": "ADR-003 tests: fan-out - whole-batch validation before the pool, parallel runs, event attribution; the fixture replaces the effective agent list, so the bundled executor right cannot leak into fan-out tests."
           }
         },
         "tests/test_orchestration_sleep.py": {
@@ -1482,8 +1482,8 @@
           }
         },
         "tests/test_orchestrator_delegation_settings.py": {
-          "version": "1.0.2",
-          "sha256": "8bad049dcb6829769c3fa1f5026ab4a623b500b58512347dc549926a742304bc",
+          "version": "1.0.3",
+          "sha256": "544fa8d46451e7bb56d95df1eea4f98a1382d6acb1b4dcd2960264831da3815e",
           "note": {
             "ru": "Тесты ADR-003: Delegation settings tab: checkboxes, stale ids, limits, save paths.",
             "en": "ADR-003 tests: Delegation settings tab: checkboxes, stale ids, limits, save paths."
@@ -1506,8 +1506,8 @@
           }
         },
         "core/document_text.py": {
-          "version": "1.0.0",
-          "sha256": "f14f4da9086a2e01f380338678952ebcf0eca25e4f82aab51d0eed9bd73bb8e5"
+          "version": "1.1.0",
+          "sha256": "617e7a97499bd1a1313345f30d7d8ce98444acbf3eee5b988e0720c19fb7b89f"
         },
         "tests/test_document_text.py": {
           "version": "1.0.0",
@@ -1534,8 +1534,8 @@
           }
         },
         "core/orchestration/runs.py": {
-          "version": "1.2.0",
-          "sha256": "ba1aa2fbf36509d0efd79d9f48a3e9ba821d0cf0bb8411d45587b36da1c11173",
+          "version": "1.3.0",
+          "sha256": "64e6f88b027f7023a70f3cc9128ca9e1581500cebaa80a7f3e1c7341b650df22",
           "note": {
             "ru": "runs.py: долговечное хранилище запусков с явным store_root, восстановлением состояния _heal и выдачей извещений claim_notice.",
             "en": "runs.py: durable run store with an explicit store_root, _heal state recovery and notice claiming."
@@ -1850,8 +1850,8 @@
           "sha256": "c4469c592134a5176ed69d2e35694e1bdaa2e6dee62eb339fd1724f64e08025f"
         },
         "tests/test_marketplace_migration.py": {
-          "version": "1.0.0",
-          "sha256": "9608f175cea12b9cdbb74b73fabd62161a6ca0e32eec3174f3af231cec635375"
+          "version": "1.1.0",
+          "sha256": "e3697e8a375bb1a54065c4aee3cfa0fff08bcc4802b3e3eccfcd11e041d1bf38"
         },
         "tests/test_marketplace_publish.py": {
           "version": "1.0.2",
@@ -1886,8 +1886,8 @@
           "sha256": "dc0c95aab8993618194b26a31caacb8e20b8b59b8f4be7b552640e87d7bbb932"
         },
         "core/marketplace/migration.py": {
-          "version": "1.0.1",
-          "sha256": "fe310be0ab71749a60a8714ed88246c190b8662cee491ba1483c516eeb78a509"
+          "version": "1.1.0",
+          "sha256": "4dc25b546a1c914fdc7aa66cea45f5d98a8e0cd7ce3e7d4afa8b4b86b9ac9a4f"
         },
         "core/marketplace/publish.py": {
           "version": "1.1.0",
@@ -1930,12 +1930,12 @@
           "sha256": "ac5cda6ef6a152468c92cfbd0c6bc4476d28f075d304b467450804bd00a287fc"
         },
         "core/document_images.py": {
-          "version": "1.1.0",
-          "sha256": "1bc7392e95e281641c11a825eb7bbcc2bd996716b079c421654504a77f417422"
+          "version": "1.2.0",
+          "sha256": "fe1a3b14b0f4cedf9b51dad91422d0a4bd27f90f6c63c65fe40bc9c38c377d66"
         },
         "tests/test_document_images.py": {
-          "version": "1.0.1",
-          "sha256": "f839427971276c99928f4581e5c4de2f32e5aa31e4ae4ae849a8bb6fec274584"
+          "version": "1.0.2",
+          "sha256": "a3edd884a5484d177eb6d8ce70a89557b7cbf3e2d9a94f17ac3291edea66da97"
         },
         "tests/scenarios/test_document_images_scenario.py": {
           "version": "1.0.1",
@@ -1954,8 +1954,8 @@
           "sha256": "99316bef591421853e11a302dad1b97613ce57db6f66a1b46fccc5f8811473ef"
         },
         "tests/test_orchestration_subagent_result.py": {
-          "version": "1.0.0",
-          "sha256": "5f64ee51bc07d1e8a5be7acfe2a55a9cc288cff2b283c7cfa4551d8fafced82a"
+          "version": "1.0.1",
+          "sha256": "ba5bad15458a980d069effad98213a5df43e32bb0a6b0f6931f26722944dedfe"
         },
         "tests/scenarios/test_subagent_result_scenario.py": {
           "version": "1.0.0",
@@ -2112,17 +2112,69 @@
         "tests/scenarios/test_current_date_scenario.py": {
           "version": "1.0.0",
           "sha256": "b2d9c6ed2bf6861050fd0feee6af098aefe20b945add7d18d87df0481d629be1"
+        },
+        "tests/test_agent_dialog.py": {
+          "version": "1.0.0",
+          "sha256": "844316f3e493f74240b9080fb5d6dd52a40f81cc12696caf519d4cca5798b9e4"
+        },
+        "tests/test_agent_dialog_delivery.py": {
+          "version": "1.0.0",
+          "sha256": "329b8b58990bb7c88d07406f7af7fab780d5a1789f471bc058f44b5faf7e33af"
+        },
+        "tests/test_agent_dialog_expiry.py": {
+          "version": "1.0.0",
+          "sha256": "060c49a52e2b83348618f6e9ed0f5eda0547d1a87166668240feca697c248ded"
+        },
+        "tests/test_agent_dialog_limits.py": {
+          "version": "1.0.0",
+          "sha256": "b94985f2b8b031ba87c4eff302829040376c603360ef1d3778b0a162034a041c"
+        },
+        "tests/test_agent_dialog_prompt.py": {
+          "version": "1.0.0",
+          "sha256": "e9b002fc85a34734520e7fe74b78cb88bcdcf17bd4360ed07a8570e70dee05ca"
+        },
+        "tests/test_orchestrator_dialog_waiting_ui.py": {
+          "version": "1.0.0",
+          "sha256": "e1764bf3222bc9f35da769f54688f12aadb7b6001773d65d5780289895a0b067"
+        },
+        "tests/scenarios/test_agent_dialog_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "db32533b879888123a250ecf588c51512ba316769c9b6cb59af2b00718120d07"
+        },
+        "tests/test_universal_agent.py": {
+          "version": "1.0.0",
+          "sha256": "216b5f0715d7fee99bb4a358ade8a5d657086c93ca601ae96c5b81c63e053882"
+        },
+        "tests/test_universal_agent_delegation.py": {
+          "version": "1.0.0",
+          "sha256": "5be9b0443b4ebc84df8579354c3c339341e1597649b7b67372769e1cce171891"
+        },
+        "tests/test_universal_agent_ui.py": {
+          "version": "1.0.0",
+          "sha256": "b4e9e7f79589c8cf1960ecc261d2d21ceb35062d0705684532508c4dffbf7a25"
+        },
+        "tests/scenarios/test_universal_agent_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "751ba5c1ed695a3570a058aecb9ede51d2e06ba1b109e68a659da3a74bae1c97"
+        },
+        "core/ooxml.py": {
+          "version": "1.0.0",
+          "sha256": "1fc4711ead79c7cdb53d298d0f10bea99e80921717984310570931c2299a3b1a",
+          "note": {
+            "ru": "core/ooxml.py: чтение DOCX/PPTX/XLSX на zipfile и ElementTree - абзацы с таблицами в CSV, слайды по порядку presentation.xml, листы XLSX через workbook.xml.rels с sharedStrings и inline-строками.",
+            "en": "core/ooxml.py: DOCX/PPTX/XLSX reading on zipfile and ElementTree - paragraphs with tables as CSV, slides in presentation.xml order, XLSX sheets via workbook.xml.rels with sharedStrings and inline strings."
+          }
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.59.0",
-      "sha256": "fd6170d08b9822508ab5500af5703b51d20d6b79c2f772e8cd68aa0f1a88e91b",
+      "version": "1.62.0",
+      "sha256": "94056c980a1ac0e148feb1c0e6d05231ebd594b0c0b1102277dd8ea90527ad80",
       "note": {
-        "ru": "Раздел о блоке текущей даты: зачем модели часы, почему блок стоит последним и без времени суток, общая строка, инструмент, отношение к файлам памяти.",
-        "en": "Section on the current-date block: why the model needs a clock, why the block sits last and carries no time of day, the shared sentence, the tool and the relation to files."
+        "ru": "Права встроенного исполнителя в строке модуля orchestrators и абзац о нём в разделе встроенных сотрудников.",
+        "en": "The bundled executor rights in the orchestrators module row and the paragraph about it in the built-in employees section."
       }
     },
     "LICENSE": {
@@ -2134,19 +2186,19 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.58.0",
-      "sha256": "b5ed6089a5571df44125b18e1b835cfd8e5d9ad2f56cdfa1dbe7f3bb67cb585e",
+      "version": "1.60.0",
+      "sha256": "1e0c7b247b6668983e967fd94af00816d4d6a925777c33962f4e29a7bd07009c",
       "note": {
-        "ru": "Карта пересобрана: описания блока текущей даты, инструмента current_datetime и трёх наборов тестов.",
-        "en": "Map regenerated: descriptions of the current-date block, the current_datetime tool and three test suites."
+        "ru": "Карта пересобрана: встроенный исполнитель, его тесты и обновлённые описания модулей.",
+        "en": "Map regenerated: the bundled executor, its tests and the updated module descriptions."
       }
     },
     "README.md": {
-      "version": "1.49.5",
-      "sha256": "98c32092f6449cf683613af2ec0ca3428d87433308d32bb66dd4e7ad34f73a10",
+      "version": "1.51.1",
+      "sha256": "36cddac7c5f0964b61c9af7075d24920dc8b9e0d48fb3321e0e0f31866ae2433",
       "note": {
-        "ru": "Номер версии платформы: 2.30.0.",
-        "en": "Platform version number: 2.30.0."
+        "ru": "Раздел «Делегирование»: Universal-Agent доступен по умолчанию и снимается чек-боксом. Номер версии платформы 2.32.0.",
+        "en": "The Delegation section: the Universal-Agent is available by default and revoked by a checkbox. Platform version 2.32.0."
       }
     },
     "defaults/README.md": {
@@ -2206,8 +2258,8 @@
       }
     },
     "defaults/instructions/multimodal_mode.md": {
-      "version": "1.3.0",
-      "sha256": "2845e712bf2fc9891e209043ff20ea3e30b346c9453be0294a329dfeb61c7cbd",
+      "version": "1.3.1",
+      "sha256": "41de576d4607ab90846c68ea5bfd0f5a8b524eac42c2a9ae73794e71995d6ce0",
       "note": {
         "ru": "Vision-сервисы с каталогом vision_models (YandexAI, DeepSeek).",
         "en": "Vision services declaring a vision_models catalog (YandexAI, DeepSeek)."
@@ -2222,11 +2274,11 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.26.0",
-      "sha256": "b447f896dcb8de12adbd49c74171a8dc372dd7e3879c6f0f4778c9814b33bd6b",
+      "version": "1.28.0",
+      "sha256": "215f4a1a8d598428687459ffbf1b12321bdfcaf49e7ff5cce9ec35039ab3c603",
       "note": {
-        "ru": "Ключи выбора верификатора в блоке делегирования (6 языков).",
-        "en": "Verifier selector keys in the delegation block (6 languages)."
+        "ru": "Ключи чек-бокса встроенного исполнителя на вкладке «Делегирование» (подпись, справка, подсказка).",
+        "en": "Checkbox keys for the bundled executor on the Delegation tab (label, help, hint)."
       }
     },
     "defaults/langs/en_guide.md": {
@@ -2238,11 +2290,11 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.26.0",
-      "sha256": "fddcc56cd48c0b9aa28f58b82bd4ed189b799f3c7a1c9bb9e6bf458761b45b16",
+      "version": "1.28.0",
+      "sha256": "43a2556c1e579422f9f725e30e218268a835a79593fa1e0f703918347f532a26",
       "note": {
-        "ru": "Ключи выбора верификатора в блоке делегирования (6 языков).",
-        "en": "Verifier selector keys in the delegation block (6 languages)."
+        "ru": "Ключи чек-бокса встроенного исполнителя на вкладке «Делегирование» (подпись, справка, подсказка).",
+        "en": "Checkbox keys for the bundled executor on the Delegation tab (label, help, hint)."
       }
     },
     "defaults/langs/ru_guide.md": {
@@ -2254,11 +2306,11 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.26.0",
-      "sha256": "2924433a9f952c860c27a2722b8147e154159f90cc855caddff9b5afd4e69f04",
+      "version": "1.28.0",
+      "sha256": "0b0d237a0d87c223970134ce94c5a73179852cc083da15c48428f5657de0fc60",
       "note": {
-        "ru": "Ключи выбора верификатора в блоке делегирования (6 языков).",
-        "en": "Verifier selector keys in the delegation block (6 languages)."
+        "ru": "Ключи чек-бокса встроенного исполнителя на вкладке «Делегирование» (подпись, справка, подсказка).",
+        "en": "Checkbox keys for the bundled executor on the Delegation tab (label, help, hint)."
       }
     },
     "defaults/langs/zh_CN_guide.md": {
@@ -2486,11 +2538,11 @@
       }
     },
     "langs/en.json": {
-      "version": "1.26.0",
-      "sha256": "ac0a2ab685a488aa5154db83bc73ba6024af5a450269f8508d1ca76bf5786adf",
+      "version": "1.28.0",
+      "sha256": "bbcae47559fbe581c94b79e517976a04ec2ab08589106a3872bc8eba9576265f",
       "note": {
-        "ru": "Ключи выбора верификатора в блоке делегирования (6 языков).",
-        "en": "Verifier selector keys in the delegation block (6 languages)."
+        "ru": "Ключи чек-бокса встроенного исполнителя на вкладке «Делегирование» (подпись, справка, подсказка).",
+        "en": "Checkbox keys for the bundled executor on the Delegation tab (label, help, hint)."
       }
     },
     "langs/en_guide.md": {
@@ -2502,11 +2554,11 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.26.0",
-      "sha256": "4345ecee0fd410cc4c2c39bd54b5b22cfdd1a69efe3404af9914762d8b80bca3",
+      "version": "1.28.0",
+      "sha256": "93c069bca2388cc5ce44ddba025738bf6e805abfa9c4da4d10af5f6378162304",
       "note": {
-        "ru": "Ключи выбора верификатора в блоке делегирования (6 языков).",
-        "en": "Verifier selector keys in the delegation block (6 languages)."
+        "ru": "Ключи чек-бокса встроенного исполнителя на вкладке «Делегирование» (подпись, справка, подсказка).",
+        "en": "Checkbox keys for the bundled executor on the Delegation tab (label, help, hint)."
       }
     },
     "langs/ru_guide.md": {
@@ -2518,11 +2570,11 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.26.0",
-      "sha256": "5f1c6ecf247ed673030a4a834c71394207ae3c07cff9a8a33fd3002554c2644d",
+      "version": "1.28.0",
+      "sha256": "a4e6465ffbe68bb770eceb7385f508f47b17dcefebea187bbbfbb2e9ecb52183",
       "note": {
-        "ru": "Ключи выбора верификатора в блоке делегирования (6 языков).",
-        "en": "Verifier selector keys in the delegation block (6 languages)."
+        "ru": "Ключи чек-бокса встроенного исполнителя на вкладке «Делегирование» (подпись, справка, подсказка).",
+        "en": "Checkbox keys for the bundled executor on the Delegation tab (label, help, hint)."
       }
     },
     "langs/zh_CN_guide.md": {
@@ -2558,11 +2610,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.34.0",
-      "sha256": "cbc721d368c048affe6e1057351645ed9698bf04076222a5e8be5a34ed009969",
+      "version": "1.37.0",
+      "sha256": "7da455d4b4983937155e32650e556f0ee19f16b57a49e5d65a1aea5af47a0258",
       "note": {
-        "ru": "FR6: блок ## Current date, выключатель current_date_enabled, инструмент current_datetime, правило «дату задаёт только системное время».",
-        "en": "FR6: the ## Current date block, the current_date_enabled switch, the current_datetime tool and the rule that only the system clock sets the date."
+        "ru": "FR6: встроенный Universal-Agent (сидинг, роль из постановки) и его право по умолчанию; FR20: усыновление каталогом.",
+        "en": "FR6: the bundled Universal-Agent (seeding, role from the brief) and its default right; FR20: catalog adoption."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/connector_creator.md": {
@@ -2595,6 +2647,22 @@
       "note": {
         "ru": "github_mcp.json: пресет помечен hidden - удалённый Copilot-эндпоинт требует fine-grained github_pat_* с правами Copilot Requests и не предлагается плиткой; файл (и справка) остаются в поставке",
         "en": "github_mcp.json: the preset is marked hidden - the remote Copilot endpoint needs a fine-grained github_pat_* with Copilot Requests and is not offered as a tile; the file (and its help) stays in the package"
+      }
+    },
+    "defaults/orchestrators/universal_agent/orchestrator.json": {
+      "version": "1.0.0",
+      "sha256": "dc5a547736fb7414b23a379e6fbc5543a1a1ab6527796439318b45affc3f4330",
+      "note": {
+        "ru": "Встроенный сотрудник Universal-Agent: модель, 42 инструмента без управления сотрудниками, 300 шагов; сеется идемпотентным стартовым импортом.",
+        "en": "The bundled Universal-Agent employee: model, 42 tools without agent management, 300 steps; seeded by the idempotent start-up import."
+      }
+    },
+    "defaults/orchestrators/universal_agent/system_prompt.md": {
+      "version": "1.0",
+      "sha256": "c2f2b7519fa6c65d12689171744de5b667587534e41d6db447949184b44baad8",
+      "note": {
+        "ru": "Системный промпт Universal-Agent (v1.0, английский): роль и требования приходят с задачей, собственной специализации нет.",
+        "en": "Universal-Agent system prompt (v1.0, English): the role and requirements arrive with the task, there is no specialisation of its own."
       }
     }
   }

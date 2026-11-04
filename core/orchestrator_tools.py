@@ -104,7 +104,7 @@ _DELEGATION_TOOLS = ("spawn_agent", "invoke_assistant", "subagent_status",
                      "subagent_result",
                      "read_subagent_state", "resume_subagent", "sleep",
                      "cancel_subagent", "read_subagent_thread",
-                     "verify_result")
+                     "verify_result", "ask_parent", "answer_child")
 
 
 def _delegation_tool_enabled(tool_name: str,
@@ -205,12 +205,14 @@ def _delegation_catalog() -> List[Dict[str, str]]:
             read_subagent_state_tool_entry, resume_subagent_tool_entry,
             sleep_tool_entry, cancel_subagent_tool_entry,
             read_subagent_thread_tool_entry, verify_result_tool_entry,
+            ask_parent_tool_entry, answer_child_tool_entry,
         )
         return [spawn_tool_entry(), subagent_status_tool_entry(),
                 subagent_result_tool_entry(),
                 read_subagent_state_tool_entry(), resume_subagent_tool_entry(),
                 sleep_tool_entry(), cancel_subagent_tool_entry(),
                 read_subagent_thread_tool_entry(), verify_result_tool_entry(),
+                ask_parent_tool_entry(), answer_child_tool_entry(),
                 invoke_tool_entry()]
     except Exception:
         return []

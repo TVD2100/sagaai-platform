@@ -127,18 +127,20 @@ def test_download_maps_http_errors_to_the_api_contract():
             download_bytes("https://example.com/missing.pdf")
 
 
+def _fake_pypdf(pages):
+    """Build a pypdf stand-in whose reader yields *pages*."""
+    reader = MagicMock()
+    reader.pages = pages
+    module = MagicMock()
+    module.PdfReader.return_value = reader
+    return module
+
+
 def test_pdf_text_is_rendered_as_markdown_sections():
     """Pages become '### Page N' sections without blank-line noise."""
     page = MagicMock()
     page.extract_text.return_value = "Heading\n\n\n\nBody line\n"
-    pdf = MagicMock()
-    pdf.pages = [page, page]
-    pdf.__enter__ = MagicMock(return_value=pdf)
-    pdf.__exit__ = MagicMock(return_value=False)
-
-    module = MagicMock()
-    module.open.return_value = pdf
-    with patch.dict(sys.modules, {"pdfplumber": module}):
+    with patch.dict(sys.modules, {"pypdf": _fake_pypdf([page, page])}):
         got = extract_pdf_markdown(b"%PDF-1.4")
 
     assert got.startswith("### Page 1")
@@ -150,14 +152,7 @@ def test_scanned_pdf_returns_empty_text():
     """A PDF without a text layer produces no Markdown."""
     page = MagicMock()
     page.extract_text.return_value = ""
-    pdf = MagicMock()
-    pdf.pages = [page]
-    pdf.__enter__ = MagicMock(return_value=pdf)
-    pdf.__exit__ = MagicMock(return_value=False)
-
-    module = MagicMock()
-    module.open.return_value = pdf
-    with patch.dict(sys.modules, {"pdfplumber": module}):
+    with patch.dict(sys.modules, {"pypdf": _fake_pypdf([page])}):
         assert extract_pdf_markdown(b"%PDF-1.4") == ""
 
 

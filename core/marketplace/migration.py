@@ -38,6 +38,15 @@ LEGACY_DEFAULTS: Dict[Tuple[str, str], dict] = {
         "detect": "slug_or_folder",
         "path": "orchestrators/ya_agent",
     },
+    # The general-purpose executor ships with the platform AND from the
+    # catalog. The entry is what makes the two one installation: an
+    # installation that already seeded the bundled copy adopts the catalog
+    # release instead of being offered a second folder under a suffix.
+    ("agent", "universal_agent"): {
+        "version": "0.9.0",
+        "detect": "slug_or_folder",
+        "path": "orchestrators/universal_agent",
+    },
     ("rag", "yaagentai_2020"): {
         "version": "1.0.0",
         "detect": "manifest_source",

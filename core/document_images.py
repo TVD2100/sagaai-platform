@@ -643,11 +643,16 @@ def _ooxml_source(origin: str,
 
 ## PDF page rendering ───────────────────────────────────────────────────────
 
-def _pdfplumber_open(data: bytes):
-    """Return an open pdfplumber document for the bytes, or None."""
+def _pdfium_open(data: bytes):
+    """Return an open pypdfium2 document for the bytes, or None.
+
+    ``pypdfium2`` bundles the PDFium renderer, so a page becomes a bitmap
+    without an external binary (pdftoppm, ImageMagick) and without an
+    AGPL-licensed renderer. The document must be closed by the caller.
+    """
     try:
-        import pdfplumber
-        return pdfplumber.open(io.BytesIO(data))
+        import pypdfium2
+        return pypdfium2.PdfDocument(data)
     except Exception:
         return None
 
@@ -709,9 +714,9 @@ def render_pdf_pages(filename: str,
 
     A scanned document has no text layer and no embedded raster object the
     regular extractor could reach, so the page itself is the picture. Pages
-    are rendered through ``pdfplumber``, which drives ``pypdfium2`` - no
-    external binary such as pdftoppm or ImageMagick is needed, and no
-    AGPL-licensed renderer is involved.
+    are rendered through ``pypdfium2``, which bundles PDFium - no external
+    binary such as pdftoppm or ImageMagick is needed, and no AGPL-licensed
+    renderer is involved.
 
     Args:
         filename: source name; only a PDF is accepted.
@@ -741,16 +746,16 @@ def render_pdf_pages(filename: str,
     limit = max(1, min(int(max_pages or MAX_RENDERED_PAGES),
                        MAX_RENDERED_PAGES_TOTAL))
     resolution = max(72, min(int(dpi or DEFAULT_RENDER_DPI), 400))
-    document = _pdfplumber_open(data)
+    document = _pdfium_open(data)
     if document is None:
         return [], [
-            'PDF pages were not rendered: install pdfplumber>=0.11 '
-            '(older releases need an external renderer)'
+            'PDF pages were not rendered: install pypdfium2 (it bundles the '
+            'PDFium renderer)'
         ]
 
     selected: List[int] = []
     try:
-        total = len(document.pages)
+        total = len(document)
     except Exception as exc:
         try:
             document.close()
@@ -794,8 +799,8 @@ def render_pdf_pages(filename: str,
                 warnings.append('page rendering stopped at the budget')
                 break
             try:
-                page = document.pages[number - 1]
-                rendered = page.to_image(resolution=resolution).original
+                page = document[number - 1]
+                rendered = page.render(scale=resolution / 72.0).to_pil()
             except Exception as exc:
                 warnings.append('page %d: render failed: %s' % (number, exc))
                 continue

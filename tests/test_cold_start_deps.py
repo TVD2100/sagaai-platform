@@ -73,14 +73,14 @@ def test_no_warning_when_all_up_to_date(st_env):
 
 def test_warning_lists_missing_packages(st_env):
     report = {"ok": False,
-              "missing": [{"package": "reportlab", "required": False},
+              "missing": [{"package": "selenium", "required": False},
                           {"package": "paramiko", "required": False}],
               "outdated": []}
     _render_main(st_env, report)
     deps = _deps_warnings(st_env)
     assert len(deps) == 1
     assert deps[0].startswith("deps_missing|")
-    assert "reportlab" in deps[0] and "paramiko" in deps[0]
+    assert "selenium" in deps[0] and "paramiko" in deps[0]
 
 
 def test_warning_lists_outdated_packages(st_env):

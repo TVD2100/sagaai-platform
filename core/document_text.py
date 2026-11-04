@@ -126,49 +126,19 @@ spreadsheet with trailing blanks does not flood the output.
 
 
 def _pypdf_reader(data: bytes):
-    """Return a pypdf reader for the bytes, or None when no library exists."""
+    """Return a pypdf reader for the bytes, or None when the package is absent."""
     try:
         import pypdf
         return pypdf.PdfReader(io.BytesIO(data))
     except Exception:
-        pass
-    try:
-        import PyPDF2
-        return PyPDF2.PdfReader(io.BytesIO(data))
-    except Exception:
         return None
-
-
-def _pdf_with_pdfplumber(data: bytes, warnings: List[str]) -> str:
-    """Extract PDF text page by page, appending detected tables as CSV."""
-    import pdfplumber
-    parts: List[str] = []
-    with pdfplumber.open(io.BytesIO(data)) as pdf:
-        for page_num, page in enumerate(pdf.pages, start=1):
-            try:
-                page_text = (page.extract_text() or '').strip()
-            except Exception as exc:
-                warnings.append('page %d: %s' % (page_num, exc))
-                page_text = ''
-            parts.append('### Page %d\n%s' % (page_num, page_text))
-            try:
-                for table_num, table in enumerate(page.extract_tables() or [], start=1):
-                    if not table:
-                        continue
-                    parts.append(
-                        '[TABLE %d on page %d as CSV]\n%s'
-                        % (table_num, page_num, table_to_csv(table))
-                    )
-            except Exception as exc:
-                warnings.append('page %d tables: %s' % (page_num, exc))
-    return '\n\n'.join(parts)
 
 
 def _pdf_with_pypdf(data: bytes, warnings: List[str]) -> str:
     """Extract PDF text page by page through pypdf."""
     reader = _pypdf_reader(data)
     if reader is None:
-        warnings.append('PDF not parsed: install pypdf or pdfplumber')
+        warnings.append('PDF not parsed: install pypdf')
         return ''
     parts: List[str] = []
     for page_num, page in enumerate(reader.pages, start=1):
@@ -184,18 +154,12 @@ def _pdf_with_pypdf(data: bytes, warnings: List[str]) -> str:
 def extract_text_from_pdf(data: bytes) -> Tuple[str, List[str]]:
     """Return the text of a PDF, one ``### Page N`` block per page.
 
-    pdfplumber is tried first because it recovers tables; pypdf is the
-    fallback. A PDF without a text layer (a scan) yields empty text and a
-    warning - OCR is out of scope here.
+    pypdf reads the text layer; a PDF without one (a scan) yields empty
+    text and a warning. OCR is out of scope here - a caller that needs the
+    page itself as a picture renders it through ``core.document_images``.
     """
     warnings: List[str] = []
-    try:
-        text = _pdf_with_pdfplumber(data, warnings)
-    except ImportError:
-        text = _pdf_with_pypdf(data, warnings)
-    except Exception as exc:
-        warnings.append('pdfplumber failed (%s); falling back to pypdf' % exc)
-        text = _pdf_with_pypdf(data, warnings)
+    text = _pdf_with_pypdf(data, warnings)
     if not text.strip():
         warnings.append(
             'no text layer found: the PDF may be a scan (image) and OCR is '
@@ -209,32 +173,8 @@ def extract_text_from_pdf(data: bytes) -> Tuple[str, List[str]]:
 
 def extract_text_from_docx(data: bytes) -> Tuple[str, List[str]]:
     """Return DOCX paragraphs in order plus every table rendered as CSV."""
-    try:
-        import docx
-    except Exception:
-        return '', ['DOCX not parsed: install python-docx']
-    warnings: List[str] = []
-    try:
-        document = docx.Document(io.BytesIO(data))
-    except Exception as exc:
-        return '', ['DOCX read failed: %s' % exc]
-    parts: List[str] = []
-    try:
-        for paragraph in document.paragraphs:
-            text = (paragraph.text or '').strip()
-            if text:
-                parts.append(text)
-    except Exception as exc:
-        warnings.append('paragraphs: %s' % exc)
-    try:
-        for table_num, table in enumerate(document.tables, start=1):
-            rows = [[cell.text for cell in row.cells] for row in table.rows]
-            if not rows:
-                continue
-            parts.append('[TABLE %d as CSV]\n%s' % (table_num, table_to_csv(rows)))
-    except Exception as exc:
-        warnings.append('tables: %s' % exc)
-    return '\n'.join(parts), warnings
+    from core.ooxml import extract_docx_text
+    return extract_docx_text(data)
 
 
 # ─── DOC (legacy) ───────────────────────────────────────────────────────────
@@ -286,91 +226,32 @@ def extract_text_from_doc(data: bytes) -> Tuple[str, List[str]]:
 
 def extract_text_from_pptx(data: bytes) -> Tuple[str, List[str]]:
     """Return PPTX slide text with a ``### Slide N`` marker per slide."""
-    try:
-        from pptx import Presentation
-    except Exception:
-        return '', ['PPTX not parsed: install python-pptx']
-    warnings: List[str] = []
-    try:
-        presentation = Presentation(io.BytesIO(data))
-    except Exception as exc:
-        return '', ['PPTX read failed: %s' % exc]
-    parts: List[str] = []
-    try:
-        for slide_num, slide in enumerate(presentation.slides, start=1):
-            block: List[str] = []
-            for shape in slide.shapes:
-                try:
-                    if getattr(shape, 'has_text_frame', False):
-                        text = (shape.text_frame.text or '').strip()
-                        if text:
-                            block.append(text)
-                    if getattr(shape, 'has_table', False):
-                        table = shape.table
-                        rows = [
-                            [cell.text_frame.text if cell.text_frame else ''
-                             for cell in row.cells]
-                            for row in table.rows
-                        ]
-                        block.append(
-                            '[TABLE on slide %d as CSV]\n%s'
-                            % (slide_num, table_to_csv(rows))
-                        )
-                except Exception as exc:
-                    warnings.append('slide %d shape: %s' % (slide_num, exc))
-            parts.append('### Slide %d\n%s' % (slide_num, '\n'.join(block)))
-    except Exception as exc:
-        warnings.append('slides: %s' % exc)
-    return '\n\n'.join(parts), warnings
+    from core.ooxml import extract_pptx_text
+    return extract_pptx_text(data)
 
 
 # ─── XLSX / XLS ─────────────────────────────────────────────────────────────
 
 
 def _xlsx_sheets(data: bytes) -> Tuple[str, List[str]]:
-    """Read an .xlsx/.xlsm workbook through openpyxl, one CSV block per sheet."""
-    try:
-        import openpyxl
-    except Exception:
-        return '', ['XLSX not parsed: install openpyxl']
-    warnings: List[str] = []
-    try:
-        workbook = openpyxl.load_workbook(io.BytesIO(data), data_only=True,
-                                         read_only=True)
-    except Exception as exc:
-        return '', ['XLSX read failed: %s' % exc]
-    parts: List[str] = []
-    try:
-        for sheet in workbook.worksheets:
-            rows = [list(row) for row in sheet.iter_rows(values_only=True)]
-            parts.append('### Sheet: %s\n%s' % (sheet.title, table_to_csv(rows)))
-    except Exception as exc:
-        warnings.append('sheets: %s' % exc)
-    return '\n\n'.join(parts), warnings
+    """Read an .xlsx/.xlsm workbook, one CSV block per sheet."""
+    from core.ooxml import extract_xlsx_text
+    return extract_xlsx_text(data)
 
 
 def _xls_sheets(data: bytes) -> Tuple[str, List[str]]:
-    """Read a legacy .xls workbook through xlrd, one CSV block per sheet."""
-    try:
-        import xlrd
-    except Exception:
-        return '', [
-            'XLS not parsed: install xlrd, or save the workbook as .xlsx'
-        ]
-    warnings: List[str] = []
-    try:
-        book = xlrd.open_workbook(file_contents=data)
-    except Exception as exc:
-        return '', ['XLS read failed: %s' % exc]
-    parts: List[str] = []
-    for sheet in getattr(book, 'sheets', lambda: [])():
-        try:
-            rows = [sheet.row_values(i) for i in range(sheet.nrows)]
-        except Exception as exc:
-            warnings.append('sheet %s: %s' % (getattr(sheet, 'name', '?'), exc))
-            continue
-        parts.append('### Sheet: %s\n%s' % (sheet.name, table_to_csv(rows)))
-    return '\n\n'.join(parts), warnings
+    """Report that a legacy .xls workbook has no built-in reader.
+
+    A .xls file is an OLE2 compound document wrapping a BIFF8 record stream,
+    which no package in the project's dependency set parses. The message
+    names the one-step remedy instead of failing silently.
+    """
+    if not data:
+        return '', ['the file is empty']
+    return '', [
+        'XLS (Excel 97-2003) is not parsed: save the workbook as .xlsx '
+        'and upload it again'
+    ]
 
 
 def extract_text_from_excel(data: bytes, filename: str) -> Tuple[str, List[str]]:

@@ -141,7 +141,7 @@ def test_scenario_1_dialog_upload_analyzed_end_to_end(env):
              "max_tokens": 120})
 
     assert result["ok"] is True
-    assert result["text"] == ("[DATA_BEGIN: DATA_FROM_IMAGE[DATA_END]\n"
+    assert result["text"] == ("[DATA_BEGIN: DATA_FROM_IMAGE]\n"
                               "A blue square.\n[DATA_END]")
     assert result["security"]["untrusted"] is True
     assert result["service"] == "YandexAI"
@@ -304,7 +304,7 @@ def test_scenario_6_deepseek_vision_dedicated_endpoint(env):
              "max_tokens": 150})
 
     assert result["ok"] is True
-    assert result["text"] == ("[DATA_BEGIN: DATA_FROM_IMAGE[DATA_END]\n"
+    assert result["text"] == ("[DATA_BEGIN: DATA_FROM_IMAGE]\n"
                               "Extracted: 4.\n[DATA_END]")
     assert result["security"]["untrusted"] is True
     assert result["service"] == "DeepSeek"

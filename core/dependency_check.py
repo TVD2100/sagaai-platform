@@ -34,13 +34,9 @@ DEPENDENCIES = {
     "cryptography": {"pip": "cryptography", "min": "41.0",   "required": True},
     # Optional document parsing and utilities.
     "pypdf":        {"pip": "pypdf",        "min": "3.0",    "required": False},
-    "docx":         {"pip": "python-docx",  "min": "0.8",    "required": False},
-    "pptx":         {"pip": "python-pptx",  "min": "0.6",    "required": False},
-    "openpyxl":     {"pip": "openpyxl",     "min": "3.1",    "required": False},
-    "pdfplumber":   {"pip": "pdfplumber",   "min": "0.11",   "required": False},
-    "tiktoken":     {"pip": "tiktoken",     "min": "0.5",    "required": False},
-    "markdown":     {"pip": "markdown",     "min": "3.0",    "required": False},
-    "reportlab":    {"pip": "reportlab",    "min": "4.0",    "required": False},
+    # Bundles the PDFium renderer, so a scanned page becomes a picture
+    # without an external binary or an AGPL-licensed renderer.
+    "pypdfium2":    {"pip": "pypdfium2",    "min": "4.18",   "required": False},
     # Optional image handling for embedded-picture extraction: without it the
     # pictures are detected by their signature but their size stays unknown.
     "PIL":          {"pip": "Pillow",       "min": "9.0",    "required": False},

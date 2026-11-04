@@ -168,6 +168,24 @@ _AUTO_CONTINUE_PREFIX = "AUTO_CONTINUE:"
 NOTICE_PREFIX = "[SUBAGENT_NOTICE"
 
 
+def _fence(text: str, source: str = "subagent_data") -> str:
+    """Return *text* inside data fences, or unchanged if the guard is absent.
+
+    A notice is delivered as a hidden SYSTEM message, so anything quoted in it
+    arrives with the force of a system turn. Child-authored text is data: it
+    was written by a process that read files and web pages, and quoting a page
+    must never turn the quote into an instruction for the parent.
+    """
+    value = str(text or "")
+    if not value.strip():
+        return value
+    try:
+        from core.prompt_guard import wrap_data
+        return wrap_data(value, source)
+    except Exception:  # pragma: no cover - the guard is best effort
+        return value
+
+
 def format_subagent_notice(notice: Dict[str, Any]) -> str:
     """Return the one-line, budgeted notice text about a finished child.
 
@@ -211,6 +229,25 @@ def format_subagent_notice(notice: Dict[str, Any]) -> str:
         short = [str(p).strip() for p in list(pending)[:3] if str(p).strip()]
         if short:
             parts.append("Open steps: " + ", ".join(short) + ".")
+    # A parked child is not finished: it waits for an ANSWER that continues the
+    # same run. Telling the parent to resume it would spend a second run and a
+    # second budget on what one reply can do, so the follow-up call differs.
+    if str(payload.get("await_reason") or notice.get("await_reason") or "") == "question":
+        question = payload.get("question") or notice.get("question") or {}
+        if isinstance(question, dict):
+            text = " ".join(str(question.get("text") or "").split())
+            if text:
+                if len(text) > 400:
+                    text = text[:397] + "..."
+                parts.append("Question: " + _fence(text, "subagent_question"))
+            blocked = " ".join(str(question.get("blocked") or "").split())
+            if blocked:
+                if len(blocked) > 200:
+                    blocked = blocked[:197] + "..."
+                parts.append("Blocked on: " + _fence(blocked, "subagent_question") + ".")
+        parts.append("Call answer_child(run_id=\"" + run_id
+                     + "\", answer=...) to reply; the child continues the SAME run.")
+        return " ".join(parts)
     parts.append("Call read_subagent_state(run_id=\"" + run_id + "\") for the handoff.")
     parts.append("Call resume_subagent(run_id=\"" + run_id + "\") to continue it.")
     return " ".join(parts)
@@ -752,7 +789,12 @@ _DELEGATION_CALL_NAMES = ("spawn_agent", "invoke_assistant", "subagent_status",
 #: wait for the workspace-binding lock the parent holds for the whole step.
 #: The delegation tuple keeps its documented shape - it is the contract of the
 #: tools that touch the run tree, not the phase's call filter.
-_TREE_CALL_NAMES = _DELEGATION_CALL_NAMES + ("verify_result", "subagent_result")
+#: The dialog pair belongs to the same phase for the same reason: asking
+#: parks the run (the loop has to stop at a step boundary, not inside a tool
+#: call) and answering unpacks it (the child loop continues in the answering
+#: thread). Neither can run inside ``dispatch``.
+_TREE_CALL_NAMES = _DELEGATION_CALL_NAMES + ("verify_result", "subagent_result",
+                                             "ask_parent", "answer_child")
 
 
 def _agent_brief_from_args(args: Dict[str, Any]):
@@ -832,9 +874,15 @@ def _delegation_job(tool: str, args: Dict[str, Any], *,
                     parent_slug: str, parent_run_id: str, thread_id: str,
                     parent_config: Optional[Dict[str, Any]],
                     base_dir: Optional[str], lang: Optional[str],
-                    service: Any,
+                    service: Any, state: Any = None,
                     enable_injection_protection: Optional[bool] = None) -> Dict[str, Any]:
-    """Execute ONE delegation call and return its tool-shaped result."""
+    """Execute ONE delegation call and return its tool-shaped result.
+
+    ``state`` is the loop state of the CALLER: ``ask_parent`` parks the run
+    named by it and hands the same object to the service, so a later answer
+    can continue the run from the step that asked. Every other call ignores
+    it and reads what it needs from the explicit identity arguments.
+    """
     if tool == "spawn_agent":
         from core.orchestration.tools import spawn_agent
         return spawn_agent(
@@ -851,6 +899,47 @@ def _delegation_job(tool: str, args: Dict[str, Any], *,
             lang=lang,
             service=service,
             enable_injection_protection=enable_injection_protection,
+        )
+    if tool == "ask_parent":
+        # Asking parks the run: the loop cannot continue inside this step, so
+        # the call validates the question, records it on the run and returns a
+        # result that tells the loop to stop at this step boundary.
+        from core.orchestration.tools import ask_parent
+        # The run to park is the CALLER's own: ``parent_run_id`` already holds
+        # it (the loop identity), and the state carries the same value when
+        # the job was started by a loop step. The fallback keeps a call made
+        # outside a loop (a custom function, a test) working.
+        own_run_id = str(getattr(state, "run_id", "") or parent_run_id or "")
+        # Dialog limits were frozen when the run started: the answering
+        # process may belong to another dialog whose live config must not
+        # change this run's rounds or question length.
+        frozen = getattr(state, "dialog_limits", None) or parent_config
+        return ask_parent(
+            question=str(args.get("question") or ""),
+            options=args.get("options") or [],
+            done=str(args.get("done") or ""),
+            blocked=str(args.get("blocked") or ""),
+            run_id=own_run_id,
+            parent_slug=parent_slug,
+            parent_config=frozen,
+            service=service,
+            state=state,
+        )
+    if tool == "answer_child":
+        # Answering continues a PARKED child in this thread. The child loop
+        # resumes from its own stowed state, so the answer costs no new run and
+        # no new step budget.
+        from core.orchestration.tools import answer_child
+        return answer_child(
+            run_id=args.get("run_id"),
+            answer=str(args.get("answer") or ""),
+            parent_slug=parent_slug,
+            parent_run_id=parent_run_id or None,
+            thread_id=thread_id,
+            parent_config=parent_config,
+            base_dir=base_dir,
+            lang=lang,
+            service=service,
         )
     if tool == "verify_result":
         # Verification LAUNCHES a verifier child, so it runs in this phase and
@@ -1071,7 +1160,7 @@ def execute_delegation_calls(calls: List[Dict[str, Any]], *,
                 results[idx] = _delegation_job(
                     tool, args, parent_slug=slug, parent_run_id=parent_run_id,
                     thread_id=thread_id, parent_config=cfg, base_dir=base_dir,
-                    lang=lang, service=service,
+                    lang=lang, service=service, state=state,
                     enable_injection_protection=inherited_protection)
             except Exception as exc:  # pragma: no cover - defensive
                 results[idx] = {"ok": False,
@@ -2730,6 +2819,15 @@ class AgentLoopState:
     child_mode: bool = False
     auto_continue_count: int = 0
 
+    # ── Agent dialog (ask the parent / answer a child) ─────────────────────
+    # ``dialog_limits`` carries the question/answer limits frozen at spawn
+    # time: the loop asks the service to park the run, and the service needs
+    # those numbers to refuse a question that is too long or one round too
+    # many. ``parked_question`` holds the question this step parked on, so the
+    # runner can report it without re-reading the record.
+    dialog_limits: Dict[str, Any] = field(default_factory=dict)
+    parked_question: Optional[Dict[str, Any]] = None
+
     # ── Subagent notices ───────────────────────────────────────────────────
     # ``root_run_id`` identifies the tree whose mailbox this loop drains;
     # it defaults to the run's own id, which is what a top-level dialog uses.
@@ -3976,6 +4074,21 @@ def _step_agent_loop_impl(
             )
 
         state.user_message = "\n".join(tool_results_parts)
+
+        # ── Parked on a question ───────────────────────────────────────────
+        # The run asked its parent something and the answer arrives through a
+        # LATER call, so starting another step here would keep working on a
+        # question the model already declared blocking. The loop stops at this
+        # boundary; the run keeps its record, its journal and its step budget,
+        # and the answer continues it from exactly this point.
+        if state.parked_question:
+            emit({"type": "final", "text": state.assistant_text,
+                  "status": "awaiting_question", "step": state.steps})
+            state.phase = "done"
+            state.final_status = "awaiting_question"
+            state.final_text = state.assistant_text
+            return state
+
         state.phase = "calling_llm"
         return state
 

@@ -67,10 +67,19 @@ from core.orchestrators import (
     list_orchestrators,
     get_allowed_agents, set_allowed_agents,
     get_allowed_assistants, set_allowed_assistants,
+    get_universal_agent_enabled, set_universal_agent_enabled,
+    UNIVERSAL_AGENT_SLUG,
     get_delegation_limits, set_delegation_limits,
     get_verifier_agent, set_verifier_agent,
     reset_builtin_prompt,
     DEVAGENT_SLUG,
+)
+from core.orchestration.contracts import (
+    DEFAULT_ANSWER_MAX_CHARS,
+    DEFAULT_ANSWER_WAIT_SECONDS,
+    DEFAULT_DIALOG_ROUNDS,
+    DEFAULT_MAX_PARKED_RUNS,
+    DEFAULT_QUESTION_MAX_CHARS,
 )
 from core.skills_library import list_skills as list_library_skills
 from core.rag import list_bases_with_activity
@@ -748,6 +757,29 @@ def _render_generated_image(result_data: dict, path: str, lang: str) -> None:
     )
 
 
+def _render_parked_question(question: dict, lang: str) -> None:
+    """Show a subagent's question, its options and what it is blocked on.
+
+    The question is the only part of a parked result the reader has to act on,
+    so it is rendered above the raw result body instead of being buried in a
+    JSON dump. Everything the child wrote is data: the text is rendered as
+    plain markdown, never interpreted as instructions.
+    """
+    text = " ".join(str(question.get("text") or "").split())
+    if text:
+        st.markdown(text)
+    options = question.get("options")
+    if isinstance(options, (list, tuple)) and options:
+        for option in list(options)[:8]:
+            st.markdown("- " + str(option))
+    done = " ".join(str(question.get("done") or "").split())
+    if done:
+        st.caption(done)
+    blocked = " ".join(str(question.get("blocked") or "").split())
+    if blocked:
+        st.caption(blocked)
+
+
 def _render_tool_result(ev: dict, lang: str, call_ev: Optional[dict] = None) -> None:
     """Render one tool_result event inside an expander.
 
@@ -773,6 +805,12 @@ def _render_tool_result(ev: dict, lang: str, call_ev: Optional[dict] = None) -> 
         assistant_meta = inner_result["assistant"]
 
     header_lines = []
+    # A parked child reports its question through the tool result: the block is
+    # labelled as a subagent question, so a reader does not have to decode a
+    # run id from a raw result dump to learn that a child waits for them.
+    parked_question = {}
+    if tool == "ask_parent" and isinstance(result_data.get("question"), dict):
+        parked_question = result_data["question"]
     if path:
         status_icon = "✅" if ok_val else "❌"
         header_lines.append(f"{status_icon} **tool_result**: {tool} → `{path}`")
@@ -796,6 +834,10 @@ def _render_tool_result(ev: dict, lang: str, call_ev: Optional[dict] = None) -> 
         applied = result_data.get("applied")
         backup_ver = result_data.get("backup_version")
         parts = []
+        if parked_question:
+            # The label replaces the generic "ok": the result of ask_parent is
+            # a question to a human, not a completed operation.
+            parts.append(t("orch_subagent_question", lang=lang))
         if total_lines:
             parts.append(t("event_tool_result_lines", lang=lang, lines=total_lines))
         elif bytes_val:
@@ -809,7 +851,7 @@ def _render_tool_result(ev: dict, lang: str, call_ev: Optional[dict] = None) -> 
         header_lines.append(" | ".join(parts) if parts else t("event_tool_result_ok", lang=lang))
     header = "\n".join(header_lines)
 
-    with st.expander(header, expanded=False):
+    with st.expander(header, expanded=bool(parked_question)):
         call_args = None
         if call_ev is not None:
             call_args = call_ev.get("args", {})
@@ -824,6 +866,8 @@ def _render_tool_result(ev: dict, lang: str, call_ev: Optional[dict] = None) -> 
                 with st.expander(t("event_tool_result_show_more", lang=lang), expanded=False):
                     st.code(full_args_json, language="json")
 
+        if parked_question:
+            _render_parked_question(parked_question, lang)
         st.markdown(f"**{t('event_tool_result_title', lang=lang)}**")
         body, is_json_body, full_json = _extract_result_body(result_data)
         if is_json_body:
@@ -1010,6 +1054,35 @@ def _attach_events(history: list, events: list) -> None:
     history[target_idx]["_events"] = events
 
 
+def _dialog_tree_root(slug: str) -> str:
+    """Return the tree root of this dialog, recovering it after a reload.
+
+    A browser session forgets the root when the page reloads, while the run
+    records stay durable and a dialog root is registered under its thread id.
+    Without the recovery a child that waits for an answer stays invisible
+    until the next step - exactly the hidden stop the waiting line exists to
+    prevent.
+    """
+    root = str(_ss(slug, "active_root_run_id") or "").strip()
+    if root:
+        return root
+    thread_id = str(_ss(slug, "thread_id") or "").strip()
+    if not thread_id:
+        return ""
+    try:
+        from core.orchestration.service import get_service
+        finder = getattr(get_service(), "roots_for_thread", None)
+        roots = finder(thread_id) if callable(finder) else []
+    except Exception:
+        return ""
+    if not roots:
+        return ""
+    root = str(roots[0] or "").strip()
+    if root:
+        _set_ss(slug, "active_root_run_id", root)
+    return root
+
+
 def _live_subagent_runs(slug: str) -> list:
     """Return the runs of this dialog's tree that are still running.
 
@@ -1025,7 +1098,7 @@ def _live_subagent_runs(slug: str) -> list:
     """
     try:
         from core.orchestration.service import get_service
-        root = (_ss(slug, "active_root_run_id") or "").strip()
+        root = _dialog_tree_root(slug)
         if not root:
             return []
         runs = get_service().list_runs(root) or []
@@ -1043,28 +1116,84 @@ def _live_subagent_runs(slug: str) -> list:
     return alive
 
 
+def _waiting_subagent_runs(slug: str) -> list:
+    """Return the child runs of this dialog that wait for an ANSWER.
+
+    A parked run is not working: it holds no pool slot and its thread is gone,
+    so the running line would never report it and the user would see an idle
+    dialog while a child stands still. Only a question is reported here - a
+    run that merely ran out of continuations waits for a RESUME, not for an
+    answer, and telling the user to answer it would be wrong.
+    """
+    try:
+        from core.orchestration.service import get_service
+        root = _dialog_tree_root(slug)
+        if not root:
+            return []
+        runs = get_service().list_runs(root) or []
+    except Exception:
+        return []
+    waiting = []
+    for rec in runs:
+        if not isinstance(rec, dict):
+            continue
+        run_id = str(rec.get("run_id") or "")
+        if run_id == root:
+            continue
+        if str(rec.get("status") or "") != "awaiting_input":
+            continue
+        if str(rec.get("await_reason") or "") != "question":
+            continue
+        question = rec.get("question")
+        if not isinstance(question, dict):
+            continue
+        # An answered or expired question is not a wait any more. The registry
+        # sweeps expired records, but a record read from the store in the same
+        # pass may still carry one: the check here keeps the line honest.
+        if str(question.get("answer") or "").strip():
+            continue
+        waiting.append(rec)
+    return waiting
+
+
 def _render_subagent_status(slug: str, lang: str) -> None:
     """Render the live-subagent line and keep the dialog refreshed.
 
-    Two rules shape this function. The line is shown only while a child is
-    running, and the auto-refresh fragment exists only in that same window:
+    Three rules shape this function. A child that waits for an ANSWER gets its
+    own line naming the question - otherwise a parked run looks like an idle
+    dialog. The poll fragment exists only while a child is running or waiting:
     rendering it unconditionally would leave every idle dialog polling the
     registry forever.
     """
+    waiting = _waiting_subagent_runs(slug)
+    if waiting:
+        QUESTION_PREVIEW = 160
+        for rec in waiting[:3]:
+            question = rec.get("question") if isinstance(rec.get("question"), dict) else {}
+            text = " ".join(str(question.get("text") or "").split())
+            if len(text) > QUESTION_PREVIEW:
+                text = text[:QUESTION_PREVIEW - 3] + "..."
+            st.caption(t("orch_subagent_waiting", lang=lang,
+                         agent=str(rec.get("agent_slug") or "?"),
+                         run=str(rec.get("run_id") or "")[:8],
+                         question=text or "?"))
+        if len(waiting) > 3:
+            st.caption(t("orch_subagents_waiting", lang=lang, count=len(waiting)))
     alive = _live_subagent_runs(slug)
-    if not alive:
+    if alive:
+        names = ", ".join(sorted({str(r.get("agent_slug") or "?") for r in alive}))
+        st.caption(t("orch_subagents_running", lang=lang, count=len(alive), agents=names))
+    if not alive and not waiting:
         return
-    names = ", ".join(sorted({str(r.get("agent_slug") or "?") for r in alive}))
-    st.caption(t("orch_subagents_running", lang=lang, count=len(alive), agents=names))
 
     @st.fragment(run_every=3)
     def _poll_children() -> None:
-        """Re-render while children run; stop as soon as all of them finish."""
-        still = _live_subagent_runs(slug)
-        if still:
+        """Re-render while children run or wait; stop when both are over."""
+        if _live_subagent_runs(slug) or _waiting_subagent_runs(slug):
             return
-        # Nothing is running any more: the notices are already in the mailbox
-        # or in the history. Continue the dialog so the parent reads them.
+        # Nothing is running or waiting any more: the notices are already in
+        # the mailbox or in the history. Continue the dialog so the parent
+        # reads them.
         st.rerun()
 
     _poll_children()
@@ -2984,6 +3113,23 @@ def _render_orch_memory(slug: str, lang: str) -> None:
             st.rerun()
 
 
+def _dialog_limit(limits: Any, key: str, default: int) -> int:
+    """Read one dialog limit, falling back to its documented default.
+
+    The resolver always answers with every key, yet the page must survive a
+    partial mapping: a missing number would otherwise raise at render time and
+    take the whole settings tab down instead of showing a usable field.
+    """
+    try:
+        value = limits.get(key) if hasattr(limits, "get") else None
+    except Exception:  # pragma: no cover - defensive
+        value = None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return int(default)
+
+
 def _render_delegation_settings(slug: str, lang: str) -> None:
     """Manage the delegation allowlists and the six runtime limits.
 
@@ -3005,16 +3151,32 @@ def _render_delegation_settings(slug: str, lang: str) -> None:
 
     # ── Spawnable orchestrators ──────────────────────────────────────────
     st.markdown(t("orch_delegation_agents", lang=lang))
+    # The bundled Universal-Agent is a DEFAULT right, not a list entry: it
+    # gets its own checkbox so the decision is a visible on/off state instead
+    # of an entry a settings save could drop. It is excluded from the loop
+    # below - without that, a user who also added it by hand would see two
+    # checkboxes for one agent.
     allowed_agents = set(get_allowed_agents(slug))
     try:
         live_orch = list_orchestrators()
     except Exception:
         live_orch = []
+    universal_present = any(str(e.get("slug") or "") == UNIVERSAL_AGENT_SLUG
+                            for e in live_orch)
+    current_universal = get_universal_agent_enabled(slug)
+    sel_universal = current_universal
+    if universal_present and slug != UNIVERSAL_AGENT_SLUG:
+        sel_universal = st.checkbox(
+            t("orch_delegation_universal_agent", lang=lang),
+            value=bool(sel_universal),
+            key=f"orch_allowed_universal_{slug}",
+            help=t("orch_delegation_universal_agent_help", lang=lang))
+        st.caption(t("orch_delegation_universal_agent_hint", lang=lang))
     live_agent_slugs = set()
     selected_agents: List[str] = []
     for entry in live_orch:
         other = str(entry.get("slug") or "")
-        if not other or other == slug:
+        if not other or other == slug or other == UNIVERSAL_AGENT_SLUG:
             continue
         live_agent_slugs.add(other)
         name = str(entry.get("name") or other)
@@ -3122,11 +3284,61 @@ def _render_delegation_settings(slug: str, lang: str) -> None:
             step=1000, key=f"orch_delegation_budget_{slug}",
             help=t("orch_delegation_budget_help", lang=lang))
 
+    # ── Agent dialog ─────────────────────────────────────────────────────
+    # The dialog lives in the SAME block as the other delegation limits: a
+    # separate section would let the two sets of numbers drift apart, and a
+    # user looking for "how long a child may wait" would not know where to
+    # look. Each value is clamped by the resolver, so a typed 0 becomes the
+    # documented default instead of removing the limit.
+    st.markdown(t("orch_dialog_section", lang=lang))
+    st.caption(t("orch_dialog_section_desc", lang=lang))
+    col_c, col_d = st.columns(2)
+    with col_c:
+        sel_rounds = st.number_input(
+            t("orch_dialog_rounds", lang=lang),
+            min_value=1, max_value=20,
+            value=_dialog_limit(limits, "dialog_rounds", DEFAULT_DIALOG_ROUNDS),
+            step=1, key=f"orch_dialog_rounds_{slug}",
+            help=t("orch_dialog_rounds_help", lang=lang))
+        sel_question_chars = st.number_input(
+            t("orch_dialog_question_chars", lang=lang),
+            min_value=100, max_value=20000,
+            value=_dialog_limit(limits, "question_max_chars",
+                                DEFAULT_QUESTION_MAX_CHARS),
+            step=100, key=f"orch_dialog_question_chars_{slug}",
+            help=t("orch_dialog_question_chars_help", lang=lang))
+        sel_parked = st.number_input(
+            t("orch_dialog_max_parked", lang=lang),
+            min_value=1, max_value=64,
+            value=_dialog_limit(limits, "max_parked_runs", DEFAULT_MAX_PARKED_RUNS),
+            step=1, key=f"orch_dialog_max_parked_{slug}",
+            help=t("orch_dialog_max_parked_help", lang=lang))
+    with col_d:
+        sel_answer_chars = st.number_input(
+            t("orch_dialog_answer_chars", lang=lang),
+            min_value=100, max_value=20000,
+            value=_dialog_limit(limits, "answer_max_chars",
+                                DEFAULT_ANSWER_MAX_CHARS),
+            step=100, key=f"orch_dialog_answer_chars_{slug}",
+            help=t("orch_dialog_answer_chars_help", lang=lang))
+        sel_wait = st.number_input(
+            t("orch_dialog_wait", lang=lang),
+            min_value=1, max_value=3600,
+            value=_dialog_limit(limits, "answer_wait_seconds",
+                                DEFAULT_ANSWER_WAIT_SECONDS),
+            step=60, key=f"orch_dialog_wait_{slug}",
+            help=t("orch_dialog_wait_help", lang=lang))
+
     st.markdown("---")
     if st.button(t("orch_delegation_save_btn", lang=lang),
                  key=f"orch_save_delegation_{slug}", type="primary"):
         ok_agents = set_allowed_agents(slug, selected_agents)
         ok_assistants = set_allowed_assistants(slug, selected_assistants)
+        # Written only when the checkbox actually changed its state: a save of
+        # the other settings must not record a decision the user never made.
+        ok_universal = True
+        if bool(sel_universal) != bool(current_universal):
+            ok_universal = set_universal_agent_enabled(slug, bool(sel_universal))
         # Written only when the choice actually changed: a save of the other
         # settings must not touch the verifier appointment, and a no-op write
         # would still sync the orchestrator folder.
@@ -3141,8 +3353,13 @@ def _render_delegation_settings(slug: str, lang: str) -> None:
             "total_subagent_runs": int(sel_total),
             "subagent_timeout_seconds": int(sel_timeout),
             "subagent_budget_tokens": int(sel_budget),
+            "dialog_rounds": int(sel_rounds),
+            "question_max_chars": int(sel_question_chars),
+            "answer_max_chars": int(sel_answer_chars),
+            "answer_wait_seconds": int(sel_wait),
+            "max_parked_runs": int(sel_parked),
         })
-        if ok_agents and ok_assistants and ok_limits and ok_verifier:
+        if ok_agents and ok_assistants and ok_limits and ok_verifier and ok_universal:
             pin_settings_section(slug, "delegation")
             flash_success(t("orch_delegation_saved", lang=lang))
             st.rerun()

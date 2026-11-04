@@ -82,6 +82,14 @@ from storage.models import DEFAULT_MAX_STEPS
 # Built-in DevAgent orchestrator slug.
 DEVAGENT_SLUG = "dev_agent"
 
+# Bundled general-purpose executor. Unlike an ordinary allowlist entry it is
+# offered to every orchestrator by default (see
+# ``get_universal_agent_enabled``): the user switches it off per orchestrator
+# in the delegation settings, and the config keeps only that explicit
+# decision - never a list entry that a settings save could drop.
+UNIVERSAL_AGENT_SLUG = "universal_agent"
+UNIVERSAL_AGENT_CONFIG_KEY = "universal_agent_enabled"
+
 # Default system prompt for the web-search sub-agent. Every orchestrator can
 # override it via the ``web_search_prompt`` config key; dynamic, task-specific
 # additions are passed through the ``instructions`` argument of the web_search
@@ -1037,6 +1045,80 @@ def set_allowed_agents(orchestrator_slug: str, agent_slugs: List[str]) -> bool:
     return ok
 
 
+def get_universal_agent_enabled(orchestrator_slug: str = DEVAGENT_SLUG) -> bool:
+    """Return whether the bundled Universal-Agent is offered to this orchestrator.
+
+    The answer comes from ``config.universal_agent_enabled`` and defaults to
+    True: the executor is available out of the box, and the user takes that
+    right away per orchestrator with a checkbox. An ABSENT key therefore
+    means "on" - that is what makes a freshly created employee delegate to
+    it without any configuration step.
+
+    A stored non-boolean value (hand-edited folder, older import) is read
+    through its truthiness so a recorded decision is never silently lost.
+    """
+    orch = get_orchestrator(orchestrator_slug)
+    cfg = orch.get("config", {}) if orch else {}
+    if not isinstance(cfg, dict):
+        return True
+    if UNIVERSAL_AGENT_CONFIG_KEY not in cfg:
+        return True
+    return bool(cfg.get(UNIVERSAL_AGENT_CONFIG_KEY))
+
+
+def set_universal_agent_enabled(orchestrator_slug: str, enabled: bool) -> bool:
+    """Store the Universal-Agent availability decision; syncs the folder.
+
+    Only the explicit decision is written: the ``allowed_agents`` list stays
+    exactly what the user chose, so a later settings save cannot lose the
+    flag and the flag cannot turn into a stray list entry.
+    """
+    orch = get_orchestrator(orchestrator_slug)
+    if orch is None:
+        return False
+    cfg = orch.get("config", {})
+    if not isinstance(cfg, dict):
+        cfg = {}
+    cfg = dict(cfg)
+    cfg[UNIVERSAL_AGENT_CONFIG_KEY] = bool(enabled)
+    ok = repo_update_orchestrator(orch["id"], config=cfg)
+    if ok:
+        _sync_orchestrator_folder(orchestrator_slug)
+    return ok
+
+
+def get_effective_agents(orchestrator_slug: str = DEVAGENT_SLUG) -> List[str]:
+    """Return every non-self agent this orchestrator may actually spawn.
+
+    The configured ``allowed_agents`` plus the bundled Universal-Agent while
+    its flag is on and the employee exists. This - not the raw allowlist -
+    is the list the runtime enforces and the prompt advertises, so the two
+    can never disagree about who is callable.
+
+    The universal slug is skipped when the orchestrator IS that agent (an
+    employee never delegates to itself through this entry - self-delegation
+    is a separate, always-available right) and when the employee has been
+    deleted from the installation.
+    """
+    agents = [a for a in get_allowed_agents(orchestrator_slug)
+              if a != orchestrator_slug]
+    if orchestrator_slug == UNIVERSAL_AGENT_SLUG:
+        return agents
+    try:
+        enabled = get_universal_agent_enabled(orchestrator_slug)
+    except Exception:
+        enabled = True
+    if not enabled or UNIVERSAL_AGENT_SLUG in agents:
+        return agents
+    try:
+        live = get_orchestrator(UNIVERSAL_AGENT_SLUG)
+    except Exception:
+        live = None
+    if not live:
+        return agents
+    return agents + [UNIVERSAL_AGENT_SLUG]
+
+
 def get_allowed_assistants(orchestrator_slug: str = DEVAGENT_SLUG) -> List[str]:
     """Return the assistant ids this orchestrator may call one-shot.
 
@@ -1141,6 +1223,15 @@ DELEGATION_LIMIT_KEYS = (
     ("subagent_budget_tokens", 0),
     ("subagent_timeout_seconds", 3600),
     ("total_subagent_runs", 64),
+    # ── Agent dialog ───────────────────────────────────────────────────────
+    # Kept in the SAME tuple as the delegation limits: the dialog is part of
+    # the delegation surface, and a separate settings block would let the two
+    # drift apart in the UI and in the resolver.
+    ("dialog_rounds", 5),
+    ("question_max_chars", 1500),
+    ("answer_max_chars", 4000),
+    ("answer_wait_seconds", 900),
+    ("max_parked_runs", 8),
 )
 
 
@@ -1412,10 +1503,15 @@ def _extend_prompt_with_delegation(prompt: str, orchestrator_slug: str = DEVAGEN
                     for o in list_orchestrators()}
         except Exception:
             live = {}
-        for slug in get_allowed_agents(orchestrator_slug):
+        for slug in get_effective_agents(orchestrator_slug):
             if slug == orchestrator_slug:
                 continue
-            entries.append("- `%s` - %s" % (slug, live.get(slug) or "name unknown"))
+            suffix = ""
+            if slug == UNIVERSAL_AGENT_SLUG:
+                suffix = (" (available by default; your user can switch "
+                          "this right off in the delegation settings)")
+            entries.append("- `%s` - %s%s" % (slug, live.get(slug) or "name unknown",
+                                              suffix))
         lines.extend([
             "## Available agents (spawn_agent)",
             "",
@@ -1682,8 +1778,72 @@ def _extend_prompt_with_current_date(prompt: str,
 # ─── Assistant-dict building (for agent loop) ─────────────────────────────
 
 
+#: Rules of the agent dialog. Kept as module constants rather than being
+#: assembled from fragments: the text is read by every orchestrator and a
+#: typo in one branch changes the behaviour of all of them.
+_DIALOG_RULES_PARENT = (
+    "## Answering a subagent's question\n",
+    "",
+    "A subagent can park its run and ask you a question when the brief does "
+    "not let it continue: it cannot reach the user, only you can answer.\n",
+    "",
+    "- The question arrives with `await_reason: question` and a `question` "
+    "object. Answer it with `answer_child(run_id, answer)`; the subagent "
+    "continues the SAME run, with the same files, context and step budget.\n",
+    "- If you do not know the answer, ask the user in the dialog first, then "
+    "pass their decision on. Never guess on the user's behalf.\n",
+    "- Be concrete: the subagent acts on your words. An answer is a decision "
+    "or a missing fact, not a new briefing - a new scope needs a new "
+    "delegation.\n",
+    "- The number of question/answer pairs per run is limited. When the "
+    "subagent keeps asking instead of working, reply with a directive to "
+    "finish with the information it already has.\n",
+)
+
+_DIALOG_RULES_CHILD = (
+    "## Asking the agent that launched you\n",
+    "",
+    "When the brief does not let you continue - a decision only the parent "
+    "can make, a missing fact, an ambiguity that changes the result - park "
+    "your run with `ask_parent`.\n",
+    "",
+    "- Put the decision you need in `question`, the answers you can act on "
+    "in `options`, what is already finished in `done` and what you cannot do "
+    "without the answer in `blocked`.\n",
+    "- Asking parks the run: never start solving the same question in the "
+    "same step, and never repeat a question you already asked.\n",
+    "- The answer arrives as a user message and your work continues from "
+    "where it stopped, with the same files and step budget.\n",
+    "- Ask only for what you cannot decide yourself: the number of "
+    "question/answer pairs per run is limited, and a question costs a round.\n",
+)
+
+
+def _extend_prompt_with_dialog(prompt: str, orchestrator_slug: str = DEVAGENT_SLUG,
+                               role: str = "parent") -> str:
+    """Append the rules of the agent dialog for the given role.
+
+    ``role`` is ``parent`` for an orchestrator that may answer a parked child
+    and ``child`` for the subagent that may ask. The block is best effort: a
+    config read failure returns the prompt unchanged rather than breaking it.
+    """
+    try:
+        from core.orchestrator_tools import is_conditional_tool_enabled
+        tool = "answer_child" if role == "parent" else "ask_parent"
+        if not is_conditional_tool_enabled(tool, orchestrator_slug):
+            return prompt
+    except Exception:
+        return prompt
+    lines = _DIALOG_RULES_PARENT if role == "parent" else _DIALOG_RULES_CHILD
+    block = "".join(lines).rstrip()
+    if prompt.strip():
+        return prompt + "\n\n" + block
+    return block
+
+
 def build_assistant_dicts(orchestrator_slug: str = DEVAGENT_SLUG,
-                          workspace: str = "") -> Tuple[dict, dict]:
+                          workspace: str = "",
+                          dialog_role: str = "parent") -> Tuple[dict, dict]:
     """Build (strong_assistant, weak_assistant) from an orchestrator's config.
 
     Assistant dicts are compatible with ``core.api_layer.send_request``.
@@ -1724,6 +1884,12 @@ def build_assistant_dicts(orchestrator_slug: str = DEVAGENT_SLUG,
     prompt = _extend_prompt_with_rag_bases(prompt, orchestrator_slug)
     # Append the agents and assistants this orchestrator may delegate to.
     prompt = _extend_prompt_with_delegation(prompt, orchestrator_slug)
+    # Append the rules of the agent dialog before the tool catalog: the rules
+    # talk about the two tools, and a reader who meets the rules first already
+    # knows what the catalog entries are for. The dialog role decides the
+    # text: a top-level dialog answers its children, a child asks its parent.
+    prompt = _extend_prompt_with_dialog(prompt, orchestrator_slug,
+                                        role=dialog_role)
     # Append the available-tools catalog (system + custom functions),
     # excluding disabled tools.
     prompt = _extend_prompt_with_tools(prompt, orchestrator_slug)

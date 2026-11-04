@@ -24,8 +24,11 @@ def test_trim_from_front_under_soft_threshold(monkeypatch):
     monkeypatch.setattr('core.context_guard.get_model_context_window',
                         lambda a, s: 1000)
 
-    hist = [{'role': 'user', 'content': 'apple ' * 200}]
-    hist.append({'role': 'assistant', 'content': 'kiwi ' * 200})
+    # Each filler message must outweigh the fixed prompt by a wide margin,
+    # otherwise the soft threshold is met before the second message is
+    # dropped and the assertion on 'kiwi' proves nothing.
+    hist = [{'role': 'user', 'content': 'apple ' * 1600}]
+    hist.append({'role': 'assistant', 'content': 'kiwi ' * 1600})
     hist.append({'role': 'user', 'content': 'pear ' * 200})
     hist.append({'role': 'assistant', 'content': 'grape ' * 50})
     out = apply_context_guard(hist, 'hello', assistant={'text': 'sys ' * 100})

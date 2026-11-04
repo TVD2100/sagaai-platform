@@ -100,6 +100,31 @@ ERR_STALE_RUN = "stale_run"
 ERR_RESUME_CHAIN_LIMIT = "resume_chain_limit"
 ERR_BACKGROUND_UNSUPPORTED = "background_unsupported"
 
+# ─── Agent dialog (parent <-> child question/answer) ────────────────────────
+
+#: The question was parked, but nobody answered it before the wait expired.
+#: Kept apart from ``timeout``: the run was not working, it was WAITING, so the
+#: fix is to answer earlier or raise the wait, not to narrow the task.
+ERR_ANSWER_NOT_RECEIVED = "answer_not_received"
+#: The run used its whole question budget. A child that keeps asking instead
+#: of working is the failure mode this limit exists for; the parent must
+#: answer with a directive to finish, not with another long explanation.
+ERR_QUESTION_LIMIT = "question_limit"
+#: The run is not waiting for an answer, so there is nothing to unpack.
+ERR_NOTHING_TO_ANSWER = "nothing_to_answer"
+#: The run already reached a terminal state and cannot be continued in place.
+ERR_RUN_ALREADY_FINISHED = "run_already_finished"
+#: Too many runs of one tree are parked at once: a waiting run is cheap, but an
+#: unbounded set of them would hold the tree open forever.
+ERR_TOO_MANY_PARKED = "too_many_parked"
+
+#: Reasons a run may sit in ``awaiting_input``. ``unfinished`` is the older
+#: meaning (the child exhausted its autonomous continuations without ever
+#: signalling completion) and stays the reading of a record that carries no
+#: reason at all, so records written before this change keep their meaning.
+AWAIT_QUESTION = "question"
+AWAIT_UNFINISHED = "unfinished"
+
 # ─── Result verification (o-4) ──────────────────────────────────────────────
 
 #: No verifier is appointed for the orchestrator. Kept apart from
@@ -158,6 +183,36 @@ DEFAULT_POOL_WAIT_SECONDS = 600
 #: next batch of a long session.
 DEFAULT_TOTAL_SUBAGENT_RUNS = 64
 
+# ─── Defaults of the agent dialog ───────────────────────────────────────────
+
+#: Question/answer pairs one run may exchange. Five covers a genuinely unclear
+#: task (goal, format, source of truth, edge case, confirmation) and still ends
+#: a child that asks instead of working.
+DEFAULT_DIALOG_ROUNDS = 5
+
+#: Longest question a child may send. A question is a question, not a report:
+#: the report belongs in the run summary, and an unbounded question would let
+#: one run flood the parent's context with a whole transcript.
+DEFAULT_QUESTION_MAX_CHARS = 1500
+
+#: Longest answer a parent may send. An answer that needs more room is a new
+#: briefing, and a new briefing belongs in ``resume_subagent``.
+DEFAULT_ANSWER_MAX_CHARS = 4000
+
+#: How long a parked run waits for an answer. A waiting run costs no provider
+#: time, so the window is short enough to be noticed: a question nobody answers
+#: is a stalled task the user should see, not a state that lingers for hours.
+DEFAULT_ANSWER_WAIT_SECONDS = 900
+
+#: Ceiling of the wait, mirroring the child run budget: a parked run must not
+#: outlive the dialog that can answer it.
+MAX_ANSWER_WAIT_SECONDS = 3600
+
+#: Parked runs one tree may hold at once. They no longer occupy a concurrency
+#: slot (a waiting run is not working), so this is the separate guard that keeps
+#: a fan-out from turning into a warehouse of half-finished children.
+DEFAULT_MAX_PARKED_RUNS = 8
+
 
 @dataclass(frozen=True)
 class Artifact:
@@ -175,6 +230,67 @@ class Artifact:
     def to_dict(self) -> Dict[str, str]:
         """Return the compact dict form used in tool results."""
         return {"path": self.path, "kind": self.kind, "digest": self.digest}
+
+
+@dataclass(frozen=True)
+class AgentQuestion:
+    """One question a child parked its run to ask its parent.
+
+    A question is structured rather than free prose in the journal: the parent
+    must be able to tell WHAT is blocked, WHAT is already done and WHICH answer
+    is expected without reading the child's whole conversation. ``text`` is the
+    question itself; ``done``/``blocked`` are the short report that keeps a
+    question from becoming a status update.
+    """
+
+    text: str = ""
+    options: List[str] = field(default_factory=list)
+    done: str = ""
+    blocked: str = ""
+    asked_at: float = 0.0
+    deadline_at: float = 0.0
+    answer: str = ""
+    answered_at: float = 0.0
+    answered_by: str = ""
+
+    @property
+    def answered(self) -> bool:
+        """True once an answer was recorded for this question."""
+        return bool((self.answer or "").strip())
+
+    def to_dict(self) -> Dict[str, object]:
+        """Return the compact dict form used in tool results and records."""
+        return {
+            "text": self.text,
+            "options": list(self.options),
+            "done": self.done,
+            "blocked": self.blocked,
+            "asked_at": self.asked_at,
+            "deadline_at": self.deadline_at,
+            "answer": self.answer,
+            "answered_at": self.answered_at,
+            "answered_by": self.answered_by,
+        }
+
+    @classmethod
+    def from_dict(cls, raw: object) -> Optional["AgentQuestion"]:
+        """Rebuild a question from a stored record, or None when absent."""
+        if isinstance(raw, AgentQuestion):
+            return raw
+        if not isinstance(raw, dict):
+            return None
+        options = raw.get("options")
+        return cls(
+            text=str(raw.get("text") or ""),
+            options=[str(x) for x in options] if isinstance(options, (list, tuple)) else [],
+            done=str(raw.get("done") or ""),
+            blocked=str(raw.get("blocked") or ""),
+            asked_at=_float_of(raw.get("asked_at")),
+            deadline_at=_float_of(raw.get("deadline_at")),
+            answer=str(raw.get("answer") or ""),
+            answered_at=_float_of(raw.get("answered_at")),
+            answered_by=str(raw.get("answered_by") or ""),
+        )
 
 
 @dataclass(frozen=True)
@@ -213,6 +329,17 @@ class AgentRunResult:
     # to True so a plain informational result keeps its old meaning.
     retryable: bool = True
 
+    # ── Agent dialog ───────────────────────────────────────────────────────
+    # ``await_reason`` tells the two meanings of ``awaiting_input`` apart: a
+    # run parked on a QUESTION (answer it, then it continues in place) and a
+    # run that exhausted its autonomous continuations (read, then resume).
+    # ``question`` carries the parked question itself so the parent does not
+    # have to read a journal to learn what is blocked. Both are empty for a
+    # run that never asked anything, so the old shape keeps working.
+    await_reason: str = ""
+    question: Optional[AgentQuestion] = None
+    dialog_rounds: int = 0
+
     def to_dict(self) -> Dict[str, object]:
         """Return the compact dict form sent back to the parent model.
 
@@ -234,6 +361,9 @@ class AgentRunResult:
             "pending": list(self.pending),
             "resume_hint": self.resume_hint,
             "retryable": bool(self.retryable),
+            "await_reason": self.await_reason,
+            "question": self.question.to_dict() if self.question else None,
+            "dialog_rounds": int(self.dialog_rounds or 0),
         }
 
     @property
@@ -408,6 +538,10 @@ FINAL_STATUS_MAP: Dict[str, tuple] = {
     "error": (STATUS_FAILED, STOP_ERROR, None),          # code from the exception
     "awaiting_confirmation": (STATUS_AWAITING_INPUT, None, None),
     "awaiting_user": (STATUS_AWAITING_INPUT, None, None),
+    # A run parked on a question is not UNFINISHED: it waits for an answer it
+    # can actually receive and then continues in place. The two share the
+    # status and differ by the reason carried on the record.
+    "awaiting_question": (STATUS_AWAITING_INPUT, None, None),
     "awaiting_approval": (STATUS_AWAITING_INPUT, None, None),
     "sanitized_required": (STATUS_FAILED, STOP_ERROR, ERR_SANITIZED_REQUIRED),
     "stopped_by_user": (STATUS_CANCELLED, STOP_ABORTED, ERR_CANCELLED_BY_USER),
@@ -483,6 +617,14 @@ def _int_of(value: object) -> int:
         return 0
 
 
+def _float_of(value: object) -> float:
+    """Return *value* as a float, or 0.0 when it is not a number."""
+    try:
+        return float(value or 0.0)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def result_from_record(record: Dict[str, Any]) -> Optional[AgentRunResult]:
     """Build an ``AgentRunResult`` view of a live or stored run record.
 
@@ -524,6 +666,18 @@ def result_from_record(record: Dict[str, Any]) -> Optional[AgentRunResult]:
         pending=[str(item) for item in pending] if isinstance(pending, (list, tuple)) else [],
         resume_hint=str(source.get("resume_hint") or ""),
         retryable=bool(source.get("retryable", record.get("retryable", True))),
+        # A parked run answers from either shape: the frozen result of a
+        # finished record carries the question, and a live record carries it
+        # at the top level. Both are read so a caller sees the same answer
+        # whether the run is still in the registry or was rebuilt from disk.
+        await_reason=str(source.get("await_reason")
+                          or record.get("await_reason") or ""),
+        question=AgentQuestion.from_dict(source.get("question")
+                                         if source.get("question") is not None
+                                         else record.get("question")),
+        dialog_rounds=_int_of(source.get("dialog_rounds")
+                              if source.get("dialog_rounds") is not None
+                              else record.get("dialog_rounds")),
     )
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

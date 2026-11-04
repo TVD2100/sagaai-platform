@@ -41,6 +41,11 @@ BASE_LIMITS = {
     "subagent_budget_tokens": 0,
     "subagent_timeout_seconds": 3600,
     "total_subagent_runs": 64,
+    "dialog_rounds": 5,
+    "question_max_chars": 1500,
+    "answer_max_chars": 4000,
+    "answer_wait_seconds": 900,
+    "max_parked_runs": 8,
 }
 
 LIMIT_WIDGET_KEYS = (
@@ -50,6 +55,11 @@ LIMIT_WIDGET_KEYS = (
     f"orch_delegation_total_runs_{SLUG}",
     f"orch_delegation_timeout_{SLUG}",
     f"orch_delegation_budget_{SLUG}",
+    f"orch_dialog_rounds_{SLUG}",
+    f"orch_dialog_question_chars_{SLUG}",
+    f"orch_dialog_answer_chars_{SLUG}",
+    f"orch_dialog_wait_{SLUG}",
+    f"orch_dialog_max_parked_{SLUG}",
 )
 
 
@@ -199,6 +209,35 @@ def test_limit_inputs_show_the_stored_values(env):
     assert values[f"orch_delegation_budget_{SLUG}"] == 0
 
 
+def test_dialog_inputs_show_the_stored_values(env):
+    """The five dialog limits are editable next to the delegation ones."""
+    st, _mocks, orch_mod = env
+    _render(st, orch_mod)
+
+    values = {kwargs["key"]: kwargs.get("value")
+              for _n, _a, kwargs in st.calls if kwargs.get("key")}
+    assert values[f"orch_dialog_rounds_{SLUG}"] == 5
+    assert values[f"orch_dialog_question_chars_{SLUG}"] == 1500
+    assert values[f"orch_dialog_answer_chars_{SLUG}"] == 4000
+    assert values[f"orch_dialog_wait_{SLUG}"] == 900
+    assert values[f"orch_dialog_max_parked_{SLUG}"] == 8
+
+
+def test_dialog_inputs_survive_a_partial_limit_mapping(env):
+    """A resolver that omits the dialog keys must not break the tab."""
+    st, mocks, orch_mod = env
+    mocks["limits"] = {key: value for key, value in BASE_LIMITS.items()
+                       if not key.startswith(("dialog_", "question_",
+                                              "answer_", "max_parked"))}
+
+    _render(st, orch_mod)
+
+    values = {kwargs["key"]: kwargs.get("value")
+              for _n, _a, kwargs in st.calls if kwargs.get("key")}
+    assert values[f"orch_dialog_rounds_{SLUG}"] == 5
+    assert values[f"orch_dialog_wait_{SLUG}"] == 900
+
+
 def test_every_limit_input_has_a_real_tooltip(env):
     st, _mocks, orch_mod = env
     _render(st, orch_mod)
@@ -250,6 +289,11 @@ def test_save_persists_selection_and_limits(env):
     assert limits_arg["max_active_subagents"] == 5
     assert limits_arg["subagent_max_steps"] == 300
     assert limits_arg["total_subagent_runs"] == 64
+    # The dialog settings travel with the same save: the child's question
+    # budget is part of the delegation surface, not a separate screen.
+    assert limits_arg["dialog_rounds"] == 5
+    assert limits_arg["answer_wait_seconds"] == 900
+    assert limits_arg["max_parked_runs"] == 8
 
     mocks["success"].assert_called_once()
     mocks["pinned"].assert_called_once_with(SLUG, "delegation")

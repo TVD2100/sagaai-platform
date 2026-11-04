@@ -5,16 +5,10 @@ cryptography>=41.0
 
 # Optional document parsing and utilities
 pypdf>=3.0
-python-docx>=0.8
-python-pptx>=0.6
-openpyxl>=3.1
-# 0.11+ renders PDF pages without an external binary (pypdfium2); older
-# releases need a system renderer for the scanned-page path.
-pdfplumber>=0.11
+# Renders PDF pages for the scanned-document path; bundles PDFium, so no
+# external binary (pdftoppm, ImageMagick) is needed.
+pypdfium2>=4.18
 Pillow>=9.0
-tiktoken>=0.5
-markdown>=3.0
-reportlab>=4.0
 
 # Optional Selenium rendering of web pages (url_fetch tool)
 selenium>=4.10

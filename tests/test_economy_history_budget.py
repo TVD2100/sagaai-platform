@@ -6,7 +6,7 @@ The budget keeps estimated input + configured max output inside
 messages. The compact metadata system message (head) is never removed.
 These tests monkeypatch the window / max-output / token-estimation lookups
 so the assertions depend only on the trimming logic, not on provider
-configs or tiktoken availability.
+configs or the tokenizer in use.
 """
 from __future__ import annotations
 

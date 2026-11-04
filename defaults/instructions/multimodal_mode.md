@@ -145,11 +145,12 @@ Before any multimodal-adjacent dependency work:
 
 1. Check what is already available - one `run_code` probe per candidate, e.g.
    `import PIL`, `import pytesseract`, `shutil.which("tesseract")`. Do not
-   assume a library is missing. Picture extraction relies on the document
-   libraries already used for text (`pypdf`, `python-docx`, `python-pptx`,
-   `openpyxl`), plus `pdfplumber>=0.11` for PDF page rendering and optional
-   Pillow for reporting picture sizes; a missing piece degrades to a warning
-   in the tool result, never to a failed task.
+   assume a library is missing. Text and picture extraction read office
+   formats through the project's own `core.ooxml` (standard library only),
+   PDF text through `pypdf`, PDF page rendering through `pypdfium2`, and
+   rely on optional Pillow for picture sizes and format conversion; a
+   missing piece degrades to a warning in the tool result, never to a
+   failed task.
 2. If something must be installed (e.g. Pillow for format conversion,
    Tesseract for local OCR), STOP and ask the user explicitly: what is
    needed, why, and which command would run (`pip install ...`, system

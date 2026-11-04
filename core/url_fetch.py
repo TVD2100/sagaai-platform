@@ -300,8 +300,7 @@ def extract_pdf_markdown(raw: bytes) -> str:
     """Extract text from a PDF and render it as Markdown.
 
     Each page becomes a ``### Page N`` section, so a long document keeps a
-    navigable structure. ``pdfplumber`` is tried first (it copes better
-    with tables and unusual encodings) and ``pypdf`` is the fallback.
+    navigable structure.
 
     Args:
         raw: PDF file bytes.
@@ -311,26 +310,15 @@ def extract_pdf_markdown(raw: bytes) -> str:
         layer at all (for example a scan without OCR).
 
     Raises:
-        RuntimeError: neither PDF library is installed or both failed.
+        RuntimeError: pypdf is not installed or failed on the document.
     """
     if not raw:
         return ""
-    errors = []
-    try:
-        import pdfplumber
-        parts = []
-        with pdfplumber.open(io.BytesIO(raw)) as pdf:
-            for i, page in enumerate(pdf.pages, 1):
-                text = (page.extract_text() or "").strip()
-                if text:
-                    parts.append(_pdf_page_section(i, text))
-        return "\n\n".join(parts)
-    except ImportError:
-        errors.append("pdfplumber is not installed")
-    except Exception as exc:
-        errors.append(f"pdfplumber: {exc}")
     try:
         import pypdf
+    except ImportError:
+        raise RuntimeError("PDF text extraction failed: pypdf is not installed")
+    try:
         reader = pypdf.PdfReader(io.BytesIO(raw))
         parts = []
         for i, page in enumerate(reader.pages, 1):
@@ -338,11 +326,8 @@ def extract_pdf_markdown(raw: bytes) -> str:
             if text:
                 parts.append(_pdf_page_section(i, text))
         return "\n\n".join(parts)
-    except ImportError:
-        errors.append("pypdf is not installed")
     except Exception as exc:
-        errors.append(f"pypdf: {exc}")
-    raise RuntimeError("PDF text extraction failed: " + "; ".join(errors))
+        raise RuntimeError(f"PDF text extraction failed: pypdf: {exc}")
 
 
 def download_bytes(url: str, *, timeout: tuple = DOWNLOAD_TIMEOUT,

@@ -32,6 +32,13 @@ from typing import Any, Dict, List, Optional
 
 from core.orchestration.contracts import (
     AgentBrief,
+    AgentQuestion,
+    AWAIT_QUESTION,
+    DEFAULT_ANSWER_MAX_CHARS,
+    DEFAULT_ANSWER_WAIT_SECONDS,
+    DEFAULT_DIALOG_ROUNDS,
+    DEFAULT_MAX_PARKED_RUNS,
+    DEFAULT_QUESTION_MAX_CHARS,
     ERR_AGENT_NOT_ALLOWED,
     ERR_ASSISTANT_NOT_ALLOWED,
     ERR_CHILD_UNFINISHED,
@@ -121,6 +128,14 @@ def run_note(run: Dict[str, Any], *, timed_out: bool = False) -> str:
                     "instead of repeating the call verbatim.")
         return "The child failed; the run is marked not retryable."
     if status == STATUS_AWAITING_INPUT:
+        if str(run.get("await_reason") or "") == AWAIT_QUESTION:
+            # The one status that is answered, not resumed: the child waits
+            # for a decision and continues the SAME run once it has one.
+            return ("The child is waiting for an ANSWER, not for a resume: "
+                    "it parked its own run. Read what it needs in the "
+                    "``question`` field and reply with "
+                    "answer_child(run_id, answer). Resuming would start a "
+                    "different attempt and leave the question unanswered.")
         if code == ERR_CHILD_UNFINISHED:
             return ("The child did its work but never signalled completion: "
                     "its files are usually on disk already. Check the "
@@ -145,10 +160,62 @@ def _attach_note(payload: Dict[str, Any], note: str) -> Dict[str, Any]:
     return out
 
 
+def fence_question_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Wrap a parked child's question in data fences for the parent model.
+
+    A question is written by a process that reads files, web pages and
+    documents: whatever it quotes must not gain the force of an instruction
+    once it reaches the parent. The fenced form is what the model sees; the
+    record keeps the plain text, so the UI can show it as written.
+    """
+    if not isinstance(payload, dict):
+        return payload
+    result = payload.get("result")
+    source = result if isinstance(result, dict) else payload
+    question = source.get("question")
+    if not isinstance(question, dict) or not question:
+        return payload
+    try:
+        from core.prompt_guard import wrap_data
+    except Exception:  # pragma: no cover - guard is best effort
+        return payload
+    def _once(value: str) -> str:
+        # A payload can pass through this function twice (the blocking result
+        # first, then the notice built from it). Wrapping an already fenced
+        # value would nest the fences and hide the real boundary.
+        if not str(value or "").strip():
+            return str(value or "")
+        try:
+            from core.prompt_guard import is_wrapped_data
+            if is_wrapped_data(value):
+                return value
+        except Exception:  # pragma: no cover - guard is best effort
+            pass
+        return wrap_data(value, "subagent_question")
+
+    fenced = dict(question)
+    for field in ("text", "done", "blocked"):
+        value = str(fenced.get(field) or "")
+        if value.strip():
+            fenced[field] = _once(value)
+    options = fenced.get("options")
+    if isinstance(options, (list, tuple)):
+        fenced["options"] = [_once(str(o)) for o in options]
+    out = dict(payload)
+    if isinstance(result, dict):
+        new_result = dict(result)
+        new_result["question"] = fenced
+        out["result"] = new_result
+    else:
+        out["question"] = fenced
+    return out
+
+
 def _note_for_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Attach the explanation of a spawn/resume result to its own payload."""
     if not isinstance(payload, dict):
         return payload
+    payload = fence_question_payload(payload)
     result = payload.get("result")
     if isinstance(result, dict):
         return _attach_note(payload, run_note(result))
@@ -188,13 +255,18 @@ def _allowlist_context(parent_slug: str) -> Dict[str, Any]:
     """Return the allowlist view of a parent orchestrator.
 
     The result always contains the parent itself in ``allowed`` (self-
-    delegation is not configurable) plus every configured agent. The
-    ``self_only`` flag is set when the configured list is empty: it exists
-    to tell the model not to probe for other slugs.
+    delegation is not configurable) plus every agent it may actually spawn.
+    The effective list is read rather than the raw config: the bundled
+    Universal-Agent belongs to the default rights of every orchestrator, and
+    enforcing the raw allowlist here would advertise a right the prompt
+    offers and the runtime then refuses.
+
+    The ``self_only`` flag is set when nothing but the parent remains: it
+    exists to tell the model not to probe for other slugs.
     """
     try:
-        from core.orchestrators import get_allowed_agents
-        configured = get_allowed_agents(parent_slug)
+        from core.orchestrators import get_effective_agents
+        configured = get_effective_agents(parent_slug)
     except Exception:
         configured = []
     allowed: List[str] = [parent_slug]
@@ -568,12 +640,12 @@ def subagent_result(run_id: Optional[str] = None, *,
             "waited_seconds": waited,
         }
         note = run_note(record)
-        if status == STATUS_AWAITING_INPUT:
+        if status == STATUS_AWAITING_INPUT and not note:
             note = ("The run stopped with work unfinished, so it has no result "
                     "yet. Read its journal with read_subagent_state(run_id=...) "
                     "and continue it with resume_subagent; do not report partial "
                     "work as its result.")
-        return _attach_note(payload, note)
+        return _attach_note(fence_question_payload(payload), note)
 
     result = result_from_record(record)
     if result is None:  # pragma: no cover - defensive
@@ -1241,6 +1313,207 @@ def sleep_tool(
 
     return {"ok": True, "slept": round(time.monotonic() - started, 1),
             "woken_by": woken_by, "finished": finished, "clamped": clamped}
+
+
+def ask_parent(question: str, options: Any = None, done: str = "",
+               blocked: str = "", *, run_id: str = "", parent_slug: str = "",
+               parent_config: Optional[Dict[str, Any]] = None,
+               service: Any = None, state: Any = None) -> Dict[str, Any]:
+    """Park the current run on a question to the agent that started it.
+
+    A child cannot reach a human: only the parent that briefed it can answer,
+    and the parent may itself ask the user. The call therefore does two
+    things at once - it records the question on the run (durable, readable
+    after a restart) and tells the loop to stop at this step boundary, so the
+    parent gets control back and can reply.
+
+    Refusals are decided HERE, before anything is parked: an empty or
+    oversized question, a spent dialog budget and too many parked siblings
+    all leave the run running, so the child can carry on with an assumption
+    instead of waiting for an answer that will never come.
+    """
+    rid = (run_id or "").strip()
+    if not rid:
+        return error_result("", "A question needs a run to park: the loop reported "
+                           "no run id.", ERR_INVALID_ARGS)
+    text = str(question or "").strip()
+    if not text:
+        return error_result(rid, "The question is empty. State what you cannot "
+                           "decide and what you need in order to continue.",
+                           ERR_INVALID_ARGS)
+    if service is None:
+        from core.orchestration.service import get_service
+        service = get_service()
+    # A top-level dialog has nobody above it: parking it on a question would
+    # stop the very run the user is waiting for, and no tool could answer it.
+    # The child is the only role that may ask, so the refusal names the tool
+    # to use instead.
+    record = service.get_record(rid)
+    if record is not None and not record.parent_run_id:
+        return error_result(
+            rid,
+            "This run is a top-level dialog: there is no parent agent to ask. "
+            "Ask the USER in your reply instead - end the turn with the "
+            "question and loop_status awaiting_user.",
+            ERR_INVALID_ARGS)
+    limits = read_dialog_limits(parent_config)
+    if len(text) > limits["question_max_chars"]:
+        return error_result(
+            rid,
+            "The question is too long (" + str(len(text)) + " > "
+            + str(limits["question_max_chars"]) + " characters). Keep the "
+            "question itself short and put the details into 'done' and "
+            "'blocked'.",
+            ERR_INVALID_ARGS, limit="question_max_chars",
+            value=limits["question_max_chars"])
+    opts: List[str] = []
+    if isinstance(options, (list, tuple)):
+        opts = [str(item) for item in options if str(item or "").strip()][:8]
+    elif isinstance(options, str) and options.strip():
+        opts = [options.strip()]
+    try:
+        asker = str(parent_slug or "")
+        record = service.get_record(rid)
+        if record is not None:
+            asker = "subagent of " + (record.parent_run_id or "parent")
+    except Exception:  # pragma: no cover - naming is cosmetic
+        asker = str(parent_slug or "")
+    now = time.time()
+    agent_question = AgentQuestion(
+        text=text, options=opts, done=str(done or "")[:1000],
+        blocked=str(blocked or "")[:1000], asked_at=now,
+        deadline_at=now + int(limits["answer_wait_seconds"]))
+    parked = service.park_run(rid, agent_question, limits=limits, state=state)
+    if not parked.get("ok"):
+        return parked
+    if state is not None:
+        try:
+            state.parked_question = agent_question.to_dict()
+        except Exception:  # pragma: no cover - state is best effort
+            pass
+    return {
+        "ok": True,
+        "parked": True,
+        "run_id": rid,
+        "status": STATUS_AWAITING_INPUT,
+        "await_reason": AWAIT_QUESTION,
+        "dialog_rounds": parked.get("dialog_rounds"),
+        "dialog_rounds_left": max(0, int(parked.get("limit") or 0)
+                                  - int(parked.get("dialog_rounds") or 0)),
+        "question": agent_question.to_dict(),
+        "note": ("Your run is parked until the parent answers: stop this turn "
+                 "and do not repeat the question. The answer arrives as a "
+                 "user message and your work continues from here. Rounds left "
+                 "after this question: "
+                 + str(max(0, int(parked.get("limit") or 0)
+                           - int(parked.get("dialog_rounds") or 0))) + "."),
+        "asked_by": asker,
+    }
+
+
+def answer_child(run_id: str, answer: str, *, parent_slug: str = "",
+                 parent_run_id: Optional[str] = None, thread_id: str = "",
+                 parent_config: Optional[Dict[str, Any]] = None,
+                 base_dir: Optional[str] = None, lang: Optional[str] = None,
+                 service: Any = None) -> Dict[str, Any]:
+    """Answer a parked subagent and let it continue the SAME run.
+
+    The reply is delivered as the parent's answer to the child's question, the
+    child loop continues from the step it stopped at, and the call returns the
+    child result - or the child's NEXT question when it asks again.
+    """
+    rid = (run_id or "").strip()
+    if not rid:
+        return error_result("", "answer_child needs the run_id of the parked "
+                           "subagent.", ERR_INVALID_ARGS)
+    text = str(answer or "").strip()
+    if not text:
+        return error_result(rid, "The answer is empty. Tell the subagent what "
+                           "to do next.", ERR_INVALID_ARGS)
+    if service is None:
+        from core.orchestration.service import get_service
+        service = get_service()
+    caller_root = ""
+    try:
+        caller = service.get_record((parent_run_id or "")) if parent_run_id else None
+        caller_root = (caller.root_run_id if caller is not None
+                       else (thread_id or parent_run_id or ""))
+    except Exception:  # pragma: no cover - confinement is checked again below
+        caller_root = thread_id or ""
+    payload = service.continue_run(
+        rid, text, parent_config=parent_config, base_dir=base_dir, lang=lang,
+        caller_root_run_id=caller_root)
+    payload = _note_for_payload(payload)
+    if payload.get("ok") and payload.get("parked"):
+        payload["note"] = ("The subagent asked another question instead of "
+                           "finishing: answer it again, or reply with a "
+                           "directive to complete the work with the "
+                           "information it already has.")
+    return payload
+
+
+def read_dialog_limits(config: Optional[Dict[str, Any]]) -> Dict[str, int]:
+    """Return the dialog limits of a config, with the documented defaults.
+
+    Kept as a thin wrapper so the tools never import the service module just
+    to read five numbers: a broken config must degrade to safe defaults here
+    too, not raise.
+    """
+    try:
+        from core.orchestration.service import read_limits
+        limits = read_limits(config)
+    except Exception:  # pragma: no cover - defaults are safe by definition
+        limits = {}
+    return {
+        "dialog_rounds": int(limits.get("dialog_rounds") or DEFAULT_DIALOG_ROUNDS),
+        "question_max_chars": int(limits.get("question_max_chars")
+                                  or DEFAULT_QUESTION_MAX_CHARS),
+        "answer_max_chars": int(limits.get("answer_max_chars")
+                                or DEFAULT_ANSWER_MAX_CHARS),
+        "answer_wait_seconds": int(limits.get("answer_wait_seconds")
+                                   or DEFAULT_ANSWER_WAIT_SECONDS),
+        "max_parked_runs": int(limits.get("max_parked_runs")
+                               or DEFAULT_MAX_PARKED_RUNS),
+    }
+
+
+def ask_parent_tool_entry() -> Dict[str, str]:
+    """Return the catalog entry of ``ask_parent``.
+
+    The description states the three things a child gets wrong about asking:
+    it stops the turn, the answer continues the SAME run, and the question is
+    not a status report.
+    """
+    return {
+        "name": "ask_parent",
+        "desc": (
+            "Ask the agent that launched you a question you cannot answer "
+            "from the brief, and stop at this step boundary until it replies. "
+            "Args: question (the decision you need, short), [options] (the "
+            "answers you can act on), [done] (what is already finished), "
+            "[blocked] (what you cannot do without the answer). Your run is "
+            "parked, not finished: the answer arrives as a user message and "
+            "you continue with the same files, context and step budget. Use "
+            "it for a decision, not for a progress report; the number of "
+            "question/answer pairs per run is limited."
+        ),
+    }
+
+
+def answer_child_tool_entry() -> Dict[str, str]:
+    """Return the catalog entry of ``answer_child``."""
+    return {
+        "name": "answer_child",
+        "desc": (
+            "Answer a subagent that parked its run with ask_parent and let it "
+            "continue the SAME run. Args: run_id (the parked subagent), answer "
+            "(the decision or the missing fact; be concrete - the subagent "
+            "acts on it). Returns either the subagent result or its next "
+            "question. If you do not know the answer, ask the user yourself "
+            "first and pass their decision on: the subagent cannot reach the "
+            "user. Only runs of your own tree can be answered."
+        ),
+    }
 
 
 def spawn_tool_entry() -> Dict[str, str]:

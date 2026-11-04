@@ -45,8 +45,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from core.orchestration.contracts import (
+    AWAIT_QUESTION,
     DEFAULT_SUBAGENT_TIMEOUT_SECONDS,
+    ERR_ANSWER_NOT_RECEIVED,
     ERR_STALE_RUN,
+    STATUS_AWAITING_INPUT,
     STATUS_FAILED,
     STATUS_RUNNING,
     STOP_ERROR,
@@ -340,6 +343,46 @@ def is_live(record: Dict[str, Any], live_in_memory: bool = False) -> bool:
     return (time.time() - heartbeat) <= liveness_window()
 
 
+def expire_unanswered(record: Dict[str, Any],
+                      now: Optional[float] = None) -> Dict[str, Any]:
+    """Return *record* with an expired question turned into a failure.
+
+    A parked run never reaches a terminal status by itself, and its record is
+    the only place the question lives. Without this verdict a question whose
+    wait window closed long ago keeps reading as ``awaiting_input``: the tree
+    stays open, the reader waits for an answer that can no longer be given,
+    and nothing on disk tells a live wait from an abandoned one.
+
+    The question itself is kept - it is the record of what was asked and why
+    the run failed. Like :func:`demote_if_dead` this is a statement about what
+    the caller sees, not a repair of the file.
+    """
+    if not isinstance(record, dict):
+        return record
+    if str(record.get("await_reason") or "") != AWAIT_QUESTION:
+        return record
+    if str(record.get("status") or "") != STATUS_AWAITING_INPUT:
+        return record
+    question = record.get("question")
+    if not isinstance(question, dict):
+        return record
+    if str(question.get("answer") or "").strip():
+        return record
+    try:
+        deadline = float(question.get("deadline_at") or 0.0)
+    except (TypeError, ValueError):
+        return record
+    if deadline <= 0 or float(now if now is not None else time.time()) < deadline:
+        return record
+    expired = dict(record)
+    expired["status"] = STATUS_FAILED
+    expired["stop_reason"] = STOP_ERROR
+    expired["error_code"] = ERR_ANSWER_NOT_RECEIVED
+    expired["await_reason"] = ""
+    expired["answered"] = False
+    return expired
+
+
 def demote_if_dead(record: Dict[str, Any],
                    live_in_memory: bool = False) -> Dict[str, Any]:
     """Return *record* with an unverifiable ``running`` claim downgraded.
@@ -358,6 +401,11 @@ def demote_if_dead(record: Dict[str, Any],
     """
     if not isinstance(record, dict):
         return record
+    # An expired question is judged BEFORE the running check: a parked record
+    # is not running, so a demotion-only path would pass it through unchanged
+    # and report an abandoned wait as a live one.
+    if str(record.get("status") or "") == STATUS_AWAITING_INPUT:
+        return expire_unanswered(record)
     if str(record.get("status") or "") != STATUS_RUNNING:
         return record
     if is_live(record, live_in_memory=live_in_memory):
@@ -572,18 +620,28 @@ def remove_older_than(days: float, store_root: str = "") -> int:
     return removed
 
 
-def claim_notice(run_id: str, status: str, store_root: str = "") -> bool:
+def claim_notice(run_id: str, status: str, store_root: str = "",
+                 discriminator: str = "") -> bool:
     """Claim the right to publish one notice; True for the first caller only.
 
     ``O_CREAT | O_EXCL`` is the atomic primitive here: it succeeds for exactly
     one caller across threads and processes, which is what a notice needs to
     appear once even when both the loop and the UI try to publish it.
+
+    ``discriminator`` separates several notices of ONE run that share a status.
+    A dialog run asks more than once and every question is a distinct notice
+    with the same ``awaiting_input`` status: without a per-question key the
+    second question would be swallowed by the first question's claim file.
     """
     rid = _safe_name(run_id)
     if not rid:
         return False
     directory = Path(store_root or default_store_root()) / NOTICES_DIR
-    target = directory / (rid + "." + _safe_name(status) + ".lck")
+    name = rid + "." + _safe_name(status)
+    extra = _safe_name(discriminator) if str(discriminator or "").strip() else ""
+    if extra:
+        name += "." + extra
+    target = directory / (name + ".lck")
     try:
         directory.mkdir(parents=True, exist_ok=True)
         handle = os.open(str(target), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
@@ -599,13 +657,18 @@ def claim_notice(run_id: str, status: str, store_root: str = "") -> bool:
     return True
 
 
-def notice_claimed(run_id: str, status: str, store_root: str = "") -> bool:
-    """Return True when a notice for this run and status was already claimed."""
+def notice_claimed(run_id: str, status: str, store_root: str = "",
+                   discriminator: str = "") -> bool:
+    """Return True when a notice for this run, status and key was claimed."""
     rid = _safe_name(run_id)
     if not rid:
         return False
+    name = rid + "." + _safe_name(status)
+    extra = _safe_name(discriminator) if str(discriminator or "").strip() else ""
+    if extra:
+        name += "." + extra
     target = (Path(store_root or default_store_root()) / NOTICES_DIR
-              / (rid + "." + _safe_name(status) + ".lck"))
+              / (name + ".lck"))
     return target.exists()
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

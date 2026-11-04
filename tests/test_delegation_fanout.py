@@ -55,6 +55,12 @@ def delegation_env(monkeypatch):
 
     monkeypatch.setattr(orch_mod, "get_allowed_agents",
                         lambda slug="dev_agent": list(state["agents"]))
+    # The rights check reads the EFFECTIVE list, which also folds in the
+    # bundled executor from the live registry. This file is about the fan-out,
+    # not about who may be spawned, so the fake keeps the two layers equal.
+    monkeypatch.setattr(orch_mod, "get_effective_agents",
+                        lambda slug="dev_agent": [a for a in state["agents"]
+                                                  if a != slug])
     monkeypatch.setattr(orch_mod, "get_allowed_assistants",
                         lambda slug="dev_agent": list(state["assistants"]))
     monkeypatch.setattr(orch_mod, "get_orchestrator",

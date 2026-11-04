@@ -143,6 +143,12 @@ SagaAI - универсальный AI-ассистент с веб-интерф
 - Каждый оркестратор отображается **отдельной страницей в общем меню**
   (сайдбаре). DevAgent - встроенный оркестратор (slug `dev_agent`,
   `is_builtin=True`), всегда доступен и не может быть удалён.
+- Кроме DevAgent платформа при первом запуске сеет **Universal-Agent**
+  (slug `universal_agent`) из `defaults/orchestrators/universal_agent/`:
+  универсальный исполнитель, который берёт роль, требования и ожидаемый
+  результат из постановки задачи, а не из собственной специализации.
+  Сидинг идемпотентен: повторный запуск возвращает `exists` без второй
+  копии, а удалённый пользователем сотрудник не возвращается.
 - Секция «Сотрудники» в сайдбаре: первые 5 позиций всегда видимы,
   остальные - в свёрнутом блоке «Все (N)»; поле поиска отображается
   только при количестве сотрудников > 5.
@@ -220,7 +226,7 @@ SagaAI - универсальный AI-ассистент с веб-интерф
 - Инструмент `url_fetch` (прежнее имя `page_fetch` осталось
   legacy-алиасом) доступен, когда назначена fetch-модель ИЛИ включён
   Selenium. Ветки: PDF по ссылке (файл скачивается, текст извлекается
-  pypdf/pdfplumber и разбивается на страницы `### Page N`); Selenium -
+  pypdf и разбивается на страницы `### Page N`); Selenium -
   видимый текст отрисованной страницы, основная модель оркестратора
   формирует из него Markdown; иначе - Search/Fetch API провайдера
   (POST `{"url": ...}`), возвращающий Markdown с заголовком и адресом.
@@ -904,6 +910,16 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   (`allowed_assistants`) хранятся в конфигурации оркестратора. Собственный
   slug в списке не хранится; список помощников сверяется с живыми
   карточками при записи, поэтому удалённый помощник не остаётся в правах.
+- Встроенный исполнитель `universal_agent` доступен каждому оркестратору по
+  умолчанию: право живёт не в `allowed_agents`, а в отдельном флаге
+  `config.universal_agent_enabled` (отсутствие ключа = включено, поэтому
+  новые сотрудники получают право без миграции). Эффективный список агентов
+  строит `get_effective_agents()`: `allowed_agents` плюс исполнитель при
+  включённом флаге, без дублей, без самого себя и без удалённого сотрудника.
+  Читают этот список и рантайм-проверка прав, и блок `## Available agents`
+  промпта, поэтому отозванное право исчезает из промпта вместе с отказом в
+  вызове. На вкладке «Делегирование» флаг - отдельный чек-бокс над общим
+  списком; снятие галочки не переписывает `allowed_agents`.
 - Шесть лимитов (`get_delegation_limits` / `set_delegation_limits`):
   `max_depth` (0 запрещает делегирование, по умолчанию 1),
   `max_active_subagents` (одновременные дети и вызовы, семафор дерева;
@@ -935,7 +951,9 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   (spawn_agent)` (сам сотрудник и `allowed_agents` с именами) и
   `## Available assistants (invoke_assistant)` (`allowed_assistants` с id и
   именами); раздел помощников появляется только при непустом списке, так что
-  промпт не обещает вызов, который будет отклонён.
+  промпт не обещает вызов, который будет отклонён. Блок агентов перечисляет
+  эффективный список, поэтому доступный по умолчанию исполнитель попадает в
+  него с пометкой о такой доступности.
 - Режим prompt-injection защиты наследуется: ребёнок работает с тем же
   `enable_injection_protection`, что и запустивший его диалог. Значение
   разрешается ОДИН раз при спавне и замораживается в записи запуска
@@ -1051,12 +1069,87 @@ SagaAI - универсальный AI-ассистент с веб-интерф
 - Продолжение наследует дерево, глубину и счётчики запусков
   (`resumed_from`, `resume_depth`): это та же работа, поэтому бюджет дерева
   не сбрасывается, а расходуется дальше.
-- Автономия ребёнка: у субагента нет человека, который нажмёт «Разрешить»
-  или ответит на вопрос. Поэтому в цикле ребёнка (`state.child_mode`) вызов,
-  требующий подтверждения, не останавливает работу: он возвращает отказ
+- Автономия ребёнка: у субагента нет ЧЕЛОВЕКА, который нажмёт «Разрешить».
+  Поэтому в цикле ребёнка (`state.child_mode`) вызов, требующий
+  подтверждения, не останавливает работу: он возвращает отказ
   `confirmation_required` с требованием переписать операцию без
   подтверждения либо сообщить о блокере в результате. Инструменты,
-  создающие сущности платформы, выключены в каталоге ребёнка.
+  создающие сущности платформы, выключены в каталоге ребёнка. Вопрос
+  человека ребёнку недоступен, но вопрос СВОЕМУ агенту - доступен
+  (`ask_parent`, см. ниже).
+- **Диалог с субагентом.** Ребёнок, которому не хватает вводной, задаёт
+  вопрос своему агенту инструментом `ask_parent(question, options, done,
+  blocked)`. Вызов ПАРКУЕТ текущий прогон: запись получает статус
+  `awaiting_input` с причиной `question`, вопрос и срок ожидания
+  сохраняются в durable-записи, а цикл ребёнка останавливается на границе
+  шага - тот же `run_id`, тот же журнал, те же записанные файлы. Новый
+  прогон НЕ создаётся.
+- Ответ даёт только родитель, инструментом `answer_child(run_id, answer)`:
+  он распаковывает прогон, доставляет ответ как сообщение пользователя
+  (`[PARENT ANSWER] ...`) и продолжает работу с того же шага. Если ребёнок
+  спросил снова, вызов возвращает следующий вопрос (`parked=true`) с
+  подсказкой ответить ещё раз или потребовать закончить с тем, что есть.
+  Разговор восстанавливается из состояния в памяти (тот же процесс) либо из
+  транскрипта ребёнка (после перезапуска), поэтому ответ не начинает работу
+  заново.
+- **Вопрос - это данные.** Текст вопроса приходит родителю в границах
+  `[DATA_BEGIN: subagent_question] ... [DATA_END]` - и в блокирующем
+  результате, и в фоновом извещении (`format_subagent_notice`), потому что
+  ребёнок читает файлы и веб-страницы и может процитировать чужие команды.
+  Сама запись хранит текст без обёртки: границы - это транспорт, а не
+  содержимое. Системного канала у вопроса нет.
+- **Доставка родителю.** Блокирующий запуск возвращает вопрос прямо в
+  результате (тот же шаг, ответ можно дать сразу). Фоновый ребёнок кладёт
+  извещение в ящик дерева, и цикл родителя получает его скрытым
+  system-сообщением `[SUBAGENT_NOTICE:...]` на следующем шаге - опрос не
+  нужен. Право на извещение захватывается атомарно, а ключ захвата несёт
+  номер раунда: два вопроса одного прогона - два отдельных извещения.
+- **Бюджет диалога - пять раундов на прогон** (`dialog_rounds`, значение
+  владельца; по умолчанию столько же). Раунд тратится ВОПРОСОМ, а не
+  ответом, поэтому вопрос без ответа тоже расходует бюджет. Исчерпанный
+  бюджет - отказ `question_limit` с числом использованных раундов; новая
+  задача при этом не создаётся и уже сделанное остаётся на месте. Рядом
+  действуют `question_max_chars` (1500), `answer_max_chars` (4000 - ответ
+  это решение, а не новое задание), `answer_wait_seconds` (900) и
+  `max_parked_runs` (8 одновременных ожиданий в дереве). Некорректное или
+  отсутствующее значение даёт документированный дефолт, а не отключение
+  ограничения: ноль раундов запретил бы первый же вопрос, поэтому
+  кламп - не меньше 1, а срок ожидания не больше часа.
+- **Лимиты диалога замораживаются на спавне** (`RunRecord.dialog_limits`)
+  и попадают в durable-запись: ответ может прийти из другого процесса,
+  где живёт чужой конфиг, и судить прогон нужно по бюджету, с которым он
+  начался. Конкурентность, глубина и таймаут остаются живыми.
+- **Ожидание истекает, а не висит.** По истечении `answer_wait_seconds`
+  прогон завершается как `failed/answer_not_received` с текстом вопроса в
+  сводке; частичный результат и записанные файлы сохраняются. Поздний
+  ответ отвергается с тем же кодом и НЕ оживляет прогон - иначе об одном
+  прогоне существовали бы две правды. Уборка (`expire_parked`,
+  `runs.expire_unanswered`) выполняется на путях чтения, поэтому брошенный
+  вопрос не занимает ни слот ожиданий, ни место в интерфейсе. Отмена
+  (`cancel_subagent`, каскад) переводит ожидающий прогон в `cancelled` -
+  ожидание не переживает задачу.
+- **Ожидание переживает перезапуск.** Запись ожидающего прогона и его
+  вопрос лежат на диске, поэтому после перезагрузки страницы ожидание
+  видно, вопрос читается, а ответ принимается: `roots_for_thread(thread_id)`
+  восстанавливает корень дерева по идентификатору диалога (сессия его
+  забывает), а первый же ответ поднимает запись в реестр
+  (`revive_parked_run`) - иначе вопрос был бы "не в этом процессе" и
+  неотвечаемым. Дерево при этом пересоздаётся: ожидающий прогон не держит
+  ни потока, ни слота пула.
+- **Диалог - не продолжение.** `resume_subagent` нужен, когда прогон
+  ОСТАНОВИЛСЯ (кончились шаги, ошибка, `awaiting_input` без вопроса): он
+  начинает новый прогон с новым бюджетом и собирает подсказку из журнала.
+  `answer_child` продолжает ТОТ ЖЕ прогон по вопросу, который ребёнок
+  задал сам, и не тратит ни нового `run_id`, ни бюджета дерева. Поэтому
+  извещение о parked-прогоне ведёт к `answer_child`, а не к
+  `resume_subagent`.
+- **Что видит пользователь.** Строка «ждут ответа: N» с агентом, коротким
+  `run_id` и текстом вопроса (не более трёх строк, дальше - сводка),
+  обновляемая тем же таймером, что и строка работающих субагентов; вопрос
+  в ленте шага - раскрытый блок с пометкой «вопрос субагента», вариантами,
+  «что сделано» и «на чём застрял». Опрос не засыпает, пока есть
+  ожидающие. Отвечает всегда агент: прямого канала «человек -> субагент»
+  нет, поэтому решение пользователя сначала попадает к агенту.
 - **Сбой ребёнка классифицируется по источнику.** Исключение внутри цикла
   ребёнка (ошибка самого платформенного кода, например присваивание
   неверного типа в состояние) даёт `error_code=internal_error`,
@@ -1341,6 +1434,11 @@ Ed25519), а проверка подписи на стороне клиента 
   делать». Навык `rag_base_creator` сеется из дистрибутива в папку со своим
   именем и потому усыновляется наравне с оркестратором и базой; каталог
   считает такую папку занятой (`adopt`) и не предлагает вторую копию.
+  Оркестратор `universal_agent` записан в `LEGACY_DEFAULTS` по той же
+  причине: он предустанавливается из дистрибутива и одновременно
+  публикуется в каталоге, поэтому витрина показывает обновление, а не
+  предложение поставить второй экземпляр, а установка из каталога
+  обновляет ту же папку.
   Маркер удаления проверяется раньше усыновления - иначе удалённое
   вернулось бы первым же стартом.
 - **Обновления** (`core/marketplace/updates.py`) сравнивают версии по
@@ -1467,10 +1565,10 @@ Ed25519), а проверка подписи на стороне клиента 
     # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
     # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
-- Список базовых файлов (143):
+- Список базовых файлов (144):
   - Корень (2): __init__.py, app.py
   - UI (23): ui/__init__.py, ui/app.py, ui/components/__init__.py, ui/components/flash.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/access.py, ui/pages/assistants.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/marketplace.py, ui/pages/orchestrator.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrators.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/updates.py, ui/pages/updates_marketplace.py, ui/pages/welcome.py
-  - Core (69): core/__init__.py, core/api_errors.py, core/api_layer.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/chat_db_archive.py, core/config.py, core/connector_presets.py, core/connectors.py, core/context_guard.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/devagent_db_archive.py, core/dependency_check.py, core/document_images.py, core/document_text.py, core/entity_sync.py, core/env_loader.py, core/feed_autoscroll.py, core/files.py, core/folder_dialog.py, core/fs.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/mcp_client.py, core/mcp_tools.py, core/memory_migration.py, core/multimodal.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrator_tools.py, core/orchestrators.py, core/paths.py, core/personal_memory.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/thread_mirror.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py, core/updater.py, core/updater_apply.py, core/url_fetch.py, core/version.py
+  - Core (70): core/__init__.py, core/api_errors.py, core/api_layer.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/chat_db_archive.py, core/config.py, core/connector_presets.py, core/connectors.py, core/context_guard.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/devagent_db_archive.py, core/dependency_check.py, core/document_images.py, core/document_text.py, core/entity_sync.py, core/env_loader.py, core/feed_autoscroll.py, core/files.py, core/folder_dialog.py, core/fs.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/mcp_client.py, core/mcp_tools.py, core/memory_migration.py, core/multimodal.py, core/ooxml.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrator_tools.py, core/orchestrators.py, core/paths.py, core/personal_memory.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/thread_mirror.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py, core/updater.py, core/updater_apply.py, core/url_fetch.py, core/version.py
   - Marketplace (19): core/marketplace/__init__.py, core/marketplace/agent_installer.py, core/marketplace/bootstrap.py, core/marketplace/bundles.py, core/marketplace/catalog.py, core/marketplace/config.py, core/marketplace/conflicts.py, core/marketplace/installer.py, core/marketplace/mcp_installer.py, core/marketplace/migration.py, core/marketplace/publish.py, core/marketplace/rag_installer.py, core/marketplace/registry.py, core/marketplace/rollback.py, core/marketplace/semver.py, core/marketplace/source.py, core/marketplace/store.py, core/marketplace/updates.py, core/marketplace/verify.py
   - Orchestration (11): core/orchestration/__init__.py, core/orchestration/contracts.py, core/orchestration/invoke.py, core/orchestration/resume.py, core/orchestration/runs.py, core/orchestration/service.py, core/orchestration/tool_classes.py, core/orchestration/tools.py, core/orchestration/transcript_reader.py, core/orchestration/transcript_sink.py, core/orchestration/verify.py
   - Storage (5): storage/__init__.py, storage/db.py, storage/models.py, storage/repository.py, storage/repository_devagent.py

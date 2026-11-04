@@ -77,6 +77,9 @@ def test_final_status_map_covers_every_documented_status():
         "done", "applied", "discarded", "error", "awaiting_confirmation",
         "awaiting_user", "awaiting_approval", "sanitized_required",
         "stopped_by_user", "stopped_max_steps",
+        # A run parked on a question: same status as awaiting_user, told apart
+        # by the await reason so the parent answers instead of resuming.
+        "awaiting_question",
     }
     assert set(C.FINAL_STATUS_MAP) == documented
 

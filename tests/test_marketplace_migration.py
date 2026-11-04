@@ -26,7 +26,10 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from tests.marketplace_fixtures import marketplace_data_dir  # noqa: E402,F401 - fixture
+from tests.marketplace_fixtures import (  # noqa: E402,F401 - fixtures
+    marketplace_data_dir,
+    serve_catalog,
+)
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────
@@ -168,6 +171,40 @@ class TestAdoption:
 
         assert len(migration.seed_legacy_entities()) == 1
         assert migration.seed_legacy_entities() == []
+
+    def test_a_bundled_executor_is_adopted(self, ready_dir):
+        """The general-purpose executor ships with the platform as well."""
+        from core.marketplace import migration, registry
+
+        _make_agent_folder("universal_agent")
+
+        seeded = migration.seed_legacy_entities()
+
+        assert [row["id"] for row in seeded] == ["universal_agent"]
+        row = registry.get_installed("agent", "universal_agent")
+        assert row is not None
+        # Below the first catalog release, so the catalog offers a real
+        # update instead of the installation pretending to be current.
+        assert row["version"] == "0.9.0"
+        assert row["channel"] == "legacy"
+        assert row["runtime_slug"] == "universal_agent"
+
+    def test_the_executor_entry_stays_below_its_first_catalog_release(self):
+        from core.marketplace import migration, semver
+
+        spec = migration.LEGACY_DEFAULTS[("agent", "universal_agent")]
+
+        assert semver.compare(str(spec["version"]), "1.0.0") < 0
+
+    def test_both_bundled_agents_are_adopted_side_by_side(self, ready_dir):
+        from core.marketplace import migration
+
+        _make_agent_folder("ya_agent")
+        _make_agent_folder("universal_agent")
+
+        seeded = migration.seed_legacy_entities()
+
+        assert sorted(row["id"] for row in seeded) == ["universal_agent", "ya_agent"]
 
     def test_a_deleted_entity_is_not_adopted(self, ready_dir):
         from core.marketplace import migration, registry
@@ -402,3 +439,115 @@ class TestNoDuplicateRows:
         rows = [row for row in registry.list_installed("skill")
                 if row.get("runtime_slug") == "rag_base_creator"]
         assert len(rows) == 1
+
+
+# ─── The executor: bundled AND in the catalog ─────────────────────────────
+
+class TestBundledExecutorIsOneInstallation:
+    """A preinstalled executor must not be offered a second copy."""
+
+    def _entity(self, version="1.0.0"):
+        return {
+            "schema": "sagaai.marketplace.entity/1",
+            "type": "agent",
+            "agent_kind": "orchestrator",
+            "id": "universal_agent",
+            "version": version,
+            "name": {"en": "Universal-Agent"},
+            "description": {"en": "General-purpose executor"},
+            "license": {"spdx": "PolyForm-Noncommercial-1.0.0"},
+        }
+
+    def test_the_catalog_offers_an_update_not_a_second_copy(self, ready_dir):
+        from core.marketplace import conflicts, migration
+
+        _make_agent_folder("universal_agent")
+        migration.seed_legacy_entities()
+
+        plan = conflicts.resolve_plan(self._entity(), type_="agent")
+
+        assert plan["action"] == "update"
+        assert plan["runtime_slug"] == "universal_agent"
+
+    def test_the_adopted_row_is_not_reported_as_user_modified(self, ready_dir):
+        """The adoption hashes what is on disk, so nothing looks edited."""
+        from core.marketplace import conflicts, migration
+
+        _make_agent_folder("universal_agent")
+        migration.seed_legacy_entities()
+
+        state = conflicts.local_state(self._entity(), type_="agent")
+
+        assert state["installed"] is True
+        assert state["user_modified"] is False
+        assert state["modified_files"] == []
+
+    def test_a_never_touched_copy_is_recognised_as_adoptable(self, ready_dir):
+        """Even without a registry row the folder is adopted, not duplicated."""
+        from core.marketplace import conflicts
+
+        folder = _make_agent_folder("universal_agent")
+        entity = self._entity()
+        entity["files"] = {
+            path: __import__("hashlib").sha256(
+                open(os.path.join(folder, path), "rb").read()
+            ).hexdigest()
+            for path in ("orchestrator.json", "system_prompt.md")
+        }
+
+        plan = conflicts.resolve_plan(entity, type_="agent")
+
+        assert plan["action"] == "adopt"
+
+    def test_installing_from_the_catalog_updates_the_same_folder(
+        self, ready_dir, serve_catalog, tmp_path
+    ):
+        """The end of the chain: one folder, one row, no suffixed second copy."""
+        from core.marketplace import migration, registry
+        from core.marketplace.agent_installer import install_agent
+        from core.marketplace.source import MarketplaceSource
+        from core.orchestrator_folders import get_orchestrator_dir
+        from core.orchestrators import get_orchestrator
+        from tests.marketplace_fixtures import make_catalog, make_entity
+
+        _make_agent_folder("universal_agent", prompt="Bundled prompt.\n")
+        migration.seed_legacy_entities()
+
+        bundle = {
+            "format": "sagaai_orchestrator/v1",
+            "slug": "universal_agent",
+            "name": "Universal-Agent",
+            "description": "General-purpose executor",
+            "config": {"strong_model": "from_package"},
+            "tools": [],
+            "max_steps": 300,
+            "auto_apply": True,
+        }
+        files = {
+            "orchestrator.json": json.dumps(bundle, ensure_ascii=False, indent=2),
+            "system_prompt.md": "You are the general-purpose executor.\n",
+        }
+        entity, package = make_entity(
+            entity_id="universal_agent", version="1.0.0", type_="agent", files=files
+        )
+        entity["agent_kind"] = "orchestrator"
+        root = make_catalog(tmp_path / "catalog", [(entity, package)])
+
+        report = install_agent(
+            entity, channel="main", source=MarketplaceSource(serve_catalog(root))
+        )
+
+        assert report["ok"] is True
+        assert report["runtime_slug"] == "universal_agent"
+        # The preinstalled folder was refreshed in place, not duplicated.
+        assert not Path(get_orchestrator_dir("universal_agent_2")).exists()
+        assert Path(
+            get_orchestrator_dir("universal_agent"), "system_prompt.md"
+        ).read_text(encoding="utf-8") == "You are the general-purpose executor.\n"
+        assert get_orchestrator("universal_agent") is not None
+        assert get_orchestrator("universal_agent_2") is None
+        # One registry row: the adopted record moved to the catalog version.
+        rows = [row for row in registry.list_installed("agent")
+                if row.get("runtime_slug") == "universal_agent"]
+        assert len(rows) == 1
+        assert rows[0]["version"] == "1.0.0"

@@ -243,6 +243,15 @@ WORKSPACE_TOOL_ARGS: Dict[str, Dict[str, set]] = {
         "optional": {"assistant_id", "user", "context_files", "system",
                      "model", "max_tokens"},
     },
+    # ── Agent dialog (a child asks, its parent answers) ────────────────────
+    "ask_parent": {
+        "required": {"question"},
+        "optional": {"options", "done", "blocked"},
+    },
+    "answer_child": {
+        "required": {"run_id", "answer"},
+        "optional": set(),
+    },
 }
 
 _UNKNOWN_ARGS_ERROR = (
@@ -359,7 +368,7 @@ DELEGATION_TOOL_NAMES = ("spawn_agent", "invoke_assistant", "subagent_status",
                          "subagent_result",
                          "read_subagent_state", "resume_subagent", "sleep",
                          "cancel_subagent", "read_subagent_thread",
-                         "verify_result")
+                         "verify_result", "ask_parent", "answer_child")
 
 
 def build_assistant_dict_from_config() -> Tuple[dict, dict]:

@@ -455,13 +455,42 @@ def test_scan_detection_is_true_for_an_image_only_pdf():
     assert is_scan is True
 
 
+def _minimal_text_pdf(content: bytes = b'Readable text') -> bytes:
+    """Build a one-page PDF that carries a real text layer.
+
+    The page content stream draws the text with ``Tj``, so a text extractor
+    finds it and the scan detector reports a non-scan document. Built by
+    hand to keep the test free of a PDF-writing dependency.
+    """
+    stream = b'BT /F1 12 Tf 72 720 Td (' + content + b') Tj ET'
+    objects = [
+        b'<< /Type /Catalog /Pages 2 0 R >>',
+        b'<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+        b'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] '
+        b'/Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
+        b'<< /Length ' + str(len(stream)).encode() + b' >>\nstream\n'
+        + stream + b'\nendstream',
+        b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    ]
+    out = bytearray(b'%PDF-1.4\n')
+    offsets = []
+    for number, body in enumerate(objects, start=1):
+        offsets.append(len(out))
+        out += str(number).encode() + b' 0 obj\n' + body + b'\nendobj\n'
+    xref_at = len(out)
+    out += b'xref\n0 ' + str(len(objects) + 1).encode() + b'\n'
+    out += b'0000000000 65535 f \n'
+    for offset in offsets:
+        out += ('%010d 00000 n \n' % offset).encode()
+    out += (b'trailer\n<< /Size ' + str(len(objects) + 1).encode()
+            + b' /Root 1 0 R >>\nstartxref\n' + str(xref_at).encode()
+            + b'\n%%EOF\n')
+    return bytes(out)
+
+
 def test_scan_detection_is_false_when_a_text_layer_exists():
-    reportlab = pytest.importorskip('reportlab.pdfgen.canvas')
-    buffer = io.BytesIO()
-    canvas = reportlab.Canvas(buffer)
-    canvas.drawString(72, 720, 'Readable text')
-    canvas.save()
-    is_scan, _warnings = di.looks_like_scan('text.pdf', buffer.getvalue())
+    data = _minimal_text_pdf()
+    is_scan, _warnings = di.looks_like_scan('text.pdf', data)
     assert is_scan is False
 
 
