@@ -125,7 +125,7 @@ st.set_page_config(
 )
 
 from core.paths import ensure_data_dirs  # noqa: E402 - after st.set_page_config
-from ui.app import main                  # noqa: E402
+from ui.app import main  # noqa: E402
 
 ensure_data_dirs()
 

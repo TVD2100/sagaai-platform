@@ -4,9 +4,9 @@ clipboard_button requires streamlit but is kept here for API compatibility
 (it renders via st.html so the button inherits the active Streamlit theme);
 _md_to_html, _md_to_txt, _iter_md_blocks are pure Python.
 """
+import html as html_lib
 import json
 import re
-import html as html_lib
 from typing import Dict, Optional
 
 
@@ -36,7 +36,9 @@ def clipboard_button(text: str, key: str, label: str = "📋 MD",
     arbitrary message content (HTML tags, quotes, newlines, script fragments)
     cannot break the button markup.
     """
-    import streamlit as st  # noqa: imported at call time
+    # Imported inside the function: the module must not pull Streamlit in at
+    # import time, so pages that never render still load without it.
+    import streamlit as st
 
     data_clip = html_lib.escape(json.dumps(text, ensure_ascii=False), quote=True)
     data_params = (

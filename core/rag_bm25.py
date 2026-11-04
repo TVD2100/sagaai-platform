@@ -72,7 +72,6 @@ import os
 import re
 import sqlite3
 
-
 # Unicode word tokens: letters and digits of any script, underscore excluded.
 TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
 

@@ -31,7 +31,6 @@ messages were filtered out of the window.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional
 
 #: Hard ceiling on one page, the same as the dialog reader uses.

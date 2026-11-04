@@ -26,7 +26,8 @@ import re
 from typing import Any, Dict, List, Optional
 
 from core.marketplace import config as marketplace_config
-from core.marketplace import registry, source as source_mod, store
+from core.marketplace import registry, store
+from core.marketplace import source as source_mod
 from core.marketplace.installer import (
     InstallError,
     _display_name,

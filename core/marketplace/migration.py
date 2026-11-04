@@ -26,7 +26,6 @@ from typing import Dict, List, Tuple
 
 from core.marketplace import registry, store
 
-
 #: Entities the platform used to ship inside ``defaults/``.
 #:
 #: ``version`` is the synthetic version of the bundled copy, ``detect`` names

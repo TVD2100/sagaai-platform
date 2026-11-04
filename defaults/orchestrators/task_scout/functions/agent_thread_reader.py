@@ -73,8 +73,7 @@ def _preview(text: str, limit: int = _MAX_MESSAGE_CHARS) -> str:
 
 def _list_action(slug: str, limit: int) -> Dict[str, Any]:
     """Return the employee's dialogs, newest first."""
-    from storage.repository_devagent import (repo_devagent_count_messages,
-                                             repo_devagent_list_threads_filtered)
+    from storage.repository_devagent import repo_devagent_count_messages, repo_devagent_list_threads_filtered
     metas = repo_devagent_list_threads_filtered(slugs=[slug], limit=limit, order="desc")
     counts = repo_devagent_count_messages([m.get("thread_id") for m in metas])
     threads = []
@@ -94,8 +93,7 @@ def _list_action(slug: str, limit: int) -> Dict[str, Any]:
 
 def _search_action(slug: str, query: str, max_hits: int) -> Dict[str, Any]:
     """Search the employee's dialogs for *query* (case-insensitive)."""
-    from storage.repository_devagent import (repo_devagent_list_threads_filtered,
-                                             repo_devagent_load_threads_messages)
+    from storage.repository_devagent import repo_devagent_list_threads_filtered, repo_devagent_load_threads_messages
     needle = query.strip().lower()
     if not needle:
         return {"ok": False, "error": "query is empty.", "error_code": "invalid_args"}
@@ -134,8 +132,7 @@ def _search_action(slug: str, query: str, max_hits: int) -> Dict[str, Any]:
 
 def _read_action(slug: str, thread_id: str, offset: int, limit: int) -> Dict[str, Any]:
     """Return a window of one dialog that belongs to *slug*."""
-    from storage.repository_devagent import (repo_devagent_load_messages_window,
-                                             repo_devagent_load_thread_meta)
+    from storage.repository_devagent import repo_devagent_load_messages_window, repo_devagent_load_thread_meta
     tid = str(thread_id or "").strip()
     if not tid:
         return {"ok": False, "error": "thread_id is required for action='read'.",

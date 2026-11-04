@@ -6,21 +6,27 @@ All failures are raised as subclasses of APIError (core.api_errors).
 Callers should catch APIError for user-facing messages and inspect
 ``exc.code`` for programmatic handling.
 """
+import json
+import os as _os
 import time
 import uuid
-import json
-
-import requests
 from typing import Optional
 
-from core.config import load_config
-from core.services import get_services
-from core.assistants import load_assistant_files_context
+import requests
 
-# Legacy alias (old "skill" terminology) for backward compatibility.
-load_skill_files_context = load_assistant_files_context
+from core.api_errors import (
+    APIError,
+    ApiKeyMissingError,
+    AuthTypeUnknownError,
+    NetworkError,
+    ProviderHTTPError,
+    ProviderResponseError,
+    RequestTimeoutError,
+    ServiceNotFoundError,
+)
+from core.assistants import load_assistant_files_context
+from core.config import load_config
 from core.fs import combine_nonempty
-from core.i18n import t
 from core.prompt_guard import (
     detect_injection_signatures,
     is_tool_result_text,
@@ -28,17 +34,10 @@ from core.prompt_guard import (
     sanitize_tool_result_content,
     wrap_data,
 )
-from core.api_errors import (
-    APIError,
-    ServiceNotFoundError,
-    ApiKeyMissingError,
-    AuthTypeUnknownError,
-    ProviderHTTPError,
-    ProviderResponseError,
-    RequestTimeoutError,
-    NetworkError,
-    ContextWindowError,
-)
+from core.services import get_services
+
+# Legacy alias (old "skill" terminology) for backward compatibility.
+load_skill_files_context = load_assistant_files_context
 
 # Timeout for a model COMPLETION request, split into (connect, read):
 # * connect 30 s - an unreachable host fails fast instead of freezing the UI;
@@ -55,8 +54,6 @@ MODEL_RESPONSE_TIMEOUT = MODEL_REQUEST_TIMEOUT
 # explicitly opt out via SAGAAI_VERIFY_TLS=false, but this is strongly
 # discouraged: disabling verification allows man-in-the-middle attacks that
 # can expose API keys and conversation data.
-import os as _os
-
 _VERIFY_TLS = _os.environ.get("SAGAAI_VERIFY_TLS", "true").strip().lower() not in ("0", "false", "no", "off")
 
 # GigaChat endpoints are signed by the Russian Trusted Root CA (Минцифры),
@@ -137,14 +134,12 @@ def retry_call(fn, *, retry_callback=None):
     knobs stay modifiable at runtime. After the final attempt the LAST
     exception is re-raised with an extra ``attempts`` attribute.
     """
-    last_exc = None
     attempt = 0
     while True:
         attempt += 1
         try:
             return fn()
         except (RequestTimeoutError, NetworkError) as exc:
-            last_exc = exc
             delay, total = _retry_params()
             if attempt >= total:
                 exc.attempts = attempt
@@ -1082,7 +1077,7 @@ def _deepseek_anthropic_web_search(
                 base_url, headers=headers, json=payload,
                 timeout=timeout, verify=_VERIFY_TLS,
             )
-        except requests.exceptions.Timeout as e:
+        except requests.exceptions.Timeout:
             raise RequestTimeoutError(service=svc_name)
         except requests.exceptions.RequestException as e:
             raise NetworkError(str(e), service=svc_name)
@@ -2108,7 +2103,8 @@ def test_connection(svc_name: str, cfg: dict) -> tuple:
     try:
         if auth_type == "bearer":
             key = cfg.get(svc.get("config_key", ""), "")
-            if isinstance(key, str): key = key.strip()
+            if isinstance(key, str):
+                key = key.strip()
             if not key:
                 return False, "API key not set"
             models     = svc.get("models", [])
@@ -2132,7 +2128,8 @@ def test_connection(svc_name: str, cfg: dict) -> tuple:
 
         elif auth_type == "deepseek_responses":
             key = cfg.get(svc.get("config_key", ""), "")
-            if isinstance(key, str): key = key.strip()
+            if isinstance(key, str):
+                key = key.strip()
             if not key:
                 return False, "API key not set"
             models     = svc.get("models", [])
@@ -2164,11 +2161,13 @@ def test_connection(svc_name: str, cfg: dict) -> tuple:
 
         elif auth_type == "yandex_iam":
             key = cfg.get(svc.get("config_key", ""), "")
-            if isinstance(key, str): key = key.strip()
+            if isinstance(key, str):
+                key = key.strip()
             if not key:
                 return False, "IAM token not set"
             folder_id = cfg.get(svc.get("config_key2", ""), "")
-            if isinstance(folder_id, str): folder_id = folder_id.strip()
+            if isinstance(folder_id, str):
+                folder_id = folder_id.strip()
             if not folder_id:
                 return False, "Folder ID not set"
             models = svc.get("models", [])
@@ -2204,12 +2203,15 @@ def test_connection(svc_name: str, cfg: dict) -> tuple:
 
         elif auth_type == "gigachat_oauth":
             key = cfg.get(svc.get("config_key", ""), "")
-            if isinstance(key, str): key = key.strip()
+            if isinstance(key, str):
+                key = key.strip()
             if not key:
                 return False, "API key not set"
             scope = cfg.get(svc.get("config_key2", ""), "GIGACHAT_API_PERS")
-            if isinstance(scope, str): scope = scope.strip() or "GIGACHAT_API_PERS"
-            else: scope = "GIGACHAT_API_PERS"
+            if isinstance(scope, str):
+                scope = scope.strip() or "GIGACHAT_API_PERS"
+            else:
+                scope = "GIGACHAT_API_PERS"
             token = _gigachat_token(key, scope)
             if not token:
                 return False, "Failed to get token"

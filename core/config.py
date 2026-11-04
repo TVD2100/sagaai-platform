@@ -21,15 +21,15 @@ Default values are read from the bundled defaults/ folder:
 The DevAgent system prompt lives in dev_agent/system_prompt.md and is managed
 by core.orchestrators.ensure_builtin_orchestrators, not here.
 """
-import os
 import json
+import os
 from pathlib import Path
 from typing import Optional
 
 from cryptography.fernet import InvalidToken
 
+from core.crypto import decrypt, encrypt
 from storage.repository import repo_load_config, repo_save_config
-from core.crypto import encrypt, decrypt, is_secret_key
 
 
 def _secret_keys() -> set:

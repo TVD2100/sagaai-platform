@@ -43,8 +43,10 @@ from core.updater_apply import (
     load_state,
     pending_dir,
     read_pending,
-    rollback as _rollback_store,
     updates_dir,
+)
+from core.updater_apply import (
+    rollback as _rollback_store,
 )
 from core.version import __version__
 

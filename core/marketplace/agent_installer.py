@@ -27,7 +27,8 @@ import shutil
 from typing import Dict, List, Optional
 
 from core.marketplace import config as marketplace_config
-from core.marketplace import registry, rollback, source as source_mod, store, verify
+from core.marketplace import registry, rollback, store, verify
+from core.marketplace import source as source_mod
 from core.marketplace.installer import (
     InstallError,
     _entity_files,
@@ -1116,9 +1117,9 @@ def _install_assistant(
             slug = _resolve_slug(entity, existing, runtime_slug, "assistant")
             from core.assistant_folders import (
                 get_assistant_dir,
+                import_assistant_folder,
                 list_assistant_files,
                 load_assistant_file_content,
-                import_assistant_folder,
                 save_assistant_file,
             )
 
@@ -1162,8 +1163,7 @@ def _install_assistant(
             )
 
             payload = _assistant_bundle_from_folder(unpack_dir, slug)
-            from core.assistants import get_assistant_by_id, get_assistant_by_slug
-            from core.assistants import reload_assistant_from_folder
+            from core.assistants import get_assistant_by_id, get_assistant_by_slug, reload_assistant_from_folder
 
             if existing is not None and folder_exists:
                 installed_row = get_assistant_by_slug(slug) or {}

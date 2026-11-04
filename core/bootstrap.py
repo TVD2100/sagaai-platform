@@ -25,12 +25,11 @@ import os
 from pathlib import Path
 
 from core.config import (
+    get_default_economy_tail_messages,
     load_devagent_config,
     save_devagent_config,
-    get_default_economy_tail_messages,
 )
-from core.instructions import get_instruction, delete_instruction
-
+from core.instructions import delete_instruction, get_instruction
 
 # Stable id for the built-in Assistant Creator instruction.
 ASSISTANT_CREATOR_INSTRUCTION_ID = "assistant_creator"
@@ -85,13 +84,13 @@ def ensure_instructions() -> dict:
         {"devagent_instructions": {id: "created"|"exists"|"error"},
          "global_cleaned": [ids removed from the global table]}
     """
+    import core.defaults as defaults_mod
     from core.orchestrators import (
         DEVAGENT_SLUG,
+        orch_delete_instruction,
         orch_get_instruction,
         orch_save_instruction,
-        orch_delete_instruction,
     )
-    import core.defaults as defaults_mod
 
     instr_dir = os.path.join(defaults_mod.orchestrators_dir(), DEVAGENT_SLUG, "instructions")
 

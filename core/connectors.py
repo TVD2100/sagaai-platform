@@ -46,11 +46,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from core.fs import ensure_dir
-from core.crypto import encrypt, decrypt
 from cryptography.fernet import InvalidToken
-from core.paths import DATA_DIR
 
+from core.crypto import decrypt, encrypt
+from core.fs import ensure_dir
+from core.paths import DATA_DIR
 
 # Root directory where all connectors live.
 CONNECTORS_DIR: str = os.path.join(DATA_DIR, "connectors")

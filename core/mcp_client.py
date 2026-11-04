@@ -42,8 +42,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from typing import Any, Dict, List, Optional, Tuple
-
+from typing import Any, Dict, List, Optional
 
 PROTOCOL_VERSION: str = "2025-03-26"
 
@@ -834,7 +833,6 @@ class McpClient:
             "jsonrpc": "2.0", "id": request_id, "method": method,
             "params": params,
         })
-        poll_interval = 0.02
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             self._ensure_alive()

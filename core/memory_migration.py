@@ -27,7 +27,6 @@ from typing import Any, Dict, List, Optional
 
 from core import orchestrator_folders as of
 
-
 #: Status of one migration entry.
 STATUS_READY = "ready"              # legacy has files, target empty/missing
 STATUS_EMPTY = "empty"              # legacy folder has no files - nothing to do

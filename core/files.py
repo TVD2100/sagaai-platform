@@ -3,10 +3,9 @@
 core.files - file extraction, token estimation, context checking.
 No streamlit imports.
 """
-from pathlib import Path
 
-from core.paths import TEXT_FILE_EXTENSIONS, SUPPORTED_UPLOAD_TYPES
 from core.fs import decode_bytes
+from core.paths import SUPPORTED_UPLOAD_TYPES, TEXT_FILE_EXTENSIONS
 
 # Percentage of non-ASCII bytes above which we consider text "mostly non-ASCII"
 # (used by the upload-decoding checks).

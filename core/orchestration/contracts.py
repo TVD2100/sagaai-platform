@@ -25,7 +25,7 @@ Design notes carried from the specification:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional, Protocol
+from typing import Any, Callable, Dict, List, Optional, Protocol
 
 # ─── Stop reasons (exactly four) ─────────────────────────────────────────────
 

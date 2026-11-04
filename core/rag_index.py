@@ -18,7 +18,6 @@ delete) used by the Storage UI, the RAG Base Creator skill and the
 
 No streamlit imports. All functions take an explicit database path.
 """
-import json
 import math
 import os
 import sqlite3

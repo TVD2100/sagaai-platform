@@ -429,8 +429,8 @@ def selenium_page_text(url: str,
     clean_url = validate_fetch_url(url)
     try:
         from selenium import webdriver
-        from selenium.webdriver.chrome.options import Options
         from selenium.common.exceptions import WebDriverException
+        from selenium.webdriver.chrome.options import Options
     except ImportError as exc:
         raise SeleniumUnavailableError(
             "Selenium is not installed. Install it with "

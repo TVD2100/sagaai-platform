@@ -21,7 +21,8 @@ from __future__ import annotations
 from typing import Dict, List, Optional
 
 from core.marketplace import config as marketplace_config
-from core.marketplace import registry, source as source_mod
+from core.marketplace import registry
+from core.marketplace import source as source_mod
 
 #: Languages the catalog must provide, in display priority order (D-26).
 LANGS = ("en", "ru", "zh-CN")

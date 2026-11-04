@@ -49,8 +49,8 @@ def _yandex_web_search_config(cfg: dict, svc_name: str, assistant=None):
     Per-assistant overrides from the assistant's manifest take priority over
     provider-level persisted config.
     """
-    from core.api_layer import _yandex_web_search_config as _base
     from core.api_layer import _assistant_web_search_config as _with_assistant
+    from core.api_layer import _yandex_web_search_config as _base
     if assistant:
         return _with_assistant(assistant, cfg, svc_name)
     return _base(cfg, svc_name)
@@ -153,11 +153,14 @@ def _post_yandex_responses(base_url: str, api_key: str, payload: dict,
     HTTP errors are never retried. ``retry_callback``, when given, receives
     {attempt, attempts, delay, error} before each scheduled retry.
     """
-    from core.api_layer import (
-        MODEL_REQUEST_TIMEOUT, _VERIFY_TLS, _extract_error_body, retry_call,
-        _raise_responses_failure,
-    )
     from core.api_errors import NetworkError, ProviderHTTPError, RequestTimeoutError
+    from core.api_layer import (
+        _VERIFY_TLS,
+        MODEL_REQUEST_TIMEOUT,
+        _extract_error_body,
+        _raise_responses_failure,
+        retry_call,
+    )
 
     headers = {
         "Authorization": f"Bearer {api_key}",

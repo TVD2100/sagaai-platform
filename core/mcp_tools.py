@@ -100,8 +100,8 @@ def _enabled_mcp_conn_ids(slug: str) -> List[str]:
     catalog building can never break dispatching.
     """
     try:
-        from core.orchestrators import get_enabled_connections
         from core.connectors import get_connection_full
+        from core.orchestrators import get_enabled_connections
         result: List[str] = []
         for conn_id in get_enabled_connections(slug):
             data = get_connection_full(str(conn_id))

@@ -57,3 +57,6 @@ dist/
 
 # DevAgent per-file backups (runtime)
 /dev_agent/backups/
+
+# Ruff working cache (machine-local, regenerated on demand)
+/.ruff_cache/

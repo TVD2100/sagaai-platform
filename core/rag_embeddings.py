@@ -24,10 +24,9 @@ No streamlit imports.
 """
 import requests
 
-from core.api_errors import ApiKeyMissingError, ProviderHTTPError, NetworkError, RequestTimeoutError
+from core.api_errors import ApiKeyMissingError, NetworkError, ProviderHTTPError, RequestTimeoutError
 from core.config import load_config
 from core.services import get_services
-
 
 # Embeddings endpoint (official Yandex AI Studio REST API).
 EMBEDDINGS_URL = "https://llm.api.cloud.yandex.net/foundationModels/v1/textEmbedding"

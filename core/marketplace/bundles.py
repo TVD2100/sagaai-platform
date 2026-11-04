@@ -24,7 +24,8 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Sequence
 
 from core.marketplace import installer as installer_mod
-from core.marketplace import registry, rollback, source as source_mod, store
+from core.marketplace import registry, rollback, store
+from core.marketplace import source as source_mod
 
 
 class BundleError(store.MarketplaceError):

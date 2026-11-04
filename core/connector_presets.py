@@ -26,7 +26,6 @@ from typing import Any, Dict, List, Optional
 
 from core import defaults as defaults_mod
 
-
 # Snapshot of a preset exposed to tools/UI (no secrets by construction).
 _PUBLIC_KEYS = (
     "id", "service", "name", "description", "icon", "config",

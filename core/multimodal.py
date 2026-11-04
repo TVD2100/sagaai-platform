@@ -24,7 +24,6 @@ from core.api_layer import send_image_generation_request, send_vision_request
 from core.config import load_devagent_config
 from core.services import get_image_models, get_services, get_vision_models
 
-
 # Multimodal kinds accepted by resolve_model.
 VISION = "vision"
 IMAGE = "image"

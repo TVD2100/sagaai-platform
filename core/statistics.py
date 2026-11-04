@@ -19,7 +19,6 @@ record dicts, so unit tests can exercise the math without a database.
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
-
 # ─── Public constants ────────────────────────────────────────────────────────
 
 GRANULARITIES = ("day", "week", "month", "period")
@@ -137,7 +136,7 @@ def collect_chat_records() -> List[Dict[str, Any]]:
     """
     records: List[Dict[str, Any]] = []
     try:
-        from core.threads import list_chat_threads, get_thread_messages
+        from core.threads import get_thread_messages, list_chat_threads
         providers = _chat_provider_map()
         for thread in list_chat_threads():
             tid = thread.get("thread_id")

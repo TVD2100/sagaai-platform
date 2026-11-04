@@ -27,11 +27,12 @@ import json
 import os
 import shutil
 import uuid
-from typing import Dict, List, Optional, Set
+from typing import Optional, Set
 
 from core import rag
 from core.marketplace import config as marketplace_config
-from core.marketplace import registry, rollback, source as source_mod, store, verify
+from core.marketplace import registry, rollback, store, verify
+from core.marketplace import source as source_mod
 from core.marketplace.installer import (
     InstallError,
     _entity_files,

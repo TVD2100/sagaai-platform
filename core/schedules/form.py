@@ -11,7 +11,7 @@ Streamlit, so it is testable on its own.
 from __future__ import annotations
 
 import time
-from datetime import date, datetime, time as _time, timezone
+from datetime import date, datetime, timezone
 from typing import List, Optional, Tuple
 
 from core.schedules.calc import compute_next_run, resolve_zone

@@ -53,7 +53,6 @@ from core.marketplace.store import (  # noqa: F401
     install_lock,
 )
 
-
 __all__ = [
     "MarketplaceBusyError",
     "MarketplaceError",

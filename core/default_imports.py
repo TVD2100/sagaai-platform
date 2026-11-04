@@ -36,14 +36,14 @@ from typing import Dict
 
 from core import defaults as defaults_mod
 from core.fs import ensure_dir
-from storage.models import DEFAULT_MAX_STEPS
 from core.orchestrators import (
-    DEVAGENT_SLUG,
     DEFAULT_WEB_SEARCH_PROMPT,
+    DEVAGENT_SLUG,
     get_orchestrator,
     import_orchestrator,
     save_orchestrator,
 )
+from storage.models import DEFAULT_MAX_STEPS
 
 
 def _full_devagent_toolset() -> list:
@@ -236,6 +236,7 @@ def ensure_default_rag_bases() -> Dict[str, str]:
     Returns a status dict: {slug: "created"|"exists"|"error: ..."}.
     """
     import shutil
+
     from core import rag
 
     results: Dict[str, str] = {}
@@ -335,8 +336,8 @@ def ensure_default_assistants() -> Dict[str, str]:
     Returns a status dict: {name: "created"|"exists"|"error: ..."}.
     """
     from core.assistants import (
-        load_assistants_index,
         create_assistant,
+        load_assistants_index,
         save_assistant_file,
     )
 
@@ -414,9 +415,9 @@ def ensure_default_instructions() -> Dict[str, str]:
     similar dict {"devagent_instructions": {id: status}}.
     """
     from core.orchestrators import (
+        orch_delete_instruction,
         orch_get_instruction,
         orch_save_instruction,
-        orch_delete_instruction,
     )
 
     instr_dir = os.path.join(defaults_mod.orchestrators_dir(), DEVAGENT_SLUG, "instructions")
@@ -491,12 +492,12 @@ def ensure_default_skills() -> Dict[str, str]:
     Returns a status dict: {folder: skill_id | "exists" | "error: ..."}.
     """
     from core.skills_library import (
+        PLATFORM_DEVELOPER,
         _load_registry,
         _load_removed_defaults,
         _save_registry,
         get_skills_root,
         import_skill_from_folder,
-        PLATFORM_DEVELOPER,
     )
 
     results: Dict[str, str] = {}
@@ -613,8 +614,8 @@ def ensure_all_defaults() -> Dict[str, Dict[str, str]]:
     Returns {"orchestrators": {...}, "assistants": {...},
              "instructions": {...}, "skills": {...}, "folders": {...}}.
     """
-    from core.orchestrators import ensure_builtin_orchestrators
     from core.instructions import ensure_global_instructions
+    from core.orchestrators import ensure_builtin_orchestrators
     results: Dict[str, Dict[str, str]] = {
         "rag_bases": ensure_default_rag_bases(),
         "orchestrators": ensure_builtin_orchestrators(),

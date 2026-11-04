@@ -24,9 +24,10 @@ from core import rag
 from core.rag_chunker import chunk_text
 from core.rag_embeddings import get_yandex_embedding_credentials
 from core.rag_index import (
-    add_chunk, create_index_db, read_meta, reset_index,
+    add_chunk,
+    create_index_db,
+    reset_index,
 )
-
 
 DEFAULT_CHUNK_SIZE = 1500
 DEFAULT_CHUNK_OVERLAP = 150

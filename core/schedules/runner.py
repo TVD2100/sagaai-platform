@@ -24,7 +24,8 @@ import time
 from typing import Any, Dict, List, Optional
 
 from core.schedules import store
-from core.schedules.calc import next_run_epoch, resolve_zone
+from core.schedules.calc import next_run_epoch
+from core.schedules.form import format_moment
 from core.schedules.model import Schedule
 
 log = logging.getLogger(__name__)
@@ -60,8 +61,9 @@ def build_task_text(schedule: Schedule, planned_at: int) -> str:
     answering questions. It is deliberately short - a long preamble eats the
     context that the actual task needs.
     """
-    zone = resolve_zone(schedule.tz)
-    moment = time.strftime("%d.%m.%Y %H:%M", time.localtime(int(planned_at)))
+    # The moment must read in the rule's own zone: the agent is told when it runs,
+    # and a server-local rendering would state a different wall-clock time.
+    moment = format_moment(int(planned_at), schedule.tz)
     lines = [str(schedule.task_text or "").strip()]
     if schedule.brief_text.strip():
         lines.append("")
@@ -79,7 +81,7 @@ def build_task_text(schedule: Schedule, planned_at: int) -> str:
 
 def _thread_title(schedule: Schedule, planned_at: int) -> str:
     """Return the History title of one run: schedule name plus its moment."""
-    stamp = time.strftime("%d.%m.%Y %H:%M", time.localtime(int(planned_at)))
+    stamp = format_moment(int(planned_at), schedule.tz)
     name = str(schedule.title or schedule.id).strip() or schedule.id
     return "\u23f0 %s \u00b7 %s" % (name, stamp)
 

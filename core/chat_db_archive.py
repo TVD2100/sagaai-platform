@@ -48,7 +48,7 @@ import zlib
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 #: Layout version stamped into the main database header.
 CHAT_DB_FORMAT_VERSION = 1

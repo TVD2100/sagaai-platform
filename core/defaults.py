@@ -40,13 +40,10 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import core.paths
-
 from storage.models import DEFAULT_MAX_STEPS
-
 
 # ─── Directory helpers ────────────────────────────────────────────────────────
 
@@ -154,8 +151,6 @@ def parse_front_matter(text: str, default_id: str = "") -> Tuple[Dict[str, str],
     if not text.startswith("---\n"):
         return {}, text
     # Find the closing delimiter line.
-    lines = text.split("\n", 4)
-    # lines = ["---", key: value lines..., maybe closing ---]
     body_start = None
     meta_lines: List[str] = []
     rest_lines = text.split("\n")

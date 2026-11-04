@@ -558,7 +558,39 @@
 # time and an optional token budget, never delegate further, and three
 # failures in a row put the rule on hold with the reason on its card.
 
-__version__ = "2.34.0"
+# 2.35.0 adds the HTTP API v1 and the in-process launch facade it is built on.
+# The facade (core/gateway/) is the one place a dialog is launched, polled and
+# closed: the UI and the HTTP transport both call it, so the same request gets
+# the same answer regardless of how it arrived. The API (server/) is a separate
+# FastAPI process with its own requirements file, bearer tokens kept apart from
+# the platform config, an instance lock against a second process on the same
+# port, a host guard against DNS rebinding, a request id and an access log on
+# the route template, and one flat error envelope whose status comes from the
+# domain error rather than from a per-route table. The runner itself
+# (core.orchestration.dialog_runner) knows nothing about Streamlit or HTTP, so
+# the equivalence is structural and not a second implementation kept in sync by
+# hand. Two dormant defects surfaced by the new linter are fixed with it: a
+# missing logger in the agent loop and a missing import on the orchestrators
+# page, both of which would raise NameError on the error path.
+
+# 2.35.1 runs the whole code base through ``ruff`` and makes the fixes it
+# found. The rule set stays narrow (``E``/``F``/``I``) on purpose: a wider one
+# reports hundreds of findings about a style this project never adopted, and a
+# linter people ignore is worse than none. Two real defects came out of the
+# sweep: a scheduled run printed its moment in the server's time zone because
+# the rule's own zone was computed and then dropped on the floor, and a
+# duplicate dictionary key in the project-map generator silently replaced a
+# fuller description with a shorter one. The rest is mechanical - import order,
+# unused imports, one-line statements expanded, ambiguous variable names
+# renamed. ``E402`` stays off for the specific files where an import must follow
+# executable code (``sys.path`` preparation, ``importorskip`` guards, the first
+# ``set_page_config`` call); each of those entries carries its reason in
+# ``ruff.toml`` instead of a bare ``noqa`` in forty places. Three ``# noqa``
+# directives written as free text were dead weight - ruff never matched them,
+# so they suppressed nothing while looking like they did; they are now either a
+# plain comment (the import needed no suppression) or a correct code list.
+
+__version__ = "2.35.1"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

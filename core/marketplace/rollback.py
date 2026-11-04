@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import os
 import shutil
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from core.marketplace import registry, store
 

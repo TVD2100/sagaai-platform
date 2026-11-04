@@ -31,8 +31,6 @@ import time
 from typing import Any, Dict, List, Optional
 
 from core.orchestration.contracts import (
-    AgentBrief,
-    AgentQuestion,
     AWAIT_QUESTION,
     DEFAULT_ANSWER_MAX_CHARS,
     DEFAULT_ANSWER_WAIT_SECONDS,
@@ -54,15 +52,17 @@ from core.orchestration.contracts import (
     ERR_TIMEOUT,
     ERR_UNKNOWN_AGENT,
     ERR_UNKNOWN_ASSISTANT,
-    InvokeRequest,
     MAX_SUBAGENT_TIMEOUT_SECONDS,
-    SpawnRequest,
     STATUS_AWAITING_INPUT,
     STATUS_CANCELLED,
     STATUS_DONE,
     STATUS_FAILED,
     STATUS_RUNNING,
     TERMINAL_STATUSES,
+    AgentBrief,
+    AgentQuestion,
+    InvokeRequest,
+    SpawnRequest,
     error_result,
     result_from_record,
 )
@@ -1079,8 +1079,8 @@ def resume_subagent(run_id: Optional[str] = None, *,
                             ERR_RESUME_UNAVAILABLE)
 
     try:
-        from dev_agent.task_state import read_task_state_at
         from core.orchestration.resume import read_checkpoint
+        from dev_agent.task_state import read_task_state_at
         built = build_resume(record, read_state=read_task_state_at,
                              read_checkpoint=read_checkpoint)
     except Exception as exc:  # pragma: no cover - defensive

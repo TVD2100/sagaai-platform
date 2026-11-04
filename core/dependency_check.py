@@ -23,7 +23,6 @@ so a broken or absent package cannot make importing this module fail.
 import importlib.util
 from importlib import metadata as importlib_metadata
 
-
 # import name -> {"pip": distribution name, "min": minimum version, "required": bool}
 # Mirrors requirements.txt; the consistency test keeps both in sync.
 DEPENDENCIES = {

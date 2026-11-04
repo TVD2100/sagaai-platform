@@ -6,9 +6,10 @@ Default provider definitions live in defaults/services/; the legacy services/
 folders remains a fallback for installations created before the defaults/
 layout. Discovered services are merged (defaults win on name conflicts).
 """
-import os
 import json
+import os
 from functools import lru_cache
+
 from core.paths import SERVICES_DIR
 
 

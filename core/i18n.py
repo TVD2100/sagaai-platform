@@ -19,9 +19,10 @@ the dict insertion order; sort_keys=True switches to alphabetical order.
 This keeps language-file diffs deterministic across sessions instead of
 depending on unordered intermediate containers.
 """
-import os
 import json
+import os
 from functools import lru_cache
+
 from core.paths import LANGS_DIR
 
 

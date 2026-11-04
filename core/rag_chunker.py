@@ -15,7 +15,6 @@ No streamlit imports.
 """
 import re
 
-
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?;…])\s+")
 _WORD_SPLIT = re.compile(r"\s+")
 

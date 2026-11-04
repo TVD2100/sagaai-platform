@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import json
 import time
-from dataclasses import dataclass, field, replace
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from dataclasses import dataclass, replace
+from typing import Any, Dict, List, Optional, Tuple
 
 #: Supported interval units. ``minutes`` exists for genuinely short
 #: schedules; the usual presets map onto hours/days/weeks/months.

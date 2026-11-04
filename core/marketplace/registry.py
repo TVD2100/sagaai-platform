@@ -26,10 +26,9 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from core.marketplace import store
-
 
 INSTALLED_TABLE = "marketplace_installed"
 REMOVED_TABLE = "marketplace_removed"
@@ -695,7 +694,7 @@ def ensure_tables() -> None:
     wrapper lets the marketplace bootstrap run in contexts that only open a
     session and never touch the engine factory directly.
     """
-    from storage.db import get_engine, _ensure_marketplace_tables
+    from storage.db import _ensure_marketplace_tables, get_engine
 
     _ensure_marketplace_tables(get_engine())
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.

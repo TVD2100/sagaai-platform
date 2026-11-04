@@ -25,12 +25,10 @@ import os
 import re
 import shutil
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import core.paths
-from core.fs import ensure_dir, read_json_file, read_text_file, write_json_file, write_text_file
-
+from core.fs import ensure_dir, read_json_file, read_text_file, write_text_file
 
 # ─── Slug helpers ─────────────────────────────────────────────────────────────
 

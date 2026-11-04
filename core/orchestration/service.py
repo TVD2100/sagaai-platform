@@ -43,50 +43,44 @@ from typing import Any, Callable, Dict, List, Optional
 
 log = logging.getLogger("core.orchestration.service")
 
+from core.orchestration import runs as run_store  # noqa: E402
 from core.orchestration.contracts import (  # noqa: E402
-    AgentBrief,
-    AgentQuestion,
-    AgentRunResult,
-    Artifact,
     AWAIT_QUESTION,
     AWAIT_UNFINISHED,
-    CancelReport,
     DEFAULT_ANSWER_MAX_CHARS,
     DEFAULT_ANSWER_WAIT_SECONDS,
     DEFAULT_DIALOG_ROUNDS,
-    DEFAULT_MAX_PARKED_RUNS,
-    DEFAULT_QUESTION_MAX_CHARS,
-    ERR_ANSWER_NOT_RECEIVED,
-    ERR_NOTHING_TO_ANSWER,
-    ERR_INVALID_ARGS,
-    ERR_QUESTION_LIMIT,
-    ERR_RUN_ALREADY_FINISHED,
-    ERR_TOO_MANY_PARKED,
-    MAX_ANSWER_WAIT_SECONDS,
-    STATUS_AWAITING_INPUT,
     DEFAULT_MAX_ACTIVE_SUBAGENTS,
     DEFAULT_MAX_DEPTH,
+    DEFAULT_MAX_PARKED_RUNS,
     DEFAULT_POOL_WAIT_SECONDS,
+    DEFAULT_QUESTION_MAX_CHARS,
     DEFAULT_SUBAGENT_BUDGET_TOKENS,
     DEFAULT_SUBAGENT_MAX_STEPS,
     DEFAULT_SUBAGENT_TIMEOUT_SECONDS,
     DEFAULT_TOTAL_SUBAGENT_RUNS,
-    MAX_SUBAGENT_TIMEOUT_SECONDS,
+    ERR_ANSWER_NOT_RECEIVED,
     ERR_CANCELLED_BY_PARENT,
-    ERR_LIMIT_EXCEEDED,
     ERR_INTERNAL_ERROR,
-    ERR_MAX_STEPS,
+    ERR_INVALID_ARGS,
+    ERR_LIMIT_EXCEEDED,
     ERR_NO_RUN_IDENTITY,
     ERR_NOT_IMPLEMENTED,
     ERR_NOT_YOUR_RUN,
+    ERR_NOTHING_TO_ANSWER,
     ERR_PROVIDER_ERROR,
+    ERR_QUESTION_LIMIT,
     ERR_RESUME_CHAIN_LIMIT,
     ERR_RESUME_UNAVAILABLE,
+    ERR_RUN_ALREADY_FINISHED,
     ERR_RUN_NOT_FOUND,
     ERR_STALE_RUN,
     ERR_TIMEOUT,
-    InvokeRequest,
+    ERR_TOO_MANY_PARKED,
+    MAX_ANSWER_WAIT_SECONDS,
     MAX_RESUME_CHAIN,
+    MAX_SUBAGENT_TIMEOUT_SECONDS,
+    STATUS_AWAITING_INPUT,
     STATUS_CANCELLED,
     STATUS_DONE,
     STATUS_FAILED,
@@ -95,11 +89,16 @@ from core.orchestration.contracts import (  # noqa: E402
     STOP_COMPLETED,
     STOP_ERROR,
     STOP_MAX_TOKENS,
-    SpawnRequest,
     TERMINAL_STATUSES,
+    AgentBrief,
+    AgentQuestion,
+    AgentRunResult,
+    Artifact,
+    CancelReport,
+    InvokeRequest,
+    SpawnRequest,
     map_final_status,
 )
-from core.orchestration import runs as run_store  # noqa: E402
 
 #: Tools a child must NOT see in v1: a child never creates platform entities
 #: (orchestrators, assistants). The parent keeps whatever it had.
@@ -2429,9 +2428,9 @@ def _default_child_runner(*, child_slug: str, brief: AgentBrief,
 
     _scope = None
     try:
+        from core.api_layer import send_request
         from dev_agent.agent_loop import AgentLoopState, step_agent_loop
         from dev_agent.universal_agent import UniversalDevAgent
-        from core.api_layer import send_request
 
         # Pin the journal thread for THIS Python thread for the whole child
         # run: every task_state call inside resolves to the child's file even

@@ -17,7 +17,7 @@ The same name-resolution helpers are reused by
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set
 
 log = logging.getLogger("core.orchestrator_tools")
 
@@ -200,12 +200,18 @@ def _delegation_catalog() -> List[Dict[str, str]]:
     """
     try:
         from core.orchestration.tools import (
-            spawn_tool_entry, invoke_tool_entry, subagent_status_tool_entry,
+            answer_child_tool_entry,
+            ask_parent_tool_entry,
+            cancel_subagent_tool_entry,
+            invoke_tool_entry,
+            read_subagent_state_tool_entry,
+            read_subagent_thread_tool_entry,
+            resume_subagent_tool_entry,
+            sleep_tool_entry,
+            spawn_tool_entry,
             subagent_result_tool_entry,
-            read_subagent_state_tool_entry, resume_subagent_tool_entry,
-            sleep_tool_entry, cancel_subagent_tool_entry,
-            read_subagent_thread_tool_entry, verify_result_tool_entry,
-            ask_parent_tool_entry, answer_child_tool_entry,
+            subagent_status_tool_entry,
+            verify_result_tool_entry,
         )
         return [spawn_tool_entry(), subagent_status_tool_entry(),
                 subagent_result_tool_entry(),
@@ -229,8 +235,8 @@ def _connection_catalog(orchestrator_slug: str) -> List[Dict[str, str]]:
     logged); missing or unknown services yield no entries at all.
     """
     try:
-        from core.orchestrators import get_enabled_connections
         from core.connectors import get_connection
+        from core.orchestrators import get_enabled_connections
         services: Set[str] = set()
         for conn_id in get_enabled_connections(orchestrator_slug):
             conn = get_connection(conn_id)

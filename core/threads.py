@@ -23,18 +23,28 @@ DevAgent event persistence:
   - The transcript mirror unpacks the same prefix once when it writes a record,
     so a file record carries real fields and no render payload.
 """
-import os, json, re, uuid, shutil
+import json
+import os
+import re
+import shutil
+import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from storage.repository import (
-    repo_create_thread, repo_save_thread_meta, repo_load_thread_meta,
-    repo_save_thread_messages, repo_load_thread_messages,
-    repo_delete_thread, repo_list_threads_by_type, repo_list_chat_threads,
-    repo_append_message, repo_list_all_threads,
-)
 from core.fs import ensure_dir
 from core.paths import get_thread_dir, get_thread_file_path
+from storage.repository import (
+    repo_append_message,
+    repo_create_thread,
+    repo_delete_thread,
+    repo_list_all_threads,
+    repo_list_chat_threads,
+    repo_list_threads_by_type,
+    repo_load_thread_messages,
+    repo_load_thread_meta,
+    repo_save_thread_messages,
+    repo_save_thread_meta,
+)
 
 _PREFIX_MARKER = "__DEVAGENT_EVENTS__"
 _PREFIX_PATTERN = re.compile(

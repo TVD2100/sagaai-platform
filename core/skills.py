@@ -9,20 +9,18 @@ New code must import from core.assistants. The functions below are
 thin re-exports kept so older modules (and third-party imports) keep working.
 """
 from core.assistants import (
-    ensure_dir,
-    load_assistants_index,
-    load_assistant_prompt_text,
-    save_assistant_prompt_text,
-    get_assistant_by_id,
     create_assistant,
-    update_assistant,
     delete_assistant,
+    delete_assistant_file,
+    get_assistant_by_id,
     get_assistant_files_dir,
     list_assistant_files,
-    save_assistant_file,
-    delete_assistant_file,
     load_assistant_files_context,
-    SYSTEM_PROMPTS_DIR,
+    load_assistant_prompt_text,
+    load_assistants_index,
+    save_assistant_file,
+    save_assistant_prompt_text,
+    update_assistant,
 )
 
 # ─── Legacy aliases (skill terminology) ───────────────────────────────────

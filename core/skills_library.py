@@ -37,7 +37,6 @@ import zipfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-
 # ─── Paths ────────────────────────────────────────────────────────────────
 
 SKILLS_DIR_NAME = "skills"

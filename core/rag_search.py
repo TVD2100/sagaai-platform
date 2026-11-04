@@ -25,11 +25,9 @@ all document/chunk data stays on disk.
 
 No streamlit imports.
 """
-from core import rag
+from core import rag, rag_bm25
 from core.rag_embeddings import embed_query
 from core.rag_index import fetch_chunks, search_similar
-from core import rag_bm25
-
 
 DEFAULT_TOP_K = 5
 MAX_FETCH_CHUNKS = 20

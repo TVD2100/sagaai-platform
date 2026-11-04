@@ -34,8 +34,8 @@ from __future__ import annotations
 from typing import Dict, Iterable, List, Optional, Sequence
 
 from core.marketplace import config as marketplace_config
-from core.marketplace import conflicts, installer, registry, semver, source as source_mod, store
-
+from core.marketplace import conflicts, installer, registry, semver, store
+from core.marketplace import source as source_mod
 
 #: Update policies accepted by :func:`apply_entity_updates`.
 POLICIES = ("keep_mine", "take_catalog", "skip")

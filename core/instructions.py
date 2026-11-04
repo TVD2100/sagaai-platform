@@ -22,7 +22,6 @@ from typing import Any, Dict, List, Optional
 from core.defaults import parse_front_matter
 from core.fs import ensure_dir
 
-
 _SAFE_RE = re.compile(r"[^a-zA-Z0-9_.-]+")
 
 

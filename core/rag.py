@@ -29,7 +29,6 @@ from datetime import datetime, timezone
 from core.fs import ensure_dir
 from core.paths import RAG_BASES_DIR
 
-
 VALID_STATUS = ("draft", "indexing", "ready", "error")
 VALID_TYPES = ("rag",)
 
@@ -431,8 +430,8 @@ def base_has_credentials(slug: str) -> bool:
     if not provider:
         return False
     try:
-        from core.services import get_services
         from core.config import load_config
+        from core.services import get_services
         svc = get_services().get(provider, {})
         if not svc:
             return False
@@ -466,7 +465,8 @@ def list_chunks(slug: str, query: str = "", limit: int = 20,
     each chunk dict is ``{"chunk_id", "text", "source", "chunk_index",
     "created_at", "has_embedding"}``.
     """
-    from core.rag_index import list_chunks as _list, search_chunks_text
+    from core.rag_index import list_chunks as _list
+    from core.rag_index import search_chunks_text
     db = index_db_path(slug)
     if (query or "").strip():
         return search_chunks_text(db, query, limit=limit, offset=offset)
@@ -493,7 +493,11 @@ def update_chunk(slug: str, chunk_id: int, text: str,
     "warning": str}``.
     """
     from core.rag_index import (
-        update_chunk_text, add_embedding, get_chunk as _get,
+        add_embedding,
+        update_chunk_text,
+    )
+    from core.rag_index import (
+        get_chunk as _get,
     )
     db = index_db_path(slug)
     if not update_chunk_text(db, chunk_id, text):

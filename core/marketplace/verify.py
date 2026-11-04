@@ -27,7 +27,6 @@ from typing import Dict, Iterable, List, Optional, Set
 
 from core.marketplace import registry, store
 
-
 # Limits (D-15). A skill package is tens of kilobytes; these bounds exist to
 # stop a hostile archive from exhausting disk or memory during unpacking.
 MAX_ARCHIVE_BYTES = 200 * 1024 * 1024

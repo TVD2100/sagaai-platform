@@ -20,18 +20,17 @@ whenever content changes through the UI or through DevAgent.
 """
 from __future__ import annotations
 
-import os
 from typing import Any, Dict
 
 from core.assistant_folders import (
-    list_assistant_folder_names,
     assistant_folder_exists,
-    sync_assistant_to_folder,
+    list_assistant_folder_names,
     normalize_slug,
+    sync_assistant_to_folder,
 )
 from storage.repository import (
-    repo_load_assistants,
     repo_get_assistant_by_slug,
+    repo_load_assistants,
     repo_set_assistant_slug,
 )
 

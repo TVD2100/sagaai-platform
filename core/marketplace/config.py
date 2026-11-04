@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-
 PREFIX = "marketplace."
 
 DEFAULTS: Dict[str, Any] = {

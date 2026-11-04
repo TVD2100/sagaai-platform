@@ -58,7 +58,6 @@ import re
 import sys
 from collections import OrderedDict
 
-
 # Hard dependency list, checked at startup so the agent can report a
 # meaningful error when the script is run from outside the install.
 _HARD_DEPS = ("core.rag", "core.rag_index", "core.rag_chunker",

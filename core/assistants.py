@@ -14,40 +14,43 @@ The folder is the *source of truth* for an assistant's content. The DB row
 is a runtime cache that is synced from the folder on startup and refreshed
 whenever content changes through the UI or through DevAgent.
 """
-import json
 import os
-import re
 import shutil
 import uuid
 from datetime import datetime
 
-from storage.repository import (
-    repo_create_assistant,
-    repo_update_assistant,
-    repo_delete_assistant,
-    repo_load_assistants,
-    repo_get_assistant_with_text,
-    repo_get_assistant_by_slug,
-    repo_save_assistant_prompt_text,
-)
 from core.assistant_folders import (
-    normalize_slug,
-    get_assistant_dir,
-    ensure_assistant_dir,
-    remove_assistant_dir,
     assistant_folder_exists,
-    sync_assistant_to_folder,
     export_assistant_folder,
-    import_assistant_folder,
+    get_assistant_dir,
     load_assistant_bundle,
     load_assistant_prompt,
-    list_assistant_files as folder_list_files,
-    save_assistant_file as folder_save_file,
+    normalize_slug,
+    remove_assistant_dir,
+    sync_assistant_to_folder,
+)
+from core.assistant_folders import (
     delete_assistant_file as folder_delete_file,
-    load_assistant_file_content as folder_load_file,
+)
+from core.assistant_folders import (
+    list_assistant_files as folder_list_files,
+)
+from core.assistant_folders import (
     load_all_assistant_files as folder_load_all_files,
 )
+from core.assistant_folders import (
+    save_assistant_file as folder_save_file,
+)
 from core.config import load_config
+from storage.repository import (
+    repo_create_assistant,
+    repo_delete_assistant,
+    repo_get_assistant_by_slug,
+    repo_get_assistant_with_text,
+    repo_load_assistants,
+    repo_save_assistant_prompt_text,
+    repo_update_assistant,
+)
 
 # ─── Paths ────────────────────────────────────────────────────────────────
 

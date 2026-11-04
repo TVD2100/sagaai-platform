@@ -21,7 +21,6 @@ from typing import Dict, List
 from core.marketplace import config as marketplace_config
 from core.marketplace import migration, registry, rollback, store
 
-
 logger = logging.getLogger(__name__)
 
 

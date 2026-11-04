@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy import text
 
-from core.schedules.model import Schedule, STATUS_ACTIVE
+from core.schedules.model import STATUS_ACTIVE, Schedule
 
 log = logging.getLogger(__name__)
 
@@ -392,7 +392,9 @@ def active_run(schedule_id: str) -> Optional[Dict[str, Any]]:
 def runs_today(schedule_id: str, tz_name: str = "Europe/Moscow",
                now: Optional[int] = None) -> int:
     """Return how many runs of a schedule started today in its own zone."""
-    from datetime import datetime, timezone as _tz
+    from datetime import datetime
+    from datetime import timezone as _tz
+
     from core.schedules.calc import resolve_zone
 
     zone = resolve_zone(tz_name)

@@ -29,15 +29,15 @@ This is NOT a full multi-user system - it protects against casual
 unauthorized access when the app is exposed on a network. For
 production use, deploy behind a reverse proxy with proper auth.
 """
-import os
 import hashlib
+import os
 import secrets
 import time
 
 import streamlit as st
 
-from core.i18n import t
 from core.config import load_config, load_stored_config, save_config
+from core.i18n import t
 
 _ENV_VAR = "SAGAAI_AUTH_PASSWORD"
 

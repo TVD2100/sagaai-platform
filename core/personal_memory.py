@@ -46,7 +46,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import core.paths
 from core.fs import ensure_dir
 
-
 # ─── Constants ────────────────────────────────────────────────────────────────
 
 PERSONAL_DIR_NAME: str = "personal"

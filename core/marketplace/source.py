@@ -28,7 +28,6 @@ from typing import Callable, Dict, Optional
 
 from core.marketplace import store
 
-
 DEFAULT_BASE_URL = (
     "https://raw.githubusercontent.com/TVD2100/sagaai-marketplace/main"
 )

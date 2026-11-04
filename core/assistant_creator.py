@@ -10,7 +10,6 @@ Public API:
 """
 from __future__ import annotations
 
-
 _REQUIRED_SECTIONS = ("## Role", "## Task")
 _OPTIONAL_SECTIONS = (
     "## Context",

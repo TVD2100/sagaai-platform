@@ -24,7 +24,6 @@ from __future__ import annotations
 
 from typing import Callable, Optional
 
-
 # Stable id of the built-in Prompt Improver instruction.
 PROMPT_IMPROVER_INSTRUCTION_ID = "prompt_improver"
 
