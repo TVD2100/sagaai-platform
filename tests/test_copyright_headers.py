@@ -118,6 +118,7 @@ class TestAgentInventory:
         groups["Core"] = [p for p in core if p.count("/") == 1]
         groups["Marketplace"] = [p for p in core if p.startswith("core/marketplace/")]
         groups["Orchestration"] = [p for p in core if p.startswith("core/orchestration/")]
+        groups["Schedules"] = [p for p in core if p.startswith("core/schedules/")]
 
         assert set(listed) == set(groups), "unexpected inventory groups: %s" % sorted(listed)
         for label, expected in groups.items():

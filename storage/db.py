@@ -340,6 +340,102 @@ def _migrate_assistant_table(engine) -> None:
             ))
 
 
+def _ensure_schedules_tables(engine) -> None:
+    """Create the scheduled-run tables on any database.
+
+    Same contract as ``_ensure_marketplace_tables``: raw SQL, idempotent,
+    and wrapped so a failure here can never stop the application from
+    starting. The feature stores its state outside the ORM on purpose -
+    the due-point claim needs a single atomic ``UPDATE ... WHERE`` and a
+    ``BEGIN IMMEDIATE`` transaction, which the ORM session does not model.
+
+    ``schedule_runs`` carries the idempotency key ``UNIQUE(schedule_id,
+    planned_at)``: one scheduled point may produce at most one history row no
+    matter how often a tick repeats, how many processes run, or how the
+    process died between claiming and starting.
+    """
+    statements = (
+        """
+        CREATE TABLE IF NOT EXISTS schedules (
+            id                    TEXT PRIMARY KEY,
+            title                 TEXT NOT NULL DEFAULT '',
+            agent_slug            TEXT NOT NULL DEFAULT '',
+            task_text             TEXT NOT NULL DEFAULT '',
+            brief_text            TEXT NOT NULL DEFAULT '',
+            workspace             TEXT NOT NULL DEFAULT '',
+            first_run_at          INTEGER NOT NULL DEFAULT 0,
+            ends_at               INTEGER,
+            interval_value        INTEGER NOT NULL DEFAULT 1,
+            interval_unit         TEXT NOT NULL DEFAULT 'days',
+            tz                    TEXT NOT NULL DEFAULT 'Europe/Moscow',
+            blocked_weekdays      TEXT NOT NULL DEFAULT '',
+            blocked_ranges_json   TEXT NOT NULL DEFAULT '[]',
+            quiet_hours           TEXT NOT NULL DEFAULT '',
+            exception_policy      TEXT NOT NULL DEFAULT 'skip',
+            max_shift_seconds     INTEGER NOT NULL DEFAULT 604800,
+            misfire_policy        TEXT NOT NULL DEFAULT 'skip',
+            misfire_grace_seconds INTEGER NOT NULL DEFAULT 3600,
+            overlap_policy        TEXT NOT NULL DEFAULT 'skip',
+            max_runs              INTEGER,
+            max_runs_per_day      INTEGER,
+            max_steps             INTEGER NOT NULL DEFAULT 60,
+            budget_tokens         INTEGER NOT NULL DEFAULT 0,
+            timeout_seconds       INTEGER NOT NULL DEFAULT 900,
+            max_depth             INTEGER NOT NULL DEFAULT 0,
+            next_run_at           INTEGER,
+            last_run_at           INTEGER,
+            last_status           TEXT NOT NULL DEFAULT '',
+            last_error_code       TEXT NOT NULL DEFAULT '',
+            status                TEXT NOT NULL DEFAULT 'active',
+            run_count             INTEGER NOT NULL DEFAULT 0,
+            fail_count            INTEGER NOT NULL DEFAULT 0,
+            consecutive_failures  INTEGER NOT NULL DEFAULT 0,
+            lock_owner            TEXT,
+            lock_expires_at       INTEGER,
+            created_at            INTEGER NOT NULL DEFAULT 0,
+            updated_at            INTEGER NOT NULL DEFAULT 0,
+            created_by            TEXT NOT NULL DEFAULT ''
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS schedule_runs (
+            id              TEXT PRIMARY KEY,
+            schedule_id     TEXT NOT NULL,
+            planned_at      INTEGER NOT NULL DEFAULT 0,
+            trigger         TEXT NOT NULL DEFAULT 'schedule',
+            status          TEXT NOT NULL DEFAULT 'started',
+            started_at      INTEGER NOT NULL DEFAULT 0,
+            finished_at     INTEGER,
+            run_id          TEXT,
+            thread_id       TEXT,
+            stop_reason     TEXT NOT NULL DEFAULT '',
+            error_code      TEXT NOT NULL DEFAULT '',
+            reason          TEXT NOT NULL DEFAULT '',
+            steps_used      INTEGER NOT NULL DEFAULT 0,
+            tokens_in       INTEGER NOT NULL DEFAULT 0,
+            tokens_out      INTEGER NOT NULL DEFAULT 0,
+            tokens_cache    INTEGER NOT NULL DEFAULT 0,
+            summary         TEXT NOT NULL DEFAULT '',
+            FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_schedules_due ON schedules (status, next_run_at)",
+        "CREATE INDEX IF NOT EXISTS ix_schedules_agent ON schedules (agent_slug, status)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ux_schedule_runs_point "
+        "ON schedule_runs (schedule_id, planned_at)",
+        "CREATE INDEX IF NOT EXISTS ix_schedule_runs_sched "
+        "ON schedule_runs (schedule_id, planned_at DESC)",
+        "CREATE INDEX IF NOT EXISTS ix_schedule_runs_open "
+        "ON schedule_runs (schedule_id, status)",
+    )
+    try:
+        with engine.begin() as conn:
+            for statement in statements:
+                conn.execute(text(statement))
+    except Exception:  # pragma: no cover - scheduling is an optional feature
+        pass
+
+
 def get_engine():
     """Return (and lazily create) the shared SQLAlchemy engine for the main DB.
 
@@ -368,6 +464,7 @@ def get_engine():
         _ensure_assistant_columns(_engine)
         _ensure_message_index(_engine)
         _ensure_marketplace_tables(_engine)
+        _ensure_schedules_tables(_engine)
     return _engine
 
 

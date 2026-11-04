@@ -53,6 +53,7 @@ from ui.pages.skills_library import page_skills_library
 from ui.pages.marketplace import page_marketplace
 from core.marketplace import is_enabled as marketplace_enabled
 from ui.pages.storage import page_storage
+from ui.pages.schedules import page_schedules
 from ui.pages.connectors import page_connectors
 from ui.pages.stats import page_stats
 from ui.pages.updates import page_updates
@@ -151,6 +152,7 @@ _SETTINGS_MORE = (
     ("skills", "\U0001f9e9", "nav_settings_assistants"),
     ("skills_library", "\U0001f9e0", "nav_settings_skills"),
     ("storage", "\U0001f5c4\ufe0f", "nav_storage"),
+    ("schedules", "\u23f0", "nav_schedules"),
     ("access", "\U0001f510", "nav_access"),
     ("stats", "\U0001f4ca", "nav_stats"),
     ("welcome", "\U0001f3e0", "nav_about"),
@@ -1077,6 +1079,8 @@ def main():
         page_marketplace()
     elif page == "storage":
         page_storage()
+    elif page == "schedules":
+        page_schedules()
     elif page == "connectors":
         page_connectors()
     elif page == "stats":

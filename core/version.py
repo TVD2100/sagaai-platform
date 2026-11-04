@@ -543,7 +543,22 @@
 # (agent_memory_reader, agent_thread_reader) enforce that same roster, so
 # a guessed slug or dialog id cannot widen what the user allowed.
 
-__version__ = "2.33.0"
+# 2.34.0 adds scheduled runs. A rule belongs to one employee: a task, an
+# anchor moment, a step (minutes..months), a time zone kept with the rule, and
+# an exclusion mask (blocked weekdays, blocked periods, quiet hours) with an
+# explicit skip/postpone policy. The scheduler is an in-process thread, so it
+# fires while the platform is open and dies with it; the page says so and
+# shows the heartbeat instead of pretending otherwise. One point fires at
+# most once: the claim is a conditional UPDATE plus a UNIQUE(schedule, planned
+# point) index, so a restart or a second tick cannot repeat a run, and a
+# backlog after downtime is recorded as missed rather than replayed as a
+# burst. A scheduled run IS an ordinary dialog - same thread table, no parent -
+# so the owner reads what an agent did last night in History like any other
+# conversation, and every run row links to it. Runs are bounded by steps,
+# time and an optional token budget, never delegate further, and three
+# failures in a row put the rule on hold with the reason on its card.
+
+__version__ = "2.34.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

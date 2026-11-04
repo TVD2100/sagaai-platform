@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-04T15:32:04+00:00`
-- Файлов: **540**
+- Обновлено: `2026-11-04T18:09:49+00:00`
+- Файлов: **555**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **8371**
-- Отпечаток содержимого: `sha256:baba4b7e10d160a8052d896b500cdc27ce1f7a7646f5279abc8e3a8b5acf1bc7` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 1, JSON: 25, Markdown: 40, PEM certificate: 1, Python: 476, Text: 1
+- Python-символов: **8688**
+- Отпечаток содержимого: `sha256:5a34eebb5e98ef33b2ed008e33bfafc664efd5faca5bd2a99fb21924fbfdd542` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 1, JSON: 25, Markdown: 40, PEM certificate: 1, Python: 491, Text: 1
 
 ## Файлы и назначение
 
@@ -32,6 +32,7 @@
 | `ui/pages/orchestrator.py` | Python | Orchestrator page: chat feed, history and settings sections; the Delegation tab carries the allowlists, the six delegation limits and the dialog fields (rounds, question and answer length, answer wait, simultaneous waits), each read through a default-tolerant helper so a partial limits mapping cannot break the tab; the waiting line shows the agent, the run id and the question, and the step feed renders a parked question as an expandable block; the Universal-Agent right is a separate checkbox above the agent list (hidden for the executor itself and while the employee is not installed), saved only when it changed and never folded into the allowlist | storage |
 | `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings page: tabbed sections (eleven tabs including Memory), the active tab is kept across reruns and pinned after a save | - |
 | `ui/pages/orchestrators.py` | Python | Employees (orchestrators) management page (create/open/settings/delete; export/import deferred) | - |
+| `ui/pages/schedules.py` | Python | The 'Run on a schedule' settings page: the rule list with its status, next point and counters, the create/edit form (employee, task, brief, zone, first moment, interval, blocked days, quiet window, advanced fields), a delete confirmation, the run history with its errors, the manual 'run now' action and the preview of the next points | - |
 | `ui/pages/settings.py` | Python | Settings page: provider keys, models, interface language and the owner's personal memory editor | - |
 | `ui/pages/skills.py` | Python | DEPRECATED shim -> ui/pages/assistants.py (page_assistants) | - |
 | `ui/pages/skills_library.py` | Python | Skills library page (install ZIP/GitHub/folder, edit metadata, delete) | - |
@@ -109,7 +110,7 @@
 | `core/updater.py` | Python | _(описание не задано)_ | - |
 | `core/updater_apply.py` | Python | _(описание не задано)_ | - |
 | `core/url_fetch.py` | Python | URL-fetch transport: fetch_endpoint resolves fetch_base_url (or derives the sibling /v1/tools/fetch from base_url, never duplicating the version segment), validate_fetch_url enforces http/https, the 8192-character cap, no embedded credentials and no local/private hosts (SSRF guard, literal addresses only), fetch_page_content posts {url} with the provider bearer key and returns {title, content} in Markdown, extract_pdf_markdown turns PDF bytes into '### Page N' sections via pypdf, selenium_page_text renders a page in headless Chrome and returns its visible text; every failure is raised through the APIError contract (ApiKeyMissing/ProviderHTTP/RequestTimeout/Network/ProviderResponse) or SeleniumUnavailableError | - |
-| `core/version.py` | Python | Single source of truth for the SagaAI platform version (semver __version__ plus a documented release history); 2.23.0 records the subagent control tools, 2.30.0 records the ## Current date prompt block and the current_datetime tool (why the block is last, why it carries no time of day, the per-employee switch), 2.31.0 records the agent dialog (ask_parent parking, answer_child resuming the same run, the five frozen dialog limits, expiry and cleanup, the restart path) | - |
+| `core/version.py` | Python | Single source of truth for the SagaAI platform version (semver __version__ plus a documented release history); 2.23.0 records the subagent control tools, 2.30.0 records the ## Current date prompt block and the current_datetime tool (why the block is last, why it carries no time of day, the per-employee switch), 2.31.0 records the agent dialog (ask_parent parking, answer_child resuming the same run, the five frozen dialog limits, expiry and cleanup, the restart path), 2.34.0 records scheduled runs (rules, the scheduler loop, the headless run as an ordinary dialog, blocked days, the quiet window and the error hold) | - |
 | `core/marketplace/__init__.py` | Python | Marketplace package: public entry points, is_enabled master switch and re-exports of the catalog, installer, updates and rollback | - |
 | `core/marketplace/agent_installer.py` | Python | Installation of an agent entity: package downloaded, hash-verified and unpacked into staging, config_defaults merged into the bundle config before the import, then the orchestrator folder and the DB row created by the importer; a helper agent of kind assistant installs as an assistant profile (folder with manifest.json, prompt.md and text attachments plus a row in the assistants table), and the kind cannot switch for an installed entity | - |
 | `core/marketplace/bootstrap.py` | Python | Marketplace cold start: recover undoes a run interrupted by a crash and the one-time seeding of registry rows for skills installed before the marketplace existed; never touches the network | - |
@@ -129,6 +130,13 @@
 | `core/marketplace/store.py` | Python | Marketplace storage: data directory, per-run backups and package cache, the bounded run journal and the atomic replace helper | - |
 | `core/marketplace/updates.py` | Python | Updates: check_entity_updates compares installed versions with the catalog and reports per-entity refusals, apply_entity_updates runs the update with the conflict policy | - |
 | `core/marketplace/verify.py` | Python | Package verification: the sha256 manifest check, verify_package for a downloaded package and verify_installed against the recorded file hashes | - |
+| `core/schedules/__init__.py` | Python | Package marker of the schedule subsystem (no logic): the import surface for model, calc, store, runner, daemon and form | - |
+| `core/schedules/calc.py` | Python | Pure schedule arithmetic: resolve_zone, compute_next_run over intervals in the rule's own time zone with the blocked-weekday mask and the quiet window applied, and the walk that advances a rule point by point without touching the database - the single authority on when a rule fires, shared by the preview and the engine | - |
+| `core/schedules/daemon.py` | Python | The scheduler loop: one background thread per process with an idempotent bootstrap, a heartbeat for is_alive, tick_once that claims due rules and spends one worker per rule, the running_workers counter, a manual wake-up, and stop_scheduler for a clean shutdown and for tests | - |
+| `core/schedules/form.py` | Python | Pure part of the schedule form: parsing and formatting a local wall-clock moment in the rule's zone (parse_local_time, epoch_from_local, local_inputs, format_moment), the preview walk of the next points through the real engine, the weekday-preset lookup and the interval label; Streamlit-free so the page and the engine cannot disagree about an instant | - |
+| `core/schedules/model.py` | Python | Schedule rule value object and its helpers: the interval units, the blocked-weekday mask and its presets, the quiet window, the run counters, clone/from_row/to_row serialization and the id generator; format_quiet_hours and merge_weekday_presets keep the stored text canonical so two rules that mean the same thing compare equal | - |
+| `core/schedules/runner.py` | Python | Headless execution of one scheduled point: opens the history row, creates an ordinary dialog thread of the employee (kind=dialog, no parent, so it shows up in History), runs the agent loop with the rule's task and brief, records the outcome and settles the rule - a manual run is a checkout that never moves the grid, and three failures in a row put the rule on error_hold | - |
+| `core/schedules/store.py` | Python | SQLite persistence of schedule rules and their run history: create/get/list/update/delete of a rule, list_due for the engine, the run rows (open_run, open_manual_run, finish_run, get_run_row, list_runs, count_runs, active_run, runs_today), the claim that makes one point fire at most once, and settle_schedule/set_next_run for the counters and the next point | storage |
 | `core/orchestration/__init__.py` | Python | Package marker for the multi-agent orchestration layer | - |
 | `core/orchestration/contracts.py` | Python | Run contract types for delegated runs: AgentBrief (goal, constraints, artifacts_in as a name->path dict, acceptance criteria), SpawnRequest (agent_slug, brief, parent_run_id, depth), InvokeRequest (system, user, context_files, parent_run_id), Artifact, AgentRunResult (run_id, status, stop_reason, summary, artifacts_out, steps_used, error_code), CancelReport, AgentQuestion (question text, options, done/blocked notes, round, deadline) plus the status/stop-reason/error-code constants (cancelled, not_your_run, child_unfinished, answer_not_received, question_limit), to_dict serialization for every structure and the delegation and dialog defaults (five active children, 300 steps per child, 64 runs per tree; five dialog rounds, 1500/4000 character caps, a 900 second answer wait, 8 parked runs) with their clamps | - |
 | `core/orchestration/invoke.py` | Python | invoke_once: exactly one model call for an assistant - no tool loop, no RAG, no file access; service and model resolve from the parent configuration, context_files are rendered as '### File: <name>' blocks and documents (PDF, DOCX, PPTX, XLSX, RTF, ODT, HTML) are read through core.document_text so one file stays one call, while an unreadable file lands in skipped_files | - |
@@ -308,6 +316,12 @@
 | `tests/test_safety_mode.py` | Python | Safety-mode gate tests | - |
 | `tests/test_sanitized_approval_flow.py` | Python | Sanitized-content approval flow tests (loop stops, user approves, protected payload not re-triggered) | - |
 | `tests/test_save_orchestrator_folder_sync.py` | Python | Unit tests: save_orchestrator keeps a successful database write when the folder mirror fails | - |
+| `tests/test_schedules_calc.py` | Python | Unit tests for the schedule arithmetic: interval steps in the rule's zone, the blocked-weekday mask, the quiet window, daylight-saving edges and a rule that can never fire | - |
+| `tests/test_schedules_daemon.py` | Python | Unit tests for the scheduler loop: the idempotent bootstrap, tick_once claiming due rules, one worker per rule, the heartbeat, a manual wake-up and a clean stop | storage |
+| `tests/test_schedules_form.py` | Python | Unit tests for the form helpers: wall-clock parsing in a zone, round-tripping an epoch through local inputs, the preview walk, the weekday-preset lookup and the interval label | - |
+| `tests/test_schedules_page.py` | Python | UI tests for the schedule page: the list and its statuses, the create and edit flow, the delete confirmation, the run history and the preview of the next points, with the store and the engine replaced by recording doubles | storage |
+| `tests/test_schedules_runner.py` | Python | Unit tests for the headless run: the dialog is created as an ordinary history entry, the report lands in the history row and the counters, a manual run leaves the grid alone and three failures hold the rule | storage |
+| `tests/test_schedules_store.py` | Python | Unit tests for the schedule store: rule CRUD, the due query, the one-point-one-run claim, the history rows and their counters, active_run, runs_today and settle_schedule | storage |
 | `tests/test_search_in_files.py` | Python | _(описание не задано)_ | - |
 | `tests/test_service_model_catalogs.py` | Python | Vision/image model catalog tests for service profiles | - |
 | `tests/test_sidebar_employees_nav.py` | Python | _(описание не задано)_ | - |
@@ -436,6 +450,7 @@
 | `tests/scenarios/test_recent_workspace_scopes_scenario.py` | Python | Scenario tests: per-orchestrator recent-folder menu (isolation, platform paths hidden, scoped writes) | storage |
 | `tests/scenarios/test_resume_identity_scenarios.py` | Python | Scenario: resume identity - stored thread messages round-trip byte-for-byte after reload | storage |
 | `tests/scenarios/test_save_confirmation_scenario.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_schedules_scenario.py` | Python | Scenario tests for scheduled runs (given->when->then): a saved rule fires once and its dialog appears in History, a restart does not repeat a point, downtime is recorded as a miss instead of a burst, a blocked weekday is skipped in the preview, and three failures hold the rule | storage |
 | `tests/scenarios/test_search_in_files_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_settings_tab_persists_scenario.py` | Python | Scenario tests: a settings save keeps its own tab (given->when->then) - save pin, repeated save, chat rerun keeps the section | - |
 | `tests/scenarios/test_skills_adaptation_scenario.py` | Python | _(описание не задано)_ | storage |
@@ -563,23 +578,23 @@
 ## Структура Python-модулей
 
 ### `ui/app.py`
-- `_build_orch_nav` (func, строка 71)
-- `_build_assistants_nav` (func, строка 102)
-- `active_marketplace_section` (func, строка 160)
-- `_render_nav_button` (func, строка 170)
-- `_render_marketplace_nav` (func, строка 192)
-- `_apply_theme` (func, строка 220)
-- `_sync_saved_theme` (func, строка 256)
-- `_sync_saved_theme_once` (func, строка 295)
-- `_build_ui_restore_payload` (func, строка 309)
-- `_restore_ui_reload_state` (func, строка 344)
-- `_handle_thread_deeplink` (func, строка 393)
-- `_run_dependency_check_once` (func, строка 432)
-- `_show_db_archive_notice_once` (func, строка 457)
-- `_show_chat_db_archive_notice_once` (func, строка 489)
-- `main` (func, строка 523)
-- `main._render_orch_button` (func, строка 812)
-- `main._matches_search` (func, строка 896)
+- `_build_orch_nav` (func, строка 72)
+- `_build_assistants_nav` (func, строка 103)
+- `active_marketplace_section` (func, строка 162)
+- `_render_nav_button` (func, строка 172)
+- `_render_marketplace_nav` (func, строка 194)
+- `_apply_theme` (func, строка 222)
+- `_sync_saved_theme` (func, строка 258)
+- `_sync_saved_theme_once` (func, строка 297)
+- `_build_ui_restore_payload` (func, строка 311)
+- `_restore_ui_reload_state` (func, строка 346)
+- `_handle_thread_deeplink` (func, строка 395)
+- `_run_dependency_check_once` (func, строка 434)
+- `_show_db_archive_notice_once` (func, строка 459)
+- `_show_chat_db_archive_notice_once` (func, строка 491)
+- `main` (func, строка 525)
+- `main._render_orch_button` (func, строка 814)
+- `main._matches_search` (func, строка 898)
 
 ### `ui/components/flash.py`
 - `_queue` (func, строка 39)
@@ -789,6 +804,28 @@
 ### `ui/pages/orchestrators.py`
 - `_go_to_page` (func, строка 24)
 - `page_orchestrators` (func, строка 29)
+
+### `ui/pages/schedules.py`
+- `_label` (func, строка 106)
+- `page_schedules` (func, строка 118)
+- `_render_health` (func, строка 140)
+- `_render_list` (func, строка 154)
+- `_status_label` (func, строка 173)
+- `_render_card` (func, строка 179)
+- `_render_card_actions` (func, строка 209)
+- `_render_delete_confirm` (func, строка 238)
+- `_toggle_state` (func, строка 261)
+- `_run_now` (func, строка 289)
+- `_render_history` (func, строка 305)
+- `_render_run_row` (func, строка 320)
+- `_open_dialog` (func, строка 342)
+- `_render_form` (func, строка 360)
+- `_close_form` (func, строка 384)
+- `_employee_options` (func, строка 391)
+- `_render_form_fields` (func, строка 401)
+- `_render_advanced_fields` (func, строка 485)
+- `_render_preview` (func, строка 540)
+- `_save_draft` (func, строка 552)
 
 ### `ui/pages/settings.py`
 - `_resolve_label` (func, строка 38)
@@ -2556,6 +2593,123 @@
 - `verify_signature` (func, строка 284)
 - `is_code_path` (func, строка 320)
 
+### `core/schedules/calc.py`
+- `resolve_zone` (func, строка 40)
+- `_to_local` (func, строка 52)
+- `_to_epoch` (func, строка 57)
+- `_safe_local` (func, строка 62)
+- `_days_in_month` (func, строка 73)
+- `_add_months` (func, строка 77)
+- `_grid_point` (func, строка 86)
+- `_estimate_k` (func, строка 106)
+- `_in_quiet_hours` (func, строка 125)
+- `_in_blocked_range` (func, строка 137)
+- `exclusion_reason` (func, строка 146)
+- `_next_boundary` (func, строка 162)
+- `_apply_exceptions` (func, строка 190)
+- `compute_next_run` (func, строка 208)
+- `next_run_epoch` (func, строка 257)
+- `describe_grid` (func, строка 264)
+
+### `core/schedules/daemon.py`
+- `heartbeat_path` (func, строка 47)
+- `read_heartbeat` (func, строка 59)
+- `_write_heartbeat` (func, строка 68)
+- `is_alive` (func, строка 79)
+- `SchedulerDaemon` (class, строка 87)
+- `SchedulerDaemon.__init__` (func, строка 95)
+- `SchedulerDaemon.stop` (func, строка 105)
+- `SchedulerDaemon.wake` (func, строка 118)
+- `SchedulerDaemon.running_workers` (func, строка 127)
+- `SchedulerDaemon.run` (func, строка 135)
+- `SchedulerDaemon.tick_once` (func, строка 149)
+- `SchedulerDaemon.fire` (func, строка 178)
+- `SchedulerDaemon._overlapping` (func, строка 227)
+- `SchedulerDaemon._start` (func, строка 234)
+- `SchedulerDaemon._execute` (func, строка 272)
+- `SchedulerDaemon.reconcile` (func, строка 289)
+- `start_scheduler` (func, строка 329)
+- `get_scheduler` (func, строка 346)
+- `stop_scheduler` (func, строка 354)
+- `wake_scheduler` (func, строка 367)
+- `bootstrap` (func, строка 374)
+- `run_now` (func, строка 392)
+
+### `core/schedules/form.py`
+- `parse_local_time` (func, строка 36)
+- `epoch_from_local` (func, строка 52)
+- `local_inputs` (func, строка 68)
+- `format_moment` (func, строка 78)
+- `next_points` (func, строка 87)
+- `weekday_preset_of` (func, строка 110)
+- `quiet_hours_value` (func, строка 119)
+- `humanize_interval` (func, строка 124)
+
+### `core/schedules/model.py`
+- `BlockedRange` (class, строка 56)
+- `BlockedRange.to_dict` (func, строка 63)
+- `BlockedRange.from_dict` (func, строка 67)
+- `Schedule` (class, строка 79)
+- `Schedule.enabled` (func, строка 142)
+- `Schedule.is_open_ended` (func, строка 146)
+- `Schedule.effective_status` (func, строка 150)
+- `Schedule.weekday_spec` (func, строка 171)
+- `Schedule.blocked_ranges_json` (func, строка 175)
+- `Schedule.validate` (func, строка 182)
+- `Schedule.validate.fail` (func, строка 194)
+- `Schedule.to_row` (func, строка 274)
+- `Schedule.from_row` (func, строка 316)
+- `Schedule.from_row.text` (func, строка 320)
+- `Schedule.from_row.number` (func, строка 324)
+- `Schedule.from_row.optional_number` (func, строка 330)
+- `Schedule.clone` (func, строка 399)
+- `parse_quiet_hours` (func, строка 407)
+- `_parse_hhmm` (func, строка 425)
+- `format_quiet_hours` (func, строка 441)
+- `new_schedule_id` (func, строка 450)
+- `now_epoch` (func, строка 456)
+- `merge_weekday_presets` (func, строка 461)
+
+### `core/schedules/runner.py`
+- `build_task_text` (func, строка 54)
+- `_thread_title` (func, строка 80)
+- `_effective_config` (func, строка 87)
+- `_register_workspace` (func, строка 104)
+- `_create_dialog` (func, строка 123)
+- `_make_dispatcher` (func, строка 144)
+- `_make_dispatcher._send` (func, строка 162)
+- `_append_messages` (func, строка 175)
+- `_counters` (func, строка 205)
+- `_final_status` (func, строка 214)
+- `run_schedule` (func, строка 230)
+- `_record_result` (func, строка 328)
+
+### `core/schedules/store.py`
+- `_now` (func, строка 43)
+- `_engine` (func, строка 47)
+- `_row_to_dict` (func, строка 53)
+- `create_schedule` (func, строка 60)
+- `update_schedule` (func, строка 77)
+- `get_schedule` (func, строка 89)
+- `list_schedules` (func, строка 99)
+- `delete_schedule` (func, строка 112)
+- `claim_due` (func, строка 135)
+- `record_skipped` (func, строка 192)
+- `finish_run` (func, строка 233)
+- `settle_schedule` (func, строка 265)
+- `_owner_token` (func, строка 290)
+- `open_manual_run` (func, строка 301)
+- `list_due` (func, строка 333)
+- `get_run_row` (func, строка 345)
+- `list_runs` (func, строка 355)
+- `count_runs` (func, строка 369)
+- `active_run` (func, строка 380)
+- `runs_today` (func, строка 392)
+- `unfinished_runs` (func, строка 410)
+- `mark_run_status` (func, строка 420)
+- `release_stale_locks` (func, строка 436)
+- `set_next_run` (func, строка 453)
+
 ### `core/orchestration/contracts.py`
 - `Artifact` (class, строка 218)
 - `Artifact.to_dict` (func, строка 230)
@@ -3514,7 +3668,7 @@
 - `TestAgentInventory._inventory` (func, строка 84)
 - `TestAgentInventory.test_the_declared_total_matches_the_disk` (func, строка 100)
 - `TestAgentInventory.test_every_group_matches_its_files` (func, строка 106)
-- `TestAgentInventory.test_every_listed_file_exists` (func, строка 128)
+- `TestAgentInventory.test_every_listed_file_exists` (func, строка 129)
 
 ### `tests/test_core_api_json_schema.py`
 - `_svc` (func, строка 23)
@@ -6698,6 +6852,198 @@
 - `test_missing_orchestrator_reports_failure` (func, строка 55)
 - `test_folder_mirror_runs_on_success` (func, строка 64)
 
+### `tests/test_schedules_calc.py`
+- `_at` (func, строка 31)
+- `_epoch` (func, строка 36)
+- `_schedule` (func, строка 40)
+- `TestDailyGrid` (class, строка 55)
+- `TestDailyGrid.test_before_the_anchor_returns_the_anchor` (func, строка 56)
+- `TestDailyGrid.test_after_the_anchor_returns_the_next_day` (func, строка 60)
+- `TestDailyGrid.test_exactly_at_the_anchor_moves_forward` (func, строка 64)
+- `TestDailyGrid.test_long_idle_period_still_returns_one_point` (func, строка 70)
+- `TestIntervalUnits` (class, строка 76)
+- `TestIntervalUnits.test_hourly` (func, строка 77)
+- `TestIntervalUnits.test_every_three_hours` (func, строка 81)
+- `TestIntervalUnits.test_weekly_keeps_the_weekday_of_the_anchor` (func, строка 85)
+- `TestIntervalUnits.test_minutes` (func, строка 91)
+- `TestMonthlyClamp` (class, строка 96)
+- `TestMonthlyClamp._monthly` (func, строка 97)
+- `TestMonthlyClamp.test_the_31st_returns_to_the_31st_after_february` (func, строка 101)
+- `TestMonthlyClamp.test_leap_day_anchor_returns_to_february_29` (func, строка 109)
+- `TestExceptions` (class, строка 118)
+- `TestExceptions.test_blocked_weekend_is_skipped` (func, строка 119)
+- `TestExceptions.test_vacation_is_skipped` (func, строка 127)
+- `TestExceptions.test_quiet_hours_move_the_point_when_postponing` (func, строка 131)
+- `TestExceptions.test_quiet_hours_drop_the_point_when_skipping` (func, строка 136)
+- `TestExceptions.test_a_daily_point_inside_quiet_hours_never_fires` (func, строка 148)
+- `TestExceptions.test_postpone_respects_its_window` (func, строка 154)
+- `TestExceptions.test_exclusion_reason_reports_the_blocking_rule` (func, строка 164)
+- `TestExceptions.test_unfulfillable_rule_returns_none` (func, строка 170)
+- `TestLifecycle` (class, строка 175)
+- `TestLifecycle.test_end_date_stops_the_rule` (func, строка 176)
+- `TestLifecycle.test_a_point_that_ends_exactly_at_the_limit_is_allowed` (func, строка 181)
+- `TestLifecycle.test_last_run_acts_as_a_floor` (func, строка 185)
+- `TestLifecycle.test_next_run_epoch_matches_the_datetime_form` (func, строка 190)
+- `TestDeterminism` (class, строка 196)
+- `TestDeterminism.test_two_calls_with_the_same_now_agree` (func, строка 197)
+- `TestDeterminism.test_the_function_does_not_touch_the_wall_clock` (func, строка 202)
+- `TestDeterminism.test_the_function_does_not_touch_the_wall_clock._NoClock` (class, строка 207)
+- `TestDeterminism.test_the_function_does_not_touch_the_wall_clock._NoClock.now` (func, строка 214)
+- `TestDeterminism.test_the_function_does_not_touch_the_wall_clock._NoClock.utcnow` (func, строка 218)
+- `TestDeterminism.test_the_function_does_not_touch_the_wall_clock._NoClock.today` (func, строка 222)
+- `TestQuietHoursAcrossMidnight` (class, строка 230)
+- `TestQuietHoursAcrossMidnight.test_window_crossing_midnight_blocks_the_late_point` (func, строка 231)
+- `TestQuietHoursAcrossMidnight.test_postponing_across_midnight_lands_after_the_window` (func, строка 236)
+
+### `tests/test_schedules_daemon.py`
+- `isolated_state` (func, строка 24)
+- `_rule` (func, строка 54)
+- `TestDueTick` (class, строка 69)
+- `TestDueTick.test_a_due_point_starts_exactly_one_run` (func, строка 70)
+- `TestDueTick.test_a_due_point_starts_exactly_one_run._fake_execute` (func, строка 73)
+- `TestDueTick.test_a_future_point_is_not_started` (func, строка 95)
+- `TestDueTick.test_a_paused_rule_is_never_picked` (func, строка 100)
+- `TestDueTick.test_the_heartbeat_is_written` (func, строка 105)
+- `TestDueTick.test_a_tick_on_an_empty_base_is_harmless` (func, строка 110)
+- `TestMisfire` (class, строка 114)
+- `TestMisfire.test_a_long_backlog_is_recorded_as_missed` (func, строка 115)
+- `TestMisfire.test_catch_up_one_run_is_allowed_inside_the_grace` (func, строка 128)
+- `TestMisfire.test_catch_up_is_refused_beyond_the_grace` (func, строка 137)
+- `TestOverlap` (class, строка 147)
+- `TestOverlap.test_a_running_point_blocks_the_next_one` (func, строка 148)
+- `TestOverlap.test_queue_policy_keeps_the_point_for_the_next_tick` (func, строка 166)
+- `TestDailyLimit` (class, строка 176)
+- `TestDailyLimit.test_the_daily_cap_skips_the_point` (func, строка 177)
+- `TestReconcile` (class, строка 192)
+- `TestReconcile.test_a_stuck_history_row_becomes_interrupted` (func, строка 193)
+- `TestReconcile.test_reconcile_on_a_clean_base_changes_nothing` (func, строка 204)
+- `TestSingleInstance` (class, строка 209)
+- `TestSingleInstance.test_two_starts_give_one_loop` (func, строка 210)
+- `TestSingleInstance.test_stop_releases_the_singleton` (func, строка 216)
+- `TestSingleInstance.test_is_alive_reports_a_fresh_heartbeat` (func, строка 221)
+- `TestBootstrap` (class, строка 227)
+- `TestBootstrap.test_bootstrap_starts_the_loop` (func, строка 230)
+- `TestBootstrap.test_bootstrap_is_idempotent` (func, строка 235)
+- `TestBootstrap.test_bootstrap_swallows_a_broken_start` (func, строка 240)
+- `TestBootstrap.test_bootstrap_swallows_a_broken_start._explode` (func, строка 241)
+
+### `tests/test_schedules_form.py`
+- `_rule` (func, строка 25)
+- `TestLocalTime` (class, строка 39)
+- `TestLocalTime.test_a_valid_wall_clock_is_parsed` (func, строка 46)
+- `TestLocalTime.test_a_malformed_wall_clock_is_refused` (func, строка 50)
+- `TestLocalTime.test_the_moment_is_read_in_the_rules_own_zone` (func, строка 53)
+- `TestLocalTime.test_the_same_wall_clock_in_another_zone_is_another_instant` (func, строка 60)
+- `TestLocalTime.test_a_malformed_clock_has_no_moment` (func, строка 66)
+- `TestLocalTime.test_the_form_round_trips_its_own_value` (func, строка 69)
+- `TestLocalTime.test_an_empty_schedule_shows_the_current_minute` (func, строка 74)
+- `TestFormatting` (class, строка 80)
+- `TestFormatting.test_a_moment_is_printed_in_the_rules_zone` (func, строка 81)
+- `TestFormatting.test_a_missing_moment_is_a_dash` (func, строка 85)
+- `TestFormatting.test_the_interval_label_keeps_its_number` (func, строка 88)
+- `TestPreview` (class, строка 93)
+- `TestPreview.test_the_preview_walks_the_real_grid` (func, строка 94)
+- `TestPreview.test_blocked_weekdays_are_absent_from_the_preview` (func, строка 101)
+- `TestPreview.test_a_finished_rule_has_no_preview` (func, строка 110)
+- `TestPresets` (class, строка 116)
+- `TestPresets.test_every_day_blocks_nothing` (func, строка 117)
+- `TestPresets.test_weekdays_only_blocks_the_weekend` (func, строка 120)
+- `TestPresets.test_weekends_only_blocks_the_working_week` (func, строка 123)
+- `TestPresets.test_an_unusual_mask_is_custom` (func, строка 126)
+- `TestPresets.test_the_quiet_window_is_normalized` (func, строка 129)
+
+### `tests/test_schedules_page.py`
+- `env` (func, строка 25)
+- `_render` (func, строка 55)
+- `_rule` (func, строка 63)
+- `TestEmptyState` (class, строка 78)
+- `TestEmptyState.test_the_section_explains_itself_when_nothing_exists` (func, строка 79)
+- `TestEmptyState.test_the_new_button_opens_the_form` (func, строка 85)
+- `TestEmptyState.test_the_scheduler_health_is_reported` (func, строка 91)
+- `TestList` (class, строка 98)
+- `TestList.test_each_rule_gets_its_actions` (func, строка 99)
+- `TestList.test_the_card_shows_the_employee_and_the_next_run` (func, строка 109)
+- `TestList.test_a_paused_rule_offers_resume` (func, строка 118)
+- `TestActions` (class, строка 127)
+- `TestActions.test_pausing_keeps_the_rule_and_stops_it_firing` (func, строка 128)
+- `TestActions.test_resuming_from_a_hold_makes_it_active_again` (func, строка 135)
+- `TestActions.test_delete_asks_first_and_only_then_removes` (func, строка 144)
+- `TestActions.test_cancel_keeps_the_rule` (func, строка 158)
+- `TestActions.test_run_now_opens_a_history_row_with_the_manual_trigger` (func, строка 167)
+- `TestActions.test_run_now_opens_a_history_row_with_the_manual_trigger._fake_run_now` (func, строка 172)
+- `TestActions.test_run_now_is_refused_while_a_run_is_in_flight` (func, строка 181)
+- `TestForm` (class, строка 194)
+- `TestForm._open_new` (func, строка 195)
+- `TestForm.test_the_form_renders_every_required_field` (func, строка 199)
+- `TestForm.test_the_preview_shows_the_next_runs` (func, строка 211)
+- `TestForm.test_saving_a_valid_draft_stores_it` (func, строка 217)
+- `TestForm.test_an_empty_task_is_refused_with_a_message` (func, строка 233)
+- `TestForm.test_editing_loads_the_stored_values` (func, строка 247)
+- `TestForm.test_back_closes_the_form_without_saving` (func, строка 260)
+
+### `tests/test_schedules_runner.py`
+- `isolated_state` (func, строка 26)
+- `_rule` (func, строка 51)
+- `TestTaskText` (class, строка 66)
+- `TestTaskText.test_the_owner_task_comes_first_and_unchanged` (func, строка 67)
+- `TestTaskText.test_the_framing_says_nobody_will_answer` (func, строка 72)
+- `TestTaskText.test_an_optional_brief_is_included` (func, строка 77)
+- `TestTaskText.test_the_title_names_the_schedule_and_the_moment` (func, строка 81)
+- `TestEffectiveConfig` (class, строка 87)
+- `TestEffectiveConfig.test_the_limits_come_from_the_rule` (func, строка 88)
+- `TestEffectiveConfig.test_a_zero_budget_means_no_budget` (func, строка 96)
+- `TestEffectiveConfig.test_delegation_is_closed_by_default` (func, строка 99)
+- `TestFinalStatus` (class, строка 105)
+- `TestFinalStatus.test_statuses_map_onto_the_history_vocabulary` (func, строка 116)
+- `TestFinalStatus.test_statuses_map_onto_the_history_vocabulary._State` (class, строка 117)
+- `TestDialogIsARealThread` (class, строка 122)
+- `TestDialogIsARealThread.test_a_run_creates_an_ordinary_dialog` (func, строка 123)
+- `TestDialogIsARealThread.test_the_workspace_is_persisted_with_the_thread` (func, строка 135)
+- `TestDialogIsARealThread.test_a_missing_workspace_is_not_recorded` (func, строка 144)
+- `_StubDispatcher` (class, строка 152)
+- `TestMessageAppend` (class, строка 156)
+- `TestMessageAppend.test_messages_are_written_to_the_thread` (func, строка 157)
+- `TestMessageAppend.test_repeated_appends_do_not_duplicate` (func, строка 172)
+- `TestResultRecording` (class, строка 184)
+- `TestResultRecording.test_a_successful_run_closes_the_history_row` (func, строка 185)
+- `TestResultRecording.test_three_failures_hold_the_rule` (func, строка 202)
+- `TestResultRecording.test_a_success_resets_the_failure_streak` (func, строка 215)
+- `TestResultRecording.test_reaching_max_runs_finishes_the_rule` (func, строка 226)
+- `TestRunFailureIsRecorded` (class, строка 237)
+- `TestRunFailureIsRecorded.test_a_broken_run_returns_failed_and_writes_history` (func, строка 238)
+- `TestRunFailureIsRecorded.test_a_broken_run_returns_failed_and_writes_history._boom` (func, строка 242)
+- `TestRunFailureIsRecorded.test_a_budget_stop_is_reported_as_failed_with_its_code` (func, строка 252)
+- `TestRunFailureIsRecorded.test_a_budget_stop_is_reported_as_failed_with_its_code._State` (class, строка 256)
+
+### `tests/test_schedules_store.py`
+- `isolated_db` (func, строка 25)
+- `_rule` (func, строка 37)
+- `TestMigration` (class, строка 57)
+- `TestMigration.test_tables_and_indexes_are_created` (func, строка 58)
+- `TestMigration.test_the_migration_is_idempotent` (func, строка 69)
+- `TestCrud` (class, строка 77)
+- `TestCrud.test_create_and_read_back` (func, строка 78)
+- `TestCrud.test_blocked_weekdays_and_ranges_survive_a_round_trip` (func, строка 86)
+- `TestCrud.test_update_keeps_the_creation_stamp` (func, строка 100)
+- `TestCrud.test_list_filters_by_status` (func, строка 106)
+- `TestCrud.test_delete_removes_the_point_log_but_keeps_the_rule_identity` (func, строка 112)
+- `TestClaim` (class, строка 123)
+- `TestClaim.test_the_first_claim_wins` (func, строка 124)
+- `TestClaim.test_the_second_claim_of_the_same_point_is_refused` (func, строка 131)
+- `TestClaim.test_a_stale_point_is_refused` (func, строка 138)
+- `TestClaim.test_the_claim_moves_the_grid_and_marks_running` (func, строка 142)
+- `TestClaim.test_a_paused_rule_cannot_be_claimed` (func, строка 150)
+- `TestRunHistory` (class, строка 155)
+- `TestRunHistory.test_finish_run_records_the_outcome` (func, строка 156)
+- `TestRunHistory.test_counts_group_by_status` (func, строка 170)
+- `TestRunHistory.test_active_run_reports_the_unfinished_row` (func, строка 179)
+- `TestRunHistory.test_settle_schedule_writes_the_counters` (func, строка 186)
+- `TestDueSelection` (class, строка 198)
+- `TestDueSelection.test_only_due_active_rules_are_returned` (func, строка 199)
+- `TestDueSelection.test_earliest_point_comes_first` (func, строка 206)
+- `TestDueSelection.test_a_stale_lock_is_released` (func, строка 211)
+- `TestDueSelection.test_runs_today_counts_only_today` (func, строка 220)
+
 ### `tests/test_search_in_files.py`
 - `ws` (func, строка 29)
 - `test_literal_search` (func, строка 50)
@@ -6760,18 +7106,18 @@
 - `test_assistant_search_shown_above_five` (func, строка 164)
 
 ### `tests/test_sidebar_nav.py`
-- `_settings` (func, строка 50)
-- `_state` (func, строка 64)
-- `_render` (func, строка 81)
-- `_nav_keys` (func, строка 98)
-- `_expander_labels` (func, строка 106)
-- `test_the_marketplace_block_lists_all_five_subsections` (func, строка 117)
-- `test_the_marketplace_block_is_hidden_when_the_switch_is_off` (func, строка 123)
-- `test_the_three_primary_settings_entries_are_always_visible` (func, строка 130)
-- `test_the_settings_block_hides_the_rest_behind_more` (func, строка 136)
-- `test_the_marketplace_block_sits_before_the_settings_block` (func, строка 145)
-- `test_mcp_is_a_marketplace_subsection_and_not_a_settings_entry` (func, строка 153)
-- `test_a_marketplace_subsection_click_records_the_section` (func, строка 161)
+- `_settings` (func, строка 51)
+- `_state` (func, строка 65)
+- `_render` (func, строка 82)
+- `_nav_keys` (func, строка 99)
+- `_expander_labels` (func, строка 107)
+- `test_the_marketplace_block_lists_all_five_subsections` (func, строка 118)
+- `test_the_marketplace_block_is_hidden_when_the_switch_is_off` (func, строка 124)
+- `test_the_three_primary_settings_entries_are_always_visible` (func, строка 131)
+- `test_the_settings_block_hides_the_rest_behind_more` (func, строка 137)
+- `test_the_marketplace_block_sits_before_the_settings_block` (func, строка 146)
+- `test_mcp_is_a_marketplace_subsection_and_not_a_settings_entry` (func, строка 154)
+- `test_a_marketplace_subsection_click_records_the_section` (func, строка 162)
 
 ### `tests/test_single_model_config.py`
 - `isolated_data_dir` (func, строка 35)
@@ -8886,6 +9232,19 @@
 - `test_skill_save_confirmation_survives_the_rerun` (func, строка 114)
 - `test_orchestrator_delete_confirmation_survives_the_rerun` (func, строка 136)
 
+### `tests/scenarios/test_schedules_scenario.py`
+- `env` (func, строка 48)
+- `offline_model` (func, строка 84)
+- `offline_model._answer` (func, строка 93)
+- `_rule` (func, строка 100)
+- `_wait_for_runs` (func, строка 114)
+- `test_scenario_a_scheduled_run_becomes_a_dialog_in_history` (func, строка 129)
+- `test_scenario_a_restart_does_not_repeat_the_point` (func, строка 172)
+- `test_scenario_a_backlog_is_recorded_as_a_miss` (func, строка 193)
+- `test_scenario_a_blocked_weekday_is_skipped_in_the_preview` (func, строка 219)
+- `test_scenario_three_failures_hold_the_rule` (func, строка 238)
+- `test_scenario_three_failures_hold_the_rule._boom` (func, строка 251)
+
 ### `tests/scenarios/test_search_in_files_scenarios.py`
 - `project` (func, строка 23)
 - `test_scenario_happy_path_search_across_project` (func, строка 45)
@@ -9195,13 +9554,14 @@
 - `_ensure_assistant_columns` (func, строка 282)
 - `_migrate_thread_skill_columns` (func, строка 303)
 - `_migrate_assistant_table` (func, строка 327)
-- `get_engine` (func, строка 343)
-- `get_devagent_engine` (func, строка 374)
-- `_migrate_threads_table_if_needed` (func, строка 399)
-- `get_session` (func, строка 424)
-- `get_devagent_session` (func, строка 432)
-- `reset_engine` (func, строка 440)
-- `reset_devagent_engine` (func, строка 450)
+- `_ensure_schedules_tables` (func, строка 343)
+- `get_engine` (func, строка 439)
+- `get_devagent_engine` (func, строка 471)
+- `_migrate_threads_table_if_needed` (func, строка 496)
+- `get_session` (func, строка 521)
+- `get_devagent_session` (func, строка 529)
+- `reset_engine` (func, строка 537)
+- `reset_devagent_engine` (func, строка 547)
 
 ### `storage/models.py`
 - `Assistant` (class, строка 22)

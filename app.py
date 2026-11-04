@@ -129,6 +129,32 @@ from ui.app import main                  # noqa: E402
 
 ensure_data_dirs()
 
+# The scheduler lives in this process: it keeps firing while the platform is
+# open and dies with it, so nothing is left running behind the owner's back.
+# Streamlit re-executes this module on every rerun; ``bootstrap`` is idempotent
+# and returns the loop that is already running, so calling it unconditionally
+# costs one lookup and guarantees the loop comes back even if the very first
+# start happened while the database was still being prepared. Both the import
+# and the start are guarded: a broken scheduler must never keep the platform
+# shut, and the page then reports honestly that nothing watches the clock.
+try:
+    from core.schedules.daemon import bootstrap as _start_scheduler
+
+    _scheduler = _start_scheduler()
+except Exception as _scheduler_error:  # pragma: no cover - start-up guard
+    _scheduler = None
+    print(
+        "[scheduler] error=%r" % (_scheduler_error,),
+        file=sys.stderr,
+        flush=True,
+    )
+if _cold_start:
+    print(
+        "[scheduler] started=%s" % (bool(_scheduler),),
+        file=sys.stderr,
+        flush=True,
+    )
+
 if __name__ == "__main__":
     main()
 else:

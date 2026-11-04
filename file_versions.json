@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "2.33.0",
+  "app_version": "2.34.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Task Scout - встроенный сотрудник, который ищет задачи, которых никто не записал. Он сначала спрашивает делегированных сотрудников, затем читает их рабочие папки и лишь в последнюю очередь - диалоги, после чего разделяет уже открытые задачи, обещанные и вытекающие из них, с указанием источника. Роль поставляется с пустым списком делегирования: на чистой установке агент называет сотрудников, которых надо отметить, вместо того чтобы выдумать список дел. Два read-only инструмента (agent_memory_reader, agent_thread_reader) проверяют тот же список, поэтому угаданный slug или id диалога не расширяет права. Версия платформы 2.33.0.",
-    "en": "Task Scout is a bundled employee that finds the tasks nobody wrote down. It asks the delegated employees first, then reads their working-memory folders and only as a last resort their dialogs, and separates what is already open from what was promised and what follows from both, citing the source. The role ships with an empty delegation list: on a fresh installation the agent names the employees to tick instead of inventing a to-do list. Two read-only helpers (agent_memory_reader, agent_thread_reader) enforce that same roster, so a guessed slug or dialog id cannot widen the rights. Platform version 2.33.0."
+    "ru": "Запуск по расписанию: задача выполняется сотрудником в заданные моменты - с шагом от минут до месяцев, в собственном часовом поясе правила, с исключением дней, периодов и тихих часов и с политикой skip/postpone. Одна точка выполняется не более одного раза: захват точки атомарен, а перезапуск платформы не повторяет уже выполненное; накопившиеся пропуски фиксируются как пропущенные, а не проигрываются волной. Планировщик работает в процессе платформы, пока она открыта, и страница честно сообщает о простаивании через heartbeat. Каждый запуск - обычный диалог в «Истории», поэтому видно, что именно сделал агент; запуск ограничен шагами, временем и бюджетом токенов, не делегирует дальше, а три неудачи подряд ставят правило на паузу с причиной на карточке. Версия платформы 2.34.0.",
+    "en": "Run on a schedule: an employee executes a task at the chosen moments - with a step from minutes to months, in the rule's own time zone, with excluded weekdays, periods and quiet hours and a skip/postpone policy. One point fires at most once: the claim is atomic and a platform restart never repeats a completed point; a backlog is recorded as missed instead of replayed as a burst. The scheduler lives in the platform process and fires while it is open, and the page reports an idle loop honestly through its heartbeat. Every run is an ordinary dialog in History, so what the agent actually did stays readable; a run is bounded by steps, time and an optional token budget, never delegates further, and three failures in a row put the rule on hold with the reason on its card. Platform version 2.34.0."
   },
-  "updated": "2026-11-04T11:45:00Z",
+  "updated": "2026-11-04T18:20:00Z",
   "units": {
     "core": {
-      "version": "1.69.0",
+      "version": "1.70.0",
       "note": {
-        "ru": "Пакет: встроенный сотрудник Task Scout (промпт, два read-only инструмента с проверкой делегирования), его идемпотентный стартовый импорт, переключатель контроля версий промптов в verify_manifest, тесты и документация; релиз платформы 2.33.0.",
-        "en": "The package: the bundled Task Scout employee (prompt, two read-only helpers that enforce the delegation list), its idempotent start-up import, the prompt-version entry in verify_manifest, tests and documentation; platform release 2.33.0."
+        "ru": "Пакет: подсистема расписаний (модель и расчёт сетки, хранилище с атомарным захватом точки, раннер запуска как обычного диалога, демон-планировщик с heartbeat и реконсиляцией, чистые хелперы формы), страница «Запуск по расписанию», её навигация и 129 ключей локализации на шести языковых файлах, регистрация планировщика на холодном старте, тесты и документация; релиз платформы 2.34.0.",
+        "en": "The package: the scheduling subsystem (rule model and grid calculation, a store with an atomic point claim, a runner that executes a run as an ordinary dialog, a scheduler loop with a heartbeat and reconciliation, pure form helpers), the \"Run on a schedule\" page, its navigation entry and 129 localization keys across the six language files, the scheduler registration at cold start, tests and documentation; platform release 2.34.0."
       },
       "files": {
         "__init__.py": {
@@ -20,8 +20,8 @@
           "sha256": "98a049939e085cc41be3ae04222615dacb059ad21b6f9514d8fae47ada0bff37"
         },
         "app.py": {
-          "version": "1.2.0",
-          "sha256": "48bae4a1fc7007d42d8925aa1f3f40e39c7edcea1b82dcbe5a757ea5c00845fa"
+          "version": "1.2.1",
+          "sha256": "ad1eb0b0f7560eb199da9329cb629504b73b9c8eb56ad3cb6300798517bc0e26"
         },
         "assets/favicon.svg": {
           "version": "1.0.0",
@@ -276,11 +276,11 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.70.0",
-          "sha256": "cb926e6e948128681c9edfab561e2bdd177e2db4a1b6051148830e2cc7643247",
+          "version": "1.70.1",
+          "sha256": "d8a43497d997bf58441d29f273d60a5d45928075e6a3b0d9a69fcfd1097ddaa8",
           "note": {
-            "ru": "Релиз 2.33.0: встроенный Task Scout и два read-only инструмента с проверкой делегирования.",
-            "en": "Release 2.33.0: the bundled Task Scout and its two read-only helpers bound to the delegation list."
+            "ru": "Релиз 2.34.0: расписания запуска задач агентами.",
+            "en": "Release 2.34.0: scheduled agent runs."
           }
         },
         "dev_agent/__init__.py": {
@@ -368,8 +368,8 @@
           "sha256": "d243711998803755df65bf05630e6ce2c22ec031241399bcf5788dfc32d0dddf"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.30.1",
-          "sha256": "32806c25e87b560e4ad888b8986f5dd69326491d61f5f25a89755beee394581a",
+          "version": "1.31.0",
+          "sha256": "bb4c8491e694685b78a84b7ae6e601299751211f1e7067cea0e232d75a6bf91c",
           "note": {
             "ru": "Описания файлов Task Scout в карте проекта.",
             "en": "Task Scout file descriptions in the project map."
@@ -384,8 +384,8 @@
           "sha256": "46c652f62e73918dd32517ed1018e4bea6d0fa9c4e8536bfa38b00c25467b5e7"
         },
         "storage/db.py": {
-          "version": "1.2.0",
-          "sha256": "c3f983911afbb2029f07a5de04a527c7fa2af013e8c78eb7b50c7c600b369d19"
+          "version": "1.2.1",
+          "sha256": "a412997b1e0a7358ed6ed9018c094265e91b1c709b36568d905f5059eb5a046e"
         },
         "storage/models.py": {
           "version": "1.3.0",
@@ -1192,8 +1192,8 @@
           "sha256": "0581f0ba70632a8048a3f161f15377f719d5a5dfc339412bf5a19a2ee39f54c6"
         },
         "ui/app.py": {
-          "version": "1.8.0",
-          "sha256": "e5c93645549e629162d98c25c81859ee0ffc88238ef94be0b84d2ae2b5af71a8"
+          "version": "1.8.1",
+          "sha256": "6df3f37737f4d2343f6893bda802bf897f2930949a03236308950e4f31675cf3"
         },
         "ui/components/__init__.py": {
           "version": "1.0.1",
@@ -1898,16 +1898,16 @@
           "sha256": "c4c0b217562a0715c7b694d4e83913c4909e20fd63c31607fd034ac2ed4cf3d8"
         },
         "tests/test_copyright_headers.py": {
-          "version": "1.0.0",
-          "sha256": "dd62cfd226672e0b2b2110f5082d346314d44298d9a9c74a7343d33a07b29438"
+          "version": "1.0.1",
+          "sha256": "5c31baee9b219d5af92da0d5cad313a21fce046b2a80e7e657ad50c622134787"
         },
         "tests/test_marketplace_assistant_installer.py": {
           "version": "1.0.1",
           "sha256": "9aeb05a446aa5a3ea411e30e35d05310f9f41b82782565c3927023962c20a552"
         },
         "tests/test_sidebar_nav.py": {
-          "version": "1.0.0",
-          "sha256": "a899266ec2fab0d5200befc3be281f00b6dffd93554858568b8b5ec23312cf76"
+          "version": "1.0.1",
+          "sha256": "977bf2ea0ee7802b5c5d59f68e20ade813ea336db16256b966061e16bd835076"
         },
         "tests/test_marketplace_card_extras.py": {
           "version": "1.1.0",
@@ -2184,17 +2184,77 @@
         "tests/scenarios/test_child_transcript_readability_scenario.py": {
           "version": "1.0.0",
           "sha256": "ec4b2ac01afcba606a5701a5807563f928a1432ed9f0237ed9dc8f5f485dc74a"
+        },
+        "core/schedules/__init__.py": {
+          "version": "1.0.0",
+          "sha256": "c22ffea7b8b98a66a8ed2af1b5af232bb2f5afa3139b2039b9dd5fa07b65ddcd"
+        },
+        "core/schedules/model.py": {
+          "version": "1.0.0",
+          "sha256": "92caa01fa3d446417c88fa3ad1a34259478790f05baa7cb8c4ea72ea9f78a252"
+        },
+        "core/schedules/calc.py": {
+          "version": "1.0.0",
+          "sha256": "30cb372730c0c0d42f2ce7d62a0c788efecd4925563bfaf278f2f616f0beeb20"
+        },
+        "core/schedules/store.py": {
+          "version": "1.0.0",
+          "sha256": "323e2e41d45ff588966f5882e7448e7568af6878e4d3056bd3770b2a75ded287"
+        },
+        "core/schedules/runner.py": {
+          "version": "1.0.0",
+          "sha256": "20931922dcfbeca9257ca969db4400db6a5a41fed403896fddf1d8bb09e67978"
+        },
+        "core/schedules/daemon.py": {
+          "version": "1.0.1",
+          "sha256": "e99ca2ad6965a7d927a9b84a5624a78b3f67a6246137cb6240958e638a096c22"
+        },
+        "core/schedules/form.py": {
+          "version": "1.0.0",
+          "sha256": "5cc1d0e9d21589198e22d8ccb3f22c3429f4e46abb36c8b75ce032509c96f35b"
+        },
+        "ui/pages/schedules.py": {
+          "version": "1.0.0",
+          "sha256": "a1efca5deeacfc96961fc4c26af54aae61d75312ceb5fbabe35bd1368580a90f"
+        },
+        "tests/test_schedules_calc.py": {
+          "version": "1.0.0",
+          "sha256": "72e3a60110080312c146296919e2a769c84550e55bb55bba2074fdafe4cbd1b5"
+        },
+        "tests/test_schedules_store.py": {
+          "version": "1.0.0",
+          "sha256": "bb8e19ba58abd45e9bf77f90998dd40bdfc9b7e5a9ae75303ae843a47540f032"
+        },
+        "tests/test_schedules_runner.py": {
+          "version": "1.0.0",
+          "sha256": "f9dcdd653eea12f98e943bd37ab6f5a3b24fda7cc7720a6a7dd8826e56efef99"
+        },
+        "tests/test_schedules_daemon.py": {
+          "version": "1.0.0",
+          "sha256": "98ddf079be6da38b43d2bbc6951d0a0f924cf08fca39d92a395edfb19be55c76"
+        },
+        "tests/test_schedules_form.py": {
+          "version": "1.0.0",
+          "sha256": "b43438b23798d65e48819d129ab307aefec0dbed6ff91329b6bdf6cf288bdc87"
+        },
+        "tests/test_schedules_page.py": {
+          "version": "1.0.0",
+          "sha256": "7c9a9c9aa261de0aa1c0b92244f9d8443d482aa49b6e1d603f9928bc98028e30"
+        },
+        "tests/scenarios/test_schedules_scenario.py": {
+          "version": "1.0.1",
+          "sha256": "7566409f4139cca07fb190c86aae18e9a632c07286309e20584dd37832d24773"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.62.1",
-      "sha256": "ffcd3a0b92038e3f0e3c6d4858ff7ed31fe0d186a987059472f924418be879f6",
+      "version": "1.63.0",
+      "sha256": "93d47e23d1693abafd023b2d7f7d4851d5a5d7209dd859a20fb79afcdd897951",
       "note": {
-        "ru": "Индекс треда ребёнка создаётся при связывании, а не при первом закрытом шаге; раздел о хранилище транскриптов и об инструментах управления ребёнком приведён в соответствие.",
-        "en": "The child thread index is created at bind time rather than at the first closed step; the transcript store and child-control sections are brought in line."
+        "ru": "Новый раздел «Запуск задач по расписанию»: слои core/schedules, обычный диалог вместо отдельного хранилища переписки, атомарная претензия на точку, пропуск без догонов.",
+        "en": "New section on scheduled runs: the core/schedules layers, an ordinary dialog instead of a separate transcript store, the atomic claim on a point, a miss with no catch-up burst."
       }
     },
     "LICENSE": {
@@ -2206,19 +2266,19 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.61.1",
-      "sha256": "517481cb54c29f7f810011316e67ea73d09f433f770da70db19db1fbb87742dd",
+      "version": "1.62.0",
+      "sha256": "ca4bd65827247d919e1d567278e481ce8ae1ca56c926512d6f84ebbdca983749",
       "note": {
-        "ru": "Регенерация карты: описания новых тестов строки индекса ребёнка и обновлённые описания модулей привязки, читателя переписки и инструментов делегирования.",
-        "en": "Map regeneration: descriptions of the new child-index tests and updated descriptions of the binding, transcript reader and delegation tool modules."
+        "ru": "Регенерация карты: описания пакета core/schedules, страницы расписаний, шести наборов тестов и сценарного теста расписаний; обновлены описания версии платформы, README и AGENT.md.",
+        "en": "Map regeneration: descriptions of the core/schedules package, the schedules page, six test modules and the schedules scenario; updated descriptions of the platform version, README and AGENT.md."
       }
     },
     "README.md": {
-      "version": "1.52.0",
-      "sha256": "3f5b9cb758261cbd3b427da020dc512cce2a2cdc2ba48931dd2ca342fdc84018",
+      "version": "1.52.1",
+      "sha256": "9a58e5949bb7d6973fd7620cd82d21957c8508d8705546d6cd88c0419a8e2c75",
       "note": {
-        "ru": "Строка Task Scout в таблице ролей и номер версии платформы 2.33.0.",
-        "en": "The Task Scout row in the role table and platform version 2.33.0."
+        "ru": "Раздел «Запуск по расписанию», счётчик свёрнутого блока настроек и номер версии платформы 2.34.0.",
+        "en": "The \"Run on a schedule\" section, the collapsed settings counter and platform version 2.34.0."
       }
     },
     "defaults/README.md": {
@@ -2294,11 +2354,11 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.28.0",
-      "sha256": "215f4a1a8d598428687459ffbf1b12321bdfcaf49e7ff5cce9ec35039ab3c603",
+      "version": "1.28.1",
+      "sha256": "ac721d0c85d5399262beb77a6847b7889dbc21d4952a352267592e2597a04b90",
       "note": {
-        "ru": "Ключи чек-бокса встроенного исполнителя на вкладке «Делегирование» (подпись, справка, подсказка).",
-        "en": "Checkbox keys for the bundled executor on the Delegation tab (label, help, hint)."
+        "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
+        "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
       }
     },
     "defaults/langs/en_guide.md": {
@@ -2310,11 +2370,11 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.28.0",
-      "sha256": "43a2556c1e579422f9f725e30e218268a835a79593fa1e0f703918347f532a26",
+      "version": "1.28.1",
+      "sha256": "746cc475c7bf38fa5ae248a46727b2c32ad989235987eecadba9032fa5839620",
       "note": {
-        "ru": "Ключи чек-бокса встроенного исполнителя на вкладке «Делегирование» (подпись, справка, подсказка).",
-        "en": "Checkbox keys for the bundled executor on the Delegation tab (label, help, hint)."
+        "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
+        "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
       }
     },
     "defaults/langs/ru_guide.md": {
@@ -2326,11 +2386,11 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.28.0",
-      "sha256": "0b0d237a0d87c223970134ce94c5a73179852cc083da15c48428f5657de0fc60",
+      "version": "1.28.1",
+      "sha256": "4fb3db2c40e30955bf7d10ce6dca42154c90873439e0e7560f003559fc1e6e72",
       "note": {
-        "ru": "Ключи чек-бокса встроенного исполнителя на вкладке «Делегирование» (подпись, справка, подсказка).",
-        "en": "Checkbox keys for the bundled executor on the Delegation tab (label, help, hint)."
+        "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
+        "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
       }
     },
     "defaults/langs/zh_CN_guide.md": {
@@ -2558,11 +2618,11 @@
       }
     },
     "langs/en.json": {
-      "version": "1.28.0",
-      "sha256": "bbcae47559fbe581c94b79e517976a04ec2ab08589106a3872bc8eba9576265f",
+      "version": "1.28.1",
+      "sha256": "6a3f8992e03c689e10c7fe31a09ecc3d70c05f594b247658a38f656fba775fb2",
       "note": {
-        "ru": "Ключи чек-бокса встроенного исполнителя на вкладке «Делегирование» (подпись, справка, подсказка).",
-        "en": "Checkbox keys for the bundled executor on the Delegation tab (label, help, hint)."
+        "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
+        "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
       }
     },
     "langs/en_guide.md": {
@@ -2574,11 +2634,11 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.28.0",
-      "sha256": "93c069bca2388cc5ce44ddba025738bf6e805abfa9c4da4d10af5f6378162304",
+      "version": "1.28.1",
+      "sha256": "b5ceb64b98108c9bdadc09d87de20494ba8d83017f11e8c3e61e5f61b9bfe6dd",
       "note": {
-        "ru": "Ключи чек-бокса встроенного исполнителя на вкладке «Делегирование» (подпись, справка, подсказка).",
-        "en": "Checkbox keys for the bundled executor on the Delegation tab (label, help, hint)."
+        "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
+        "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
       }
     },
     "langs/ru_guide.md": {
@@ -2590,11 +2650,11 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.28.0",
-      "sha256": "a4e6465ffbe68bb770eceb7385f508f47b17dcefebea187bbbfbb2e9ecb52183",
+      "version": "1.28.1",
+      "sha256": "4fb3db2c40e30955bf7d10ce6dca42154c90873439e0e7560f003559fc1e6e72",
       "note": {
-        "ru": "Ключи чек-бокса встроенного исполнителя на вкладке «Делегирование» (подпись, справка, подсказка).",
-        "en": "Checkbox keys for the bundled executor on the Delegation tab (label, help, hint)."
+        "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
+        "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
       }
     },
     "langs/zh_CN_guide.md": {
@@ -2630,11 +2690,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.38.1",
-      "sha256": "3642dc228837f5ba5438b0df2d93348da027ed71f344176dfc7b52f5b284a7c9",
+      "version": "1.39.0",
+      "sha256": "66e16b38bd563d33a566b593d70b8f11d0e3cf52d540f30ea77a8d3892d09767",
       "note": {
-        "ru": "Строка индекса треда ребёнка создаётся при связывании; семантика чтения переписки ребёнка (пустое окно против отсутствующей строки).",
-        "en": "The child thread index row is created at bind time; the semantics of reading a child conversation (an empty window versus a missing row)."
+        "ru": "FR21 «Запуск по расписанию»: правило, маска запрещённых дней, тихие часы, один момент - один запуск, пропуск при простое, удержание после трёх сбоев, планировщик и страница. Инвентарь базовых файлов: 152 файла, группы UI и Schedules.",
+        "en": "FR21 scheduled runs: the rule, the blocked-day mask, quiet hours, one point - one run, a miss on downtime, the error hold after three failures, the scheduler loop and the page. Base-file inventory: 152 files, the UI and Schedules groups."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/connector_creator.md": {

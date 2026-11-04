@@ -41,6 +41,7 @@ _MORE_KEYS = [
     "nav_skills",
     "nav_skills_library",
     "nav_storage",
+    "nav_schedules",
     "nav_access",
     "nav_stats",
     "nav_welcome",

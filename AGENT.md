@@ -1482,6 +1482,64 @@ Ed25519), а проверка подписи на стороне клиента 
   прогонов и кэш пакетов. Строки реестра живут в SQLite
   (`marketplace_installed`, `marketplace_removed`).
 
+### FR21 - Запуск по расписанию
+- **Назначение.** Владелец один раз описывает задачу, исполнителя и
+  периодичность, а платформа сама запускает диалог в нужный момент.
+  Раздел «Запуск по расписанию» - это не отдельный вид агента: правило
+  запускает обычный диалог выбранного сотрудника, поэтому результат виден
+  в «Истории» рядом с диалогами, начатыми вручную.
+- **Правило (расписание).** Название, сотрудник (`agent_slug`), текст
+  задачи и брифа, часовой пояс, первый момент запуска, интервал
+  (число и единица: часы/дни/недели), запрещённые дни недели, тихие часы
+  и лимиты запуска (`max_runs`, `max_steps`).
+- **Дни - это запрет, а не выбор.** `blocked_weekdays` перечисляет
+  дни, в которые правило молчит; пустой набор означает «каждый день».
+  Пресеты (`every_day`, `weekdays_only`, `weekends_only`) - лишь
+  сокращения для частых наборов, хранится всё равно маска.
+- **Расчёт момента.** Всё считается в зоне правила
+  (`core/schedules/calc.py`): «09:00 Europe/Moscow» остаётся девятью
+  часами утра и после переезда сервера. Предпросмотр следующих точек и
+  движок запуска идут одним и тем же кодом, поэтому обещанное и
+  случившееся не расходятся. Тихие часы сдвигают точку за пределы окна,
+  а не отменяют запуск.
+- **Один момент - один запуск.** Претензия на точку атомарна на уровне
+  базы: повторный тик (перезапуск, медленный цикл, второй процесс)
+  получает отказ и ничего не удваивает.
+- **Пропуск - это пропуск.** Точка, чьё время прошло, пока платформа
+  была выключена, записывается в историю как `skipped` с причиной
+  `missed`, а сетка уезжает вперёд. Догонов по умолчанию нет: десять
+  часов простоя не превращаются в десять запусков.
+- **Ручной запуск - это касса, а не перевод часов.** Кнопка «запустить
+  сейчас» проходит весь путь обычного запуска (строка истории, диалог,
+  счётчики), но `next_run_at` не двигает: сетка остаётся там, где её
+  оставил владелец. Поэтому счётчики и расписание живут отдельно.
+- **Сбой и удержание.** Каждый запуск пишет статус и код ошибки в
+  историю правила. Три сбоя подряд переводят правило в `error_hold`:
+  дальше оно молчит, причина остаётся на карточке, а владелец решает,
+  чинить её или удалять. Исчерпание `max_runs` переводит правило в
+  `finished`.
+- **Планировщик.** Один фоновый поток на процесс
+  (`core/schedules/daemon.py`): идемпотентный `bootstrap`, сердцебиение
+  для проверки живости, `tick_once` забирает дозревшие правила и тратит
+  на каждое отдельный воркер. Число одновременных запусков ограничено
+  размером пачки, а не числом правил.
+- **Хранение.** Правила и история запусков лежат в SQLite
+  (`schedules`, `schedule_runs`); диалоги - в обычном хранилище диалогов
+  со своими транскриптами, поэтому расписание не заводит второй способ
+  читать переписку.
+- **Страница.** `ui/pages/schedules.py`: список правил со статусом,
+  ближайшей точкой и счётчиками, форма создания и правки, подтверждение
+  удаления, история запусков с ошибками, предпросмотр следующих точек и
+  ручной запуск. Ключи переводов строятся только через явные словари -
+  склейка ключей запрещена, иначе i18n-тест их не увидит.
+- **Проверка.** `tests/test_schedules_*.py` (ядро, хранилище, раннер,
+  демон, форма, страница) и
+  `tests/scenarios/test_schedules_scenario.py`: правило срабатывает
+  один раз и попадает в «Историю», перезапуск не повторяет точку,
+  простой становится пропуском, запрещённый день пропускается в
+  предпросмотре, три сбоя удерживают правило.
+
+
 ## Нефункциональные требования
 
 ### NFR1 - Модульность
@@ -1586,12 +1644,13 @@ Ed25519), а проверка подписи на стороне клиента 
     # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
     # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
-- Список базовых файлов (144):
+- Список базовых файлов (152):
   - Корень (2): __init__.py, app.py
-  - UI (23): ui/__init__.py, ui/app.py, ui/components/__init__.py, ui/components/flash.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/access.py, ui/pages/assistants.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/marketplace.py, ui/pages/orchestrator.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrators.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/updates.py, ui/pages/updates_marketplace.py, ui/pages/welcome.py
+  - UI (24): ui/__init__.py, ui/app.py, ui/components/__init__.py, ui/components/flash.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/access.py, ui/pages/assistants.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/marketplace.py, ui/pages/orchestrator.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrators.py, ui/pages/schedules.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/updates.py, ui/pages/updates_marketplace.py, ui/pages/welcome.py
   - Core (70): core/__init__.py, core/api_errors.py, core/api_layer.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/chat_db_archive.py, core/config.py, core/connector_presets.py, core/connectors.py, core/context_guard.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/devagent_db_archive.py, core/dependency_check.py, core/document_images.py, core/document_text.py, core/entity_sync.py, core/env_loader.py, core/feed_autoscroll.py, core/files.py, core/folder_dialog.py, core/fs.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/mcp_client.py, core/mcp_tools.py, core/memory_migration.py, core/multimodal.py, core/ooxml.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrator_tools.py, core/orchestrators.py, core/paths.py, core/personal_memory.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/thread_mirror.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py, core/updater.py, core/updater_apply.py, core/url_fetch.py, core/version.py
   - Marketplace (19): core/marketplace/__init__.py, core/marketplace/agent_installer.py, core/marketplace/bootstrap.py, core/marketplace/bundles.py, core/marketplace/catalog.py, core/marketplace/config.py, core/marketplace/conflicts.py, core/marketplace/installer.py, core/marketplace/mcp_installer.py, core/marketplace/migration.py, core/marketplace/publish.py, core/marketplace/rag_installer.py, core/marketplace/registry.py, core/marketplace/rollback.py, core/marketplace/semver.py, core/marketplace/source.py, core/marketplace/store.py, core/marketplace/updates.py, core/marketplace/verify.py
   - Orchestration (11): core/orchestration/__init__.py, core/orchestration/contracts.py, core/orchestration/invoke.py, core/orchestration/resume.py, core/orchestration/runs.py, core/orchestration/service.py, core/orchestration/tool_classes.py, core/orchestration/tools.py, core/orchestration/transcript_reader.py, core/orchestration/transcript_sink.py, core/orchestration/verify.py
+  - Schedules (7): core/schedules/__init__.py, core/schedules/calc.py, core/schedules/daemon.py, core/schedules/form.py, core/schedules/model.py, core/schedules/runner.py, core/schedules/store.py
   - Storage (5): storage/__init__.py, storage/db.py, storage/models.py, storage/repository.py, storage/repository_devagent.py
   - DevAgent (14): dev_agent/__init__.py, dev_agent/agent_loop.py, dev_agent/assistant_detector.py, dev_agent/assistant_model_resolver.py, dev_agent/backup_manager.py, dev_agent/config.py, dev_agent/llm_utils.py, dev_agent/safe_writer.py, dev_agent/task_state.py, dev_agent/tool_executor.py, dev_agent/transcript.py, dev_agent/universal_agent.py, dev_agent/workspace_binding.py, dev_agent/workspace_tools.py
 
