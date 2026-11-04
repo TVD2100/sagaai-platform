@@ -74,6 +74,7 @@ PROMPT_VERSION_SOURCES = {
     "dev_agent/system_prompt.md": r"^#\s+.*\(v([^)]+)\)",
     "defaults/orchestrators/ya_agent/system_prompt.md": r"^#\s+.*\(v([^)]+)\)",
     "defaults/orchestrators/universal_agent/system_prompt.md": r"^#\s+.*\(v([^)]+)\)",
+    "defaults/orchestrators/task_scout/system_prompt.md": r"^#\s+.*\(v([^)]+)\)",
 }
 
 RELEASE_NOTE_INIT = {

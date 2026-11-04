@@ -533,7 +533,17 @@
 # stay: the first decodes and re-encodes picture formats no header parser can
 # handle, the second is the only credential-safe path to SFTP attributes.
 
-__version__ = "2.32.1"
+# 2.33.0 ships Task Scout, an employee that finds the tasks nobody wrote
+# down. It asks the delegated employees first (spawn_agent), reads their
+# working-memory folders and, only as a last resort, their dialogs, then
+# separates what is already open from what was promised and what follows
+# from both. The role ships disabled by consent: the delegation list is
+# empty, so a fresh installation has an agent that says whom to tick
+# instead of inventing a to-do list. Two read-only helpers
+# (agent_memory_reader, agent_thread_reader) enforce that same roster, so
+# a guessed slug or dialog id cannot widen what the user allowed.
+
+__version__ = "2.33.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

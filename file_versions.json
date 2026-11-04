@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "2.32.1",
+  "app_version": "2.33.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Платформа догоняет три релиза сразу. Universal-Agent - универсальный исполнитель, который берёт роль из постановки задачи и доступен каждому сотруднику без настройки, а снимается одним чек-боксом на вкладке «Делегирование»; та же сущность есть в каталоге Marketplace, поэтому предустановленная копия усыновляется каталогом, а не дублируется второй установкой. Субагент научился спрашивать своего агента: ask_parent паркует запуск на месте, answer_child продолжает тот же запуск с сохранением журнала, файлов и бюджета раундов, а неотвеченный вопрос закрывается как failed/answer_not_received с сохранением частичной работы. Из поставки ушло десять сторонних пакетов: текст DOCX/PPTX/XLSX читает собственный core/ooxml.py на zipfile и ElementTree, PDF-текст идёт через pypdf, страницы рендерит pypdfium2, tiktoken заменён символьной оценкой, а reportlab, markdown, PyPDF2 и xlrd не использовались вовсе. Pillow и paramiko остались: первая перекодирует JPEG2000, CCITT-сканы и CMYK в PNG для vision-модели, второй - единственный безопасный путь к атрибутам SFTP.",
-    "en": "The platform catches up three releases at once. Universal-Agent is a general-purpose executor that takes its role from the task brief and is available to every employee without configuration, revoked by one checkbox on the Delegation tab; the same entity ships in the marketplace catalog, so the preinstalled copy is adopted instead of being duplicated by a second install. A subagent can now ask its own agent: ask_parent parks the run in place, answer_child resumes that very run keeping its journal, files and round budget, and an unanswered question closes as failed/answer_not_received while keeping the partial work. Ten third-party packages leave the distribution: DOCX/PPTX/XLSX text is read by the bundled core/ooxml.py on zipfile and ElementTree, PDF text goes through pypdf, pages are rendered by pypdfium2, tiktoken is replaced by a character estimate, and reportlab, markdown, PyPDF2 and xlrd were never reached at all. Pillow and paramiko stay: the first re-encodes JPEG2000, CCITT scans and CMYK into PNG for the vision model, the second is the only safe path to SFTP attributes."
+    "ru": "Task Scout - встроенный сотрудник, который ищет задачи, которых никто не записал. Он сначала спрашивает делегированных сотрудников, затем читает их рабочие папки и лишь в последнюю очередь - диалоги, после чего разделяет уже открытые задачи, обещанные и вытекающие из них, с указанием источника. Роль поставляется с пустым списком делегирования: на чистой установке агент называет сотрудников, которых надо отметить, вместо того чтобы выдумать список дел. Два read-only инструмента (agent_memory_reader, agent_thread_reader) проверяют тот же список, поэтому угаданный slug или id диалога не расширяет права. Версия платформы 2.33.0.",
+    "en": "Task Scout is a bundled employee that finds the tasks nobody wrote down. It asks the delegated employees first, then reads their working-memory folders and only as a last resort their dialogs, and separates what is already open from what was promised and what follows from both, citing the source. The role ships with an empty delegation list: on a fresh installation the agent names the employees to tick instead of inventing a to-do list. Two read-only helpers (agent_memory_reader, agent_thread_reader) enforce that same roster, so a guessed slug or dialog id cannot widen the rights. Platform version 2.33.0."
   },
-  "updated": "2026-11-04T08:42:34Z",
+  "updated": "2026-11-04T11:45:00Z",
   "units": {
     "core": {
-      "version": "1.68.0",
+      "version": "1.69.0",
       "note": {
-        "ru": "Пакет: встроенный Universal-Agent и его идемпотентный сидинг, диалог субагента с родителем (ask_parent/answer_child, парковка и возобновление запуска, пять лимитов), сокращение набора зависимостей (core/ooxml.py, pypdf/pypdfium2 вместо pdfplumber/pdfminer.six, DOCX/PPTX/XLSX без python-docx/pptx/openpyxl), тесты и документация; релизы платформы 2.31.0-2.32.1.",
-        "en": "The package: the bundled Universal-Agent and its idempotent seeding, the subagent-parent dialog (ask_parent/answer_child, parking and resuming a run, five limits), the dependency trim (core/ooxml.py, pypdf/pypdfium2 instead of pdfplumber/pdfminer.six, DOCX/PPTX/XLSX without python-docx/pptx/openpyxl), tests and documentation; platform releases 2.31.0-2.32.1."
+        "ru": "Пакет: встроенный сотрудник Task Scout (промпт, два read-only инструмента с проверкой делегирования), его идемпотентный стартовый импорт, переключатель контроля версий промптов в verify_manifest, тесты и документация; релиз платформы 2.33.0.",
+        "en": "The package: the bundled Task Scout employee (prompt, two read-only helpers that enforce the delegation list), its idempotent start-up import, the prompt-version entry in verify_manifest, tests and documentation; platform release 2.33.0."
       },
       "files": {
         "__init__.py": {
@@ -276,11 +276,11 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.69.0",
-          "sha256": "b2fa2ee8afa0b59837488f360d57b82c15ed9eab00ae7aa4a092a8f90837088e",
+          "version": "1.70.0",
+          "sha256": "cb926e6e948128681c9edfab561e2bdd177e2db4a1b6051148830e2cc7643247",
           "note": {
-            "ru": "Релиз 2.30.0: дата в системном промпте и инструмент current_datetime.",
-            "en": "Release 2.30.0: the date in the system prompt and the current_datetime tool."
+            "ru": "Релиз 2.33.0: встроенный Task Scout и два read-only инструмента с проверкой делегирования.",
+            "en": "Release 2.33.0: the bundled Task Scout and its two read-only helpers bound to the delegation list."
           }
         },
         "dev_agent/__init__.py": {
@@ -368,16 +368,16 @@
           "sha256": "d243711998803755df65bf05630e6ce2c22ec031241399bcf5788dfc32d0dddf"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.29.0",
-          "sha256": "22c44e2562eec00ce7f307b4eeea22a662d5b8826fd2d775c3509f2fce1c1fe8",
+          "version": "1.30.0",
+          "sha256": "34339a525e4cd9a4e31844c86c79ea26be6d83e27f0e1696f60b8a35c09cc913",
           "note": {
-            "ru": "Описания новых тестов даты и обновлённых модулей.",
-            "en": "Descriptions of the new date tests and the updated modules."
+            "ru": "Описания файлов Task Scout в карте проекта.",
+            "en": "Task Scout file descriptions in the project map."
           }
         },
         "scripts/verify_manifest.py": {
-          "version": "1.1.0",
-          "sha256": "201cb29555ca8f1523962f242f1822eb7e408782933b4bdc15134a3aa417fe58"
+          "version": "1.1.1",
+          "sha256": "ce93986e4af30ce366c82f399a0ddea25b4415856ddda38f4d46a85e0d995af4"
         },
         "storage/__init__.py": {
           "version": "1.0.1",
@@ -2164,6 +2164,14 @@
             "ru": "core/ooxml.py: чтение DOCX/PPTX/XLSX на zipfile и ElementTree - абзацы с таблицами в CSV, слайды по порядку presentation.xml, листы XLSX через workbook.xml.rels с sharedStrings и inline-строками.",
             "en": "core/ooxml.py: DOCX/PPTX/XLSX reading on zipfile and ElementTree - paragraphs with tables as CSV, slides in presentation.xml order, XLSX sheets via workbook.xml.rels with sharedStrings and inline strings."
           }
+        },
+        "tests/test_task_scout_default.py": {
+          "version": "1.0.0",
+          "sha256": "053d0be58aae263009803b1872d9b5d99a321e0cd0d157f0cd9080f256071a3c"
+        },
+        "tests/scenarios/test_task_scout_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "ac6ba733d3d21fe1afe50d3ef3b20f14c081cc3d283140372cdf1a559ae69e60"
         }
       }
     }
@@ -2186,19 +2194,19 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.60.0",
-      "sha256": "1e0c7b247b6668983e967fd94af00816d4d6a925777c33962f4e29a7bd07009c",
+      "version": "1.61.0",
+      "sha256": "389c375c24584f4fb343b2b7fdbee6a2671fa528d0440ac5dc1e043f34ae4892",
       "note": {
-        "ru": "Карта пересобрана: встроенный исполнитель, его тесты и обновлённые описания модулей.",
-        "en": "Map regenerated: the bundled executor, its tests and the updated module descriptions."
+        "ru": "Карта перегенерирована: файлы встроенного Task Scout (промпт, orchestrator.json, две функции) и его тесты.",
+        "en": "The map is regenerated: the bundled Task Scout files (prompt, orchestrator.json, two functions) and its tests."
       }
     },
     "README.md": {
-      "version": "1.51.1",
-      "sha256": "36cddac7c5f0964b61c9af7075d24920dc8b9e0d48fb3321e0e0f31866ae2433",
+      "version": "1.52.0",
+      "sha256": "3f5b9cb758261cbd3b427da020dc512cce2a2cdc2ba48931dd2ca342fdc84018",
       "note": {
-        "ru": "Раздел «Делегирование»: Universal-Agent доступен по умолчанию и снимается чек-боксом. Номер версии платформы 2.32.0.",
-        "en": "The Delegation section: the Universal-Agent is available by default and revoked by a checkbox. Platform version 2.32.0."
+        "ru": "Строка Task Scout в таблице ролей и номер версии платформы 2.33.0.",
+        "en": "The Task Scout row in the role table and platform version 2.33.0."
       }
     },
     "defaults/README.md": {
@@ -2610,11 +2618,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.37.0",
-      "sha256": "7da455d4b4983937155e32650e556f0ee19f16b57a49e5d65a1aea5af47a0258",
+      "version": "1.38.0",
+      "sha256": "feda55c4911376166b0b8ccaaef0f0fae8c8f3c46a1dff1b0697b21daeac135c",
       "note": {
-        "ru": "FR6: встроенный Universal-Agent (сидинг, роль из постановки) и его право по умолчанию; FR20: усыновление каталогом.",
-        "en": "FR6: the bundled Universal-Agent (seeding, role from the brief) and its default right; FR20: catalog adoption."
+        "ru": "FR6: второй встроенный сотрудник Task Scout - принцип «сначала спросить», пустой список делегирования по умолчанию и два read-only инструмента, проверяющих тот же список.",
+        "en": "FR6: the second bundled employee Task Scout - the ask-first principle, an empty delegation list by default and two read-only helpers that enforce that same roster."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/connector_creator.md": {
@@ -2663,6 +2671,38 @@
       "note": {
         "ru": "Системный промпт Universal-Agent (v1.0, английский): роль и требования приходят с задачей, собственной специализации нет.",
         "en": "Universal-Agent system prompt (v1.0, English): the role and requirements arrive with the task, there is no specialisation of its own."
+      }
+    },
+    "defaults/orchestrators/task_scout/orchestrator.json": {
+      "version": "1.0.0",
+      "sha256": "2e790b14f1800595514159b7b332bc489878f4fc00ff3ec80aed9f1d7b16a89c",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/orchestrators/task_scout/system_prompt.md": {
+      "version": "1.0",
+      "sha256": "2a267544e2036279871da41474543f69fe11efbe6e776deaadb18dbb8823de9c",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/orchestrators/task_scout/functions/agent_memory_reader.py": {
+      "version": "1.0.0",
+      "sha256": "def45f3fb4596331b99a0ff4ffaf920be164c09bb2290d91ad0c0090c00e79f4",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "defaults/orchestrators/task_scout/functions/agent_thread_reader.py": {
+      "version": "1.0.0",
+      "sha256": "234c5b5943f9bbea66dc344ba93982e42ceb3e4574b5284e1651ae64caf6b144",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
       }
     }
   }

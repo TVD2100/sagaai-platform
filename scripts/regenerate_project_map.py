@@ -266,6 +266,12 @@ roles = {
 # whose roles were only ever present in the map) plus refreshed entries for
 # files changed by the AST / fingerprint / published-scope update.
 roles.update({
+    "defaults/orchestrators/task_scout/orchestrator.json": "Bundled Task Scout employee: name, description, model config (DeepSeek deepseek-flash, high reasoning, 10 parallel subagents, empty allowed_agents so delegation stays an explicit user decision), tool set without agent-management tools, max_steps 400",
+    "defaults/orchestrators/task_scout/system_prompt.md": "Task Scout system prompt (v1.0, English): ask the delegated employees first, then read their working-memory folders, then their dialogs; separates open, promised and forecast tasks with sources, and states the empty-roster notice verbatim instead of inventing a list",
+    "defaults/orchestrators/task_scout/functions/agent_memory_reader.py": "Task Scout custom function: read-only list/read of a delegated employee's working-memory folder, gated by config.allowed_agents, with path-traversal and binary-file refusal",
+    "defaults/orchestrators/task_scout/functions/agent_thread_reader.py": "Task Scout custom function: read-only list/search/read of a delegated employee's dialogs, gated by the same roster and refusing a dialog owned by another employee",
+    "tests/test_task_scout_default.py": "Unit tests for the bundled Task Scout: folder completeness, conservative defaults, prompt contract, default import, catalog adoptability, and the delegation boundary of both read-only helpers",
+    "tests/scenarios/test_task_scout_scenario.py": "Scenario tests: empty roster notice, delegation granted (only ticked employees readable, the runtime agrees), ask-then-read evidence in a dialog, foreign dialog refused",
     "AGENT.md": "Key project information for agents (requirements, conventions, constraints); managed doc, replaces SPEC.md",
     "tests/scenarios/test_agent_md_doc_scenario.py": "Scenario tests: AGENT.md managed doc (scaffold with mandatory conventions, legacy 'spec' alias, assess states)",
     "file_versions.json": "Update manifest: app_version/channel/release_note and per-file semver + sha256 for units/selectable",

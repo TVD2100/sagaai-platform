@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-04T08:42:53+00:00`
-- Файлов: **532**
+- Обновлено: `2026-11-04T11:33:27+00:00`
+- Файлов: **538**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **8278**
-- Отпечаток содержимого: `sha256:8d76c0e8e17fac9fd72854d0373faf411558d07411b296b7ddabb190ac2e1582` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 1, JSON: 24, Markdown: 39, PEM certificate: 1, Python: 470, Text: 1
+- Python-символов: **8327**
+- Отпечаток содержимого: `sha256:267ad3f66e10570b3ac20b0e5b6f03377b420ad547ad661bf8f76ee99aebd575` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 1, JSON: 25, Markdown: 40, PEM certificate: 1, Python: 474, Text: 1
 
 ## Файлы и назначение
 
@@ -324,6 +324,7 @@
 | `tests/test_structured_output_consumers.py` | Python | _(описание не задано)_ | - |
 | `tests/test_subagent_transcript_modes.py` | Python | _(описание не задано)_ | - |
 | `tests/test_system_prompt_subagents.py` | Python | Tests for the subagent sections of the DevAgent system prompt: the launch rules, the background mode, the observation tools, the resume contract and the capped resume chain | - |
+| `tests/test_task_scout_default.py` | Python | Unit tests for the bundled Task Scout: folder completeness, conservative defaults, prompt contract, default import, catalog adoptability, and the delegation boundary of both read-only helpers | storage |
 | `tests/test_task_state.py` | Python | Task-state journal tests (dialog-folder fallback in the empty state) | - |
 | `tests/test_task_state_prune.py` | Python | Unit tests for journal retention: only empty journals past the age threshold are removed, journals with an active task or history survive, the live dialog and fresh files survive, a non-journal file is left alone, an orphaned child journal goes only when its run reported a terminal outcome, and the sweep does not cascade onto children in the same pass | - |
 | `tests/test_theme_restore.py` | Python | _(описание не задано)_ | - |
@@ -444,6 +445,7 @@
 | `tests/scenarios/test_subagent_failure_modes_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_subagent_result_scenario.py` | Python | Scenario tests (given->when->then) for the closed background lifecycle: a premature request answers not-ready and invents nothing, a finished child hands over its text, artifacts and resources, a stop is answered as the terminal status of the stop, and the result survives the registry and the dialog boundary. | - |
 | `tests/scenarios/test_subagent_resume_scenario.py` | Python | Scenario tests (given->when->then) for resuming a child: the first attempt stops half-way, read_subagent_state shows the handoff, resume finishes the remaining file without touching the finished one, inherits the tree and its budget, refuses a foreign run and stops at the resume chain ceiling | - |
+| `tests/scenarios/test_task_scout_scenario.py` | Python | Scenario tests: empty roster notice, delegation granted (only ticked employees readable, the runtime agrees), ask-then-read evidence in a dialog, foreign dialog refused | storage |
 | `tests/scenarios/test_task_state_mega_task.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_theme_switch_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_thread_search_scenarios.py` | Python | Scenario tests for the thread-search tools: current-dialog search without lists, explicit thread_id, orchestrator scope with period, search->read around a match, access control, list pagination | storage |
@@ -492,6 +494,10 @@
 | `defaults/orchestrators/ya_agent/instructions/multimodal_yandex_services.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/ya_agent/instructions/rag_search_embeddings.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/orchestrators/ya_agent/instructions/yandex_models_reference.md` | Markdown | _(описание не задано)_ | - |
+| `defaults/orchestrators/task_scout/orchestrator.json` | JSON | Bundled Task Scout employee: name, description, model config (DeepSeek deepseek-flash, high reasoning, 10 parallel subagents, empty allowed_agents so delegation stays an explicit user decision), tool set without agent-management tools, max_steps 400 | - |
+| `defaults/orchestrators/task_scout/system_prompt.md` | Markdown | Task Scout system prompt (v1.0, English): ask the delegated employees first, then read their working-memory folders, then their dialogs; separates open, promised and forecast tasks with sources, and states the empty-roster notice verbatim instead of inventing a list | - |
+| `defaults/orchestrators/task_scout/functions/agent_memory_reader.py` | Python | Task Scout custom function: read-only list/read of a delegated employee's working-memory folder, gated by config.allowed_agents, with path-traversal and binary-file refusal | - |
+| `defaults/orchestrators/task_scout/functions/agent_thread_reader.py` | Python | Task Scout custom function: read-only list/search/read of a delegated employee's dialogs, gated by the same roster and refusing a dialog owned by another employee | storage |
 | `defaults/orchestrators/universal_agent/orchestrator.json` | JSON | Bundled Universal-Agent employee: name, description, model config (DeepSeek deepseek-flash, xhigh reasoning, 40-message economy tail), 42-tool set without agent-management tools, max_steps 300, auto_apply on, sort_order 190; seeded by the idempotent built-in bootstrap, so an installation gets the executor without visiting the marketplace | - |
 | `defaults/orchestrators/universal_agent/system_prompt.md` | Markdown | Universal-Agent system prompt (v1.0, English): the role, the requirements and the expected result arrive with the task, the loop-control block, and no domain of its own - the executor must not invent a specialisation | - |
 | `defaults/orchestrators/dev_agent/instructions/assistant_creator.md` | Markdown | _(описание не задано)_ | - |
@@ -7009,6 +7015,34 @@
 - `test_the_approval_gate_itself_is_unchanged_for_top_level_dialogs` (func, строка 94)
 - `test_the_prompt_stays_one_managed_file` (func, строка 105)
 
+### `tests/test_task_scout_default.py`
+- `platform` (func, строка 33)
+- `scout` (func, строка 54)
+- `delegated` (func, строка 67)
+- `TestBundledFolder` (class, строка 80)
+- `TestBundledFolder.test_the_folder_ships_the_three_required_files` (func, строка 81)
+- `TestBundledFolder.test_the_configuration_is_conservative_by_default` (func, строка 87)
+- `TestBundledFolder.test_the_prompt_keeps_the_role_contract` (func, строка 99)
+- `TestBundledFolder.test_the_default_import_creates_the_agent_and_its_functions` (func, строка 119)
+- `TestBundledFolder.test_the_bundled_copy_is_adoptable_by_the_catalog` (func, строка 136)
+- `TestMemoryReader` (class, строка 158)
+- `TestMemoryReader._invoke` (func, строка 159)
+- `TestMemoryReader.test_an_empty_roster_refuses_the_read` (func, строка 165)
+- `TestMemoryReader.test_an_employee_outside_the_roster_is_refused` (func, строка 170)
+- `TestMemoryReader.test_an_empty_folder_is_reported_not_failed` (func, строка 175)
+- `TestMemoryReader.test_list_and_read_work_inside_the_folder` (func, строка 180)
+- `TestMemoryReader.test_path_traversal_is_refused` (func, строка 195)
+- `TestMemoryReader.test_a_binary_file_is_not_opened` (func, строка 205)
+- `TestThreadReader` (class, строка 215)
+- `TestThreadReader._invoke` (func, строка 216)
+- `TestThreadReader._thread` (func, строка 222)
+- `TestThreadReader.test_an_empty_roster_refuses_the_read` (func, строка 231)
+- `TestThreadReader.test_dialogs_of_a_delegated_employee_are_listed` (func, строка 236)
+- `TestThreadReader.test_search_finds_the_open_phrase` (func, строка 244)
+- `TestThreadReader.test_a_dialog_of_another_employee_is_refused` (func, строка 252)
+- `TestThreadReader.test_read_returns_the_window_of_the_owner` (func, строка 259)
+- `TestThreadReader.test_an_unknown_dialog_is_not_found` (func, строка 268)
+
 ### `tests/test_task_state.py`
 - `sandbox` (func, строка 21)
 - `test_journal_file_name_embeds_thread_id` (func, строка 44)
@@ -8918,6 +8952,18 @@
 - `test_resume_of_a_child_of_another_dialog_is_refused` (func, строка 247)
 - `test_the_resume_chain_stops_at_its_ceiling` (func, строка 264)
 
+### `tests/scenarios/test_task_scout_scenario.py`
+- `fresh_install` (func, строка 31)
+- `_tools` (func, строка 55)
+- `_add_employee` (func, строка 61)
+- `test_a_fresh_install_offers_task_scout_with_nobody_delegated` (func, строка 69)
+- `test_with_nobody_delegated_the_helpers_refuse` (func, строка 79)
+- `test_the_prompt_carries_the_notice_the_user_will_see` (func, строка 93)
+- `test_ticking_employees_opens_exactly_those_two` (func, строка 105)
+- `test_the_runtime_agrees_with_the_helpers` (func, строка 124)
+- `test_a_left_open_promise_is_found_in_the_dialog` (func, строка 142)
+- `test_another_employee_cannot_be_reached_by_a_guessed_dialog` (func, строка 176)
+
 ### `tests/scenarios/test_task_state_mega_task.py`
 - `sandbox` (func, строка 33)
 - `test_big_task_runs_to_completion_keeps_journal` (func, строка 56)
@@ -9190,6 +9236,23 @@
 - `repo_devagent_load_threads_messages` (func, строка 361)
 - `repo_devagent_load_messages_window` (func, строка 386)
 
+### `defaults/orchestrators/task_scout/functions/agent_memory_reader.py`
+- `_delegated_slugs` (func, строка 34)
+- `_employee_folder` (func, строка 47)
+- `_safe_target` (func, строка 54)
+- `_list_files` (func, строка 77)
+- `invoke` (func, строка 98)
+
+### `defaults/orchestrators/task_scout/functions/agent_thread_reader.py`
+- `_delegated_slugs` (func, строка 37)
+- `_clean` (func, строка 46)
+- `_hidden` (func, строка 57)
+- `_preview` (func, строка 66)
+- `_list_action` (func, строка 74)
+- `_search_action` (func, строка 95)
+- `_read_action` (func, строка 135)
+- `invoke` (func, строка 174)
+
 ### `defaults/skills/rag_base_creator/scripts/build_base.py`
 - `_fallback_vector` (func, строка 95)
 - `_check_deps` (func, строка 103)
@@ -9237,24 +9300,24 @@
 - `main` (func, строка 39)
 
 ### `scripts/verify_manifest.py`
-- `log` (func, строка 99)
-- `find_root` (func, строка 104)
-- `git_ls_files` (func, строка 116)
-- `sha256_file` (func, строка 132)
-- `read_app_version` (func, строка 140)
-- `header_version` (func, строка 160)
-- `classify` (func, строка 170)
-- `load_manifest` (func, строка 180)
-- `save_manifest` (func, строка 186)
-- `now_iso` (func, строка 195)
-- `build_manifest` (func, строка 199)
-- `add_file` (func, строка 246)
-- `check_note_dict` (func, строка 288)
-- `check_unit` (func, строка 300)
-- `check_file_entry` (func, строка 316)
-- `verify` (func, строка 341)
-- `verify.iter_entries` (func, строка 390)
-- `main` (func, строка 481)
+- `log` (func, строка 100)
+- `find_root` (func, строка 105)
+- `git_ls_files` (func, строка 117)
+- `sha256_file` (func, строка 133)
+- `read_app_version` (func, строка 141)
+- `header_version` (func, строка 161)
+- `classify` (func, строка 171)
+- `load_manifest` (func, строка 181)
+- `save_manifest` (func, строка 187)
+- `now_iso` (func, строка 196)
+- `build_manifest` (func, строка 200)
+- `add_file` (func, строка 247)
+- `check_note_dict` (func, строка 289)
+- `check_unit` (func, строка 301)
+- `check_file_entry` (func, строка 317)
+- `verify` (func, строка 342)
+- `verify.iter_entries` (func, строка 391)
+- `main` (func, строка 482)
 
 ### `dev_agent/agent_loop.py`
 - `_now_ts` (func, строка 157)
