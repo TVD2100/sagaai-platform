@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "2.35.1",
+  "app_version": "2.36.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Статический анализ: весь код проекта прогнан через ruff, автофикс применён ко всем применимым находкам (779 находок → 0). Два настоящих дефекта найдены и исправлены: время запуска по расписанию печаталось в зоне сервера вместо зоны правила, а в генераторе карты проекта дубликат ключа словаря молча затирал описание. Остальное механическое: порядок импортов, неиспользуемые импорты, однострочные конструкции. E402 отключён точечно там, где импорт обязан идти после sys.path/importorskip/set_page_config - с указанием причины в ruff.toml. Попутно вычищены три директивы ``# noqa``, записанные свободным текстом: ruff такие не распознаёт, поэтому они ничего не подавляли, оставаясь незаметными. Две переписаны в корректный список кодов, одна заменена обычным комментарием - подавлять там было нечего.",
-    "en": "Static analysis: the whole code base is run through ruff and every applicable finding is fixed (779 findings to 0). Two real defects were found and fixed: a scheduled run printed its moment in the server time zone instead of the rule's own zone, and a duplicate dictionary key in the project-map generator silently overwrote a fuller description. The rest is mechanical: import order, unused imports, one-line statements. E402 is disabled per file where an import must follow sys.path/importorskip/set_page_config, with the reason stated in ruff.toml. The sweep also cleaned up three ``# noqa`` directives written as free text: ruff does not recognise those, so they suppressed nothing while looking like they did. Two became a correct code list, one a plain comment - there was nothing to suppress."
+    "ru": "Консоль sagaai - третий равноправный вход в платформу рядом с интерфейсом и HTTP API: запуск задач сотрудникам, диагностика, токены, обновления, снимки и миграции баз. Работает без Streamlit и HTTP-стека; JSON-режим и фиксированные коды возврата для скриптов.",
+    "en": "The sagaai console - a third equal entry point next to the UI and the HTTP API: tasks for employees, diagnostics, tokens, updates, database snapshots and migrations. Runs without Streamlit or the HTTP stack; JSON mode and fixed exit codes for scripts."
   },
-  "updated": "2026-11-04T21:01:58Z",
+  "updated": "2026-11-05T09:36:43Z",
   "units": {
     "core": {
-      "version": "1.72.0",
+      "version": "1.73.0",
       "note": {
-        "ru": "Пакет: статический анализ ruff по всему коду (конфигурация ruff.toml, набор E/F/I), автофикс порядка импортов и неиспользуемых импортов, ручные исправления двух дефектов (зона времени в раннере расписаний, дубликат ключа в генераторе карты) и косметики. Точечные per-file-ignores для E402 с обоснованием.",
-        "en": "Package: project-wide ruff static analysis (ruff.toml, E/F/I set), autofix of import order and unused imports, manual fixes of two defects (time zone in the schedule runner, duplicate key in the project-map generator) and cosmetics. Per-file E402 ignores with a stated reason."
+        "ru": "Пакет: консоль sagaai как третий равноправный вход (пакет sagaai/, bin/sagaai), расширения шлюза для headless-вызова (bootstrap без UI, diagnostics только чтением, backup снимками через движок SQLite, run_dialog с DialogOutcome), create_token/list_tokens в хранилище токенов, локальное зеркало канала обновлений, откат набора в порядке установки и регистрация sagaai/ и bin/ в атомарном пакете.",
+        "en": "Package: the sagaai console as a third equal entry point (sagaai/ package, bin/sagaai), gateway extensions for headless callers (bootstrap without the UI, read-only diagnostics, database snapshots through the SQLite engine, run_dialog with DialogOutcome), create_token/list_tokens in the token store, a local mirror for the update channel, bundle rollback in install order and sagaai/ plus bin/ registered in the atomic unit."
       },
       "files": {
         "__init__.py": {
@@ -268,16 +268,16 @@
           "sha256": "d86fc7a17fc4658703a260c69609e834b2bd0a130c834fe285e9dc41ed234f8f"
         },
         "core/updater.py": {
-          "version": "1.0.5",
-          "sha256": "ffcc4f53af57cbfd40cd68adf6acca2a7e0e1b5ba52e9702a2e850fbe5bd5d95"
+          "version": "1.1.0",
+          "sha256": "574040fa525c037c863f001171740a968942f21e05621c053a1d5f9f2778272b"
         },
         "core/updater_apply.py": {
           "version": "1.1.2",
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.71.2",
-          "sha256": "c8bbb331ae3a7d6d9d9ab7a77724d6f2e55c7add5330e30a6157a909abc33c42",
+          "version": "1.72.0",
+          "sha256": "ceeb1d16c551be4633b8e1e363f790b008282c3ae1a285271077375feb419878",
           "note": {
             "ru": "Релиз 2.34.0: расписания запуска задач агентами.",
             "en": "Release 2.34.0: scheduled agent runs."
@@ -368,16 +368,16 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.32.1",
-          "sha256": "6da366eef35981b111bffcf00fd9f83e3c419cd484d497b7d80ec4cff597ca21",
+          "version": "1.32.2",
+          "sha256": "6e39bb7a677454a5f9945a7933d888b53faaab3cbc8d9b7f2ebea3341eee7d34",
           "note": {
             "ru": "Описания файлов Task Scout в карте проекта.",
             "en": "Task Scout file descriptions in the project map."
           }
         },
         "scripts/verify_manifest.py": {
-          "version": "1.1.2",
-          "sha256": "42bb507ff43fe26b6f33824901069759b8078c77311ce2577e56f5f932955795"
+          "version": "1.1.3",
+          "sha256": "45cd49757edae1c671d329efc2ee40b2efc0606d3dfa74650918d1bd0ddb33db"
         },
         "storage/__init__.py": {
           "version": "1.0.1",
@@ -1838,8 +1838,8 @@
           "sha256": "1e5ef1a904097db8cdf41ed63d7d049da823b5650a86886a485a4e3c23ad4a2d"
         },
         "tests/test_marketplace_bundles.py": {
-          "version": "1.0.0",
-          "sha256": "09242ccfce223a6c2554525530c909c6fad379eb23473dfe43ad3ee110137760"
+          "version": "1.1.0",
+          "sha256": "cf93af6b651d88e6904d218913a74e0858f6532ded8fc1eedea45ab7f46a24bb"
         },
         "tests/test_marketplace_catalog_types.py": {
           "version": "1.0.1",
@@ -1878,8 +1878,8 @@
           "sha256": "7c555fdf1f097f7c432da6ecefc538128e960b06a24696831b80f089f1c8cc91"
         },
         "core/marketplace/bundles.py": {
-          "version": "1.1.1",
-          "sha256": "83bb9894859769e58d7acbe16043a594b7ecf1dbf0a3d4a07e6234e0b72425d9"
+          "version": "1.1.2",
+          "sha256": "dde3921cb471d0a4405f379f462870e2194b99ed610d0962e567b16ab1e2e0f8"
         },
         "core/marketplace/mcp_installer.py": {
           "version": "1.0.1",
@@ -1898,8 +1898,8 @@
           "sha256": "4c15ddd6205ebe59192ddb9d41cf6ae865e7a4d9dc6bfd748b03c5a95ace5611"
         },
         "tests/test_copyright_headers.py": {
-          "version": "1.0.2",
-          "sha256": "695043e979652d97cc36af5602f21b3eae43344361af56d505e99c4e1b87de4b"
+          "version": "1.0.3",
+          "sha256": "6afd5b932ba81efa42a093f3482e1b9b52aa5c5b04112ca268d79dfce0453e80"
         },
         "tests/test_marketplace_assistant_installer.py": {
           "version": "1.0.2",
@@ -2246,20 +2246,20 @@
           "sha256": "96943a12c613dc0f7c76588d0989d3ac63be9c9f53b864007e4c8a3f0f57f5bc"
         },
         "core/api_token_store.py": {
-          "version": "1.0.0",
-          "sha256": "3a309171aae67a93b5fa4e575b922e7d65b231a0653c19ad756595814e40b179"
+          "version": "1.1.0",
+          "sha256": "32dcdd1d119979f352865a0a0c5f25b70fa5e18477ec07f3905228ff66653b55"
         },
         "core/gateway/__init__.py": {
-          "version": "1.0.0",
-          "sha256": "64143be00027bc614a7309caf4c52d6fa829345b9016ad0bc5c8d90907cecc19"
+          "version": "1.1.0",
+          "sha256": "32c5c4b46f22b0d7d1b878646dfbe0845eb1497b0d8f4799bf4361a6185cd79d"
         },
         "core/gateway/dialog.py": {
-          "version": "1.0.0",
-          "sha256": "6f1fa51a61f3242e4c148f0b3e7c0aaf99608b3fd362c0513c20d5cb5e0e95c5"
+          "version": "1.1.0",
+          "sha256": "923573edf17dadc1c78381e749821809878b81441dae0a0d8237d604bb2f1145"
         },
         "core/gateway/dto.py": {
-          "version": "1.0.0",
-          "sha256": "b2c1da36e75b637f85ea3f44206780914578f80c9e189e86fcf49e530727cc57"
+          "version": "1.1.0",
+          "sha256": "dc9528b41d91da587babd43795164f27d81e65950146f188d96f8e909d74f11f"
         },
         "core/gateway/entities.py": {
           "version": "1.0.0",
@@ -2330,23 +2330,123 @@
           "sha256": "9c48438c58ab3816ac26ee2679367df658a72f030074121f0f34bce0e5f897c8"
         },
         "tests/test_gateway_imports.py": {
-          "version": "1.0.0",
-          "sha256": "6d98a5848d1bb4a4fb2e818cce445d8da3543b76f1b5f272a96d398e936e492a"
+          "version": "1.0.1",
+          "sha256": "55bca0f0eb412ad59eadd0011cfd32590871797dab8858fa09aedf59ea1e443d"
         },
         "tests/test_gateway_runner.py": {
           "version": "1.0.0",
           "sha256": "32a5ca1677cbcedbc871e07dbd47ad61335b1d011e0dcace4fd4c5948c2d4a95"
+        },
+        "sagaai/__init__.py": {
+          "version": "1.0.0",
+          "sha256": "0f1e365281277e7e76ca37039ae475766784328983ebc147b07f54dd5dba5972"
+        },
+        "sagaai/__main__.py": {
+          "version": "1.0.0",
+          "sha256": "5db31b915dc3c114b7ca22298dbfe201769f441d0d9e5e56591d3130e33c0e52"
+        },
+        "sagaai/cli.py": {
+          "version": "1.0.0",
+          "sha256": "57d87b29753846172899a60de7c181958607249f500dc634d5c6ca39cdeb2e37"
+        },
+        "sagaai/console.py": {
+          "version": "1.0.0",
+          "sha256": "01c209e80cb67a5be659d3b7b7becf4b0e912cbc1b392458b32ed8d082dc74c3"
+        },
+        "sagaai/errors.py": {
+          "version": "1.0.0",
+          "sha256": "ea0f79101c924aa5277455a42cb212b51eaedc6bb110af72587feb60ddfe0c55"
+        },
+        "sagaai/exit_codes.py": {
+          "version": "1.0.0",
+          "sha256": "bc73304c61a5eb13935e37b9db2ebd6c7c17b3d2bb7e9e90256b75e250306340"
+        },
+        "sagaai/commands/__init__.py": {
+          "version": "1.0.0",
+          "sha256": "4b6cc2c77c7eff050bf0d976fc48dc8555ca7b9b06e1fcbcec2324520350388a"
+        },
+        "sagaai/commands/_common.py": {
+          "version": "1.0.0",
+          "sha256": "e4e1ff05b1996d73a88ec7e6e678ca905402097cec1df1b681c8f9284d5cedf3"
+        },
+        "sagaai/commands/agents.py": {
+          "version": "1.0.0",
+          "sha256": "d705f5c4e65623dacc668afad5d00bbf899cb241136edaca2d3046eb04d3971c"
+        },
+        "sagaai/commands/backup.py": {
+          "version": "1.0.0",
+          "sha256": "409de36566e672ffd09b208c52d21d705e992e77dc95d3d9421bcfe2bfc77e52"
+        },
+        "sagaai/commands/doctor.py": {
+          "version": "1.0.0",
+          "sha256": "fbbeab9ebd2b5a7384ad4aad937c15a09ed2ba7da16bbf183ff90540b415a3cb"
+        },
+        "sagaai/commands/migrate.py": {
+          "version": "1.0.0",
+          "sha256": "46cdc6abddb7981d783215ebc49e4814878c57e031a2fd56f09b31bb281680ac"
+        },
+        "sagaai/commands/run.py": {
+          "version": "1.0.0",
+          "sha256": "ed3126bd2d04c81b2922f8200fcbc1c4c8d53c0e36f05a0777f4ab377c029cda"
+        },
+        "sagaai/commands/serve.py": {
+          "version": "1.0.0",
+          "sha256": "4f4becefe8e79c47d9b922cd79ab07986e422eeee0c8782cfe890a64c7183324"
+        },
+        "sagaai/commands/token.py": {
+          "version": "1.0.0",
+          "sha256": "2dd3c469c3d3fe39147d62c52a399fbe60fda8048ecb377bc92db53a00127a8d"
+        },
+        "sagaai/commands/ui.py": {
+          "version": "1.0.0",
+          "sha256": "200ad6c483c0aefa56c44978b4f6cf066f3103b543471a09464dd942d4fc2c9f"
+        },
+        "sagaai/commands/update.py": {
+          "version": "1.0.0",
+          "sha256": "f53d25147b302d541b88857b7283b374b3d70836fbd10f68e0b61981302a35a5"
+        },
+        "bin/sagaai": {
+          "version": "1.0.0",
+          "sha256": "03cdf50af76a0315b7a463b6533b9ee954d4bfbd7103c228ece3b5d356755edb"
+        },
+        "core/gateway/backup.py": {
+          "version": "1.0.0",
+          "sha256": "8468f2ae4705886be312838c0c5e24c193e4db9758a86eba314771228157ae82"
+        },
+        "core/gateway/bootstrap.py": {
+          "version": "1.0.0",
+          "sha256": "1f01d915d2256fd910d55b88647d5c63560d08d3dddb8ba4b560915380a26db3"
+        },
+        "core/gateway/diagnostics.py": {
+          "version": "1.0.0",
+          "sha256": "9d113e83f9e092283ea3401dc51859456ea34c2d97b798ef278ef41556cd97de"
+        },
+        "tests/test_cli_imports.py": {
+          "version": "1.0.0",
+          "sha256": "beefd42ae1e86a0c3ab399341aa0f9e6415bd17eed3568c989adb61ed29b7f95"
+        },
+        "tests/test_cli_console.py": {
+          "version": "1.0.0",
+          "sha256": "b9aa43acffa8ed78f64e44334133748ed7f17d05643ff851af5e8b5653b540f6"
+        },
+        "tests/test_cli_commands.py": {
+          "version": "1.0.0",
+          "sha256": "1ff225687b9ee010c62c0f7a958568a5ae5f145ee2cb01c94d0a7b6008b478c5"
+        },
+        "tests/scenarios/test_cli_scenarios.py": {
+          "version": "1.0.0",
+          "sha256": "321968cdad92596c86d9002114db5560673e1a357958ded5d98ff8d51d5e64c3"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.64.0",
-      "sha256": "a4a410298c68bbb9a881a5ec6831f32087281b1bc85dc1735d46fdbbf14c79c2",
+      "version": "1.65.0",
+      "sha256": "664668594d15de08f3de8153600e58d4de3bd734d79e74562bd958fed3a7bf0c",
       "note": {
-        "ru": "Новый раздел «Запуск задач по расписанию»: слои core/schedules, обычный диалог вместо отдельного хранилища переписки, атомарная претензия на точку, пропуск без догонов.",
-        "en": "New section on scheduled runs: the core/schedules layers, an ordinary dialog instead of a separate transcript store, the atomic claim on a point, a miss with no catch-up burst."
+        "ru": "Строка «Консоль» в таблице слоёв и раздел 8b: модули консоли, направление зависимостей, отсутствие Streamlit и HTTP-стека, расширения ядра.",
+        "en": "A Console row in the layer table and section 8b: the console modules, the dependency direction, the absence of Streamlit and the HTTP stack, the core extensions."
       }
     },
     "LICENSE": {
@@ -2358,19 +2458,19 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.63.0",
-      "sha256": "b5492812b5b43902ad8bc2623a413526cf009856f4959ecaf8ddf7df394c2618",
+      "version": "1.64.0",
+      "sha256": "61b1b7a43296978ae0ae7e06e44fc7d337cc1e769cb416f7b0514890cdac9cbf",
       "note": {
-        "ru": "Регенерация карты: описания пакета core/schedules, страницы расписаний, шести наборов тестов и сценарного теста расписаний; обновлены описания версии платформы, README и AGENT.md.",
-        "en": "Map regeneration: descriptions of the core/schedules package, the schedules page, six test modules and the schedules scenario; updated descriptions of the platform version, README and AGENT.md."
+        "ru": "Регенерация карты: описания пакета sagaai/, трёх новых модулей шлюза, четырёх наборов тестов консоли и сценарного теста CLI.",
+        "en": "Map regeneration: descriptions of the sagaai/ package, three new gateway modules, four console test modules and the CLI scenario test."
       }
     },
     "README.md": {
-      "version": "1.53.1",
-      "sha256": "3be99e2d16c110b231261e6054768fd6675f9fe0a5f5de0c9e0cf4e6b0fe204a",
+      "version": "1.54.0",
+      "sha256": "ad4188831f475f90e11fe6ee268efc30a9823dcc4262e3c14ee8c4e72fa2e8bd",
       "note": {
-        "ru": "Раздел «Запуск по расписанию», счётчик свёрнутого блока настроек и номер версии платформы 2.34.0.",
-        "en": "The \"Run on a schedule\" section, the collapsed settings counter and platform version 2.34.0."
+        "ru": "Раздел «Консоль sagaai»: таблица команд, JSON-режим, коды возврата; пункт в содержании и номер версии платформы 2.36.0.",
+        "en": "The \"sagaai console\" section: command table, JSON mode, exit codes; a contents entry and platform version 2.36.0."
       }
     },
     "defaults/README.md": {
@@ -2782,11 +2882,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.41.0",
-      "sha256": "8cf30825af818e86ff07d97f19bde8eca9ebe068c16f68502e4b2ab5b8aeb807",
+      "version": "1.42.0",
+      "sha256": "1d1fbe33062a7e4e584aa5269456fb151c57f4d0b335328d676988b3bc22f51b",
       "note": {
-        "ru": "FR21 «Запуск по расписанию»: правило, маска запрещённых дней, тихие часы, один момент - один запуск, пропуск при простое, удержание после трёх сбоев, планировщик и страница. Инвентарь базовых файлов: 152 файла, группы UI и Schedules.",
-        "en": "FR21 scheduled runs: the rule, the blocked-day mask, quiet hours, one point - one run, a miss on downtime, the error hold after three failures, the scheduler loop and the page. Base-file inventory: 152 files, the UI and Schedules groups."
+        "ru": "Требование FR22 о консоли и расширенный инвентарь NFR6: группа Console из 17 файлов, итог 197, тест копирайтов проверяет каталог sagaai.",
+        "en": "Requirement FR22 on the console and the extended NFR6 inventory: the Console group of 17 files, 197 in total, the copyright test covers the sagaai folder."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/connector_creator.md": {
