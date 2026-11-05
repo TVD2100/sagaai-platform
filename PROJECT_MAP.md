@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-05T12:44:38+00:00`
-- Файлов: **638**
+- Обновлено: `2026-11-05T15:26:29+00:00`
+- Файлов: **637**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
 - Python-символов: **9601**
-- Отпечаток содержимого: `sha256:a84fef5f5736bcff30c275e4df4c9f4ac01e9b32037faed72431e9288a616103` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 2, JSON: 27, Markdown: 40, PEM certificate: 1, Python: 567, TOML: 2, Text: 2, YAML: 1
+- Отпечаток содержимого: `sha256:369f7602efd8f660e36be2d05c647c8f124a66bf93512fd02f762fbe5941634a` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 2, JSON: 27, Markdown: 40, PEM certificate: 1, Python: 567, TOML: 2, Text: 2
 
 ## Файлы и назначение
 
@@ -632,7 +632,6 @@
 | `scripts/rag_eval.py` | Python | Offline search-quality harness: indexes the benchmark corpus with the real core.rag_bm25 and scores a ground-truth query set with Recall@k / MRR / nDCG@k | - |
 | `scripts/regenerate_project_map.py` | Python | CANONICAL generator of PROJECT_MAP.md: publish scope from file_versions.json (units + selectable) + responsibility dictionary; run it to regenerate the map (never hand-edit it) | - |
 | `scripts/verify_manifest.py` | Python | Manifest validator/maintainer: schema, coverage of git-tracked files, sha256 freshness, app_version consistency; prompt versions come from file headers on --init/--add; build artifacts of an editable install (``*.egg-info``) are skipped by suffix in the coverage walk; modes --init/--add/--fix-hashes/--json/--strict | - |
-| `.github/workflows/ci.yml` | YAML | Continuous integration: installs the environment from requirements.lock with hash verification and calls scripts/ci_check.py on every push to main and every pull request, so the checks live in one place instead of being duplicated in YAML | - |
 | `dev_agent/__init__.py` | Python | Package marker | agent_loop, backup_manager, safe_writer, tool_executor, universal_agent, workspace_tools |
 | `dev_agent/agent_loop.py` | Python | Provider-independent agent loop (single-model routing, economy mode, strength-classified tools); carries the run identity (run_id/parent_run_id/depth) in state and fans out independent spawn_agent calls in the executing phase; a parked child stops at the step boundary and resumes from the delivered [PARENT ANSWER] message, the question notice reaches the parent as a hidden system line, and the child-mode confirmation refusal keeps a subagent autonomous | storage |
 | `dev_agent/assistant_detector.py` | Python | Assistant detection/creation helpers (renamed from skill_detector) | storage |
@@ -9098,8 +9097,8 @@
 - `test_fix_hashes_repairs_tampered_file` (func, строка 112)
 - `test_add_new_file_then_verify` (func, строка 129)
 - `test_app_version_change_is_detected` (func, строка 151)
-- `test_ci_configuration_belongs_to_the_code_unit` (func, строка 161)
-- `test_changelog_local_only_is_coverage_skip` (func, строка 176)
+- `test_ci_configuration_is_repo_local` (func, строка 161)
+- `test_changelog_local_only_is_coverage_skip` (func, строка 181)
 
 ### `tests/test_web_search_prompt.py`
 - `test_default_prompt_is_stable` (func, строка 39)
@@ -10848,24 +10847,24 @@
 - `main` (func, строка 39)
 
 ### `scripts/verify_manifest.py`
-- `log` (func, строка 112)
-- `find_root` (func, строка 117)
-- `git_ls_files` (func, строка 129)
-- `sha256_file` (func, строка 145)
-- `read_app_version` (func, строка 153)
-- `header_version` (func, строка 173)
-- `classify` (func, строка 183)
-- `load_manifest` (func, строка 193)
-- `save_manifest` (func, строка 199)
-- `now_iso` (func, строка 208)
-- `build_manifest` (func, строка 212)
-- `add_file` (func, строка 259)
-- `check_note_dict` (func, строка 301)
-- `check_unit` (func, строка 313)
-- `check_file_entry` (func, строка 329)
-- `verify` (func, строка 354)
-- `verify.iter_entries` (func, строка 403)
-- `main` (func, строка 497)
+- `log` (func, строка 118)
+- `find_root` (func, строка 123)
+- `git_ls_files` (func, строка 135)
+- `sha256_file` (func, строка 151)
+- `read_app_version` (func, строка 159)
+- `header_version` (func, строка 179)
+- `classify` (func, строка 189)
+- `load_manifest` (func, строка 199)
+- `save_manifest` (func, строка 205)
+- `now_iso` (func, строка 214)
+- `build_manifest` (func, строка 218)
+- `add_file` (func, строка 265)
+- `check_note_dict` (func, строка 307)
+- `check_unit` (func, строка 319)
+- `check_file_entry` (func, строка 335)
+- `verify` (func, строка 360)
+- `verify.iter_entries` (func, строка 409)
+- `main` (func, строка 503)
 
 ### `dev_agent/agent_loop.py`
 - `_now_ts` (func, строка 159)

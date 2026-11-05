@@ -633,7 +633,15 @@
 # ``basic`` mode against a committed budget of findings, so the count may fall
 # but a new one fails the build instead of accumulating unseen.
 
-__version__ = "2.38.0"
+# 2.38.1 keeps a repository-only file out of the update manifest. The GitHub
+# Actions workflow is automation for this repository: no installation runs it,
+# and the publish channel cannot carry a workflow file at all. Listing it made
+# the manifest advertise something no installation could download, and one
+# unavailable file fails the whole staging run - so a user asking for updates
+# received an error instead of the release. The manifest builder now skips
+# repository automation explicitly, and a test pins that behaviour.
+
+__version__ = "2.38.1"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

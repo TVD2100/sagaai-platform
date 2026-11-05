@@ -158,8 +158,13 @@ def test_app_version_change_is_detected(tmp_path):
     assert "app_version" in (out + err)
 
 
-def test_ci_configuration_belongs_to_the_code_unit(tmp_path):
-    """A workflow is executable infrastructure, never a selectable file."""
+def test_ci_configuration_is_repo_local(tmp_path):
+    """A workflow is repository automation: it never enters the manifest.
+
+    GitHub rejects workflow files sent through the publish API, so a manifest
+    entry for one advertises a file that no installation can download - the
+    whole update run would then fail on that 404.
+    """
     repo = _build_repo(tmp_path)
     (repo / ".github" / "workflows").mkdir(parents=True)
     (repo / ".github" / "workflows" / "ci.yml").write_text("name: CI\n", encoding="utf-8")
@@ -168,7 +173,7 @@ def test_ci_configuration_belongs_to_the_code_unit(tmp_path):
 
     assert _run_verifier(repo, "--init")[0] == 0
     manifest = json.loads((repo / "file_versions.json").read_text(encoding="utf-8"))
-    assert ".github/workflows/ci.yml" in manifest["units"]["core"]["files"]
+    assert ".github/workflows/ci.yml" not in manifest["units"]["core"]["files"]
     assert ".github/workflows/ci.yml" not in manifest["selectable"]
     assert _run_verifier(repo)[0] == 0
 

@@ -44,6 +44,11 @@ COVERAGE_SKIP = {
     ".gitignore",
     MANIFEST_NAME,
     "CHANGELOG.md",
+    # Repository automation, not a shipped file. GitHub refuses workflow
+    # files over the publish API, so an installation can never download this
+    # one: listing it would advertise an undeliverable file and fail the whole
+    # update run on a 404.
+    ".github/workflows/ci.yml",
     # Internal repo-maintenance instructions for DevAgent; they guide editing
     # and publishing this repository copy and are never offered to end users
     # as selectable updates.
@@ -56,10 +61,11 @@ UNIT_NAME = "core"
 CORE_ROOT_FILES = {"__init__.py", "app.py", "pytest.ini", "requirements.txt",
                    "requirements.lock", "pyproject.toml", "alembic.ini",
                    "pyright_budget.json"}
-# The CI configuration ships with the code unit: a workflow offered as an
-# individually selectable file would let a user install half of a pipeline.
+# Everything under these prefixes ships as part of the atomic code unit.
+# A workflow under .github/ is repository automation: it is skipped through
+# COVERAGE_SKIP below and never travels to an installation.
 CORE_DIRS = ("core/", "storage/", "ui/", "assets/", "certs/", "tests/", "scripts/",
-             "sagaai/", "bin/", ".github/", "migrations/")
+             "sagaai/", "bin/", "migrations/")
 #: Directories whose contents are executable code, shipped only as part of the
 #: atomic unit. The console and its launcher belong here: a half-installed
 #: command package would import a module that does not exist yet.

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "app_version": "2.38.0",
+  "app_version": "2.38.1",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
     "ru": "Границы платформы стали типизированными: публичные ответы gateway описываются моделями вместо голых словарей, HTTP-схемы и интерфейс используют те же модели, сериализация идёт одним слоем. Golden-тесты фиксируют публичный JSON двадцати операций и падают при любом его изменении. В конвейер добавлен pyright с бюджетом ошибок: их число может падать, но новый не пройдёт сборку незамеченным.",
@@ -9,7 +9,7 @@
   "updated": "2026-11-05T09:36:43Z",
   "units": {
     "core": {
-      "version": "1.76.0",
+      "version": "1.76.1",
       "note": {
         "ru": "Пакет: типизированные контракты на границах - модели публичных ответов gateway, схемы server на этих моделях, единый слой сериализации, golden-тесты публичного JSON и pyright с бюджетом ошибок в конвейере.",
         "en": "Package: typed contracts at the boundaries - models for the public gateway answers, the server schemas built on them, one serialisation layer, golden tests of the public JSON, and pyright with an error budget in the pipeline."
@@ -276,8 +276,8 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.72.1",
-          "sha256": "e1b3bd24680faf9e9f71afc0d192eeb1a024a0234273ddb959d407eb971f63cc",
+          "version": "1.72.2",
+          "sha256": "b865c5f4ae5af40bc6afcdf3e531e4bea0a070d7bb37eaa79c0dd0318b40a083",
           "note": {
             "ru": "Релиз 2.34.0: расписания запуска задач агентами.",
             "en": "Release 2.34.0: scheduled agent runs."
@@ -376,8 +376,8 @@
           }
         },
         "scripts/verify_manifest.py": {
-          "version": "1.2.2",
-          "sha256": "5815f370993924895b1ae248ffe98c0d2ee703f39e570225433dbc137fd181db",
+          "version": "1.2.3",
+          "sha256": "cd55860faec82dcf82e1ad29ef7ce730a3eead8b00749bfa04fc544aae8b44fb",
           "note": {
             "ru": "Обход покрытия пропускает артефакты editable-установки (*.egg-info) по суффиксу, а не по фиксированному имени.",
             "en": "The coverage walk skips editable-install artifacts (*.egg-info) by suffix instead of a fixed name."
@@ -1168,8 +1168,8 @@
           "sha256": "973f260075d8ea4fb5a3d91bb3804bcc94626594fb3fb533de3d14b3274c0edf"
         },
         "tests/test_verify_manifest.py": {
-          "version": "1.0.2",
-          "sha256": "a34486b2265247bb2449609f224cf66b981b8ae0c63c191dea63c00856edcc62"
+          "version": "1.0.3",
+          "sha256": "fa4d452002a16edc292c203c9b91f47cfb492127658cc1f1ddc127a4ef63c7ca"
         },
         "tests/test_web_search_prompt.py": {
           "version": "1.0.2",
@@ -2453,10 +2453,6 @@
             "en": "A test for version ranges: the upper bound survives parsing and rejects a version outside the range."
           }
         },
-        ".github/workflows/ci.yml": {
-          "version": "1.0.2",
-          "sha256": "f23f14d209ab5cf4d8fe247c20e5283733e0007fe25aeb7f116cf0975e39dd10"
-        },
         "pyproject.toml": {
           "version": "1.0.2",
           "sha256": "4537f71d244d737e2795d196ed78b7da62041fea30981fdfd55867dda5447ca9"
@@ -2538,8 +2534,8 @@
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.67.0",
-      "sha256": "99ad33b356d51ad95c590db17d9d015d3da81a535995af4489241b6f106c945a",
+      "version": "1.67.1",
+      "sha256": "4d9c891b165a857cc8cfa423dc188e8b97765860c7bdb7200efbfd68cf7624de",
       "note": {
         "ru": "Раздел «Воспроизводимая сборка и зависимости»: роли requirements.txt/requirements-api.txt и lock, pyproject.toml как манифест пакета, причина обязательного editable-режима, сверка lock в конвейере.",
         "en": "A section on the reproducible build: the roles of requirements.txt/requirements-api.txt and the lock, pyproject.toml as the package manifest, why editable installs are mandatory, and the lock cross-check in the pipeline."
@@ -2554,16 +2550,16 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.69.0",
-      "sha256": "a470978a788d4a7a08beb556767db47fc8651d08aad1ee2d129bea8f9999b2be",
+      "version": "1.69.1",
+      "sha256": "41f033475f533ec944380468f87a034af25500349071be3fe248ec0ef2f2b9cb",
       "note": {
         "ru": "Карта перегенерирована после уточнения README: отражены pyproject.toml, requirements.lock, роли файлов зависимостей, описания CI и диагностика установки из lock.",
         "en": "The map is regenerated after the README clarification: pyproject.toml, requirements.lock, the dependency-file roles, the CI descriptions and the lock-install diagnostics are reflected."
       }
     },
     "README.md": {
-      "version": "1.59.0",
-      "sha256": "16b812375e14d099b912dc291f461bae2f7418e9d5c7a662432d65d1ad41471f",
+      "version": "1.59.1",
+      "sha256": "67f9ac573a81c8b3abafff0f1ae856d82a73bdc116810f70cc54cc923b962b42",
       "note": {
         "ru": "Уточнены способы установки (lock, группа api, bin/sagaai как совместимость) и добавлена диагностика повреждённого кэша pip при установке из lock.",
         "en": "Installation paths are clarified (the lock, the api group, bin/sagaai as compatibility) and a note on diagnosing a corrupted pip cache during a lock install is added."
