@@ -102,9 +102,10 @@ class FakeBackend:
         })
 
     def resume(self, run_id):
-        """Record the answer and continue."""
+        """Record the answer, continue and return the new state."""
         self.runs[run_id].update({"status": "running", "pending_input": None,
                                   "steps_used": 3})
+        return self.get(run_id)
 
     def finish(self, run_id, summary):
         self.runs[run_id].update({

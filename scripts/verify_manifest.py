@@ -53,9 +53,13 @@ COVERAGE_SKIP = {
 CHANNEL = "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main"
 UNIT_NAME = "core"
 
-CORE_ROOT_FILES = {"__init__.py", "app.py", "pytest.ini", "requirements.txt"}
+CORE_ROOT_FILES = {"__init__.py", "app.py", "pytest.ini", "requirements.txt",
+                   "requirements.lock", "pyproject.toml", "alembic.ini",
+                   "pyright_budget.json"}
+# The CI configuration ships with the code unit: a workflow offered as an
+# individually selectable file would let a user install half of a pipeline.
 CORE_DIRS = ("core/", "storage/", "ui/", "assets/", "certs/", "tests/", "scripts/",
-             "sagaai/", "bin/")
+             "sagaai/", "bin/", ".github/", "migrations/")
 #: Directories whose contents are executable code, shipped only as part of the
 #: atomic unit. The console and its launcher belong here: a half-installed
 #: command package would import a module that does not exist yet.
@@ -68,6 +72,10 @@ WALK_SKIP_DIRS = {
     "orchestrators", "rag_bases", "skills", "system_prompts", "threads",
     "data", "deliverables", "personal_assistant_data",
 }
+#: Build artifacts of an editable install. They live in the repository root,
+#: are git-ignored, and their names vary with the distribution, so they are
+#: matched by suffix instead of being listed one by one.
+WALK_SKIP_SUFFIXES = (".egg-info",)
 SKIP_NAMES = {".DS_Store", "Thumbs.db"}
 
 VERSION_RE = re.compile(r"^\d+\.\d+(\.\d+)?(-[0-9A-Za-z][0-9A-Za-z.\-]*)?$")
@@ -438,7 +446,10 @@ def verify(
     for dirpath, dirnames, filenames in os.walk(root):
         rel_dir = os.path.relpath(dirpath, root)
         if rel_dir == ".":
-            dirnames[:] = [d for d in dirnames if d not in WALK_SKIP_DIRS]
+            dirnames[:] = [
+                d for d in dirnames
+                if d not in WALK_SKIP_DIRS and not d.endswith(WALK_SKIP_SUFFIXES)
+            ]
         else:
             dirnames[:] = []
         for fn in filenames:

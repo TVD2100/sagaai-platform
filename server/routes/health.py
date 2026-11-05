@@ -29,7 +29,7 @@ router = APIRouter(tags=["health"])
 
 @router.get("/health", response_model=schemas.HealthOut,
             summary="Liveness of the API process")
-def health() -> dict:
+def health() -> schemas.HealthOut:
     """Return a liveness report that never touches external storage."""
     report = gateway_health.health()
     try:
@@ -42,12 +42,12 @@ def health() -> dict:
         pid=report.pid,
         uptime_seconds=report.uptime_seconds,
         api_enabled=enabled,
-    ).model_dump()
+    )
 
 
 @router.get("/ready", response_model=schemas.ReadyOut,
             summary="Readiness: can this process serve data requests")
-def ready(response: Response) -> dict:
+def ready(response: Response) -> schemas.ReadyOut:
     """Return a readiness report; 503 when the schema is not in place.
 
     A ``503`` here is a normal state of a fresh installation that has not run
@@ -64,17 +64,17 @@ def ready(response: Response) -> dict:
         checks=dict(report.components),
         missing=list(report.missing),
         hint=report.hint,
-    ).model_dump()
+    )
 
 
 @router.get("/version", response_model=schemas.VersionOut,
             summary="Version of the platform and of the API contract")
-def version() -> dict:
+def version() -> schemas.VersionOut:
     """Return the platform version and the API contract version."""
     from server.app import API_VERSION
     return schemas.VersionOut(
         version=gateway_health.version(),
         api_version=int(API_VERSION),
-    ).model_dump()
+    )
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

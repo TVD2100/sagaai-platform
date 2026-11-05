@@ -1,0 +1,10 @@
+{
+  "max_errors": 424,
+  "expected_tool": "1.1.414",
+  "packages": ["core", "server", "storage", "sagaai"],
+  "notes": [
+    "A budget, not a target: the count may fall, it may not rise.",
+    "Measured with pyright 1.1.414 in typeCheckingMode=basic (pyproject.toml).",
+    "Lower this number whenever a batch of findings is fixed; never raise it to make a build green."
+  ]
+}

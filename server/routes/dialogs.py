@@ -27,6 +27,7 @@ from core.gateway import dialog as gateway_dialog
 from core.gateway import errors as gateway_errors
 from core.gateway.dto import DialogRequest, EconomyOptions
 from server import deps, schemas
+from server.errors import error_responses
 
 log = logging.getLogger("server.routes.dialogs")
 
@@ -50,7 +51,7 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def _accepted(handle) -> dict:
+def _accepted(handle) -> schemas.DialogAcceptedOut:
     """Build the body of a ``202`` answer."""
     run_id = handle.run_id
     return schemas.DialogAcceptedOut(
@@ -67,7 +68,7 @@ def _accepted(handle) -> dict:
             cancel="/v1/runs/" + run_id + "/cancel",
             events=None,
         ),
-    ).model_dump()
+    )
 
 
 def _request_of(body: schemas.DialogIn) -> DialogRequest:
@@ -94,9 +95,11 @@ def _request_of(body: schemas.DialogIn) -> DialogRequest:
 
 @router.post("/dialogs", status_code=202,
              response_model=schemas.DialogAcceptedOut,
+             responses=error_responses(),
              summary="Start a dialog")
 def start_dialog(body: schemas.DialogIn, response: Response,
-                 scope: List[str] = Depends(deps.caller_scope)) -> dict:
+                 scope: List[str] = Depends(deps.caller_scope)
+                 ) -> schemas.DialogAcceptedOut:
     """Create and launch a dialog; answer ``202`` with the run id."""
     server_app = _admission()
     request = _request_of(body)
@@ -142,9 +145,11 @@ def _ready_or_refuse():
 
 @router.post("/dialogs/{run_id}/messages", status_code=202,
              response_model=schemas.DialogAcceptedOut,
+             responses=error_responses(),
              summary="Send a message into an existing dialog")
 def send_message(run_id: str, body: schemas.MessageIn, response: Response,
-                 scope: List[str] = Depends(deps.caller_scope)) -> dict:
+                 scope: List[str] = Depends(deps.caller_scope)
+                 ) -> schemas.DialogAcceptedOut:
     """Append a message and run the next step of the dialog."""
     run = deps.run_id_path(run_id)
     request = schemas.MessageIn(message=body.message)
@@ -182,6 +187,6 @@ def send_message(run_id: str, body: schemas.MessageIn, response: Response,
             cancel="/v1/runs/" + run + "/cancel",
             events=None,
         ),
-    ).model_dump()
+    )
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

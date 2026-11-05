@@ -59,6 +59,8 @@ ignore = [
 # module when an optional dependency is missing (``pytest.importorskip``) - in
 # both cases the imports below cannot move above the guard.
 "tests/test_agent_loop_json_repair.py" = ["E402"]
+# Imports the CI runner from scripts/ after putting that directory on sys.path.
+"tests/test_ci_check.py" = ["E402", "I001"]
 "tests/test_github_connector_retry.py" = ["E402"]
 "tests/test_list_files.py" = ["E402"]
 "tests/test_platform_scenarios.py" = ["E402"]

@@ -53,12 +53,33 @@ def _headers_for(code: str, retry_after: Optional[int]) -> Dict[str, str]:
     return headers
 
 
+def _envelope(body: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate an error body against the published envelope.
+
+    The body is assembled by hand in several places, and a missing key would
+    otherwise only surface at the client. Validating it here turns such a
+    drift into a log line next to the request id that produced it.
+
+    The response itself is NOT withheld when validation fails: a client that
+    asked a reasonable question should still learn that the server refused,
+    and a 500 raised inside the 500-handler explains nothing. The mismatch is
+    reported loudly instead, and the body is returned unchanged.
+    """
+    from server import schemas
+
+    try:
+        schemas.ErrorEnvelope.model_validate(body)
+    except Exception as exc:  # pragma: no cover - defensive reporting
+        log.warning("error envelope does not match the model: %s (%s)", exc, body)
+    return body
+
+
 def error_response(exc: gateway_errors.GatewayError,
                    request_id: str = "") -> JSONResponse:
     """Build the JSON response of one gateway refusal."""
     return JSONResponse(
         status_code=exc.status,
-        content=exc.to_envelope(request_id=request_id),
+        content=_envelope(exc.to_envelope(request_id=request_id)),
         headers=_headers_for(exc.code, exc.retry_after),
     )
 
@@ -122,7 +143,8 @@ def http_exception_handler(request: Request,
     request_id = _request_id_of(request)
     if request_id:
         payload["request_id"] = request_id
-    return JSONResponse(status_code=int(exc.status_code), content=payload,
+    return JSONResponse(status_code=int(exc.status_code),
+                        content=_envelope(payload),
                         headers=dict(exc.headers or {}))
 
 
@@ -144,14 +166,64 @@ def internal_handler(request: Request, exc: Exception) -> JSONResponse:
     }
     if request_id:
         payload["request_id"] = request_id
-    return JSONResponse(status_code=500, content=payload)
+    return JSONResponse(status_code=500, content=_envelope(payload))
+
+
+# ─── OpenAPI documentation ─────────────────────────────────────────────────
+
+#: Statuses an authenticated route may answer with. The body is always the
+#: same envelope; ``error_code`` inside it names the actual reason, so the
+#: client branches on the code and not on the status.
+ERROR_STATUSES = (400, 401, 403, 404, 409, 413, 429, 500, 501, 503)
+
+#: One short line per status, used in the generated schema.
+ERROR_DESCRIPTIONS = {
+    400: "The request is not valid",
+    401: "A bearer token is required",
+    403: "The token may not do this",
+    404: "The resource does not exist or is outside the token scope",
+    409: "The resource is in a state that refuses the operation",
+    413: "The request body is too large",
+    429: "Too many requests",
+    500: "Internal error",
+    501: "The feature is not enabled",
+    503: "The service is not ready",
+}
+
+
+def error_responses() -> Dict[Any, Any]:
+    """Return the ``responses`` mapping that documents the error envelope.
+
+    Declared once here instead of per route: the envelope is identical on
+    every route, and a route documenting a different one would itself be the
+    defect. The model is imported lazily because ``server.schemas`` is the
+    transport layer and this module is the error layer - neither should
+    import the other at module import time.
+    """
+    from server import schemas
+
+    return {status: {"model": schemas.ErrorEnvelope,
+                     "description": ERROR_DESCRIPTIONS[status]}
+            for status in ERROR_STATUSES}
 
 
 def install(app: FastAPI) -> None:
-    """Register every handler on an application instance."""
-    app.add_exception_handler(gateway_errors.GatewayError, gateway_handler)
-    app.add_exception_handler(RequestValidationError, validation_handler)
-    app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+    """Register every handler on an application instance.
+
+    The three ignores below are a limitation of the exception-handler
+    typing, not of the handlers: Starlette declares the parameter as
+    ``Callable[[Request, Exception], Response]`` while each handler takes
+    the exception TYPE it was registered for. That narrowing is exactly how
+    the framework is meant to be used, so the mismatch is silenced here
+    rather than widening every handler to ``Exception`` and losing the type
+    inside it.
+    """
+    app.add_exception_handler(gateway_errors.GatewayError,
+                              gateway_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(RequestValidationError,
+                              validation_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(StarletteHTTPException,
+                              http_exception_handler)  # type: ignore[arg-type]
     app.add_exception_handler(Exception, internal_handler)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

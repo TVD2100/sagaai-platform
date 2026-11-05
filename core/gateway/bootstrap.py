@@ -13,10 +13,11 @@ The sequence, and why the order is not interchangeable:
 1. create the data folders - every later step writes into them;
 2. seed the bundled defaults - without this a fresh installation has no
    employee at all;
-3. bring both databases to the current format - the archive steps must run
-   before anything reads a message;
-4. run the schema migrations of ``storage.db`` - importing that module is what
-   creates the tables, so it is an explicit step here;
+3. bring both databases to the current schema revision - the driver runs the
+   message-layout archivers first and then the revision chain, so the order
+   is one place instead of three;
+4. open the engines of both databases - a connection that proves the schema
+   reached in step 3 is readable;
 5. open the orchestration service - it sweeps records of dead processes.
 
 Every step is idempotent: on a current installation it reads a pragma, finds
@@ -60,44 +61,46 @@ def _ensure_defaults(report: Dict[str, Any]) -> bool:
 
 
 def _ensure_databases(report: Dict[str, Any]) -> bool:
-    """Bring both databases to the layout this build expects."""
-    ok = True
+    """Bring both databases to the layout and the schema this build expects.
+
+    One call covers what used to be three ordered steps: the archivers move
+    the message layout forward, then the revision chain upgrades the schema,
+    and ``storage.migrations`` keeps that order. Running either half here
+    would make the order a property of two transports instead of one driver.
+    """
     try:
-        from core.devagent_db_archive import ensure_database_format as _devagent
-        result = _devagent() or {}
-        report["devagent_db"] = str(result.get("action") or "none")
+        from storage import migrations
+
+        result = migrations.upgrade_installation() or {}
+        databases = list(result.get("databases") or [])
+        for item in databases:
+            name = str(item.get("kind") or "schema")
+            report[name + "_db"] = str(item.get("action") or "none")
+        report["schema"] = str(result.get("head") or "")
+        return bool(result.get("ok"))
     except Exception as exc:  # pragma: no cover - defensive
-        log.warning("devagent database layout failed: %s", exc)
-        report["devagent_db"] = "error: " + str(exc)
-        ok = False
-    try:
-        from core.chat_db_archive import ensure_database_format as _chat
-        result = _chat() or {}
-        report["chat_db"] = str(result.get("action") or "none")
-    except Exception as exc:  # pragma: no cover - defensive
-        log.warning("chat database layout failed: %s", exc)
-        report["chat_db"] = "error: " + str(exc)
-        ok = False
-    return ok
+        log.warning("database layout and schema failed: %s", exc)
+        report["schema"] = "error: " + str(exc)
+        return False
 
 
 def _ensure_schema(report: Dict[str, Any]) -> bool:
-    """Run the schema migrations of the main and the agent databases.
+    """Open the engines of the main and the agent databases.
 
-    ``storage.db`` is the executor of the migrations: importing it builds both
-    engines and brings the tables and columns up to date. The import is the
-    step - calling a function of the module would move the work but not the
-    guarantee.
+    ``_ensure_databases`` has already brought both files to ``head``; this
+    step only builds the engines the rest of the bootstrap uses, opening a
+    connection that proves the schema is readable. A database that reached
+    ``head`` pays a single read of ``alembic_version`` here.
     """
     try:
         from storage import db as storage_db
         storage_db.get_engine()
         storage_db.get_devagent_engine()
-        report["schema"] = "ok"
+        report["engines"] = "ok"
         return True
     except Exception as exc:  # pragma: no cover - defensive
-        log.warning("schema migration failed: %s", exc)
-        report["schema"] = "error: " + str(exc)
+        log.warning("engine startup failed: %s", exc)
+        report["engines"] = "error: " + str(exc)
         return False
 
 

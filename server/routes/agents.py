@@ -8,6 +8,10 @@ so a slug it can read is a slug it can use.
 Prompts are withheld unless explicitly asked for. They are the largest field
 of the row, they carry the platform conventions and they are not needed to
 decide whether to launch the employee; a client that wants them says so.
+
+Handlers return the response MODEL, not its dumped form: FastAPI serialises
+it once against ``response_model``. A dict in the middle would be validated
+twice and could silently drop a key the model does not declare.
 """
 
 from __future__ import annotations
@@ -18,24 +22,29 @@ from fastapi import APIRouter, Depends, Query
 
 from core.gateway import entities as gateway_entities
 from server import deps, schemas
+from server.errors import error_responses
 
 router = APIRouter(tags=["agents"])
 
 
 @router.get("/agents", response_model=schemas.AgentListOut,
+            responses=error_responses(),
             summary="Employees this token may address")
-def list_agents(scope: List[str] = Depends(deps.caller_scope)) -> dict:
+def list_agents(scope: List[str] = Depends(deps.caller_scope)
+                ) -> schemas.AgentListOut:
     """Return the employees visible to the caller."""
     cards = gateway_entities.list_orchestrators(allowed_slugs=scope)
     items = [schemas.agent_out(card) for card in cards]
-    return schemas.AgentListOut(items=items, total=len(items)).model_dump()
+    return schemas.AgentListOut(items=items, total=len(items))
 
 
 @router.get("/agents/{slug}", response_model=schemas.AgentDetailOut,
+            responses=error_responses(),
             summary="One employee")
 def get_agent(slug: str,
               with_prompt: bool = Query(default=False),
-              scope: List[str] = Depends(deps.caller_scope)) -> dict:
+              scope: List[str] = Depends(deps.caller_scope)
+              ) -> schemas.AgentDetailOut:
     """Return one employee; the prompt only when asked for."""
     detail = gateway_entities.get_orchestrator(slug, with_prompt=with_prompt,
                                                allowed_slugs=scope)
@@ -43,8 +52,10 @@ def get_agent(slug: str,
 
 
 @router.get("/assistants", response_model=schemas.AssistantListOut,
+            responses=error_responses(),
             summary="Assistants of the installation")
-def list_assistants(scope: List[str] = Depends(deps.caller_scope)) -> dict:
+def list_assistants(scope: List[str] = Depends(deps.caller_scope)
+                    ) -> schemas.AssistantListOut:
     """Return every assistant.
 
     No scope filter: an assistant is not an employee, carries no thread and
@@ -52,14 +63,16 @@ def list_assistants(scope: List[str] = Depends(deps.caller_scope)) -> dict:
     """
     cards = gateway_entities.list_assistants()
     items = [schemas.assistant_out(card) for card in cards]
-    return schemas.AssistantListOut(items=items, total=len(items)).model_dump()
+    return schemas.AssistantListOut(items=items, total=len(items))
 
 
 @router.get("/assistants/{assistant_id}", response_model=schemas.AssistantDetailOut,
+            responses=error_responses(),
             summary="One assistant")
 def get_assistant(assistant_id: str,
                   with_prompt: bool = Query(default=False),
-                  scope: List[str] = Depends(deps.caller_scope)) -> dict:
+                  scope: List[str] = Depends(deps.caller_scope)
+                  ) -> schemas.AssistantDetailOut:
     """Return one assistant; the prompt only when asked for."""
     detail = gateway_entities.get_assistant(assistant_id, with_prompt=with_prompt)
     return schemas.assistant_detail_out(detail)

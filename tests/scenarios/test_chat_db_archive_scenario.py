@@ -43,6 +43,11 @@ def _legacy_installation(tmp_path):
     The thread is created through the ORM so the schema is exactly the one a
     real installation has, and its messages are inserted straight into the
     table - which is how every dialogue written before the file store looks.
+
+    The layout stamp is then set back to ``0``: a build that predates the file
+    store never wrote ``PRAGMA user_version``, and this is what tells the
+    archiver that the rows in the table are the live dialogue rather than a
+    leftover of a finished switch.
     """
     from storage.repository import repo_append_message, repo_create_thread, repo_save_thread_meta
 
@@ -52,7 +57,18 @@ def _legacy_installation(tmp_path):
     repo_append_message(tid, "assistant", "the text is fine")
     repo_append_message(tid, "user", "thanks")
     repo_save_thread_meta(tid, {"title": "An old dialogue"})
+    _unstamp(_db_path(tmp_path))
     return tid
+
+
+def _unstamp(db_path):
+    """Mark a database as written before the file store (layout ``0``)."""
+    con = sqlite3.connect(db_path)
+    try:
+        con.execute("PRAGMA user_version=0")
+        con.commit()
+    finally:
+        con.close()
 
 
 def _db_path(tmp_path):

@@ -608,7 +608,32 @@
 # walks the run log in install order, so the members of one package are undone
 # newest first even when their timestamps fall into the same second.
 
-__version__ = "2.36.0"
+# 2.37.0 makes the build reproducible. One lock file carries the exact
+# versions and hashes the suite was proven against, one manifest
+# (pyproject.toml) declares the package, and the console has one supported
+# installation path: ``pip install -e .`` puts ``sagaai`` on PATH. The lock is
+# generated from both constraint files, and the CI check cross-checks it
+# against them, so a dependency added to a constraint file without
+# regenerating the lock fails the pipeline instead of surfacing as a test
+# failure much later. Editable mode is the only supported one: the data
+# directories are derived from the parent of the ``core`` package, which in a
+# wheel would be site-packages. ``bin/sagaai`` stays as the launcher for an
+# uninstalled checkout.
+
+# 2.38.0 makes the boundaries typed. The public answers of the gateway stop
+# being bare dictionaries and become models: one definition per shape, used by
+# the gateway that produces it, by the HTTP schemas that expose it and by the
+# UI that renders it. A single serialisation layer turns a model into JSON or
+# into a plain dictionary for the interface, so the two transports cannot
+# drift apart. Golden tests record the exact public JSON of twenty operations
+# and fail on any change to it, which is what lets the internals be refactored
+# without silently breaking a client; a contract assertion pins the invariant
+# itself - serialising a model through the HTTP layer gives the same bytes as
+# dumping it. Static analysis is part of the pipeline now: pyright runs in
+# ``basic`` mode against a committed budget of findings, so the count may fall
+# but a new one fails the build instead of accumulating unseen.
+
+__version__ = "2.38.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -2,22 +2,25 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-04T22:16:13+00:00`
-- Файлов: **618**
+- Обновлено: `2026-11-05T12:44:38+00:00`
+- Файлов: **638**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **9439**
-- Отпечаток содержимого: `sha256:60a3c4d7b8f579c39f62c2e00a4033e52f636c414b565f88312959fe2bc6274d` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 1, JSON: 25, Markdown: 40, PEM certificate: 1, Python: 552, TOML: 1, Text: 2
+- Python-символов: **9601**
+- Отпечаток содержимого: `sha256:a84fef5f5736bcff30c275e4df4c9f4ac01e9b32037faed72431e9288a616103` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 2, JSON: 27, Markdown: 40, PEM certificate: 1, Python: 567, TOML: 2, Text: 2, YAML: 1
 
 ## Файлы и назначение
 
 | Файл | Язык | Назначение | Зависит от |
 | --- | --- | --- | --- |
 | `__init__.py` | Python | Package marker | - |
-| `app.py` | Python | Process entry point: same-process marker, the marketplace recovery hook and the cold-start database-format switches (devagent.db, then the assistant dialogues of sagaai.db) before Streamlit is imported, so an interrupted install is undone and the layout is current before the UI opens | ui |
+| `alembic.ini` | Config | Alembic configuration; script location points at migrations/ | - |
+| `app.py` | Python | Process entry point: same-process marker, the marketplace recovery hook and the cold-start database-format switches (devagent.db, then the assistant dialogues of sagaai.db) before Streamlit is imported, so an interrupted install is undone and the layout is current before the UI opens | storage, ui |
+| `pyproject.toml` | TOML | Build manifest (PEP 621): the distribution name and dynamic version from core/version.py, the four required dependencies, the api/documents/selenium/ssh/dev optional groups, the explicit package list and the sagaai console entry point; editable installs only, because the data directories are derived from the parent of the core package | - |
+| `pyright_budget.json` | JSON | The committed error budget of the static analysis: the maximum number of pyright findings and the packages it covers; the gate fails on growth, never on a fall | - |
 | `pytest.ini` | Config | Pytest configuration | - |
-| `requirements-api.txt` | Text | Additional dependencies of the standalone HTTP API (FastAPI, uvicorn, pydantic), kept out of the base install so a Streamlit-only user does not pay for them | - |
-| `requirements.txt` | Text | Python dependencies | - |
+| `requirements-api.txt` | Text | Additional dependencies of the standalone HTTP API (FastAPI, uvicorn, pydantic), kept out of the base install so a Streamlit-only user does not pay for them; one of the two inputs of requirements.lock | - |
+| `requirements.txt` | Text | Version CONSTRAINTS of the platform: the human-readable input of the resolver, with upper bounds on the packages the platform is built around; one of the two inputs of requirements.lock and the source the cold-start dependency audit is kept in sync with | - |
 | `ruff.toml` | TOML | Linter configuration: a deliberately narrow rule set (layout, real defects, import order) with the reasons the remaining families stay off, so a finding means a defect and not a style the project never adopted | - |
 | `ui/__init__.py` | Python | Package marker | - |
 | `ui/app.py` | Python | Main application shell: sidebar navigation and page dispatch; the marketplace entry sits behind the enabled switch, which also gates the one-time registry seeding | ui |
@@ -43,6 +46,15 @@
 | `ui/pages/updates.py` | Python | _(описание не задано)_ | ui |
 | `ui/pages/updates_marketplace.py` | Python | Marketplace sections on the Updates page: check, available updates with the conflict policy, unavailable entities with their reason and the run journal with an undo button | ui |
 | `ui/pages/welcome.py` | Python | Welcome / about page | - |
+| `migrations/env.py` | Python | Alembic environment with render_as_batch for SQLite table rebuilds | storage |
+| `migrations/versions/0001_legacy_repair.py` | Python | Revision: repairs legacy databases (missing tables/indexes) before the baseline | storage |
+| `migrations/versions/0002_baseline.py` | Python | Revision: baseline schema reproduced from ORM metadata plus raw-SQL tables; adopted by unversioned databases | storage |
+| `migrations/versions/0003_thread_index_columns.py` | Python | Revision: transcript-index columns and indexes on threads | storage |
+| `migrations/versions/0004_assistant_columns.py` | Python | Revision: assistant slug and folder-era columns | storage |
+| `migrations/versions/0005_message_index.py` | Python | Revision: messages(thread_id, id) index for legacy databases | storage |
+| `migrations/versions/0006_marketplace_tables.py` | Python | Revision: marketplace registry tables | storage |
+| `migrations/versions/0007_schedules_tables.py` | Python | Revision: schedule tables | storage |
+| `migrations/versions/0008_transcript_layout.py` | Python | Revision: message layout marker after the transcript archivers ran | - |
 | `core/__init__.py` | Python | Package marker | - |
 | `core/api_errors.py` | Python | API error hierarchy and user messages | - |
 | `core/api_layer.py` | Python | HTTP requests to AI providers; send_request(assistant=...) with legacy skill= alias and optional incomplete_callback (truncated Responses detection); vision/image transports (send_vision_request with bearer/yandex_iam/deepseek_responses + detail=original, send_image_generation_request) | - |
@@ -156,7 +168,7 @@
 | `core/gateway/__init__.py` | Python | Package marker and public import surface of the in-process gateway facade | - |
 | `core/gateway/backup.py` | Python | Database snapshots through the SQLite engine rather than a file copy, with a per-member manifest and sha256, an integrity check before and after, and a listing ordered by creation moment | - |
 | `core/gateway/bootstrap.py` | Python | Cold start without the UI: creates the data directories and the database schema when the console is the first thing a user runs | storage |
-| `core/gateway/diagnostics.py` | Python | Read-only installation diagnosis: resolved paths, database state, dependency summary and the running-platform marker, with no write path at all | - |
+| `core/gateway/diagnostics.py` | Python | Read-only installation diagnosis: resolved paths, database state, dependency summary and the running-platform marker, with no write path at all | storage |
 | `core/gateway/dialog.py` | Python | Dialog launch and close through the gateway: acquires the employee slot, starts the runner, registers the close listener that frees the slot on both a normal finish and a driver failure, and answers a busy slot with a typed error | - |
 | `core/gateway/dto.py` | Python | Data-transfer dataclasses of the gateway (agent, dialog, run, message views) and their constructors from the orchestration records | - |
 | `core/gateway/entities.py` | Python | Listing and lookup of employees and assistants through the gateway, with the allowlist check applied before a launch | - |
@@ -186,6 +198,7 @@
 | `tests/test_api_auth.py` | Python | Unit tests of bearer authentication: cache TTL, throttling of failed attempts, fail-closed 503 and the constant-time comparison | - |
 | `tests/test_api_dialogs.py` | Python | Unit tests of the dialog route: 202 with Location, slot acquisition before thread creation, 429 and 503 | - |
 | `tests/test_api_equivalence.py` | Python | Tests that the HTTP API and the UI produce the same answer for the same request, through the shared launch contract | - |
+| `tests/test_api_golden.py` | Python | Golden tests of the public API contract: record the exact JSON of twenty operations into tests/golden/api_contract.json and fail on any change; also pin the serialisation invariant itself | - |
 | `tests/test_api_health.py` | Python | Unit tests of the health and readiness endpoints | - |
 | `tests/test_api_instance_lock.py` | Python | Unit tests of the single-instance lock: a second start refuses and exits with the documented code | - |
 | `tests/test_api_retry.py` | Python | _(описание не задано)_ | - |
@@ -204,6 +217,7 @@
 | `tests/test_chat_db_archive.py` | Python | Unit tests for the switch of the assistant dialogues: legacy detection, the layout stamp, the verified archive including messages that live only in the write-ahead log, the exact moment rows may leave the table, reuse of an identical archive and refusal of a stale one, reuse of the plain name only once, the notice read exactly once, and the failure modes (unverifiable archive, failed transcript write, unreadable database, a lock held by another connection) | storage |
 | `tests/test_chat_pagination.py` | Python | _(описание не задано)_ | ui |
 | `tests/test_child_thread_binding_index.py` | Python | Unit tests for the child thread index row and the transcript read path: binding creates the row with parent, kind, title and a history-relative path, a second bind keeps one row, an empty id is a no-op, a failing store never breaks the binding, a child never appears in the dialog list, a bound child reads as an empty conversation until its first message, the tool answers ok/empty/resume_unavailable, and a legacy dialog still falls back to the messages table | storage |
+| `tests/test_ci_check.py` | Python | Unit tests of the gate runner: requirements and lock parsing, version-range comparison, lock agreement of both constraint files, the type budget, the pass/fail outcome of every check and the exit code the caller acts on | - |
 | `tests/test_cli_commands.py` | Python | Command contract tests: doctor creates no database, tokens are verified by the API store, restore refuses without --yes in a non-interactive shell, migrate prepares a clean machine, and the running-platform guard answers with the documented code | - |
 | `tests/test_cli_console.py` | Python | Unit tests of the console output layer: exactly one JSON object on stdout, the human report, the error envelope and the reserved-stream behaviour | - |
 | `tests/test_cli_imports.py` | Python | Tests that the console imports without streamlit, fastapi or pydantic, in a subprocess with the packages blocked rather than merely absent | - |
@@ -352,6 +366,7 @@
 | `tests/test_schedules_page.py` | Python | UI tests for the schedule page: the list and its statuses, the create and edit flow, the delete confirmation, the run history and the preview of the next points, with the store and the engine replaced by recording doubles | storage |
 | `tests/test_schedules_runner.py` | Python | Unit tests for the headless run: the dialog is created as an ordinary history entry, the report lands in the history row and the counters, a manual run leaves the grid alone and three failures hold the rule | storage |
 | `tests/test_schedules_store.py` | Python | Unit tests for the schedule store: rule CRUD, the due query, the one-point-one-run claim, the history rows and their counters, active_run, runs_today and settle_schedule | storage |
+| `tests/test_schema_history.py` | Python | Schema-history tests: N-2 to head upgrade keeps data, repeat run is a no-op, baseline adoption | storage |
 | `tests/test_search_in_files.py` | Python | _(описание не задано)_ | - |
 | `tests/test_service_model_catalogs.py` | Python | Vision/image model catalog tests for service profiles | - |
 | `tests/test_sidebar_employees_nav.py` | Python | _(описание не задано)_ | - |
@@ -420,6 +435,7 @@
 | `tests/test_workspace_guard.py` | Python | Workspace-guard tests: file tools blocked with workspace_not_selected; neutral cwd for code= runs | storage |
 | `tests/test_yandex_responses.py` | Python | Yandex Responses API tests | - |
 | `tests/smoke/test_app_smoke.py` | Python | App smoke tests | ui |
+| `tests/golden/api_contract.json` | JSON | The recorded public JSON of the API contract, normalised for volatile fields; regenerated deliberately with UPDATE_GOLDEN=1 | - |
 | `tests/scenarios/test_access_scenarios.py` | Python | _(описание не задано)_ | ui |
 | `tests/scenarios/test_agent_dialog_scenario.py` | Python | Scenario tests (given->when->then) for the agent dialog: a child asks and resumes the same run (A), the limits refuse a sixth round, an over-long question, an expired wait and a late answer (B), and the question stays data-bounded, confined to its own tree and never reaches the system channel (C) | - |
 | `tests/scenarios/test_agent_md_doc_scenario.py` | Python | Scenario tests: AGENT.md managed doc (scaffold with mandatory conventions, legacy 'spec' alias, assess states) | storage |
@@ -547,7 +563,9 @@
 | `server/routes/runs.py` | Python | Run endpoints: long polling with wait and waited_ms, live=false as a fact rather than an error, and cancellation answered with 202 | - |
 | `server/routes/threads.py` | Python | Thread endpoints: messages with absolute indices, a foreign thread answered as 404, paging through the same gateway call the UI uses | - |
 | `storage/__init__.py` | Python | Package marker | - |
-| `storage/db.py` | Python | SQLAlchemy engines; auto-migration skills->assistants, skill_*->assistant_* columns | storage |
+| `storage/db.py` | Python | SQLAlchemy engines and pragmas; schema evolution delegated to storage/migrations.py | storage |
+| `storage/migration_support.py` | Python | Helpers shared by the migration chain (batch-safe table rebuild, revision stamps) | - |
+| `storage/migrations.py` | Python | Versioned schema driver: layout archivers as data migrations, then alembic upgrade head; revision status for doctor | - |
 | `storage/models.py` | Python | ORM models: Assistant (assistants), Thread (assistant_id/assistant_name), Message, ConfigKV, Instruction, Orchestrator | - |
 | `storage/repository.py` | Python | High-level CRUD for assistants/threads/config/orchestrators + legacy repo_*_skill wrappers | storage |
 | `storage/repository_devagent.py` | Python | DevAgent thread CRUD (devagent.db) plus thread-search query helpers (filtered listing, message counts, batched/window message loads); thread workspace-meta clearing for the legacy-meta cleanup migration | storage |
@@ -608,11 +626,13 @@
 | `langs/zh-CN.json` | JSON | Simplified Chinese UI strings | - |
 | `langs/zh_CN_guide.md` | Markdown | Chinese user guide | - |
 | `certs/russian_trusted_root_ca.pem` | PEM certificate | Russian Trusted Root CA certificate for GigaChat TLS | - |
+| `scripts/ci_check.py` | Python | The single gate runner: ruff, pyright against the committed error budget, the version manifest, lock agreement of both constraint files and the whole test suite in one sequential process; --list and --only select the checks, the exit code reports passed, failed or unrunnable | - |
 | `scripts/marketplace_publish.py` | Python | Command-line publisher of one entity version into the catalog repository: builds the entity folder, the index entry and the hashes through core.marketplace.publish and commits them | - |
 | `scripts/migrate_agent_data.py` | Python | CLI over core.memory_migration: --workspace to plan another project, --agents to scope the run, a dry-run by default and --apply to copy the files | - |
 | `scripts/rag_eval.py` | Python | Offline search-quality harness: indexes the benchmark corpus with the real core.rag_bm25 and scores a ground-truth query set with Recall@k / MRR / nDCG@k | - |
 | `scripts/regenerate_project_map.py` | Python | CANONICAL generator of PROJECT_MAP.md: publish scope from file_versions.json (units + selectable) + responsibility dictionary; run it to regenerate the map (never hand-edit it) | - |
-| `scripts/verify_manifest.py` | Python | Manifest validator/maintainer: schema, coverage of git-tracked files, sha256 freshness, app_version consistency; prompt versions come from file headers on --init/--add; modes --init/--add/--fix-hashes/--json/--strict | - |
+| `scripts/verify_manifest.py` | Python | Manifest validator/maintainer: schema, coverage of git-tracked files, sha256 freshness, app_version consistency; prompt versions come from file headers on --init/--add; build artifacts of an editable install (``*.egg-info``) are skipped by suffix in the coverage walk; modes --init/--add/--fix-hashes/--json/--strict | - |
+| `.github/workflows/ci.yml` | YAML | Continuous integration: installs the environment from requirements.lock with hash verification and calls scripts/ci_check.py on every push to main and every pull request, so the checks live in one place instead of being duplicated in YAML | - |
 | `dev_agent/__init__.py` | Python | Package marker | agent_loop, backup_manager, safe_writer, tool_executor, universal_agent, workspace_tools |
 | `dev_agent/agent_loop.py` | Python | Provider-independent agent loop (single-model routing, economy mode, strength-classified tools); carries the run identity (run_id/parent_run_id/depth) in state and fans out independent spawn_agent calls in the executing phase; a parked child stops at the step boundary and resumes from the delivered [PARENT ANSWER] message, the question notice reaches the parent as a hidden system line, and the child-mode confirmation refusal keeps a subagent autonomous | storage |
 | `dev_agent/assistant_detector.py` | Python | Assistant detection/creation helpers (renamed from skill_detector) | storage |
@@ -638,6 +658,8 @@
 - `assets/favicon.svg`
 - `bin/sagaai`
 - `defaults/rag_bases/yaagentai_2020/index.db`
+- `migrations/script.py.mako`
+- `requirements.lock`
 
 ## Структура Python-модулей
 
@@ -654,11 +676,11 @@
 - `_restore_ui_reload_state` (func, строка 342)
 - `_handle_thread_deeplink` (func, строка 391)
 - `_run_dependency_check_once` (func, строка 430)
-- `_show_db_archive_notice_once` (func, строка 455)
-- `_show_chat_db_archive_notice_once` (func, строка 487)
-- `main` (func, строка 521)
-- `main._render_orch_button` (func, строка 810)
-- `main._matches_search` (func, строка 894)
+- `_show_db_archive_notice_once` (func, строка 456)
+- `_show_chat_db_archive_notice_once` (func, строка 488)
+- `main` (func, строка 522)
+- `main._render_orch_button` (func, строка 811)
+- `main._matches_search` (func, строка 895)
 
 ### `ui/components/flash.py`
 - `_queue` (func, строка 39)
@@ -948,6 +970,46 @@
 - `_guide_filename` (func, строка 15)
 - `_goto` (func, строка 25)
 - `page_welcome` (func, строка 31)
+
+### `migrations/env.py`
+- `_x_arguments` (func, строка 55)
+- `database_settings` (func, строка 63)
+- `_options` (func, строка 87)
+- `_prepare_connection` (func, строка 102)
+- `run_migrations_offline` (func, строка 118)
+- `run_migrations_online` (func, строка 127)
+
+### `migrations/versions/0001_legacy_repair.py`
+- `upgrade` (func, строка 33)
+- `downgrade` (func, строка 46)
+
+### `migrations/versions/0002_baseline.py`
+- `upgrade` (func, строка 36)
+- `downgrade` (func, строка 54)
+
+### `migrations/versions/0003_thread_index_columns.py`
+- `upgrade` (func, строка 26)
+- `downgrade` (func, строка 33)
+
+### `migrations/versions/0004_assistant_columns.py`
+- `upgrade` (func, строка 19)
+- `downgrade` (func, строка 26)
+
+### `migrations/versions/0005_message_index.py`
+- `upgrade` (func, строка 20)
+- `downgrade` (func, строка 27)
+
+### `migrations/versions/0006_marketplace_tables.py`
+- `upgrade` (func, строка 28)
+- `downgrade` (func, строка 37)
+
+### `migrations/versions/0007_schedules_tables.py`
+- `upgrade` (func, строка 25)
+- `downgrade` (func, строка 34)
+
+### `migrations/versions/0008_transcript_layout.py`
+- `upgrade` (func, строка 35)
+- `downgrade` (func, строка 40)
 
 ### `core/api_errors.py`
 - `APIError` (class, строка 28)
@@ -1324,13 +1386,13 @@
 - `load_global_settings` (func, строка 498)
 
 ### `core/dependency_check.py`
-- `parse_version` (func, строка 55)
-- `version_lt` (func, строка 78)
-- `_installed_version` (func, строка 92)
-- `_importable` (func, строка 100)
-- `check_dependencies` (func, строка 108)
-- `missing_packages` (func, строка 147)
-- `outdated_lines` (func, строка 152)
+- `parse_version` (func, строка 59)
+- `version_lt` (func, строка 82)
+- `_installed_version` (func, строка 96)
+- `_importable` (func, строка 104)
+- `check_dependencies` (func, строка 112)
+- `missing_packages` (func, строка 151)
+- `outdated_lines` (func, строка 156)
 
 ### `core/devagent_db_archive.py`
 - `LockBusy` (class, строка 63)
@@ -3090,12 +3152,12 @@
 - `restore_backup` (func, строка 350)
 
 ### `core/gateway/bootstrap.py`
-- `_ensure_dirs` (func, строка 36)
-- `_ensure_defaults` (func, строка 49)
-- `_ensure_databases` (func, строка 62)
-- `_ensure_schema` (func, строка 84)
-- `_start_service` (func, строка 104)
-- `cold_start` (func, строка 121)
+- `_ensure_dirs` (func, строка 37)
+- `_ensure_defaults` (func, строка 50)
+- `_ensure_databases` (func, строка 63)
+- `_ensure_schema` (func, строка 87)
+- `_start_service` (func, строка 107)
+- `cold_start` (func, строка 124)
 
 ### `core/gateway/diagnostics.py`
 - `_check` (func, строка 42)
@@ -3108,13 +3170,16 @@
 - `check_paths` (func, строка 113)
 - `check_dependencies` (func, строка 132)
 - `_database_file` (func, строка 179)
-- `check_databases` (func, строка 226)
-- `check_permissions` (func, строка 268)
-- `check_encryption_key` (func, строка 303)
-- `_read_config_kv` (func, строка 349)
-- `check_tokens` (func, строка 386)
-- `check_scheduler` (func, строка 439)
-- `doctor_report` (func, строка 515)
+- `_expected_revision` (func, строка 235)
+- `_fill_revision` (func, строка 248)
+- `check_databases` (func, строка 266)
+- `check_schema_revision` (func, строка 312)
+- `check_permissions` (func, строка 366)
+- `check_encryption_key` (func, строка 401)
+- `_read_config_kv` (func, строка 447)
+- `check_tokens` (func, строка 484)
+- `check_scheduler` (func, строка 537)
+- `doctor_report` (func, строка 614)
 
 ### `core/gateway/dialog.py`
 - `_LiveDialog` (class, строка 68)
@@ -3186,11 +3251,14 @@
 - `AssistantCard.to_dict` (func, строка 514)
 - `AssistantDetail` (class, строка 532)
 - `AssistantDetail.to_dict` (func, строка 544)
-- `HealthReport` (class, строка 554)
-- `HealthReport.ready` (func, строка 566)
-- `HealthReport.to_dict` (func, строка 569)
-- `SearchPage` (class, строка 585)
-- `SearchPage.to_dict` (func, строка 592)
+- `CancelOutcome` (class, строка 554)
+- `CancelOutcome.from_report` (func, строка 573)
+- `CancelOutcome.to_dict` (func, строка 597)
+- `HealthReport` (class, строка 612)
+- `HealthReport.ready` (func, строка 624)
+- `HealthReport.to_dict` (func, строка 627)
+- `SearchPage` (class, строка 643)
+- `SearchPage.to_dict` (func, строка 650)
 
 ### `core/gateway/entities.py`
 - `_orchestrator_card` (func, строка 34)
@@ -3245,12 +3313,12 @@
 - `cancel_requested` (func, строка 98)
 - `_pending_input_of` (func, строка 111)
 - `snapshot_of` (func, строка 129)
-- `get_run` (func, строка 174)
-- `wait_run` (func, строка 198)
-- `list_runs` (func, строка 225)
-- `cancel_run` (func, строка 249)
-- `answer_run` (func, строка 276)
-- `can_answer` (func, строка 306)
+- `get_run` (func, строка 175)
+- `wait_run` (func, строка 199)
+- `list_runs` (func, строка 226)
+- `cancel_run` (func, строка 250)
+- `answer_run` (func, строка 277)
+- `can_answer` (func, строка 311)
 
 ### `core/gateway/threads.py`
 - `_summary_of` (func, строка 41)
@@ -3665,6 +3733,38 @@
 - `test_the_transport_imports_without_streamlit` (func, строка 125)
 - `test_the_routes_read_through_the_gateway_not_around_it` (func, строка 136)
 
+### `tests/test_api_golden.py`
+- `_employee` (func, строка 78)
+- `_assistant` (func, строка 86)
+- `_summary` (func, строка 95)
+- `_message` (func, строка 104)
+- `_running` (func, строка 109)
+- `_parked` (func, строка 116)
+- `ContractBackend` (class, строка 131)
+- `ContractBackend.start` (func, строка 134)
+- `ContractBackend.submit` (func, строка 140)
+- `ContractBackend.get` (func, строка 144)
+- `ContractBackend.wait` (func, строка 147)
+- `ContractBackend.answer` (func, строка 150)
+- `ContractBackend.cancel` (func, строка 153)
+- `ContractBackend.all_runs` (func, строка 158)
+- `ContractBackend.page` (func, строка 161)
+- `ContractBackend.window` (func, строка 165)
+- `ContractBackend.search` (func, строка 173)
+- `backend` (func, строка 180)
+- `client` (func, строка 213)
+- `token` (func, строка 218)
+- `_restore_slots` (func, строка 232)
+- `_auth` (func, строка 239)
+- `_normalise` (func, строка 258)
+- `_capture` (func, строка 280)
+- `_capture.record` (func, строка 285)
+- `test_the_public_json_matches_the_golden_snapshot` (func, строка 340)
+- `test_every_documented_data_route_has_a_snapshot_entry` (func, строка 393)
+- `_sample_for` (func, строка 427)
+- `test_serialising_a_model_equals_dumping_it` (func, строка 478)
+- `test_the_error_envelope_has_one_shape_everywhere` (func, строка 492)
+
 ### `tests/test_api_health.py`
 - `client` (func, строка 27)
 - `test_health_answers_without_a_token` (func, строка 36)
@@ -3750,9 +3850,9 @@
 - `test_a_broken_cancel_is_reported_as_an_internal_error` (func, строка 246)
 - `test_a_broken_cancel_is_reported_as_an_internal_error._broken` (func, строка 248)
 - `test_an_answer_is_delivered_and_the_state_is_returned` (func, строка 261)
-- `test_a_blank_answer_is_refused` (func, строка 276)
-- `test_answering_a_run_that_is_not_waiting_is_refused` (func, строка 282)
-- `test_answering_a_run_that_is_not_waiting_is_refused._refuse` (func, строка 284)
+- `test_a_blank_answer_is_refused` (func, строка 275)
+- `test_answering_a_run_that_is_not_waiting_is_refused` (func, строка 281)
+- `test_answering_a_run_that_is_not_waiting_is_refused._refuse` (func, строка 283)
 
 ### `tests/test_api_threads.py`
 - `_state` (func, строка 34)
@@ -4074,6 +4174,50 @@
 - `test_the_tool_reports_a_child_without_a_row_as_unaddressable` (func, строка 259)
 - `test_an_empty_window_is_not_mistaken_for_a_failure` (func, строка 269)
 - `test_a_legacy_dialog_still_falls_back_to_the_messages_table` (func, строка 283)
+
+### `tests/test_ci_check.py`
+- `test_parse_requirements_reads_names_and_specifiers` (func, строка 24)
+- `test_parse_requirements_keeps_a_full_range_specifier` (func, строка 47)
+- `test_parse_lock_collects_pins_and_hash_counts` (func, строка 57)
+- `test_satisfies_compares_numeric_components` (func, строка 91)
+- `test_compare_lock_is_empty_when_every_declared_package_agrees` (func, строка 97)
+- `test_compare_lock_reports_a_missing_package` (func, строка 104)
+- `test_compare_lock_reports_a_version_outside_the_declared_range` (func, строка 109)
+- `test_compare_lock_reports_a_package_without_hashes` (func, строка 114)
+- `_redirect` (func, строка 121)
+- `test_check_lock_passes_when_the_lock_does_not_exist_yet` (func, строка 137)
+- `test_check_lock_fails_when_the_lock_disagrees` (func, строка 145)
+- `test_check_lock_passes_when_the_lock_agrees` (func, строка 153)
+- `test_check_lock_fails_when_the_lock_lists_nothing` (func, строка 161)
+- `test_check_lock_covers_the_api_constraints` (func, строка 167)
+- `test_check_lock_passes_when_both_constraint_files_agree` (func, строка 181)
+- `test_list_prints_every_check_name_in_order` (func, строка 193)
+- `test_unknown_check_name_is_a_usage_error` (func, строка 199)
+- `test_run_reports_success_only_when_every_selected_check_passes` (func, строка 204)
+- `test_run_reports_success_only_when_every_selected_check_passes.passing` (func, строка 208)
+- `test_run_reports_success_only_when_every_selected_check_passes.failing` (func, строка 212)
+- `test_environment_error_outranks_a_plain_failure` (func, строка 223)
+- `test_only_runs_the_requested_subset` (func, строка 229)
+- `test_ruff_findings_fail_the_check` (func, строка 247)
+- `test_missing_ruff_is_an_environment_error` (func, строка 254)
+- `test_manifest_violations_fail_the_check` (func, строка 260)
+- `test_unrunnable_manifest_check_is_an_environment_error` (func, строка 268)
+- `test_failing_tests_fail_the_check` (func, строка 273)
+- `test_empty_test_run_is_a_failure_not_a_pass` (func, строка 281)
+- `test_passing_tests_report_the_summary_line` (func, строка 287)
+- `_report` (func, строка 303)
+- `_budget` (func, строка 309)
+- `test_a_missing_budget_passes_with_an_explanation` (func, строка 319)
+- `test_an_unreadable_budget_is_an_environment_error` (func, строка 327)
+- `test_a_budget_without_a_number_is_an_environment_error` (func, строка 333)
+- `test_a_budget_without_packages_is_an_environment_error` (func, строка 338)
+- `test_a_count_above_the_budget_fails` (func, строка 344)
+- `test_a_count_equal_to_the_budget_passes` (func, строка 353)
+- `test_a_count_below_the_budget_passes` (func, строка 361)
+- `test_the_command_analyses_the_packages_of_the_budget` (func, строка 371)
+- `test_missing_pyright_is_an_environment_error` (func, строка 386)
+- `test_an_unparsable_report_fails_the_check` (func, строка 393)
+- `test_the_type_check_runs_before_the_manifest` (func, строка 401)
 
 ### `tests/test_cli_commands.py`
 - `data_dir` (func, строка 29)
@@ -4574,9 +4718,9 @@
 - `test_outdated_lines_helper` (func, строка 171)
 - `test_default_registry_returns_report_shape` (func, строка 177)
 - `_parse_requirements` (func, строка 188)
-- `test_requirements_pins_streamlit_minimum_not_exact` (func, строка 206)
-- `test_registry_matches_requirements` (func, строка 213)
-- `test_dev_dependencies_match_requirements` (func, строка 226)
+- `test_requirements_pins_streamlit_minimum_not_exact` (func, строка 212)
+- `test_registry_matches_requirements` (func, строка 220)
+- `test_dev_dependencies_match_requirements` (func, строка 233)
 
 ### `tests/test_devagent_db_archive.py`
 - `_make_legacy_db` (func, строка 18)
@@ -7661,6 +7805,28 @@
 - `TestDueSelection.test_a_stale_lock_is_released` (func, строка 212)
 - `TestDueSelection.test_runs_today_counts_only_today` (func, строка 221)
 
+### `tests/test_schema_history.py`
+- `db_path` (func, строка 26)
+- `table_names` (func, строка 31)
+- `column_names` (func, строка 43)
+- `index_names` (func, строка 53)
+- `seed_rows` (func, строка 64)
+- `read_rows` (func, строка 91)
+- `test_the_chain_is_linear_and_has_a_head` (func, строка 112)
+- `test_a_fresh_database_reaches_head` (func, строка 120)
+- `test_a_fresh_database_holds_the_whole_schema` (func, строка 128)
+- `test_a_fresh_database_has_the_indexes_the_startup_used_to_create` (func, строка 144)
+- `test_a_fresh_database_has_every_transcript_column` (func, строка 154)
+- `test_the_agent_database_gets_no_feature_tables` (func, строка 165)
+- `test_an_upgrade_from_two_revisions_back_keeps_every_row` (func, строка 179)
+- `test_a_second_upgrade_changes_no_row` (func, строка 197)
+- `test_an_unversioned_database_adopts_the_history` (func, строка 210)
+- `test_a_legacy_database_is_repaired_by_the_first_revision` (func, строка 268)
+- `test_the_revision_status_counts_the_missing_revisions` (func, строка 313)
+- `test_is_current_is_false_for_an_absent_database` (func, строка 327)
+- `test_is_current_is_true_only_at_head` (func, строка 332)
+- `test_an_unknown_database_kind_is_refused` (func, строка 343)
+
 ### `tests/test_search_in_files.py`
 - `ws` (func, строка 29)
 - `test_literal_search` (func, строка 50)
@@ -8932,7 +9098,8 @@
 - `test_fix_hashes_repairs_tampered_file` (func, строка 112)
 - `test_add_new_file_then_verify` (func, строка 129)
 - `test_app_version_change_is_detected` (func, строка 151)
-- `test_changelog_local_only_is_coverage_skip` (func, строка 161)
+- `test_ci_configuration_belongs_to_the_code_unit` (func, строка 161)
+- `test_changelog_local_only_is_coverage_skip` (func, строка 176)
 
 ### `tests/test_web_search_prompt.py`
 - `test_default_prompt_is_stable` (func, строка 39)
@@ -9134,27 +9301,27 @@
 - `FakeBackend.wait` (func, строка 93)
 - `FakeBackend.advance_to_question` (func, строка 96)
 - `FakeBackend.resume` (func, строка 104)
-- `FakeBackend.finish` (func, строка 109)
-- `FakeBackend.cancel` (func, строка 121)
-- `FakeBackend.window` (func, строка 134)
-- `FakeBackend.search` (func, строка 149)
-- `_state` (func, строка 163)
-- `backend` (func, строка 169)
-- `client` (func, строка 189)
-- `token` (func, строка 200)
-- `_restore_slots` (func, строка 212)
-- `_auth` (func, строка 219)
-- `test_scenario_a_client_gets_in_with_a_token` (func, строка 226)
-- `test_scenario_health_is_open_and_version_is_reported` (func, строка 236)
-- `test_scenario_launch_poll_answer_and_read_the_result` (func, строка 245)
-- `test_scenario_a_cancel_is_accepted_then_the_run_stops` (func, строка 301)
-- `test_scenario_cancelling_twice_is_not_an_error` (func, строка 321)
-- `test_scenario_the_transcript_pages_and_is_searchable` (func, строка 337)
-- `test_scenario_an_unknown_run_is_404_and_a_malformed_one_is_400` (func, строка 368)
-- `test_scenario_an_exhausted_pool_tells_the_client_to_come_back` (func, строка 378)
-- `test_scenario_a_refused_launch_leaves_no_thread_and_no_slot` (func, строка 397)
-- `test_scenario_a_broken_backend_does_not_leak_its_message` (func, строка 409)
-- `test_scenario_a_broken_backend_does_not_leak_its_message._broken` (func, строка 412)
+- `FakeBackend.finish` (func, строка 110)
+- `FakeBackend.cancel` (func, строка 122)
+- `FakeBackend.window` (func, строка 135)
+- `FakeBackend.search` (func, строка 150)
+- `_state` (func, строка 164)
+- `backend` (func, строка 170)
+- `client` (func, строка 190)
+- `token` (func, строка 201)
+- `_restore_slots` (func, строка 213)
+- `_auth` (func, строка 220)
+- `test_scenario_a_client_gets_in_with_a_token` (func, строка 227)
+- `test_scenario_health_is_open_and_version_is_reported` (func, строка 237)
+- `test_scenario_launch_poll_answer_and_read_the_result` (func, строка 246)
+- `test_scenario_a_cancel_is_accepted_then_the_run_stops` (func, строка 302)
+- `test_scenario_cancelling_twice_is_not_an_error` (func, строка 322)
+- `test_scenario_the_transcript_pages_and_is_searchable` (func, строка 338)
+- `test_scenario_an_unknown_run_is_404_and_a_malformed_one_is_400` (func, строка 369)
+- `test_scenario_an_exhausted_pool_tells_the_client_to_come_back` (func, строка 379)
+- `test_scenario_a_refused_launch_leaves_no_thread_and_no_slot` (func, строка 398)
+- `test_scenario_a_broken_backend_does_not_leak_its_message` (func, строка 410)
+- `test_scenario_a_broken_backend_does_not_leak_its_message._broken` (func, строка 413)
 
 ### `tests/scenarios/test_assistant_sidebar_scenarios.py`
 - `isolated_data` (func, строка 28)
@@ -9204,16 +9371,17 @@
 ### `tests/scenarios/test_chat_db_archive_scenario.py`
 - `isolated_data` (func, строка 21)
 - `_legacy_installation` (func, строка 40)
-- `_db_path` (func, строка 58)
-- `_table_count` (func, строка 64)
-- `test_an_existing_installation_moves_its_dialogues_to_files` (func, строка 76)
-- `test_the_archived_database_still_opens_as_the_previous_build_knew_it` (func, строка 103)
-- `test_the_dialogue_reads_back_after_the_upgrade` (func, строка 120)
-- `test_a_second_start_does_not_touch_a_finished_installation` (func, строка 135)
-- `test_a_new_dialogue_after_the_upgrade_is_mirrored_from_the_start` (func, строка 152)
-- `test_the_other_tables_are_left_untouched` (func, строка 166)
-- `test_a_damaged_installation_keeps_its_dialogues` (func, строка 181)
-- `test_a_damaged_installation_keeps_its_dialogues._fail` (func, строка 191)
+- `_unstamp` (func, строка 64)
+- `_db_path` (func, строка 74)
+- `_table_count` (func, строка 80)
+- `test_an_existing_installation_moves_its_dialogues_to_files` (func, строка 92)
+- `test_the_archived_database_still_opens_as_the_previous_build_knew_it` (func, строка 119)
+- `test_the_dialogue_reads_back_after_the_upgrade` (func, строка 136)
+- `test_a_second_start_does_not_touch_a_finished_installation` (func, строка 151)
+- `test_a_new_dialogue_after_the_upgrade_is_mirrored_from_the_start` (func, строка 168)
+- `test_the_other_tables_are_left_untouched` (func, строка 182)
+- `test_a_damaged_installation_keeps_its_dialogues` (func, строка 197)
+- `test_a_damaged_installation_keeps_its_dialogues._fail` (func, строка 207)
 
 ### `tests/scenarios/test_child_transcript_readability_scenario.py`
 - `isolated_data` (func, строка 23)
@@ -10270,7 +10438,7 @@
 - `register` (func, строка 35)
 - `_render_human` (func, строка 42)
 - `_render_details` (func, строка 64)
-- `execute` (func, строка 133)
+- `execute` (func, строка 145)
 
 ### `sagaai/commands/migrate.py`
 - `register` (func, строка 40)
@@ -10279,8 +10447,9 @@
 - `_run_devagent_archive` (func, строка 82)
 - `_run_chat_archive` (func, строка 92)
 - `_run_schema` (func, строка 102)
-- `_integrity` (func, строка 114)
-- `execute` (func, строка 124)
+- `_rollback` (func, строка 127)
+- `_integrity` (func, строка 161)
+- `execute` (func, строка 171)
 
 ### `sagaai/commands/run.py`
 - `register` (func, строка 48)
@@ -10361,13 +10530,15 @@
 
 ### `server/errors.py`
 - `_headers_for` (func, строка 41)
-- `error_response` (func, строка 56)
-- `_request_id_of` (func, строка 66)
-- `gateway_handler` (func, строка 74)
-- `validation_handler` (func, строка 79)
-- `http_exception_handler` (func, строка 106)
-- `internal_handler` (func, строка 129)
-- `install` (func, строка 150)
+- `_envelope` (func, строка 56)
+- `error_response` (func, строка 77)
+- `_request_id_of` (func, строка 87)
+- `gateway_handler` (func, строка 95)
+- `validation_handler` (func, строка 100)
+- `http_exception_handler` (func, строка 127)
+- `internal_handler` (func, строка 151)
+- `error_responses` (func, строка 194)
+- `install` (func, строка 210)
 
 ### `server/instance_lock.py`
 - `runtime_dir` (func, строка 51)
@@ -10435,19 +10606,19 @@
 - `message_out` (func, строка 369)
 
 ### `server/routes/agents.py`
-- `list_agents` (func, строка 27)
-- `get_agent` (func, строка 36)
-- `list_assistants` (func, строка 47)
-- `get_assistant` (func, строка 60)
+- `list_agents` (func, строка 33)
+- `get_agent` (func, строка 44)
+- `list_assistants` (func, строка 57)
+- `get_assistant` (func, строка 72)
 
 ### `server/routes/dialogs.py`
-- `_admission` (func, строка 39)
-- `_now_iso` (func, строка 49)
-- `_accepted` (func, строка 53)
-- `_request_of` (func, строка 73)
-- `start_dialog` (func, строка 98)
-- `_ready_or_refuse` (func, строка 124)
-- `send_message` (func, строка 146)
+- `_admission` (func, строка 40)
+- `_now_iso` (func, строка 50)
+- `_accepted` (func, строка 54)
+- `_request_of` (func, строка 74)
+- `start_dialog` (func, строка 100)
+- `_ready_or_refuse` (func, строка 127)
+- `send_message` (func, строка 150)
 
 ### `server/routes/health.py`
 - `health` (func, строка 32)
@@ -10455,38 +10626,62 @@
 - `version` (func, строка 72)
 
 ### `server/routes/runs.py`
-- `get_run` (func, строка 40)
-- `_cleanup_if_finished` (func, строка 57)
-- `list_runs` (func, строка 76)
-- `cancel_run` (func, строка 93)
-- `answer_run` (func, строка 125)
+- `get_run` (func, строка 46)
+- `_cleanup_if_finished` (func, строка 64)
+- `list_runs` (func, строка 84)
+- `cancel_run` (func, строка 103)
+- `_cancel_out` (func, строка 126)
+- `answer_run` (func, строка 149)
 
 ### `server/routes/threads.py`
-- `list_threads` (func, строка 28)
-- `read_thread` (func, строка 54)
-- `search` (func, строка 75)
+- `list_threads` (func, строка 30)
+- `read_thread` (func, строка 58)
+- `search` (func, строка 81)
 
 ### `storage/db.py`
-- `_is_file_db` (func, строка 25)
-- `_configure_sqlite_connection` (func, строка 30)
-- `_enable_wal` (func, строка 49)
-- `_ensure_message_index` (func, строка 70)
-- `_ensure_marketplace_tables` (func, строка 90)
-- `_configure_devagent_connection` (func, строка 173)
-- `_db_url` (func, строка 239)
-- `_ensure_thread_columns` (func, строка 244)
-- `_ensure_thread_indexes` (func, строка 267)
-- `_ensure_assistant_columns` (func, строка 283)
-- `_migrate_thread_skill_columns` (func, строка 304)
-- `_migrate_assistant_table` (func, строка 328)
-- `_ensure_schedules_tables` (func, строка 344)
-- `get_engine` (func, строка 440)
-- `get_devagent_engine` (func, строка 472)
-- `_migrate_threads_table_if_needed` (func, строка 497)
-- `get_session` (func, строка 522)
-- `get_devagent_session` (func, строка 530)
-- `reset_engine` (func, строка 538)
-- `reset_devagent_engine` (func, строка 548)
+- `_begin` (func, строка 22)
+- `_connect` (func, строка 46)
+- `_is_file_db` (func, строка 63)
+- `_configure_sqlite_connection` (func, строка 68)
+- `_enable_wal` (func, строка 87)
+- `_ensure_message_index` (func, строка 108)
+- `_ensure_marketplace_tables` (func, строка 137)
+- `_configure_devagent_connection` (func, строка 220)
+- `_db_url` (func, строка 286)
+- `_ensure_thread_columns` (func, строка 291)
+- `_ensure_thread_indexes` (func, строка 314)
+- `_ensure_assistant_columns` (func, строка 330)
+- `_migrate_thread_skill_columns` (func, строка 351)
+- `_migrate_assistant_table` (func, строка 375)
+- `_ensure_schedules_tables` (func, строка 391)
+- `get_engine` (func, строка 487)
+- `_migrate_main_database` (func, строка 510)
+- `get_devagent_engine` (func, строка 527)
+- `_migrate_devagent_database` (func, строка 549)
+- `_migrate_threads_table_if_needed` (func, строка 562)
+- `get_session` (func, строка 599)
+- `get_devagent_session` (func, строка 607)
+- `reset_engine` (func, строка 615)
+- `reset_devagent_engine` (func, строка 625)
+
+### `storage/migration_support.py`
+- `database_kind` (func, строка 28)
+- `is_main_database` (func, строка 46)
+- `table_exists` (func, строка 51)
+
+### `storage/migrations.py`
+- `config_file` (func, строка 52)
+- `make_config` (func, строка 58)
+- `head_revision` (func, строка 78)
+- `is_current` (func, строка 91)
+- `revision_history` (func, строка 119)
+- `_connect` (func, строка 132)
+- `current_revision` (func, строка 139)
+- `revision_status` (func, строка 158)
+- `_has_version_table` (func, строка 182)
+- `upgrade` (func, строка 203)
+- `_run_data_migrations` (func, строка 256)
+- `upgrade_installation` (func, строка 280)
 
 ### `storage/models.py`
 - `Assistant` (class, строка 19)
@@ -10603,6 +10798,25 @@
 - `run` (func, строка 312)
 - `main` (func, строка 422)
 
+### `scripts/ci_check.py`
+- `read_lines` (func, строка 57)
+- `clean_name` (func, строка 66)
+- `parse_requirements` (func, строка 74)
+- `parse_lock` (func, строка 99)
+- `version_tuple` (func, строка 130)
+- `_padded` (func, строка 151)
+- `satisfies` (func, строка 156)
+- `compare_lock` (func, строка 204)
+- `tail` (func, строка 227)
+- `run_process` (func, строка 233)
+- `check_ruff` (func, строка 251)
+- `load_budget` (func, строка 264)
+- `check_types` (func, строка 289)
+- `check_manifest` (func, строка 340)
+- `check_lock` (func, строка 352)
+- `check_tests` (func, строка 378)
+- `main` (func, строка 403)
+
 ### `scripts/marketplace_publish.py`
 - `_read_manifest` (func, строка 65)
 - `_build_parser` (func, строка 87)
@@ -10634,24 +10848,24 @@
 - `main` (func, строка 39)
 
 ### `scripts/verify_manifest.py`
-- `log` (func, строка 104)
-- `find_root` (func, строка 109)
-- `git_ls_files` (func, строка 121)
-- `sha256_file` (func, строка 137)
-- `read_app_version` (func, строка 145)
-- `header_version` (func, строка 165)
-- `classify` (func, строка 175)
-- `load_manifest` (func, строка 185)
-- `save_manifest` (func, строка 191)
-- `now_iso` (func, строка 200)
-- `build_manifest` (func, строка 204)
-- `add_file` (func, строка 251)
-- `check_note_dict` (func, строка 293)
-- `check_unit` (func, строка 305)
-- `check_file_entry` (func, строка 321)
-- `verify` (func, строка 346)
-- `verify.iter_entries` (func, строка 395)
-- `main` (func, строка 486)
+- `log` (func, строка 112)
+- `find_root` (func, строка 117)
+- `git_ls_files` (func, строка 129)
+- `sha256_file` (func, строка 145)
+- `read_app_version` (func, строка 153)
+- `header_version` (func, строка 173)
+- `classify` (func, строка 183)
+- `load_manifest` (func, строка 193)
+- `save_manifest` (func, строка 199)
+- `now_iso` (func, строка 208)
+- `build_manifest` (func, строка 212)
+- `add_file` (func, строка 259)
+- `check_note_dict` (func, строка 301)
+- `check_unit` (func, строка 313)
+- `check_file_entry` (func, строка 329)
+- `verify` (func, строка 354)
+- `verify.iter_entries` (func, строка 403)
+- `main` (func, строка 497)
 
 ### `dev_agent/agent_loop.py`
 - `_now_ts` (func, строка 159)

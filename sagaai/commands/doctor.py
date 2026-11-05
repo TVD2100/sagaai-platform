@@ -79,13 +79,25 @@ def _render_details(console, checks: Dict[str, Any]) -> None:
         console.title("databases")
         for name, item in databases.items():
             console.status(name, str(item.get("state") or ""),
-                           "%s, %d table(s), user_version=%s" % (
+                           "%s, %d table(s), revision=%s" % (
                                human_bytes(item.get("size")),
                                len(item.get("tables") or []),
-                               item.get("user_version")))
+                               item.get("revision") or "none"))
             missing = list(item.get("missing_tables") or [])
             if missing:
                 console.bullet("missing tables: " + ", ".join(missing))
+    schema = checks.get("schema") or {}
+    if schema:
+        console.blank()
+        console.title("schema history")
+        console.field("head", schema.get("head") or "unknown")
+        for name, item in (schema.get("databases") or {}).items():
+            console.status(name,
+                           "ok" if item.get("current") == item.get("head") else
+                           ("outdated" if item.get("behind") else "unversioned"),
+                           "%s%s" % (item.get("current") or "no revision",
+                                     (" (%d behind)" % item.get("behind"))
+                                     if item.get("behind") else ""))
     tokens = checks.get("tokens") or {}
     if tokens:
         console.blank()

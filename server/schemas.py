@@ -330,44 +330,44 @@ class SearchOut(BaseModel):
 # ─── Mappers ────────────────────────────────────────────────────────────────
 
 
-def agent_out(card) -> Dict[str, Any]:
-    """Return the response dict of an employee card."""
-    return AgentOut(**card.to_dict()).model_dump()
+def agent_out(card) -> AgentOut:
+    """Return the response model of an employee card."""
+    return AgentOut(**card.to_dict())
 
 
-def agent_detail_out(detail) -> Dict[str, Any]:
-    """Return the response dict of an employee with its prompt."""
-    return AgentDetailOut(**detail.to_dict()).model_dump()
+def agent_detail_out(detail) -> AgentDetailOut:
+    """Return the response model of an employee with its prompt."""
+    return AgentDetailOut(**detail.to_dict())
 
 
-def assistant_out(card) -> Dict[str, Any]:
-    """Return the response dict of an assistant card."""
-    return AssistantOut(**card.to_dict()).model_dump()
+def assistant_out(card) -> AssistantOut:
+    """Return the response model of an assistant card."""
+    return AssistantOut(**card.to_dict())
 
 
-def assistant_detail_out(detail) -> Dict[str, Any]:
-    """Return the response dict of an assistant with its prompt."""
-    return AssistantDetailOut(**detail.to_dict()).model_dump()
+def assistant_detail_out(detail) -> AssistantDetailOut:
+    """Return the response model of an assistant with its prompt."""
+    return AssistantDetailOut(**detail.to_dict())
 
 
-def run_out(snapshot, *, waited_ms: Optional[int] = None) -> Dict[str, Any]:
-    """Return the response dict of a run snapshot."""
+def run_out(snapshot, *, waited_ms: Optional[int] = None) -> RunOut:
+    """Return the response model of a run snapshot."""
     payload = snapshot.to_dict()
     pending = payload.get("pending_input")
     if isinstance(pending, dict):
-        payload["pending_input"] = PendingInputOut(**pending).model_dump()
+        payload["pending_input"] = PendingInputOut(**pending)
     if waited_ms is not None:
         payload["waited_ms"] = int(waited_ms)
-    return RunOut(**payload).model_dump()
+    return RunOut(**payload)
 
 
-def thread_out(summary) -> Dict[str, Any]:
-    """Return the response dict of a thread summary."""
-    return ThreadOut(**summary.to_dict()).model_dump()
+def thread_out(summary) -> ThreadOut:
+    """Return the response model of a thread summary."""
+    return ThreadOut(**summary.to_dict())
 
 
-def message_out(view) -> Dict[str, Any]:
-    """Return the response dict of one message."""
-    return MessageOut(**view.to_dict()).model_dump()
+def message_out(view) -> MessageOut:
+    """Return the response model of one message."""
+    return MessageOut(**view.to_dict())
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

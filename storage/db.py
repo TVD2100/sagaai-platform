@@ -8,11 +8,49 @@ Two separate databases:
 Each has its own engine and session factory, isolated from the other.
 DB file locations are read from core.paths (overridable via SAGAAI_DATA_DIR).
 """
+from contextlib import contextmanager
+
 from sqlalchemy import create_engine, event, inspect, text
+from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session as _Session
 from sqlalchemy.orm import sessionmaker
 
-from storage.models import Base
+from storage.models import Base  # noqa: F401 - re-exported for the baseline revision
+
+
+@contextmanager
+def _begin(bind):
+    """Yield a connection that runs DDL in a write transaction.
+
+    The migration helpers below are called from two places: an engine (a
+    transport starting the platform directly) and an open connection (an
+    Alembic revision, which owns the transaction and must not open a second
+    one on the same file - SQLite would deadlock against itself). One helper
+    covers both: for an engine it opens and commits a transaction, for a
+    connection it yields that connection and leaves the commit to the caller.
+
+    Parameters:
+        bind: an ``Engine`` or a ``Connection``.
+
+    Yields:
+        A ``Connection`` the caller may execute on.
+    """
+    if isinstance(bind, Connection):
+        yield bind
+        return
+    with bind.begin() as connection:
+        yield connection
+
+
+@contextmanager
+def _connect(bind):
+    """Yield a read connection, reusing the caller's one when given a connection."""
+    if isinstance(bind, Connection):
+        yield bind
+        return
+    with bind.connect() as connection:
+        yield connection
+
 
 # SQLite journal mode: WAL lets readers run concurrently with a single
 # writer, which removes the read/write contention that froze the history
@@ -73,19 +111,28 @@ def _ensure_message_index(engine) -> None:
     Fresh databases get the index from the ORM model's ``__table_args__``;
     this migration covers databases created before the index existed so
     per-thread message loads no longer scan the whole table.
+
+    Args:
+        engine: an ``Engine`` (startup path) or a ``Connection`` (an Alembic
+            revision, which owns the transaction).
     """
-    with engine.connect() as conn:
+    with _connect(engine) as conn:
+        has_table = conn.exec_driver_sql(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='messages'"
+        ).scalar()
+        if not has_table:
+            return  # a legacy database without the table: nothing to index
         has_index = conn.exec_driver_sql(
             "SELECT 1 FROM sqlite_master WHERE type='index' AND name=?",
             (_MESSAGE_INDEX_NAME,),
         ).scalar()
-    if not has_index:
-        with engine.connect() as conn:
-            conn.exec_driver_sql(
-                f"CREATE INDEX IF NOT EXISTS {_MESSAGE_INDEX_NAME} "
-                "ON messages (thread_id, id)"
-            )
-            conn.commit()
+    if has_index:
+        return
+    with _begin(engine) as conn:
+        conn.exec_driver_sql(
+            f"CREATE INDEX IF NOT EXISTS {_MESSAGE_INDEX_NAME} "
+            "ON messages (thread_id, id)"
+        )
 
 def _ensure_marketplace_tables(engine) -> None:
     """Create the marketplace registry tables on any database.
@@ -145,7 +192,7 @@ def _ensure_marketplace_tables(engine) -> None:
         "ON marketplace_installed (type, runtime_slug)",
     )
     try:
-        with engine.begin() as conn:
+        with _begin(engine) as conn:
             for statement in statements:
                 conn.exec_driver_sql(statement)
             # An installation created before the column existed carries no
@@ -255,7 +302,7 @@ def _ensure_thread_columns(engine) -> None:
     existing = {col["name"] for col in insp.get_columns("threads")}
     missing = [(name, decl) for name, decl in _THREAD_EXTRA_COLUMNS if name not in existing]
     if missing:
-        with engine.begin() as conn:
+        with _begin(engine) as conn:
             for name, decl in missing:
                 conn.execute(text(
                     f"ALTER TABLE threads ADD COLUMN {name} {decl}"))
@@ -272,7 +319,7 @@ def _ensure_thread_indexes(engine) -> None:
     database migrated before the indexes existed must still receive them.
     """
     try:
-        with engine.begin() as conn:
+        with _begin(engine) as conn:
             for name, target in _THREAD_EXTRA_INDEXES:
                 conn.execute(text(
                     f"CREATE INDEX IF NOT EXISTS {name} ON {target}"))
@@ -296,7 +343,7 @@ def _ensure_assistant_columns(engine) -> None:
     if not missing:
         return
 
-    with engine.begin() as conn:
+    with _begin(engine) as conn:
         for name, decl in missing:
             conn.execute(text(f"ALTER TABLE assistants ADD COLUMN {name} {decl}"))
 
@@ -320,7 +367,7 @@ def _migrate_thread_skill_columns(engine) -> None:
     if not renames:
         return
 
-    with engine.begin() as conn:
+    with _begin(engine) as conn:
         for old, new in renames:
             conn.execute(text(f"ALTER TABLE threads RENAME COLUMN {old} TO {new}"))
 
@@ -334,7 +381,7 @@ def _migrate_assistant_table(engine) -> None:
     insp = inspect(engine)
     tables = set(insp.get_table_names())
     if _LEGACY_ASSISTANT_TABLE_NAME in tables and _NEW_ASSISTANT_TABLE_NAME not in tables:
-        with engine.begin() as conn:
+        with _begin(engine) as conn:
             conn.execute(text(
                 f"ALTER TABLE {_LEGACY_ASSISTANT_TABLE_NAME} "
                 f"RENAME TO {_NEW_ASSISTANT_TABLE_NAME}"
@@ -430,7 +477,7 @@ def _ensure_schedules_tables(engine) -> None:
         "ON schedule_runs (schedule_id, status)",
     )
     try:
-        with engine.begin() as conn:
+        with _begin(engine) as conn:
             for statement in statements:
                 conn.execute(text(statement))
     except Exception:  # pragma: no cover - scheduling is an optional feature
@@ -440,16 +487,16 @@ def _ensure_schedules_tables(engine) -> None:
 def get_engine():
     """Return (and lazily create) the shared SQLAlchemy engine for the main DB.
 
-    If the existing ``threads`` table is missing the ``type`` column
-    (e.g. schema from an older version), the table is dropped and
-    re-created - safe because threads at this point are empty.
-    Newer columns (``workspace``, ``target_file``) are added in place.
-    Legacy "skill" naming is migrated to the new "assistant" naming with
-    data preserved.
+    The schema is brought to the current revision by ``storage.migrations``:
+    the revision chain owns every structural change, and this function only
+    opens the engine and applies the per-connection pragmas. A database that
+    already sits at ``head`` skips the migration entirely, so a normal start
+    pays one read of ``alembic_version``.
     """
     global _engine
     if _engine is None:
         from core.paths import DB_PATH
+        _migrate_main_database(DB_PATH)
         _engine = create_engine(
             _db_url(DB_PATH),
             connect_args={"check_same_thread": False},
@@ -457,27 +504,38 @@ def get_engine():
         )
         event.listen(_engine, "connect", _configure_sqlite_connection)
         _enable_wal(_engine, DB_PATH)
-        _migrate_threads_table_if_needed(_engine)
-        _migrate_assistant_table(_engine)
-        _migrate_thread_skill_columns(_engine)
-        Base.metadata.create_all(_engine)
-        _ensure_thread_columns(_engine)
-        _ensure_assistant_columns(_engine)
-        _ensure_message_index(_engine)
-        _ensure_marketplace_tables(_engine)
-        _ensure_schedules_tables(_engine)
     return _engine
+
+
+def _migrate_main_database(db_path: str) -> None:
+    """Bring ``sagaai.db`` to the current schema revision before opening it.
+
+    A failure is not swallowed: a database that cannot reach the revision the
+    code expects would fail later in a place that cannot explain itself.
+    """
+    from storage import migrations
+
+    if migrations.is_current(db_path):
+        return
+    report = migrations.upgrade(db_path, migrations.MAIN_KIND)
+    if not report.get("ok"):
+        raise RuntimeError("schema migration failed for %s: %s"
+                           % (db_path, report.get("error") or report.get("action")))
+
 
 
 def get_devagent_engine():
     """Return (and lazily create) the SQLAlchemy engine for the DevAgent DB.
 
     This is a completely separate SQLite database file (devagent.db)
-    that stores only DevAgent threads and messages.
+    that stores only DevAgent threads and messages. Its schema follows the
+    same revision chain as the main database; the revisions that create the
+    marketplace and schedule tables skip this file.
     """
     global _devagent_engine
     if _devagent_engine is None:
         from core.paths import DEVAGENT_DB_PATH
+        _migrate_devagent_database(DEVAGENT_DB_PATH)
         _devagent_engine = create_engine(
             _db_url(DEVAGENT_DB_PATH),
             connect_args={"check_same_thread": False},
@@ -485,30 +543,49 @@ def get_devagent_engine():
         )
         event.listen(_devagent_engine, "connect", _configure_devagent_connection)
         _enable_wal(_devagent_engine, DEVAGENT_DB_PATH)
-        # DevAgent DB has its own threads/messages tables.
-        # We only need Thread and Message models from Base.
-        _migrate_thread_skill_columns(_devagent_engine)
-        Base.metadata.create_all(_devagent_engine)
-        _ensure_thread_columns(_devagent_engine)
-        _ensure_message_index(_devagent_engine)
     return _devagent_engine
 
 
+def _migrate_devagent_database(db_path: str) -> None:
+    """Bring ``devagent.db`` to the current schema revision before opening it."""
+    from storage import migrations
+
+    if migrations.is_current(db_path):
+        return
+    report = migrations.upgrade(db_path, migrations.DEVAGENT_KIND)
+    if not report.get("ok"):
+        raise RuntimeError("schema migration failed for %s: %s"
+                           % (db_path, report.get("error") or report.get("action")))
+
+
+
 def _migrate_threads_table_if_needed(engine) -> None:
-    """Drop and recreate the ``threads`` table if it lacks the ``type`` column."""
+    """Drop and recreate the ``threads`` table if it lacks the ``type`` column.
+
+    A schema from before the ``type`` column cannot be extended in place (the
+    column is NOT NULL without a default), so the table is dropped and the
+    baseline revision recreates it. This runs inside the schema history, so it
+    happens once per database instead of on every start.
+
+    Args:
+        engine: an ``Engine`` or a ``Connection`` (a revision).
+    """
     insp = inspect(engine)
     if "threads" not in insp.get_table_names():
-        return  # table doesn't exist yet - create_all will handle it
+        return  # table doesn't exist yet - the baseline revision creates it
 
     columns = {col["name"] for col in insp.get_columns("threads")}
     if "type" in columns:
         return  # already migrated
 
-    # Table exists but schema is stale - drop it so create_all rebuilds.
     # The connect event enforces foreign_keys=ON, but this legacy drop must
     # run with foreign_keys=OFF (the messages.thread_id FK would block the
     # DROP). A raw DBAPI connection is used because the PRAGMA is a no-op
-    # inside an already-started transaction.
+    # inside an already-started transaction; a revision's connection already
+    # carries the pragma off (see storage/migrations/env.py).
+    if isinstance(engine, Connection):
+        engine.exec_driver_sql("DROP TABLE threads")
+        return
     raw = engine.raw_connection()
     try:
         cursor = raw.cursor()

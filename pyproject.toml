@@ -1,0 +1,120 @@
+# Build manifest of the SagaAI platform.
+#
+# The platform is a set of top-level packages that live next to this file
+# (core, storage, ui, server, sagaai, dev_agent). They are imported by their
+# bare name from the repository root, so the package list is spelled out
+# explicitly: setuptools discovery cannot infer a flat layout that also has a
+# root __init__.py, and guessing there tends to drop a subpackage silently.
+#
+# Only an editable install is supported. core/paths.py derives every data
+# directory (defaults, langs, services, the databases) from the parent of the
+# core package, which is the repository root in editable mode and
+# site-packages in a wheel. A non-editable install would therefore start
+# without its default orchestrators and language files.
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sagaai-platform"
+dynamic = ["version"]
+description = "SagaAI: a local multi-agent platform with a Streamlit UI, an optional HTTP API and a developer agent"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "PolyForm-Noncommercial-1.0.0"
+license-files = ["LICENSE"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+
+# Required by every launch: the UI needs streamlit, the storage layer needs
+# SQLAlchemy, the model clients need requests and secrets need cryptography.
+dependencies = [
+    "streamlit>=1.66.0,<2.0",
+    "requests>=2.28,<3.0",
+    "SQLAlchemy>=2.0,<3.0",
+    "alembic>=1.13,<2.0",
+    "cryptography>=41.0,<50.0",
+]
+
+[project.optional-dependencies]
+# Optional transports and helpers. A UI-only installation must not pull a web
+# server, a document parser or a browser driver it never uses.
+api = [
+    "fastapi>=0.115,<1.0",
+    "uvicorn>=0.30,<1.0",
+    "httpx>=0.27,<1.0",
+]
+documents = [
+    "pypdf>=3.0",
+    "pypdfium2>=4.18",
+    "Pillow>=9.0",
+]
+selenium = [
+    "selenium>=4.10",
+]
+ssh = [
+    "paramiko>=3.0",
+]
+# Everything the test suite needs beyond the runtime set.
+dev = [
+    "pytest>=7.0",
+]
+
+[project.scripts]
+sagaai = "sagaai.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/TVD2100/sagaai-platform"
+
+[tool.setuptools]
+packages = [
+    "core",
+    "core.gateway",
+    "core.marketplace",
+    "core.orchestration",
+    "core.schedules",
+    "dev_agent",
+    "sagaai",
+    "sagaai.commands",
+    "server",
+    "server.routes",
+    "storage",
+    "ui",
+    "ui.components",
+    "ui.pages",
+]
+
+[tool.setuptools.dynamic]
+# The platform version lives in exactly one place; the manifest reads it from
+# there instead of keeping a second copy that can drift.
+version = {attr = "core.version.__version__"}
+
+[tool.setuptools.package-data]
+dev_agent = ["*.md"]
+
+[tool.pyright]
+# Static analysis of the platform packages. ``basic`` rather than ``strict``
+# on purpose: the codebase predates type annotations in places where they add
+# nothing (Streamlit page callbacks, SQLAlchemy models), and a strict mode
+# would bury the findings that matter under reportMissingTypeStubs noise from
+# third-party libraries.
+#
+# The number of findings is NOT held at zero - it is held at a BUDGET in
+# pyright_budget.json, checked by scripts/ci_check.py. A budget lets the work
+# land without a thousand-line refactor, while still failing the build when
+# the count grows. Lowering the budget is the intended direction.
+typeCheckingMode = "basic"
+pythonVersion = "3.12"
+# A library without type stubs is a fact about that library, not a defect in
+# this code. The check that matters is whether the platform's own types agree
+# with each other.
+reportMissingTypeStubs = "none"
+# Analysed from the repository root, so the bare-name imports the platform
+# uses (``from core.gateway import runs``) resolve the same way here as at
+# run time.
+include = ["core", "server", "storage", "sagaai"]
+exclude = [".dev_agent", "**/__pycache__", "migrations", "tests"]

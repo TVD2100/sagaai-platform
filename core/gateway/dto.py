@@ -547,6 +547,64 @@ class AssistantDetail:
         return payload
 
 
+# ─── Control outcomes ───────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class CancelOutcome:
+    """What a cancellation request produced.
+
+    The service answers ``CancelReport``; a transport additionally needs to
+    know whether the cross-process marker was written, because a cancellation
+    that reached no live record is still a successful request when the marker
+    exists. Three shapes grew around that flag - the report, a hand-built
+    fallback and the report plus an extra key - and this type replaces all
+    three with one.
+    """
+
+    run_id: str
+    cancelled: bool = False
+    previous_status: str = "running"
+    reason: str = "requested"
+    children: List[str] = field(default_factory=list)
+    marker_written: bool = False
+
+    @classmethod
+    def from_report(cls, report: Any, *, marker_written: Optional[bool] = None
+                    ) -> "CancelOutcome":
+        """Build an outcome from a ``CancelReport`` or from its dict form.
+
+        ``marker_written`` is read from the report when it carries the flag
+        and taken from the argument otherwise: the service report has no such
+        field, while a stored or mocked form may already include it.
+        """
+        if report is None:
+            return cls(run_id="", marker_written=bool(marker_written))
+        read = (report.get if isinstance(report, dict)
+                else lambda key, default=None: getattr(report, key, default))
+        children = read("children") or []
+        flag = read("marker_written")
+        return cls(
+            run_id=str(read("run_id") or ""),
+            cancelled=bool(read("cancelled")),
+            previous_status=str(read("previous_status") or "running"),
+            reason=str(read("reason") or "requested"),
+            children=[str(item) for item in children],
+            marker_written=(bool(flag) if marker_written is None
+                            else bool(marker_written)),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "run_id": self.run_id,
+            "cancelled": bool(self.cancelled),
+            "previous_status": self.previous_status,
+            "reason": self.reason,
+            "children": list(self.children),
+            "marker_written": bool(self.marker_written),
+        }
+
+
 # ─── Health ─────────────────────────────────────────────────────────────────
 
 

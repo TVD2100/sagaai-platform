@@ -108,7 +108,7 @@ def main(argv=None) -> int:
     try:
         import uvicorn
     except Exception:
-        _refuse("uvicorn is not installed. Run: pip install -r requirements-api.txt")
+        _refuse("uvicorn is not installed. Run: pip install -r requirements.lock")
 
     from server.app import create_app
     from server.instance_lock import InstanceLock, refuse_if_running

@@ -1,0 +1,387 @@
+{
+  "agents.detail": {
+    "body": {
+      "auto_apply": true,
+      "config": {
+        "max_steps": 60
+      },
+      "created_at": "<timestamp:str>",
+      "description": "Software work",
+      "is_builtin": true,
+      "max_steps": 60,
+      "name": "DevAgent",
+      "prompt_text": "You are DevAgent.",
+      "slug": "dev_agent",
+      "tools": [
+        "read_file",
+        "run_test"
+      ],
+      "updated_at": "2026-01-02"
+    },
+    "status": 200
+  },
+  "agents.list": {
+    "body": {
+      "items": [
+        {
+          "auto_apply": true,
+          "created_at": "<timestamp:str>",
+          "description": "Software work",
+          "is_builtin": true,
+          "max_steps": 60,
+          "name": "DevAgent",
+          "slug": "dev_agent",
+          "tools": [
+            "read_file",
+            "run_test"
+          ],
+          "updated_at": "2026-01-02"
+        }
+      ],
+      "total": 1
+    },
+    "status": 200
+  },
+  "assistants.detail": {
+    "body": {
+      "assistant_id": "6b0641b3",
+      "created_at": "<timestamp:str>",
+      "description": "Text fixes",
+      "max_tokens": 2000,
+      "max_tool_calls": 5,
+      "model": "gpt-4o",
+      "name": "Корректор",
+      "prompt_text": "Fix the text.",
+      "reasoning_effort": "low",
+      "service": "openai",
+      "slug": "korrektor",
+      "temperature": 0.2,
+      "tools": [
+        "read_file"
+      ]
+    },
+    "status": 200
+  },
+  "assistants.list": {
+    "body": {
+      "items": [
+        {
+          "assistant_id": "6b0641b3",
+          "created_at": "<timestamp:str>",
+          "description": "Text fixes",
+          "max_tokens": 2000,
+          "max_tool_calls": 5,
+          "model": "gpt-4o",
+          "name": "Корректор",
+          "reasoning_effort": "low",
+          "service": "openai",
+          "slug": "korrektor",
+          "temperature": 0.2,
+          "tools": [
+            "read_file"
+          ]
+        }
+      ],
+      "total": 1
+    },
+    "status": 200
+  },
+  "dialogs.message": {
+    "body": {
+      "agent_slug": "",
+      "created_at": "<timestamp:str>",
+      "idempotent_replay": false,
+      "links": {
+        "cancel": "/v1/runs/r_a1b2c3d4e5f6a7b8c9d0e1f2a3b4/cancel",
+        "events": null,
+        "self": "/v1/runs/r_a1b2c3d4e5f6a7b8c9d0e1f2a3b4"
+      },
+      "mode": "auto",
+      "poll_after_ms": 2000,
+      "run_id": "r_a1b2c3d4e5f6a7b8c9d0e1f2a3b4",
+      "status": "running",
+      "thread_id": "20260101_120000_deadbeef",
+      "workspace": ""
+    },
+    "status": 202
+  },
+  "dialogs.start": {
+    "body": {
+      "agent_slug": "dev_agent",
+      "created_at": "<timestamp:str>",
+      "idempotent_replay": false,
+      "links": {
+        "cancel": "/v1/runs/r_a1b2c3d4e5f6a7b8c9d0e1f2a3b4/cancel",
+        "events": null,
+        "self": "/v1/runs/r_a1b2c3d4e5f6a7b8c9d0e1f2a3b4"
+      },
+      "mode": "auto",
+      "poll_after_ms": 2000,
+      "run_id": "r_a1b2c3d4e5f6a7b8c9d0e1f2a3b4",
+      "status": "running",
+      "thread_id": "20260101_120000_deadbeef",
+      "workspace": "/tmp/project"
+    },
+    "location": "/v1/runs/r_a1b2c3d4e5f6a7b8c9d0e1f2a3b4",
+    "status": 202
+  },
+  "errors.malformed_run": {
+    "body": {
+      "error": "The run id has the wrong shape",
+      "error_code": "invalid_request",
+      "expected": "r_<28 hex characters>",
+      "field": "run_id",
+      "ok": false,
+      "request_id": "<request-id:str>"
+    },
+    "status": 400
+  },
+  "errors.unauthorized": {
+    "body": {
+      "error": "Missing or malformed bearer token",
+      "error_code": "unauthorized",
+      "ok": false,
+      "request_id": "<request-id:str>"
+    },
+    "status": 401
+  },
+  "errors.unknown_path": {
+    "body": {
+      "error": "Not Found",
+      "error_code": "not_found",
+      "ok": false,
+      "request_id": "<request-id:str>"
+    },
+    "status": 404
+  },
+  "health": {
+    "body": {
+      "api_enabled": true,
+      "pid": "<int:int>",
+      "status": "ok",
+      "uptime_seconds": "<float:float>"
+    },
+    "status": 200
+  },
+  "ready": {
+    "body": {
+      "checks": {
+        "db": "ready"
+      },
+      "hint": "",
+      "missing": [],
+      "status": "ok",
+      "version": "<version:str>"
+    },
+    "status": 200
+  },
+  "runs.answer": {
+    "body": {
+      "agent_slug": "dev_agent",
+      "artifacts": [],
+      "background": false,
+      "created_at": "<timestamp:float>",
+      "depth": 0,
+      "error_code": null,
+      "heartbeat_age_s": "<float-or-null:float>",
+      "live": true,
+      "parent_run_id": "",
+      "pending_input": null,
+      "root_run_id": "",
+      "run_id": "r_a1b2c3d4e5f6a7b8c9d0e1f2a3b4",
+      "stale_reason": "",
+      "status": "running",
+      "steps_used": 0,
+      "stop_reason": null,
+      "summary": "",
+      "terminal": false,
+      "thread_id": "20260101_120000_deadbeef",
+      "tokens_used": {},
+      "waited_ms": null
+    },
+    "status": 202
+  },
+  "runs.cancel": {
+    "body": {
+      "cancelled": true,
+      "children": [],
+      "marker_written": true,
+      "previous_status": "running",
+      "reason": "requested",
+      "run_id": "r_a1b2c3d4e5f6a7b8c9d0e1f2a3b4"
+    },
+    "status": 202
+  },
+  "runs.get": {
+    "body": {
+      "agent_slug": "dev_agent",
+      "artifacts": [],
+      "background": false,
+      "created_at": "<timestamp:float>",
+      "depth": 0,
+      "error_code": null,
+      "heartbeat_age_s": "<float-or-null:float>",
+      "live": true,
+      "parent_run_id": "",
+      "pending_input": null,
+      "root_run_id": "",
+      "run_id": "r_a1b2c3d4e5f6a7b8c9d0e1f2a3b4",
+      "stale_reason": "",
+      "status": "running",
+      "steps_used": 0,
+      "stop_reason": null,
+      "summary": "",
+      "terminal": false,
+      "thread_id": "20260101_120000_deadbeef",
+      "tokens_used": {},
+      "waited_ms": null
+    },
+    "status": 200
+  },
+  "runs.list": {
+    "body": {
+      "items": [
+        {
+          "agent_slug": "dev_agent",
+          "artifacts": [],
+          "background": false,
+          "created_at": "<timestamp:float>",
+          "depth": 0,
+          "error_code": null,
+          "heartbeat_age_s": "<float-or-null:float>",
+          "live": true,
+          "parent_run_id": "",
+          "pending_input": null,
+          "root_run_id": "",
+          "run_id": "r_a1b2c3d4e5f6a7b8c9d0e1f2a3b4",
+          "stale_reason": "",
+          "status": "running",
+          "steps_used": 0,
+          "stop_reason": null,
+          "summary": "",
+          "terminal": false,
+          "thread_id": "20260101_120000_deadbeef",
+          "tokens_used": {},
+          "waited_ms": null
+        }
+      ],
+      "total": 1
+    },
+    "status": 200
+  },
+  "runs.wait": {
+    "body": {
+      "agent_slug": "dev_agent",
+      "artifacts": [],
+      "background": false,
+      "created_at": "<timestamp:float>",
+      "depth": 0,
+      "error_code": null,
+      "heartbeat_age_s": "<float-or-null:float>",
+      "live": true,
+      "parent_run_id": "",
+      "pending_input": null,
+      "root_run_id": "",
+      "run_id": "r_a1b2c3d4e5f6a7b8c9d0e1f2a3b4",
+      "stale_reason": "",
+      "status": "running",
+      "steps_used": 0,
+      "stop_reason": null,
+      "summary": "",
+      "terminal": false,
+      "thread_id": "20260101_120000_deadbeef",
+      "tokens_used": {},
+      "waited_ms": "<int-or-null:int>"
+    },
+    "status": 200
+  },
+  "search": {
+    "body": {
+      "hits": [
+        {
+          "content": "Сделай отчёт",
+          "message_index": 0,
+          "thread_id": "20260101_120000_deadbeef"
+        }
+      ],
+      "query": "отчёт",
+      "total": 1
+    },
+    "status": 200
+  },
+  "threads.list": {
+    "body": {
+      "items": [
+        {
+          "agent_name": "DevAgent",
+          "agent_slug": "dev_agent",
+          "created_at": "<timestamp:str>",
+          "kind": "dialog",
+          "message_count": 2,
+          "target_file": "",
+          "thread_id": "20260101_120000_deadbeef",
+          "title": "Отчёт",
+          "updated_at": "2026-01-02",
+          "workspace": "/tmp/project"
+        }
+      ],
+      "limit": 50,
+      "offset": 0,
+      "total": 1,
+      "truncated": false
+    },
+    "status": 200
+  },
+  "threads.read": {
+    "body": {
+      "limit": 50,
+      "messages": [
+        {
+          "content": "Сделай отчёт",
+          "events": [],
+          "file_chars": 0,
+          "file_name": "",
+          "hidden": false,
+          "index": 0,
+          "role": "user",
+          "tokens": {},
+          "ts": "2026-01-01T12:00:00+00:00"
+        },
+        {
+          "content": "Отчёт готов",
+          "events": [],
+          "file_chars": 0,
+          "file_name": "",
+          "hidden": false,
+          "index": 1,
+          "role": "assistant",
+          "tokens": {},
+          "ts": "2026-01-01T12:00:00+00:00"
+        }
+      ],
+      "offset": 0,
+      "remaining": 0,
+      "thread": {
+        "agent_name": "DevAgent",
+        "agent_slug": "dev_agent",
+        "created_at": "<timestamp:str>",
+        "kind": "dialog",
+        "message_count": 2,
+        "target_file": "",
+        "thread_id": "20260101_120000_deadbeef",
+        "title": "Отчёт",
+        "updated_at": "2026-01-02",
+        "workspace": "/tmp/project"
+      },
+      "total": 2
+    },
+    "status": 200
+  },
+  "version": {
+    "body": {
+      "api_version": 1,
+      "version": "<version:str>"
+    },
+    "status": 200
+  }
+}

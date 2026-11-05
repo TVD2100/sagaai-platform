@@ -56,61 +56,34 @@ except Exception as _marketplace_error:  # pragma: no cover - start-up guard
         flush=True,
     )
 
-# A devagent.db written before the transcript file store is archived and
-# replaced by an empty one. The check runs at cold start, before Streamlit
-# opens any connection, so the new file is in place before the ORM touches
-# it. A run with nothing to archive is a couple of fast pragmas.
+# Both databases are brought to the current schema revision before anything
+# reads them. The driver runs the message-layout archivers first and then the
+# revision chain, so the order the platform depends on lives in one place
+# instead of being repeated by every transport.
 if _cold_start:
     try:
-        from core import devagent_db_archive as _db_archive
+        from storage import migrations as _migrations
 
-        _db_archive_report = _db_archive.ensure_database_format()
-        if _db_archive_report.get("action") not in ("none", "created"):
+        _migration_report = _migrations.upgrade_installation()
+        if not _migration_report.get("ok"):
             print(
-                "[devagent db] action=%s archive=%r threads=%r messages=%r error=%r"
-                % (
-                    _db_archive_report.get("action"),
-                    _db_archive_report.get("archive_path"),
-                    _db_archive_report.get("threads"),
-                    _db_archive_report.get("messages"),
-                    _db_archive_report.get("error"),
-                ),
+                "[schema] error=%r" % (_migration_report,),
                 file=sys.stderr,
                 flush=True,
             )
-    except Exception as _db_archive_error:  # pragma: no cover - start-up guard
+        else:
+            for _item in _migration_report.get("databases") or []:
+                if _item.get("action") not in ("none", "unchanged"):
+                    print(
+                        "[schema] %s action=%s revision=%s"
+                        % (_item.get("kind"), _item.get("action"),
+                           _item.get("after")),
+                        file=sys.stderr,
+                        flush=True,
+                    )
+    except Exception as _migration_error:  # pragma: no cover - start-up guard
         print(
-            "[devagent db] error=%r" % (_db_archive_error,),
-            file=sys.stderr,
-            flush=True,
-        )
-
-# Assistant dialogues used to keep their messages inside sagaai.db. They are
-# moved to per-thread transcript files on the first start of this build, with
-# the previous database archived beside itself first. Unlike the DevAgent
-# check above, the main database is NOT replaced: it also holds assistants,
-# settings and the marketplace registry, so only the message rows move.
-if _cold_start:
-    try:
-        from core import chat_db_archive as _chat_archive
-
-        _chat_archive_report = _chat_archive.ensure_database_format()
-        if _chat_archive_report.get("action") not in ("none", "created"):
-            print(
-                "[chat db] action=%s archive=%r threads=%r messages=%r error=%r"
-                % (
-                    _chat_archive_report.get("action"),
-                    _chat_archive_report.get("archive_path"),
-                    _chat_archive_report.get("threads"),
-                    _chat_archive_report.get("messages"),
-                    _chat_archive_report.get("error"),
-                ),
-                file=sys.stderr,
-                flush=True,
-            )
-    except Exception as _chat_archive_error:  # pragma: no cover - start-up guard
-        print(
-            "[chat db] error=%r" % (_chat_archive_error,),
+            "[schema] error=%r" % (_migration_error,),
             file=sys.stderr,
             flush=True,
         )

@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 """core/dependency_check.py - runtime dependency registry and version audit.
 
-The platform ships a requirements.txt, but a user may run it inside an older
-virtualenv or forget to install the optional document/SSH helpers. On the
-first cold start the UI calls :func:`check_dependencies` and warns about
-packages that are missing or older than the supported minimum, so the user
-can run ``pip install -r requirements.txt`` (or ``pip install -U <pkg>``)
-before hitting a confusing ImportError deep inside a feature.
+The platform pins its dependency set in requirements.lock, but a user may
+run it inside an older virtualenv or forget to install the optional
+document/SSH helpers. On the first cold start the UI calls
+:func:`check_dependencies` and warns about packages that are missing or older
+than the supported minimum, so the user can run
+``pip install -r requirements.lock`` (or ``pip install -U <pkg>``) before
+hitting a confusing ImportError deep inside a feature.
 
 Public API:
   DEPENDENCIES          - registry: import name -> {pip, min, required}
@@ -30,6 +31,9 @@ DEPENDENCIES = {
     "streamlit":    {"pip": "streamlit",    "min": "1.66.0", "required": True},
     "requests":     {"pip": "requests",     "min": "2.28",   "required": True},
     "sqlalchemy":   {"pip": "SQLAlchemy",   "min": "2.0",    "required": True},
+    # Runs the schema revision chain; the platform opens no database without
+    # it, so it is as required as SQLAlchemy itself.
+    "alembic":      {"pip": "alembic",      "min": "1.13",   "required": True},
     "cryptography": {"pip": "cryptography", "min": "41.0",   "required": True},
     # Optional document parsing and utilities.
     "pypdf":        {"pip": "pypdf",        "min": "3.0",    "required": False},

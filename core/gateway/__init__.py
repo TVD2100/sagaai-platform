@@ -33,6 +33,7 @@ from __future__ import annotations
 from core.gateway.dto import (  # noqa: F401 - public surface
     AssistantCard,
     AssistantDetail,
+    CancelOutcome,
     DialogHandle,
     DialogOutcome,
     DialogRequest,
@@ -55,6 +56,7 @@ from core.gateway.errors import GatewayError  # noqa: F401 - public surface
 __all__ = [
     "AssistantCard",
     "AssistantDetail",
+    "CancelOutcome",
     "DialogHandle",
     "DialogOutcome",
     "DialogRequest",

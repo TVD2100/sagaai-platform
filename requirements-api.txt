@@ -2,10 +2,13 @@
 #
 # Kept apart from requirements.txt on purpose: an installation that only
 # uses the Streamlit UI must not pull a web server and a validation
-# framework into its environment. Install this file only when the API is
-# actually wanted:
+# framework into its environment. Both files are inputs of requirements.lock,
+# and the lock is what an installation consumes:
 #
-#     pip install -r requirements-api.txt
+#     pip install -r requirements.lock
+#
+# A package belongs in this file, not in pyproject.toml's base dependencies,
+# when the platform can run without it.
 #
 # Versions track the ones this build was developed and tested against.
 

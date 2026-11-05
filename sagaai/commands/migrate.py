@@ -100,15 +100,62 @@ def _run_chat_archive(name: str) -> Dict[str, Any]:
 
 
 def _run_schema(name: str) -> Dict[str, Any]:
-    """Create the tables and columns this build expects.
+    """Bring both databases to ``head`` of the schema history.
 
-    Importing ``storage.db`` is what performs the migration; the two engine
-    getters make the dependency explicit and both are idempotent.
+    The revision chain is the migration now: the twelve idempotent statements
+    that used to run on every start are revisions 0001..0007, and the message
+    layout is recorded as revision 0008. ``storage.migrations`` executes them
+    and reports the revision each database reached.
+
+    Returns:
+        ``{step, status, action, head, databases}``; ``status`` is ``error``
+        when any database stopped short of ``head``.
     """
-    from storage import db as storage_db
-    storage_db.get_engine()
-    storage_db.get_devagent_engine()
-    return {"step": name, "status": "ok", "action": "applied"}
+    from storage import migrations
+
+    report = _common.call(migrations.upgrade_installation)
+    databases = list(report.get("databases") or [])
+    failed = [item for item in databases if not item.get("ok")]
+    return {"step": name, "status": "error" if failed else "ok",
+            "action": "upgraded" if any(item.get("action") == "upgraded"
+                                        for item in databases) else "current",
+            "head": str(report.get("head") or ""),
+            "databases": databases,
+            "error": "; ".join(str(item.get("error") or "") for item in failed)}
+
+
+def _rollback(snapshot: Dict[str, Any], console) -> Dict[str, Any]:
+    """Restore the pre-migration snapshot after a failed schema step.
+
+    The snapshot is the only state the migration started from, so it is the
+    only honest way back: a revision that applied and a revision that failed
+    cannot be separated by re-running the chain. A rollback that itself fails
+    is reported, not raised - the original failure is what the operator needs
+    to see first.
+
+    Returns:
+        ``{attempted, ok, snapshot_id, error}``.
+    """
+    result: Dict[str, Any] = {"attempted": False, "ok": False,
+                              "snapshot_id": str(snapshot.get("snapshot_id") or ""),
+                              "error": ""}
+    if not result["snapshot_id"]:
+        result["error"] = "no snapshot was taken, nothing to roll back to"
+        return result
+    result["attempted"] = True
+    try:
+        from core.gateway import backup
+
+        report = _common.call(backup.restore_backup,
+                              result["snapshot_id"], safety_snapshot=False)
+        result["ok"] = bool(report.get("ok"))
+        result["error"] = str(report.get("error") or "")
+    except Exception as exc:  # noqa: BLE001 - reported with the failure
+        result["error"] = str(exc)
+    console.warn("the schema step failed: %s" %
+                 ("rolled back to " + result["snapshot_id"] if result["ok"]
+                  else "rollback failed: " + result["error"]))
+    return result
 
 
 def _integrity() -> Dict[str, Any]:
@@ -141,10 +188,21 @@ def execute(args: argparse.Namespace, console) -> int:
         console.warn("the pre-migration snapshot was skipped by request")
 
     rows = _migrate_databases()
+    rollback: Dict[str, Any] = {"attempted": False, "ok": False,
+                                "snapshot_id": "", "error": ""}
+    schema_failed = any(row.get("step") == "schema" and row.get("status") == "error"
+                        for row in rows)
+    if schema_failed:
+        # The schema step is the only one that can leave a database between
+        # two revisions: the archive steps either move a file completely or
+        # leave it alone. Restoring the snapshot is therefore the one action
+        # that returns the installation to a state this build has seen.
+        rollback = _rollback(snapshot, console)
     integrity = _integrity()
     failed = [row for row in rows if row.get("status") == "error"]
     data: Dict[str, Any] = {
         "snapshot": snapshot,
+        "rollback": rollback,
         "steps": rows,
         "integrity": integrity,
         "failed": [row.get("step") for row in failed],
@@ -161,19 +219,29 @@ def execute(args: argparse.Namespace, console) -> int:
                            (" (%d threads, %d messages)" % (
                                row.get("threads"), row.get("messages"))
                             if row.get("threads") or row.get("messages") else ""))
+            if row.get("head"):
+                console.bullet("revision: %s (head)" % row.get("head"))
+        if rollback.get("attempted"):
+            console.blank()
+            console.title("rollback")
+            console.status("snapshot", "ok" if rollback.get("ok") else "error",
+                           rollback.get("snapshot_id") or rollback.get("error"))
         console.blank()
         console.title("integrity")
         for name, verdict in integrity.items():
             console.status(name, "ok" if verdict == "ok" else "error",
                            str(verdict))
     if failed:
+        rolled = bool(rollback.get("ok"))
         raise CliError("migrate_failed",
                        "the migration failed for: " +
                        ", ".join(str(row.get("step")) for row in failed),
                        exit_code=exit_codes.FAILURE,
-                       hint=("restore the snapshot: sagaai backup restore "
-                             + snapshot.get("snapshot_id", ""))
-                            if snapshot.get("snapshot_id") else "")
+                       hint=("the databases were restored from snapshot "
+                             + str(rollback.get("snapshot_id"))) if rolled
+                            else (("restore the snapshot: sagaai backup restore "
+                                   + str(snapshot.get("snapshot_id")))
+                                  if snapshot.get("snapshot_id") else ""))
     console.emit("migrate", data, exit_code=exit_codes.OK,
                  version=_common.platform_version())
     return exit_codes.OK

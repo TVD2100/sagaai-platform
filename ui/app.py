@@ -430,11 +430,12 @@ def _handle_thread_deeplink() -> None:
 def _run_dependency_check_once():
     """Audit installed dependencies once per session at cold start.
 
-    Warns about missing or outdated packages so the user can run
-    ``pip install -r requirements.txt`` (or ``pip install -U <pkg>``) before
-    hitting a confusing ImportError deep inside a feature. Runs at most
-    once per session to keep reruns cheap; a probing error is swallowed and
-    never blocks the app start.
+    Warns about missing or outdated packages so the user can reinstall the
+    pinned set from the lock (``pip install -r requirements.lock``) or update
+    a single package (``pip install -U <pkg>``) before hitting a confusing
+    ImportError deep inside a feature. Runs at most once per session to keep
+    reruns cheap; a probing error is swallowed and never blocks the app
+    start.
     """
     if st.session_state.get("_deps_checked"):
         return

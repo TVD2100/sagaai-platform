@@ -23,8 +23,8 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from core.gateway import errors
-from core.gateway.dto import PendingInput, RunSnapshot
+from core.gateway import dto, errors
+from core.gateway.dto import CancelOutcome, PendingInput, RunSnapshot
 
 log = logging.getLogger("core.gateway.runs")
 
@@ -143,7 +143,8 @@ def snapshot_of(record: Dict[str, Any], *, live: bool = False) -> RunSnapshot:
         age = None
     artifacts = record.get("artifacts") or []
     tokens = record.get("tokens_used") or {}
-    nested = record.get("result") if isinstance(record.get("result"), dict) else {}
+    nested_raw = record.get("result")
+    nested: Dict[str, Any] = nested_raw if isinstance(nested_raw, dict) else {}
     return RunSnapshot(
         run_id=str(record.get("run_id") or ""),
         root_run_id=str(record.get("root_run_id") or ""),
@@ -246,7 +247,7 @@ def list_runs(*, thread_id: str = "", root_run_id: Optional[str] = None,
 # ─── Control ────────────────────────────────────────────────────────────────
 
 
-def cancel_run(run_id: str, *, cascade: bool = True) -> Dict[str, Any]:
+def cancel_run(run_id: str, *, cascade: bool = True) -> "CancelOutcome":
     """Cancel a run in this process and mark it for any other one.
 
     Two mechanisms on purpose: the in-process flag stops a run this process
@@ -259,27 +260,31 @@ def cancel_run(run_id: str, *, cascade: bool = True) -> Dict[str, Any]:
         raise errors.invalid_request("run id is required", field="run_id")
     service = get_service()
     marker = request_cancel(rid)
-    report: Dict[str, Any]
     try:
         result = service.cancel(rid, cascade=bool(cascade))
-        report = result.to_dict() if hasattr(result, "to_dict") else dict(result or {})
+        outcome = dto.CancelOutcome.from_report(result, marker_written=bool(marker))
     except Exception as exc:
         log.warning("in-process cancel failed for %s: %s", rid, exc)
-        report = {"run_id": rid, "cancelled": False, "reason": "unknown_run"}
-    if not report.get("cancelled") and not marker:
+        outcome = dto.CancelOutcome(run_id=rid, cancelled=False,
+                                    reason="unknown_run",
+                                    marker_written=bool(marker))
+    if not outcome.cancelled and not marker:
         # Neither a live record nor a marker: the run truly does not exist.
         raise errors.run_not_found(rid)
-    report["marker_written"] = bool(marker)
-    return report
+    return outcome
 
 
-def answer_run(run_id: str, answer: str) -> Dict[str, Any]:
-    """Deliver an answer to a parked question.
+def answer_run(run_id: str, answer: str) -> "RunSnapshot":
+    """Deliver an answer to a parked question and return the new state.
 
     Only a run parked on ``awaiting_question`` can be answered; anything else
     answers ``nothing_to_answer`` instead of silently doing nothing.
     ``awaiting_input`` without a question is a run that stopped short of its
     goal and needs ``resume_run``, not an answer.
+
+    The returned snapshot is the state AFTER delivery: a caller that needs to
+    know what to do next - keep polling, or stop - reads it from here instead
+    of issuing a second status call.
     """
     rid = str(run_id or "").strip()
     text = str(answer or "").strip()
@@ -295,12 +300,12 @@ def answer_run(run_id: str, answer: str) -> Dict[str, Any]:
                                   details={"run_id": rid,
                                            "status": snapshot.status})
     try:
-        result = service.answer_run(rid, text)
+        service.answer_run(rid, text)
     except Exception as exc:
         log.warning("answer delivery failed for %s: %s", rid, exc)
         raise errors.GatewayError("nothing_to_answer", str(exc),
                                   details={"run_id": rid})
-    return result.to_dict() if hasattr(result, "to_dict") else dict(result or {})
+    return get_run(rid)
 
 
 def can_answer(snapshot: RunSnapshot) -> bool:

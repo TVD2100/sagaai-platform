@@ -158,6 +158,21 @@ def test_app_version_change_is_detected(tmp_path):
     assert "app_version" in (out + err)
 
 
+def test_ci_configuration_belongs_to_the_code_unit(tmp_path):
+    """A workflow is executable infrastructure, never a selectable file."""
+    repo = _build_repo(tmp_path)
+    (repo / ".github" / "workflows").mkdir(parents=True)
+    (repo / ".github" / "workflows" / "ci.yml").write_text("name: CI\n", encoding="utf-8")
+    _git(repo, "add", ".github/workflows/ci.yml")
+    _git(repo, "commit", "-q", "-m", "add workflow")
+
+    assert _run_verifier(repo, "--init")[0] == 0
+    manifest = json.loads((repo / "file_versions.json").read_text(encoding="utf-8"))
+    assert ".github/workflows/ci.yml" in manifest["units"]["core"]["files"]
+    assert ".github/workflows/ci.yml" not in manifest["selectable"]
+    assert _run_verifier(repo)[0] == 0
+
+
 def test_changelog_local_only_is_coverage_skip(tmp_path):
     """A git-tracked CHANGELOG.md must not require a manifest entry."""
     repo = _build_repo(tmp_path)

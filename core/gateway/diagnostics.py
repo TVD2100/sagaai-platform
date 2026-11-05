@@ -186,6 +186,9 @@ def _database_file(name: str, path: str) -> Dict[str, Any]:
             "exists": False,
             "size": 0,
             "user_version": None,
+            "revision": "",
+            "revision_head": _expected_revision(),
+            "revision_behind": 0,
             "tables": [],
             "missing_tables": list(REQUIRED_TABLES),
             "state": "not_initialized",
@@ -196,6 +199,9 @@ def _database_file(name: str, path: str) -> Dict[str, Any]:
         "exists": True,
         "size": os.path.getsize(path),
         "user_version": None,
+        "revision": "",
+        "revision_head": _expected_revision(),
+        "revision_behind": 0,
         "tables": [],
         "missing_tables": [],
         "state": "ok",
@@ -218,9 +224,43 @@ def _database_file(name: str, path: str) -> Dict[str, Any]:
             conn.close()
         except Exception:  # pragma: no cover - closing is best effort
             pass
+    _fill_revision(info)
     if info["missing_tables"]:
         info["state"] = "incomplete"
+    elif info.get("revision_behind"):
+        info["state"] = "outdated"
     return info
+
+
+def _expected_revision() -> str:
+    """Return the revision this build expects, or ``''`` when unreadable.
+
+    A diagnostic must not create or migrate a database, so the head of the
+    chain is read from the revision files alone.
+    """
+    try:
+        from storage import migrations
+        return str(migrations.head_revision() or "")
+    except Exception:  # pragma: no cover - the chain is part of the install
+        return ""
+
+
+def _fill_revision(info: Dict[str, Any]) -> None:
+    """Record the applied revision of one database in *info*.
+
+    ``revision_status`` opens the file read-only; a failure leaves the empty
+    values in place, which the summary reports as "not versioned" rather than
+    turning a diagnostic into an exception.
+    """
+    try:
+        from storage import migrations
+        status = migrations.revision_status(info["path"])
+    except Exception:  # pragma: no cover - defensive
+        return
+    info["revision"] = str(status.get("current") or "")
+    info["revision_head"] = str(status.get("head") or "") or info["revision_head"]
+    info["revision_behind"] = int(status.get("behind") or 0)
+    info["versioned"] = bool(status.get("versioned"))
 
 
 def check_databases() -> Dict[str, Any]:
@@ -242,6 +282,8 @@ def check_databases() -> Dict[str, Any]:
                   if item["state"] == "unreadable"]
     incomplete = [item["name"] for item in items.values()
                   if item["state"] == "incomplete"]
+    outdated = [item["name"] for item in items.values()
+                if item["state"] == "outdated"]
     missing = [item["name"] for item in items.values()
                if item["state"] == "not_initialized"]
     if unreadable:
@@ -251,6 +293,10 @@ def check_databases() -> Dict[str, Any]:
         status = WARN
         summary = "schema incomplete: " + ", ".join(incomplete) + \
                   " (run: sagaai migrate)"
+    elif outdated:
+        status = WARN
+        summary = "schema revision behind: " + ", ".join(outdated) + \
+                  " (run: sagaai migrate)"
     elif missing:
         status = WARN
         summary = "not initialized: " + ", ".join(missing) + \
@@ -259,7 +305,59 @@ def check_databases() -> Dict[str, Any]:
         status = OK
         summary = "both databases are present and current"
     return _check(status, summary, databases=items,
-                  unreadable=unreadable, incomplete=incomplete, missing=missing)
+                  unreadable=unreadable, incomplete=incomplete,
+                  outdated=outdated, missing=missing)
+
+
+def check_schema_revision() -> Dict[str, Any]:
+    """Report the schema revision of both databases against the expected one.
+
+    This is the check that turns the history into something an operator can
+    read: ``current`` is the revision recorded in the database, ``head`` is
+    the newest revision this build ships. Equal means the installation is at
+    the schema the code expects; behind means the next start will migrate it.
+
+    A database without ``alembic_version`` is reported as unversioned rather
+    than broken: it is an installation created before the history existed, and
+    the baseline revision adopts it on the next migration.
+    """
+    try:
+        from core.paths import DB_PATH, DEVAGENT_DB_PATH
+    except Exception as exc:  # pragma: no cover - defensive
+        return _check(ERROR, "core.paths is unreadable: %s" % exc)
+    head = _expected_revision()
+    items: Dict[str, Any] = {}
+    for name, path in (("sagaai.db", DB_PATH), ("devagent.db", DEVAGENT_DB_PATH)):
+        item = _database_file(name, path)
+        items[name] = {
+            "exists": item["exists"],
+            "state": item["state"],
+            "current": item.get("revision") or "",
+            "head": item.get("revision_head") or head,
+            "behind": int(item.get("revision_behind") or 0),
+            "versioned": bool(item.get("versioned")),
+        }
+    behind = [name for name, item in items.items() if item["behind"]]
+    unversioned = [name for name, item in items.items()
+                   if item["exists"] and not item["versioned"]]
+    missing = [name for name, item in items.items() if not item["exists"]]
+    if behind:
+        status = WARN
+        summary = "revision behind head %s: %s (run: sagaai migrate)" % (
+            head, ", ".join(behind))
+    elif unversioned:
+        status = WARN
+        summary = ("schema history not adopted yet: " + ", ".join(unversioned)
+                   + " (run: sagaai migrate)")
+    elif missing:
+        status = WARN
+        summary = ("schema history not applied yet: " + ", ".join(missing)
+                   + " (run: sagaai migrate)")
+    else:
+        status = OK
+        summary = "both databases are at revision %s" % (head or "unknown")
+    return _check(status, summary, head=head, databases=items,
+                  behind=behind, unversioned=unversioned, missing=missing)
 
 
 # ─── Permissions and the encryption key ─────────────────────────────────────
@@ -505,6 +603,7 @@ CHECKS = (
     ("paths", check_paths),
     ("dependencies", check_dependencies),
     ("databases", check_databases),
+    ("schema", check_schema_revision),
     ("permissions", check_permissions),
     ("encryption_key", check_encryption_key),
     ("tokens", check_tokens),

@@ -95,7 +95,7 @@ def execute(args: argparse.Namespace, console) -> int:
         raise config_error(
             "streamlit_missing",
             "streamlit is not installed in this interpreter (%s)" % executable,
-            hint="pip install -r requirements.txt",
+            hint="pip install -r requirements.lock",
         )
 
     command = _command(executable, app_path, args)

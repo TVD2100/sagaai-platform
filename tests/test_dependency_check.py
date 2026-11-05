@@ -186,40 +186,47 @@ def test_default_registry_returns_report_shape(monkeypatch):
 # ── consistency with requirements.txt ────────────────────────────────────────
 
 def _parse_requirements():
-    """Return {pip_name_lower: specifier} from the project requirements.txt."""
+    """Return {pip_name_lower: [specifier clause, ...]} from requirements.txt.
+
+    One requirement may carry several clauses - ``streamlit>=1.66.0,<2.0``
+    has a floor and a ceiling - so the value is the list of clauses without
+    the name. A bare name yields an empty list.
+    """
     root = Path(__file__).resolve().parent.parent
     entries = {}
     for raw in (root / "requirements.txt").read_text(encoding="utf-8").splitlines():
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
+        line = line.split(" #", 1)[0].strip()
+        name = line
         for sep in (">=", "==", "<=", "~=", ">", "<", "!="):
             if sep in line:
-                name, _, ver = line.partition(sep)
-                entries[name.strip().lower()] = sep + ver.strip()
+                name = line.partition(sep)[0]
                 break
-        else:
-            entries[line.lower()] = ""
+        spec = line[len(name):].strip()
+        entries[name.strip().lower()] = [c.strip() for c in spec.split(",") if c.strip()]
     return entries
 
 
 def test_requirements_pins_streamlit_minimum_not_exact():
-    """streamlit must be a >= minimum pin, not an exact == pin."""
+    """streamlit must carry its floor clause, never an exact == pin."""
     reqs = _parse_requirements()
     assert "streamlit" in reqs
-    assert reqs["streamlit"] == ">=1.66.0"
+    assert ">=1.66.0" in reqs["streamlit"]
+    assert not any(clause.startswith("==") for clause in reqs["streamlit"])
 
 
 def test_registry_matches_requirements():
     """Every runtime registry package is declared in requirements.txt with
-    the same minimum version."""
+    the same minimum version. A ceiling clause may follow the floor."""
     reqs = _parse_requirements()
     for spec in dc.DEPENDENCIES.values():
         pip_lower = spec["pip"].lower()
         assert pip_lower in reqs, f"{spec['pip']} missing from requirements.txt"
-        assert reqs[pip_lower] == ">=" + spec["min"], (
+        assert ">=" + spec["min"] in reqs[pip_lower], (
             f"{spec['pip']}: requirements {reqs[pip_lower]!r} "
-            f"!= registry >= {spec['min']}"
+            f"has no >= {spec['min']} floor"
         )
 
 
@@ -228,4 +235,4 @@ def test_dev_dependencies_match_requirements():
     for spec in dc.DEV_DEPENDENCIES.values():
         pip_lower = spec["pip"].lower()
         assert pip_lower in reqs, f"{spec['pip']} missing from requirements.txt"
-        assert reqs[pip_lower] == ">=" + spec["min"]
+        assert ">=" + spec["min"] in reqs[pip_lower]

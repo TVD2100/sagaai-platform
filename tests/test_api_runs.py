@@ -262,9 +262,8 @@ def test_an_answer_is_delivered_and_the_state_is_returned(client, token,
                                                          monkeypatch):
     calls = []
     monkeypatch.setattr(route_runs.gateway_runs, "answer_run",
-                        lambda rid, text: calls.append((rid, text)) or {})
-    monkeypatch.setattr(route_runs.gateway_runs, "get_run",
-                        lambda rid: _snapshot(status="running"))
+                        lambda rid, text: calls.append((rid, text))
+                        or _snapshot(status="running"))
     response = client.post("/v1/runs/%s/answer" % RUN_ID,
                            json={"answer": "the first one"},
                            headers=_auth(token))

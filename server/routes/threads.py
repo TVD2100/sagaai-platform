@@ -19,11 +19,13 @@ from fastapi import APIRouter, Depends, Query
 
 from core.gateway import threads as gateway_threads
 from server import deps, schemas
+from server.errors import error_responses
 
 router = APIRouter(tags=["threads"])
 
 
 @router.get("/threads", response_model=schemas.ThreadListOut,
+            responses=error_responses(),
             summary="Dialogs this token may read")
 def list_threads(slugs: str = Query(default="",
                                     description="Comma-separated employee slugs."),
@@ -33,7 +35,8 @@ def list_threads(slugs: str = Query(default="",
                  limit: int = Query(default=50, ge=1, le=200),
                  offset: int = Query(default=0, ge=0),
                  order: str = Query(default="desc"),
-                 scope: List[str] = Depends(deps.caller_scope)) -> dict:
+                 scope: List[str] = Depends(deps.caller_scope)
+                 ) -> schemas.ThreadListOut:
     """Return one page of dialogs visible to the caller."""
     wanted = [item.strip() for item in str(slugs or "").split(",") if item.strip()]
     page = gateway_threads.list_threads(
@@ -46,16 +49,18 @@ def list_threads(slugs: str = Query(default="",
         items=[schemas.thread_out(item) for item in page.items],
         total=page.total, offset=page.offset, limit=page.limit,
         truncated=page.truncated,
-    ).model_dump()
+    )
 
 
 @router.get("/threads/{thread_id}", response_model=schemas.ThreadWindowOut,
+            responses=error_responses(),
             summary="Messages of one dialog")
 def read_thread(thread_id: str,
                 offset: int = Query(default=0, ge=0),
                 limit: int = Query(default=50, ge=1, le=200),
                 include_tool_results: bool = Query(default=False),
-                scope: List[str] = Depends(deps.caller_scope)) -> dict:
+                scope: List[str] = Depends(deps.caller_scope)
+                ) -> schemas.ThreadWindowOut:
     """Return one window of a dialog's messages."""
     key = deps.thread_id_path(thread_id)
     window = gateway_threads.read_messages(
@@ -67,17 +72,19 @@ def read_thread(thread_id: str,
         messages=[schemas.message_out(item) for item in window.messages],
         total=window.total, offset=window.offset, limit=window.limit,
         remaining=window.remaining,
-    ).model_dump()
+    )
 
 
 @router.get("/search", response_model=schemas.SearchOut,
+            responses=error_responses(),
             summary="Search message bodies")
 def search(query: str = Query(min_length=1),
            slugs: str = Query(default=""),
            regex: bool = Query(default=False),
            include_tool_results: bool = Query(default=False),
            max_results: int = Query(default=20, ge=1, le=100),
-           scope: List[str] = Depends(deps.caller_scope)) -> dict:
+           scope: List[str] = Depends(deps.caller_scope)
+           ) -> schemas.SearchOut:
     """Search the messages of the dialogs this token may read."""
     wanted = [item.strip() for item in str(slugs or "").split(",") if item.strip()]
     page = gateway_threads.search_messages(
@@ -85,7 +92,6 @@ def search(query: str = Query(min_length=1),
         include_tool_results=include_tool_results,
         max_results=max_results, allowed_slugs=scope,
     )
-    return schemas.SearchOut(hits=page.hits, total=page.total,
-                             query=page.query).model_dump()
+    return schemas.SearchOut(hits=page.hits, total=page.total, query=page.query)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

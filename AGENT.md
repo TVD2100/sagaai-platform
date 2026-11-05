@@ -14,6 +14,25 @@
 3. **Минимум сторонних библиотек**: новые зависимости - только в крайнем
    случае, когда без них невозможно обойтись; предпочитайте стандартную
    библиотеку Python.
+4. **Один источник версий зависимостей**: устанавливаемый набор задаёт
+   `requirements.lock` (точные версии и хэши), а `requirements.txt` и
+   `requirements-api.txt` - только пределы версий для его пересборки.
+   Установка идёт из lock, сверку ведёт `scripts/ci_check.py`.
+5. **Установка только editable** (`pip install -e .`): каталоги данных
+   вычисляются от родителя пакета `core` (`core/paths.py`), и обычная
+   установка из wheel их теряет.
+6. **Форма данных на границе объявляется моделью, а не собирается по
+   ключам.** Внутри платформы это dataclass'ы ядра (`core/gateway/dto.py`),
+   на проводе - pydantic-схемы (`server/schemas.py`); связывают уровни явные
+   мапперы, и только `server/schemas.py` импортирует pydantic. Публичный JSON
+   зафиксирован golden-тестами (`tests/test_api_golden.py`,
+   `tests/golden/api_contract.json`): изменение контракта - это правка обоих
+   файлов в одном коммите, а не побочный эффект рефакторинга.
+7. **Число находок статического анализа не растёт.** `pyright` работает в
+   режиме `basic` по пакетам `core`, `server`, `storage`, `sagaai`, а предел
+   задан в `pyright_budget.json`. Новый отказ означает, что его сначала
+   исправляют; поднимать бюджет можно только осознанно, вместе с причиной в
+   описании коммита, а снижать - отдельным коммитом.
 
 ## Назначение системы
 
@@ -896,7 +915,7 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   (проверяется тестом `tests/test_dependency_check.py`).
 - Пользователю показываются отдельные предупреждения: `deps_missing` -
   отсутствующие библиотеки (с рекомендацией `pip install -r
-  requirements.txt`); `deps_outdated` - устаревшие версии вида
+  requirements.lock`); `deps_outdated` - устаревшие версии вида
   `pkg installed -> required` (с рекомендацией обновить).
 - Проверка устойчива к сбоям: отсутствие metadata у пакета трактуется
   мягко, любая ошибка аудита не блокирует старт приложения.
@@ -1545,8 +1564,9 @@ Ed25519), а проверка подписи на стороне клиента 
   сервер без браузера, cron-задача, CI, первичная настройка, диагностика
   установки, обслуживание баз.
 - **Пакет и запуск.** Код - `sagaai/` (команды в `sagaai/commands/`),
-  точки входа - `python -m sagaai` и скрипт `bin/sagaai`; обе вызывают одну
-  функцию `sagaai.cli.main`, поэтому ведут себя одинаково.
+  точки входа - `python -m sagaai`, консольная команда `sagaai` (из
+  `pyproject.toml`) и скрипт `bin/sagaai` для неустановленной копии; все
+  вызывают одну функцию `sagaai.cli.main`, поэтому ведут себя одинаково.
 - **Изоляция.** Консоль не импортирует Streamlit и HTTP-стек: интерфейс
   запускается отдельным процессом (`sagaai ui`), сервер - лениво
   (`sagaai serve`). `tests/test_cli_imports.py` проверяет это в подпроцессе
@@ -1577,9 +1597,19 @@ Ed25519), а проверка подписи на стороне клиента 
   вопрос) - это РЕЗУЛЬТАТ с кодом 0 и описанием паузы, а не ошибка.
   Истёкшее ожидание даёт код 3 и run id, но запуск НЕ отменяется: отказ от
   ожидания не должен уничтожать работу.
+- **Схема как версионируемый артефакт.** Единственный владелец структуры
+  баз - цепочка ревизий Alembic в `migrations/versions/`. При старте и в
+  `sagaai migrate` драйвер `storage/migrations.py` сначала выполняет
+  data-миграции раскладки (архиваторы сообщений), затем `upgrade head`;
+  повторный запуск на актуальной базе не открывает транзакцию. Новая
+  установка создаётся той же цепочкой (baseline-ревизия), а база без
+  `alembic_version` усыновляется baseline без пересоздания данных.
+  `render_as_batch` обязателен: SQLite меняет таблицу пересозданием.
 - **`doctor` только читает.** Диагностика не создаёт базы и не пишет в
   папку данных: `tests/test_cli_commands.py` проверяет, что после прогона
   на чистой установке файлов баз не появилось. Готовит установку `migrate`.
+  Проверка `schema` показывает ревизию каждой базы и её расхождение с head
+  (`behind`), отдельно называя базу без истории и отсутствующий файл.
 - **Снимки баз.** `core/gateway/backup.py` копирует через движок SQLite
   (копия файла в WAL-режиме - не бэкап), пишет манифест с sha256 каждого
   члена и проверяет `PRAGMA integrity_check` до и после. Снимки лежат в
@@ -1713,14 +1743,14 @@ Ed25519), а проверка подписи на стороне клиента 
     # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
     # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
-- Список базовых файлов (197):
+- Список базовых файлов (199):
   - Корень (2): __init__.py, app.py
   - UI (24): ui/__init__.py, ui/app.py, ui/components/__init__.py, ui/components/flash.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/access.py, ui/pages/assistants.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/marketplace.py, ui/pages/orchestrator.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrators.py, ui/pages/schedules.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/updates.py, ui/pages/updates_marketplace.py, ui/pages/welcome.py
   - Core (72): core/__init__.py, core/api_errors.py, core/api_layer.py, core/api_token_store.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/chat_db_archive.py, core/config.py, core/connector_presets.py, core/connectors.py, core/context_guard.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/devagent_db_archive.py, core/dependency_check.py, core/document_images.py, core/document_text.py, core/entity_sync.py, core/env_loader.py, core/feed_autoscroll.py, core/files.py, core/folder_dialog.py, core/fs.py, core/gateway_launcher.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/mcp_client.py, core/mcp_tools.py, core/memory_migration.py, core/multimodal.py, core/ooxml.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrator_tools.py, core/orchestrators.py, core/paths.py, core/personal_memory.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/thread_mirror.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py, core/updater.py, core/updater_apply.py, core/url_fetch.py, core/version.py
   - Marketplace (19): core/marketplace/__init__.py, core/marketplace/agent_installer.py, core/marketplace/bootstrap.py, core/marketplace/bundles.py, core/marketplace/catalog.py, core/marketplace/config.py, core/marketplace/conflicts.py, core/marketplace/installer.py, core/marketplace/mcp_installer.py, core/marketplace/migration.py, core/marketplace/publish.py, core/marketplace/rag_installer.py, core/marketplace/registry.py, core/marketplace/rollback.py, core/marketplace/semver.py, core/marketplace/source.py, core/marketplace/store.py, core/marketplace/updates.py, core/marketplace/verify.py
   - Orchestration (12): core/orchestration/__init__.py, core/orchestration/contracts.py, core/orchestration/dialog_runner.py, core/orchestration/invoke.py, core/orchestration/resume.py, core/orchestration/runs.py, core/orchestration/service.py, core/orchestration/tool_classes.py, core/orchestration/tools.py, core/orchestration/transcript_reader.py, core/orchestration/transcript_sink.py, core/orchestration/verify.py
   - Schedules (7): core/schedules/__init__.py, core/schedules/calc.py, core/schedules/daemon.py, core/schedules/form.py, core/schedules/model.py, core/schedules/runner.py, core/schedules/store.py
-  - Storage (5): storage/__init__.py, storage/db.py, storage/models.py, storage/repository.py, storage/repository_devagent.py
+  - Storage (7): storage/__init__.py, storage/db.py, storage/migration_support.py, storage/migrations.py, storage/models.py, storage/repository.py, storage/repository_devagent.py
   - Gateway (11): core/gateway/__init__.py, core/gateway/backup.py, core/gateway/bootstrap.py, core/gateway/diagnostics.py, core/gateway/dialog.py, core/gateway/dto.py, core/gateway/entities.py, core/gateway/errors.py, core/gateway/health.py, core/gateway/runs.py, core/gateway/threads.py
   - DevAgent (14): dev_agent/__init__.py, dev_agent/agent_loop.py, dev_agent/assistant_detector.py, dev_agent/assistant_model_resolver.py, dev_agent/backup_manager.py, dev_agent/config.py, dev_agent/llm_utils.py, dev_agent/safe_writer.py, dev_agent/task_state.py, dev_agent/tool_executor.py, dev_agent/transcript.py, dev_agent/universal_agent.py, dev_agent/workspace_binding.py, dev_agent/workspace_tools.py
   - Server (14): server/__init__.py, server/app.py, server/auth.py, server/deps.py, server/errors.py, server/instance_lock.py, server/middleware.py, server/routes/__init__.py, server/routes/agents.py, server/routes/dialogs.py, server/routes/health.py, server/routes/runs.py, server/routes/threads.py, server/schemas.py
@@ -1728,11 +1758,15 @@ Ed25519), а проверка подписи на стороне клиента 
 
 ## Ограничения
 
+- Поддерживается только Python 3.12 и новее; установка - только
+  editable-режим (`pip install -e .`), а точный набор зависимостей берётся
+  из `requirements.lock` с проверкой хэшей.
 - База данных - только SQLite; миграция на другие СУБД не предусмотрена.
 - Аутентификация есть (страница «Доступы» или опциональный пароль
   `SAGAAI_AUTH_PASSWORD`), многопользовательский режим не предусмотрен.
 - Приложение работает в окружении Streamlit для интерфейса; консоль
-  `sagaai` (пакет `sagaai/`, скрипт `bin/sagaai`) работает без Streamlit и
+  `sagaai` (пакет `sagaai/`, консольная команда из `pyproject.toml`,
+  скрипт `bin/sagaai` как совместимость) работает без Streamlit и
   без HTTP-стека - интерфейс запускается ею отдельным процессом.
 - Универсальный разработчик работает только с папками, доступными
   локально (в пределах файловой системы).

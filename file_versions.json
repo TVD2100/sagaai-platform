@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "2.36.0",
+  "app_version": "2.38.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Консоль sagaai - третий равноправный вход в платформу рядом с интерфейсом и HTTP API: запуск задач сотрудникам, диагностика, токены, обновления, снимки и миграции баз. Работает без Streamlit и HTTP-стека; JSON-режим и фиксированные коды возврата для скриптов.",
-    "en": "The sagaai console - a third equal entry point next to the UI and the HTTP API: tasks for employees, diagnostics, tokens, updates, database snapshots and migrations. Runs without Streamlit or the HTTP stack; JSON mode and fixed exit codes for scripts."
+    "ru": "Границы платформы стали типизированными: публичные ответы gateway описываются моделями вместо голых словарей, HTTP-схемы и интерфейс используют те же модели, сериализация идёт одним слоем. Golden-тесты фиксируют публичный JSON двадцати операций и падают при любом его изменении. В конвейер добавлен pyright с бюджетом ошибок: их число может падать, но новый не пройдёт сборку незамеченным.",
+    "en": "The platform boundaries are typed now: public gateway answers are models rather than bare dictionaries, the HTTP schemas and the interface use the same models, and one layer does the serialisation. Golden tests record the public JSON of twenty operations and fail on any change to it. The pipeline runs pyright against a budget of findings: the count may fall, while a new one no longer slips into the build unseen."
   },
   "updated": "2026-11-05T09:36:43Z",
   "units": {
     "core": {
-      "version": "1.73.0",
+      "version": "1.76.0",
       "note": {
-        "ru": "Пакет: консоль sagaai как третий равноправный вход (пакет sagaai/, bin/sagaai), расширения шлюза для headless-вызова (bootstrap без UI, diagnostics только чтением, backup снимками через движок SQLite, run_dialog с DialogOutcome), create_token/list_tokens в хранилище токенов, локальное зеркало канала обновлений, откат набора в порядке установки и регистрация sagaai/ и bin/ в атомарном пакете.",
-        "en": "Package: the sagaai console as a third equal entry point (sagaai/ package, bin/sagaai), gateway extensions for headless callers (bootstrap without the UI, read-only diagnostics, database snapshots through the SQLite engine, run_dialog with DialogOutcome), create_token/list_tokens in the token store, a local mirror for the update channel, bundle rollback in install order and sagaai/ plus bin/ registered in the atomic unit."
+        "ru": "Пакет: типизированные контракты на границах - модели публичных ответов gateway, схемы server на этих моделях, единый слой сериализации, golden-тесты публичного JSON и pyright с бюджетом ошибок в конвейере.",
+        "en": "Package: typed contracts at the boundaries - models for the public gateway answers, the server schemas built on them, one serialisation layer, golden tests of the public JSON, and pyright with an error budget in the pipeline."
       },
       "files": {
         "__init__.py": {
@@ -20,8 +20,8 @@
           "sha256": "98a049939e085cc41be3ae04222615dacb059ad21b6f9514d8fae47ada0bff37"
         },
         "app.py": {
-          "version": "1.2.2",
-          "sha256": "1bbccaedb5f07d9eea9bd7ea1c201f2cdaab28ff5749f1a5c213e0b5dcc33ebe"
+          "version": "1.2.3",
+          "sha256": "8a5d4aaff387965615868376e0548f1a1623b6b110d22ac35632a4ff3910c575"
         },
         "assets/favicon.svg": {
           "version": "1.0.0",
@@ -108,8 +108,8 @@
           "sha256": "37c1e40690ebc0fad135606e213eee68ec36a81597a6afe1146b8d22db663f61"
         },
         "core/dependency_check.py": {
-          "version": "1.0.5",
-          "sha256": "579df82c1fa51343e89d8815ed5df3cadde0c11377ff46fa0b1fa474b983da87"
+          "version": "1.0.7",
+          "sha256": "9f5713a358c5eca4011dfb8ccf00752abacb8b5a959bc90c52d6dc9c64757aa4"
         },
         "core/entity_sync.py": {
           "version": "1.0.2",
@@ -276,8 +276,8 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.72.0",
-          "sha256": "ceeb1d16c551be4633b8e1e363f790b008282c3ae1a285271077375feb419878",
+          "version": "1.72.1",
+          "sha256": "e1b3bd24680faf9e9f71afc0d192eeb1a024a0234273ddb959d407eb971f63cc",
           "note": {
             "ru": "Релиз 2.34.0: расписания запуска задач агентами.",
             "en": "Release 2.34.0: scheduled agent runs."
@@ -360,32 +360,36 @@
           "sha256": "208d0f9e48700f367ab579de3a91d02a259c8e0322dbfae0758d0cb90cefddb1"
         },
         "requirements.txt": {
-          "version": "1.4.0",
-          "sha256": "11c3ea33f0c9deb31d4a4d6e797bdd1d689612c0e1132d3c092027b79b151713"
+          "version": "1.5.1",
+          "sha256": "907be6b7d15dbddc711b2327945d65a36b951b1adc99035e55dc8757aff70338"
         },
         "scripts/rag_eval.py": {
           "version": "1.0.2",
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.32.2",
-          "sha256": "6e39bb7a677454a5f9945a7933d888b53faaab3cbc8d9b7f2ebea3341eee7d34",
+          "version": "1.34.2",
+          "sha256": "3e506c6c4de4c10cf9a1118844eaf5663dcd2b3c96e8d696776c565404cea40d",
           "note": {
             "ru": "Описания файлов Task Scout в карте проекта.",
             "en": "Task Scout file descriptions in the project map."
           }
         },
         "scripts/verify_manifest.py": {
-          "version": "1.1.3",
-          "sha256": "45cd49757edae1c671d329efc2ee40b2efc0606d3dfa74650918d1bd0ddb33db"
+          "version": "1.2.2",
+          "sha256": "5815f370993924895b1ae248ffe98c0d2ee703f39e570225433dbc137fd181db",
+          "note": {
+            "ru": "Обход покрытия пропускает артефакты editable-установки (*.egg-info) по суффиксу, а не по фиксированному имени.",
+            "en": "The coverage walk skips editable-install artifacts (*.egg-info) by suffix instead of a fixed name."
+          }
         },
         "storage/__init__.py": {
           "version": "1.0.1",
           "sha256": "46c652f62e73918dd32517ed1018e4bea6d0fa9c4e8536bfa38b00c25467b5e7"
         },
         "storage/db.py": {
-          "version": "1.2.2",
-          "sha256": "f46392817cd915611420aac92ae57db4eeccf222dcd265a0977f25efd493fdf1"
+          "version": "1.2.3",
+          "sha256": "0ca99ef9bbd918930065b627dec13ace510b81b4e0a3c323f70ecfa278a8e090"
         },
         "storage/models.py": {
           "version": "1.3.1",
@@ -788,8 +792,8 @@
           "sha256": "7b55a4e395156b8da4f4574d5468baa236308fb2325c966828b9e3d77f4342a6"
         },
         "tests/test_dependency_check.py": {
-          "version": "1.0.4",
-          "sha256": "8000ee0ead6d81a8a44ee15f28bca3993b829d93cc8ef966e187c64906560d85"
+          "version": "1.0.5",
+          "sha256": "329ad673b482b716dc8ad9679d432396cb8ade25a0617eb86607ad64987fd9ae"
         },
         "tests/test_devagent_thread_workspace.py": {
           "version": "1.1.1",
@@ -1165,7 +1169,7 @@
         },
         "tests/test_verify_manifest.py": {
           "version": "1.0.2",
-          "sha256": "57b5e4681b1e4db71bba6c9e88b77149ef4e11912b111d8c24fc835ff39e429d"
+          "sha256": "a34486b2265247bb2449609f224cf66b981b8ae0c63c191dea63c00856edcc62"
         },
         "tests/test_web_search_prompt.py": {
           "version": "1.0.2",
@@ -1192,8 +1196,8 @@
           "sha256": "0581f0ba70632a8048a3f161f15377f719d5a5dfc339412bf5a19a2ee39f54c6"
         },
         "ui/app.py": {
-          "version": "1.8.2",
-          "sha256": "7de561be0988818f73785fcc4511e7ceb1d51d0582b247a6accace3f7473ce91"
+          "version": "1.8.3",
+          "sha256": "b3062315f921c146843c4bb5499fb9f3ad503430c9d21b430031739b5b4788d1"
         },
         "ui/components/__init__.py": {
           "version": "1.0.1",
@@ -2098,8 +2102,8 @@
           "sha256": "c9a468471aa21e4c1f94a04657d004a5d3e2a2fc9cba49a1af6554417f10b506"
         },
         "tests/scenarios/test_chat_db_archive_scenario.py": {
-          "version": "1.0.1",
-          "sha256": "a45d091939f0cd7a50f9a304b9d041fbc045e37f7d2b7c3a4fc3f2afc9cc0a23"
+          "version": "1.0.2",
+          "sha256": "d02513f47f376d324b43aca7ed241bd135fa5130a7957b614c17d00d47840fc4"
         },
         "tests/test_transcript_chat_mirror.py": {
           "version": "1.0.0",
@@ -2250,16 +2254,16 @@
           "sha256": "32dcdd1d119979f352865a0a0c5f25b70fa5e18477ec07f3905228ff66653b55"
         },
         "core/gateway/__init__.py": {
-          "version": "1.1.0",
-          "sha256": "32c5c4b46f22b0d7d1b878646dfbe0845eb1497b0d8f4799bf4361a6185cd79d"
+          "version": "1.2.0",
+          "sha256": "87a27bb16db4230b0743748a043645bbb32991c5fa5d173c95bc89ccdf261b88"
         },
         "core/gateway/dialog.py": {
           "version": "1.1.0",
           "sha256": "923573edf17dadc1c78381e749821809878b81441dae0a0d8237d604bb2f1145"
         },
         "core/gateway/dto.py": {
-          "version": "1.1.0",
-          "sha256": "dc9528b41d91da587babd43795164f27d81e65950146f188d96f8e909d74f11f"
+          "version": "1.2.0",
+          "sha256": "2208e726ccf0890cb8f726da0b3a8b85a4187f0797dc0c5fd4a239dbe4781f7e"
         },
         "core/gateway/entities.py": {
           "version": "1.0.0",
@@ -2274,24 +2278,24 @@
           "sha256": "f8878242197788a6927a303a0647630e2d1dae1effd1f432fab9409d449c0209"
         },
         "core/gateway/runs.py": {
-          "version": "1.0.0",
-          "sha256": "cde4b8bb0da5866cb0ff656b8295408bcb27a1ce765458e582401ed63b70f4c2"
+          "version": "1.1.0",
+          "sha256": "a7f3577a072f92b438a59543e3d7d3bd285a3d6ecebee46884f1abee74420f53"
         },
         "core/gateway/threads.py": {
           "version": "1.0.0",
           "sha256": "968a2258955e40dcc09b2fc37a03ac86772431d6ef9350d543089dbd2364eb7b"
         },
         "core/gateway_launcher.py": {
-          "version": "1.0.0",
-          "sha256": "5c1f48727fa65dc620713950002b2c8d36448b311b342407cfaeb95b2439a510"
+          "version": "1.0.1",
+          "sha256": "509a0f60d80c2f4b18b933a450a4d5c70f64adf6c9dbb4846e56fa07556e75a5"
         },
         "core/orchestration/dialog_runner.py": {
           "version": "1.0.0",
           "sha256": "2a3bf02ac8a968e9f0dbef937dcd73a4c8812efb0e4aea27c56978fe527a5cc5"
         },
         "tests/scenarios/test_api_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "282888b4a70e3b8b89bd70e1b6cee4cf422c64c721aad03f0d0344031553e30d"
+          "version": "1.1.0",
+          "sha256": "c115d145e5370f995bc642ceecad10b067344057b0b12a51c79539d028a89813"
         },
         "tests/test_api_auth.py": {
           "version": "1.0.0",
@@ -2314,8 +2318,8 @@
           "sha256": "da6abfb36889e52510dcd67ca7a309c3e864c2f6ae60579eefc02df282c6ad97"
         },
         "tests/test_api_runs.py": {
-          "version": "1.0.0",
-          "sha256": "80f15eda391bc427da06b787aed363bd34a227c9d1fd4432801d36a78d460879"
+          "version": "1.1.0",
+          "sha256": "b64123362b43dde309194446e491c09b20e5896702461e057f2504dfccab2c41"
         },
         "tests/test_api_threads.py": {
           "version": "1.0.0",
@@ -2378,12 +2382,12 @@
           "sha256": "409de36566e672ffd09b208c52d21d705e992e77dc95d3d9421bcfe2bfc77e52"
         },
         "sagaai/commands/doctor.py": {
-          "version": "1.0.0",
-          "sha256": "fbbeab9ebd2b5a7384ad4aad937c15a09ed2ba7da16bbf183ff90540b415a3cb"
+          "version": "1.0.1",
+          "sha256": "99d6e329c87a3daaab28f0e61d2f5ff00ebfa321c9df28bf7fcedb758f928235"
         },
         "sagaai/commands/migrate.py": {
-          "version": "1.0.0",
-          "sha256": "46cdc6abddb7981d783215ebc49e4814878c57e031a2fd56f09b31bb281680ac"
+          "version": "1.0.1",
+          "sha256": "83b1bb4251a3227ed5bf000b5118f0756c6b79fe138115a6799c4448d5e0f2e0"
         },
         "sagaai/commands/run.py": {
           "version": "1.0.0",
@@ -2398,8 +2402,8 @@
           "sha256": "2dd3c469c3d3fe39147d62c52a399fbe60fda8048ecb377bc92db53a00127a8d"
         },
         "sagaai/commands/ui.py": {
-          "version": "1.0.0",
-          "sha256": "200ad6c483c0aefa56c44978b4f6cf066f3103b543471a09464dd942d4fc2c9f"
+          "version": "1.0.1",
+          "sha256": "b1b113bab4f62c0a546ebab624956908622004232d3d25aa3df708169950304a"
         },
         "sagaai/commands/update.py": {
           "version": "1.0.0",
@@ -2414,12 +2418,12 @@
           "sha256": "8468f2ae4705886be312838c0c5e24c193e4db9758a86eba314771228157ae82"
         },
         "core/gateway/bootstrap.py": {
-          "version": "1.0.0",
-          "sha256": "1f01d915d2256fd910d55b88647d5c63560d08d3dddb8ba4b560915380a26db3"
+          "version": "1.0.1",
+          "sha256": "e924aa251e93ad1dc1588f689052b1660c777419b26822ca117783019f7ddc2d"
         },
         "core/gateway/diagnostics.py": {
-          "version": "1.0.0",
-          "sha256": "9d113e83f9e092283ea3401dc51859456ea34c2d97b798ef278ef41556cd97de"
+          "version": "1.0.1",
+          "sha256": "6813e38d3a67cdcb5a20c317517aaf122cea224cab9ac92414e8013d0408c236"
         },
         "tests/test_cli_imports.py": {
           "version": "1.0.0",
@@ -2436,17 +2440,109 @@
         "tests/scenarios/test_cli_scenarios.py": {
           "version": "1.0.0",
           "sha256": "321968cdad92596c86d9002114db5560673e1a357958ded5d98ff8d51d5e64c3"
+        },
+        "scripts/ci_check.py": {
+          "version": "1.2.0",
+          "sha256": "44d69441401568ed70a43c491402d722d93716e6699df9b9feb245dfcaadebc0"
+        },
+        "tests/test_ci_check.py": {
+          "version": "1.2.0",
+          "sha256": "c430f46cb511e36af51d160d391bafc3e095dae860669e7bc8a77e5c1987cd4c",
+          "note": {
+            "ru": "Тест на диапазон версий: верхняя граница сохраняется в спецификаторе и отвергает версию вне диапазона.",
+            "en": "A test for version ranges: the upper bound survives parsing and rejects a version outside the range."
+          }
+        },
+        ".github/workflows/ci.yml": {
+          "version": "1.0.2",
+          "sha256": "f23f14d209ab5cf4d8fe247c20e5283733e0007fe25aeb7f116cf0975e39dd10"
+        },
+        "pyproject.toml": {
+          "version": "1.0.2",
+          "sha256": "4537f71d244d737e2795d196ed78b7da62041fea30981fdfd55867dda5447ca9"
+        },
+        "requirements.lock": {
+          "version": "1.0.1",
+          "sha256": "62a6081533c9f2039070608dd067aa5db089e6b21835c41108f98442601d80e8"
+        },
+        "storage/migrations.py": {
+          "version": "1.0.1",
+          "sha256": "b63f36a033c8a53b9e7108f1b83b2dca6ba63ac9debeeac3406ef2c6caeaa846"
+        },
+        "storage/migration_support.py": {
+          "version": "1.0.1",
+          "sha256": "52c89f6e0649148a5fdc6d1946d7451454680f87f04c3813b972339850b3b566"
+        },
+        "tests/test_schema_history.py": {
+          "version": "1.0.0",
+          "sha256": "a6f73f6e9ddf4d2f0e4b7287d99154e48397126a8152e162c1e83e147e8c0a50"
+        },
+        "alembic.ini": {
+          "version": "1.0.0",
+          "sha256": "a164771e70233702532589669bcf4d61bd89bed49b67319370fb39927ec02c05"
+        },
+        "migrations/env.py": {
+          "version": "1.0.1",
+          "sha256": "303d7dd6b01a7b3d1eda82a7f87ea85a84882bb7c156c323d546a63ab7ed6907"
+        },
+        "migrations/script.py.mako": {
+          "version": "1.0.0",
+          "sha256": "ce5714c6a759a1df734e5ef552fc469a41720dd123c880d69265b0884d9f7246"
+        },
+        "migrations/versions/0001_legacy_repair.py": {
+          "version": "1.0.1",
+          "sha256": "fedeb138535055738fbe78ff4380ccf419a5ad4baf69d7db6c22a8888e3a7265"
+        },
+        "migrations/versions/0002_baseline.py": {
+          "version": "1.0.1",
+          "sha256": "4afbb63c91dea0d0038d0f1f0381858300072abad8f4a9f92508ee6e61596c6f"
+        },
+        "migrations/versions/0003_thread_index_columns.py": {
+          "version": "1.0.1",
+          "sha256": "38b346322fb9c8b55f14528a5382c55198772735c2271bb8090ccaa7dbae5c7d"
+        },
+        "migrations/versions/0004_assistant_columns.py": {
+          "version": "1.0.1",
+          "sha256": "9ce3b6d70f5bdacedf9818c1718a441a7def66ffbce5a2642e1a78bdfd74daa6"
+        },
+        "migrations/versions/0005_message_index.py": {
+          "version": "1.0.1",
+          "sha256": "8439ea014f52f75c4abfd78578ce7200ad968f765dfc431ad7630f838454c205"
+        },
+        "migrations/versions/0006_marketplace_tables.py": {
+          "version": "1.0.1",
+          "sha256": "c76e54f710eccc3a4f2f8926c099c412779866332fc9d0b514bd3a6b733833ff"
+        },
+        "migrations/versions/0007_schedules_tables.py": {
+          "version": "1.0.1",
+          "sha256": "f01c4e65562e7b47ce0d50f7c9f83385ac391f2aecd2f5f0005aec7a754491a2"
+        },
+        "migrations/versions/0008_transcript_layout.py": {
+          "version": "1.0.1",
+          "sha256": "fa4d24ecc1e4fcd67e996461ee7ec7169874fa51d74d0db22922ef7bcf5b8900"
+        },
+        "pyright_budget.json": {
+          "version": "1.0.0",
+          "sha256": "ac67a3e55ececc7665fecd16fbeda9f9aa16c7179fbc076f7b9187e03fab4436"
+        },
+        "tests/test_api_golden.py": {
+          "version": "1.0.0",
+          "sha256": "77375089823af68a70ebee1acf807a4233266a4a5c17f7f1f6cf99d48a2ddb5e"
+        },
+        "tests/golden/api_contract.json": {
+          "version": "1.0.0",
+          "sha256": "e135a930695e7a09a1df75c2417f26fa2063327c6e2c90c965cab15a77238b67"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.65.0",
-      "sha256": "664668594d15de08f3de8153600e58d4de3bd734d79e74562bd958fed3a7bf0c",
+      "version": "1.67.0",
+      "sha256": "99ad33b356d51ad95c590db17d9d015d3da81a535995af4489241b6f106c945a",
       "note": {
-        "ru": "Строка «Консоль» в таблице слоёв и раздел 8b: модули консоли, направление зависимостей, отсутствие Streamlit и HTTP-стека, расширения ядра.",
-        "en": "A Console row in the layer table and section 8b: the console modules, the dependency direction, the absence of Streamlit and the HTTP stack, the core extensions."
+        "ru": "Раздел «Воспроизводимая сборка и зависимости»: роли requirements.txt/requirements-api.txt и lock, pyproject.toml как манифест пакета, причина обязательного editable-режима, сверка lock в конвейере.",
+        "en": "A section on the reproducible build: the roles of requirements.txt/requirements-api.txt and the lock, pyproject.toml as the package manifest, why editable installs are mandatory, and the lock cross-check in the pipeline."
       }
     },
     "LICENSE": {
@@ -2458,19 +2554,19 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.64.0",
-      "sha256": "61b1b7a43296978ae0ae7e06e44fc7d337cc1e769cb416f7b0514890cdac9cbf",
+      "version": "1.69.0",
+      "sha256": "a470978a788d4a7a08beb556767db47fc8651d08aad1ee2d129bea8f9999b2be",
       "note": {
-        "ru": "Регенерация карты: описания пакета sagaai/, трёх новых модулей шлюза, четырёх наборов тестов консоли и сценарного теста CLI.",
-        "en": "Map regeneration: descriptions of the sagaai/ package, three new gateway modules, four console test modules and the CLI scenario test."
+        "ru": "Карта перегенерирована после уточнения README: отражены pyproject.toml, requirements.lock, роли файлов зависимостей, описания CI и диагностика установки из lock.",
+        "en": "The map is regenerated after the README clarification: pyproject.toml, requirements.lock, the dependency-file roles, the CI descriptions and the lock-install diagnostics are reflected."
       }
     },
     "README.md": {
-      "version": "1.54.0",
-      "sha256": "ad4188831f475f90e11fe6ee268efc30a9823dcc4262e3c14ee8c4e72fa2e8bd",
+      "version": "1.59.0",
+      "sha256": "16b812375e14d099b912dc291f461bae2f7418e9d5c7a662432d65d1ad41471f",
       "note": {
-        "ru": "Раздел «Консоль sagaai»: таблица команд, JSON-режим, коды возврата; пункт в содержании и номер версии платформы 2.36.0.",
-        "en": "The \"sagaai console\" section: command table, JSON mode, exit codes; a contents entry and platform version 2.36.0."
+        "ru": "Уточнены способы установки (lock, группа api, bin/sagaai как совместимость) и добавлена диагностика повреждённого кэша pip при установке из lock.",
+        "en": "Installation paths are clarified (the lock, the api group, bin/sagaai as compatibility) and a note on diagnosing a corrupted pip cache during a lock install is added."
       }
     },
     "defaults/README.md": {
@@ -2546,8 +2642,8 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.28.1",
-      "sha256": "ac721d0c85d5399262beb77a6847b7889dbc21d4952a352267592e2597a04b90",
+      "version": "1.28.2",
+      "sha256": "fbb194652490c10f5546e97fd91201bd23bdaabc397dfc405f2c083465972069",
       "note": {
         "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
         "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
@@ -2562,8 +2658,8 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.28.1",
-      "sha256": "746cc475c7bf38fa5ae248a46727b2c32ad989235987eecadba9032fa5839620",
+      "version": "1.28.2",
+      "sha256": "11b0c0bfd47b47514b2d11a7911d4ba15cfcfb693dce9431db548eab3baa1c2c",
       "note": {
         "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
         "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
@@ -2578,8 +2674,8 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.28.1",
-      "sha256": "4fb3db2c40e30955bf7d10ce6dca42154c90873439e0e7560f003559fc1e6e72",
+      "version": "1.28.2",
+      "sha256": "0d91aa5c3790e334a7bdec49d830c5362ee9cfc4d81d9961115c85a3a484333f",
       "note": {
         "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
         "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
@@ -2810,8 +2906,8 @@
       }
     },
     "langs/en.json": {
-      "version": "1.28.1",
-      "sha256": "6a3f8992e03c689e10c7fe31a09ecc3d70c05f594b247658a38f656fba775fb2",
+      "version": "1.28.2",
+      "sha256": "611dc48d26801f2885920ee0ae78fadf9d1e9a9400e252f020d05da16dfcee1f",
       "note": {
         "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
         "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
@@ -2826,8 +2922,8 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.28.1",
-      "sha256": "b5ceb64b98108c9bdadc09d87de20494ba8d83017f11e8c3e61e5f61b9bfe6dd",
+      "version": "1.28.2",
+      "sha256": "753e7fed25cd527655499659317b67b13edda004b4f8736a894fc1e248608fd0",
       "note": {
         "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
         "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
@@ -2842,8 +2938,8 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.28.1",
-      "sha256": "4fb3db2c40e30955bf7d10ce6dca42154c90873439e0e7560f003559fc1e6e72",
+      "version": "1.28.2",
+      "sha256": "0d91aa5c3790e334a7bdec49d830c5362ee9cfc4d81d9961115c85a3a484333f",
       "note": {
         "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
         "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
@@ -2882,11 +2978,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.42.0",
-      "sha256": "1d1fbe33062a7e4e584aa5269456fb151c57f4d0b335328d676988b3bc22f51b",
+      "version": "1.44.0",
+      "sha256": "46affcbe737b55d0d33199407b19fcd5681519202197a305aafe198a63808ce6",
       "note": {
-        "ru": "Требование FR22 о консоли и расширенный инвентарь NFR6: группа Console из 17 файлов, итог 197, тест копирайтов проверяет каталог sagaai.",
-        "en": "Requirement FR22 on the console and the extended NFR6 inventory: the Console group of 17 files, 197 in total, the copyright test covers the sagaai folder."
+        "ru": "Две конвенции сборки: единственный источник версий зависимостей - requirements.lock, установка только editable. Подсказка аудита зависимостей переведена на установку из lock.",
+        "en": "Two build conventions: requirements.lock is the only source of dependency versions, and only editable installs are supported. The dependency-audit hint now points at the lock."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/connector_creator.md": {
@@ -2970,16 +3066,16 @@
       }
     },
     "requirements-api.txt": {
-      "version": "1.0.0",
-      "sha256": "8378a83f284b131c26c456b45ea388ca3e483f1b4cff1adb2de3e0b3053e0c49",
+      "version": "1.0.1",
+      "sha256": "3f33173d7aa9443504d56bb9c0d77115aad56715b089a517709139712c5df719",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
       }
     },
     "ruff.toml": {
-      "version": "1.1.0",
-      "sha256": "3b29bafe04d01063524ebb04bdcf42bc9790ffebc334dc56048a03c4546c6da0",
+      "version": "1.1.1",
+      "sha256": "2429b2554291ec6ee1e150fd410423c3066b82ccbba75e19d79acf657ce39f0f",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
@@ -3018,8 +3114,8 @@
       }
     },
     "server/errors.py": {
-      "version": "1.0.0",
-      "sha256": "514903d87c2ec7587c101094266d5d034e90a500c86e1794168d73374d890473",
+      "version": "1.1.0",
+      "sha256": "bce0f106e7b3ad77a86329befd674b1f07d88b755f60cb74313b9b5bff4ad17e",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
@@ -3050,48 +3146,48 @@
       }
     },
     "server/routes/agents.py": {
-      "version": "1.0.0",
-      "sha256": "cd335b4fd5e8003ddafef6dc995924f76b08bf64d3679bf88a540f088120f7e2",
+      "version": "1.1.0",
+      "sha256": "607eff690fcf364b63254b309c31b4fe1fbe530668ed441ab9ac7bf311bbc3ba",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
       }
     },
     "server/routes/dialogs.py": {
-      "version": "1.0.0",
-      "sha256": "1cd0d2d8911fa2fbc58c959f3c20883f7740b286e77d3b203f8b4a3a8f58a5a7",
+      "version": "1.1.0",
+      "sha256": "64495227038cc07aef5282919b498c033c8ece3bb1f44eedbb0af220bcdf19c9",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
       }
     },
     "server/routes/health.py": {
-      "version": "1.0.0",
-      "sha256": "c69aa305910fb681c2a972d041f9a55e0a2cfe43d1e271074e911337d88bf681",
+      "version": "1.1.0",
+      "sha256": "751e6a0aedb17c734d5021ca26728410527cae5fd5fcefd4b2f340e17ddbc1d2",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
       }
     },
     "server/routes/runs.py": {
-      "version": "1.0.0",
-      "sha256": "ef8d0c52e8d0b78c1db2904d877be476647bc90f7515ff6788d09ebcd82902b8",
+      "version": "1.1.0",
+      "sha256": "799bb696132836069f84629314cb41299366334f73649d0c453d2d0ffbaba051",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
       }
     },
     "server/routes/threads.py": {
-      "version": "1.0.0",
-      "sha256": "31143cbb671e5c9320f8585a9d6689755dc749b62f07a20969e3c2ff2d676cd5",
+      "version": "1.1.0",
+      "sha256": "042b8ac6e321590a65c127a5201eab19b30349a05098a6d5c992b517c0c91f93",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
       }
     },
     "server/schemas.py": {
-      "version": "1.0.0",
-      "sha256": "f9b4bf0721cda55f6f0001b96fd5cb902813520fd83a7b2dc96f699daa815132",
+      "version": "1.1.0",
+      "sha256": "a323cb9ee43a0160a81569bb32c259df7807e964f42ba3a8a64904c665036405",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
