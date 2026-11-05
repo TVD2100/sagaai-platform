@@ -590,7 +590,25 @@
 # so they suppressed nothing while looking like they did; they are now either a
 # plain comment (the import needed no suppression) or a correct code list.
 
-__version__ = "2.35.1"
+# 2.36.0 adds the ``sagaai`` console - a third entry point next to the UI and
+# the HTTP API. The console is thin on purpose: it parses arguments, decides
+# what may happen without a human, and prints a result, while the work goes to
+# the modules the other two transports already use. It imports neither
+# Streamlit nor the HTTP stack (``sagaai ui`` starts the interface as a child
+# process and ``sagaai serve`` imports the launcher lazily), so a server
+# without a browser can give an employee a task, diagnose an installation,
+# issue an API token, run the update pipeline, snapshot and migrate the
+# databases. ``--json`` prints exactly one object on stdout and progress goes
+# to stderr, so a script parses the result without filtering; exit codes are
+# fixed at 0 success, 1 failure, 2 configuration or request error and 3
+# conflict, and destructive commands refuse in a non-interactive shell unless
+# given ``--yes``. The gateway grew what a headless caller needs - a cold
+# start without the UI, a read-only diagnosis, database snapshots through the
+# SQLite engine and a blocking ``run_dialog`` - and a bundle rollback now
+# walks the run log in install order, so the members of one package are undone
+# newest first even when their timestamps fall into the same second.
+
+__version__ = "2.36.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -314,11 +314,44 @@ def _effective_channel(manifest, requested):
 
 # ─── manifest access ──────────────────────────────────────────────────────────
 
-def fetch_manifest(channel=DEFAULT_CHANNEL):
-    '''Download and parse the update manifest; returns (dict, error).'''
-    url = channel.rstrip('/') + '/' + MANIFEST_NAME
-    request = Request(url, headers={'User-Agent': USER_AGENT})
+def _local_manifest(base):
+    '''Read the manifest from a local folder mirror; None for a URL.
+
+    A mirror is what an air-gapped installation and a test both use: the
+    published file tree is copied to a folder and the channel points at it.
+    A path that does not exist returns None so the caller falls through to
+    the URL path and reports it as an unreachable channel.
+    '''
+    text = str(base or '')
+    if '://' in text:
+        return None
+    folder = os.path.abspath(os.path.expanduser(text))
+    if not os.path.isdir(folder):
+        return None
+    path = os.path.join(folder, MANIFEST_NAME)
     try:
+        with open(path, 'r', encoding='utf-8') as handle:
+            return json.load(handle), None
+    except OSError as exc:
+        return None, 'cannot read manifest from %s: %s' % (path, exc)
+    except ValueError as exc:
+        return None, 'manifest is not valid JSON: %s' % exc
+
+
+def fetch_manifest(channel=DEFAULT_CHANNEL):
+    '''Fetch and parse the update manifest; returns (dict, error).
+
+    A channel is either a base URL or a local folder: the local form is what
+    an air-gapped installation uses and what a test can build without a
+    server, so both go through the same validation further down.
+    '''
+    base = str(channel or DEFAULT_CHANNEL).rstrip('/')
+    local = _local_manifest(base)
+    if local is not None:
+        return local
+    url = base + '/' + MANIFEST_NAME
+    try:
+        request = Request(url, headers={'User-Agent': USER_AGENT})
         with urlopen(request, timeout=DOWNLOAD_TIMEOUT) as response:
             raw = response.read()
     except Exception as exc:  # noqa: BLE001 - any network/protocol failure
@@ -496,26 +529,50 @@ def stage_updates(root, selection=None, manifest=None, channel=DEFAULT_CHANNEL):
 
 
 def _download_file(channel, rel, dst, expected_sha):
-    '''Download one raw file, verify its sha256, move it to dst.
+    '''Fetch one raw file, verify its sha256, move it to dst.
 
-    Returns None on success or an error message. Parent directories are
-    created as needed; a failed download never leaves a partial file.
+    Returns None on success or an error message. A channel that is a local
+    folder is read from disk: an air-gapped installation stages from a copied
+    file tree, and the manifest alone would leave it unable to download
+    anything. Parent directories are created as needed; a failed download
+    never leaves a partial file.
     '''
-    url = channel.rstrip('/') + '/' + quote(rel, safe='/')
-    request = Request(url, headers={'User-Agent': USER_AGENT})
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     tmp = dst + '.tmp-%d' % os.getpid()
     hasher = hashlib.sha256()
-    try:
-        with urlopen(request, timeout=DOWNLOAD_TIMEOUT) as response:
-            with open(tmp, 'wb') as out:
-                for chunk in iter(lambda: response.read(65536), b''):
+    local_source = None
+    if '://' not in str(channel or ''):
+        candidate = os.path.join(os.path.abspath(os.path.expanduser(channel)), rel)
+        if os.path.isfile(candidate):
+            local_source = candidate
+        else:
+            # A local mirror that does not ship a file it advertises is a
+            # publishing mistake. Saying so beats handing the path to
+            # urlopen(), which reports it as an unknown URL scheme.
+            return 'file not found in the mirror: %s' % candidate
+    if local_source is not None:
+        try:
+            with open(local_source, 'rb') as source, open(tmp, 'wb') as out:
+                for chunk in iter(lambda: source.read(65536), b''):
                     hasher.update(chunk)
                     out.write(chunk)
-    except Exception as exc:  # noqa: BLE001 - transport failure
-        if os.path.exists(tmp):
-            os.remove(tmp)
-        return 'download failed: %s' % exc
+        except OSError as exc:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+            return 'cannot read %s: %s' % (local_source, exc)
+    else:
+        url = channel.rstrip('/') + '/' + quote(rel, safe='/')
+        request = Request(url, headers={'User-Agent': USER_AGENT})
+        try:
+            with urlopen(request, timeout=DOWNLOAD_TIMEOUT) as response:
+                with open(tmp, 'wb') as out:
+                    for chunk in iter(lambda: response.read(65536), b''):
+                        hasher.update(chunk)
+                        out.write(chunk)
+        except Exception as exc:  # noqa: BLE001 - transport failure
+            if os.path.exists(tmp):
+                os.remove(tmp)
+            return 'download failed: %s' % exc
     actual = hasher.hexdigest()
     if actual != expected_sha:
         os.remove(tmp)

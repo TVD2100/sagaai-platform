@@ -773,6 +773,33 @@ roles.update({
     "tests/test_api_equivalence.py": "Tests that the HTTP API and the UI produce the same answer for the same request, through the shared launch contract",
     "tests/scenarios/test_api_scenario.py": "Scenario tests of the HTTP API (given->when->then): a launch, a poll to completion, reading the thread, cancellation and the error envelope, with a fake backend behind the real routes",
 })
+roles.update({
+    "sagaai/__init__.py": "Package marker of the console; the version comes from core.version so the command and the platform never disagree",
+    "sagaai/__main__.py": "Entry point of 'python -m sagaai': calls sagaai.cli.main and exits with its code, so the module and the bin/sagaai script behave identically",
+    "sagaai/cli.py": "Console argument parser: builds the subparsers from the command registry, applies global flags before and after the command name, turns CliError into an exit code and a report",
+    "sagaai/console.py": "The only writer of stdout: the human report and exactly one JSON object in --json mode; progress and warnings go to stderr so a redirected stream still parses",
+    "sagaai/errors.py": "CliError with code, message and hint; the single exception type commands raise instead of calling sys.exit",
+    "sagaai/exit_codes.py": "Fixed exit codes (0 success, 1 failure, 2 configuration or request error, 3 conflict) with the labels printed in every command's --help",
+    "sagaai/commands/__init__.py": "Command registry: the ordered list of modules the parser imports, so adding a command means adding one module",
+    "sagaai/commands/_common.py": "Shared command helpers: confirmation prompt with --yes for scripts, install root from SAGAAI_INSTALL_ROOT, the running-platform guard and translation of a gateway refusal into a CliError",
+    "sagaai/commands/agents.py": "'agents' command: lists the employees and their slugs through the gateway",
+    "sagaai/commands/backup.py": "'backup create/list/restore' commands: database snapshots with an integrity check, listing sorted by creation moment and a restoration that first snapshots the current state",
+    "sagaai/commands/doctor.py": "'doctor' command: read-only diagnosis of the installation - paths, database schema state, dependencies, running platform - and it never creates a database or writes to the data folder",
+    "sagaai/commands/migrate.py": "'migrate' command: snapshot before the migrations, run them, verify integrity afterwards and restore the snapshot when the check fails",
+    "sagaai/commands/run.py": "'run' command: gives a task to an employee and waits for the result; a pause for approval or a question is a successful result that describes the pause, while an expired wait returns a conflict with the run id and leaves the work alive",
+    "sagaai/commands/serve.py": "'serve' command: starts the HTTP API as a separate process, importing core.gateway_launcher lazily so the console itself stays free of the HTTP stack",
+    "sagaai/commands/token.py": "'token create/list/revoke' commands: API access tokens through the same store the API verifies against, with the plaintext shown once",
+    "sagaai/commands/ui.py": "'ui' command: starts the Streamlit interface as a child process instead of importing it",
+    "sagaai/commands/update.py": "'update check/stage/apply/rollback' commands: the update pipeline, including a local folder as the channel mirror, with confirmation and the running-platform guard on the destructive steps",
+    "bin/sagaai": "The 'sagaai' executable: puts the installation root on sys.path and calls sagaai.cli.main, so the command works from any directory and from an uninstalled checkout",
+    "core/gateway/bootstrap.py": "Cold start without the UI: creates the data directories and the database schema when the console is the first thing a user runs",
+    "core/gateway/diagnostics.py": "Read-only installation diagnosis: resolved paths, database state, dependency summary and the running-platform marker, with no write path at all",
+    "core/gateway/backup.py": "Database snapshots through the SQLite engine rather than a file copy, with a per-member manifest and sha256, an integrity check before and after, and a listing ordered by creation moment",
+    "tests/test_cli_imports.py": "Tests that the console imports without streamlit, fastapi or pydantic, in a subprocess with the packages blocked rather than merely absent",
+    "tests/test_cli_console.py": "Unit tests of the console output layer: exactly one JSON object on stdout, the human report, the error envelope and the reserved-stream behaviour",
+    "tests/test_cli_commands.py": "Command contract tests: doctor creates no database, tokens are verified by the API store, restore refuses without --yes in a non-interactive shell, migrate prepares a clean machine, and the running-platform guard answers with the documented code",
+    "tests/scenarios/test_cli_scenarios.py": "Scenario tests of the console (given->when->then): preparing a bare machine, a maintenance window with a snapshot and a rollback, an update from a local mirror, handing a token to a script, refusals without a terminal, and the whole console working without Streamlit",
+})
 
 
 if __name__ == "__main__":

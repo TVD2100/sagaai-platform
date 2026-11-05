@@ -26,7 +26,7 @@ COPYRIGHT_TAIL = "\n".join(COPYRIGHT_LINES)
 
 # Groups of base files as AGENT.md presents them: (label, paths).
 ROOT_FILES = ("__init__.py", "app.py")
-BASE_DIRS = ("core", "ui", "storage", "dev_agent", "server")
+BASE_DIRS = ("core", "ui", "storage", "dev_agent", "server", "sagaai")
 
 
 def _walk_python(directory):
@@ -123,6 +123,7 @@ class TestAgentInventory:
         groups["Schedules"] = [p for p in core if p.startswith("core/schedules/")]
         groups["Gateway"] = [p for p in core if p.startswith("core/gateway/")]
         groups["Server"] = _walk_python("server")
+        groups["Console"] = _walk_python("sagaai")
 
         assert set(listed) == set(groups), "unexpected inventory groups: %s" % sorted(listed)
         for label, expected in groups.items():

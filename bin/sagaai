@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+"""sagaai - the console entry point of the SagaAI platform.
+
+This script is the ``sagaai`` command: put it on PATH (a symlink is enough)
+and it behaves exactly like ``python -m sagaai``, because both call the same
+function. The launcher adds the installation root to ``sys.path`` first, so
+the command works from any working directory and from a checkout that is not
+installed.
+
+Exit codes are the documented ones: 0 success, 1 failure, 2 configuration,
+3 conflict. See ``sagaai --help``.
+"""
+
+import os
+import sys
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+from sagaai.cli import main  # noqa: E402 - after sys.path preparation
+
+if __name__ == "__main__":
+    sys.exit(main())
+# SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

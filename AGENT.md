@@ -1539,13 +1539,74 @@ Ed25519), а проверка подписи на стороне клиента 
   простой становится пропуском, запрещённый день пропускается в
   предпросмотре, три сбоя удерживают правило.
 
+### FR22 - Консоль `sagaai` (третий вход в платформу)
+- **Назначение.** Интерфейс, HTTP API и консоль - три равноправных входа в
+  одну платформу. Консоль нужна там, где интерфейс недоступен или не нужен:
+  сервер без браузера, cron-задача, CI, первичная настройка, диагностика
+  установки, обслуживание баз.
+- **Пакет и запуск.** Код - `sagaai/` (команды в `sagaai/commands/`),
+  точки входа - `python -m sagaai` и скрипт `bin/sagaai`; обе вызывают одну
+  функцию `sagaai.cli.main`, поэтому ведут себя одинаково.
+- **Изоляция.** Консоль не импортирует Streamlit и HTTP-стек: интерфейс
+  запускается отдельным процессом (`sagaai ui`), сервер - лениво
+  (`sagaai serve`). `tests/test_cli_imports.py` проверяет это в подпроцессе
+  с заблокированными пакетами, а не по факту установки.
+- **Команды.** `doctor` (диагностика без изменений), `run` (задача
+  сотруднику с ожиданием результата), `serve` (HTTP API), `ui`
+  (Streamlit), `token` (create/list/revoke), `update`
+  (check/stage/apply/rollback), `migrate` (снимок, миграции, проверка
+  целостности), `backup` (create/list/restore), `agents` (список slug'ов).
+- **JSON-режим.** `--json` печатает РОВНО один объект на stdout:
+  `{ok, command, exit_code, version, data}` при успехе и
+  `{ok, command, exit_code, version, error{code,message,hint}}` при ошибке.
+  Прогресс и предупреждения идут в stderr, поэтому перенаправление потока
+  не портит результат. `--json` принимается и на верхнем уровне, и после
+  имени команды.
+- **Коды возврата.** 0 - успех; 1 - операция не удалась; 2 - ошибка
+  конфигурации или запроса; 3 - конфликт (платформа уже запущена, запуск
+  ещё идёт). Коды перечислены в `sagaai/exit_codes.py` и печатаются в
+  `--help` каждой команды - скрипт не должен угадывать.
+- **Разрушительные действия.** `update apply`, `update rollback`,
+  `backup restore`, `migrate` требуют подтверждения: интерактивный терминал
+  получает вопрос `y/N`, неинтерактивный - отказ с кодом 2 и подсказкой
+  `--yes`. Причина в том, что чтение из пустого pipe зависло бы навсегда, а
+  ответ «да» по умолчанию свёл бы флаг к пустышке. Замена файлов и баз
+  дополнительно отказывает, пока платформа запущена (код 3), - живой
+  процесс уже загрузил то, что команда собирается заменить.
+- **`run` и пауза.** Запуск ждёт результата; пауза (план на утверждение,
+  вопрос) - это РЕЗУЛЬТАТ с кодом 0 и описанием паузы, а не ошибка.
+  Истёкшее ожидание даёт код 3 и run id, но запуск НЕ отменяется: отказ от
+  ожидания не должен уничтожать работу.
+- **`doctor` только читает.** Диагностика не создаёт базы и не пишет в
+  папку данных: `tests/test_cli_commands.py` проверяет, что после прогона
+  на чистой установке файлов баз не появилось. Готовит установку `migrate`.
+- **Снимки баз.** `core/gateway/backup.py` копирует через движок SQLite
+  (копия файла в WAL-режиме - не бэкап), пишет манифест с sha256 каждого
+  члена и проверяет `PRAGMA integrity_check` до и после. Снимки лежат в
+  `DATA_DIR/backups/databases/<id>/` рядом с базами, которые копируют, -
+  это данные, а не код, и `SAGAAI_DATA_DIR` покрывает их целиком.
+  Восстановление сначала снимает копию ТЕКУЩЕГО состояния, поэтому
+  ошибочное восстановление отменяется восстановлением страховочного снимка.
+- **Изоляция установки.** `SAGAAI_INSTALL_ROOT` переопределяет корень
+  установки. Команда, заменяющая файлы, должна уметь работать не по
+  рабочей копии, из которой её импортировали: тесты перенаправляют оба
+  корня и не касаются дерева разработчика.
+- **Проверка.** `tests/test_cli_imports.py` (границы слоя),
+  `tests/test_cli_console.py` (конверт и форматирование),
+  `tests/test_cli_commands.py` (команды как контракт процесса) и
+  `tests/scenarios/test_cli_scenarios.py` (девять сквозных историй:
+  подготовка чистой машины, окно обслуживания со снимком и откатом,
+  обновление из локального зеркала с откатом, выдача токена скрипту,
+  отказы без терминала, работа без Streamlit).
+
 
 ## Нефункциональные требования
 
 ### NFR1 - Модульность
 - Код разделён на пакеты: `core/` (бизнес-логика без Streamlit), `ui/`
   (интерфейс), `storage/` (персистентность), `dev_agent/` (агентные
-  возможности).
+  возможности), `sagaai/` (консоль - третий вход в платформу),
+  `server/` (HTTP API).
 - Ядро оркестраторов - `core/orchestrators.py` - публичный API для CRUD,
   построения assistant-словарей, экспорта/импорта, preset-импорта; папки
   оркестраторов обслуживает `core/orchestrator_folders.py`.
@@ -1652,7 +1713,7 @@ Ed25519), а проверка подписи на стороне клиента 
     # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
     # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
-- Список базовых файлов (177):
+- Список базовых файлов (197):
   - Корень (2): __init__.py, app.py
   - UI (24): ui/__init__.py, ui/app.py, ui/components/__init__.py, ui/components/flash.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/access.py, ui/pages/assistants.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/marketplace.py, ui/pages/orchestrator.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrators.py, ui/pages/schedules.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/updates.py, ui/pages/updates_marketplace.py, ui/pages/welcome.py
   - Core (72): core/__init__.py, core/api_errors.py, core/api_layer.py, core/api_token_store.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/chat_db_archive.py, core/config.py, core/connector_presets.py, core/connectors.py, core/context_guard.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/devagent_db_archive.py, core/dependency_check.py, core/document_images.py, core/document_text.py, core/entity_sync.py, core/env_loader.py, core/feed_autoscroll.py, core/files.py, core/folder_dialog.py, core/fs.py, core/gateway_launcher.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/mcp_client.py, core/mcp_tools.py, core/memory_migration.py, core/multimodal.py, core/ooxml.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrator_tools.py, core/orchestrators.py, core/paths.py, core/personal_memory.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/thread_mirror.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py, core/updater.py, core/updater_apply.py, core/url_fetch.py, core/version.py
@@ -1660,17 +1721,19 @@ Ed25519), а проверка подписи на стороне клиента 
   - Orchestration (12): core/orchestration/__init__.py, core/orchestration/contracts.py, core/orchestration/dialog_runner.py, core/orchestration/invoke.py, core/orchestration/resume.py, core/orchestration/runs.py, core/orchestration/service.py, core/orchestration/tool_classes.py, core/orchestration/tools.py, core/orchestration/transcript_reader.py, core/orchestration/transcript_sink.py, core/orchestration/verify.py
   - Schedules (7): core/schedules/__init__.py, core/schedules/calc.py, core/schedules/daemon.py, core/schedules/form.py, core/schedules/model.py, core/schedules/runner.py, core/schedules/store.py
   - Storage (5): storage/__init__.py, storage/db.py, storage/models.py, storage/repository.py, storage/repository_devagent.py
-  - Gateway (8): core/gateway/__init__.py, core/gateway/dialog.py, core/gateway/dto.py, core/gateway/entities.py, core/gateway/errors.py, core/gateway/health.py, core/gateway/runs.py, core/gateway/threads.py
+  - Gateway (11): core/gateway/__init__.py, core/gateway/backup.py, core/gateway/bootstrap.py, core/gateway/diagnostics.py, core/gateway/dialog.py, core/gateway/dto.py, core/gateway/entities.py, core/gateway/errors.py, core/gateway/health.py, core/gateway/runs.py, core/gateway/threads.py
   - DevAgent (14): dev_agent/__init__.py, dev_agent/agent_loop.py, dev_agent/assistant_detector.py, dev_agent/assistant_model_resolver.py, dev_agent/backup_manager.py, dev_agent/config.py, dev_agent/llm_utils.py, dev_agent/safe_writer.py, dev_agent/task_state.py, dev_agent/tool_executor.py, dev_agent/transcript.py, dev_agent/universal_agent.py, dev_agent/workspace_binding.py, dev_agent/workspace_tools.py
   - Server (14): server/__init__.py, server/app.py, server/auth.py, server/deps.py, server/errors.py, server/instance_lock.py, server/middleware.py, server/routes/__init__.py, server/routes/agents.py, server/routes/dialogs.py, server/routes/health.py, server/routes/runs.py, server/routes/threads.py, server/schemas.py
+  - Console (17): sagaai/__init__.py, sagaai/__main__.py, sagaai/cli.py, sagaai/console.py, sagaai/errors.py, sagaai/exit_codes.py, sagaai/commands/__init__.py, sagaai/commands/_common.py, sagaai/commands/agents.py, sagaai/commands/backup.py, sagaai/commands/doctor.py, sagaai/commands/migrate.py, sagaai/commands/run.py, sagaai/commands/serve.py, sagaai/commands/token.py, sagaai/commands/ui.py, sagaai/commands/update.py
 
 ## Ограничения
 
 - База данных - только SQLite; миграция на другие СУБД не предусмотрена.
 - Аутентификация есть (страница «Доступы» или опциональный пароль
   `SAGAAI_AUTH_PASSWORD`), многопользовательский режим не предусмотрен.
-- Приложение работает в окружении Streamlit; прямая работа из командной
-  строки не поддерживается.
+- Приложение работает в окружении Streamlit для интерфейса; консоль
+  `sagaai` (пакет `sagaai/`, скрипт `bin/sagaai`) работает без Streamlit и
+  без HTTP-стека - интерфейс запускается ею отдельным процессом.
 - Универсальный разработчик работает только с папками, доступными
   локально (в пределах файловой системы).
 - Экспорт/импорт оркестраторов в UI отложен (доступен только в core API);

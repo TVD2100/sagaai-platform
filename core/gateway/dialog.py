@@ -39,6 +39,7 @@ from typing import Any, Callable, Dict, List, Optional
 from core.gateway import entities, errors, runs, threads
 from core.gateway.dto import (
     DialogHandle,
+    DialogOutcome,
     DialogRequest,
     DialogSnapshot,
     DialogStepResult,
@@ -738,5 +739,98 @@ def get_dialog(run_id: str) -> DialogSnapshot:
 def list_dialog_runs(thread_id: str) -> List[RunSnapshot]:
     """Return the runs of one dialog, newest first."""
     return runs.list_runs(thread_id=thread_id)
+
+# ─── Synchronous run ────────────────────────────────────────────────────────
+
+
+def run_dialog(req: DialogRequest, *, wait_seconds: int = 3600,
+               allowed_slugs: Optional[List[str]] = None,
+               poll_seconds: float = 1.0) -> DialogOutcome:
+    """Start a root dialog and BLOCK until it finishes or the wait expires.
+
+    This is the shape a console command needs: it has no session to poll from
+    and no rerun to hang the next step on. It reuses the same launch path as
+    every other transport (``start_dialog`` in ``auto`` mode) - it does not
+    re-implement a single step - and only adds the waiting:
+
+    - terminal status, a pause that needs a human, or ``wait_seconds``;
+    - a timeout does NOT cancel the run: the caller learns ``timed_out`` and
+      the run keeps working, because a command that gave up waiting must not
+      destroy work somebody may still want;
+    - a cancelled run is reported as ``cancelled``, never as a failure.
+
+    The final assistant message is read from the thread AFTER the run reaches
+    its status, so the caller receives what the employee actually said instead
+    of a summary of what it was asked.
+    """
+    from core.gateway.dto import DialogOutcome
+
+    started = time.monotonic()
+    handle = start_dialog(req, allowed_slugs=allowed_slugs)
+    deadline_pause = {"awaiting_input", "awaiting_user", "awaiting_approval",
+                      "awaiting_confirmation", "awaiting_question"}
+    snapshot = None
+    timed_out = False
+    while True:
+        try:
+            snapshot = runs.get_run(handle.run_id)
+        except errors.GatewayError:
+            snapshot = None
+        if snapshot is not None and (snapshot.is_terminal
+                                     or snapshot.status in deadline_pause):
+            break
+        if snapshot is not None and snapshot.status == "running":
+            pending = snapshot.pending_input
+            if pending is not None and pending.kind:
+                break
+        if (time.monotonic() - started) >= max(1, int(wait_seconds)):
+            timed_out = True
+            break
+        time.sleep(max(0.05, min(float(poll_seconds), 5.0)))
+
+    elapsed = max(0.0, time.monotonic() - started)
+    if snapshot is None:
+        return DialogOutcome(
+            run_id=handle.run_id, thread_id=handle.thread_id,
+            agent_slug=handle.agent_slug, status="failed",
+            error_code="run_not_found",
+            summary="the run record disappeared while waiting",
+            timed_out=timed_out, elapsed_seconds=elapsed,
+        )
+
+    messages: List[MessageView] = []
+    try:
+        window = threads.read_messages(snapshot.thread_id or handle.thread_id,
+                                       offset=0, limit=200)
+        messages = list(window.messages)
+    except errors.GatewayError:
+        messages = []
+    except Exception as exc:  # pragma: no cover - defensive
+        log.warning("outcome messages unavailable for %s: %s", handle.run_id, exc)
+        messages = []
+
+    summary = snapshot.summary
+    if not summary:
+        for message in reversed(messages):
+            if message.role in ("assistant", "agent") and message.content.strip():
+                summary = message.content
+                break
+
+    return DialogOutcome(
+        run_id=snapshot.run_id or handle.run_id,
+        thread_id=snapshot.thread_id or handle.thread_id,
+        agent_slug=snapshot.agent_slug or handle.agent_slug,
+        status=snapshot.status,
+        stop_reason=snapshot.stop_reason,
+        error_code=snapshot.error_code,
+        summary=summary,
+        steps_used=snapshot.steps_used,
+        tokens_used=dict(snapshot.tokens_used or {}),
+        artifacts=list(snapshot.artifacts or []),
+        pending_input=snapshot.pending_input,
+        messages=messages,
+        timed_out=timed_out,
+        elapsed_seconds=elapsed,
+    )
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

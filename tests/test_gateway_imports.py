@@ -29,6 +29,9 @@ GATEWAY_MODULES = [
     "core.gateway.entities",
     "core.gateway.runs",
     "core.gateway.dialog",
+    "core.gateway.bootstrap",
+    "core.gateway.backup",
+    "core.gateway.diagnostics",
     "core.orchestration.dialog_runner",
     "core.api_token_store",
 ]

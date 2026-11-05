@@ -415,6 +415,44 @@ class TestBundleInstall:
         assert registry.get_installed("agent", "companion_agent") is None
         assert orchestrator_folder_exists("companion_agent") is False
 
+    def test_rollback_group_undoes_newest_member_first(
+        self, marketplace_data_dir, monkeypatch
+    ):
+        """The undo runs from the last installed member back to the first.
+
+        The run log is written in install order and read back the same way.
+        Ordering those rows newest-first before handing them to the undo
+        helper reverses them a second time, so a carrier was removed before
+        the member that depends on it.
+        """
+        from core.marketplace import bundles
+
+        history = [
+            {"group_id": "g1", "status": "done", "id": "carrier_agent",
+             "type": "agent", "install_id": "i1", "started_at": "2026-01-01T00:00:01Z"},
+            {"group_id": "g1", "status": "done", "id": "demo_skill",
+             "type": "skill", "install_id": "i2", "started_at": "2026-01-01T00:00:02Z"},
+        ]
+        monkeypatch.setattr(bundles.store, "load_history", lambda: history)
+
+        undone = []
+
+        def fake_rollback_run(install_id, *, reason=""):
+            undone.append(install_id)
+            return {"restored_files": [], "unrestored": []}
+
+        monkeypatch.setattr(bundles.rollback, "rollback_run", fake_rollback_run)
+
+        result = bundles.rollback_group("g1")
+
+        assert result["ok"] is True
+        # Newest installed is undone first, and every member is attempted.
+        # The report follows the undo order, not the install order.
+        assert undone == ["i2", "i1"]
+        assert [entry["id"] for entry in result["members"]] == [
+            "demo_skill", "carrier_agent"
+        ]
+
 
 class TestCatalogBundles:
     def test_index_bundles_are_listed(

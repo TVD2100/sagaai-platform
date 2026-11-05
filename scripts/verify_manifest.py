@@ -54,11 +54,16 @@ CHANNEL = "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main"
 UNIT_NAME = "core"
 
 CORE_ROOT_FILES = {"__init__.py", "app.py", "pytest.ini", "requirements.txt"}
-CORE_DIRS = ("core/", "storage/", "ui/", "assets/", "certs/", "tests/", "scripts/")
+CORE_DIRS = ("core/", "storage/", "ui/", "assets/", "certs/", "tests/", "scripts/",
+             "sagaai/", "bin/")
+#: Directories whose contents are executable code, shipped only as part of the
+#: atomic unit. The console and its launcher belong here: a half-installed
+#: command package would import a module that does not exist yet.
 
 # Directories whose runtime contents are not part of the update manifest.
 WALK_SKIP_DIRS = {
     ".git", ".dev_agent", "__pycache__", ".pytest_cache", ".venv", "venv",
+    ".ruff_cache",
     "env", "build", "dist", "apps", "connectors", "assistants", "history",
     "orchestrators", "rag_bases", "skills", "system_prompts", "threads",
     "data", "deliverables", "personal_assistant_data",

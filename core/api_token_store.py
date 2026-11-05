@@ -258,5 +258,82 @@ def api_state() -> Dict[str, Any]:
         "token_count": len(records),
         "available": bool(settings[ENABLED_KEY]) and bool(usable),
     }
+
+
+# ─── Transport helpers ──────────────────────────────────────────────────────
+
+
+def public_view(record: Dict[str, Any], now: Optional[float] = None) -> Dict[str, Any]:
+    """Return a record as a caller may see it: no hash, no plaintext.
+
+    The stored hash is the credential's verifier - publishing it would let a
+    reader of a log mount an offline attack against a leaked token, and it
+    tells nothing a caller can act on. The remaining fields answer every
+    question an operator asks: which token is this, what may it reach, when
+    does it expire, and is it still usable.
+    """
+    record = record if isinstance(record, dict) else {}
+    return {
+        "id": str(record.get("id") or ""),
+        "slugs": scope_of(record),
+        "created_at": str(record.get("created_at") or ""),
+        "expires_at": str(record.get("expires_at") or ""),
+        "note": str(record.get("note") or ""),
+        "expired": bool(is_expired(record, now=now)),
+    }
+
+
+def list_tokens(now: Optional[float] = None) -> List[Dict[str, Any]]:
+    """Return every stored token as a public view, newest first."""
+    return [public_view(record, now=now) for record in load_records()]
+
+
+def create_token(slugs: Optional[List[str]] = None, note: str = "",
+                 expires_at: str = "") -> Dict[str, Any]:
+    """Generate a token AND persist its record; return the plaintext once.
+
+    Unlike :func:`generate_token`, which deliberately touches no storage, this
+    is the operation a transport performs: the token is useless unless its
+    record is saved, and a caller that had to remember the second step would
+    eventually forget it. The ceiling is enforced here rather than in the
+    caller, because a refused generation is an error the caller must report
+    as a configuration problem.
+
+    Returns ``{ok, token, record, error, code}``. ``token`` is present only on
+    success and is the ONLY time the plaintext is available.
+    """
+    key = str(expires_at or "").strip()
+    if key and "T" not in key:
+        # A bare date from a command line means "valid through the end of
+        # that day": midnight UTC of the NEXT day, so a token created today
+        # for today is still usable right now.
+        try:
+            from datetime import date, timedelta
+            day = date.fromisoformat(key)
+            key = (datetime.combine(day + timedelta(days=1),
+                                    datetime.min.time(), tzinfo=timezone.utc)
+                   .isoformat(timespec="seconds"))
+        except ValueError:
+            return {"ok": False, "token": "", "record": {},
+                    "code": "invalid_request",
+                    "error": "expires_at must be YYYY-MM-DD or an ISO timestamp"}
+    try:
+        existing = load_records()
+    except Exception as exc:  # pragma: no cover - defensive
+        return {"ok": False, "token": "", "record": {},
+                "code": "store_unavailable",
+                "error": "token storage is unreadable: " + str(exc)}
+    if len(existing) >= MAX_TOKENS:
+        return {"ok": False, "token": "", "record": {},
+                "code": "limit_exceeded",
+                "error": "this installation already holds %d tokens; revoke one first"
+                         % MAX_TOKENS}
+    generated = generate_token(slugs=slugs, note=note, expires_at=key)
+    if not add_record(generated["record"]):
+        return {"ok": False, "token": "", "record": {},
+                "code": "store_unavailable",
+                "error": "the token record could not be saved"}
+    return {"ok": True, "token": generated["token"],
+            "record": public_view(generated["record"]), "code": "", "error": ""}
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

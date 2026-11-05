@@ -384,18 +384,24 @@ def rollback_group(group_id: str, *, reason: str = "user") -> dict:
     if not wanted:
         raise BundleError("invalid_group", "Bundle group id is empty")
     runs = [
-        record for record in store.load_history()
+        (position, record)
+        for position, record in enumerate(store.load_history())
         if str(record.get("group_id") or "") == wanted
         and str(record.get("status") or "") == "done"
     ]
-    runs.sort(key=lambda record: str(record.get("started_at") or ""), reverse=True)
+    # Install order, oldest first. The run log is append-only, so its position
+    # is that order; the timestamp only breaks a tie it cannot create, because
+    # it has one-second resolution and two members of one bundle are commonly
+    # recorded within the same second. _rollback_members reverses the sequence
+    # before undoing it, so the order handed over here must stay chronological.
+    runs.sort(key=lambda pair: (str(pair[1].get("started_at") or ""), pair[0]))
     members = [
         {
             "type": record.get("type"),
             "id": record.get("id"),
             "install_id": record.get("install_id"),
         }
-        for record in runs
+        for _position, record in runs
     ]
     return {
         "ok": True,

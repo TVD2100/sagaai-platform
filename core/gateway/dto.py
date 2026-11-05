@@ -387,6 +387,67 @@ class DialogStepResult:
         }
 
 
+@dataclass(frozen=True)
+class DialogOutcome:
+    """Result of a dialog run driven to its end by ONE synchronous call.
+
+    The HTTP transport uses the step model (launch, poll, answer); a console
+    command has nothing to poll with - it either returns the outcome or it
+    returns nothing useful. This type is that outcome: the run snapshot, the
+    final assistant message and the flags a caller turns into an exit code.
+
+    ``timed_out`` is separate from ``status`` on purpose. A command that gave
+    up waiting did NOT cancel the run: the run keeps working, and reporting it
+    as failed would be a lie the next status read contradicts.
+    """
+
+    run_id: str
+    thread_id: str = ""
+    agent_slug: str = ""
+    status: str = ""
+    stop_reason: Optional[str] = None
+    error_code: Optional[str] = None
+    summary: str = ""
+    steps_used: int = 0
+    tokens_used: Dict[str, int] = field(default_factory=dict)
+    artifacts: List[Dict[str, Any]] = field(default_factory=list)
+    pending_input: Optional[PendingInput] = None
+    messages: List[MessageView] = field(default_factory=list)
+    timed_out: bool = False
+    elapsed_seconds: float = 0.0
+
+    @property
+    def finished(self) -> bool:
+        """True when the run reached a status no further work will change."""
+        return self.status in ("done", "failed", "cancelled")
+
+    @property
+    def succeeded(self) -> bool:
+        """True when the run finished with its goal met."""
+        return self.status == "done"
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "run_id": self.run_id,
+            "thread_id": self.thread_id,
+            "agent_slug": self.agent_slug,
+            "status": self.status,
+            "stop_reason": self.stop_reason,
+            "error_code": self.error_code,
+            "summary": self.summary,
+            "steps_used": int(self.steps_used),
+            "tokens_used": dict(self.tokens_used),
+            "artifacts": list(self.artifacts),
+            "pending_input": (self.pending_input.to_dict()
+                              if self.pending_input else None),
+            "messages": [m.to_dict() for m in self.messages],
+            "timed_out": bool(self.timed_out),
+            "elapsed_seconds": float(self.elapsed_seconds or 0.0),
+            "finished": self.finished,
+            "succeeded": self.succeeded,
+        }
+
+
 # ─── Entity cards ───────────────────────────────────────────────────────────
 
 

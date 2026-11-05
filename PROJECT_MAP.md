@@ -2,46 +2,46 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-04T20:44:46+00:00`
-- Файлов: **594**
+- Обновлено: `2026-11-04T22:16:13+00:00`
+- Файлов: **618**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **9234**
-- Отпечаток содержимого: `sha256:479c2de8d0b2f604cb2b4b605d6ec0b60bd821ad83d8f14eb74ebe453334b80b` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 1, JSON: 25, Markdown: 40, PEM certificate: 1, Python: 528, TOML: 1, Text: 2
+- Python-символов: **9439**
+- Отпечаток содержимого: `sha256:60a3c4d7b8f579c39f62c2e00a4033e52f636c414b565f88312959fe2bc6274d` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 1, JSON: 25, Markdown: 40, PEM certificate: 1, Python: 552, TOML: 1, Text: 2
 
 ## Файлы и назначение
 
 | Файл | Язык | Назначение | Зависит от |
 | --- | --- | --- | --- |
 | `__init__.py` | Python | Package marker | - |
-| `app.py` | Python | Process entry point: same-process marker, the marketplace recovery hook and the cold-start database-format switches (devagent.db, then the assistant dialogues of sagaai.db) before Streamlit is imported, so an interrupted install is undone and the layout is current before the UI opens | - |
+| `app.py` | Python | Process entry point: same-process marker, the marketplace recovery hook and the cold-start database-format switches (devagent.db, then the assistant dialogues of sagaai.db) before Streamlit is imported, so an interrupted install is undone and the layout is current before the UI opens | ui |
 | `pytest.ini` | Config | Pytest configuration | - |
 | `requirements-api.txt` | Text | Additional dependencies of the standalone HTTP API (FastAPI, uvicorn, pydantic), kept out of the base install so a Streamlit-only user does not pay for them | - |
 | `requirements.txt` | Text | Python dependencies | - |
 | `ruff.toml` | TOML | Linter configuration: a deliberately narrow rule set (layout, real defects, import order) with the reasons the remaining families stay off, so a finding means a defect and not a style the project never adopted | - |
 | `ui/__init__.py` | Python | Package marker | - |
-| `ui/app.py` | Python | Main application shell: sidebar navigation and page dispatch; the marketplace entry sits behind the enabled switch, which also gates the one-time registry seeding | - |
+| `ui/app.py` | Python | Main application shell: sidebar navigation and page dispatch; the marketplace entry sits behind the enabled switch, which also gates the one-time registry seeding | ui |
 | `ui/components/__init__.py` | Python | Package marker | - |
-| `ui/components/flash.py` | Python | Deferred UI notifications: a page queues a message in session_state (flash/flash_success/flash_error/flash_warning/flash_info) and render_flash() paints and clears the queue on the NEXT render pass, so a confirmation shown right before st.rerun() is not discarded with the current pass | - |
-| `ui/components/workspace_picker.py` | Python | Workspace picker component | - |
+| `ui/components/flash.py` | Python | Deferred UI notifications: a page queues a message in session_state (flash/flash_success/flash_error/flash_warning/flash_info) and render_flash() paints and clears the queue on the NEXT render pass, so a confirmation shown right before st.rerun() is not discarded with the current pass | ui |
+| `ui/components/workspace_picker.py` | Python | Workspace picker component | ui |
 | `ui/pages/__init__.py` | Python | Package marker | - |
 | `ui/pages/access.py` | Python | _(описание не задано)_ | - |
-| `ui/pages/assistants.py` | Python | Assistants management page (create/edit/delete assistant profiles, files, tools) | - |
+| `ui/pages/assistants.py` | Python | Assistants management page (create/edit/delete assistant profiles, files, tools) | ui |
 | `ui/pages/chat.py` | Python | Chat page for AI assistants: selector, history, send form | - |
-| `ui/pages/connectors.py` | Python | Connectors page: service and preset tiles opening a full-page form, the saved-connections tab, credentials status, test/edit/delete; the connection card carries the agent memory block for that connection | - |
-| `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | - |
-| `ui/pages/marketplace.py` | Python | Marketplace page: showcase with search, the entity card (licence, required tools, platform range), install, the three conflict resolutions, reset to catalog and uninstall with an inline confirmation | - |
-| `ui/pages/orchestrator.py` | Python | Orchestrator page: chat feed, history and settings sections; the Delegation tab carries the allowlists, the six delegation limits and the dialog fields (rounds, question and answer length, answer wait, simultaneous waits), each read through a default-tolerant helper so a partial limits mapping cannot break the tab; the waiting line shows the agent, the run id and the question, and the step feed renders a parked question as an expandable block; the Universal-Agent right is a separate checkbox above the agent list (hidden for the executor itself and while the employee is not installed), saved only when it changed and never folded into the allowlist | storage |
-| `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings page: tabbed sections (eleven tabs including Memory), the active tab is kept across reruns and pinned after a save | - |
-| `ui/pages/orchestrators.py` | Python | Employees (orchestrators) management page (create/open/settings/delete; export/import deferred) | - |
-| `ui/pages/schedules.py` | Python | The 'Run on a schedule' settings page: the rule list with its status, next point and counters, the create/edit form (employee, task, brief, zone, first moment, interval, blocked days, quiet window, advanced fields), a delete confirmation, the run history with its errors, the manual 'run now' action and the preview of the next points | - |
-| `ui/pages/settings.py` | Python | Settings page: provider keys, models, interface language and the owner's personal memory editor | - |
-| `ui/pages/skills.py` | Python | DEPRECATED shim -> ui/pages/assistants.py (page_assistants) | - |
-| `ui/pages/skills_library.py` | Python | Skills library page (install ZIP/GitHub/folder, edit metadata, delete) | - |
+| `ui/pages/connectors.py` | Python | Connectors page: service and preset tiles opening a full-page form, the saved-connections tab, credentials status, test/edit/delete; the connection card carries the agent memory block for that connection | ui |
+| `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | ui |
+| `ui/pages/marketplace.py` | Python | Marketplace page: showcase with search, the entity card (licence, required tools, platform range), install, the three conflict resolutions, reset to catalog and uninstall with an inline confirmation | ui |
+| `ui/pages/orchestrator.py` | Python | Orchestrator page: chat feed, history and settings sections; the Delegation tab carries the allowlists, the six delegation limits and the dialog fields (rounds, question and answer length, answer wait, simultaneous waits), each read through a default-tolerant helper so a partial limits mapping cannot break the tab; the waiting line shows the agent, the run id and the question, and the step feed renders a parked question as an expandable block; the Universal-Agent right is a separate checkbox above the agent list (hidden for the executor itself and while the employee is not installed), saved only when it changed and never folded into the allowlist | storage, ui |
+| `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings page: tabbed sections (eleven tabs including Memory), the active tab is kept across reruns and pinned after a save | ui |
+| `ui/pages/orchestrators.py` | Python | Employees (orchestrators) management page (create/open/settings/delete; export/import deferred) | ui |
+| `ui/pages/schedules.py` | Python | The 'Run on a schedule' settings page: the rule list with its status, next point and counters, the create/edit form (employee, task, brief, zone, first moment, interval, blocked days, quiet window, advanced fields), a delete confirmation, the run history with its errors, the manual 'run now' action and the preview of the next points | ui |
+| `ui/pages/settings.py` | Python | Settings page: provider keys, models, interface language and the owner's personal memory editor | ui |
+| `ui/pages/skills.py` | Python | DEPRECATED shim -> ui/pages/assistants.py (page_assistants) | ui |
+| `ui/pages/skills_library.py` | Python | Skills library page (install ZIP/GitHub/folder, edit metadata, delete) | ui |
 | `ui/pages/stats.py` | Python | _(описание не задано)_ | - |
-| `ui/pages/storage.py` | Python | RAG storage page: bases, files, indexing, test search, per-base search-mode selector (bm25/vector/hybrid), chunk browser | - |
-| `ui/pages/updates.py` | Python | _(описание не задано)_ | - |
-| `ui/pages/updates_marketplace.py` | Python | Marketplace sections on the Updates page: check, available updates with the conflict policy, unavailable entities with their reason and the run journal with an undo button | - |
+| `ui/pages/storage.py` | Python | RAG storage page: bases, files, indexing, test search, per-base search-mode selector (bm25/vector/hybrid), chunk browser | ui |
+| `ui/pages/updates.py` | Python | _(описание не задано)_ | ui |
+| `ui/pages/updates_marketplace.py` | Python | Marketplace sections on the Updates page: check, available updates with the conflict policy, unavailable entities with their reason and the run journal with an undo button | ui |
 | `ui/pages/welcome.py` | Python | Welcome / about page | - |
 | `core/__init__.py` | Python | Package marker | - |
 | `core/api_errors.py` | Python | API error hierarchy and user messages | - |
@@ -154,6 +154,9 @@
 | `core/orchestration/transcript_sink.py` | Python | Bridges the runner and the transcript store: turns the messages of one step into records, strips UI render data, appends them without raising into the run, and flushes the index fields of the thread (transcript path, parent, size) so a reader can find the folder | storage |
 | `core/orchestration/verify.py` | Python | Verification of a delegated result: Verdict (passed/failed/inconclusive), resolve_verifier, build_verifier_brief (summary and artifacts only - never the transcript), parse_verdict (conservative), verify_result launching the verifier as a child of the target tree | - |
 | `core/gateway/__init__.py` | Python | Package marker and public import surface of the in-process gateway facade | - |
+| `core/gateway/backup.py` | Python | Database snapshots through the SQLite engine rather than a file copy, with a per-member manifest and sha256, an integrity check before and after, and a listing ordered by creation moment | - |
+| `core/gateway/bootstrap.py` | Python | Cold start without the UI: creates the data directories and the database schema when the console is the first thing a user runs | storage |
+| `core/gateway/diagnostics.py` | Python | Read-only installation diagnosis: resolved paths, database state, dependency summary and the running-platform marker, with no write path at all | - |
 | `core/gateway/dialog.py` | Python | Dialog launch and close through the gateway: acquires the employee slot, starts the runner, registers the close listener that frees the slot on both a normal finish and a driver failure, and answers a busy slot with a typed error | - |
 | `core/gateway/dto.py` | Python | Data-transfer dataclasses of the gateway (agent, dialog, run, message views) and their constructors from the orchestration records | - |
 | `core/gateway/entities.py` | Python | Listing and lookup of employees and assistants through the gateway, with the allowlist check applied before a launch | - |
@@ -189,19 +192,22 @@
 | `tests/test_api_runs.py` | Python | Unit tests of the run routes: long polling, waited_ms, live=false and cancellation | - |
 | `tests/test_api_threads.py` | Python | Unit tests of the thread routes: absolute indices, a foreign thread as 404 and paging | - |
 | `tests/test_api_token_store.py` | Python | Unit tests of the API token store: generation, hash at rest, constant-time comparison, revocation and last use | - |
-| `tests/test_app_imports.py` | Python | Importability tests | storage |
+| `tests/test_app_imports.py` | Python | Importability tests | storage, ui |
 | `tests/test_apply_patch.py` | Python | _(описание не задано)_ | - |
 | `tests/test_assistant_folders.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_assistant_function_tools.py` | Python | _(описание не задано)_ | - |
 | `tests/test_assistant_sidebar_sort.py` | Python | _(описание не задано)_ | - |
-| `tests/test_assistant_temperature.py` | Python | _(описание не задано)_ | - |
-| `tests/test_assistant_tools.py` | Python | _(описание не задано)_ | - |
+| `tests/test_assistant_temperature.py` | Python | _(описание не задано)_ | ui |
+| `tests/test_assistant_tools.py` | Python | _(описание не задано)_ | ui |
 | `tests/test_auth_access.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_backup_and_safewriter.py` | Python | Backup/safe-writer tests | - |
 | `tests/test_chat_db_archive.py` | Python | Unit tests for the switch of the assistant dialogues: legacy detection, the layout stamp, the verified archive including messages that live only in the write-ahead log, the exact moment rows may leave the table, reuse of an identical archive and refusal of a stale one, reuse of the plain name only once, the notice read exactly once, and the failure modes (unverifiable archive, failed transcript write, unreadable database, a lock held by another connection) | storage |
-| `tests/test_chat_pagination.py` | Python | _(описание не задано)_ | - |
+| `tests/test_chat_pagination.py` | Python | _(описание не задано)_ | ui |
 | `tests/test_child_thread_binding_index.py` | Python | Unit tests for the child thread index row and the transcript read path: binding creates the row with parent, kind, title and a history-relative path, a second bind keeps one row, an empty id is a no-op, a failing store never breaks the binding, a child never appears in the dialog list, a bound child reads as an empty conversation until its first message, the tool answers ok/empty/resume_unavailable, and a legacy dialog still falls back to the messages table | storage |
-| `tests/test_cold_start_deps.py` | Python | UI tests for the cold-start dependency warning in ui.app: missing/outdated reports render deps_missing/deps_outdated, no warning when up to date, audit runs once per session, probe errors are swallowed | - |
+| `tests/test_cli_commands.py` | Python | Command contract tests: doctor creates no database, tokens are verified by the API store, restore refuses without --yes in a non-interactive shell, migrate prepares a clean machine, and the running-platform guard answers with the documented code | - |
+| `tests/test_cli_console.py` | Python | Unit tests of the console output layer: exactly one JSON object on stdout, the human report, the error envelope and the reserved-stream behaviour | - |
+| `tests/test_cli_imports.py` | Python | Tests that the console imports without streamlit, fastapi or pydantic, in a subprocess with the packages blocked rather than merely absent | - |
+| `tests/test_cold_start_deps.py` | Python | UI tests for the cold-start dependency warning in ui.app: missing/outdated reports render deps_missing/deps_outdated, no warning when up to date, audit runs once per session, probe errors are swallowed | ui |
 | `tests/test_connector_presets.py` | Python | Preset catalogue tests: hidden presets drop out of list_presets but stay resolvable by id (and with include_hidden=True), the hidden flag coerces booleans/strings/numbers and treats unknown values as visible, an invalid flag never breaks loading, instantiate_preset still works for a hidden preset, and the bundled catalogue ships vkusvill only while github_mcp stays resolvable with hidden=true | - |
 | `tests/test_connectors.py` | Python | Unit tests for core.connectors: CRUD, encrypted token/secrets storage, public-view leak guard, pending drafts, connection memory | - |
 | `tests/test_context_window_guard.py` | Python | Context-guard tests: output-reserve formula, 32k window, economy head protection, unified input_ceiling/input_budget/history_cap (B4) | - |
@@ -215,7 +221,7 @@
 | `tests/test_current_datetime_tool.py` | Python | Unit tests for the current_datetime tool: the answer fields, the shared date_line, the Russian weekday, the explicit-instant path with a frozen clock, catalog registration and the dispatcher entry | - |
 | `tests/test_db_concurrency.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_deepseek_anthropic_web_search.py` | Python | _(описание не задано)_ | - |
-| `tests/test_deepseek_responses.py` | Python | DeepSeek Responses API tests | - |
+| `tests/test_deepseek_responses.py` | Python | DeepSeek Responses API tests | ui |
 | `tests/test_default_imports.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_default_rag_bases.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_default_skills_seeding.py` | Python | Unit tests for the bundled skills a fresh install receives: the Rag Base Creator is seeded with the marketplace switched on, a catalog installation of the same skill stops the seed instead of producing a suffixed second copy, and the seeded folder is adopted by the registry as an installed entity | - |
@@ -223,7 +229,7 @@
 | `tests/test_delegation_injection_inheritance.py` | Python | Unit tests for the inherited prompt-injection protection mode: the SpawnRequest field, the value frozen in the run record, the resolve order (explicit request, else the resumed run, else protected), the runner hand-off with a legacy fixed signature, and that the one-step viewing bypass is never inherited | - |
 | `tests/test_dependency_check.py` | Python | Unit tests for core.dependency_check: version parsing/comparison, registry contract, check report with stubbed importlib.metadata, and registry<->requirements.txt consistency | - |
 | `tests/test_devagent_db_archive.py` | Python | Unit tests for the database-format switch: the legacy detector, the layout stamp, the archive contents including rows that live only in the write-ahead log, verification before removal, reuse of an identical archive, refusal of a stale one, the lock held by another connection, and the one-shot notice | - |
-| `tests/test_devagent_db_archive_notice.py` | Python | Unit tests for the archive notice rendered on start-up: it names the archive path and the preserved counts, it is shown once per session, an installation without a notice stays silent, a damaged notice file does not break the page, and the message is translated in every shipped language | - |
+| `tests/test_devagent_db_archive_notice.py` | Python | Unit tests for the archive notice rendered on start-up: it names the archive path and the preserved counts, it is shown once per session, an installation without a notice stays silent, a damaged notice file does not break the page, and the message is translated in every shipped language | ui |
 | `tests/test_devagent_instructions.py` | Python | Invariant tests for the canonical DevAgent instruction files (connector_creator, ssh_connector, github_connector, mcp_connector): structure, draft flow, memory discipline, no-secrets rules | - |
 | `tests/test_devagent_thread_workspace.py` | Python | DevAgent thread workspace persistence tests | storage |
 | `tests/test_dispatcher_connections.py` | Python | _(описание не задано)_ | storage |
@@ -231,8 +237,8 @@
 | `tests/test_document_images.py` | Python | Unit tests for core/document_images: per-format extraction and anchors, deduplication, size and zip-limits, signature checks, page rendering and blank-page skipping, scan detection, file naming and batching, the recognition prompt | - |
 | `tests/test_document_text.py` | Python | Unit tests for core.document_text: per-format extraction, line window, warnings for unknown formats and missing libraries | - |
 | `tests/test_economy_history_budget.py` | Python | Economy budget tests: unified (B4) input budget, tail reset on token overflow, low-watermark fallback, economy_anchor hysteresis (frozen front) | - |
-| `tests/test_employee_management_ui.py` | Python | UI regression tests: employee management pages render and expose no export/import employee UI | - |
-| `tests/test_feed_autoscroll.py` | Python | Unit + integration tests for core.feed_autoscroll and its wiring into _render_chat_tab: JS markers, force flag, st.html emission with a changing render id, scroll-container selectors, idle/active/send behaviour | - |
+| `tests/test_employee_management_ui.py` | Python | UI regression tests: employee management pages render and expose no export/import employee UI | ui |
+| `tests/test_feed_autoscroll.py` | Python | Unit + integration tests for core.feed_autoscroll and its wiring into _render_chat_tab: JS markers, force flag, st.html emission with a changing render id, scroll-container selectors, idle/active/send behaviour | ui |
 | `tests/test_folder_dialog.py` | Python | Unit tests for core.folder_dialog: availability probe, tkinter/osascript backends, timeout and cancel handling, non-ASCII paths, disable switch | - |
 | `tests/test_gateway_dto.py` | Python | Unit tests of the gateway dataclasses and their constructors from the orchestration records | - |
 | `tests/test_gateway_imports.py` | Python | Tests that the gateway facade imports without streamlit, fastapi or pydantic, and that the dependency direction server -> gateway -> orchestration -> dev_agent holds | - |
@@ -258,7 +264,7 @@
 | `tests/test_marketplace_local_mods.py` | Python | Unit tests for local-edit detection: content-hash comparison against the recorded manifest, touched files that are not edits and the user_modified flag | - |
 | `tests/test_marketplace_mcp_installer.py` | Python | Unit tests for installing an MCP entity: the connection is created from its preset as a credential-less draft, identity is (service, preset_id) and re-installing does not duplicate the connection | - |
 | `tests/test_marketplace_migration.py` | Python | Unit tests for adopting entities that predate the catalog: a present entity is registered under its catalog id with the synthetic bundled version, a missing one is not, and the removal marker still wins | - |
-| `tests/test_marketplace_no_network.py` | Python | Tests that start-up stays offline: an AST check refuses catalog calls in the boot path and a socket ban renders the boot sequence and the Updates page | - |
+| `tests/test_marketplace_no_network.py` | Python | Tests that start-up stays offline: an AST check refuses catalog calls in the boot path and a socket ban renders the boot sequence and the Updates page | ui |
 | `tests/test_marketplace_publish.py` | Python | Unit tests for the catalog publisher: the built entity manifest, the index entry, the hashes and the signature, and the refusals for a malformed manifest or an unknown agent kind | - |
 | `tests/test_marketplace_rag_installer.py` | Python | Unit tests for installing a rag entity: the three distribution modes, index_sha256/index_schema verification, the atomic folder replace and a refusal that leaves the previous base intact | - |
 | `tests/test_marketplace_registry.py` | Python | Unit tests for the installed registry: catalog-id rows, runtime-slug uniqueness, removal markers, the exported cache and the seeding pass | storage |
@@ -291,29 +297,29 @@
 | `tests/test_orchestration_subagent_tools.py` | Python | Unit tests for the observation tools: subagent_status over one run, a whole tree and a bounded wait, read_subagent_state sections and caps, and resume_subagent with and without an explicit request | - |
 | `tests/test_orchestration_tools.py` | Python | Unit tests for the spawn_agent/invoke_assistant wrappers: rights checks, unknown targets, argument validation and catalog entries | - |
 | `tests/test_orchestration_verify.py` | Python | Unit tests for verify_result: contract refusals, the three verdicts, conservative parsing, the visibility boundary, own thread and journal, tree limits, catalog and prompt gating, fan-out acceptance | storage |
-| `tests/test_orchestrator_chat_prefs.py` | Python | _(описание не задано)_ | - |
+| `tests/test_orchestrator_chat_prefs.py` | Python | _(описание не задано)_ | ui |
 | `tests/test_orchestrator_connections.py` | Python | Unit tests for the connection prompt extension: enabled binding, per-service tool catalogs, credentials-pending marker, memory quick notes | storage |
 | `tests/test_orchestrator_delegation_prompt.py` | Python | Tests for the delegation blocks of the system prompt: available agents (self plus allowlist) and available assistants with ids, omitted when the assistant allowlist is empty | storage |
-| `tests/test_orchestrator_delegation_settings.py` | Python | Tests for the Delegation settings tab: per-entity checkboxes, stale ids shown instead of dropped, delegation and dialog number inputs with real tooltips and stored values, a partial limits mapping falling back to defaults, and Save persisting exactly what the widgets returned | - |
-| `tests/test_orchestrator_dialog_waiting_ui.py` | Python | UI tests for the waiting line of the chat page: the counter appears while a run waits for an answer, the question text is clipped to three lines, the row disappears once the answer is delivered and the dialog still refreshes while a run is parked | - |
-| `tests/test_orchestrator_economy_cache.py` | Python | Orchestrator economy-cache tests: cache-friendly prefix and anchor behaviour | - |
+| `tests/test_orchestrator_delegation_settings.py` | Python | Tests for the Delegation settings tab: per-entity checkboxes, stale ids shown instead of dropped, delegation and dialog number inputs with real tooltips and stored values, a partial limits mapping falling back to defaults, and Save persisting exactly what the widgets returned | ui |
+| `tests/test_orchestrator_dialog_waiting_ui.py` | Python | UI tests for the waiting line of the chat page: the counter appears while a run waits for an answer, the question text is clipped to three lines, the row disappears once the answer is delivered and the dialog still refreshes while a run is parked | ui |
+| `tests/test_orchestrator_economy_cache.py` | Python | Orchestrator economy-cache tests: cache-friendly prefix and anchor behaviour | ui |
 | `tests/test_orchestrator_folders.py` | Python | Orchestrator folder tests | storage |
-| `tests/test_orchestrator_image_result.py` | Python | UI tests: generated image shown in the chat with a download button | - |
+| `tests/test_orchestrator_image_result.py` | Python | UI tests: generated image shown in the chat with a download button | ui |
 | `tests/test_orchestrator_memory_dir_arg.py` | Python | Unit tests for the memory_dir argument of create_orchestrator/save_orchestrator | storage |
 | `tests/test_orchestrator_memory_paths.py` | Python | Unit tests for the working-folder resolver: MEMORY_DIR marker, config fallback, the central DATA_DIR/agents_data default, workspace:/central: scopes, the legacy-folder report, outside-workspace paths and conflict reporting | - |
-| `tests/test_orchestrator_message_controls.py` | Python | Per-message download/copy controls tests (plain-prose answers) | - |
-| `tests/test_orchestrator_models_settings.py` | Python | Orchestrator settings UI tests (main model + optional vision/image selectors) | - |
+| `tests/test_orchestrator_message_controls.py` | Python | Per-message download/copy controls tests (plain-prose answers) | ui |
+| `tests/test_orchestrator_models_settings.py` | Python | Orchestrator settings UI tests (main model + optional vision/image selectors) | ui |
 | `tests/test_orchestrator_nav.py` | Python | _(описание не задано)_ | - |
-| `tests/test_orchestrator_other_settings.py` | Python | _(описание не задано)_ | - |
-| `tests/test_orchestrator_prompt_settings.py` | Python | UI tests: prompt settings tab - save, reset button and edited-prompt notice for the built-in orchestrator | - |
-| `tests/test_orchestrator_settings_tabs.py` | Python | Tests for the settings tab pinning: eleven sections map to their own tab and a stale label from another language is dropped | - |
-| `tests/test_orchestrator_subagent_ui.py` | Python | UI tests for the background subagent parts of the chat page: the running-runs status line, the _notice badge and the st.fragment refresh | - |
-| `tests/test_orchestrator_system_tools_ui.py` | Python | _(описание не задано)_ | - |
+| `tests/test_orchestrator_other_settings.py` | Python | _(описание не задано)_ | ui |
+| `tests/test_orchestrator_prompt_settings.py` | Python | UI tests: prompt settings tab - save, reset button and edited-prompt notice for the built-in orchestrator | ui |
+| `tests/test_orchestrator_settings_tabs.py` | Python | Tests for the settings tab pinning: eleven sections map to their own tab and a stale label from another language is dropped | ui |
+| `tests/test_orchestrator_subagent_ui.py` | Python | UI tests for the background subagent parts of the chat page: the running-runs status line, the _notice badge and the st.fragment refresh | ui |
+| `tests/test_orchestrator_system_tools_ui.py` | Python | _(описание не задано)_ | ui |
 | `tests/test_orchestrator_tools.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_personal_memory.py` | Python | Unit tests for the personal memory layer: scope parsing, size limit, atomic write, backups and rotation, credential screening, access rights, archive on delete | - |
 | `tests/test_personal_memory_prompt.py` | Python | Unit tests for personal-memory prompt injection: owner card append and cap, size-only employee block, broken-layer tolerance, order of the two blocks | - |
 | `tests/test_personal_memory_tools.py` | Python | Unit tests for the get/set/list_personal_memory dispatcher tools: scope resolution, append vs replace, limits and permission errors | - |
-| `tests/test_phase1_agent_loop.py` | Python | Agent loop tests | - |
+| `tests/test_phase1_agent_loop.py` | Python | Agent loop tests | ui |
 | `tests/test_phase1_core_pure.py` | Python | Pure core tests | - |
 | `tests/test_phase1_storage.py` | Python | Storage layer tests (assistants table + legacy aliases) | storage |
 | `tests/test_platform_bootstrap.py` | Python | Bootstrap tests | storage |
@@ -329,7 +335,7 @@
 | `tests/test_rag_chunks_and_preset_skills.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_rag_create_base_slug.py` | Python | Unit: rag.create_base explicit slug - normalisation to [a-z0-9_.-], refusal without Latin, duplicate slug, name-derived fallback | storage |
 | `tests/test_rag_eval.py` | Python | Unit: rag_eval - metrics on hand-checked rankings, fixture loading errors, end-to-end run, the recorded quality baseline and the multi-product BM25F benchmark (product-scoped queries at recall@5 = MRR = 1.0) | - |
-| `tests/test_rag_hot_paths_no_stats.py` | Python | _(описание не задано)_ | - |
+| `tests/test_rag_hot_paths_no_stats.py` | Python | _(описание не задано)_ | ui |
 | `tests/test_rag_stats_cache.py` | Python | _(описание не задано)_ | - |
 | `tests/test_rag_tools_robustness.py` | Python | _(описание не задано)_ | - |
 | `tests/test_rag_with_stats.py` | Python | Unit: with_stats opt-out for RAG hot paths; mode-aware base activity (bm25/hybrid active without provider keys) | storage |
@@ -352,13 +358,13 @@
 | `tests/test_sidebar_nav.py` | Python | Unit tests for the sidebar blocks: the four section headers, the five marketplace subsections under the marketplace switch, the three primary settings entries plus the collapsed More block, and the shared section key between the menu and the showcase tabs | - |
 | `tests/test_single_model_config.py` | Python | Single-model config tests (legacy weak_* tolerance, vision/image keys, no weak_* persistence) | storage |
 | `tests/test_skill_build_base.py` | Python | Unit: Rag Base Creator build_base.py - dry-run plan, bm25 build with zero embedding calls, and the --slug contract (override, normalisation, refusal without Latin, replace) | storage |
-| `tests/test_skills_adaptation.py` | Python | _(описание не задано)_ | storage |
+| `tests/test_skills_adaptation.py` | Python | _(описание не задано)_ | storage, ui |
 | `tests/test_skills_library.py` | Python | Skills library tests | storage |
 | `tests/test_ssh_connector.py` | Python | Unit tests for core/ssh_connector (fake paramiko) | - |
 | `tests/test_ssh_tools.py` | Python | Unit tests for core/ssh_tools (SSH connector tool layer) | - |
 | `tests/test_st_mock.py` | Python | _(описание не задано)_ | _st_mock |
 | `tests/test_statistics.py` | Python | _(описание не задано)_ | - |
-| `tests/test_stats_page_ui.py` | Python | _(описание не задано)_ | - |
+| `tests/test_stats_page_ui.py` | Python | _(описание не задано)_ | ui |
 | `tests/test_storage_page_ui.py` | Python | UI tests: storage base card - search-mode selectbox (current mode preselected) and Apply persisting the mode | storage |
 | `tests/test_structured_output_consumers.py` | Python | _(описание не задано)_ | - |
 | `tests/test_subagent_transcript_modes.py` | Python | _(описание не задано)_ | - |
@@ -372,7 +378,7 @@
 | `tests/test_thread_mirror.py` | Python | Unit tests for the shared file half of the dialogue mirror: path resolution and validation of thread ids, append and full rewrite, the shape a reader gets back, the completeness check that guards the fallback to the table, and a broken write that is reported without raising | - |
 | `tests/test_threads_devagent_files.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_threads_devagent_search.py` | Python | Unit tests for the thread-search storage/service layer: filtered listing, counts, message windows, access control | storage |
-| `tests/test_token_line_cache.py` | Python | Token-line cache tests: language in the cache key, re-render on language switch, localized labels | - |
+| `tests/test_token_line_cache.py` | Python | Token-line cache tests: language in the cache key, re-render on language switch, localized labels | ui |
 | `tests/test_tool_classes.py` | Python | Unit tests for the tool classification used by read_subagent_thread: named arguments, a bare tool name and duplicate calls | - |
 | `tests/test_tool_executor_env.py` | Python | _(описание не задано)_ | - |
 | `tests/test_tool_result_size_cap.py` | Python | Tool-result spill policy tests: head+tail preview, hard-cap fallback, UniversalDevAgent path | - |
@@ -387,25 +393,25 @@
 | `tests/test_transcript_schema.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_transcript_sink.py` | Python | Unit tests for the sink: a step becomes records in order, UI render data is not stored, and a store failure never propagates into the run | storage |
 | `tests/test_transcript_writer.py` | Python | Unit tests for the transcript writer: record shape, event-prefix stripping, rotation, append after a torn line, the checkpoint record and the folder layout | - |
-| `tests/test_ui_connectors_mcp.py` | Python | UI tests for the Connectors page: stateful tabs (on_change='rerun' + default), preset tiles with icons, a tile click opens the full-page create form and writes nothing, submitting that form creates an already-active connection with the typed token, Cancel creates nothing, a preset-based edit form shows only the credential fields and saves env_pairs, MCP cards render on the Connections tab, mcp is excluded from the general service tiles, and a preset hidden from the catalogue offers no tile while its connection keeps the preset edit form (resolved by id) | - |
-| `tests/test_ui_connectors_ssh.py` | Python | UI tests for the connectors page SSH support and the pending-credentials warning | - |
-| `tests/test_ui_flash.py` | Python | Unit tests for ui.components.flash: queueing of every kind, missing/garbage session state tolerated, render_flash paints once and clears, pending queue capped | - |
-| `tests/test_ui_pages.py` | Python | UI page tests | - |
-| `tests/test_ui_personal_memory.py` | Python | UI tests for the personal memory pages: owner memory editor, connector memory block, employee Memory tab | - |
-| `tests/test_ui_tooltips.py` | Python | _(описание не задано)_ | - |
-| `tests/test_ui_tooltips_orchestrator.py` | Python | _(описание не задано)_ | - |
+| `tests/test_ui_connectors_mcp.py` | Python | UI tests for the Connectors page: stateful tabs (on_change='rerun' + default), preset tiles with icons, a tile click opens the full-page create form and writes nothing, submitting that form creates an already-active connection with the typed token, Cancel creates nothing, a preset-based edit form shows only the credential fields and saves env_pairs, MCP cards render on the Connections tab, mcp is excluded from the general service tiles, and a preset hidden from the catalogue offers no tile while its connection keeps the preset edit form (resolved by id) | ui |
+| `tests/test_ui_connectors_ssh.py` | Python | UI tests for the connectors page SSH support and the pending-credentials warning | ui |
+| `tests/test_ui_flash.py` | Python | Unit tests for ui.components.flash: queueing of every kind, missing/garbage session state tolerated, render_flash paints once and clears, pending queue capped | ui |
+| `tests/test_ui_pages.py` | Python | UI page tests | ui |
+| `tests/test_ui_personal_memory.py` | Python | UI tests for the personal memory pages: owner memory editor, connector memory block, employee Memory tab | ui |
+| `tests/test_ui_tooltips.py` | Python | _(описание не задано)_ | ui |
+| `tests/test_ui_tooltips_orchestrator.py` | Python | _(описание не задано)_ | ui |
 | `tests/test_universal_agent.py` | Python | Unit tests for the bundled executor and its default right: the shipped folder loads, the prompt is English and the toolset stays narrower than a specialist; the flag reads ON when the config never mentioned it, OFF only after an explicit decision, never rewrites allowed_agents, and the effective list adds the executor by default, keeps configured agents first, never duplicates a manual entry, skips the executor itself and hides a deleted employee | storage |
 | `tests/test_universal_agent_delegation.py` | Python | Tests for the right as seen and as enforced: the ## Available agents prompt block lists the executor with its default-availability note, the runtime allowlist check grants it by default and refuses it after the checkbox is cleared, and both sides read the same effective list | storage |
 | `tests/test_universal_agent_thread_files.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_universal_agent_thread_search.py` | Python | Unit tests for the thread-search tools in the universal dispatcher: defaults, access control, argument coercion | storage |
-| `tests/test_universal_agent_ui.py` | Python | UI tests for the checkbox that switches the executor off: it renders above the agent list, is hidden for the executor itself and while the employee is not installed, is saved only when it changed, and never turns into a stray allowlist entry | - |
+| `tests/test_universal_agent_ui.py` | Python | UI tests for the checkbox that switches the executor off: it renders above the agent list, is hidden for the executor itself and while the employee is not installed, is saved only when it changed, and never turns into a stray allowlist entry | ui |
 | `tests/test_universal_developer.py` | Python | UniversalDevAgent tests incl. connection-tool dispatch and disabled_tools gating | storage |
 | `tests/test_updater.py` | Python | _(описание не задано)_ | - |
 | `tests/test_updater_apply.py` | Python | _(описание не задано)_ | - |
-| `tests/test_updater_ui.py` | Python | _(описание не задано)_ | - |
-| `tests/test_url_fetch.py` | Python | Unit tests for the optional URL-fetch capability: catalog helpers and the shipped DeepSeek profile, endpoint derivation, URL validation, the transport (request shape, bearer key, nested envelopes, APIError mapping), sanitizer labelling and cap, the tool gate and its restricted arguments, get_fetch_config resolution, the catalog/prompt/system-tools gate and the Models tab UI | - |
+| `tests/test_updater_ui.py` | Python | _(описание не задано)_ | ui |
+| `tests/test_url_fetch.py` | Python | Unit tests for the optional URL-fetch capability: catalog helpers and the shipped DeepSeek profile, endpoint derivation, URL validation, the transport (request shape, bearer key, nested envelopes, APIError mapping), sanitizer labelling and cap, the tool gate and its restricted arguments, get_fetch_config resolution, the catalog/prompt/system-tools gate and the Models tab UI | ui |
 | `tests/test_url_fetch_transport.py` | Python | Unit tests for the URL-fetch transport extras: PDF text extraction (page sections, empty scans), the SSRF guard on literal private addresses, Selenium text rendering with a mocked driver and the unavailable-dependency error | - |
-| `tests/test_usability_fixes.py` | Python | UI regression tests for the usability fixes (two-step delete confirmations, neutral employee caption, datetime captions, inline chat-input file upload: accept_file="multiple", raw-byte persistence, size cap) | - |
+| `tests/test_usability_fixes.py` | Python | UI regression tests for the usability fixes (two-step delete confirmations, neutral employee caption, datetime captions, inline chat-input file upload: accept_file="multiple", raw-byte persistence, size cap) | ui |
 | `tests/test_verify_manifest.py` | Python | _(описание не задано)_ | - |
 | `tests/test_web_search_prompt.py` | Python | _(описание не задано)_ | - |
 | `tests/test_working_memory_prompt.py` | Python | Unit tests for the platform ## Working memory block: path and scope announcement, the folder-state line, the memory: addressing hint and the legacy-folder warning | - |
@@ -413,8 +419,8 @@
 | `tests/test_workspace_empty_state.py` | Python | Empty-state tests: neutral root, WORKSPACE_SELECTED flag, snapshot/restore round-trip | - |
 | `tests/test_workspace_guard.py` | Python | Workspace-guard tests: file tools blocked with workspace_not_selected; neutral cwd for code= runs | storage |
 | `tests/test_yandex_responses.py` | Python | Yandex Responses API tests | - |
-| `tests/smoke/test_app_smoke.py` | Python | App smoke tests | - |
-| `tests/scenarios/test_access_scenarios.py` | Python | _(описание не задано)_ | - |
+| `tests/smoke/test_app_smoke.py` | Python | App smoke tests | ui |
+| `tests/scenarios/test_access_scenarios.py` | Python | _(описание не задано)_ | ui |
 | `tests/scenarios/test_agent_dialog_scenario.py` | Python | Scenario tests (given->when->then) for the agent dialog: a child asks and resumes the same run (A), the limits refuse a sixth round, an over-long question, an expired wait and a late answer (B), and the question stays data-bounded, confined to its own tree and never reaches the system channel (C) | - |
 | `tests/scenarios/test_agent_md_doc_scenario.py` | Python | Scenario tests: AGENT.md managed doc (scaffold with mandatory conventions, legacy 'spec' alias, assess states) | storage |
 | `tests/scenarios/test_api_scenario.py` | Python | Scenario tests of the HTTP API (given->when->then): a launch, a poll to completion, reading the thread, cancellation and the error envelope, with a fake backend behind the real routes | - |
@@ -423,6 +429,7 @@
 | `tests/scenarios/test_batch_tool_calls_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_chat_db_archive_scenario.py` | Python | Scenario tests for the upgrade of an existing installation (given->when->then): a previous build's dialogues move to files while the database and the other tables stay intact, the archive reopens as the old build knew it, an upgraded dialogue reads back unchanged, a restart changes nothing, a new dialogue is mirrored from the first message, and a damaged step keeps every dialogue readable from the table | storage |
 | `tests/scenarios/test_child_transcript_readability_scenario.py` | Python | Scenario tests (given->when->then) for the parent's view of delegated work: a child that died before its first step is readable as an empty conversation, a child that worked returns what it actually said in order, a child recorded before the fix gets a named problem pointing at the journal, and a plain dialog keeps its own reading path | storage |
+| `tests/scenarios/test_cli_scenarios.py` | Python | Scenario tests of the console (given->when->then): preparing a bare machine, a maintenance window with a snapshot and a rollback, an update from a local mirror, handing a token to a script, refusals without a terminal, and the whole console working without Streamlit | - |
 | `tests/scenarios/test_connection_retry_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_connectors_scenarios.py` | Python | Scenario tests for the connectors feature: lifecycle, token safety, validation, orchestrator binding/prompt, GitHub tools, dispatcher integration, draft flow | storage |
 | `tests/scenarios/test_context_overflow_protection.py` | Python | Scenario: context-overflow protection - spill of a huge tool result and the failed-spill hard error | - |
@@ -431,57 +438,57 @@
 | `tests/scenarios/test_delegation_injection_inheritance_scenario.py` | Python | Scenario tests for the safety mode a user actually creates: Safety off gives an unprotected child, the default dialog keeps it protected, a resume keeps the mode of the run it continues, an explicit mode wins, and the loop hands the dialog mode down to the tool without a gap | - |
 | `tests/scenarios/test_delegation_run_scenario.py` | Python | Scenario tests for one delegated run: two children reporting into the dialog feed, distinct threads and journals, Stop cascading to children, the run budget with a readable refusal, tree release at dialog end | - |
 | `tests/scenarios/test_devagent_db_archive_scenario.py` | Python | Scenario tests for the upgrade of an existing installation (given->when->then): an old database is archived intact and replaced by an empty one, the user is told where the old dialogues are, later starts stay silent, a restored different backup keeps the first archive, and a byte-identical restore reuses it | - |
-| `tests/scenarios/test_devagent_defaults_scenario.py` | Python | _(описание не задано)_ | storage |
+| `tests/scenarios/test_devagent_defaults_scenario.py` | Python | _(описание не задано)_ | storage, ui |
 | `tests/scenarios/test_document_images_scenario.py` | Python | Scenario tests (given->when->then) for reading the pictures of a document: a report with a chart, a scanned contract (auto does not read a page twice, force renders pages and replaces the pictures on them), an empty file, a dialog upload, a missing vision model and a repeated run | - |
 | `tests/scenarios/test_documents_and_delegation_scenario.py` | Python | Scenario tests for documents and delegation: a document goes to an assistant as one invoke_assistant call without run_code, a missing file is skipped, the prompt lists agent and assistant ids, a subagent task carries absolute paths | storage |
-| `tests/scenarios/test_dsml_fallback_scenarios.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_dsml_fallback_scenarios.py` | Python | _(описание не задано)_ | ui |
 | `tests/scenarios/test_employees_sidebar_scenarios.py` | Python | _(описание не задано)_ | storage |
-| `tests/scenarios/test_empty_state_artifacts_scenario.py` | Python | Scenario tests: task journal and uploads never create files in a foreign project (empty state); files arrive via st.chat_input | storage |
-| `tests/scenarios/test_feed_autoscroll_scenario.py` | Python | Scenario tests for chat feed auto-scroll (given->when->then): forced scroll on send, follow on each agent step, pause on scroll-up / resume at bottom, idle chat untouched | - |
+| `tests/scenarios/test_empty_state_artifacts_scenario.py` | Python | Scenario tests: task journal and uploads never create files in a foreign project (empty state); files arrive via st.chat_input | storage, ui |
+| `tests/scenarios/test_feed_autoscroll_scenario.py` | Python | Scenario tests for chat feed auto-scroll (given->when->then): forced scroll on send, follow on each agent step, pause on scroll-up / resume at bottom, idle chat untouched | ui |
 | `tests/scenarios/test_first_run_flow.py` | Python | _(описание не задано)_ | - |
-| `tests/scenarios/test_folder_picker_scenario.py` | Python | Scenario tests for the chat folder picker (Выбор папки): applied on first send, mid-dialog switch, agent detour does not change the reported folder, native browse button records and stages the folder | storage |
-| `tests/scenarios/test_generated_image_feed_scenario.py` | Python | Scenario tests for the generated image shown immediately in the chat feed (outside the collapsed tool-result block) | - |
+| `tests/scenarios/test_folder_picker_scenario.py` | Python | Scenario tests for the chat folder picker (Выбор папки): applied on first send, mid-dialog switch, agent detour does not change the reported folder, native browse button records and stages the folder | storage, ui |
+| `tests/scenarios/test_generated_image_feed_scenario.py` | Python | Scenario tests for the generated image shown immediately in the chat feed (outside the collapsed tool-result block) | ui |
 | `tests/scenarios/test_gigachat_models_scenario.py` | Python | _(описание не задано)_ | - |
-| `tests/scenarios/test_gigachat_orchestrator_scenario.py` | Python | Scenario: orchestrator run on a GigaChat-like payload (leading-system fold, error visibility) | - |
+| `tests/scenarios/test_gigachat_orchestrator_scenario.py` | Python | Scenario: orchestrator run on a GigaChat-like payload (leading-system fold, error visibility) | ui |
 | `tests/scenarios/test_github_read_retry_scenario.py` | Python | Scenario tests: GitHub read retries via the public API (get_user_info/create_repo), no token leaks | - |
 | `tests/scenarios/test_github_rest_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_incomplete_responses_recovery_scenario.py` | Python | Scenarios: incomplete-responses recovery - truncation then success, partial text kept, persistent truncation terminates | - |
-| `tests/scenarios/test_inline_chat_upload_scenario.py` | Python | Scenario tests for the inline file upload built into st.chat_input (given->when->then): text+file together, files-only submission, plain text creates no files, oversized attachment rejected | - |
+| `tests/scenarios/test_inline_chat_upload_scenario.py` | Python | Scenario tests for the inline file upload built into st.chat_input (given->when->then): text+file together, files-only submission, plain text creates no files, oversized attachment rejected | ui |
 | `tests/scenarios/test_journal_retention_scenario.py` | Python | Scenario tests (given->when->then) for journal retention on a long-lived install: abandoned scaffolds across the project and empty-state dialog folders are swept while a dialog with history, an unfinished task and the live dialog survive; a second agent step of the same process skips the rescan; the running dialog's empty journal is never removed | - |
 | `tests/scenarios/test_json_repair_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_license_consistency_scenario.py` | Python | Scenario: license migration to PolyForm Noncommercial 1.0.0 - canonical LICENSE text, no MIT SPDX identifier among published files, README/UI/AGENT.md agreement, 2.x version and manifest consistency, documented licensing history | - |
 | `tests/scenarios/test_loop_stuck_protection_scenarios.py` | Python | Loop-stuck protection scenarios: per-tool failure counter hints, duplicate-call flood compaction, prose loop_status continue | - |
-| `tests/scenarios/test_marketplace_conflict_scenario.py` | Python | Scenario tests for the conflict paths: a locally edited skill offers the three resolutions, keep_mine keeps the edit, take_catalog backs up and replaces, fork creates a new entity | - |
+| `tests/scenarios/test_marketplace_conflict_scenario.py` | Python | Scenario tests for the conflict paths: a locally edited skill offers the three resolutions, keep_mine keeps the edit, take_catalog backs up and replaces, fork creates a new entity | ui |
 | `tests/scenarios/test_marketplace_skill_scenario.py` | Python | Scenario tests for installing a skill from the showcase: the card renders, install writes the files and the registry row, a refusal is shown instead of a broken install | - |
 | `tests/scenarios/test_marketplace_updates_scenario.py` | Python | Scenario tests for the Updates page: a check lists the available version, an edited installation is marked and updated with keep_mine, a platform refusal is reported instead of offering the button, the journal offers the undo of a finished install | - |
 | `tests/scenarios/test_mcp_e2e_scenario.py` | Python | Scenario: MCP e2e demo - a connector (python + stdlib server) is created and enabled, mcp_list_tools lists its tools, the dynamic mcp__conn__echo tool dispatches and returns echo:hello, a failing tool surfaces is_error | storage |
 | `tests/scenarios/test_mcp_preset_e2e_scenario.py` | Python | Scenario: MCP preset e2e - a local fake Vkusvill HTTP MCP server on 127.0.0.1; the user path preset -> pending draft -> token via env_pairs -> private HTTP tool call; asserts the Authorization header reaches the server, session-id replay, tokenless public tools and a clean auth error without credentials | storage |
-| `tests/scenarios/test_mcp_tab_ui_scenario.py` | Python | Scenario tests for the Connectors page user path (given->when->then): three tabs render, an MCP preset tile opens the create form without touching the DB, submitting it stores an ACTIVE connection whose token is decrypted on read and lands on the Connections tab, a GitHub service tile opens the form, Cancel writes nothing and a repeated open + create stores an active connection while the token never renders | - |
+| `tests/scenarios/test_mcp_tab_ui_scenario.py` | Python | Scenario tests for the Connectors page user path (given->when->then): three tabs render, an MCP preset tile opens the create form without touching the DB, submitting it stores an ACTIVE connection whose token is decrypted on read and lands on the Connections tab, a GitHub service tile opens the form, Cancel writes nothing and a repeated open + create stores an active connection while the token never renders | ui |
 | `tests/scenarios/test_multimodal_scenarios.py` | Python | Scenario tests for the multimodal tools (vision analysis, not_assigned, generation, provider hint) | - |
-| `tests/scenarios/test_new_dialog_empty_workspace_scenario.py` | Python | Scenario tests: a new dialog starts with no folder and never inherits a neighbour's workspace | storage |
-| `tests/scenarios/test_orchestrator_chat_prefs_scenario.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_new_dialog_empty_workspace_scenario.py` | Python | Scenario tests: a new dialog starts with no folder and never inherits a neighbour's workspace | storage, ui |
+| `tests/scenarios/test_orchestrator_chat_prefs_scenario.py` | Python | _(описание не задано)_ | ui |
 | `tests/scenarios/test_orchestrator_devagent_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_orchestrator_other_settings_scenario.py` | Python | _(описание не задано)_ | storage |
-| `tests/scenarios/test_orchestrator_thread_files.py` | Python | Scenario tests: uploads land in thread files; legacy workspace manifests still re-announced | storage |
+| `tests/scenarios/test_orchestrator_thread_files.py` | Python | Scenario tests: uploads land in thread files; legacy workspace manifests still re-announced | storage, ui |
 | `tests/scenarios/test_orchestrator_tool_gating.py` | Python | Gating scenarios: system-prompt version pins (v3.26/v2.11), empty-state prompt invariants, generated-document rule, Stage 0 recent-folders menu, the subagent stop/transcript rules and thread-search tool invariants | storage |
 | `tests/scenarios/test_personal_memory_scenario.py` | Python | Scenario tests for the two-store memory model (given->when->then): note survives the dialog and reaches the prompt, append vs replace with recoverable versions, size limit and credential refusal, MEMORY_DIR marker wins with relocation warnings, scopes stay isolated with write rights, deletion archives the notes | - |
 | `tests/scenarios/test_project_map_freshness_scenario.py` | Python | Scenario: PROJECT_MAP regeneration - GitHub-published scope only, recorded fingerprint and staleness detection, reproducible output | storage |
-| `tests/scenarios/test_provider_economy_settings_scenario.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_provider_economy_settings_scenario.py` | Python | _(описание не задано)_ | ui |
 | `tests/scenarios/test_rag_assistant_dialog.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_rag_context_restore.py` | Python | _(описание не задано)_ | - |
-| `tests/scenarios/test_rag_perf_scenarios.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_rag_perf_scenarios.py` | Python | _(описание не задано)_ | ui |
 | `tests/scenarios/test_rag_search_modes_scenario.py` | Python | Scenarios: offline bm25 base end-to-end, vector->hybrid switch with RRF and bm25 degradation, error paths | - |
 | `tests/scenarios/test_rag_search_quality_scenario.py` | Python | Scenarios: search quality - morphology across word forms, repeated-header IDF, stop-words/coordination, transparent upgrade of a previous-release index, and multi-product ranking where the product name lives only in the header (BM25F) | - |
 | `tests/scenarios/test_recent_workspace_scopes_scenario.py` | Python | Scenario tests: per-orchestrator recent-folder menu (isolation, platform paths hidden, scoped writes) | storage |
 | `tests/scenarios/test_resume_identity_scenarios.py` | Python | Scenario: resume identity - stored thread messages round-trip byte-for-byte after reload | storage |
-| `tests/scenarios/test_save_confirmation_scenario.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_save_confirmation_scenario.py` | Python | _(описание не задано)_ | ui |
 | `tests/scenarios/test_schedules_scenario.py` | Python | Scenario tests for scheduled runs (given->when->then): a saved rule fires once and its dialog appears in History, a restart does not repeat a point, downtime is recorded as a miss instead of a burst, a blocked weekday is skipped in the preview, and three failures hold the rule | storage |
 | `tests/scenarios/test_search_in_files_scenarios.py` | Python | _(описание не задано)_ | - |
-| `tests/scenarios/test_settings_tab_persists_scenario.py` | Python | Scenario tests: a settings save keeps its own tab (given->when->then) - save pin, repeated save, chat rerun keeps the section | - |
-| `tests/scenarios/test_skills_adaptation_scenario.py` | Python | _(описание не задано)_ | storage |
+| `tests/scenarios/test_settings_tab_persists_scenario.py` | Python | Scenario tests: a settings save keeps its own tab (given->when->then) - save pin, repeated save, chat rerun keeps the section | ui |
+| `tests/scenarios/test_skills_adaptation_scenario.py` | Python | _(описание не задано)_ | storage, ui |
 | `tests/scenarios/test_ssh_connector_scenarios.py` | Python | Scenario tests for the SSH connector feature | storage |
 | `tests/scenarios/test_state_recovery_scenario.py` | Python | Scenario tests: compact task-state digest and budgeted CURRENT TASK STATE injection for large journals | - |
-| `tests/scenarios/test_stats_scenario.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_stats_scenario.py` | Python | _(описание не задано)_ | ui |
 | `tests/scenarios/test_structured_output_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_subagent_control_scenario.py` | Python | Scenario tests (given->when->then) for a delegated child under control: a running child and its descendants stop as cancelled, a run of another dialog cannot be stopped or read, the parent reads its own child conversation, and cancelling a finished run is a no-op instead of an error | - |
 | `tests/scenarios/test_subagent_failure_modes_scenario.py` | Python | _(описание не задано)_ | - |
@@ -491,12 +498,12 @@
 | `tests/scenarios/test_task_state_mega_task.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_theme_switch_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_thread_search_scenarios.py` | Python | Scenario tests for the thread-search tools: current-dialog search without lists, explicit thread_id, orchestrator scope with period, search->read around a match, access control, list pagination | storage |
-| `tests/scenarios/test_thread_workspace_meta_scenario.py` | Python | Scenario tests: thread 'last folder' meta (restore, missing folder opens empty, neighbour isolation) | storage |
+| `tests/scenarios/test_thread_workspace_meta_scenario.py` | Python | Scenario tests: thread 'last folder' meta (restore, missing folder opens empty, neighbour isolation) | storage, ui |
 | `tests/scenarios/test_transcript_lifecycle_scenario.py` | Python | Scenario tests for the transcript lifecycle (given->when->then): a dead child is read and resumed from what is on disk, retention shrinks the store without losing a message, an unreachable child is reported, and a store mixing plain and compressed segments still reads in order | - |
 | `tests/scenarios/test_unified_context_budget_scenario.py` | Python | Scenario: unified context budget (B4) - economy payload passes the guard unchanged, token overflow resets the front to tail, worst case stays below the hard cap | - |
 | `tests/scenarios/test_universal_agent_scenario.py` | Python | Scenario tests (given->when->then) for the executor end to end: a fresh installation seeds it once (created, then exists without a duplicate), a new employee can call it without configuration, and clearing the checkbox removes the right while a deleted executor leaves no live right behind | storage |
-| `tests/scenarios/test_updater_runtime_flow.py` | Python | _(описание не задано)_ | - |
-| `tests/scenarios/test_url_fetch_scenario.py` | Python | Scenario tests (given->when->then) for the URL-fetch user path: no source means no tool and a structured refusal, saving DeepSeek/deepseek-flash or enabling Selenium alone switches url_fetch on in the prompt and dispatch (page labelled as untrusted data), a PDF link is downloaded and extracted, clearing both sources or a vanished catalog entry switches it off, and the Models tab offers only fetch-capable providers while persisting the pair | storage |
+| `tests/scenarios/test_updater_runtime_flow.py` | Python | _(описание не задано)_ | ui |
+| `tests/scenarios/test_url_fetch_scenario.py` | Python | Scenario tests (given->when->then) for the URL-fetch user path: no source means no tool and a structured refusal, saving DeepSeek/deepseek-flash or enabling Selenium alone switches url_fetch on in the prompt and dispatch (page labelled as untrusted data), a PDF link is downloaded and extracted, clearing both sources or a vanished catalog entry switches it off, and the Models tab offers only fetch-capable providers while persisting the pair | storage, ui |
 | `tests/scenarios/test_verifier_scenario.py` | Python | Scenario tests (given->when->then) for checking a delegated result: a fan-out of three keeps its order, verify_result answers a verdict about the chosen run, the verifier never sees the transcript, no verifier is silently substituted | storage |
 | `tests/scenarios/test_welcome_page_scenarios.py` | Python | Scenario tests for the first-run and settings screens: the employee settings page renders all eleven tabs without the missing-API-key warning and without errors | - |
 | `tests/scenarios/test_working_memory_scenario.py` | Python | Scenario tests for working memory (given->when->then): an employee writes and reads its memory with no project selected, list_files over memory:, the prompt path equals the tool path, scopes stay isolated, and a legacy migration runs as a dry-run first | - |
@@ -508,6 +515,23 @@
 | `tests/fixtures/rag_eval/multiproduct_corpus.json` | JSON | Benchmark corpus for the BM25F fielded index: several products whose bodies all mention the generic term while the product name lives ONLY in the header block | - |
 | `tests/fixtures/rag_eval/multiproduct_queries.json` | JSON | Ground-truth queries for multiproduct_corpus.json: product-scoped queries that a body-only index cannot resolve | - |
 | `tests/fixtures/rag_eval/queries.json` | JSON | Ground-truth query set for rag_eval: morphology, multi-word coordination, stop-word phrasing and exact-phrase probes | - |
+| `sagaai/__init__.py` | Python | Package marker of the console; the version comes from core.version so the command and the platform never disagree | - |
+| `sagaai/__main__.py` | Python | Entry point of 'python -m sagaai': calls sagaai.cli.main and exits with its code, so the module and the bin/sagaai script behave identically | - |
+| `sagaai/cli.py` | Python | Console argument parser: builds the subparsers from the command registry, applies global flags before and after the command name, turns CliError into an exit code and a report | - |
+| `sagaai/console.py` | Python | The only writer of stdout: the human report and exactly one JSON object in --json mode; progress and warnings go to stderr so a redirected stream still parses | - |
+| `sagaai/errors.py` | Python | CliError with code, message and hint; the single exception type commands raise instead of calling sys.exit | - |
+| `sagaai/exit_codes.py` | Python | Fixed exit codes (0 success, 1 failure, 2 configuration or request error, 3 conflict) with the labels printed in every command's --help | - |
+| `sagaai/commands/__init__.py` | Python | Command registry: the ordered list of modules the parser imports, so adding a command means adding one module | - |
+| `sagaai/commands/_common.py` | Python | Shared command helpers: confirmation prompt with --yes for scripts, install root from SAGAAI_INSTALL_ROOT, the running-platform guard and translation of a gateway refusal into a CliError | - |
+| `sagaai/commands/agents.py` | Python | 'agents' command: lists the employees and their slugs through the gateway | - |
+| `sagaai/commands/backup.py` | Python | 'backup create/list/restore' commands: database snapshots with an integrity check, listing sorted by creation moment and a restoration that first snapshots the current state | - |
+| `sagaai/commands/doctor.py` | Python | 'doctor' command: read-only diagnosis of the installation - paths, database schema state, dependencies, running platform - and it never creates a database or writes to the data folder | - |
+| `sagaai/commands/migrate.py` | Python | 'migrate' command: snapshot before the migrations, run them, verify integrity afterwards and restore the snapshot when the check fails | storage |
+| `sagaai/commands/run.py` | Python | 'run' command: gives a task to an employee and waits for the result; a pause for approval or a question is a successful result that describes the pause, while an expired wait returns a conflict with the run id and leaves the work alive | - |
+| `sagaai/commands/serve.py` | Python | 'serve' command: starts the HTTP API as a separate process, importing core.gateway_launcher lazily so the console itself stays free of the HTTP stack | - |
+| `sagaai/commands/token.py` | Python | 'token create/list/revoke' commands: API access tokens through the same store the API verifies against, with the plaintext shown once | - |
+| `sagaai/commands/ui.py` | Python | 'ui' command: starts the Streamlit interface as a child process instead of importing it | - |
+| `sagaai/commands/update.py` | Python | 'update check/stage/apply/rollback' commands: the update pipeline, including a local folder as the channel mirror, with confirmation and the running-platform guard on the destructive steps | - |
 | `server/__init__.py` | Python | Package marker of the HTTP API v1 | - |
 | `server/app.py` | Python | Application factory create_app(): lifespan brings up the directories, the database and the orchestration service; host guard, request context with X-Request-Id and the access log, redaction filter, routers and the uniform error handlers | - |
 | `server/auth.py` | Python | Bearer authentication of the HTTP API: settings cache with a short TTL, throttling of failed attempts, fail-closed 503 when the schema is not ready, constant-time token comparison | - |
@@ -612,6 +636,7 @@
 
 - `LICENSE`
 - `assets/favicon.svg`
+- `bin/sagaai`
 - `defaults/rag_bases/yaagentai_2020/index.db`
 
 ## Структура Python-модулей
@@ -1012,6 +1037,9 @@
 - `revoke` (func, строка 227)
 - `is_remote_bind` (func, строка 237)
 - `api_state` (func, строка 242)
+- `public_view` (func, строка 266)
+- `list_tokens` (func, строка 286)
+- `create_token` (func, строка 291)
 
 ### `core/assistant_creator.py`
 - `_section_headers` (func, строка 22)
@@ -2029,14 +2057,14 @@
 
 ### `core/render.py`
 - `clipboard_button` (func, строка 13)
-- `_inline_md` (func, строка 160)
-- `_inline_md._stash_code` (func, строка 170)
-- `_md_to_html` (func, строка 185)
-- `_md_to_txt` (func, строка 246)
-- `_token_label` (func, строка 269)
-- `format_token_line` (func, строка 289)
-- `_iter_md_blocks` (func, строка 336)
-- `format_ts_label` (func, строка 416)
+- `_inline_md` (func, строка 162)
+- `_inline_md._stash_code` (func, строка 172)
+- `_md_to_html` (func, строка 187)
+- `_md_to_txt` (func, строка 248)
+- `_token_label` (func, строка 271)
+- `format_token_line` (func, строка 291)
+- `_iter_md_blocks` (func, строка 338)
+- `format_ts_label` (func, строка 418)
 
 ### `core/services.py`
 - `_scan_dir` (func, строка 16)
@@ -2250,17 +2278,18 @@
 - `_parse_semver` (func, строка 272)
 - `_compare_versions` (func, строка 289)
 - `_effective_channel` (func, строка 304)
-- `fetch_manifest` (func, строка 317)
-- `_validate_manifest` (func, строка 332)
-- `_manifest_entries` (func, строка 342)
-- `check_updates` (func, строка 364)
-- `stage_updates` (func, строка 419)
-- `_download_file` (func, строка 498)
-- `apply_updates` (func, строка 527)
-- `rollback_updates` (func, строка 566)
-- `_build_cli` (func, строка 583)
-- `_load_local_manifest` (func, строка 624)
-- `main` (func, строка 641)
+- `_local_manifest` (func, строка 317)
+- `fetch_manifest` (func, строка 341)
+- `_validate_manifest` (func, строка 365)
+- `_manifest_entries` (func, строка 375)
+- `check_updates` (func, строка 397)
+- `stage_updates` (func, строка 452)
+- `_download_file` (func, строка 531)
+- `apply_updates` (func, строка 584)
+- `rollback_updates` (func, строка 623)
+- `_build_cli` (func, строка 640)
+- `_load_local_manifest` (func, строка 681)
+- `main` (func, строка 698)
 
 ### `core/updater_apply.py`
 - `_utc_now` (func, строка 50)
@@ -2342,9 +2371,9 @@
 - `install` (func, строка 218)
 - `_rollback_members` (func, строка 344)
 - `rollback_group` (func, строка 375)
-- `catalog_bundles` (func, строка 407)
-- `load_bundle` (func, строка 438)
-- `plan_bundle` (func, строка 464)
+- `catalog_bundles` (func, строка 413)
+- `load_bundle` (func, строка 444)
+- `plan_bundle` (func, строка 470)
 
 ### `core/marketplace/catalog.py`
 - `localized` (func, строка 34)
@@ -3039,38 +3068,87 @@
 - `_load_record` (func, строка 342)
 - `verify_result` (func, строка 370)
 
+### `core/gateway/backup.py`
+- `backups_root` (func, строка 57)
+- `_install_root` (func, строка 63)
+- `_data_dir` (func, строка 72)
+- `database_paths` (func, строка 81)
+- `_utc_now` (func, строка 98)
+- `_sha256_file` (func, строка 109)
+- `_size_of` (func, строка 117)
+- `new_snapshot_id` (func, строка 124)
+- `is_snapshot_id` (func, строка 135)
+- `_write_json` (func, строка 146)
+- `_read_json` (func, строка 162)
+- `integrity_check` (func, строка 171)
+- `_copy_database` (func, строка 201)
+- `create_backup` (func, строка 215)
+- `_platform_version` (func, строка 272)
+- `read_manifest` (func, строка 283)
+- `list_backups` (func, строка 290)
+- `_atomic_replace` (func, строка 322)
+- `restore_backup` (func, строка 350)
+
+### `core/gateway/bootstrap.py`
+- `_ensure_dirs` (func, строка 36)
+- `_ensure_defaults` (func, строка 49)
+- `_ensure_databases` (func, строка 62)
+- `_ensure_schema` (func, строка 84)
+- `_start_service` (func, строка 104)
+- `cold_start` (func, строка 121)
+
+### `core/gateway/diagnostics.py`
+- `_check` (func, строка 42)
+- `_readonly` (func, строка 48)
+- `_scalar` (func, строка 64)
+- `_table_exists` (func, строка 74)
+- `_version` (func, строка 83)
+- `check_version` (func, строка 91)
+- `check_python` (func, строка 100)
+- `check_paths` (func, строка 113)
+- `check_dependencies` (func, строка 132)
+- `_database_file` (func, строка 179)
+- `check_databases` (func, строка 226)
+- `check_permissions` (func, строка 268)
+- `check_encryption_key` (func, строка 303)
+- `_read_config_kv` (func, строка 349)
+- `check_tokens` (func, строка 386)
+- `check_scheduler` (func, строка 439)
+- `doctor_report` (func, строка 515)
+
 ### `core/gateway/dialog.py`
-- `_LiveDialog` (class, строка 67)
-- `_LiveDialog.__init__` (func, строка 81)
-- `add_close_listener` (func, строка 106)
-- `remove_close_listener` (func, строка 113)
-- `_notify_closed` (func, строка 120)
-- `new_run_id` (func, строка 134)
-- `is_run_id` (func, строка 139)
-- `_live_state` (func, строка 148)
-- `_remember` (func, строка 153)
-- `_forget` (func, строка 158)
-- `pending_of_state` (func, строка 166)
-- `_messages_since` (func, строка 199)
-- `_resolve_agent` (func, строка 216)
-- `_active_root` (func, строка 229)
-- `create_dialog` (func, строка 255)
-- `_bind_workspace` (func, строка 308)
-- `_unbind_workspace` (func, строка 328)
-- `_assistant_dicts` (func, строка 341)
-- `_prepare_step` (func, строка 354)
-- `_limits_for` (func, строка 402)
-- `_result_of` (func, строка 420)
-- `advance_dialog` (func, строка 460)
-- `_close` (func, строка 502)
-- `start_dialog` (func, строка 530)
-- `_remember_placeholder` (func, строка 556)
-- `_drive` (func, строка 567)
-- `_drive._cancelled` (func, строка 581)
-- `_drive._persist` (func, строка 589)
-- `submit_message` (func, строка 629)
-- `get_dialog` (func, строка 713)
-- `list_dialog_runs` (func, строка 738)
+- `_LiveDialog` (class, строка 68)
+- `_LiveDialog.__init__` (func, строка 82)
+- `add_close_listener` (func, строка 107)
+- `remove_close_listener` (func, строка 114)
+- `_notify_closed` (func, строка 121)
+- `new_run_id` (func, строка 135)
+- `is_run_id` (func, строка 140)
+- `_live_state` (func, строка 149)
+- `_remember` (func, строка 154)
+- `_forget` (func, строка 159)
+- `pending_of_state` (func, строка 167)
+- `_messages_since` (func, строка 200)
+- `_resolve_agent` (func, строка 217)
+- `_active_root` (func, строка 230)
+- `create_dialog` (func, строка 256)
+- `_bind_workspace` (func, строка 309)
+- `_unbind_workspace` (func, строка 329)
+- `_assistant_dicts` (func, строка 342)
+- `_prepare_step` (func, строка 355)
+- `_limits_for` (func, строка 403)
+- `_result_of` (func, строка 421)
+- `advance_dialog` (func, строка 461)
+- `_close` (func, строка 503)
+- `start_dialog` (func, строка 531)
+- `_remember_placeholder` (func, строка 557)
+- `_drive` (func, строка 568)
+- `_drive._cancelled` (func, строка 582)
+- `_drive._persist` (func, строка 590)
+- `submit_message` (func, строка 630)
+- `get_dialog` (func, строка 714)
+- `list_dialog_runs` (func, строка 739)
+- `run_dialog` (func, строка 746)
 
 ### `core/gateway/dto.py`
 - `EconomyOptions` (class, строка 27)
@@ -3096,19 +3174,23 @@
 - `DialogSnapshot.to_dict` (func, строка 344)
 - `DialogStepResult` (class, строка 357)
 - `DialogStepResult.to_dict` (func, строка 371)
-- `OrchestratorCard` (class, строка 394)
-- `OrchestratorCard.to_dict` (func, строка 407)
-- `OrchestratorDetail` (class, строка 422)
-- `OrchestratorDetail.to_dict` (func, строка 429)
-- `AssistantCard` (class, строка 437)
-- `AssistantCard.to_dict` (func, строка 453)
-- `AssistantDetail` (class, строка 471)
-- `AssistantDetail.to_dict` (func, строка 483)
-- `HealthReport` (class, строка 493)
-- `HealthReport.ready` (func, строка 505)
-- `HealthReport.to_dict` (func, строка 508)
-- `SearchPage` (class, строка 524)
-- `SearchPage.to_dict` (func, строка 531)
+- `DialogOutcome` (class, строка 391)
+- `DialogOutcome.finished` (func, строка 420)
+- `DialogOutcome.succeeded` (func, строка 425)
+- `DialogOutcome.to_dict` (func, строка 429)
+- `OrchestratorCard` (class, строка 455)
+- `OrchestratorCard.to_dict` (func, строка 468)
+- `OrchestratorDetail` (class, строка 483)
+- `OrchestratorDetail.to_dict` (func, строка 490)
+- `AssistantCard` (class, строка 498)
+- `AssistantCard.to_dict` (func, строка 514)
+- `AssistantDetail` (class, строка 532)
+- `AssistantDetail.to_dict` (func, строка 544)
+- `HealthReport` (class, строка 554)
+- `HealthReport.ready` (func, строка 566)
+- `HealthReport.to_dict` (func, строка 569)
+- `SearchPage` (class, строка 585)
+- `SearchPage.to_dict` (func, строка 592)
 
 ### `core/gateway/entities.py`
 - `_orchestrator_card` (func, строка 34)
@@ -3993,6 +4075,65 @@
 - `test_an_empty_window_is_not_mistaken_for_a_failure` (func, строка 269)
 - `test_a_legacy_dialog_still_falls_back_to_the_messages_table` (func, строка 283)
 
+### `tests/test_cli_commands.py`
+- `data_dir` (func, строка 29)
+- `run_cli` (func, строка 36)
+- `envelope` (func, строка 54)
+- `test_doctor_reports_a_clean_installation_without_creating_anything` (func, строка 63)
+- `test_doctor_names_the_not_initialized_state_as_a_warning` (func, строка 82)
+- `test_doctor_verbose_renders_sections_a_person_can_read` (func, строка 91)
+- `test_doctor_exit_code_tracks_errors_not_warnings` (func, строка 101)
+- `test_agents_lists_slugs_a_run_can_use` (func, строка 112)
+- `test_token_create_returns_the_plaintext_once_and_stores_only_a_hash` (func, строка 124)
+- `test_the_cli_token_is_accepted_by_the_token_store` (func, строка 143)
+- `test_token_revoke_removes_the_record` (func, строка 165)
+- `test_token_revoke_of_an_unknown_id_is_a_configuration_error` (func, строка 175)
+- `test_token_expiry_accepts_a_date_and_means_end_of_that_day` (func, строка 183)
+- `test_a_malformed_expiry_is_refused_with_the_configuration_code` (func, строка 192)
+- `test_backup_create_writes_a_manifest_with_a_hash_per_member` (func, строка 202)
+- `test_backup_list_shows_the_snapshot_that_was_created` (func, строка 217)
+- `test_backup_restore_needs_confirmation_when_nobody_can_answer` (func, строка 226)
+- `test_backup_restore_with_the_flag_puts_the_database_back` (func, строка 237)
+- `test_backup_restore_of_an_unknown_snapshot_is_a_configuration_error` (func, строка 252)
+- `test_migrate_creates_the_databases_on_a_clean_machine` (func, строка 259)
+- `test_doctor_after_migrate_reports_the_databases_as_current` (func, строка 268)
+- `test_run_of_an_unknown_employee_is_a_configuration_error` (func, строка 278)
+- `test_run_requires_an_agent_and_a_task` (func, строка 287)
+- `test_run_rejects_a_workspace_that_does_not_exist` (func, строка 293)
+- `test_update_check_reports_an_unreachable_channel_as_a_failure` (func, строка 303)
+- `test_update_apply_needs_confirmation` (func, строка 313)
+
+### `tests/test_cli_console.py`
+- `_console` (func, строка 24)
+- `test_the_json_mode_prints_one_object_with_the_documented_keys` (func, строка 29)
+- `test_the_progress_notes_never_reach_stdout_in_json_mode` (func, строка 41)
+- `test_an_error_in_json_mode_carries_the_code_and_the_hint` (func, строка 50)
+- `test_the_error_object_omits_an_empty_hint` (func, строка 63)
+- `test_non_ascii_text_survives_the_json_round_trip` (func, строка 70)
+- `test_the_human_mode_renders_a_status_row_with_a_marker` (func, строка 80)
+- `test_every_known_status_has_a_marker` (func, строка 92)
+- `test_a_table_aligns_its_columns` (func, строка 100)
+- `test_a_field_renders_booleans_and_lists_readably` (func, строка 113)
+- `test_a_warning_goes_to_stderr_in_both_modes` (func, строка 125)
+- `test_the_three_constructors_carry_the_documented_codes` (func, строка 137)
+- `failure_code` (func, строка 143)
+- `test_human_bytes_uses_binary_units` (func, строка 151)
+- `test_human_seconds_splits_minutes_and_hours` (func, строка 158)
+
+### `tests/test_cli_imports.py`
+- `_run_blocked` (func, строка 55)
+- `_run_cli` (func, строка 77)
+- `test_every_cli_module_imports_without_ui_and_transport` (func, строка 88)
+- `test_the_package_imports_as_a_whole_blocked` (func, строка 97)
+- `test_the_console_does_not_import_the_ui_package` (func, строка 104)
+- `test_the_console_does_not_import_the_server_package` (func, строка 110)
+- `test_python_dash_m_and_the_script_agree_on_help` (func, строка 121)
+- `test_both_entry_points_report_the_same_version` (func, строка 133)
+- `test_the_script_is_executable` (func, строка 143)
+- `test_help_works_with_the_http_stack_blocked` (func, строка 154)
+- `test_every_command_declares_the_exit_codes_in_its_help` (func, строка 159)
+- `test_the_top_level_help_lists_every_command` (func, строка 172)
+
 ### `tests/test_cold_start_deps.py`
 - `st_env` (func, строка 32)
 - `_render_main` (func, строка 46)
@@ -4075,7 +4216,7 @@
 - `TestAgentInventory._inventory` (func, строка 84)
 - `TestAgentInventory.test_the_declared_total_matches_the_disk` (func, строка 100)
 - `TestAgentInventory.test_every_group_matches_its_files` (func, строка 106)
-- `TestAgentInventory.test_every_listed_file_exists` (func, строка 133)
+- `TestAgentInventory.test_every_listed_file_exists` (func, строка 134)
 
 ### `tests/test_core_api_json_schema.py`
 - `_svc` (func, строка 24)
@@ -4256,33 +4397,33 @@
 - `test_web_search_deepseek_uses_web_search_base_url_field` (func, строка 338)
 
 ### `tests/test_deepseek_responses.py`
-- `_responses_body` (func, строка 26)
-- `test_extract_deepseek_responses_text_ignores_reasoning` (func, строка 42)
-- `test_extract_deepseek_responses_text_output_text_shortcut` (func, строка 48)
-- `test_extract_deepseek_responses_text_function_call` (func, строка 53)
-- `test_extract_deepseek_responses_text_empty` (func, строка 65)
-- `test_reasoning_effort_none_disables_thinking` (func, строка 73)
-- `test_reasoning_effort_uses_configured_value` (func, строка 79)
-- `test_reasoning_effort_defaults_to_max` (func, строка 85)
-- `test_deepseek_responses_request_payload_and_parse` (func, строка 95)
-- `test_deepseek_responses_request_none_sets_none` (func, строка 133)
-- `test_deepseek_reports_cached_tokens` (func, строка 154)
-- `test_deepseek_cached_tokens_zero_when_absent` (func, строка 178)
-- `test_deepseek_tool_choice_in_payload` (func, строка 204)
-- `test_deepseek_tool_choice_omitted_by_default` (func, строка 228)
-- `test_send_request_deepseek_responses_routes` (func, строка 253)
-- `test_send_request_deepseek_forwards_reasoning_effort` (func, строка 282)
-- `test_send_request_deepseek_forwards_tool_choice` (func, строка 316)
-- `test_send_request_deepseek_web_search_not_auto_forced` (func, строка 348)
-- `test_parse_tool_calls_accepts_xml_wrapped_json` (func, строка 387)
-- `test_parse_tool_calls_ignores_question_wrapper` (func, строка 393)
-- `test_strip_tool_calls_removes_xml_wrappers` (func, строка 400)
-- `test_strip_tool_calls_removes_empty_fences` (func, строка 415)
-- `test_strip_tool_calls_removes_dsml_blocks` (func, строка 424)
-- `test_protect_history_still_honors_flags` (func, строка 452)
-- `test_settings_page_hides_reasoning_effort_field` (func, строка 469)
-- `test_deepseek_responses_request_raises_on_failed_status` (func, строка 528)
-- `test_deepseek_responses_request_filters_blank_history` (func, строка 554)
+- `_responses_body` (func, строка 27)
+- `test_extract_deepseek_responses_text_ignores_reasoning` (func, строка 43)
+- `test_extract_deepseek_responses_text_output_text_shortcut` (func, строка 49)
+- `test_extract_deepseek_responses_text_function_call` (func, строка 54)
+- `test_extract_deepseek_responses_text_empty` (func, строка 66)
+- `test_reasoning_effort_none_disables_thinking` (func, строка 74)
+- `test_reasoning_effort_uses_configured_value` (func, строка 80)
+- `test_reasoning_effort_defaults_to_max` (func, строка 86)
+- `test_deepseek_responses_request_payload_and_parse` (func, строка 96)
+- `test_deepseek_responses_request_none_sets_none` (func, строка 134)
+- `test_deepseek_reports_cached_tokens` (func, строка 155)
+- `test_deepseek_cached_tokens_zero_when_absent` (func, строка 179)
+- `test_deepseek_tool_choice_in_payload` (func, строка 205)
+- `test_deepseek_tool_choice_omitted_by_default` (func, строка 229)
+- `test_send_request_deepseek_responses_routes` (func, строка 254)
+- `test_send_request_deepseek_forwards_reasoning_effort` (func, строка 283)
+- `test_send_request_deepseek_forwards_tool_choice` (func, строка 317)
+- `test_send_request_deepseek_web_search_not_auto_forced` (func, строка 349)
+- `test_parse_tool_calls_accepts_xml_wrapped_json` (func, строка 388)
+- `test_parse_tool_calls_ignores_question_wrapper` (func, строка 394)
+- `test_strip_tool_calls_removes_xml_wrappers` (func, строка 401)
+- `test_strip_tool_calls_removes_empty_fences` (func, строка 416)
+- `test_strip_tool_calls_removes_dsml_blocks` (func, строка 425)
+- `test_protect_history_still_honors_flags` (func, строка 453)
+- `test_settings_page_hides_reasoning_effort_field` (func, строка 470)
+- `test_deepseek_responses_request_raises_on_failed_status` (func, строка 529)
+- `test_deepseek_responses_request_filters_blank_history` (func, строка 555)
 
 ### `tests/test_default_imports.py`
 - `_write_bundled_orchestrator` (func, строка 30)
@@ -4711,12 +4852,12 @@
 - `test_economy_options_survive_a_round_trip` (func, строка 170)
 
 ### `tests/test_gateway_imports.py`
-- `_run_blocked` (func, строка 41)
-- `test_gateway_imports_without_ui_and_transport` (func, строка 64)
-- `test_gateway_package_imports_as_a_whole` (func, строка 75)
-- `test_gateway_does_not_import_the_ui_package` (func, строка 83)
-- `test_gateway_does_not_import_streamlit_auth` (func, строка 92)
-- `test_dialog_runner_imports_without_streamlit` (func, строка 120)
+- `_run_blocked` (func, строка 44)
+- `test_gateway_imports_without_ui_and_transport` (func, строка 67)
+- `test_gateway_package_imports_as_a_whole` (func, строка 78)
+- `test_gateway_does_not_import_the_ui_package` (func, строка 86)
+- `test_gateway_does_not_import_streamlit_auth` (func, строка 95)
+- `test_dialog_runner_imports_without_streamlit` (func, строка 123)
 
 ### `tests/test_gateway_runner.py`
 - `_State` (class, строка 20)
@@ -5032,12 +5173,14 @@
 - `TestBundleInstall.test_already_installed_member_is_not_reported_as_new` (func, строка 315)
 - `TestBundleInstall.test_failure_rolls_back_the_members_this_run_installed` (func, строка 335)
 - `TestBundleInstall.test_rollback_group_undoes_the_whole_set` (func, строка 372)
-- `TestCatalogBundles` (class, строка 419)
-- `TestCatalogBundles.test_index_bundles_are_listed` (func, строка 420)
-- `TestCatalogBundles.test_catalog_without_bundles_lists_nothing` (func, строка 438)
-- `TestCatalogBundles.test_bundle_plan_resolves_its_members` (func, строка 448)
-- `TestCatalogBundles.test_empty_bundle_is_refused` (func, строка 473)
-- `TestCatalogBundles.test_bundle_is_cached_for_offline_use` (func, строка 490)
+- `TestBundleInstall.test_rollback_group_undoes_newest_member_first` (func, строка 418)
+- `TestBundleInstall.test_rollback_group_undoes_newest_member_first.fake_rollback_run` (func, строка 440)
+- `TestCatalogBundles` (class, строка 457)
+- `TestCatalogBundles.test_index_bundles_are_listed` (func, строка 458)
+- `TestCatalogBundles.test_catalog_without_bundles_lists_nothing` (func, строка 476)
+- `TestCatalogBundles.test_bundle_plan_resolves_its_members` (func, строка 486)
+- `TestCatalogBundles.test_empty_bundle_is_refused` (func, строка 511)
+- `TestCatalogBundles.test_bundle_is_cached_for_offline_use` (func, строка 528)
 
 ### `tests/test_marketplace_card_extras.py`
 - `_patched` (func, строка 87)
@@ -9088,6 +9231,22 @@
 - `test_scenario_a_dialog_keeps_its_own_reading_path` (func, строка 151)
 - `test_scenario_a_dialog_keeps_its_own_reading_path._legacy` (func, строка 161)
 
+### `tests/scenarios/test_cli_scenarios.py`
+- `install` (func, строка 35)
+- `console` (func, строка 44)
+- `payload` (func, строка 62)
+- `test_scenario_a_clean_machine_is_prepared_and_diagnosed` (func, строка 73)
+- `test_scenario_doctor_before_migrate_does_not_build_anything` (func, строка 98)
+- `test_scenario_snapshot_migrate_restore_is_undoable` (func, строка 113)
+- `test_scenario_the_listing_grows_with_each_snapshot` (func, строка 145)
+- `_publish_mirror` (func, строка 161)
+- `test_scenario_an_update_is_staged_applied_and_rolled_back` (func, строка 180)
+- `test_scenario_staging_from_a_mirror_without_the_file_fails_cleanly` (func, строка 217)
+- `test_scenario_a_script_issues_and_uses_a_token` (func, строка 240)
+- `test_scenario_destructive_actions_refuse_without_a_human` (func, строка 268)
+- `test_scenario_an_unknown_employee_names_the_command_that_lists_them` (func, строка 281)
+- `test_scenario_the_console_never_needs_the_ui` (func, строка 294)
+
 ### `tests/scenarios/test_connection_retry_scenarios.py`
 - `fast_retries` (func, строка 28)
 - `_FakeCore` (class, строка 34)
@@ -10045,6 +10204,119 @@
 - `bump` (func, строка 54)
 - `main` (func, строка 70)
 
+### `sagaai/__init__.py`
+- `main` (func, строка 33)
+
+### `sagaai/cli.py`
+- `platform_version` (func, строка 49)
+- `add_global_flags` (func, строка 61)
+- `build_parser` (func, строка 71)
+- `_full_command` (func, строка 109)
+- `run_command` (func, строка 116)
+- `_is_gateway_error` (func, строка 155)
+- `main` (func, строка 165)
+
+### `sagaai/console.py`
+- `Console` (class, строка 30)
+- `Console.__init__` (func, строка 33)
+- `Console.note` (func, строка 42)
+- `Console.warn` (func, строка 52)
+- `Console.title` (func, строка 58)
+- `Console.line` (func, строка 66)
+- `Console.field` (func, строка 72)
+- `Console.status` (func, строка 78)
+- `Console.table` (func, строка 85)
+- `Console.bullet` (func, строка 104)
+- `Console.blank` (func, строка 110)
+- `Console.emit` (func, строка 118)
+- `Console.emit_error` (func, строка 140)
+- `Console._write_json` (func, строка 173)
+- `_as_text` (func, строка 179)
+- `human_bytes` (func, строка 192)
+- `human_seconds` (func, строка 205)
+
+### `sagaai/errors.py`
+- `CliError` (class, строка 23)
+- `CliError.__init__` (func, строка 33)
+- `CliError.to_dict` (func, строка 44)
+- `from_gateway` (func, строка 77)
+- `config_error` (func, строка 108)
+- `conflict_error` (func, строка 113)
+- `failure` (func, строка 118)
+
+### `sagaai/commands/_common.py`
+- `is_interactive` (func, строка 28)
+- `confirm` (func, строка 36)
+- `install_root` (func, строка 63)
+- `platform_version` (func, строка 79)
+- `app_running` (func, строка 88)
+- `refuse_when_running` (func, строка 123)
+- `employee_names` (func, строка 136)
+- `call` (func, строка 146)
+
+### `sagaai/commands/agents.py`
+- `register` (func, строка 30)
+- `execute` (func, строка 37)
+
+### `sagaai/commands/backup.py`
+- `register` (func, строка 37)
+- `_members_table` (func, строка 76)
+- `_create` (func, строка 87)
+- `_list` (func, строка 117)
+- `_restore` (func, строка 141)
+- `execute` (func, строка 191)
+
+### `sagaai/commands/doctor.py`
+- `register` (func, строка 35)
+- `_render_human` (func, строка 42)
+- `_render_details` (func, строка 64)
+- `execute` (func, строка 133)
+
+### `sagaai/commands/migrate.py`
+- `register` (func, строка 40)
+- `_snapshot` (func, строка 49)
+- `_migrate_databases` (func, строка 66)
+- `_run_devagent_archive` (func, строка 82)
+- `_run_chat_archive` (func, строка 92)
+- `_run_schema` (func, строка 102)
+- `_integrity` (func, строка 114)
+- `execute` (func, строка 124)
+
+### `sagaai/commands/run.py`
+- `register` (func, строка 48)
+- `_request` (func, строка 66)
+- `_messages_brief` (func, строка 90)
+- `_exit_code` (func, строка 100)
+- `execute` (func, строка 115)
+- `_render_text` (func, строка 205)
+
+### `sagaai/commands/serve.py`
+- `register` (func, строка 39)
+- `_apply_bind_overrides` (func, строка 51)
+- `execute` (func, строка 75)
+
+### `sagaai/commands/token.py`
+- `register` (func, строка 34)
+- `_create` (func, строка 79)
+- `_list` (func, строка 121)
+- `_revoke` (func, строка 145)
+- `execute` (func, строка 171)
+
+### `sagaai/commands/ui.py`
+- `register` (func, строка 40)
+- `_streamlit_available` (func, строка 51)
+- `_command` (func, строка 63)
+- `execute` (func, строка 75)
+
+### `sagaai/commands/update.py`
+- `register` (func, строка 39)
+- `_channel` (func, строка 95)
+- `_check` (func, строка 101)
+- `_stage` (func, строка 138)
+- `_apply` (func, строка 168)
+- `_rollback` (func, строка 202)
+- `execute` (func, строка 233)
+
 ### `server/app.py`
 - `ServerState` (class, строка 67)
 - `ServerState.__init__` (func, строка 70)
@@ -10362,24 +10634,24 @@
 - `main` (func, строка 39)
 
 ### `scripts/verify_manifest.py`
-- `log` (func, строка 99)
-- `find_root` (func, строка 104)
-- `git_ls_files` (func, строка 116)
-- `sha256_file` (func, строка 132)
-- `read_app_version` (func, строка 140)
-- `header_version` (func, строка 160)
-- `classify` (func, строка 170)
-- `load_manifest` (func, строка 180)
-- `save_manifest` (func, строка 186)
-- `now_iso` (func, строка 195)
-- `build_manifest` (func, строка 199)
-- `add_file` (func, строка 246)
-- `check_note_dict` (func, строка 288)
-- `check_unit` (func, строка 300)
-- `check_file_entry` (func, строка 316)
-- `verify` (func, строка 341)
-- `verify.iter_entries` (func, строка 390)
-- `main` (func, строка 481)
+- `log` (func, строка 104)
+- `find_root` (func, строка 109)
+- `git_ls_files` (func, строка 121)
+- `sha256_file` (func, строка 137)
+- `read_app_version` (func, строка 145)
+- `header_version` (func, строка 165)
+- `classify` (func, строка 175)
+- `load_manifest` (func, строка 185)
+- `save_manifest` (func, строка 191)
+- `now_iso` (func, строка 200)
+- `build_manifest` (func, строка 204)
+- `add_file` (func, строка 251)
+- `check_note_dict` (func, строка 293)
+- `check_unit` (func, строка 305)
+- `check_file_entry` (func, строка 321)
+- `verify` (func, строка 346)
+- `verify.iter_entries` (func, строка 395)
+- `main` (func, строка 486)
 
 ### `dev_agent/agent_loop.py`
 - `_now_ts` (func, строка 159)
