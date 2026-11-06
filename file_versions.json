@@ -6,13 +6,13 @@
     "ru": "Границы платформы стали типизированными: публичные ответы gateway описываются моделями вместо голых словарей, HTTP-схемы и интерфейс используют те же модели, сериализация идёт одним слоем. Golden-тесты фиксируют публичный JSON двадцати операций и падают при любом его изменении. В конвейер добавлен pyright с бюджетом ошибок: их число может падать, но новый не пройдёт сборку незамеченным.",
     "en": "The platform boundaries are typed now: public gateway answers are models rather than bare dictionaries, the HTTP schemas and the interface use the same models, and one layer does the serialisation. Golden tests record the public JSON of twenty operations and fail on any change to it. The pipeline runs pyright against a budget of findings: the count may fall, while a new one no longer slips into the build unseen."
   },
-  "updated": "2026-11-05T09:36:43Z",
+  "updated": "2026-11-06T12:52:00Z",
   "units": {
     "core": {
-      "version": "1.76.1",
+      "version": "1.78.0",
       "note": {
-        "ru": "Пакет: типизированные контракты на границах - модели публичных ответов gateway, схемы server на этих моделях, единый слой сериализации, golden-тесты публичного JSON и pyright с бюджетом ошибок в конвейере.",
-        "en": "Package: typed contracts at the boundaries - models for the public gateway answers, the server schemas built on them, one serialisation layer, golden tests of the public JSON, and pyright with an error budget in the pipeline."
+        "ru": "Пакет: типизированные контракты на границах - модели публичных ответов gateway, схемы server на этих моделях, единый слой сериализации, golden-тесты публичного JSON и pyright с бюджетом ошибок в конвейере. Маркетплейс разложен по модулям: установка агента и матрица конфликтов разделены на пакет, база и навык - на область и фасад.",
+        "en": "Package: typed contracts at the boundaries - models for the public gateway answers, the server schemas built on them, one serialisation layer, golden tests of the public JSON, and an error budget in the pipeline. The marketplace is split into modules: agent installation and the conflict matrix are now packages, while the knowledge base and the skill are split into an area and a facade."
       },
       "files": {
         "__init__.py": {
@@ -40,8 +40,8 @@
           "sha256": "3891e9acfdd716954c52520cea6944916ac9eae45cb6be62b382c0f4c9c107f3"
         },
         "core/api_layer.py": {
-          "version": "1.10.2",
-          "sha256": "1b00cbd8738085e6bcaa84b3c932305afa72a8290e8ad1792c5629fe4b7fb525"
+          "version": "1.10.3",
+          "sha256": "84809bc94b663da54af0b1529a37ce235bee59aa79ec5758eff7e98a07e1d64a"
         },
         "core/assistant_creator.py": {
           "version": "1.0.2",
@@ -172,11 +172,11 @@
           }
         },
         "core/orchestrators.py": {
-          "version": "1.21.1",
-          "sha256": "1495bc7ab18a3e9c3d17abde2490ff6175b5a2673cfb287aab98a7cc348858b9",
+          "version": "1.21.2",
+          "sha256": "96ca403a580725d54b298a7859b61721084c93ed8b3e468f6a7da527695bfcd6",
           "note": {
-            "ru": "Блок ## Current date в сборке системного промпта и общая функция строки даты.",
-            "en": "The ## Current date block in the system-prompt assembly and the shared date-line helper."
+            "ru": "Фасад оркестраторов: сборка промпта декомпозирована, чистые блоки текста и календарные помощники вынесены в core/prompt_blocks.py.",
+            "en": "Orchestrator facade: prompt assembly decomposed; pure text blocks and calendar helpers moved to core/prompt_blocks.py."
           }
         },
         "core/paths.py": {
@@ -288,11 +288,11 @@
           "sha256": "02cc557d34eb035b5f0c85cbea2d1094cbad8abac15ef56adc0d17f89e7f1566"
         },
         "dev_agent/agent_loop.py": {
-          "version": "1.21.2",
-          "sha256": "b80430bfc291099fcb65fa55b62f098711291cb16217b9bdd6e33409202fd1dd",
+          "version": "1.25.0",
+          "sha256": "93bc0619b2e4c7458e4da14d139d4acac15fc48caee7e2874a5f427b11cbac34",
           "note": {
-            "ru": "subagent_result маршрутизируется фазой веера вместе с остальными вызовами дерева.",
-            "en": "subagent_result is routed by the fan-out phase together with the other tree calls."
+            "ru": "Извещения о завершённых субагентах вынесены в dev_agent/loop/notices.py, политика размера tool-результатов - в dev_agent/loop/results.py, разбор ответа модели в tool-вызовы (DSML и точка входа) - в dev_agent/loop/parse.py, восстановление некорректного JSON - в dev_agent/loop/json_repair.py, анализ смысла ответа (loop_status, план, вопрос, сила шага) - в dev_agent/loop/signals.py; фасад реэкспортирует их имена.",
+            "en": "Finished-subagent notices moved into dev_agent/loop/notices.py, the tool-result size policy into dev_agent/loop/results.py, the model-answer-to-tool-calls parsing (DSML and the entry point) into dev_agent/loop/parse.py, the malformed-JSON recovery into dev_agent/loop/json_repair.py and the answer-signal analysis (loop_status, plan, question, step strength) into dev_agent/loop/signals.py; the facade re-exports their names."
           }
         },
         "dev_agent/assistant_detector.py": {
@@ -328,19 +328,19 @@
           }
         },
         "dev_agent/tool_executor.py": {
-          "version": "1.17.1",
-          "sha256": "b9fc025b01ca2c9ba5ca973414479977e204c73fc59e509f8b25e9acd2290562",
+          "version": "1.18.0",
+          "sha256": "7f6df0e4523cc8fe1acbca21d758f52d7b9a8373bb9b4d08d3a02ac4a43cd7b2",
           "note": {
-            "ru": "Инструмент current_datetime: время суток, день недели, epoch; строка даты строится тем же помощником, что и блок промпта.",
-            "en": "The current_datetime tool: time of day, weekday, epoch; its date line comes from the same helper as the prompt block."
+            "ru": "Фасад набора инструментов: диспетчер и защиты остались здесь, тела инструментов разложены по пакету dev_agent/tools/ (19 модулей по предметным областям); зависимости миксины получают через tools.deps.build_deps, который читает фасад на каждом вызове. Файл: 3289 -> 229 строк, самая длинная функция 217 -> 59 строк, максимальная цикломатика 30 -> 10.",
+            "en": "Tool-set facade: the dispatcher and the guards stay here while the tool bodies moved into the dev_agent/tools package (19 subject modules); the mixins read their dependencies through tools.deps.build_deps, which resolves the facade on every call. File: 3289 -> 229 lines, longest function 217 -> 59, max cyclomatic complexity 30 -> 10."
           }
         },
         "dev_agent/universal_agent.py": {
-          "version": "1.25.1",
-          "sha256": "cb773bf0a16b7b7ff980adb9b0fea85dd45bd8f1a41ee7a2a31a86053d1d64be",
+          "version": "1.26.0",
+          "sha256": "98a9c6c0e39dff1de0811a7c79e853c1b1c953481dd48359c1251d3e50a5cc8a",
           "note": {
-            "ru": "Описание current_workspace: сначала логика выбора рабочей папки из системного промпта, затем папка по запросу пользователя, и только потом меню недавних папок.",
-            "en": "current_workspace description: workspace selection follows the system prompt first, then the folder named in the user request, and only then the recent-folders menu."
+            "ru": "Фасад рабочего слоя DevAgent: диспетчер workspace-инструментов, управление оркестраторами, соединениями и памятью. Данные каталога, валидация вызовов, помощники документов, правила поиска по диалогам и реестр connection-инструментов живут в отдельных модулях пакета.",
+            "en": "Facade of the DevAgent workspace layer: the workspace tool dispatcher, orchestrator, connection and memory management. Catalog data, call validation, document helpers, dialog-search rules and the connection-tool registry live in separate modules of the package."
           }
         },
         "dev_agent/workspace_binding.py": {
@@ -368,19 +368,19 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.34.2",
-          "sha256": "3e506c6c4de4c10cf9a1118844eaf5663dcd2b3c96e8d696776c565404cea40d",
+          "version": "1.8.1",
+          "sha256": "748fb1d3be3d9ad99a59b65eee42b727edc516d2d860e2774ebe8b4aae29d051",
           "note": {
-            "ru": "Описания файлов Task Scout в карте проекта.",
-            "en": "Task Scout file descriptions in the project map."
+            "ru": "Описания девяти модулей core/marketplace, появившихся при разделении установки агента и матрицы конфликтов.",
+            "en": "Descriptions of the nine core/marketplace modules created by splitting the agent installation and the conflict matrix."
           }
         },
         "scripts/verify_manifest.py": {
-          "version": "1.2.3",
-          "sha256": "cd55860faec82dcf82e1ad29ef7ce730a3eead8b00749bfa04fc544aae8b44fb",
+          "version": "1.2.4",
+          "sha256": "eb915b5561dbabd505765d40bc2d845efd8371274bfb8a2e3566738491bb2438",
           "note": {
-            "ru": "Обход покрытия пропускает артефакты editable-установки (*.egg-info) по суффиксу, а не по фиксированному имени.",
-            "en": "The coverage walk skips editable-install artifacts (*.egg-info) by suffix instead of a fixed name."
+            "ru": "`refactor_budget.json` отнесён к пакету кода: бюджет едет к пользователю вместе с кодом, который он ограничивает.",
+            "en": "`refactor_budget.json` is classified as part of the code unit: the budget ships with the code it constrains."
           }
         },
         "storage/__init__.py": {
@@ -556,11 +556,11 @@
           "sha256": "351e10538504bf824580b867882f57a33b50d7a1ccacb6170a38d0acabb61fd0"
         },
         "tests/scenarios/test_orchestrator_tool_gating.py": {
-          "version": "1.2.17",
-          "sha256": "95a633733378eb3452d69c0df6bf217a429366c4e72b4e28ebd2c978e45f6944",
+          "version": "1.2.19",
+          "sha256": "91879b3b048af3415a81bf680efec3134357b050fc5a356c65d1e2017a7e82e3",
           "note": {
-            "ru": "Пин промпта DevAgent v3.23, инвариант DSML-fallback и инвариант правила о самодостаточности формулировок.",
-            "en": "Pins the DevAgent v3.23 prompt, the DSML-fallback invariant and the self-sufficiency rule invariant."
+            "ru": "Пин промпта DevAgent v3.30 и инвариант спеки изменения в скретче.",
+            "en": "Pins the DevAgent v3.30 prompt and the change-scoped spec invariant."
           }
         },
         "tests/scenarios/test_project_map_freshness_scenario.py": {
@@ -1196,8 +1196,12 @@
           "sha256": "0581f0ba70632a8048a3f161f15377f719d5a5dfc339412bf5a19a2ee39f54c6"
         },
         "ui/app.py": {
-          "version": "1.8.3",
-          "sha256": "b3062315f921c146843c4bb5499fb9f3ad503430c9d21b430031739b5b4788d1"
+          "version": "1.9.0",
+          "sha256": "611aad7190292ae29f40ac2709385c9ef1cbf8035e412555e777d12f85990bf2",
+          "note": {
+            "ru": "main разложен на фазовые функции, сайдбар - на подблоки; помощники темы вынесены в ui/app_restore.py.",
+            "en": "main split into phase functions, the sidebar into sub-blocks; theme helpers moved to ui/app_restore.py."
+          }
         },
         "ui/components/__init__.py": {
           "version": "1.0.1",
@@ -1216,12 +1220,12 @@
           "sha256": "fe5378469f8d14923e1093c42286f6443d114c791e1792546692b847bf41fbd2"
         },
         "ui/pages/assistants.py": {
-          "version": "1.3.3",
-          "sha256": "30eb5957be0bcebabaf687d2e594109da5eabe34993cedcba4333e67ff496c36"
+          "version": "1.3.5",
+          "sha256": "37a2a2b0fb0915da9a394e90e56fe4147a20db74688c72acbfab0bd7591e73a1"
         },
         "ui/pages/chat.py": {
-          "version": "1.0.4",
-          "sha256": "1d67ab6471cee8f20f88b526876872cf707dda76bce4a49746ff40601d6e27c2"
+          "version": "1.0.5",
+          "sha256": "081323bbbbcd3ee469d83480b562e4fb002fc3f4de734dd45dbbee184c583f1f"
         },
         "ui/pages/connectors.py": {
           "version": "1.10.1",
@@ -1233,11 +1237,11 @@
           "sha256": "81a321a68fa5fabd9df1899910adb70320100ddebbab7720950aaad7729aa825"
         },
         "ui/pages/orchestrator.py": {
-          "version": "1.26.1",
-          "sha256": "ed7ae1cb9e7491776a62abc8d741a5bf2b488645a6f4a0b13e1cf41900c31868",
+          "version": "1.27.0",
+          "sha256": "c64efd39125959b2a6dec31e61c227768725da0dfcc70d6112a84eb8176c8a84",
           "note": {
-            "ru": "Выбор верификатора в блоке делегирования: пункт «не назначен» первым, предупреждение об устаревшем слаге.",
-            "en": "Verifier selector in the delegation block: a not-appointed entry first, a warning for a stale slug."
+            "ru": "Декомпозиция страницы: шаг агента разложен на фазы, лента событий - таблица _EVENT_RENDERERS, карта ключей сессии вынесена в чистый модуль; функция 206->49 строк, CC 29->14.",
+            "en": "Page decomposition: the agent step split into phases, the event feed dispatched through the _EVENT_RENDERERS table, the session-key map moved to the pure module; longest function 206->49 lines, CC 29->14."
           }
         },
         "ui/pages/orchestrator_settings.py": {
@@ -1422,11 +1426,11 @@
           }
         },
         "core/orchestration/service.py": {
-          "version": "1.10.2",
-          "sha256": "3935a0f33e0e0190c23c5c2a6be9588951602b1f43b6a1e7be8171b404a826d0",
+          "version": "1.11.0",
+          "sha256": "c5053a4fa135e19868c4933da2ca0b26f07e5f3b59dd50b641cfd3df4e5b0905",
           "note": {
-            "ru": "Дочерний раннер передаёт в связывание имя оркестратора и текст задачи, поэтому строка индекса ребёнка описывает запуск.",
-            "en": "The child runner passes the orchestrator name and the task text into the binding, so the child index row describes the run."
+            "ru": "Сервис оркестрации разделён: дочерний раннер вынесен в child_runner.py, чистые помощники бутстрапа - в child_text.py; фасад реэкспортирует их, поэтому точка входа одна.",
+            "en": "The orchestration service is split: the child runner moved to child_runner.py and the pure bootstrap helpers to child_text.py; the facade re-exports them, so the entry point stays single."
           }
         },
         "core/orchestration/tools.py": {
@@ -1586,8 +1590,8 @@
           "sha256": "2dd42c63f77ea870e7179e23d5be4b324443f22b1d4ce08ca0ca27f49cb67064"
         },
         "tests/test_system_prompt_subagents.py": {
-          "version": "1.0.4",
-          "sha256": "b407a1957501b5a64402df0d869b4a482719013a70435f84ac7ec583cb67c9ed"
+          "version": "1.0.6",
+          "sha256": "47fffac9c6751d909ebe230d22b4c27b8497a255afb8332520ae68e49b496b5e"
         },
         "tests/test_delegation_injection_inheritance.py": {
           "version": "1.0.1",
@@ -1674,16 +1678,16 @@
           }
         },
         "core/marketplace/conflicts.py": {
-          "version": "1.0.1",
-          "sha256": "b22efdade6f53710c3da5933a93248c4a773898c063589350d0bd25782c37374",
+          "version": "1.0.2",
+          "sha256": "2f1fc397d936cbcdfc1b7a9b113cfd80929abcbc6c19d5ed097795c944f69b86",
           "note": {
             "ru": "Матрица конфликтов: план установки, локальные правки, три пути, удаление.",
             "en": "Conflict matrix: install plan, local edits, three resolutions and uninstall."
           }
         },
         "core/marketplace/installer.py": {
-          "version": "1.0.1",
-          "sha256": "fb494d4738eda6bf3dadc3a825bc2407b048a34f397bec40ace62ec02285ef68",
+          "version": "1.0.2",
+          "sha256": "5c66ceb87d60afbe23253ddd2051a6f7fc52dda1d1453feca27ccc84896516bc",
           "note": {
             "ru": "Установщик навыка: журнал прогона, атомарная запись и откат.",
             "en": "Skill installer: run journal, atomic write and rollback."
@@ -1878,16 +1882,16 @@
           "sha256": "443ba1ffdf57a0b4b3b119027443d2e4600e6929433f82b4eb4b7c590c6373cd"
         },
         "core/marketplace/agent_installer.py": {
-          "version": "1.1.1",
-          "sha256": "7c555fdf1f097f7c432da6ecefc538128e960b06a24696831b80f089f1c8cc91"
+          "version": "1.1.2",
+          "sha256": "eb4cb5ae4e449bfb740555f83b0479d1cb5a60ef10b83262e336e1d7ccbbb04d"
         },
         "core/marketplace/bundles.py": {
           "version": "1.1.2",
           "sha256": "dde3921cb471d0a4405f379f462870e2194b99ed610d0962e567b16ab1e2e0f8"
         },
         "core/marketplace/mcp_installer.py": {
-          "version": "1.0.1",
-          "sha256": "cc467188281c6647421cbb4fcda1026890f4fd737fce8e61eb9921bd76564ab4"
+          "version": "1.0.2",
+          "sha256": "680437a430425da0391c37907498ea9dfaeaefda1546eb1d4d3c3166ab03f003"
         },
         "core/marketplace/migration.py": {
           "version": "1.1.1",
@@ -1898,8 +1902,8 @@
           "sha256": "4b43b4fa8b363ba1b5401a012bc2ba5a172d664114a0439e301667d54f40ca6e"
         },
         "core/marketplace/rag_installer.py": {
-          "version": "1.0.1",
-          "sha256": "4c15ddd6205ebe59192ddb9d41cf6ae865e7a4d9dc6bfd748b03c5a95ace5611"
+          "version": "1.0.2",
+          "sha256": "d013d1fd5aa81e0d7e6daa693009b8612233397d12eade15474a125f5b9a1899"
         },
         "tests/test_copyright_headers.py": {
           "version": "1.0.3",
@@ -2442,15 +2446,19 @@
           "sha256": "321968cdad92596c86d9002114db5560673e1a357958ded5d98ff8d51d5e64c3"
         },
         "scripts/ci_check.py": {
-          "version": "1.2.0",
-          "sha256": "44d69441401568ed70a43c491402d722d93716e6699df9b9feb245dfcaadebc0"
+          "version": "1.3.0",
+          "sha256": "375a173f19c4d85ad8c2a1b5a7df78e4214f3c7a4388684c4e61dce0ce8bc1ad",
+          "note": {
+            "ru": "Новый шаг конвейера `budget`: структурный бюджет крупных файлов (длина файла, длина функции, цикломатическая сложность).",
+            "en": "New pipeline step `budget`: the structural budget of the god files (file length, function length, cyclomatic complexity)."
+          }
         },
         "tests/test_ci_check.py": {
-          "version": "1.2.0",
-          "sha256": "c430f46cb511e36af51d160d391bafc3e095dae860669e7bc8a77e5c1987cd4c",
+          "version": "1.3.0",
+          "sha256": "66ffe57d613e5868870333859bf477df954dd74a4ac87d77eff2165c8e516799",
           "note": {
-            "ru": "Тест на диапазон версий: верхняя граница сохраняется в спецификаторе и отвергает версию вне диапазона.",
-            "en": "A test for version ranges: the upper bound survives parsing and rejects a version outside the range."
+            "ru": "Тесты шага `budget`: порядок в конвейере, отсутствующий скрипт, превышение бюджета и неизмеримое окружение.",
+            "en": "Tests of the `budget` step: its place in the pipeline, a missing script, an exceeded budget and an unmeasurable environment."
           }
         },
         "pyproject.toml": {
@@ -2518,8 +2526,12 @@
           "sha256": "fa4d24ecc1e4fcd67e996461ee7ec7169874fa51d74d0db22922ef7bcf5b8900"
         },
         "pyright_budget.json": {
-          "version": "1.0.0",
-          "sha256": "ac67a3e55ececc7665fecd16fbeda9f9aa16c7179fbc076f7b9187e03fab4436"
+          "version": "1.0.2",
+          "sha256": "f943b76203b0e1e19355425a6c7d364f94d7ed9bbfd6df05eb4e8d886217e676",
+          "note": {
+            "ru": "Потолок ошибок типов снижен 424 -> 420 по фактическому уровню после среза оркестрации.",
+            "en": "The type-error ceiling lowered 424 -> 420 to the actual level after the orchestration slice."
+          }
         },
         "tests/test_api_golden.py": {
           "version": "1.0.0",
@@ -2528,17 +2540,377 @@
         "tests/golden/api_contract.json": {
           "version": "1.0.0",
           "sha256": "e135a930695e7a09a1df75c2417f26fa2063327c6e2c90c965cab15a77238b67"
+        },
+        "scripts/refactor_budget.py": {
+          "version": "1.0.0",
+          "sha256": "8a68f0bbd6e5d91e56f9b4c8a437d187c33ed8840b0fbfc1341951f97d6e88f6"
+        },
+        "scripts/capture_loop_golden.py": {
+          "version": "1.0.0",
+          "sha256": "59963f7094f2283ac8f00f35e85aa1432acb0a94954dc666d24ad9dd0803ca05"
+        },
+        "refactor_budget.json": {
+          "version": "1.2.0",
+          "sha256": "2486687ca62414a17b004fb24761ae9845e4e1b16c46eddecc826ac0a89bd19d",
+          "note": {
+            "ru": "Срез 10: в ратчет внесены core/api_layer.py и восемь провайдерных модулей.",
+            "en": "Slice 10: core/api_layer.py and eight provider modules added to the ratchet."
+          }
+        },
+        "tests/test_refactor_budget.py": {
+          "version": "1.0.0",
+          "sha256": "548ad31b34354de2564c6331c0b833560670d0506b4cc7204ab6018daa32c909"
+        },
+        "tests/test_loop_golden_payloads.py": {
+          "version": "1.0.0",
+          "sha256": "f8b98d4cf6c92274f4a4961591526707b2e851326b19d9038af1fae1cd0e17c6"
+        },
+        "tests/fixtures/loop_golden/batch_calls.json": {
+          "version": "1.0.0",
+          "sha256": "98f62da7c3d887cd952910e41311c6c993f91425e28b3fb12d6c0be0f9cc6edd"
+        },
+        "tests/fixtures/loop_golden/dsml_fallback.json": {
+          "version": "1.0.0",
+          "sha256": "c659e218580bd6269af44eb508887aa590ac03081ed673fd356c7a5ec279b5bb"
+        },
+        "tests/fixtures/loop_golden/economy_window.json": {
+          "version": "1.0.0",
+          "sha256": "879f4483de5e2300cbc771eedcd3cdf94026fff00a4bc40cea17a557b496c693"
+        },
+        "tests/fixtures/loop_golden/manual_mode_gated.json": {
+          "version": "1.0.0",
+          "sha256": "88b262cc6de458285da7de57eca05b9580d07228d08aa7193bb910b37520ba36"
+        },
+        "tests/fixtures/loop_golden/plan_awaiting.json": {
+          "version": "1.0.0",
+          "sha256": "28e4e844a0678521439d7922ec81fcd7db8ebc2f248d7df2a166778b36f014e8"
+        },
+        "tests/fixtures/loop_golden/propose_staged.json": {
+          "version": "1.0.0",
+          "sha256": "40b02a916dd6d2235d86acd082a114cfd46dd7d6c839ffe7e070ed1bc4f7cca6"
+        },
+        "tests/fixtures/loop_golden/read_tool.json": {
+          "version": "1.0.0",
+          "sha256": "e8d0686dfe776f345254c5767c6f1ea6392d24d617e6e01dbc700a51d0f81f4d"
+        },
+        "tests/fixtures/loop_golden/tool_error_feedback.json": {
+          "version": "1.0.0",
+          "sha256": "92f5925ac4554c3263f16e9fd33c606792b4ac24778cd2b0393238700fe9f336"
+        },
+        "dev_agent/loop/__init__.py": {
+          "version": "1.0.0",
+          "sha256": "439a170caaa697833247473f238a57c53c84bbae76a4c686de5d6a647c3e4c89"
+        },
+        "dev_agent/loop/state.py": {
+          "version": "1.0.0",
+          "sha256": "be559ba4598cafca1fca3dfb03e6829966741036f96deea44282ddf513718786"
+        },
+        "dev_agent/loop/notices.py": {
+          "version": "1.0.0",
+          "sha256": "29003b03bee836b615b6bc400397efb25e1a97f340b9f43a62cac08cefbd4eb1"
+        },
+        "dev_agent/loop/results.py": {
+          "version": "1.0.0",
+          "sha256": "4d71a02fa7c10e2092ef60a28ca2d4459ace0d6a000034f5ffa9e59f8ea3a7ff"
+        },
+        "dev_agent/loop/parse.py": {
+          "version": "1.0.1",
+          "sha256": "af992aa0d8e6cd26fd425470ac4701914f2c24349b13c5fcabc600a59f0514ed",
+          "note": {
+            "ru": "Разбор ответа модели: fenced JSON, DSML-фолбэк, извлечение блоков и имён аргументов. Описание аргументов берётся напрямую из модуля данных каталога.",
+            "en": "Parsing of the model reply: fenced JSON, the DSML fallback, block and argument-name extraction. Argument specs come straight from the catalog data module."
+          }
+        },
+        "dev_agent/loop/json_repair.py": {
+          "version": "1.0.0",
+          "sha256": "21eac76c983eeb5b10bbdfe92a6d4109697740d103e4990ba5c2296db73e5336"
+        },
+        "dev_agent/loop/signals.py": {
+          "version": "1.0.0",
+          "sha256": "1b0a0047fa94067e160684db9d19646ddf1b8f60d5b60e6fc75dadae6de9dd9c"
+        },
+        "dev_agent/loop/delegation.py": {
+          "version": "1.0.1",
+          "sha256": "40bfad07627eeb3bf8953b451c2ce9ad48e950fd3bbd8fa02c15f04b89a7f54e",
+          "note": {
+            "ru": "Ветка делегирования цикла: проверка вызовов до отправки, планирование и запуск подагентов. Валидация импортируется напрямую из dev_agent.tool_validation.",
+            "en": "Delegation branch of the loop: pre-flight call validation, subagent planning and launching. Validation is imported straight from dev_agent.tool_validation."
+          }
+        },
+        "dev_agent/loop/context.py": {
+          "version": "1.0.0",
+          "sha256": "e9955abb229cd0916b36865b99e283523d7d9f2529b1276354cfd8a4cb0ee8b0"
+        },
+        "dev_agent/loop/steps/__init__.py": {
+          "version": "1.0.0",
+          "sha256": "21c0e8ca11434e437c5e3a06a43fb5ed8c05ccc8de17760ad8de4116eeca4bff"
+        },
+        "dev_agent/loop/steps/approvals.py": {
+          "version": "1.0.0",
+          "sha256": "9ece7f3ec1830b1967140731626d6798c806127f851227db42be3ac106a23413"
+        },
+        "dev_agent/loop/steps/executing.py": {
+          "version": "1.0.0",
+          "sha256": "01ffb90ebfbb7c92ad56db2616c392b7503ea8a2553a24d3d40502a0458f746a"
+        },
+        "dev_agent/loop/steps/models.py": {
+          "version": "1.0.0",
+          "sha256": "aac787e13f16bccbe4c85ccabf5ec84081f51a52b57d8bfa6bef90c5690a0eb0"
+        },
+        "dev_agent/loop/steps/parsing.py": {
+          "version": "1.0.0",
+          "sha256": "87fccc4d01b7b1ee586118d933e77b8263899fb914d55c4d67149d83046ad274"
+        },
+        "dev_agent/loop/steps/prepare.py": {
+          "version": "1.0.0",
+          "sha256": "abab838e488e1b104f44698c59b3c13f170b9f0a2dd51f0dd80a95ec5f647b16"
+        },
+        "dev_agent/loop/steps/runner.py": {
+          "version": "1.0.0",
+          "sha256": "790c9282ef0394ba31d9cbcf96ac1feef0f29d7307d7e03454962487c10670ce"
+        },
+        "dev_agent/loop/steps/runtime.py": {
+          "version": "1.0.0",
+          "sha256": "09eab1a26a3606f70958b1795dc889be769488dfe4b5bc09666d896d22f2abe9"
+        },
+        "dev_agent/tools/__init__.py": {
+          "version": "1.0.0",
+          "sha256": "17a836f63d8e221d703f65fb9816462a49254a21481030e9bdafecc15f107eb1"
+        },
+        "dev_agent/tools/args.py": {
+          "version": "1.0.0",
+          "sha256": "ac7baffaca3de94cbc56c71b8f88e358d1488a6faab0c2821363480b6586632b"
+        },
+        "dev_agent/tools/assistants.py": {
+          "version": "1.0.1",
+          "sha256": "d9757e33cc42671cabf3b185debc700fef3deac4a9b50a93c291b668aea39e5b"
+        },
+        "dev_agent/tools/catalog.py": {
+          "version": "1.0.0",
+          "sha256": "0c7e64cf34b1e6b883f043425af4edc8bd9ff066014080903f045fd4c01a043a"
+        },
+        "dev_agent/tools/clock.py": {
+          "version": "1.0.0",
+          "sha256": "2d074e1d080a24f08227603313235a333b12b6a4e1effd37cadcc63c1b953811"
+        },
+        "dev_agent/tools/deps.py": {
+          "version": "1.0.0",
+          "sha256": "0c2d612d22267184ff36761d1703c68ce425ec3496cd091a08b5885036bc3943"
+        },
+        "dev_agent/tools/editing.py": {
+          "version": "1.0.0",
+          "sha256": "9c9b69472b1d3649d59d68f2d35db2b5b5b31d7a3de5d330201b28e7dd5f92fc"
+        },
+        "dev_agent/tools/exec.py": {
+          "version": "1.0.0",
+          "sha256": "b8e0a0ec85e0621fb5e3da58ce59c1240eb96b1301de760f2f574eb816ce5235"
+        },
+        "dev_agent/tools/files.py": {
+          "version": "1.0.1",
+          "sha256": "1492b43c6566add497263539794debabe6626420bc4f0d7ce853cf24a2c17178"
+        },
+        "dev_agent/tools/history.py": {
+          "version": "1.0.0",
+          "sha256": "a94e474852fce6431f24103f10b24870fabafba24550e04c3f4352854ccba18d"
+        },
+        "dev_agent/tools/images.py": {
+          "version": "1.0.0",
+          "sha256": "215fa2b553e252278581f457e82792ae2af0b12b6e5d94a90fab3a3117dfa587"
+        },
+        "dev_agent/tools/library.py": {
+          "version": "1.0.0",
+          "sha256": "5804ffe5a48ae02b038e3f1f0859f8a2865e98154f189fb5b75ffe5ce82041d4"
+        },
+        "dev_agent/tools/patch.py": {
+          "version": "1.0.1",
+          "sha256": "97786b52f9f817040224f28d1057127a2c8cc54414ffb187b990404d41af8af5"
+        },
+        "dev_agent/tools/rag.py": {
+          "version": "1.0.0",
+          "sha256": "81ffaabb898f4b80c7fcc77acaa169240cedefb400681a0b0d2ae87bd103f6f8"
+        },
+        "dev_agent/tools/task_state.py": {
+          "version": "1.0.0",
+          "sha256": "b6f8bc6f8479c24d06405606b6b133231acdccfc93270f7611c75e79dfa8b0a0"
+        },
+        "dev_agent/tools/text_utils.py": {
+          "version": "1.0.0",
+          "sha256": "9af861c44b9c2831471ffce31131ad0fb74f878cd375ef0de8bf50ace0718a55"
+        },
+        "dev_agent/tools/url_fetch.py": {
+          "version": "1.0.0",
+          "sha256": "8d8b3b5f91e00f49f05ba31b3ea631eb00a618f67abc0544d642f12d0925c362"
+        },
+        "dev_agent/tools/web_search.py": {
+          "version": "1.0.0",
+          "sha256": "c9c89e5afaff7194fe15b385a176872666ea240dbc004c964bf1e80740c204b3"
+        },
+        "dev_agent/tools/workspace.py": {
+          "version": "1.0.0",
+          "sha256": "c266e515ffbf93c186b573bc400e2825649657ba0610444511f51e0c09794536"
+        },
+        "ui/pages/orchestrator_text.py": {
+          "version": "1.1.0",
+          "sha256": "7c4635bd47f40159d5e75738939c30254d6c6e55ba741b2d089bb904c8199aa9",
+          "note": {
+            "ru": "Добавлена build_state_keys - карта ключей session_state диалога, принимающая настройки и константы страницы аргументами.",
+            "en": "Added build_state_keys - the chat session-state key map, taking the page settings and constants as arguments."
+          }
+        },
+        "ui/pages/assistants_helpers.py": {
+          "version": "1.0.0",
+          "sha256": "486b57e6138c4e705869377a14591c75d15a2ab590f6726a2522c9e5ed7e5693"
+        },
+        "core/prompt_blocks.py": {
+          "version": "1.0.0",
+          "sha256": "6b5b2523aa9776ed72dda4b64b67fd7b7f899b501d80d4972cc84b9384910e7b"
+        },
+        "core/orchestration/child_runner.py": {
+          "version": "1.0.0",
+          "sha256": "57a8b27d5c5b67d2a9b293f0f516018b083654fc6e71c8719391342fb4f5cb3b",
+          "note": {
+            "ru": "Дочерняя сторона запуска: диспетчер с суженным каталогом инструментов, приёмник транскрипта, область журнала, восстановление резюма, прокрутка цикла и итоговый AgentRunResult.",
+            "en": "The child side of a delegated run: the dispatcher with its narrowed tool catalog, the transcript sink, the journal scope, resume restoration, the child loop and the final AgentRunResult."
+          }
+        },
+        "core/orchestration/child_text.py": {
+          "version": "1.0.0",
+          "sha256": "9bd075d1ef03bcfe6b8dfa32b6316c36977ab86db571eb04deddffaf39273543",
+          "note": {
+            "ru": "Чистые помощники бутстрапа ребёнка: производный тред с папкой файлов и текст задачи с разрешённой папкой загрузок.",
+            "en": "Pure helpers of the child bootstrap: the derived thread with its files folder and the task text with the resolved uploads folder."
+          }
+        },
+        "dev_agent/document_tools.py": {
+          "version": "1.0.0",
+          "sha256": "65ce26e9c914ecce730a3f2e2819498c7383d52ae812b541ec80172e9ac97520",
+          "note": {
+            "ru": "Чистые помощники инструмента extract_document_images: выбор источника, разбор параметров, решение о рендере страниц, слияние рендеров с внедрёнными картинками, отсев мелких изображений, сборка ответа и папка вывода.",
+            "en": "Pure helpers of the extract_document_images tool: source selection, option parsing, the render decision, folding page renders into embedded pictures, dropping tiny images, answer assembly and the output folder."
+          }
+        },
+        "dev_agent/tool_catalog_data.py": {
+          "version": "1.0.0",
+          "sha256": "5e75e0dcd0b07c29a6918146c50d3e0f382af423a3c6f5c39cd8dd8984d4f32b",
+          "note": {
+            "ru": "Каталог workspace-инструментов и белые списки имён аргументов, вынесенные из фасада universal_agent как данные без логики.",
+            "en": "The workspace tool catalog and the argument-name allow-lists, moved out of the universal_agent facade as data without logic."
+          }
+        },
+        "dev_agent/tool_validation.py": {
+          "version": "1.0.0",
+          "sha256": "9f25eb64ae48c92380d64d72c07a2c071f127e5614a81e5e1623d5e69e521aa2",
+          "note": {
+            "ru": "Проверка вызова инструмента до выполнения: отключённые инструменты, имена аргументов, права на делегирование. Свободна от состояния диспетчера, поэтому цикл агента импортирует её напрямую.",
+            "en": "Pre-execution validation of a tool call: disabled tools, argument names, delegation rights. Free of dispatcher state, so the agent loop imports it directly."
+          }
+        },
+        "dev_agent/thread_scope.py": {
+          "version": "1.0.0",
+          "sha256": "0a6d058cb061c79fb6fe2284b5ad4eaf0a7c389719da8ac8fedfe7ad977e8841",
+          "note": {
+            "ru": "Чистые правила выбора цели поиска по диалогам: нормализация scope и набор идентификаторов тредов и слогов оркестраторов.",
+            "en": "Pure targeting rules of the dialog search: scope normalisation and the set of thread ids and orchestrator slugs to search."
+          }
+        },
+        "dev_agent/tool_registry.py": {
+          "version": "1.0.0",
+          "sha256": "a062c28411f668b9fbc66e576ae319580735a7498301535bdbbed984a330a071",
+          "note": {
+            "ru": "Чистые помощники реестра connection-инструментов и записи памяти: нормализация флага перезаписи, склейка при добавлении, набор включённых сервисов, регистрация и снятие семейства инструментов.",
+            "en": "Pure helpers of the connection-tool registry and memory writes: overwrite-flag normalisation, append concatenation, the enabled service set, family registration and removal."
+          }
+        },
+        "ui/app_restore.py": {
+          "version": "1.0.0",
+          "sha256": "ddf3bff1a8b348876829882c841264f98e4a4c938f643e011e3430b4ab9a20bf",
+          "note": {
+            "ru": "Вынесены чистые помощники темы, восстановления состояния UI и диплинков из ui/app.py.",
+            "en": "Pure theme, UI-restore and deep-link helpers extracted from ui/app.py."
+          }
+        },
+        "core/api_http.py": {
+          "version": "1.0.0",
+          "sha256": "f3be35ddf1be315d6ab7fba09114b9e08b04a180a5deb9bb93305a42eede9537"
+        },
+        "core/api_payload.py": {
+          "version": "1.0.0",
+          "sha256": "6c62f687eccbd7b4625c6198d36b24d3be623029a8b7c6676512011893544fa7"
+        },
+        "core/api_responses.py": {
+          "version": "1.0.0",
+          "sha256": "995efb03fb99af5eea1da6df3a17d43d25d762f718abb35d0c6c7ab540c3a1a7"
+        },
+        "core/api_history_guard.py": {
+          "version": "1.0.0",
+          "sha256": "f64bc5fbf486c3b62dc31e6a7639a04a7e3c2c372651ec8764d9488b49565897"
+        },
+        "core/api_bearer.py": {
+          "version": "1.0.0",
+          "sha256": "bbfea402be0f4ba50114fb8c6dbe1cd15051c64deab676b34aec68ce0199dd0d"
+        },
+        "core/api_deepseek.py": {
+          "version": "1.0.0",
+          "sha256": "b3119670a6f16921812c49e4dc8ee83656456ec3d5f479cd8db12249d2700570"
+        },
+        "core/api_yandex.py": {
+          "version": "1.0.0",
+          "sha256": "a5a9f4d0b1f9559b60f9649a0e476bddfe41cc6853f2097fdaad81b8f64bd036"
+        },
+        "core/api_gigachat.py": {
+          "version": "1.0.0",
+          "sha256": "f15ab7f74690e1d92fe0468361af046ed1c6c86d9882172fec876c944e58d3ef"
+        },
+        "core/marketplace/agent_areas.py": {
+          "version": "1.0.0",
+          "sha256": "58b755ec9c3b2adf623844c558bc57f29420edda51ef4c1810f8334f8a38fa30"
+        },
+        "core/marketplace/agent_assistant.py": {
+          "version": "1.0.0",
+          "sha256": "66cd768a3b4741431431f35eaaf6e8096c8fe0dec2115a1e41a8eadab89bead0"
+        },
+        "core/marketplace/agent_orchestrator.py": {
+          "version": "1.0.0",
+          "sha256": "11b7b022fd95bb8ba176fc23bc04ba713c79b8f1c0181d744f6fa212abce6fe0"
+        },
+        "core/marketplace/agent_package.py": {
+          "version": "1.0.0",
+          "sha256": "d2fb54aca7b74410fac5e969668ec90f428e626d2441e1cae0fdc87675622933"
+        },
+        "core/marketplace/agent_preflight.py": {
+          "version": "1.0.0",
+          "sha256": "c18e4c02c380dc3c6a349be3ddeaa386fc4720774c3afcc4fb056af7e18ebe97"
+        },
+        "core/marketplace/agent_run.py": {
+          "version": "1.0.0",
+          "sha256": "b4902ff656bc2fc58ac2e564b30a2c895f2e8e1bd8562eea1552e372fa7465ba"
+        },
+        "core/marketplace/conflict_fork.py": {
+          "version": "1.0.0",
+          "sha256": "4d319b6ff49350a6b2d31440012de455f42118f6afa66ee4ef1518abfb2ff3e6"
+        },
+        "core/marketplace/conflict_state.py": {
+          "version": "1.0.0",
+          "sha256": "3fdf84876cf402bf9f577b26ba9fabc220c48cee7e8529073178f80bc19f20c4"
+        },
+        "core/marketplace/rag_area.py": {
+          "version": "1.0.0",
+          "sha256": "4152ff8bee98e261b1d38b5730b974acf3d8189135173b00fb1efc4bb2ea6d50"
+        },
+        "dev_agent/tools/file_tree.py": {
+          "version": "1.0.0",
+          "sha256": "ec3c827566c116212813a1a89cdca17a2277af0d2b8e937cc1d5259fffbfe9ad"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.67.1",
-      "sha256": "4d9c891b165a857cc8cfa423dc188e8b97765860c7bdb7200efbfd68cf7624de",
+      "version": "1.71.5",
+      "sha256": "fb9e2a23632181dfda02e87581a3991925d4e576bd39379d7691909ce1b78ff0",
       "note": {
-        "ru": "Раздел «Воспроизводимая сборка и зависимости»: роли requirements.txt/requirements-api.txt и lock, pyproject.toml как манифест пакета, причина обязательного editable-режима, сверка lock в конвейере.",
-        "en": "A section on the reproducible build: the roles of requirements.txt/requirements-api.txt and the lock, pyproject.toml as the package manifest, why editable installs are mandatory, and the lock cross-check in the pipeline."
+        "ru": "Архитектура: промпт DevAgent v3.30 - спека изменения в скретче, а не проектная спецификация.",
+        "en": "Architecture: DevAgent prompt v3.30 - the spec describes the change in the scratch area, not the project."
       }
     },
     "LICENSE": {
@@ -2550,19 +2922,19 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.69.1",
-      "sha256": "41f033475f533ec944380468f87a034af25500349071be3fe248ec0ef2f2b9cb",
+      "version": "1.74.6",
+      "sha256": "709c6cc1ba85096664b478b96713ab71d3375c1bcba5d5a51c0cf4d795980edc",
       "note": {
-        "ru": "Карта перегенерирована после уточнения README: отражены pyproject.toml, requirements.lock, роли файлов зависимостей, описания CI и диагностика установки из lock.",
-        "en": "The map is regenerated after the README clarification: pyproject.toml, requirements.lock, the dependency-file roles, the CI descriptions and the lock-install diagnostics are reflected."
+        "ru": "Карта перегенерирована после правки промпта DevAgent v3.30 и тестов.",
+        "en": "The map is regenerated after the DevAgent v3.30 prompt and test edits."
       }
     },
     "README.md": {
-      "version": "1.59.1",
-      "sha256": "67f9ac573a81c8b3abafff0f1ae856d82a73bdc116810f70cc54cc923b962b42",
+      "version": "1.59.2",
+      "sha256": "901da8ec2aff96a4377fff002ddd7b61f73074acc44d75adcbf3fd3d6c331d88",
       "note": {
-        "ru": "Уточнены способы установки (lock, группа api, bin/sagaai как совместимость) и добавлена диагностика повреждённого кэша pip при установке из lock.",
-        "en": "Installation paths are clarified (the lock, the api group, bin/sagaai as compatibility) and a note on diagnosing a corrupted pip cache during a lock install is added."
+        "ru": "В описании конвейера упомянут структурный бюджет крупных файлов.",
+        "en": "The pipeline description mentions the structural budget of the god files."
       }
     },
     "defaults/README.md": {
@@ -2894,11 +3266,11 @@
       }
     },
     "dev_agent/system_prompt.md": {
-      "version": "3.28",
-      "sha256": "9c73d338c177dc94e2cc9e95c62a054e1ec86d4caa3604e2e32ce6ba7115db0d",
+      "version": "3.30",
+      "sha256": "ee0c5d5589edbca5b8e74bc7d9f11ca50fe0135d2556e2fd5ec16668a8456394",
       "note": {
-        "ru": "DevAgent v3.27: правило «статус - не результат» - результат завершённого ребёнка забирает subagent_result.",
-        "en": "DevAgent v3.27: the rule that a status is not a result - subagent_result collects what a finished child produced."
+        "ru": "DevAgent v3.30: спека охватывает только изменение и живёт в .dev_agent/scratch/task_spec.md - проектная документация не переписывается, файл удаляется вместе со скретчем.",
+        "en": "DevAgent v3.30: the spec covers the change only and lives in .dev_agent/scratch/task_spec.md - project documentation is never rewritten, and the file is removed with the scratch area."
       }
     },
     "langs/en.json": {
@@ -2974,11 +3346,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.44.0",
-      "sha256": "46affcbe737b55d0d33199407b19fcd5681519202197a305aafe198a63808ce6",
+      "version": "1.47.4",
+      "sha256": "0dac82995f9bdcc053544311507dc94f6bfa42316124a707f12927719e2e25af",
       "note": {
-        "ru": "Две конвенции сборки: единственный источник версий зависимостей - requirements.lock, установка только editable. Подсказка аудита зависимостей переведена на установку из lock.",
-        "en": "Two build conventions: requirements.lock is the only source of dependency versions, and only editable installs are supported. The dependency-audit hint now points at the lock."
+        "ru": "Срез 12: инвентарь базовых файлов пополнен модулем обхода дерева dev_agent/tools/file_tree.py (264 файла).",
+        "en": "Slice 12: the inventory of base files gained the directory-walk module dev_agent/tools/file_tree.py (264 files)."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/connector_creator.md": {
