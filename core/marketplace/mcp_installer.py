@@ -280,6 +280,211 @@ def _connection_config(manifest: dict) -> Dict[str, Any]:
 
 # ─── Install ──────────────────────────────────────────────────────────────
 
+def _mcp_gate(
+    entity: dict,
+    *,
+    accept_license: bool,
+) -> dict:
+    """Validate an MCP install request and return the shared values.
+
+    Everything that can refuse the run happens here, before the lock is
+    taken: the marketplace switch, the protocol revision, the preset fields
+    and the platform bounds. The revision check comes first - a server the
+    platform cannot talk to is refused for that reason, not for a field of a
+    preset it will never use.
+    """
+    if not isinstance(entity, dict) or not entity.get("id"):
+        raise InstallError("invalid_entity", "Entity manifest has no id")
+
+    settings = marketplace_config.marketplace_settings()
+    if not settings.get("enabled"):
+        raise InstallError(
+            "marketplace_disabled",
+            "The marketplace is disabled in the settings",
+        )
+
+    entity_id = str(entity["id"])
+    version = str(entity.get("version") or "0.0.0")
+    service = service_of(entity)
+    preset_id = preset_id_of(entity)
+    check_protocol(entity)
+    config = preset_config(entity)
+
+    compatible, reason = _platform_compatible(entity)
+    if not compatible:
+        raise InstallError(
+            "platform_incompatible",
+            reason or "Entity is not compatible with this platform build",
+            {"id": entity_id, "version": version},
+        )
+
+    return {
+        "entity_id": entity_id,
+        "version": version,
+        "service": service,
+        "preset_id": preset_id,
+        "config": config,
+        "licence_at": _licence_state(entity, accept_license),
+        "existing_row": registry.get_installed("mcp", entity_id),
+    }
+
+
+def _resolve_mcp_target(
+    *,
+    service: str,
+    preset_id: str,
+    existing_row: Optional[dict],
+    runtime_slug: Optional[str],
+    adopt_existing: bool,
+) -> tuple:
+    """Return the connection this install works on and the preset match.
+
+    ``adopt_existing=False`` asks for another instance of the same server -
+    a second account, a second endpoint. Neither the registry row nor the
+    connection found by preset is reused then; the row is repointed at the
+    connection this run creates.
+    """
+    target_id = str(runtime_slug or "")
+    if not target_id and adopt_existing:
+        target_id = str((existing_row or {}).get("runtime_slug") or "")
+    found = None
+    if not target_id:
+        found = find_connection(service, preset_id)
+        if found is not None and adopt_existing:
+            target_id = str(found.get("id") or "")
+    return target_id, found
+
+
+def _apply_mcp_target(
+    connectors,
+    entity: dict,
+    target_id: str,
+    config: dict,
+    found: Optional[dict],
+    existing_row: Optional[dict],
+) -> tuple:
+    """Apply the preset settings to an existing connection."""
+    manifest = connectors.get_connection(target_id) or {}
+    if not manifest:
+        raise InstallError(
+            "connection_missing",
+            "The connection this entity refers to no longer exists",
+            {"id": str(entity.get("id") or ""), "connection_id": target_id},
+        )
+    updated = _apply_non_secret_changes(
+        target_id, manifest, config, _display_name(entity)
+    )
+    adopted = found is not None and not existing_row
+    return manifest, updated, adopted
+
+
+def _create_mcp_connection(
+    connectors,
+    entity: dict,
+    service: str,
+    preset_id: str,
+    config: dict,
+) -> tuple:
+    """Create a pending connection for the entity and seed its memory."""
+    name = _display_name(entity) or str(preset_of(entity).get("name") or preset_id)
+    manifest = connectors.create_connection(
+        service,
+        name,
+        config=config,
+        secrets=None,
+        pending=True,
+    )
+    target_id = str(manifest.get("id") or "")
+    if not target_id:
+        raise InstallError(
+            "connection_not_created",
+            "The connector layer returned no connection id",
+            {"id": str(entity.get("id") or "")},
+        )
+    memory_seed = str(preset_of(entity).get("memory_seed") or "")
+    if memory_seed:
+        try:
+            connectors.set_connection_memory(target_id, memory_seed)
+        except Exception:
+            pass
+    return manifest, target_id
+
+
+def _register_mcp(
+    *,
+    entity: dict,
+    entity_id: str,
+    target_id: str,
+    version: str,
+    channel: str,
+    install_id: str,
+    licence_at: Optional[str],
+) -> None:
+    """Write the registry row of a server - the commit marker of the run."""
+    now = store.isoformat_utc()
+    registry.upsert_installed(
+        {
+            "type": "mcp",
+            "id": entity_id,
+            "runtime_slug": target_id,
+            "runtime_db_id": None,
+            "runtime_skill_id": None,
+            "fork_of": entity.get("fork_of"),
+            "version": version,
+            "channel": channel,
+            "source_url": str(entity.get("source_url") or ""),
+            "package_sha256": None,
+            "tree_sha256": registry.manifest_sha256({}),
+            "index_sha256": None,
+            "files_json": {},
+            "skipped_code_files_json": [],
+            "installed_at": now,
+            "updated_at": now,
+            "installed_by": "marketplace",
+            "user_modified": False,
+            "user_modified_files_json": [],
+            "install_id": install_id,
+            "bundle_id": entity.get("bundle_id"),
+            "pinned": False,
+            "license_accepted_at": licence_at,
+        }
+    )
+
+
+def _mcp_report(
+    *,
+    noop: bool,
+    entity_id: str,
+    version: str,
+    install_id,
+    target_id: str,
+    preset_id: str,
+    service: str,
+    adopted: bool,
+    created: bool,
+    manifest: dict,
+    config: dict,
+) -> dict:
+    """Build the install report shared by the noop and the success path."""
+    return {
+        "ok": True,
+        "noop": bool(noop),
+        "id": entity_id,
+        "type": "mcp",
+        "version": version,
+        "install_id": install_id,
+        "runtime_slug": target_id,
+        "connection_id": target_id,
+        "preset": preset_id,
+        "service": service,
+        "adopted": bool(adopted),
+        "created": bool(created),
+        "credentials_status": str(manifest.get("credentials_status") or "pending"),
+        "requires_secrets": _secret_field_names(config),
+    }
+
+
+
 def install_mcp(
     entity: dict,
     *,
@@ -310,47 +515,22 @@ def install_mcp(
     non-secret settings that differ from the stored connection - those are
     applied in place, which is what an update of an MCP entity means.
     """
-    if not isinstance(entity, dict) or not entity.get("id"):
-        raise InstallError("invalid_entity", "Entity manifest has no id")
+    gate = _mcp_gate(entity, accept_license=accept_license)
+    entity_id = gate["entity_id"]
+    version = gate["version"]
+    service = gate["service"]
+    preset_id = gate["preset_id"]
+    config = gate["config"]
+    licence_at = gate["licence_at"]
+    existing_row = gate["existing_row"]
 
-    settings = marketplace_config.marketplace_settings()
-    if not settings.get("enabled"):
-        raise InstallError(
-            "marketplace_disabled",
-            "The marketplace is disabled in the settings",
-        )
-
-    entity_id = str(entity["id"])
-    version = str(entity.get("version") or "0.0.0")
-    service = service_of(entity)
-    preset_id = preset_id_of(entity)
-    # The revision check comes first: a server the platform cannot talk to is
-    # refused for that reason, not for a field of a preset it will never use.
-    check_protocol(entity)
-    config = preset_config(entity)
-
-    compatible, reason = _platform_compatible(entity)
-    if not compatible:
-        raise InstallError(
-            "platform_incompatible",
-            reason or "Entity is not compatible with this platform build",
-            {"id": entity_id, "version": version},
-        )
-    licence_at = _licence_state(entity, accept_license)
-
-    existing_row = registry.get_installed("mcp", entity_id)
-    # ``adopt_existing=False`` asks for another instance of the same server -
-    # a second account, a second endpoint. Neither the registry row nor the
-    # connection found by preset is reused then; the row is repointed at the
-    # connection this run creates.
-    target_id = str(runtime_slug or "")
-    if not target_id and adopt_existing:
-        target_id = str((existing_row or {}).get("runtime_slug") or "")
-    found = None
-    if not target_id:
-        found = find_connection(service, preset_id)
-        if found is not None and adopt_existing:
-            target_id = str(found.get("id") or "")
+    target_id, found = _resolve_mcp_target(
+        service=service,
+        preset_id=preset_id,
+        existing_row=existing_row,
+        runtime_slug=runtime_slug,
+        adopt_existing=adopt_existing,
+    )
 
     from core import connectors
 
@@ -369,42 +549,16 @@ def install_mcp(
         )
         try:
             if target_id:
-                manifest = connectors.get_connection(target_id) or {}
-                if not manifest:
-                    raise InstallError(
-                        "connection_missing",
-                        "The connection this entity refers to no longer exists",
-                        {"id": entity_id, "connection_id": target_id},
-                    )
-                updated = _apply_non_secret_changes(
-                    target_id, manifest, config, _display_name(entity)
+                manifest, updated, adopted = _apply_mcp_target(
+                    connectors, entity, target_id, config, found, existing_row
                 )
-                adopted = found is not None and not existing_row
             else:
-                name = _display_name(entity) or str(preset_of(entity).get("name") or preset_id)
-                manifest = connectors.create_connection(
-                    service,
-                    name,
-                    config=config,
-                    secrets=None,
-                    pending=True,
+                manifest, target_id = _create_mcp_connection(
+                    connectors, entity, service, preset_id, config
                 )
                 created = True
                 adopted = False
                 updated = False
-                target_id = str(manifest.get("id") or "")
-                if not target_id:
-                    raise InstallError(
-                        "connection_not_created",
-                        "The connector layer returned no connection id",
-                        {"id": entity_id},
-                    )
-                memory_seed = str(preset_of(entity).get("memory_seed") or "")
-                if memory_seed:
-                    try:
-                        connectors.set_connection_memory(target_id, memory_seed)
-                    except Exception:
-                        pass
 
             # A re-install of what is already there touches nothing: the
             # showcase renders such an entity as skipped, and a run that
@@ -417,50 +571,28 @@ def install_mcp(
                 and str(existing_row.get("version") or "") == version
             )
             if unchanged:
-                return {
-                    "ok": True,
-                    "noop": True,
-                    "id": entity_id,
-                    "type": "mcp",
-                    "version": version,
-                    "install_id": existing_row.get("install_id"),
-                    "runtime_slug": target_id,
-                    "connection_id": target_id,
-                    "preset": preset_id,
-                    "service": service,
-                    "adopted": False,
-                    "created": False,
-                    "credentials_status": str(manifest.get("credentials_status") or "pending"),
-                    "requires_secrets": _secret_field_names(config),
-                }
+                return _mcp_report(
+                    noop=True,
+                    entity_id=entity_id,
+                    version=version,
+                    install_id=existing_row.get("install_id"),
+                    target_id=target_id,
+                    preset_id=preset_id,
+                    service=service,
+                    adopted=False,
+                    created=False,
+                    manifest=manifest,
+                    config=config,
+                )
 
-            now = store.isoformat_utc()
-            registry.upsert_installed(
-                {
-                    "type": "mcp",
-                    "id": entity_id,
-                    "runtime_slug": target_id,
-                    "runtime_db_id": None,
-                    "runtime_skill_id": None,
-                    "fork_of": entity.get("fork_of"),
-                    "version": version,
-                    "channel": channel,
-                    "source_url": str(entity.get("source_url") or ""),
-                    "package_sha256": None,
-                    "tree_sha256": registry.manifest_sha256({}),
-                    "index_sha256": None,
-                    "files_json": {},
-                    "skipped_code_files_json": [],
-                    "installed_at": now,
-                    "updated_at": now,
-                    "installed_by": "marketplace",
-                    "user_modified": False,
-                    "user_modified_files_json": [],
-                    "install_id": install_id,
-                    "bundle_id": entity.get("bundle_id"),
-                    "pinned": False,
-                    "license_accepted_at": licence_at,
-                }
+            _register_mcp(
+                entity=entity,
+                entity_id=entity_id,
+                target_id=target_id,
+                version=version,
+                channel=channel,
+                install_id=install_id,
+                licence_at=licence_at,
             )
             store.update_run(
                 install_id,
@@ -474,22 +606,19 @@ def install_mcp(
             except Exception:
                 pass
             registry.export_registry_cache()
-            return {
-                "ok": True,
-                "noop": False,
-                "id": entity_id,
-                "type": "mcp",
-                "version": version,
-                "install_id": install_id,
-                "runtime_slug": target_id,
-                "connection_id": target_id,
-                "preset": preset_id,
-                "service": service,
-                "adopted": bool(adopted),
-                "created": bool(created),
-                "credentials_status": str(manifest.get("credentials_status") or "pending"),
-                "requires_secrets": _secret_field_names(config),
-            }
+            return _mcp_report(
+                noop=False,
+                entity_id=entity_id,
+                version=version,
+                install_id=install_id,
+                target_id=target_id,
+                preset_id=preset_id,
+                service=service,
+                adopted=adopted,
+                created=created,
+                manifest=manifest,
+                config=config,
+            )
         except Exception as exc:
             if created and target_id:
                 try:

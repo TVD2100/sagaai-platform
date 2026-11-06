@@ -20,7 +20,7 @@ def _text() -> str:
 
 
 def test_header_carries_the_version():
-    assert _text().startswith("# DevAgent - System Prompt (v3.28)")
+    assert _text().startswith("# DevAgent - System Prompt (v3.30)")
 
 
 def test_a_subagent_does_not_ask_for_plan_approval():
@@ -100,6 +100,43 @@ def test_the_approval_gate_itself_is_unchanged_for_top_level_dialogs():
     assert "MUST NOT write, edit, or modify any file" in block
     assert "Stage 1 item 3" in block
     assert "loop_status" in block
+
+
+def test_a_nontrivial_change_starts_with_a_survey_and_a_spec():
+    """The analysis cycle must be the default, not a remembered habit."""
+    text = _text()
+
+    assert "Analysis before the plan (existing project)" in text
+    assert "`spawn_agent(background=true)` children in ONE" in text
+    assert "**Swarm survey.**" in text
+    assert "never receives write access" in text
+    for step in ("**Architecture.**", "**Spec.**", "**Plan.**", "**Spec check.**"):
+        assert step in text, step
+    assert ".dev_agent/scratch/task_spec.md" in text
+    assert "<task_dir>/spec.md" not in text
+    assert "is fixed or reported, never silently accepted" in text
+
+
+def test_linters_run_before_the_test_tiers():
+    """The project's own linters gate the change before the slow tests."""
+    text = _text()
+
+    assert "**Tier 0 - Linters on touched files.**" in text
+    assert text.index("Tier 0 - Linters") < text.index("Tier 1 - Targeted")
+    assert "the project's config is the only authority" in text
+    assert "not suppressed" in text
+    assert "pre-existing findings are reported separately" in text
+
+
+def test_an_approved_series_keeps_running():
+    """A series approval covers every item, and its map survives archiving."""
+    text = _text()
+
+    assert "**Approved series.**" in text
+    assert "the approval covers every item, not just the first" in text
+    assert "that report is interim" in text
+    assert "<task_dir>/series.md" in text
+    assert "`task_state_clear` archives the journal" in text
 
 
 def test_the_prompt_stays_one_managed_file():

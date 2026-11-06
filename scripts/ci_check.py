@@ -10,6 +10,8 @@ Checks, in order:
 
 - ``ruff``     - lint with the repository's ``ruff.toml``;
 - ``types``    - pyright, against the error budget in ``pyright_budget.json``;
+- ``budget``   - the structural budget of the god files, against
+  ``refactor_budget.json`` (see ``scripts/refactor_budget.py``);
 - ``manifest`` - ``scripts/verify_manifest.py`` (schema, hashes, coverage);
 - ``lock``     - the declared requirements and the lock file agree;
 - ``tests``    - the whole suite in one sequential process.
@@ -46,6 +48,11 @@ MANIFEST_SCRIPT = os.path.join(ROOT, "scripts", "verify_manifest.py")
 #: is reported as a pass with an explanation - the same contract the lock
 #: check uses while no lock file exists.
 PYRIGHT_BUDGET_PATH = os.path.join(ROOT, "pyright_budget.json")
+#: The structural budget for the god files: file length, longest function and
+#: cyclomatic complexity. A separate gate from the type budget on purpose -
+#: it measures shape rather than types, and its result must be readable on its
+#: own. A missing file means the ratchet is not in force yet (a pass).
+REFACTOR_BUDGET_SCRIPT = os.path.join(ROOT, "scripts", "refactor_budget.py")
 
 OPERATORS = (">=", "<=", "==", "~=", "!=", ">", "<")
 
@@ -337,6 +344,29 @@ def check_types() -> Status:
     return "ok", "pyright: %d errors, budget %d" % (errors, allowed)
 
 
+def check_budget() -> Status:
+    """Check the structural budget of the god files (see scripts/refactor_budget.py).
+
+    The measuring script owns the numbers and the comparison; this gate only
+    maps its exit code onto the three outcomes the runner understands. A
+    missing script is an environment error - the ratchet cannot run - and a
+    missing budget file inside the script is reported as a pass.
+    """
+    if not os.path.isfile(REFACTOR_BUDGET_SCRIPT):
+        return "env", "scripts/refactor_budget.py is missing"
+    code, output = run_process([sys.executable, REFACTOR_BUDGET_SCRIPT, "--json"], timeout=600)
+    try:
+        report = json.loads(output[output.index("{"):])
+    except (ValueError, IndexError):
+        report = None
+    detail = str(report.get("detail") or "") if isinstance(report, dict) else tail(output)
+    if code == 0:
+        return "ok", detail or "structural budget holds"
+    if code == 2:
+        return "env", "the structural budget could not be measured: " + detail
+    return "fail", detail or "structural budget exceeded"
+
+
 def check_manifest() -> Status:
     """Validate the version manifest through the repository's own script."""
     if not os.path.isfile(MANIFEST_SCRIPT):
@@ -394,6 +424,7 @@ def check_tests() -> Status:
 CHECKS: List[Tuple[str, Callable[[], Status]]] = [
     ("ruff", check_ruff),
     ("types", check_types),
+    ("budget", check_budget),
     ("manifest", check_manifest),
     ("lock", check_lock),
     ("tests", check_tests),

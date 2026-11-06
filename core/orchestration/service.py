@@ -39,14 +39,28 @@ import time
 import uuid
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 log = logging.getLogger("core.orchestration.service")
 
+from core.orchestration import child_runner, child_text  # noqa: E402
+
+# The machinery of a single child run lives in ``child_runner``; the names
+# below stay module attributes because callers and tests reach them here.
+_apply_resume_state = child_runner.apply_resume_state
+_bind_child_thread = child_runner.bind_child_thread
+_build_child_dispatcher = child_runner.build_child_dispatcher
+_child_display_name = child_runner.child_display_name
+_child_event_forwarder = child_runner.child_event_forwarder
+_child_final_result = child_runner.child_final_result
+_finish_child = child_runner.finish_child
+_open_child_sink = child_runner.open_child_sink
+_resolve_child_agent = child_runner.resolve_child_agent
+_restore_child_history = child_runner.restore_child_history
+_step_child_loop = child_runner.step_child_loop
 from core.orchestration import runs as run_store  # noqa: E402
 from core.orchestration.contracts import (  # noqa: E402
     AWAIT_QUESTION,
-    AWAIT_UNFINISHED,
     DEFAULT_ANSWER_MAX_CHARS,
     DEFAULT_ANSWER_WAIT_SECONDS,
     DEFAULT_DIALOG_ROUNDS,
@@ -75,7 +89,6 @@ from core.orchestration.contracts import (  # noqa: E402
     ERR_RUN_ALREADY_FINISHED,
     ERR_RUN_NOT_FOUND,
     ERR_STALE_RUN,
-    ERR_TIMEOUT,
     ERR_TOO_MANY_PARKED,
     MAX_ANSWER_WAIT_SECONDS,
     MAX_RESUME_CHAIN,
@@ -88,7 +101,6 @@ from core.orchestration.contracts import (  # noqa: E402
     STOP_ABORTED,
     STOP_COMPLETED,
     STOP_ERROR,
-    STOP_MAX_TOKENS,
     TERMINAL_STATUSES,
     AgentBrief,
     AgentQuestion,
@@ -97,7 +109,6 @@ from core.orchestration.contracts import (  # noqa: E402
     CancelReport,
     InvokeRequest,
     SpawnRequest,
-    map_final_status,
 )
 
 #: Tools a child must NOT see in v1: a child never creates platform entities
@@ -1743,6 +1754,111 @@ class OrchestrationService:
             return prep
         return self._execute_child(prep, req=req, base_dir=base_dir, lang=lang)
 
+    def _resolve_resume_source(self, req: SpawnRequest,
+                               caller_root_run_id: Optional[str]
+                               ) -> Tuple[Optional[Dict[str, Any]], Optional[str],
+                                          Optional[Dict[str, Any]]]:
+        """Resolve the run a spawn continues, if any.
+
+        Returns ``(source, caller_root_run_id, refusal)``. A refusal means the
+        continuation is not allowed: the source is unknown, it belongs to a
+        different tree, or the resume chain is exhausted.
+        """
+        if req.resume_run_id and not caller_root_run_id:
+            # Fail closed: confinement must not depend on the caller
+            # remembering to pass its own root. A blocked spawn derives it from
+            # the parent run record; a dialog-level call is its own root.
+            caller_parent = (self.get_record(req.parent_run_id or "")
+                             if req.parent_run_id else None)
+            caller_root_run_id = (caller_parent.root_run_id
+                                  if caller_parent is not None
+                                  else (req.thread_id or None))
+        if not req.resume_run_id:
+            return None, caller_root_run_id, None
+        rid_source = (req.resume_run_id or "").strip()
+        live = self.get_record(rid_source)
+        source = live.to_record() if live is not None else self.record_from_store(rid_source)
+        if source is None:
+            return None, caller_root_run_id, {
+                "ok": False,
+                "error": "Nothing to resume: run " + rid_source + " is unknown.",
+                "error_code": ERR_RESUME_UNAVAILABLE}
+        if (caller_root_run_id
+                and str(source.get("root_run_id") or "") != str(caller_root_run_id)):
+            return None, caller_root_run_id, {
+                "ok": False,
+                "error": "Run " + rid_source + " belongs to another tree.",
+                "error_code": ERR_NOT_YOUR_RUN}
+        chain = int(source.get("resume_depth") or 0)
+        if chain >= MAX_RESUME_CHAIN:
+            return None, caller_root_run_id, {
+                "ok": False,
+                "error": ("Resume chain limit reached (" + str(MAX_RESUME_CHAIN)
+                          + "): start a new delegation instead."),
+                "error_code": ERR_RESUME_CHAIN_LIMIT,
+                "limit": "resume_chain", "value": chain}
+        return source, caller_root_run_id, None
+
+    def _resolve_spawn_parent(self, req: SpawnRequest,
+                              source: Optional[Dict[str, Any]],
+                              parent_config: Optional[Dict[str, Any]]
+                              ) -> Tuple[Any, str, Optional[Dict[str, Any]]]:
+        """Return ``(parent, root_id, refusal)`` for a spawn.
+
+        The parent is the explicit run of the caller, or - for a continuation
+        - the original parent of the resumed run. A dialog that registered no
+        run is its own root, so limits still apply.
+        """
+        parent = self.get_record(req.parent_run_id or "") if req.parent_run_id else None
+        if parent is None and source is not None and source.get("parent_run_id"):
+            parent = self.get_record(str(source.get("parent_run_id")))
+        if parent is None and req.thread_id:
+            parent = self.ensure_run(req.thread_id, thread_id=req.thread_id,
+                                     config=parent_config)
+        root_id = parent.root_run_id if parent else req.thread_id or ""
+        if source is not None:
+            root_id = str(source.get("root_run_id") or root_id)
+        if not root_id:
+            return parent, "", {
+                "ok": False,
+                "error": "A spawn needs a root run or thread: limits cannot be enforced.",
+                "error_code": ERR_NO_RUN_IDENTITY}
+        return parent, root_id, None
+
+    def _configure_child_record(self, rec: Any, req: SpawnRequest,
+                                source: Optional[Dict[str, Any]],
+                                limits: Dict[str, int],
+                                child_thread_id: str) -> None:
+        """Freeze the launch context on the child's run record.
+
+        Injection protection is inherited, not defaulted: the child runs with
+        the mode of the run that started it. A resume continues the SAME unit
+        of work, so it takes the mode frozen in the source run unless the
+        caller states a different one explicitly; a fresh spawn without an
+        argument keeps the safe default. The dialog budget is part of the
+        launch context exactly like the timeout: an answer may arrive from
+        another process, and the run must still be judged by the rounds it
+        started with.
+        """
+        rec.workspace = str(req.workspace or "")
+        rec.goal = str(getattr(req.request, "goal", "") or "")
+        if req.enable_injection_protection is not None:
+            rec.enable_injection_protection = bool(req.enable_injection_protection)
+        elif source is not None and source.get("enable_injection_protection") is not None:
+            rec.enable_injection_protection = bool(source.get("enable_injection_protection"))
+        else:
+            rec.enable_injection_protection = True
+        rec.timeout_seconds = int(limits["subagent_timeout_seconds"])
+        rec.dialog_limits = {key: int(limits[key]) for key in _DIALOG_LIMIT_KEYS}
+        rec.created_at = time.time()
+        rec.heartbeat_at = rec.created_at
+        if source is not None:
+            rec.resumed_from = str(source.get("run_id") or "") or None
+            rec.resume_depth = int(source.get("resume_depth") or 0) + 1
+        # Always the NEW child's own journal: a resumed run writes its own
+        # record of what it did, and a later resume of THAT run reads this path.
+        rec.journal_path = self._child_journal_path(child_thread_id)
+
     def _prepare_child(self, req: SpawnRequest, *,
                        parent_config: Optional[Dict[str, Any]] = None,
                        block_pool: bool = True,
@@ -1773,52 +1889,15 @@ class OrchestrationService:
                     "error": "inline_orchestrator is not implemented yet.",
                     "error_code": ERR_NOT_IMPLEMENTED}
 
-        source: Optional[Dict[str, Any]] = None
-        if req.resume_run_id and not caller_root_run_id:
-            # Fail closed: confinement must not depend on the caller
-            # remembering to pass its own root. A blocked spawn derives it from
-            # the parent run record; a dialog-level call is its own root.
-            caller_parent = (self.get_record(req.parent_run_id or "")
-                             if req.parent_run_id else None)
-            caller_root_run_id = (caller_parent.root_run_id
-                                  if caller_parent is not None
-                                  else (req.thread_id or None))
-        if req.resume_run_id:
-            rid_source = (req.resume_run_id or "").strip()
-            live = self.get_record(rid_source)
-            source = live.to_record() if live is not None else self.record_from_store(rid_source)
-            if source is None:
-                return {"ok": False,
-                        "error": "Nothing to resume: run " + rid_source + " is unknown.",
-                        "error_code": ERR_RESUME_UNAVAILABLE}
-            if (caller_root_run_id
-                    and str(source.get("root_run_id") or "") != str(caller_root_run_id)):
-                return {"ok": False,
-                        "error": "Run " + rid_source + " belongs to another tree.",
-                        "error_code": ERR_NOT_YOUR_RUN}
-            chain = int(source.get("resume_depth") or 0)
-            if chain >= MAX_RESUME_CHAIN:
-                return {"ok": False,
-                        "error": ("Resume chain limit reached (" + str(MAX_RESUME_CHAIN)
-                                  + "): start a new delegation instead."),
-                        "error_code": ERR_RESUME_CHAIN_LIMIT,
-                        "limit": "resume_chain", "value": chain}
+        source, caller_root_run_id, refusal = self._resolve_resume_source(
+            req, caller_root_run_id)
+        if refusal is not None:
+            return refusal
 
-        parent = self.get_record(req.parent_run_id or "") if req.parent_run_id else None
-        if parent is None and source is not None and source.get("parent_run_id"):
-            parent = self.get_record(str(source.get("parent_run_id")))
-        if parent is None and req.thread_id:
-            # The dialog registered no explicit run for this thread: treat the
-            # thread itself as the root so limits still apply.
-            parent = self.ensure_run(req.thread_id, thread_id=req.thread_id,
-                                     config=parent_config)
-        root_id = parent.root_run_id if parent else req.thread_id or ""
-        if source is not None:
-            root_id = str(source.get("root_run_id") or root_id)
-        if not root_id:
-            return {"ok": False,
-                    "error": "A spawn needs a root run or thread: limits cannot be enforced.",
-                    "error_code": ERR_NO_RUN_IDENTITY}
+        parent, root_id, refusal = self._resolve_spawn_parent(
+            req, source, parent_config)
+        if refusal is not None:
+            return refusal
         limits = read_limits(parent_config if parent_config is not None
                              else getattr(self, "_last_config", None))
 
@@ -1855,34 +1934,7 @@ class OrchestrationService:
                               agent_slug=req.agent_slug or "",
                               parent_run_id=parent.run_id if parent else None,
                               depth=depth)
-        rec.workspace = str(req.workspace or "")
-        rec.goal = str(getattr(req.request, "goal", "") or "")
-        # Injection protection is inherited, not defaulted: the child runs with
-        # the mode of the run that started it. A resume continues the SAME unit
-        # of work, so it takes the mode frozen in the source run unless the
-        # caller states a different one explicitly; a fresh spawn without an
-        # argument keeps the safe default. Resolving it here (once, before the
-        # child thread exists) is what makes the inheritance reliable for a
-        # background run.
-        if req.enable_injection_protection is not None:
-            rec.enable_injection_protection = bool(req.enable_injection_protection)
-        elif source is not None and source.get("enable_injection_protection") is not None:
-            rec.enable_injection_protection = bool(source.get("enable_injection_protection"))
-        else:
-            rec.enable_injection_protection = True
-        rec.timeout_seconds = int(limits["subagent_timeout_seconds"])
-        # The dialog budget is part of the launch context, exactly like the
-        # timeout: an answer may arrive from another process, and the run must
-        # still be judged by the rounds it started with.
-        rec.dialog_limits = {key: int(limits[key]) for key in _DIALOG_LIMIT_KEYS}
-        rec.created_at = time.time()
-        rec.heartbeat_at = rec.created_at
-        if source is not None:
-            rec.resumed_from = str(source.get("run_id") or "") or None
-            rec.resume_depth = int(source.get("resume_depth") or 0) + 1
-        # Always the NEW child's own journal: a resumed run writes its own
-        # record of what it did, and a later resume of THAT run reads this path.
-        rec.journal_path = self._child_journal_path(child_thread_id)
+        self._configure_child_record(rec, req, source, limits, child_thread_id)
         self.publish({"type": "run_started", "run_id": run_id,
                       "parent_run_id": req.parent_run_id, "thread_id": child_thread_id,
                       "agent_slug": req.agent_slug, "depth": depth, "payload": {}})
@@ -2238,90 +2290,24 @@ class OrchestrationService:
 
 
 def derive_child_thread_id(parent_thread_id: str, run_id: str) -> str:
-    """Return the derived thread id of a child run.
-
-    The child gets its OWN thread id and its OWN journal file: ``thread_id``
-    is a pointer to the journal path, and inheriting the parent's would mean
-    delegated work writing into the parent's Active Task (and
-    ``task_state_init`` would archive the parent's working state). The
-    workspace folder is inherited - only the journal differs.
-    """
-    parent = (parent_thread_id or "").strip() or "nothread"
-    return parent + "__s" + (run_id or "")[:8]
-
-
-# ─── Default child runner (the real agent loop) ──────────────────────────────
+    """Return the derived thread id of a child run (see ``child_text``)."""
+    return child_text.derive_child_thread_id(parent_thread_id, run_id)
 
 
 def _thread_files_dir_of(thread_id: Optional[str]) -> str:
-    """Return the absolute dialog-uploads folder of a thread, or an empty string.
-
-    The child gets this path in its task text so it can read the parent's
-    uploads by an absolute path without probing the filesystem. An empty or
-    unknown thread simply yields no line - the child keeps working from its
-    own binding.
-    """
-    tid = str(thread_id or "").strip()
-    if not tid:
-        return ""
-    try:
-        from core.threads_devagent import _thread_files_dir
-        return os.path.abspath(_thread_files_dir(tid))
-    except Exception:  # pragma: no cover - defensive
-        return ""
+    """Return the dialog-uploads folder of a thread (see ``child_text``)."""
+    return child_text.thread_files_dir_of(thread_id)
 
 
 def _build_child_task_text(brief: AgentBrief, base_dir: Optional[str],
                           parent_thread_id: Optional[str]) -> str:
-    """Compose the task text of a child run: goal, brief and absolute paths.
+    """Compose the task text of a child run (see ``child_text``).
 
-    The child starts with a CLEAN history and its own workspace binding, so
-    it cannot inherit the parent's idea of "current folder" or its dialog
-    uploads. Everything it may need is stated here: the goal, the brief, the
-    input artifacts and two absolute paths - the shared workspace and the
-    parent's dialog files folder. Without them the child spends its first
-    steps guessing where the files are.
+    The uploads folder is resolved HERE, through the module-level name: the
+    resolver is a documented patch point of the test suite.
     """
-    task_text = str(brief.goal or "")
-    if brief.brief:
-        task_text += "\n\n" + str(brief.brief)
-    if brief.artifacts_in:
-        lines = ["\n\nВходные артефакты:"]
-        for name, path in brief.artifacts_in.items():
-            lines.append("- " + str(name) + ": " + str(path))
-        task_text += "\n".join(lines)
-
-    context_lines: List[str] = []
-    # A child is an executor, not a dialog partner. Without these lines it
-    # starts with the full agent prompt, where Stage 1 demands a plan and an
-    # approval stop - and a child has nobody to approve anything, so it
-    # spends its step budget re-presenting a plan nobody will read.
-    context_lines.append(
-        "- Роль: делегированный исполнитель. Пользователя в этом диалоге нет, "
-        "план утверждать некому."
-    )
-    context_lines.append(
-        "- План в ответе не печатай: запиши его в журнал задачи "
-        "(task_state_init) и сразу переходи к выполнению."
-    )
-    context_lines.append(
-        "- Завершив работу, ответь итогом и закончи ответ строкой "
-        '{"loop_status": "done"}. Значение "awaiting_user" здесь означает '
-        "незавершённую работу и останавливает родителя."
-    )
-    workspace_root = str(base_dir or "").strip()
-    if workspace_root:
-        context_lines.append("- Рабочая папка: " + os.path.abspath(workspace_root))
-    thread_files = _thread_files_dir_of(parent_thread_id)
-    if thread_files:
-        context_lines.append(
-            "- Файлы диалога родителя: " + thread_files
-            + " (передавай эти пути целиком, они абсолютные)"
-        )
-    if context_lines:
-        task_text += ("\n\nКонтекст запуска (абсолютные пути):\n"
-                      + "\n".join(context_lines))
-    return task_text
+    return child_text.build_child_task_text(
+        brief, base_dir, _thread_files_dir_of(parent_thread_id))
 
 
 def _tree_root_of(service: "OrchestrationService", run_id: str) -> str:
@@ -2343,6 +2329,18 @@ def _tree_root_of(service: "OrchestrationService", run_id: str) -> str:
     return root or rid
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 def _default_child_runner(*, child_slug: str, brief: AgentBrief,
                           child_thread_id: str, run_id: str,
                           parent_run_id: Optional[str], depth: int,
@@ -2362,115 +2360,48 @@ def _default_child_runner(*, child_slug: str, brief: AgentBrief,
     and friends) is excluded by ``CHILD_DISABLED_TOOLS`` - a child does not
     multiply platform entities in v1.
     """
-    from core.orchestration.contracts import (
-        ERR_PROVIDER_ERROR,
-        ERR_UNKNOWN_AGENT,
-    )
-    from core.orchestrators import build_assistant_dicts, get_orchestrator
+    from core.orchestration.contracts import ERR_INTERNAL_ERROR
+    from core.orchestrators import build_assistant_dicts
 
     slug = (child_slug or "").strip()
-    orch = get_orchestrator(slug) if slug else None
-    if not orch:
-        return AgentRunResult(
-            run_id=run_id, status=STATUS_FAILED, stop_reason=STOP_ERROR,
-            summary="Unknown agent: " + (slug or "<empty>"),
-            error_code=ERR_UNKNOWN_AGENT)
+    orch, failure = _resolve_child_agent(slug, run_id)
+    if failure is not None:
+        return failure
 
     # Task text: the goal plus everything the child must know. The child gets
     # a CLEAN history, so goal + brief + absolute paths is the only channel
     # besides artifacts.
     task_text = _build_child_task_text(brief, base_dir, parent_thread_id)
+    resume_history = _restore_child_history(
+        prior_run, prior_state, child_thread_id, parent_thread_id, run_id)
+    _bind_child_thread(child_thread_id, parent_thread_id, base_dir, slug,
+                       orch, task_text)
 
-    # A CONTINUATION of a parked run does not start a new conversation: the
-    # transcript already holds everything the child saw and said, and the
-    # answer is the one thing it has not seen yet. Reusing the stowed state
-    # when it is available keeps the exact conversation; the transcript is
-    # the durable fallback for an answer that arrives after a restart.
-    resume_history: List[Dict[str, Any]] = []
-    if prior_run:
-        if prior_state is not None and getattr(prior_state, "history", None):
-            resume_history = list(prior_state.history)
-        else:
-            try:
-                from core.thread_mirror import _transcript
-                T = _transcript()
-                for record in T.iter_records(child_thread_id, parent_thread_id or None):
-                    if T.is_checkpoint(record):
-                        continue
-                    resume_history.append({
-                        "role": str(record.get("role") or "user"),
-                        "content": str(record.get("content") or ""),
-                        "ts": str(record.get("ts") or ""),
-                        "file_name": str(record.get("file_name") or ""),
-                        "file_chars": int(record.get("file_chars") or 0),
-                    })
-            except Exception as exc:  # pragma: no cover - best effort
-                log.warning("child history restore failed for %s: %s", run_id, exc)
-                resume_history = []
-
-    # Bind the derived child thread (workspace of the parent, own journal and
-    # its own index row). The row is what a transcript reader resolves the
-    # child through, so it is created here - before the first step - rather
-    # than only when the sink opens: a child that dies before writing anything
-    # stays readable as an empty transcript instead of "thread not found".
+    scope = None
+    sink = None
+    state = None
     try:
-        from dev_agent import workspace_binding as wb
-        binder = getattr(wb, "bind_child_thread", None)
-        if callable(binder):
-            binder(child_thread_id, parent_thread_id=parent_thread_id,
-                   workspace=base_dir, target_file=None,
-                   slug=slug,
-                   display_name=str(orch.get("name") or "") if isinstance(orch, dict)
-                   else str(getattr(orch, "name", "") or ""),
-                   title=task_text)
-    except Exception as exc:  # pragma: no cover - binding is best effort
-        log.warning("child thread binding failed: %s", exc)
-
-    _scope = None
-    try:
-        from core.api_layer import send_request
-        from dev_agent.agent_loop import AgentLoopState, step_agent_loop
-        from dev_agent.universal_agent import UniversalDevAgent
+        from dev_agent.agent_loop import AgentLoopState
 
         # Pin the journal thread for THIS Python thread for the whole child
         # run: every task_state call inside resolves to the child's file even
         # though the process-wide active thread id belongs to a dialog. The
-        # scope is exited in the finally block below, next to the unbind.
+        # scope is exited by ``_finish_child``, next to the unbind.
         try:
             from dev_agent import task_state as _task_state
-            _scope = _task_state.thread_scope(child_thread_id)
-            _scope.__enter__()
+            scope = _task_state.thread_scope(child_thread_id)
+            scope.__enter__()
         except Exception as exc:  # pragma: no cover - journal is best effort
-            _scope = None
+            scope = None
             log.warning("child journal scope failed: %s", exc)
 
         # A child is the ASKING side of the dialog: its prompt carries the
         # rules for ask_parent, not for answering somebody else's children.
         strong_assistant, weak_assistant = build_assistant_dicts(
             slug, dialog_role="child")
-        dispatcher = UniversalDevAgent(workspace=base_dir, thread_id=child_thread_id)
-        dispatcher.attach_orchestrator(slug)
-        try:
-            dispatcher.child_disabled_tools = set(CHILD_DISABLED_TOOLS)
-            # A child that already sits at the depth ceiling cannot delegate
-            # further: the service would refuse the call anyway. Hiding the
-            # tools saves a wasted step and keeps ``sleep`` from waiting for
-            # children that can never appear.
-            max_depth = int(limits.get("max_depth") or 0)
-            if max_depth and depth >= max_depth:
-                dispatcher.child_disabled_tools |= {"spawn_agent", "sleep"}
-        except Exception:
-            pass
-
-        def _send(user_message: str, system: str = "",
-                  history: Optional[List[Dict[str, Any]]] = None) -> str:
-            card = dict(strong_assistant)
-            if system:
-                card["text"] = system
-            return send_request(user_message=user_message, assistant=card,
-                                file_context="", history=history or [], lang=lang)
-
-        dispatcher.core.set_send_request(_send)
+        dispatcher = _build_child_dispatcher(
+            slug, base_dir, child_thread_id, depth, limits,
+            strong_assistant, lang, CHILD_DISABLED_TOOLS)
 
         state = AgentLoopState(
             task=task_text,
@@ -2500,139 +2431,27 @@ def _default_child_runner(*, child_slug: str, brief: AgentBrief,
         )
 
         if prior_run:
-            state.history = resume_history
-            state.next_index = len(resume_history)
-            state.phase = "calling_llm"
-            state.user_message = _ANSWER_PREFIX + str(answer_text or "")
-            if prior_state is not None:
-                # Continue the SAME state: the step counter, the token totals
-                # and the plan all carry over, so an answer costs the child no
-                # progress at all.
-                state.steps = int(getattr(prior_state, "steps", 0) or 0)
-                state.total_tokens_in = int(getattr(prior_state, "total_tokens_in", 0) or 0)
-                state.total_tokens_out = int(getattr(prior_state, "total_tokens_out", 0) or 0)
-                state.total_tokens_cache = int(getattr(prior_state, "total_tokens_cache", 0) or 0)
-                state.auto_continue_count = int(getattr(prior_state, "auto_continue_count", 0) or 0)
+            _apply_resume_state(state, resume_history, answer_text, prior_state)
 
         # Persist this child as it works. The index row makes the run
         # addressable; the transcript file is the copy of the conversation
-        # that survives the process. Without the row a parent asking "what did
-        # this child actually do" gets "not found", and without the file a
-        # crash loses the whole run.
-        try:
-            from core.orchestration.transcript_sink import TranscriptSink
-            if isinstance(orch, dict):
-                _display = str(orch.get("name") or "")
-            else:
-                _display = str(getattr(orch, "name", "") or "")
-            sink = TranscriptSink(
-                thread_id=child_thread_id,
-                parent_thread_id=parent_thread_id,
-                slug=slug,
-                display_name=_display or slug,
-                workspace=base_dir,
-            )
-            sink.open(task_text)
-        except Exception as exc:  # pragma: no cover - persistence is best effort
-            log.warning("child transcript sink init failed: %s", exc)
-            sink = None
+        # that survives the process.
+        sink = _open_child_sink(child_thread_id, parent_thread_id, slug,
+                               orch, base_dir, task_text)
 
-        _heartbeat_at = [time.monotonic()]
+        _child_event = _child_event_forwarder(
+            service, run_id, parent_run_id, depth)
 
-        def _child_event(event: dict) -> None:
-            """Forward a child event to the run's subscribers (parents included).
+        early = _step_child_loop(
+            state, dispatcher, run_id=run_id, service=service,
+            deadline=deadline,
+            budget=int(limits.get("subagent_budget_tokens") or 0),
+            sink=sink, on_event=_child_event, lang=lang)
+        if early is not None:
+            return early
 
-            The forwarder stamps the child identity explicitly: events built
-            by a nested helper may lack it, and a subscriber that cannot tell
-            the child run from its parent would draw a flat feed instead of a
-            tree.
-            """
-            if not isinstance(event, dict):
-                return
-            # Refresh the durability heartbeat at most once a minute. heal()
-            # treats a silent record as a dead process, and with an hour-long
-            # run budget that verdict must not fall on a healthy child.
-            try:
-                now = time.monotonic()
-                if now - _heartbeat_at[0] >= 60.0:
-                    _heartbeat_at[0] = now
-                    service.refresh_heartbeat(run_id)
-            except Exception:  # pragma: no cover - heartbeat is best effort
-                pass
-            event.setdefault("run_id", run_id)
-            event.setdefault("parent_run_id", parent_run_id or "")
-            event.setdefault("depth", depth)
-            try:
-                service.publish(event)
-            except Exception as exc:  # pragma: no cover - a listener must not break a run
-                log.warning("child event forward failed: %s", exc)
-
-        budget = int(limits.get("subagent_budget_tokens") or 0)
-        steps = 0
-        while state.phase not in ("done", "error"):
-            if service.is_cancelled(run_id):
-                return AgentRunResult(
-                    run_id=run_id, status=STATUS_CANCELLED,
-                    stop_reason=STOP_ABORTED, summary=state.final_text or "",
-                    error_code=ERR_CANCELLED_BY_PARENT,
-                    steps_used=state.steps,
-                    tokens_used={"in": state.total_tokens_in,
-                                 "out": state.total_tokens_out,
-                                 "cache": state.total_tokens_cache})
-            if time.monotonic() > deadline:
-                return AgentRunResult(
-                    run_id=run_id, status=STATUS_CANCELLED,
-                    stop_reason=STOP_ABORTED, summary=state.final_text or "",
-                    error_code=ERR_TIMEOUT, steps_used=state.steps,
-                    tokens_used={"in": state.total_tokens_in,
-                                 "out": state.total_tokens_out,
-                                 "cache": state.total_tokens_cache})
-            if budget > 0 and (state.total_tokens_in + state.total_tokens_out) > budget:
-                return AgentRunResult(
-                    run_id=run_id, status=STATUS_DONE,
-                    stop_reason=STOP_MAX_TOKENS, summary=state.final_text or "",
-                    steps_used=state.steps,
-                    tokens_used={"in": state.total_tokens_in,
-                                 "out": state.total_tokens_out,
-                                 "cache": state.total_tokens_cache})
-            state = step_agent_loop(state, dispatcher=dispatcher, lang=lang,
-                                    on_event=_child_event)
-            steps += 1
-            # One drain per step: the transcript trails the child by at most
-            # the step in flight, and a crash costs that step alone. The write
-            # itself is a single append in the page cache - it does not wait
-            # for the disk, so it cannot slow the child down.
-            if sink is not None:
-                sink.drain(state)
-                # A step boundary is the only place a checkpoint is honest:
-                # every message of the step is on disk and every file the step
-                # wrote already exists. A crash after this point loses at most
-                # the next step, and a resume knows exactly where to continue.
-                sink.checkpoint(state)
-
-        status, stop_reason, error_code = map_final_status(
-            state.final_status, getattr(state, "error_code", None))
-        if state.phase == "error" and not error_code:
-            error_code = ERR_PROVIDER_ERROR
-        # A run that stopped on a question is NOT an unfinished one: it waits
-        # for an answer it can actually receive. The reason travels with the
-        # result so the parent tells "answer me" apart from "read my journal".
-        await_reason = ""
-        question = None
-        if status == STATUS_AWAITING_INPUT:
-            if state.final_status == "awaiting_question":
-                await_reason = AWAIT_QUESTION
-                question = AgentQuestion.from_dict(state.parked_question)
-            else:
-                await_reason = AWAIT_UNFINISHED
-        return AgentRunResult(
-            run_id=run_id, status=status, stop_reason=stop_reason,
-            summary=state.final_text or state.error_message or "",
-            error_code=error_code, steps_used=state.steps,
-            tokens_used={"in": state.total_tokens_in,
-                         "out": state.total_tokens_out,
-                         "cache": state.total_tokens_cache},
-            await_reason=await_reason, question=question)
+        result = _child_final_result(state, run_id)
+        return result
     except Exception as exc:  # pragma: no cover - defensive
         # A failure HERE is a defect of the child loop (a TypeError in the
         # platform), not a provider hiccup. Reporting it as provider_error
@@ -2651,27 +2470,7 @@ def _default_child_runner(*, child_slug: str, brief: AgentBrief,
             error_code=ERR_INTERNAL_ERROR, steps_used=steps_done,
             retryable=False)
     finally:
-        # Final drain runs on EVERY exit path - a normal finish, a cancelled
-        # or timed-out run, and the exception below. The step loop already
-        # drained what it could; this catches the last step and the counters,
-        # so a reader sees an honest total even for a run that died.
-        if sink is not None:
-            try:
-                sink.finish(state)
-            except Exception as exc:  # pragma: no cover - never mask a result
-                log.warning("child transcript finish failed: %s", exc)
-        try:
-            if _scope is not None:
-                _scope.__exit__(None, None, None)
-        except Exception:  # pragma: no cover - scope exit must never raise
-            pass
-        try:
-            from dev_agent import workspace_binding as wb
-            unbinder = getattr(wb, "unbind_thread", None)
-            if callable(unbinder):
-                unbinder(child_thread_id)
-        except Exception:
-            pass
+        _finish_child(sink, state, scope, child_thread_id)
 
 
 # ─── Process-wide singleton ──────────────────────────────────────────────────

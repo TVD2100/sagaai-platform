@@ -33,6 +33,14 @@
    задан в `pyright_budget.json`. Новый отказ означает, что его сначала
    исправляют; поднимать бюджет можно только осознанно, вместе с причиной в
    описании коммита, а снижать - отдельным коммитом.
+8. **Структурный бюджет крупных файлов не растёт.** Для файлов, которые ещё
+   предстоит разделить, `refactor_budget.json` фиксирует три величины: длину
+   файла, длину самой длинной функции и максимальную цикломатическую
+   сложность (её меряет `ruff` правилом `C901`). Бюджет - потолок, а не цель:
+   число может упасть, и тогда его правят в том же коммите, но вырасти оно не
+   может. Проверка - `python scripts/refactor_budget.py`, в общем конвейере -
+   шаг `budget`. Смысл в том, чтобы разделение нельзя было тихо откатить
+   обратно.
 
 ## Назначение системы
 
@@ -368,6 +376,14 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   Ответ с видимым текстом не повторяется; повтор ограничен одним разом на
   шаг (`core/api_layer.py`, `dev_agent/agent_loop.py`,
   `ui/pages/orchestrator.py`).
+- **Фасад `dev_agent/agent_loop.py` сохраняет имена, реализация - в `loop/`.**
+  Модуль остаётся точкой входа цикла и держит ВСЕ публичные и приватные имена
+  (`run_agent_loop`, `step_agent_loop`, `parse_tool_calls`, константы): тесты и
+  monkeypatch-точки обращаются к ним через алиас модуля. `LoopRuntime`
+  собирается из собственных module-level атрибутов фасада в момент вызова,
+  поэтому `monkeypatch.setattr(agent_loop, 'send_request', ...)` действует и
+  на код шагов. При переносе кода в `loop/` не разрывать это свойство: шаги
+  берут runtime параметром, а не импортируют фасад (иначе циклический импорт).
 
 
 ### FR7 - DevAgent (встроенный разработчик)
@@ -969,6 +985,16 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   семафоры освобождаются (`release_tree`).
 - Остановка диалога каскадна: `cancel(cascade=True)` переводит детей в
   `cancelled` с причиной `aborted` и кодом `cancelled_by_parent`.
+- Сервис оркестрации разделён по ответственности, точка входа одна.
+  `service.py` держит `OrchestrationService` и реэкспортирует помощников,
+  поэтому `core.orchestration.service` остаётся единственным именем для
+  вызывающего кода и для подмены в тестах. Дочерняя сторона запуска - сборка
+  диспетчера ребёнка с суженным каталогом инструментов, приёмник транскрипта,
+  область журнала, восстановление резюма, прокрутка цикла и итоговый
+  `AgentRunResult` - живёт в `child_runner.py`; строки бутстрапа (производный
+  тред, папка файлов, текст задачи) - в `child_text.py` без состояния
+  сервиса. Сужение каталога задаётся атрибутом диспетчера, а не сигнатурой,
+  поэтому набор запрещённых инструментов остаётся одним местом правды.
 - Fan-out: независимые вызовы `spawn_agent` проверяются на права и
   аргументы всем набором до захвата пула, затем выполняются параллельно;
   события несут `run_id` ребёнка, и лента группирует их по запускам.
@@ -1460,7 +1486,9 @@ Ed25519), а проверка подписи на стороне клиента 
   мусора.
 - **Матрица конфликтов** (`core/marketplace/conflicts.py`) отвечает на
   вопрос «что делать с уже установленным»: локальные правки определяются
-  сравнением `files_json` с диском, а не временем изменения файла. Три
+  сравнением `files_json` с диском, а не временем изменения файла.
+  Состояние установки читает `conflict_state.py`, форк и возврат своей
+  версии живут в `conflict_fork.py`. Три
   пути - оставить свою версию (`keep_mine`), взять каталог
   (`take_catalog`, с бэкапом заменяемых файлов) и форк (`fork`, новый id
   `<id>#forkN` и папка `<slug>_fork_NN`); оригинал при форке приводится к
@@ -1663,6 +1691,15 @@ Ed25519), а проверка подписи на стороне клиента 
 - Регрессия прогоняется пакетами параллельно (файлы `tests/test_*.py`,
   `tests/scenarios/`, `tests/smoke/` - батчами по 12 в 4 потока): полный
   последовательный прогон на этой базе занимает слишком много времени.
+- **Поведение цикла агента зафиксировано golden-снимками.**
+  `tests/test_loop_golden_payloads.py` проигрывает восемь сценариев цикла и
+  сравнивает с `tests/fixtures/loop_golden/*.json` то, что уходит модели
+  (сообщение, история, файловый контекст, флаг защиты от инъекций, набор
+  колбэков) и что публикуется в интерфейс (последовательность событий
+  `on_event`). Снимки обновляются только явно -
+  `python scripts/capture_loop_golden.py`, который перезаписывает их и тут же
+  проверяет воспроизводимость. Внутреннее устройство цикла можно менять
+  свободно; его наблюдаемое поведение - только вместе со снимком в диффе.
 
 ### NFR3 - Безопасность при редактировании кода
 - Защищённые файлы (ядро DevAgent) не могут быть изменены агентом.
@@ -1743,16 +1780,16 @@ Ed25519), а проверка подписи на стороне клиента 
     # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
     # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
-- Список базовых файлов (199):
+- Список базовых файлов (264):
   - Корень (2): __init__.py, app.py
-  - UI (24): ui/__init__.py, ui/app.py, ui/components/__init__.py, ui/components/flash.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/access.py, ui/pages/assistants.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/marketplace.py, ui/pages/orchestrator.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrators.py, ui/pages/schedules.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/updates.py, ui/pages/updates_marketplace.py, ui/pages/welcome.py
-  - Core (72): core/__init__.py, core/api_errors.py, core/api_layer.py, core/api_token_store.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/chat_db_archive.py, core/config.py, core/connector_presets.py, core/connectors.py, core/context_guard.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/devagent_db_archive.py, core/dependency_check.py, core/document_images.py, core/document_text.py, core/entity_sync.py, core/env_loader.py, core/feed_autoscroll.py, core/files.py, core/folder_dialog.py, core/fs.py, core/gateway_launcher.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/mcp_client.py, core/mcp_tools.py, core/memory_migration.py, core/multimodal.py, core/ooxml.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrator_tools.py, core/orchestrators.py, core/paths.py, core/personal_memory.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/thread_mirror.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py, core/updater.py, core/updater_apply.py, core/url_fetch.py, core/version.py
-  - Marketplace (19): core/marketplace/__init__.py, core/marketplace/agent_installer.py, core/marketplace/bootstrap.py, core/marketplace/bundles.py, core/marketplace/catalog.py, core/marketplace/config.py, core/marketplace/conflicts.py, core/marketplace/installer.py, core/marketplace/mcp_installer.py, core/marketplace/migration.py, core/marketplace/publish.py, core/marketplace/rag_installer.py, core/marketplace/registry.py, core/marketplace/rollback.py, core/marketplace/semver.py, core/marketplace/source.py, core/marketplace/store.py, core/marketplace/updates.py, core/marketplace/verify.py
-  - Orchestration (12): core/orchestration/__init__.py, core/orchestration/contracts.py, core/orchestration/dialog_runner.py, core/orchestration/invoke.py, core/orchestration/resume.py, core/orchestration/runs.py, core/orchestration/service.py, core/orchestration/tool_classes.py, core/orchestration/tools.py, core/orchestration/transcript_reader.py, core/orchestration/transcript_sink.py, core/orchestration/verify.py
+  - UI (27): ui/__init__.py, ui/app.py, ui/app_restore.py, ui/components/__init__.py, ui/components/flash.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/access.py, ui/pages/assistants.py, ui/pages/assistants_helpers.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/marketplace.py, ui/pages/orchestrator.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrator_text.py, ui/pages/orchestrators.py, ui/pages/schedules.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/updates.py, ui/pages/updates_marketplace.py, ui/pages/welcome.py
+  - Core (81): core/__init__.py, core/api_bearer.py, core/api_deepseek.py, core/api_errors.py, core/api_gigachat.py, core/api_history_guard.py, core/api_http.py, core/api_layer.py, core/api_payload.py, core/api_responses.py, core/api_token_store.py, core/api_yandex.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/chat_db_archive.py, core/config.py, core/connector_presets.py, core/connectors.py, core/context_guard.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/dependency_check.py, core/devagent_db_archive.py, core/document_images.py, core/document_text.py, core/entity_sync.py, core/env_loader.py, core/feed_autoscroll.py, core/files.py, core/folder_dialog.py, core/fs.py, core/gateway_launcher.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/mcp_client.py, core/mcp_tools.py, core/memory_migration.py, core/multimodal.py, core/ooxml.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrator_tools.py, core/orchestrators.py, core/paths.py, core/personal_memory.py, core/prompt_blocks.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/thread_mirror.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py, core/updater.py, core/updater_apply.py, core/url_fetch.py, core/version.py
+  - Marketplace (28): core/marketplace/__init__.py, core/marketplace/agent_areas.py, core/marketplace/agent_assistant.py, core/marketplace/agent_installer.py, core/marketplace/agent_orchestrator.py, core/marketplace/agent_package.py, core/marketplace/agent_preflight.py, core/marketplace/agent_run.py, core/marketplace/bootstrap.py, core/marketplace/bundles.py, core/marketplace/catalog.py, core/marketplace/config.py, core/marketplace/conflict_fork.py, core/marketplace/conflict_state.py, core/marketplace/conflicts.py, core/marketplace/installer.py, core/marketplace/mcp_installer.py, core/marketplace/migration.py, core/marketplace/publish.py, core/marketplace/rag_area.py, core/marketplace/rag_installer.py, core/marketplace/registry.py, core/marketplace/rollback.py, core/marketplace/semver.py, core/marketplace/source.py, core/marketplace/store.py, core/marketplace/updates.py, core/marketplace/verify.py
+  - Orchestration (14): core/orchestration/__init__.py, core/orchestration/child_runner.py, core/orchestration/child_text.py, core/orchestration/contracts.py, core/orchestration/dialog_runner.py, core/orchestration/invoke.py, core/orchestration/resume.py, core/orchestration/runs.py, core/orchestration/service.py, core/orchestration/tool_classes.py, core/orchestration/tools.py, core/orchestration/transcript_reader.py, core/orchestration/transcript_sink.py, core/orchestration/verify.py
   - Schedules (7): core/schedules/__init__.py, core/schedules/calc.py, core/schedules/daemon.py, core/schedules/form.py, core/schedules/model.py, core/schedules/runner.py, core/schedules/store.py
   - Storage (7): storage/__init__.py, storage/db.py, storage/migration_support.py, storage/migrations.py, storage/models.py, storage/repository.py, storage/repository_devagent.py
   - Gateway (11): core/gateway/__init__.py, core/gateway/backup.py, core/gateway/bootstrap.py, core/gateway/diagnostics.py, core/gateway/dialog.py, core/gateway/dto.py, core/gateway/entities.py, core/gateway/errors.py, core/gateway/health.py, core/gateway/runs.py, core/gateway/threads.py
-  - DevAgent (14): dev_agent/__init__.py, dev_agent/agent_loop.py, dev_agent/assistant_detector.py, dev_agent/assistant_model_resolver.py, dev_agent/backup_manager.py, dev_agent/config.py, dev_agent/llm_utils.py, dev_agent/safe_writer.py, dev_agent/task_state.py, dev_agent/tool_executor.py, dev_agent/transcript.py, dev_agent/universal_agent.py, dev_agent/workspace_binding.py, dev_agent/workspace_tools.py
+  - DevAgent (56): dev_agent/__init__.py, dev_agent/agent_loop.py, dev_agent/assistant_detector.py, dev_agent/assistant_model_resolver.py, dev_agent/backup_manager.py, dev_agent/config.py, dev_agent/document_tools.py, dev_agent/llm_utils.py, dev_agent/loop/__init__.py, dev_agent/loop/context.py, dev_agent/loop/delegation.py, dev_agent/loop/json_repair.py, dev_agent/loop/notices.py, dev_agent/loop/parse.py, dev_agent/loop/results.py, dev_agent/loop/signals.py, dev_agent/loop/state.py, dev_agent/loop/steps/__init__.py, dev_agent/loop/steps/approvals.py, dev_agent/loop/steps/executing.py, dev_agent/loop/steps/models.py, dev_agent/loop/steps/parsing.py, dev_agent/loop/steps/prepare.py, dev_agent/loop/steps/runner.py, dev_agent/loop/steps/runtime.py, dev_agent/safe_writer.py, dev_agent/task_state.py, dev_agent/thread_scope.py, dev_agent/tool_catalog_data.py, dev_agent/tool_executor.py, dev_agent/tool_registry.py, dev_agent/tool_validation.py, dev_agent/tools/__init__.py, dev_agent/tools/args.py, dev_agent/tools/assistants.py, dev_agent/tools/catalog.py, dev_agent/tools/clock.py, dev_agent/tools/deps.py, dev_agent/tools/editing.py, dev_agent/tools/exec.py, dev_agent/tools/file_tree.py, dev_agent/tools/files.py, dev_agent/tools/history.py, dev_agent/tools/images.py, dev_agent/tools/library.py, dev_agent/tools/patch.py, dev_agent/tools/rag.py, dev_agent/tools/task_state.py, dev_agent/tools/text_utils.py, dev_agent/tools/url_fetch.py, dev_agent/tools/web_search.py, dev_agent/tools/workspace.py, dev_agent/transcript.py, dev_agent/universal_agent.py, dev_agent/workspace_binding.py, dev_agent/workspace_tools.py
   - Server (14): server/__init__.py, server/app.py, server/auth.py, server/deps.py, server/errors.py, server/instance_lock.py, server/middleware.py, server/routes/__init__.py, server/routes/agents.py, server/routes/dialogs.py, server/routes/health.py, server/routes/runs.py, server/routes/threads.py, server/schemas.py
   - Console (17): sagaai/__init__.py, sagaai/__main__.py, sagaai/cli.py, sagaai/console.py, sagaai/errors.py, sagaai/exit_codes.py, sagaai/commands/__init__.py, sagaai/commands/_common.py, sagaai/commands/agents.py, sagaai/commands/backup.py, sagaai/commands/doctor.py, sagaai/commands/migrate.py, sagaai/commands/run.py, sagaai/commands/serve.py, sagaai/commands/token.py, sagaai/commands/ui.py, sagaai/commands/update.py
 

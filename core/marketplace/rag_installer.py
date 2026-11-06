@@ -27,7 +27,7 @@ import json
 import os
 import shutil
 import uuid
-from typing import Optional, Set
+from typing import Dict, List, Optional
 
 from core import rag
 from core.marketplace import config as marketplace_config
@@ -38,6 +38,12 @@ from core.marketplace.installer import (
     _entity_files,
     _licence_state,
     _platform_compatible,
+)
+from core.marketplace.rag_area import (  # noqa: F401
+    _build_index,
+    _check_index,
+    _files_under,
+    _write_text,
 )
 
 #: Distribution modes a ``rag`` entity may declare.
@@ -289,78 +295,299 @@ def _resolve_slug(
     return _pick_runtime_slug(entity)
 
 
-# ─── Placement helpers ────────────────────────────────────────────────────
-
-def _files_under(root: str) -> Set[str]:
-    """Return ``{relative path}`` of every file under *root*."""
-    result: Set[str] = set()
-    if not os.path.isdir(root):
-        return result
-    for current, dirs, names in os.walk(root):
-        dirs[:] = [name for name in dirs if name != "__pycache__"]
-        for name in names:
-            full = os.path.join(current, name)
-            result.add(os.path.relpath(full, root).replace(os.sep, "/"))
-    return result
-
-
-def _write_text(path: str, text: str) -> None:
-    """Write *text* as UTF-8, creating the parent folder."""
-    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    with open(path, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(text)
-
-
-def _check_index(path: str, dist: dict, entity_id: str) -> dict:
-    """Validate a downloaded index and return its meta rows.
-
-    A file that is not a SQLite index of the expected shape would install
-    cleanly and then answer every search with nothing, so the check happens
-    while the bytes are still in staging.
-    """
-    from core import rag_index
-
-    if not os.path.isfile(path):
-        raise InstallError("invalid_index", "The downloaded index is empty", {"id": entity_id})
-    meta = rag_index.read_meta(path)
-    if not meta:
-        raise InstallError(
-            "invalid_index",
-            "The downloaded file is not a readable index database",
-            {"id": entity_id},
-        )
-    declared_chunks = int(dist.get("chunks") or 0)
-    actual_chunks = rag_index.count_chunks(path)
-    if declared_chunks and actual_chunks != declared_chunks:
-        raise InstallError(
-            "index_chunk_mismatch",
-            f"The index holds {actual_chunks} chunks, the manifest declares {declared_chunks}",
-            {"id": entity_id, "actual": actual_chunks, "declared": declared_chunks},
-        )
-    if not actual_chunks:
-        raise InstallError(
-            "empty_index",
-            "The index holds no chunks",
-            {"id": entity_id},
-        )
-    return meta
-
-
-def _build_index(slug: str, entity_id: str) -> None:
-    """Build the index of a freshly placed base from its source files."""
-    from core import rag_indexer
-
-    try:
-        rag_indexer.index_base(slug)
-    except Exception as exc:
-        raise InstallError(
-            "index_build_failed",
-            f"The index could not be built from the sources: {exc}",
-            {"id": entity_id, "slug": slug},
-        ) from exc
-
-
 # ─── Install ──────────────────────────────────────────────────────────────
+
+def _rag_gate(
+    entity: dict,
+    *,
+    accept_license: bool,
+    source: Optional[source_mod.MarketplaceSource],
+) -> dict:
+    """Validate a base install request and return the shared values.
+
+    Everything that can refuse the run happens here, before the first
+    download: the marketplace switch, the distribution mode, the platform
+    bounds and the licence. The "same version already installed" shortcut
+    answers ``{"noop": ...}`` and nothing else.
+    """
+    if not isinstance(entity, dict) or not entity.get("id"):
+        raise InstallError("invalid_entity", "Entity manifest has no id")
+
+    settings = marketplace_config.marketplace_settings()
+    if not settings.get("enabled"):
+        raise InstallError(
+            "marketplace_disabled",
+            "The marketplace is disabled in the settings",
+        )
+
+    entity_id = str(entity["id"])
+    version = str(entity.get("version") or "0.0.0")
+    dist = check_distribution(entity)
+    declared = _entity_files(entity)
+
+    existing = registry.get_installed("rag", entity_id)
+    if existing is not None and str(existing.get("version")) == version:
+        return {
+            "noop": {
+                "ok": True,
+                "noop": True,
+                "id": entity_id,
+                "type": "rag",
+                "version": version,
+                "runtime_slug": existing.get("runtime_slug"),
+                "install_id": existing.get("install_id"),
+            }
+        }
+
+    compatible, reason = _platform_compatible(entity)
+    if not compatible:
+        raise InstallError(
+            "platform_incompatible",
+            reason or "Entity is not compatible with this platform build",
+            {"id": entity_id, "version": version},
+        )
+
+    return {
+        "entity_id": entity_id,
+        "version": version,
+        "dist": dist,
+        "declared": declared,
+        "existing": existing,
+        "license_at": _licence_state(entity, accept_license),
+        "catalog": source or source_mod.default_source(),
+    }
+
+
+def _stage_rag_sources(
+    catalog,
+    entity: dict,
+    staging: str,
+    declared: Dict[str, str],
+) -> tuple:
+    """Unpack the source package into staging; return ``(sha, content_dir)``.
+
+    A base that ships no files (a prebuilt index) leaves an empty staging
+    folder and no package hash - the index alone is the base in that case.
+    """
+    content = os.path.join(staging, "content")
+    os.makedirs(content, exist_ok=True)
+    package_sha = ""
+    if not declared:
+        return package_sha, content
+
+    package = catalog.fetch_package(entity)
+    package_sha = verify.verify_package(
+        package, str((entity.get("package") or {}).get("sha256") or "")
+    )
+    package_path = os.path.join(staging, "package.tar.gz")
+    with open(package_path, "wb") as handle:
+        handle.write(package)
+    try:
+        store.cache_package(package_sha, package)
+    except OSError:
+        pass
+    members = verify.validate_archive(package_path)
+    verify.extract_archive(package_path, content, members)
+    mismatched = verify.verify_files(content, declared)
+    if mismatched:
+        raise InstallError(
+            "file_hash_mismatch",
+            "Unpacked files do not match the manifest",
+            {"files": mismatched[:10], "count": len(mismatched)},
+        )
+    return package_sha, content
+
+
+def _stage_rag_index(
+    catalog,
+    dist: dict,
+    content: str,
+    entity_id: str,
+) -> str:
+    """Download and check a prebuilt index; return its sha256 or ''.
+
+    The index is verified against the declared hash before it ever reaches
+    the live folder: a corrupted or mismatched database must not replace a
+    working base.
+    """
+    if not dist["index_url"]:
+        return ""
+    index_bytes = catalog.fetch_bytes(dist["index_url"])
+    index_sha = verify.verify_package(index_bytes, dist["index_sha256"])
+    if dist["index_bytes"] and len(index_bytes) != dist["index_bytes"]:
+        raise InstallError(
+            "index_size_mismatch",
+            f"The index is {len(index_bytes)} bytes, the manifest declares {dist['index_bytes']}",
+            {"id": entity_id, "actual": len(index_bytes), "declared": dist["index_bytes"]},
+        )
+    staged_index = os.path.join(content, INDEX_NAME)
+    with open(staged_index, "wb") as handle:
+        handle.write(index_bytes)
+    _check_index(staged_index, dist, entity_id)
+    return index_sha
+
+
+def _prepare_rag_manifest(entity: dict, slug: str, content: str) -> tuple:
+    """Write the new manifest into staging; return ``(target_dir, manifest)``.
+
+    The manifest of the installed version is read first: it carries the id
+    and the created-at stamp a rebuild must keep.
+    """
+    target = rag.base_dir(slug)
+    previous_manifest: dict = {}
+    if os.path.isdir(target):
+        try:
+            previous_manifest = rag.json_load(os.path.join(target, MANIFEST_NAME))
+        except Exception:
+            previous_manifest = {}
+
+    manifest = base_manifest(entity, slug, previous_manifest)
+    _write_text(
+        os.path.join(content, MANIFEST_NAME),
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+    )
+    return target, manifest
+
+
+def _plan_rag_placement(content: str, target: str) -> tuple:
+    """Return the file sets an install creates, replaces and removes."""
+    new_files = _files_under(content)
+    old_files = _files_under(target) if os.path.isdir(target) else set()
+    created_files = sorted(new_files - old_files)
+    replaced_files = sorted(new_files & old_files)
+    removed_files = sorted(old_files - new_files)
+    return new_files, created_files, replaced_files, removed_files
+
+
+def _write_rag_run_meta(
+    install_id: str,
+    entity_id: str,
+    slug: str,
+    target: str,
+    existing: Optional[dict],
+    created_files: List[str],
+    replaced_files: List[str],
+    removed_files: List[str],
+) -> None:
+    """Copy the replaced files aside and record the run metadata.
+
+    Metadata goes down BEFORE the first change: a rollback needs to know
+    which folder and which files this run touched.
+    """
+    for rel_path in replaced_files + removed_files:
+        store.copy_into_backup(os.path.join(target, rel_path), install_id, rel_path)
+    store.write_run_meta(
+        install_id,
+        {
+            "install_id": install_id,
+            "type": "rag",
+            "id": entity_id,
+            "runtime_slug": slug,
+            "created_folder": not os.path.isdir(target),
+            "created_files": created_files,
+            "replaced_files": replaced_files,
+            "removed_files": removed_files,
+            "previous_row": existing,
+            "registry_path": "",
+            "registry_backup": "",
+            "registry_existed": False,
+            "created_db_row": False,
+        },
+    )
+
+
+def _place_rag_files(content: str, target: str, new_files: set, removed_files: List[str]) -> None:
+    """Move the staged files into the live folder and drop what is gone.
+
+    A search may be running against the live folder while an update lands.
+    Replacing each file atomically means such a reader sees either the old
+    index or the new one, never a half-written database.
+    """
+    for rel_path in sorted(new_files):
+        source_path = os.path.join(content, rel_path)
+        target_path = os.path.join(target, rel_path)
+        os.makedirs(os.path.dirname(target_path) or target, exist_ok=True)
+        store._atomic_replace(source_path, target_path)
+    for rel_path in removed_files:
+        try:
+            os.remove(os.path.join(target, rel_path))
+        except OSError:
+            pass
+
+
+def _finalize_rag_index(slug: str, entity_id: str, dist: dict) -> str:
+    """Build the index from the sources when the package ships none."""
+    if dist["index_url"]:
+        return ""
+    _build_index(slug, entity_id)
+    index_path = rag.index_db_path(slug)
+    return registry._sha256_file(index_path) if os.path.isfile(index_path) else ""
+
+
+def _verify_rag_area(slug: str, declared: Dict[str, str], entity_id: str) -> tuple:
+    """Return the base files now on disk, their tree hash and the manifest."""
+    live_manifest = rag.get_base(slug, with_stats=False)
+    if not live_manifest:
+        raise InstallError(
+            "incomplete_install",
+            "The base folder carries no readable manifest after the install",
+            {"id": entity_id, "runtime_slug": slug},
+        )
+    files_now = registry.entity_file_manifest("rag", slug, declared or None)
+    absent = sorted(path for path, digest in files_now.items() if not digest)
+    if absent:
+        raise InstallError(
+            "incomplete_install",
+            "The base folder is missing files the manifest declares",
+            {"id": entity_id, "files": absent[:10]},
+        )
+    return files_now, registry.manifest_sha256(files_now), live_manifest
+
+
+def _register_rag(
+    *,
+    entity: dict,
+    entity_id: str,
+    slug: str,
+    version: str,
+    channel: str,
+    package_sha: str,
+    index_sha: str,
+    files_now: Dict[str, str],
+    tree: str,
+    install_id: str,
+    license_at: Optional[str],
+) -> None:
+    """Write the registry row of a base - the commit marker of the run."""
+    now = store.isoformat_utc()
+    registry.upsert_installed(
+        {
+            "type": "rag",
+            "id": entity_id,
+            "runtime_slug": slug,
+            "runtime_db_id": None,
+            "runtime_skill_id": None,
+            "fork_of": entity.get("fork_of"),
+            "version": version,
+            "channel": channel,
+            "source_url": str(entity.get("source_url") or ""),
+            "package_sha256": package_sha,
+            "tree_sha256": tree,
+            "index_sha256": index_sha or None,
+            "files_json": files_now,
+            "skipped_code_files_json": [],
+            "installed_at": now,
+            "updated_at": now,
+            "installed_by": "marketplace",
+            "user_modified": False,
+            "user_modified_files_json": [],
+            "install_id": install_id,
+            "bundle_id": entity.get("bundle_id"),
+            "pinned": False,
+            "license_accepted_at": license_at,
+        }
+    )
+
 
 def install_rag(
     entity: dict,
@@ -387,43 +614,17 @@ def install_rag(
     change rolls the run back: a created folder disappears, a replaced one
     returns to its previous bytes and the registry row never appears.
     """
-    if not isinstance(entity, dict) or not entity.get("id"):
-        raise InstallError("invalid_entity", "Entity manifest has no id")
-
-    settings = marketplace_config.marketplace_settings()
-    if not settings.get("enabled"):
-        raise InstallError(
-            "marketplace_disabled",
-            "The marketplace is disabled in the settings",
-        )
-
-    entity_id = str(entity["id"])
-    version = str(entity.get("version") or "0.0.0")
-    dist = check_distribution(entity)
-    declared = _entity_files(entity)
-
-    existing = registry.get_installed("rag", entity_id)
-    if existing is not None and str(existing.get("version")) == version:
-        return {
-            "ok": True,
-            "noop": True,
-            "id": entity_id,
-            "type": "rag",
-            "version": version,
-            "runtime_slug": existing.get("runtime_slug"),
-            "install_id": existing.get("install_id"),
-        }
-
-    compatible, reason = _platform_compatible(entity)
-    if not compatible:
-        raise InstallError(
-            "platform_incompatible",
-            reason or "Entity is not compatible with this platform build",
-            {"id": entity_id, "version": version},
-        )
-
-    license_at = _licence_state(entity, accept_license)
-    catalog = source or source_mod.default_source()
+    gate = _rag_gate(entity, accept_license=accept_license, source=source)
+    noop = gate.get("noop")
+    if noop is not None:
+        return noop
+    entity_id = gate["entity_id"]
+    version = gate["version"]
+    dist = gate["dist"]
+    declared = gate["declared"]
+    existing = gate["existing"]
+    license_at = gate["license_at"]
+    catalog = gate["catalog"]
 
     with store.install_lock():
         install_id = store.new_install_id()
@@ -440,155 +641,43 @@ def install_rag(
             }
         )
         try:
-            content = os.path.join(staging, "content")
-            os.makedirs(content, exist_ok=True)
-            package_sha = ""
-
-            if declared:
-                package = catalog.fetch_package(entity)
-                package_sha = verify.verify_package(
-                    package, str((entity.get("package") or {}).get("sha256") or "")
-                )
-                package_path = os.path.join(staging, "package.tar.gz")
-                with open(package_path, "wb") as handle:
-                    handle.write(package)
-                try:
-                    store.cache_package(package_sha, package)
-                except OSError:
-                    pass
-                members = verify.validate_archive(package_path)
-                verify.extract_archive(package_path, content, members)
-                mismatched = verify.verify_files(content, declared)
-                if mismatched:
-                    raise InstallError(
-                        "file_hash_mismatch",
-                        "Unpacked files do not match the manifest",
-                        {"files": mismatched[:10], "count": len(mismatched)},
-                    )
-
-            index_sha = ""
-            if dist["index_url"]:
-                index_bytes = catalog.fetch_bytes(dist["index_url"])
-                index_sha = verify.verify_package(index_bytes, dist["index_sha256"])
-                if dist["index_bytes"] and len(index_bytes) != dist["index_bytes"]:
-                    raise InstallError(
-                        "index_size_mismatch",
-                        f"The index is {len(index_bytes)} bytes, the manifest declares {dist['index_bytes']}",
-                        {"id": entity_id, "actual": len(index_bytes), "declared": dist["index_bytes"]},
-                    )
-                staged_index = os.path.join(content, INDEX_NAME)
-                with open(staged_index, "wb") as handle:
-                    handle.write(index_bytes)
-                _check_index(staged_index, dist, entity_id)
+            package_sha, content = _stage_rag_sources(catalog, entity, staging, declared)
+            index_sha = _stage_rag_index(catalog, dist, content, entity_id)
 
             slug = _resolve_slug(entity, existing, runtime_slug)
-            target = rag.base_dir(slug)
-            previous_manifest = {}
-            if os.path.isdir(target):
-                try:
-                    previous_manifest = rag.json_load(os.path.join(target, MANIFEST_NAME))
-                except Exception:
-                    previous_manifest = {}
-
-            manifest = base_manifest(entity, slug, previous_manifest)
-            _write_text(
-                os.path.join(content, MANIFEST_NAME),
-                json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+            target, _manifest = _prepare_rag_manifest(entity, slug, content)
+            new_files, created_files, replaced_files, removed_files = _plan_rag_placement(
+                content, target
             )
-
-            new_files = _files_under(content)
-            old_files = _files_under(target) if os.path.isdir(target) else set()
-            created_files = sorted(new_files - old_files)
-            replaced_files = sorted(new_files & old_files)
-            removed_files = sorted(old_files - new_files)
-
-            # Metadata goes down BEFORE the first change: a rollback needs to
-            # know which folder and which files this run touched.
-            for rel_path in replaced_files + removed_files:
-                store.copy_into_backup(os.path.join(target, rel_path), install_id, rel_path)
-            store.write_run_meta(
+            _write_rag_run_meta(
                 install_id,
-                {
-                    "install_id": install_id,
-                    "type": "rag",
-                    "id": entity_id,
-                    "runtime_slug": slug,
-                    "created_folder": not os.path.isdir(target),
-                    "created_files": created_files,
-                    "replaced_files": replaced_files,
-                    "removed_files": removed_files,
-                    "previous_row": existing,
-                    "registry_path": "",
-                    "registry_backup": "",
-                    "registry_existed": False,
-                    "created_db_row": False,
-                },
+                entity_id,
+                slug,
+                target,
+                existing,
+                created_files,
+                replaced_files,
+                removed_files,
             )
 
-            for rel_path in sorted(new_files):
-                source_path = os.path.join(content, rel_path)
-                target_path = os.path.join(target, rel_path)
-                os.makedirs(os.path.dirname(target_path) or target, exist_ok=True)
-                # A search may be running against the live folder while an
-                # update lands. Replacing each file atomically means such a
-                # reader sees either the old index or the new one, never a
-                # half-written database.
-                store._atomic_replace(source_path, target_path)
-            for rel_path in removed_files:
-                try:
-                    os.remove(os.path.join(target, rel_path))
-                except OSError:
-                    pass
+            _place_rag_files(content, target, new_files, removed_files)
+            built_sha = _finalize_rag_index(slug, entity_id, dist)
+            if built_sha:
+                index_sha = built_sha
 
-            if not dist["index_url"]:
-                _build_index(slug, entity_id)
-                index_path = rag.index_db_path(slug)
-                index_sha = registry._sha256_file(index_path) if os.path.isfile(index_path) else ""
-
-            live_manifest = rag.get_base(slug, with_stats=False)
-            if not live_manifest:
-                raise InstallError(
-                    "incomplete_install",
-                    "The base folder carries no readable manifest after the install",
-                    {"id": entity_id, "runtime_slug": slug},
-                )
-            files_now = registry.entity_file_manifest("rag", slug, declared or None)
-            absent = sorted(path for path, digest in files_now.items() if not digest)
-            if absent:
-                raise InstallError(
-                    "incomplete_install",
-                    "The base folder is missing files the manifest declares",
-                    {"id": entity_id, "files": absent[:10]},
-                )
-            tree = registry.manifest_sha256(files_now)
-
-            now = store.isoformat_utc()
-            registry.upsert_installed(
-                {
-                    "type": "rag",
-                    "id": entity_id,
-                    "runtime_slug": slug,
-                    "runtime_db_id": None,
-                    "runtime_skill_id": None,
-                    "fork_of": entity.get("fork_of"),
-                    "version": version,
-                    "channel": channel,
-                    "source_url": str(entity.get("source_url") or ""),
-                    "package_sha256": package_sha,
-                    "tree_sha256": tree,
-                    "index_sha256": index_sha or None,
-                    "files_json": files_now,
-                    "skipped_code_files_json": [],
-                    "installed_at": now,
-                    "updated_at": now,
-                    "installed_by": "marketplace",
-                    "user_modified": False,
-                    "user_modified_files_json": [],
-                    "install_id": install_id,
-                    "bundle_id": entity.get("bundle_id"),
-                    "pinned": False,
-                    "license_accepted_at": license_at,
-                }
+            files_now, tree, live_manifest = _verify_rag_area(slug, declared, entity_id)
+            _register_rag(
+                entity=entity,
+                entity_id=entity_id,
+                slug=slug,
+                version=version,
+                channel=channel,
+                package_sha=package_sha,
+                index_sha=index_sha,
+                files_now=files_now,
+                tree=tree,
+                install_id=install_id,
+                license_at=license_at,
             )
 
             store.update_run(

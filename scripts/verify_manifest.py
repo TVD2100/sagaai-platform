@@ -60,7 +60,7 @@ UNIT_NAME = "core"
 
 CORE_ROOT_FILES = {"__init__.py", "app.py", "pytest.ini", "requirements.txt",
                    "requirements.lock", "pyproject.toml", "alembic.ini",
-                   "pyright_budget.json"}
+                   "pyright_budget.json", "refactor_budget.json"}
 # Everything under these prefixes ships as part of the atomic code unit.
 # A workflow under .github/ is repository automation: it is skipped through
 # COVERAGE_SKIP below and never travels to an installation.

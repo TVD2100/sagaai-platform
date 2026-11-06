@@ -183,30 +183,20 @@ def _utc_now() -> str:
     return store.isoformat_utc()
 
 
-def install_skill(
+def _skill_gate(
     entity: dict,
     *,
-    channel: str,
-    allow_code: Optional[bool] = None,
-    source: Optional[source_mod.MarketplaceSource] = None,
-    accept_license: bool = False,
+    allow_code: Optional[bool],
+    accept_license: bool,
+    source: Optional[source_mod.MarketplaceSource],
 ) -> dict:
-    """Install one skill from the catalog and return a report.
+    """Validate a skill install request and return the shared values.
 
-    Parameters:
-        entity: parsed ``entity.json`` of the skill.
-        channel: release channel name recorded on the registry row.
-        allow_code: install ``scripts/*`` files; ``None`` reads the setting.
-            The default is ``true`` - the catalog holds the owner's own
-            entities (D-12).
-        source: catalog transport; tests inject their own, production
-            callers leave it ``None`` to use the configured catalog.
-        accept_license: explicit licence acceptance for entities that
-            require it.
-
-    Re-installing the same version is a no-op: the existing row keeps its
-    ``installed_at``, no second folder appears and the run log does not
-    grow. Any other failure rolls the installation back and re-raises.
+    Everything that can refuse the run happens here, before the first
+    download: the marketplace switch, the declared file manifest, the
+    platform bounds, the licence and the executable-code policy. The
+    "same version already installed" shortcut answers ``{"noop": ...}`` and
+    nothing else, so a caller returns it before looking at the rest.
     """
     if not isinstance(entity, dict) or not entity.get("id"):
         raise InstallError("invalid_entity", "Entity manifest has no id")
@@ -231,14 +221,16 @@ def install_skill(
     existing = registry.get_installed("skill", entity_id)
     if existing is not None and str(existing.get("version")) == version:
         return {
-            "ok": True,
-            "noop": True,
-            "id": entity_id,
-            "runtime_slug": existing.get("runtime_slug"),
-            "version": version,
-            "skill_id": existing.get("runtime_skill_id"),
-            "install_id": existing.get("install_id"),
-            "skipped_code_files": list(existing.get("skipped_code_files_json") or []),
+            "noop": {
+                "ok": True,
+                "noop": True,
+                "id": entity_id,
+                "runtime_slug": existing.get("runtime_slug"),
+                "version": version,
+                "skill_id": existing.get("runtime_skill_id"),
+                "install_id": existing.get("install_id"),
+                "skipped_code_files": list(existing.get("skipped_code_files_json") or []),
+            }
         }
 
     compatible, reason = _platform_compatible(entity)
@@ -265,18 +257,244 @@ def install_skill(
                 {"id": entity_id, "skipped": skipped_code},
             )
 
-    catalog = source or source_mod.default_source()
+    return {
+        "entity_id": entity_id,
+        "version": version,
+        "existing": existing,
+        "installed_files": installed_files,
+        "skipped_code": skipped_code,
+        "install_code": install_code,
+        "language_accept": language_accept,
+        "catalog": source or source_mod.default_source(),
+    }
+
+
+def _stage_skill_package(
+    catalog,
+    entity: dict,
+    staging: str,
+    installed_files: Dict[str, str],
+    skipped_code: List[str],
+    install_code: bool,
+) -> tuple:
+    """Download, verify and unpack the skill package; return ``(sha, dir)``."""
+    package = catalog.fetch_package(entity)
+    package_sha = verify.verify_package(
+        package, str((entity.get("package") or {}).get("sha256") or "")
+    )
+    package_path = os.path.join(staging, "package.tar.gz")
+    with open(package_path, "wb") as handle:
+        handle.write(package)
+    # Keep the package for offline operations: the conflict paths use
+    # it as the pristine reference for a reset (D-08).
+    try:
+        store.cache_package(package_sha, package)
+    except OSError:
+        pass
+
+    members = verify.validate_archive(package_path)
+    skip_paths = [name for name in skipped_code] if not install_code else []
+    unpack_dir = os.path.join(staging, "content")
+    verify.extract_archive(package_path, unpack_dir, members, skip=skip_paths)
+
+    mismatched = verify.verify_files(unpack_dir, installed_files)
+    if mismatched:
+        raise InstallError(
+            "file_hash_mismatch",
+            "Unpacked files do not match the manifest",
+            {"files": mismatched[:10], "count": len(mismatched)},
+        )
+    return package_sha, unpack_dir
+
+
+def _prepare_skill_area(
+    entity: dict,
+    entity_id: str,
+    install_id: str,
+    existing: Optional[dict],
+    installed_files: Dict[str, str],
+) -> tuple:
+    """Reserve the skill folder and record the run metadata of the import.
+
+    Whether ``skills.json`` existed before the run decides how a rollback
+    restores it: an existing file is copied back from the backup, a missing
+    one is deleted again.
+    """
+    runtime_slug = _pick_runtime_slug(entity)
+    registry_existed = os.path.isfile(_skills_registry_path())
+    backup_registry = _backup_registry_file(install_id)
+    store.write_run_meta(
+        install_id,
+        {
+            "install_id": install_id,
+            "type": "skill",
+            "id": entity_id,
+            "runtime_slug": runtime_slug,
+            "created_folder": True,
+            "created_files": sorted(installed_files),
+            "replaced_files": [],
+            "removed_files": [],
+            "previous_row": existing,
+            "registry_path": _skills_registry_path(),
+            "registry_backup": backup_registry,
+            "registry_existed": registry_existed,
+        },
+    )
+    return runtime_slug, backup_registry
+
+
+def _import_skill_folder(unpack_dir: str, entity: dict, runtime_slug: str) -> str:
+    """Import the unpacked skill into the library; return its record id."""
+    from core.skills_library import import_skill_from_folder
+
+    name = _display_name(entity)
+    imported = import_skill_from_folder(
+        unpack_dir,
+        name=name,
+        description=_display_description(entity),
+        developer="SagaAI",
+        adapted=True,
+        folder=runtime_slug,
+        skill_id=None,
+    )
+    created_skill_id = str(imported.get("skill", {}).get("id") or "")
+    if not created_skill_id:
+        raise InstallError("import_failed", "The skills library returned no id")
+    return created_skill_id
+
+
+def _register_skill(
+    *,
+    entity: dict,
+    entity_id: str,
+    runtime_slug: str,
+    version: str,
+    channel: str,
+    package_sha: str,
+    installed_files: Dict[str, str],
+    skipped_code: List[str],
+    install_id: str,
+    language_accept: Optional[str],
+    created_skill_id: str,
+) -> str:
+    """Write the library metadata and the registry row; return the tree hash."""
+    manifest = registry.entity_file_manifest("skill", runtime_slug, installed_files)
+    tree = registry.tree_sha256("skill", runtime_slug, installed_files)
+    now = store.isoformat_utc()
+    _write_skill_metadata(
+        created_skill_id,
+        version=version,
+        updated_at=now,
+        installed_at=now,
+        source=f"marketplace/{entity_id}",
+        sha256=package_sha,
+        source_url=str(entity.get("source_url") or ""),
+    )
+
+    registry.upsert_installed(
+        {
+            "type": "skill",
+            "id": entity_id,
+            "runtime_slug": runtime_slug,
+            "runtime_db_id": None,
+            "runtime_skill_id": created_skill_id,
+            "fork_of": entity.get("fork_of"),
+            "version": version,
+            "channel": channel,
+            "source_url": str(entity.get("source_url") or ""),
+            "package_sha256": package_sha,
+            "tree_sha256": tree,
+            "index_sha256": None,
+            "files_json": manifest,
+            "skipped_code_files_json": skipped_code,
+            "installed_at": now,
+            "updated_at": now,
+            "installed_by": "marketplace",
+            "user_modified": False,
+            "user_modified_files_json": [],
+            "install_id": install_id,
+            "bundle_id": entity.get("bundle_id"),
+            "pinned": False,
+            "license_accepted_at": language_accept,
+        }
+    )
+    return tree
+
+
+def _commit_skill_run(
+    install_id: str,
+    runtime_slug: str,
+    created_skill_id: str,
+    entity_id: str,
+) -> None:
+    """Close a successful skill run and cancel an earlier removal marker."""
+    store.update_run(
+        install_id,
+        status="done",
+        finished_at=store.isoformat_utc(),
+        skill_id=created_skill_id,
+        runtime_slug=runtime_slug,
+    )
+    store.cleanup_run_dirs(install_id, keep_backup=True)
+    store.clear_state()
+    # An explicit install cancels an earlier removal: without this the
+    # marker would keep suppressing the entity in default imports and
+    # in the catalog card after the user asked for it back.
+    try:
+        registry.unmark_removed("skill", entity_id)
+    except Exception:
+        pass
+    registry.export_registry_cache()
+
+
+def install_skill(
+    entity: dict,
+    *,
+    channel: str,
+    allow_code: Optional[bool] = None,
+    source: Optional[source_mod.MarketplaceSource] = None,
+    accept_license: bool = False,
+) -> dict:
+    """Install one skill from the catalog and return a report.
+
+    Parameters:
+        entity: parsed ``entity.json`` of the skill.
+        channel: release channel name recorded on the registry row.
+        allow_code: install ``scripts/*`` files; ``None`` reads the setting.
+            The default is ``true`` - the catalog holds the owner's own
+            entities (D-12).
+        source: catalog transport; tests inject their own, production
+            callers leave it ``None`` to use the configured catalog.
+        accept_license: explicit licence acceptance for entities that
+            require it.
+
+    Re-installing the same version is a no-op: the existing row keeps its
+    ``installed_at``, no second folder appears and the run log does not
+    grow. Any other failure rolls the installation back and re-raises.
+    """
+    gate = _skill_gate(
+        entity, allow_code=allow_code, accept_license=accept_license, source=source
+    )
+    noop = gate.get("noop")
+    if noop is not None:
+        return noop
+    entity_id = gate["entity_id"]
+    version = gate["version"]
+    installed_files = gate["installed_files"]
+    skipped_code = gate["skipped_code"]
+    install_code = gate["install_code"]
+    language_accept = gate["language_accept"]
+    catalog = gate["catalog"]
 
     with store.install_lock():
+        # The run is recorded BEFORE the first network call: an attempt that
+        # dies during download must still appear in the history, otherwise a
+        # failing catalog looks like nothing ever happened.
         install_id = store.new_install_id()
         staging, _backup = store.prepare_run_dirs(install_id)
         runtime_slug = ""
         created_skill_id = ""
         backup_registry = ""
-        version = str(entity.get("version") or "0.0.0")
-        # The run is recorded BEFORE the first network call: an attempt that
-        # dies during download must still appear in the history, otherwise a
-        # failing catalog looks like nothing ever happened.
         store.append_run(
             {
                 "install_id": install_id,
@@ -288,132 +506,27 @@ def install_skill(
             }
         )
         try:
-            package = catalog.fetch_package(entity)
-            package_sha = verify.verify_package(
-                package, str((entity.get("package") or {}).get("sha256") or "")
+            package_sha, unpack_dir = _stage_skill_package(
+                catalog, entity, staging, installed_files, skipped_code, install_code
             )
-            package_path = os.path.join(staging, "package.tar.gz")
-            with open(package_path, "wb") as handle:
-                handle.write(package)
-            # Keep the package for offline operations: the conflict paths use
-            # it as the pristine reference for a reset (D-08).
-            try:
-                store.cache_package(package_sha, package)
-            except OSError:
-                pass
-
-            members = verify.validate_archive(package_path)
-            skip_paths = [name for name in skipped_code] if not install_code else []
-            unpack_dir = os.path.join(staging, "content")
-            verify.extract_archive(package_path, unpack_dir, members, skip=skip_paths)
-
-            mismatched = verify.verify_files(unpack_dir, installed_files)
-            if mismatched:
-                raise InstallError(
-                    "file_hash_mismatch",
-                    "Unpacked files do not match the manifest",
-                    {"files": mismatched[:10], "count": len(mismatched)},
-                )
-
-            runtime_slug = _pick_runtime_slug(entity)
-            # Whether ``skills.json`` existed before the run decides how a
-            # rollback restores it: an existing file is copied back from the
-            # backup, a missing one is deleted again.
-            registry_existed = os.path.isfile(_skills_registry_path())
-            backup_registry = _backup_registry_file(install_id)
-            previous_row = existing
-            store.write_run_meta(
-                install_id,
-                {
-                    "install_id": install_id,
-                    "type": "skill",
-                    "id": entity_id,
-                    "runtime_slug": runtime_slug,
-                    "created_folder": True,
-                    "created_files": sorted(installed_files),
-                    "replaced_files": [],
-                    "removed_files": [],
-                    "previous_row": previous_row,
-                    "registry_path": _skills_registry_path(),
-                    "registry_backup": backup_registry,
-                    "registry_existed": registry_existed,
-                },
+            runtime_slug, backup_registry = _prepare_skill_area(
+                entity, entity_id, install_id, gate["existing"], installed_files
             )
-
-            from core.skills_library import import_skill_from_folder
-
-            name = _display_name(entity)
-            imported = import_skill_from_folder(
-                unpack_dir,
-                name=name,
-                description=_display_description(entity),
-                developer="SagaAI",
-                adapted=True,
-                folder=runtime_slug,
-                skill_id=None,
-            )
-            created_skill_id = str(imported.get("skill", {}).get("id") or "")
-            if not created_skill_id:
-                raise InstallError("import_failed", "The skills library returned no id")
-
-            manifest = registry.entity_file_manifest("skill", runtime_slug, installed_files)
-            tree = registry.tree_sha256("skill", runtime_slug, installed_files)
-            now = store.isoformat_utc()
-            _write_skill_metadata(
-                created_skill_id,
-                version=version,
-                updated_at=now,
-                installed_at=now,
-                source=f"marketplace/{entity_id}",
-                sha256=package_sha,
-                source_url=str(entity.get("source_url") or ""),
-            )
-
-            registry.upsert_installed(
-                {
-                    "type": "skill",
-                    "id": entity_id,
-                    "runtime_slug": runtime_slug,
-                    "runtime_db_id": None,
-                    "runtime_skill_id": created_skill_id,
-                    "fork_of": entity.get("fork_of"),
-                    "version": version,
-                    "channel": channel,
-                    "source_url": str(entity.get("source_url") or ""),
-                    "package_sha256": package_sha,
-                    "tree_sha256": tree,
-                    "index_sha256": None,
-                    "files_json": manifest,
-                    "skipped_code_files_json": skipped_code,
-                    "installed_at": now,
-                    "updated_at": now,
-                    "installed_by": "marketplace",
-                    "user_modified": False,
-                    "user_modified_files_json": [],
-                    "install_id": install_id,
-                    "bundle_id": entity.get("bundle_id"),
-                    "pinned": False,
-                    "license_accepted_at": language_accept,
-                }
-            )
-
-            store.update_run(
-                install_id,
-                status="done",
-                finished_at=store.isoformat_utc(),
-                skill_id=created_skill_id,
+            created_skill_id = _import_skill_folder(unpack_dir, entity, runtime_slug)
+            tree = _register_skill(
+                entity=entity,
+                entity_id=entity_id,
                 runtime_slug=runtime_slug,
+                version=version,
+                channel=channel,
+                package_sha=package_sha,
+                installed_files=installed_files,
+                skipped_code=skipped_code,
+                install_id=install_id,
+                language_accept=language_accept,
+                created_skill_id=created_skill_id,
             )
-            store.cleanup_run_dirs(install_id, keep_backup=True)
-            store.clear_state()
-            # An explicit install cancels an earlier removal: without this the
-            # marker would keep suppressing the entity in default imports and
-            # in the catalog card after the user asked for it back.
-            try:
-                registry.unmark_removed("skill", entity_id)
-            except Exception:
-                pass
-            registry.export_registry_cache()
+            _commit_skill_run(install_id, runtime_slug, created_skill_id, entity_id)
 
             return {
                 "ok": True,

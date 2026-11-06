@@ -292,19 +292,20 @@ def test_canonical_prompts_do_not_duplicate_the_tool_catalog():
     when  they are inspected,
     then  each prompt delegates the full tool list to the auto-added
           '## Available tools' block, keeps its tool-usage rules in-line
-          and contains no duplicated tool-catalog table; dev_agent is v3.28
+          and contains no duplicated tool-catalog table; dev_agent is v3.30
           and ya_agent is v2.11. The batch-calls rule, the verbatim
           user-supplied-plan branch, the generated-PROJECT_MAP rule, the
           Stage 0 recent-workspaces menu (v3.21), the DSML-fallback
           contract (v3.22), the subagent stop/transcript rules (v3.26),
-          the result-collection rule (v3.27) and the working-memory rules
-          (v3.28) are pinned here as invariants.
+          the result-collection rule (v3.27), the working-memory rules
+          (v3.28) and the workflow-cycle rules (v3.29) are pinned here as
+          invariants.
     """
     dev = CANONICAL_PROMPT_FILES["dev_agent"].read_text(encoding="utf-8")
     ya = CANONICAL_PROMPT_FILES["ya_agent"].read_text(encoding="utf-8")
 
     # Version headers carry the bumped versions.
-    assert dev.splitlines()[0].endswith("(v3.28)"), dev.splitlines()[0]
+    assert dev.splitlines()[0].endswith("(v3.30)"), dev.splitlines()[0]
     assert ya.splitlines()[0].endswith("(v2.11)"), ya.splitlines()[0]
 
     # RAG context-restore invariant (v3.14): hits carry ids and the
@@ -379,6 +380,27 @@ def test_canonical_prompts_do_not_duplicate_the_tool_catalog():
     assert "even when\nno project folder is selected" in dev
     assert "previous layout" in dev
     assert "Path escapes project root" in dev
+
+    # Workflow-cycle invariant (v3.29): a non-trivial change on an existing
+    # project starts with a read-only swarm survey, architecture and a spec,
+    # and the spec is re-checked before the final report. The spec (v3.30)
+    # covers THIS change only and lives in scratch.
+    assert "Analysis before the plan (existing project)" in dev
+    assert "Swarm survey" in dev
+    assert ".dev_agent/scratch/task_spec.md" in dev
+    assert "never of the project" in dev
+    assert "<task_dir>/spec.md" not in dev
+    assert "Spec check" in dev
+
+    # Linters invariant (v3.29): the project's own linters run before the
+    # test tiers, with the project config as the only authority.
+    assert "Tier 0 - Linters on touched files" in dev
+    assert "the project's config is the only authority" in dev
+
+    # Approved-series invariant (v3.29): an approved series keeps running
+    # across items and its map lives in a file of its own.
+    assert "**Approved series.**" in dev
+    assert "<task_dir>/series.md" in dev
 
     # Stale single-call wording is gone from both prompts.
     assert "One tool call per message" not in dev

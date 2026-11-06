@@ -402,5 +402,47 @@ def test_the_type_check_runs_before_the_manifest(monkeypatch):
     """Order matters for the reader: cheap syntax-level gates go first."""
     names = [name for name, _ in ci_check.CHECKS]
     assert names.index("types") < names.index("manifest")
+
+
+def test_the_budget_check_runs_before_the_manifest(monkeypatch):
+    """The structural budget is a source-level gate, like the type budget."""
+    names = [name for name, _ in ci_check.CHECKS]
+    assert names.index("budget") < names.index("manifest")
+
+
+def test_a_missing_budget_script_is_an_environment_error(monkeypatch, tmp_path):
+    monkeypatch.setattr(ci_check, "REFACTOR_BUDGET_SCRIPT", str(tmp_path / "absent.py"))
+    assert ci_check.check_budget()[0] == "env"
+
+
+def test_exceeding_the_structural_budget_fails_the_check(monkeypatch, tmp_path):
+    script = tmp_path / "refactor_budget.py"
+    script.write_text("", encoding="utf-8")
+    monkeypatch.setattr(ci_check, "REFACTOR_BUDGET_SCRIPT", str(script))
+    monkeypatch.setattr(ci_check, "run_process",
+                        lambda command, timeout=0: (1, "a.py: file_lines is 99, above the budget of 10"))
+    status, detail = ci_check.check_budget()
+    assert status == "fail"
+    assert "file_lines" in detail
+
+
+def test_an_unmeasurable_structural_budget_is_an_environment_error(monkeypatch, tmp_path):
+    script = tmp_path / "refactor_budget.py"
+    script.write_text("", encoding="utf-8")
+    monkeypatch.setattr(ci_check, "REFACTOR_BUDGET_SCRIPT", str(script))
+    monkeypatch.setattr(ci_check, "run_process",
+                        lambda command, timeout=0: (2, "ruff: command not found"))
+    assert ci_check.check_budget()[0] == "env"
+
+
+def test_a_holding_structural_budget_passes_the_check(monkeypatch, tmp_path):
+    script = tmp_path / "refactor_budget.py"
+    script.write_text("", encoding="utf-8")
+    monkeypatch.setattr(ci_check, "REFACTOR_BUDGET_SCRIPT", str(script))
+    monkeypatch.setattr(ci_check, "run_process",
+                        lambda command, timeout=0: (0, "[PASS] budget\nstructural budget holds for 6 files"))
+    status, detail = ci_check.check_budget()
+    assert status == "ok"
+    assert "holds" in detail
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

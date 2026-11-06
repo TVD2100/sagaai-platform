@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-05T15:26:29+00:00`
-- Файлов: **637**
+- Обновлено: `2026-11-06T21:34:13+00:00`
+- Файлов: **715**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **9601**
-- Отпечаток содержимого: `sha256:369f7602efd8f660e36be2d05c647c8f124a66bf93512fd02f762fbe5941634a` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 2, JSON: 27, Markdown: 40, PEM certificate: 1, Python: 567, TOML: 2, Text: 2
+- Python-символов: **10017**
+- Отпечаток содержимого: `sha256:b32d351596e28946062d05841158594279834b5627fcf12ee1911aba06ac2a41` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 2, JSON: 36, Markdown: 40, PEM certificate: 1, Python: 636, TOML: 2, Text: 2
 
 ## Файлы и назначение
 
@@ -19,23 +19,27 @@
 | `pyproject.toml` | TOML | Build manifest (PEP 621): the distribution name and dynamic version from core/version.py, the four required dependencies, the api/documents/selenium/ssh/dev optional groups, the explicit package list and the sagaai console entry point; editable installs only, because the data directories are derived from the parent of the core package | - |
 | `pyright_budget.json` | JSON | The committed error budget of the static analysis: the maximum number of pyright findings and the packages it covers; the gate fails on growth, never on a fall | - |
 | `pytest.ini` | Config | Pytest configuration | - |
+| `refactor_budget.json` | JSON | The committed structural budget: per file the maximum length, longest function and cyclomatic complexity; the gate fails on growth, never on a fall | - |
 | `requirements-api.txt` | Text | Additional dependencies of the standalone HTTP API (FastAPI, uvicorn, pydantic), kept out of the base install so a Streamlit-only user does not pay for them; one of the two inputs of requirements.lock | - |
 | `requirements.txt` | Text | Version CONSTRAINTS of the platform: the human-readable input of the resolver, with upper bounds on the packages the platform is built around; one of the two inputs of requirements.lock and the source the cold-start dependency audit is kept in sync with | - |
 | `ruff.toml` | TOML | Linter configuration: a deliberately narrow rule set (layout, real defects, import order) with the reasons the remaining families stay off, so a finding means a defect and not a style the project never adopted | - |
 | `ui/__init__.py` | Python | Package marker | - |
 | `ui/app.py` | Python | Main application shell: sidebar navigation and page dispatch; the marketplace entry sits behind the enabled switch, which also gates the one-time registry seeding | ui |
+| `ui/app_restore.py` | Python | Theme switching, UI state restore after a theme reload and employee thread deep links; re-exported through ui.app | ui |
 | `ui/components/__init__.py` | Python | Package marker | - |
 | `ui/components/flash.py` | Python | Deferred UI notifications: a page queues a message in session_state (flash/flash_success/flash_error/flash_warning/flash_info) and render_flash() paints and clears the queue on the NEXT render pass, so a confirmation shown right before st.rerun() is not discarded with the current pass | ui |
 | `ui/components/workspace_picker.py` | Python | Workspace picker component | ui |
 | `ui/pages/__init__.py` | Python | Package marker | - |
 | `ui/pages/access.py` | Python | _(описание не задано)_ | - |
 | `ui/pages/assistants.py` | Python | Assistants management page (create/edit/delete assistant profiles, files, tools) | ui |
+| `ui/pages/assistants_helpers.py` | Python | _(описание не задано)_ | - |
 | `ui/pages/chat.py` | Python | Chat page for AI assistants: selector, history, send form | - |
 | `ui/pages/connectors.py` | Python | Connectors page: service and preset tiles opening a full-page form, the saved-connections tab, credentials status, test/edit/delete; the connection card carries the agent memory block for that connection | ui |
 | `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | ui |
 | `ui/pages/marketplace.py` | Python | Marketplace page: showcase with search, the entity card (licence, required tools, platform range), install, the three conflict resolutions, reset to catalog and uninstall with an inline confirmation | ui |
-| `ui/pages/orchestrator.py` | Python | Orchestrator page: chat feed, history and settings sections; the Delegation tab carries the allowlists, the six delegation limits and the dialog fields (rounds, question and answer length, answer wait, simultaneous waits), each read through a default-tolerant helper so a partial limits mapping cannot break the tab; the waiting line shows the agent, the run id and the question, and the step feed renders a parked question as an expandable block; the Universal-Agent right is a separate checkbox above the agent list (hidden for the executor itself and while the employee is not installed), saved only when it changed and never folded into the allowlist | storage, ui |
+| `ui/pages/orchestrator.py` | Python | Orchestrator page: chat feed, history and settings sections; the chat tab is one reading sequence over section helpers (styles, welcome, feed pagination, one message, message controls, loop status with both confirmation dialogs, submission handling, active controls) and the settings tabs split the same way, every helper staying in this module because the page and the tests resolve st and t through the module globals; the agent step is a skeleton over its phases (step flags, state assembly, root-run registration, the stop request, the step itself, persisting the step to the thread and committing the state) so the order of session-state operations stays one readable sequence, and the event feed dispatches through the _EVENT_RENDERERS table with one renderer per event type while tool_call and tool_result are handled before the table because that pair is what the feed is built around; the Delegation tab carries the allowlists, the six delegation limits and the dialog fields (rounds, question and answer length, answer wait, simultaneous waits), each read through a default-tolerant helper so a partial limits mapping cannot break the tab; the waiting line shows the agent, the run id and the question, and the step feed renders a parked question as an expandable block; the Universal-Agent right is a separate checkbox above the agent list (hidden for the executor itself and while the employee is not installed), saved only when it changed and never folded into the allowlist | storage, ui |
 | `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings page: tabbed sections (eleven tabs including Memory), the active tab is kept across reruns and pinned after a save | ui |
+| `ui/pages/orchestrator_text.py` | Python | Pure text and event helpers of the orchestrator page, kept free of Streamlit and of translated strings so they can be reasoned about on their own: model-output cleanup (HTML details wrappers, empty fenced blocks, JSON/XML/DSML tool-call residue) and the has_tool_calls flag that drives the per-message copy controls, the two-line preview and argument formatting used by the step feed, the result-body extraction for a tool result, the per-run event grouping, and build_state_keys - the session-state key map of one chat, which takes the persisted checkbox defaults and the page-level constants as arguments so no page configuration leaks in; the page module re-exports every name so the chat feed, the tests and the tool-result renderer resolve them through ui.pages.orchestrator | - |
 | `ui/pages/orchestrators.py` | Python | Employees (orchestrators) management page (create/open/settings/delete; export/import deferred) | ui |
 | `ui/pages/schedules.py` | Python | The 'Run on a schedule' settings page: the rule list with its status, next point and counters, the create/edit form (employee, task, brief, zone, first moment, interval, blocked days, quiet window, advanced fields), a delete confirmation, the run history with its errors, the manual 'run now' action and the preview of the next points | ui |
 | `ui/pages/settings.py` | Python | Settings page: provider keys, models, interface language and the owner's personal memory editor | ui |
@@ -56,9 +60,17 @@
 | `migrations/versions/0007_schedules_tables.py` | Python | Revision: schedule tables | storage |
 | `migrations/versions/0008_transcript_layout.py` | Python | Revision: message layout marker after the transcript archivers ran | - |
 | `core/__init__.py` | Python | Package marker | - |
+| `core/api_bearer.py` | Python | OpenAI-compatible chat/completions transport: messages as-is, native functions, response_format and the usage callback | - |
+| `core/api_deepseek.py` | Python | DeepSeek Responses transport and server-side web search via the Anthropic-compatible tool: reasoning effort, request assembly, text extraction and the search-use counter | - |
 | `core/api_errors.py` | Python | API error hierarchy and user messages | - |
-| `core/api_layer.py` | Python | HTTP requests to AI providers; send_request(assistant=...) with legacy skill= alias and optional incomplete_callback (truncated Responses detection); vision/image transports (send_vision_request with bearer/yandex_iam/deepseek_responses + detail=original, send_image_generation_request) | - |
+| `core/api_gigachat.py` | Python | GigaChat transport: OAuth token with an external TLS policy, message normalisation (leading system blocks fold into one) and the models URL | - |
+| `core/api_history_guard.py` | Python | Prompt-injection guard: tool results are marked as data before the request is sent, and the sanitized marker is parsed back | - |
+| `core/api_http.py` | Python | Transport HTTP policy: TLS switches, the retry budget (retry_call, _retry_params), error-body extraction and the request timeouts | - |
+| `core/api_layer.py` | Python | Facade of the LLM transport: send_request (phase helpers _resolve_chat_service, _resolve_generation_settings, _compose_user_content, _resolve_tool_options, _run_with_retry), _do_request over the _AUTH_HANDLERS table, test_connection over the _PROBES table, the vision/image transports and the wrappers of the patchable surface (_gigachat_verify, _assistant_web_search_config, _gigachat_token); re-exports the provider modules so existing monkeypatch points keep working | - |
+| `core/api_payload.py` | Python | Request assembly: output limits, tools normalisation, token estimation and the structured-output formats for Responses, chat/completions and GigaChat | - |
+| `core/api_responses.py` | Python | Parsing of Responses API bodies: visible text assembly, failure and truncation diagnostics, JSON unwrapping and schema-rejection detection | - |
 | `core/api_token_store.py` | Python | Storage and checking of API access tokens: generation with a fixed prefix, sha256 hash at rest (the plaintext is shown once), constant-time comparison, enable/disable, revocation and last-use tracking | storage |
+| `core/api_yandex.py` | Python | Yandex AI Studio Responses transport: gpt:// model URI, reasoning effort, web-search configuration and request assembly | - |
 | `core/assistant_creator.py` | Python | Validation and linting helpers for assistant prompts | - |
 | `core/assistant_folders.py` | Python | _(описание не задано)_ | - |
 | `core/assistant_nav.py` | Python | _(описание не задано)_ | - |
@@ -101,6 +113,7 @@
 | `core/orchestrators.py` | Python | Orchestrator CRUD and assistant assembly: build_assistant_dicts appends skills, instructions, the owner profile card, the working-memory block, connections, RAG bases, delegation and the tool catalog; get_delegation_limits/set_delegation_limits cover six delegation limits plus the five dialog limits (rounds, question and answer length, answer wait, parked runs) and clamp every unknown or invalid value to its documented default on write; the bundled executor's right lives in config.universal_agent_enabled (an absent key reads as enabled, so a new employee is granted it without a migration), get_universal_agent_enabled/set_universal_agent_enabled never rewrite allowed_agents, and get_effective_agents is the one list the runtime enforces and the prompt advertises, skipping a duplicate manual entry, the employee itself and a deleted executor | storage |
 | `core/paths.py` | Python | Central path registry: DATA_DIR, DB_PATH, personal memory folder, AGENTS_DATA_DIR (the central root of the orchestrators' working folders) and ensure_data_dirs for the runtime layout | - |
 | `core/personal_memory.py` | Python | Personal memory layer: scopes user / orchestrator:<slug> / project:<hash12> / connector:<id> (adapter), 64 KiB per-scope limit, atomic write with updated_at/updated_by/revision header, ten recoverable versions under personal/.backups, credential screening, caller-based write rights, archive on employee deletion, owner-card rendering | - |
+| `core/prompt_blocks.py` | Python | _(описание не задано)_ | - |
 | `core/prompt_guard.py` | Python | Prompt-injection protection and sanitization | - |
 | `core/prompt_improver.py` | Python | _(описание не задано)_ | - |
 | `core/rag.py` | Python | RAG base CRUD: folder and manifest (search_mode bm25/vector/hybrid, default bm25), explicit-slug create_base (Latin, normalised), files, chunk stats and the provider-credentials activity flag | - |
@@ -128,17 +141,26 @@
 | `core/url_fetch.py` | Python | URL-fetch transport: fetch_endpoint resolves fetch_base_url (or derives the sibling /v1/tools/fetch from base_url, never duplicating the version segment), validate_fetch_url enforces http/https, the 8192-character cap, no embedded credentials and no local/private hosts (SSRF guard, literal addresses only), fetch_page_content posts {url} with the provider bearer key and returns {title, content} in Markdown, extract_pdf_markdown turns PDF bytes into '### Page N' sections via pypdf, selenium_page_text renders a page in headless Chrome and returns its visible text; every failure is raised through the APIError contract (ApiKeyMissing/ProviderHTTP/RequestTimeout/Network/ProviderResponse) or SeleniumUnavailableError | - |
 | `core/version.py` | Python | Single source of truth for the SagaAI platform version (semver __version__ plus a documented release history); 2.23.0 records the subagent control tools, 2.30.0 records the ## Current date prompt block and the current_datetime tool (why the block is last, why it carries no time of day, the per-employee switch), 2.31.0 records the agent dialog (ask_parent parking, answer_child resuming the same run, the five frozen dialog limits, expiry and cleanup, the restart path), 2.34.0 records scheduled runs (rules, the scheduler loop, the headless run as an ordinary dialog, blocked days, the quiet window and the error hold) | - |
 | `core/marketplace/__init__.py` | Python | Marketplace package: public entry points, is_enabled master switch and re-exports of the catalog, installer, updates and rollback | - |
-| `core/marketplace/agent_installer.py` | Python | Installation of an agent entity: package downloaded, hash-verified and unpacked into staging, config_defaults merged into the bundle config before the import, then the orchestrator folder and the DB row created by the importer; a helper agent of kind assistant installs as an assistant profile (folder with manifest.json, prompt.md and text attachments plus a row in the assistants table), and the kind cannot switch for an installed entity | - |
+| `core/marketplace/agent_areas.py` | Python | Write side of an agent folder: staged files moved into place and stale files of the previous version removed, so an update never leaves a file the new package does not declare | - |
+| `core/marketplace/agent_assistant.py` | Python | Installing the assistant kind of an agent: folder with manifest.json, prompt.md and text attachments plus a row in the assistants table; a user-added attachment survives an update and an edited prompt is never overwritten by the catalog | - |
+| `core/marketplace/agent_installer.py` | Python | Facade of an agent install: the package is downloaded, hash-verified and unpacked into staging, the pre-flight checks run, the orchestrator or assistant area is written, the DB row is created and a failure rolls the run back; the areas themselves live in agent_orchestrator.py and agent_assistant.py, the checks in agent_preflight.py | - |
+| `core/marketplace/agent_orchestrator.py` | Python | Installing the orchestrator kind of an agent: config_defaults merged into the bundle config before the import, instruction files and custom functions written, then the folder imported as an employee | - |
+| `core/marketplace/agent_package.py` | Python | Kind of an agent package and its parsing: orchestrator or assistant plus the files each kind installs, read before anything is written so a package declaring another kind than the installed one is refused instead of half-applied | - |
+| `core/marketplace/agent_preflight.py` | Python | Pre-flight checks of an agent install: the kind, the platform range, the licence and the executable-code gate, all decided before the first file changes | - |
+| `core/marketplace/agent_run.py` | Python | Run bookkeeping of an agent install: the journal entry written before any change, the registry row and the journal marked done or failed, so an interrupted run can be rolled back on the next cold start | - |
 | `core/marketplace/bootstrap.py` | Python | Marketplace cold start: recover undoes a run interrupted by a crash and the one-time seeding of registry rows for skills installed before the marketplace existed; never touches the network | - |
 | `core/marketplace/bundles.py` | Python | Curated entity sets installed as one run: the recommended package of an agent card (recommends/bundle lists shown as checkboxes) and a catalog-level bundles/<id>.json pinning exact versions; both become one plan that states what each member would do and never touches the disk | - |
 | `core/marketplace/catalog.py` | Python | Catalog view for the showcase: index entries, entity cards with licence, required tools and platform range, plus the installed-version lookup | - |
 | `core/marketplace/config.py` | Python | Marketplace settings: the enabled switch, the catalog base URL, allow_code, require_signature, the channel and the history limits | - |
-| `core/marketplace/conflicts.py` | Python | Conflict matrix: resolve_plan answers what to do with an installed entity, local_state/detect_local_modifications compare content hashes rather than mtimes, and the three resolutions (keep_mine, take_catalog with a backup of every replaced file, fork) plus adopt, reset_to_catalog and uninstall | - |
+| `core/marketplace/conflict_fork.py` | Python | The fork resolution and its reverse action: the edited folder is copied to a new id and folder name while the original is brought to the catalog, and restore_user_version puts the backed-up files of a take_catalog run back in place | - |
+| `core/marketplace/conflict_state.py` | Python | What an installation looks like right now: the registry row of a catalog id, the folder it occupies, whether another entity took the folder and which declared files the user edited; comparison goes by content hash, never by modification time | - |
+| `core/marketplace/conflicts.py` | Python | Conflict matrix: resolve_plan answers what to do with an installed entity and the three resolutions (keep_mine, take_catalog with a backup of every replaced file, fork) sit next to adopt, reset_to_catalog and uninstall; the state it reads lives in conflict_state.py and the fork path in conflict_fork.py | - |
 | `core/marketplace/installer.py` | Python | Skill installer: run journal written before any file changes, package copied to a temporary folder and verified by sha256, atomic move into place and the single transaction over marketplace_installed and skills.json | - |
 | `core/marketplace/mcp_installer.py` | Python | Installation of an MCP entity: an MCP entity ships no files, it is a connector preset (transport config, credential fields, memory seed), so the installer creates a connection from that preset; identity is (service, preset_id) rather than a folder name | - |
 | `core/marketplace/migration.py` | Python | Adoption of entities installed before the catalog: LEGACY_DEFAULTS maps a bundled orchestrator, a prebuilt knowledge base, a preset skill and a connector preset to a synthetic bundled version, so the registry reports them as installed instead of offering a second copy; the bundled Universal-Agent is adopted the same way - the executor ships with the platform and with the catalog, so the preinstalled folder gets a registry row instead of a second install under a suffix | - |
 | `core/marketplace/publish.py` | Python | Catalog publisher tooling: builds the files the catalog repository layout expects (entity manifest, index entry, hashes, signature) so an author never hand-edits a manifest or a hash, using only the standard library and cryptography | - |
-| `core/marketplace/rag_installer.py` | Python | Installation of a rag entity: manifest.json, files/ sources and index.db with three distribution modes (prebuilt index, sources only, both), the index verified by index_sha256/index_schema and the base folder replaced atomically | - |
+| `core/marketplace/rag_area.py` | Python | Folder side of a knowledge-base install: distribution checks before writing, the atomic replacement of the base folder and the index verification | - |
+| `core/marketplace/rag_installer.py` | Python | Installation of a rag entity: manifest.json, files/ sources and index.db with three distribution modes (prebuilt index, sources only, both), the index verified by index_sha256/index_schema and the base folder replaced atomically; the distribution checks and the folder replacement live in rag_area.py | - |
 | `core/marketplace/registry.py` | Python | Installed registry: marketplace_installed rows keyed by catalog id, removal markers in marketplace_removed, export_registry_cache and the seed_local_orphans pass | storage |
 | `core/marketplace/rollback.py` | Python | Run rollback: restores the files, the registry row and skills.json byte for byte, and marks the journal entry as rolled back with its reason | - |
 | `core/marketplace/semver.py` | Python | Version parsing and comparison: semver ordering and the platform range check used by the catalog and the update path | - |
@@ -154,6 +176,8 @@
 | `core/schedules/runner.py` | Python | Headless execution of one scheduled point: opens the history row, creates an ordinary dialog thread of the employee (kind=dialog, no parent, so it shows up in History), runs the agent loop with the rule's task and brief, records the outcome and settles the rule - a manual run is a checkout that never moves the grid, and three failures in a row put the rule on error_hold | - |
 | `core/schedules/store.py` | Python | SQLite persistence of schedule rules and their run history: create/get/list/update/delete of a rule, list_due for the engine, the run rows (open_run, open_manual_run, finish_run, get_run_row, list_runs, count_runs, active_run, runs_today), the claim that makes one point fire at most once, and settle_schedule/set_next_run for the counters and the next point | storage |
 | `core/orchestration/__init__.py` | Python | Package marker for the multi-agent orchestration layer | - |
+| `core/orchestration/child_runner.py` | Python | Child-side runner of a delegated run: builds the child dispatcher with its narrowed tool catalog and its provider call, opens the transcript sink and the journal scope, restores the resume state, steps the child loop, forwards its events to the parent feed, and turns the settled state into an AgentRunResult that tells a parked question apart from an unfinished run | - |
+| `core/orchestration/child_text.py` | Python | Pure helpers of the child bootstrap, free of service state: derived child thread id and its files folder, and the child task text with the resolved uploads folder, so the same strings are produced for a spawn and for a resume | - |
 | `core/orchestration/contracts.py` | Python | Run contract types for delegated runs: AgentBrief (goal, constraints, artifacts_in as a name->path dict, acceptance criteria), SpawnRequest (agent_slug, brief, parent_run_id, depth), InvokeRequest (system, user, context_files, parent_run_id), Artifact, AgentRunResult (run_id, status, stop_reason, summary, artifacts_out, steps_used, error_code), CancelReport, AgentQuestion (question text, options, done/blocked notes, round, deadline) plus the status/stop-reason/error-code constants (cancelled, not_your_run, child_unfinished, answer_not_received, question_limit), to_dict serialization for every structure and the delegation and dialog defaults (five active children, 300 steps per child, 64 runs per tree; five dialog rounds, 1500/4000 character caps, a 900 second answer wait, 8 parked runs) with their clamps | - |
 | `core/orchestration/dialog_runner.py` | Python | Transport-neutral driver of a single dialog step: takes the thread, the message and callbacks, returns the step outcome; knows nothing about Streamlit or HTTP, so the UI and the API run the same loop | - |
 | `core/orchestration/invoke.py` | Python | invoke_once: exactly one model call for an assistant - no tool loop, no RAG, no file access; service and model resolve from the parent configuration, context_files are rendered as '### File: <name>' blocks and documents (PDF, DOCX, PPTX, XLSX, RTF, ODT, HTML) are read through core.document_text so one file stays one call, while an unreadable file lands in skipped_files | - |
@@ -217,7 +241,7 @@
 | `tests/test_chat_db_archive.py` | Python | Unit tests for the switch of the assistant dialogues: legacy detection, the layout stamp, the verified archive including messages that live only in the write-ahead log, the exact moment rows may leave the table, reuse of an identical archive and refusal of a stale one, reuse of the plain name only once, the notice read exactly once, and the failure modes (unverifiable archive, failed transcript write, unreadable database, a lock held by another connection) | storage |
 | `tests/test_chat_pagination.py` | Python | _(описание не задано)_ | ui |
 | `tests/test_child_thread_binding_index.py` | Python | Unit tests for the child thread index row and the transcript read path: binding creates the row with parent, kind, title and a history-relative path, a second bind keeps one row, an empty id is a no-op, a failing store never breaks the binding, a child never appears in the dialog list, a bound child reads as an empty conversation until its first message, the tool answers ok/empty/resume_unavailable, and a legacy dialog still falls back to the messages table | storage |
-| `tests/test_ci_check.py` | Python | Unit tests of the gate runner: requirements and lock parsing, version-range comparison, lock agreement of both constraint files, the type budget, the pass/fail outcome of every check and the exit code the caller acts on | - |
+| `tests/test_ci_check.py` | Python | Unit tests of the gate runner: requirements and lock parsing, version-range comparison, lock agreement of both constraint files, the type budget, the structural budget, the pass/fail outcome of every check and the exit code the caller acts on | - |
 | `tests/test_cli_commands.py` | Python | Command contract tests: doctor creates no database, tokens are verified by the API store, restore refuses without --yes in a non-interactive shell, migrate prepares a clean machine, and the running-platform guard answers with the documented code | - |
 | `tests/test_cli_console.py` | Python | Unit tests of the console output layer: exactly one JSON object on stdout, the human report, the error envelope and the reserved-stream behaviour | - |
 | `tests/test_cli_imports.py` | Python | Tests that the console imports without streamlit, fastapi or pydantic, in a subprocess with the packages blocked rather than merely absent | - |
@@ -265,6 +289,7 @@
 | `tests/test_i18n_sync.py` | Python | _(описание не задано)_ | - |
 | `tests/test_list_files.py` | Python | _(описание не задано)_ | - |
 | `tests/test_llm_utils_json_schema.py` | Python | _(описание не задано)_ | - |
+| `tests/test_loop_golden_payloads.py` | Python | Golden tests of the agent loop's observable behaviour on eight scenarios: the payload sent to the model, the dispatcher calls in order and the whole sequence of on_event publications | - |
 | `tests/test_marketplace_agent_installer.py` | Python | Unit tests for installing an agent entity: the config merge happens before the import, the importer writes the folder and the row, an unknown or switching kind is refused and a failed step leaves no half-installed orchestrator | - |
 | `tests/test_marketplace_assistant_installer.py` | Python | Unit tests for installing a helper agent: the assistant profile folder and the assistants row, text-only attachments, the kind recorded in the registry and the update path that keeps user attachments and an edited prompt | - |
 | `tests/test_marketplace_bundles.py` | Python | Unit tests for bundled entity sets: the recommended package preview with its per-member states, the catalog bundle record with pinned versions and the rollback of the already-installed members when a later one fails | - |
@@ -355,6 +380,7 @@
 | `tests/test_rag_with_stats.py` | Python | Unit: with_stats opt-out for RAG hot paths; mode-aware base activity (bm25/hybrid active without provider keys) | storage |
 | `tests/test_read_document.py` | Python | Tests for the read_document tool: path resolution, line window, empty state and error answers | storage |
 | `tests/test_recent_workspaces.py` | Python | Recent workspaces tests | storage |
+| `tests/test_refactor_budget.py` | Python | Unit tests of the structural ratchet: measuring (lines, nested functions, ruff complexity), the comparison rules, the three-status contract and the exit code, plus the check that the committed budget is green | refactor_budget |
 | `tests/test_render_token_line.py` | Python | Token line renderer tests | - |
 | `tests/test_resume_checkpoint.py` | Python | _(описание не задано)_ | - |
 | `tests/test_safety_mode.py` | Python | Safety-mode gate tests | - |
@@ -527,6 +553,14 @@
 | `tests/scenarios/test_yandex_models_catalog_scenario.py` | Python | Scenario tests for the YandexAI model catalog update | - |
 | `tests/scenarios/test_yandex_responses_failures_scenario.py` | Python | Scenario: Responses API failure handling (failed-status surfacing, blank input filtering) | - |
 | `tests/fixtures/mcp_demo_server.py` | Python | Stdlib MCP demo server fixture for tests: one-line JSON-RPC 2.0 over stdio with echo/fail/sleep tools | - |
+| `tests/fixtures/loop_golden/batch_calls.json` | JSON | Golden snapshot: two tool calls in one step and the events they produce | - |
+| `tests/fixtures/loop_golden/dsml_fallback.json` | JSON | Golden snapshot: a tool call written in the DSML dialect is recovered and dispatched | - |
+| `tests/fixtures/loop_golden/economy_window.json` | JSON | Golden snapshot: four steps under the reduced economy-mode context | - |
+| `tests/fixtures/loop_golden/manual_mode_gated.json` | JSON | Golden snapshot: manual mode gates a write that would otherwise be applied | - |
+| `tests/fixtures/loop_golden/plan_awaiting.json` | JSON | Golden snapshot: a plan is presented and the loop waits for the user | - |
+| `tests/fixtures/loop_golden/propose_staged.json` | JSON | Golden snapshot: a staged write stops the step awaiting approval | - |
+| `tests/fixtures/loop_golden/read_tool.json` | JSON | Golden snapshot: one read_file call, its result and the resulting answer | - |
+| `tests/fixtures/loop_golden/tool_error_feedback.json` | JSON | Golden snapshot: a failed tool result is fed back to the model | - |
 | `tests/fixtures/rag_eval/corpus.json` | JSON | Benchmark corpus for rag_eval: Russian marketing chunks carrying the RAG Base Creator header (reproduces the IDF-collapse defect) | - |
 | `tests/fixtures/rag_eval/multiproduct_corpus.json` | JSON | Benchmark corpus for the BM25F fielded index: several products whose bodies all mention the generic term while the product name lives ONLY in the header block | - |
 | `tests/fixtures/rag_eval/multiproduct_queries.json` | JSON | Ground-truth queries for multiproduct_corpus.json: product-scoped queries that a body-only index cannot resolve | - |
@@ -626,10 +660,12 @@
 | `langs/zh-CN.json` | JSON | Simplified Chinese UI strings | - |
 | `langs/zh_CN_guide.md` | Markdown | Chinese user guide | - |
 | `certs/russian_trusted_root_ca.pem` | PEM certificate | Russian Trusted Root CA certificate for GigaChat TLS | - |
-| `scripts/ci_check.py` | Python | The single gate runner: ruff, pyright against the committed error budget, the version manifest, lock agreement of both constraint files and the whole test suite in one sequential process; --list and --only select the checks, the exit code reports passed, failed or unrunnable | - |
+| `scripts/capture_loop_golden.py` | Python | Re-records the agent-loop golden snapshots (UPDATE_GOLDEN=1) and immediately re-runs the suite without the flag, so a snapshot that cannot be reproduced fails the same command | - |
+| `scripts/ci_check.py` | Python | The single gate runner: ruff, pyright against the committed error budget, the structural budget of the god files, the version manifest, lock agreement of both constraint files and the whole test suite in one sequential process; --list and --only select the checks, the exit code reports passed, failed or unrunnable | - |
 | `scripts/marketplace_publish.py` | Python | Command-line publisher of one entity version into the catalog repository: builds the entity folder, the index entry and the hashes through core.marketplace.publish and commits them | - |
 | `scripts/migrate_agent_data.py` | Python | CLI over core.memory_migration: --workspace to plan another project, --agents to scope the run, a dry-run by default and --apply to copy the files | - |
 | `scripts/rag_eval.py` | Python | Offline search-quality harness: indexes the benchmark corpus with the real core.rag_bm25 and scores a ground-truth query set with Recall@k / MRR / nDCG@k | - |
+| `scripts/refactor_budget.py` | Python | Structural ratchet for the god files: measures file length, longest function and the highest cyclomatic complexity with ruff C901, compares them against refactor_budget.json and reports ok/fail/env; the mccabe probe runs from a temporary config so the repository's ruff.toml is never touched | - |
 | `scripts/regenerate_project_map.py` | Python | CANONICAL generator of PROJECT_MAP.md: publish scope from file_versions.json (units + selectable) + responsibility dictionary; run it to regenerate the map (never hand-edit it) | - |
 | `scripts/verify_manifest.py` | Python | Manifest validator/maintainer: schema, coverage of git-tracked files, sha256 freshness, app_version consistency; prompt versions come from file headers on --init/--add; build artifacts of an editable install (``*.egg-info``) are skipped by suffix in the coverage walk; modes --init/--add/--fix-hashes/--json/--strict | - |
 | `dev_agent/__init__.py` | Python | Package marker | agent_loop, backup_manager, safe_writer, tool_executor, universal_agent, workspace_tools |
@@ -638,15 +674,57 @@
 | `dev_agent/assistant_model_resolver.py` | Python | Auto model resolution for assistant creation | llm_utils |
 | `dev_agent/backup_manager.py` | Python | Per-file backup/restore manager | - |
 | `dev_agent/config.py` | Python | DevAgent runtime config and protected path policy; empty-state neutral root (NEUTRAL_ROOT / WORKSPACE_SELECTED / ensure_neutral_root, apply_paths selected flag); MEMORY_ROOT and the memory: prefix make the role's working folder a second root of the file tools (to_project_relative / resolve_in_project), so memory stays reachable before a project is picked and a path outside both roots is still refused | - |
+| `dev_agent/document_tools.py` | Python | Pure helpers behind the extract_document_images tool: source selection, option parsing, the render decision, folding page renders into embedded pictures, dropping tiny images, answer assembly and the output folder | - |
 | `dev_agent/llm_utils.py` | Python | Unified LLM-call helper (assistant dict contract, legacy skill alias) | - |
 | `dev_agent/safe_writer.py` | Python | Safe full-file rewrite with diff/verification | backup_manager |
 | `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.28 working-memory section - two stores, the path taken from the platform block, memory: addressing, the second root and the no-project case; v3.26 subagent stop and transcript rules; v3.25 inherited protection mode; v3.23 self-sufficiency rule for comments/docs/tests; v3.21 Stage 0 recent-folders menu; v3.20 AGENT.md docs-first; v3.18 generated-PROJECT_MAP rule) | - |
 | `dev_agent/task_state.py` | Python | Per-thread task journal (TASK_STATE__<thread_id>.md) with section budgets and the compact digest; the thread id is an explicit parameter (current_thread_id, ensure_task_state_file, archive_and_start_task) with config.ACTIVE_THREAD_ID as a fallback, thread_scope pins a child thread in the current Python thread so parallel children never overwrite each other's journal, and journal retention (prune_task_state_journals) drops an empty journal older than PRUNE_MIN_AGE_DAYS and a finished delegated run whose parent journal is gone, sweeping both the project folder and the empty-state dialog folders once per process | backup_manager |
-| `dev_agent/tool_executor.py` | Python | DevAgent tool set; assistant tools, legacy skill aliases, skills-library and multimodal tools; the file tools resolve a path against the project root and the working-memory root (memory:<subpath>) and lift the empty-state guard for memory access, while a path outside both roots is refused; current_datetime answers what the prompt fact cannot - the time of day, the weekday of a date, epoch - and builds date_line with the same helper the prompt block uses, so the two sources cannot drift apart | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer |
+| `dev_agent/thread_scope.py` | Python | Pure targeting rules of the dialog search: scope normalisation and the set of thread ids and orchestrator slugs to search | - |
+| `dev_agent/tool_catalog_data.py` | Python | The workspace tool catalog and the argument-name allow-lists, kept apart from the facade as data without logic | - |
+| `dev_agent/tool_executor.py` | Python | DevAgent tool-set facade: the dispatcher (ToolExecutor.dispatch, workspace and danger guards, argument coercion) plus the deliberate re-export surface the handlers and the test suite look names up on; the tool bodies live in the dev_agent/tools package and read their dependencies through tools.deps.build_deps, which resolves the facade on every call | agent_loop, assistant_detector, assistant_model_resolver, backup_manager, llm_utils, safe_writer, tools |
+| `dev_agent/tool_registry.py` | Python | Pure helpers of the connection-tool registry and memory writes: overwrite-flag normalisation, append concatenation, the enabled service set, family registration and removal | - |
+| `dev_agent/tool_validation.py` | Python | Pre-execution validation of a tool call: disabled tools, argument names and delegation rights; free of dispatcher state, so the agent loop imports it directly instead of reaching through the facade | tool_catalog_data, tools |
 | `dev_agent/transcript.py` | Python | Append-only file store of delegated conversations, kept out of devagent.db: one JSONL segment per child under <history>/<parent>/subagents/<child>/ with rotation and a gzip-compressed cold segment, a single-line append under a per-path lock so a crash truncates at most the last line, event-prefix stripping, checkpoint records for resume, and retention (compress cold segments, drop whole segments of quiet threads, report - never silently delete - a folder whose index row is gone) | storage |
-| `dev_agent/universal_agent.py` | Python | Tool dispatcher for orchestrators: validate_tool_call resolves the run's disabled_tools first, then the argument specs, then the rights, without touching process globals; WORKSPACE_TOOL_ARGS describes the arguments of the delegation tools; get/set/list_personal_memory read and write the personal memory layer, and the file tools reach the working folder through the memory: prefix even with no project selected | storage, tool_executor |
+| `dev_agent/universal_agent.py` | Python | Tool dispatcher for orchestrators: the workspace tool methods, the orchestrator, connection and memory administration surface and the deliberate re-export of the names the handlers and the test suite look up; the catalog data, the call validation, the document-image helpers, the dialog-search targeting rules and the connection-tool registry live in separate modules of the package, so the facade keeps only dispatch and state; get/set/list_personal_memory read and write the personal memory layer, and the file tools reach the working folder through the memory: prefix even with no project selected | storage, tool_catalog_data, tool_executor, tool_validation |
 | `dev_agent/workspace_binding.py` | Python | Per-thread workspace binding registry under an RLock; thread_context applies and restores a thread's state, bind_child_thread gives a child run the parent's workspace with its own derived thread ({parent}__s{run_id[:8]}, no target_file), writes the child's thread index row (kind=subagent, parent_thread_id, a history-relative transcript_path, the workspace) idempotently and without letting a store failure break the run, and unbind_thread releases it when the run ends | storage |
 | `dev_agent/workspace_tools.py` | Python | Workspace layer: folders, project map (AST symbols, content fingerprint, GitHub-published scope filter), docs, snapshots; workspace_selected reporting and per-orchestrator recent workspaces (top 10) | backup_manager |
+| `dev_agent/tools/__init__.py` | Python | Package of the DevAgent tool handlers, grouped by subject: files, editing, patch, exec, workspace, assistants, library, catalog, args, text_utils, rag, history, web_search, url_fetch, images, clock and task_state | - |
+| `dev_agent/tools/args.py` | Python | Argument coercion for tool calls: numeric and boolean parameters arriving as strings are converted to the declared type, with per-tool rules for offset, limit, max_depth, top_k and the other numeric arguments | - |
+| `dev_agent/tools/assistants.py` | Python | Assistant tools: list_assistants, get_assistant_by_id, update_assistant_by_id, detect_and_select_assistant and create_assistant_for_task; the creation flow is split into _request_assistant_draft (the Assistant Creator call), _parse_assistant_draft with its three fallback levels, and _finish_assistant_creation (classification, profile resolution, save, evaluation) | assistant_detector, deps |
+| `dev_agent/tools/catalog.py` | Python | The tool catalog: tool names, schemas and descriptions in the order the prompt presents them, plus the workspace-required set the dispatcher guards on | - |
+| `dev_agent/tools/clock.py` | Python | current_datetime: time of day, weekday in English and Russian, ISO and DD.MM.YYYY forms, timezone offset and epoch; the date line comes from the same helper the prompt block uses, so the two sources cannot drift apart | deps |
+| `dev_agent/tools/deps.py` | Python | Dependency injection for the tool mixins: the ToolDeps dataclass, build_deps that reads the facade module on every call (so a patched or test-replaced function is picked up instead of a stale binding) and ToolMixin.deps(), the accessor every handler uses | - |
+| `dev_agent/tools/editing.py` | Python | Writing tools: propose_file (syntax check before a write, truncation guard, backup) and the apply_edit/discard_edit hooks the runner calls when the user clicks Apply or Discard in manual mode | deps, text_utils |
+| `dev_agent/tools/exec.py` | Python | Code execution tools: run_code and run_test, each in an isolated subprocess with a neutral cwd in the empty state, the danger gate, the timeout and output truncation | deps |
+| `dev_agent/tools/file_tree.py` | Python | The directory walk behind list_files, kept free of the facade: walk_tree returns the flat file entries and the per-directory entries down to a depth, _list_dir_entry lists one directory and decides whether to descend, visible_children and make_file_entry build the entries, safe_rel converts a path to the relative form; the relative-path and protection rules arrive as callables so the module never reads the tool dependencies | - |
+| `dev_agent/tools/files.py` | Python | Read and listing tools: read_file with its line window and the size and empty-state guards, list_files (argument validation plus the tree-walk call), verify_file and the per-file backup trio (create_backup, restore_backup, show_history); paths resolve against the project root and the working-memory root (memory:<subpath>), and a path outside both roots is refused | deps, file_tree |
+| `dev_agent/tools/history.py` | Python | Conversation history tools: get_history_index, get_history_messages and the dialog thread tools (search_in_threads, list_threads, read_thread) | deps |
+| `dev_agent/tools/images.py` | Python | Multimodal tools: analyze_image (project images or dialog uploads through the assigned vision model) and generate_image (the prompt, the optional save path, the JPEG written to disk) | deps |
+| `dev_agent/tools/library.py` | Python | Skills and instructions: list_skills_library, get_skill_folder, get_skill_prompt, get_skill_file, mark_skill_adapted and the instruction lookup tools | deps |
+| `dev_agent/tools/patch.py` | Python | apply_patch: exact anchors first, then the whitespace-tolerant fuzzy match with CRLF normalisation, occurrences and suggestions when an anchor is missing; the phases live in _coerce_edits, _apply_one_edit, _read_patch_target and _commit_patch so the tool body stays a coordinator | deps, safe_writer, text_utils |
+| `dev_agent/tools/rag.py` | Python | RAG tools: list_rag_bases and rag_search with the base search mode (bm25, vector, hybrid) resolved from the base settings, and rag_get_chunks for restoring the context around a hit | deps |
+| `dev_agent/tools/task_state.py` | Python | Task journal tools: task_state_init, task_state_read, task_state_update, task_state_mark_step and task_state_clear over the per-thread TASK_STATE__<thread_id>.md file | deps |
+| `dev_agent/tools/text_utils.py` | Python | Text helpers shared by the handlers: the usage string of a tool signature, line-window normalisation and the small formatting routines several tool groups need | - |
+| `dev_agent/tools/url_fetch.py` | Python | url_fetch: fetching one page or PDF as Markdown through the configured page-fetch model or Selenium, with the 30 000 character cap and the sanitised [DATA_FROM_URL_FETCH] body | deps |
+| `dev_agent/tools/web_search.py` | Python | web_search with the provider route: the search model of the orchestrator, the DeepSeek Anthropic branch, allowed domains, context size and the sanitised result | deps |
+| `dev_agent/tools/workspace.py` | Python | Workspace guard helpers of the package: workspace_guard_error builds the structured workspace_not_selected answer, _addresses_memory decides whether a path form reaches the working-memory root, and list_recent_workspaces returns the recent-folder menu; the remaining workspace tools live in dev_agent/workspace_tools.py | deps |
+| `dev_agent/loop/__init__.py` | Python | Package of the agent-loop building blocks the agent_loop facade re-exports: state, notices, the tool-result size policy, the answer parser and the JSON repair layer; the package splits the former single module without moving a public name | - |
+| `dev_agent/loop/context.py` | Python | What the loop injects and how much of it: the per-thread task-state block and the dialog artifacts folder (with the uploads notice), appended to the history chain as hidden append-only snapshots only when their content changed, re-appended at the tail when one slides out of the sent window; the economy mode itself - the history categories and one-line summaries, the message index, the tail/meta key, the token budget with hysteresis that folds its cut into the anchor, build_economy_context with the legacy and cache-friendly window strategies, and the carry/serialize/apply helpers that keep the anchor alive between user turns; facade-patched helpers are read at call time | - |
+| `dev_agent/loop/delegation.py` | Python | The fan-out phase of the loop, kept outside dispatch: the delegation and tree-routed tool names, _agent_brief_from_args, _delegation_parent_context and _delegation_base_dir (which folder a child inherits, empty state included), one handler per routed tool (spawn, resume, verify, sleep, cancel, status, result, journal read, thread read, ask/answer), batch validation before any pool slot is taken, and the parallel runner that keeps results in call order; the service, not the loop, owns the pool semaphore, the tree counter and cancellation | - |
+| `dev_agent/loop/json_repair.py` | Python | Recovery of JSON a model did not emit cleanly: the balanced-object scan, the lenient parser and the ordered cascade that applies bracket, brace, escape and raw-newline fixes one layer at a time, plus the truncated-call recovery and the per-block diagnostics that explain why each unparsed block failed; pure text processing with no loop state | - |
+| `dev_agent/loop/notices.py` | Python | Notice delivery for finished subagents: the [SUBAGENT_NOTICE:<run>:<status>] line, the parked-question variant carrying answer_child, the fence that keeps a child payload from breaking the line and drain_subagent_notices, which reads the tree mailbox once and turns each notice into a hidden system message | - |
+| `dev_agent/loop/parse.py` | Python | Turning a model answer into tool calls: the ordered repair layers of the lenient JSON cascade (fenced blocks, unbalanced braces, raw newlines and unclosed strings in values, truncated calls), the DSML family (markup extraction, argument unwrapping, required/oneof validation, per-call hints), and parse_tool_calls, which walks the layers in order and returns the diagnostics for a call it could not recover | - |
+| `dev_agent/loop/results.py` | Python | Tool-result size policy: a result above the inline limit is spilled to .dev_agent/tool_results/ and replaced by a bounded head+tail preview readable with read_file, an unspillable one above the hard cap becomes an explicit ok=False size error, and the persisted form stays bounded by keeping small documents verbatim and compacting large ones to scalar fields plus bulk_sizes | - |
+| `dev_agent/loop/signals.py` | Python | Reading a model answer: the strong/weak tool classes and classify_step_strength, the loop_status block and the legacy _requires_user_response field, the plan, question and approval patterns with _looks_like_plan and _prose_looks_like_question, and normalize_hyphens, which turns non-ASCII hyphens into ASCII ones before a patch anchor is matched; every pattern in one place, no loop state | - |
+| `dev_agent/loop/state.py` | Python | The two value objects the loop passes between its phases: AgentLoopState (messages, plan/task state, run identity, per-tool failure counters, step budget) and AgentResult (the final answer plus the status the runner writes back) | storage |
+| `dev_agent/loop/steps/__init__.py` | Python | Package marker of the phase modules the loop is split into | - |
+| `dev_agent/loop/steps/approvals.py` | Python | User decisions on parked calls: approve or deny a pending dangerous-command confirmation, approve or deny sanitized-content viewing, and resume the parked tool call with that decision | - |
+| `dev_agent/loop/steps/executing.py` | Python | Tool execution inside a step: dispatch, workspace info refresh, tool-failure accounting with its consecutive-error cutoff and the guidance text shown after a failure | - |
+| `dev_agent/loop/steps/models.py` | Python | What a step sends to the model: the outgoing history window with economy trimming and the latest context snapshot forced in, subagent notices delivered before the call, and the call itself with the resolved assistant settings | - |
+| `dev_agent/loop/steps/parsing.py` | Python | Reading the model answer of a step: repairing and parsing tool calls, dedupe diagnostics, loop_status extraction, plan and question strength, and the auto-continue decisions | - |
+| `dev_agent/loop/steps/prepare.py` | Python | State at the start of a step: normalising the resumed history, refreshing the context snapshots and the plan/task markers, plus the step timestamp helper | - |
+| `dev_agent/loop/steps/runner.py` | Python | One iteration of the loop end to end: prepare, call the model, parse, execute tools, collect results and finalize, returning the updated state | - |
+| `dev_agent/loop/steps/runtime.py` | Python | The runtime object a step receives instead of reaching for module globals: dispatcher, language, event emission, request sending and the context hooks | - |
 | `services/deepseek.json` | JSON | DeepSeek service definition (vision_base_url + vision_models catalog) | - |
 | `services/gigachat.json` | JSON | GigaChat service definition | - |
 | `services/yandex.json` | JSON | YandexAI service definition | - |
@@ -663,23 +741,43 @@
 ## Структура Python-модулей
 
 ### `ui/app.py`
-- `_build_orch_nav` (func, строка 68)
-- `_build_assistants_nav` (func, строка 99)
-- `active_marketplace_section` (func, строка 158)
-- `_render_nav_button` (func, строка 168)
-- `_render_marketplace_nav` (func, строка 190)
-- `_apply_theme` (func, строка 218)
-- `_sync_saved_theme` (func, строка 254)
-- `_sync_saved_theme_once` (func, строка 293)
-- `_build_ui_restore_payload` (func, строка 307)
-- `_restore_ui_reload_state` (func, строка 342)
-- `_handle_thread_deeplink` (func, строка 391)
-- `_run_dependency_check_once` (func, строка 430)
-- `_show_db_archive_notice_once` (func, строка 456)
-- `_show_chat_db_archive_notice_once` (func, строка 488)
-- `main` (func, строка 522)
-- `main._render_orch_button` (func, строка 811)
-- `main._matches_search` (func, строка 895)
+- `_build_orch_nav` (func, строка 75)
+- `_build_assistants_nav` (func, строка 106)
+- `active_marketplace_section` (func, строка 165)
+- `_render_nav_button` (func, строка 175)
+- `_render_marketplace_nav` (func, строка 197)
+- `_run_dependency_check_once` (func, строка 227)
+- `_show_db_archive_notice_once` (func, строка 253)
+- `_show_chat_db_archive_notice_once` (func, строка 285)
+- `_seed_defaults_once` (func, строка 319)
+- `_adopt_preexisting_entities` (func, строка 339)
+- `_session_defaults` (func, строка 365)
+- `_resolve_languages` (func, строка 412)
+- `_ensure_ui_lang` (func, строка 423)
+- `_render_sidebar_styles` (func, строка 443)
+- `_dispatch_page` (func, строка 493)
+- `_assistant_button` (func, строка 538)
+- `_render_assistants_section` (func, строка 566)
+- `_render_new_dialog_button` (func, строка 608)
+- `_reset_orchestrator_chat` (func, строка 638)
+- `_reset_assistant_chat` (func, строка 655)
+- `_render_active_dialog_indicator` (func, строка 667)
+- `_render_history_button` (func, строка 707)
+- `_render_employee_button` (func, строка 723)
+- `_render_employees_section` (func, строка 744)
+- `_render_settings_section` (func, строка 791)
+- `_render_language_and_theme` (func, строка 810)
+- `_render_sidebar_footer` (func, строка 845)
+- `_render_sidebar` (func, строка 855)
+- `main` (func, строка 912)
+
+### `ui/app_restore.py`
+- `_apply_theme` (func, строка 15)
+- `_sync_saved_theme` (func, строка 51)
+- `_sync_saved_theme_once` (func, строка 90)
+- `_build_ui_restore_payload` (func, строка 104)
+- `_restore_ui_reload_state` (func, строка 139)
+- `_handle_thread_deeplink` (func, строка 188)
 
 ### `ui/components/flash.py`
 - `_queue` (func, строка 39)
@@ -700,23 +798,59 @@
 - `page_access` (func, строка 28)
 
 ### `ui/pages/assistants.py`
-- `_get_show_form` (func, строка 53)
-- `_set_show_form` (func, строка 60)
-- `_get_edit_id` (func, строка 65)
-- `_set_edit_id` (func, строка 69)
-- `_format_tools_badge` (func, строка 74)
-- `_get_model_max_tokens_limit` (func, строка 93)
-- `_temperature_bounds` (func, строка 113)
-- `_clamp_temperature` (func, строка 127)
-- `page_assistants` (func, строка 133)
+- `_get_show_form` (func, строка 62)
+- `_set_show_form` (func, строка 70)
+- `_get_edit_id` (func, строка 76)
+- `_set_edit_id` (func, строка 81)
+- `page_assistants` (func, строка 87)
+- `_render_back_to_chat` (func, строка 110)
+- `_prepare_prompt_revision` (func, строка 138)
+- `_form_defaults` (func, строка 154)
+- `_render_assistant_form` (func, строка 198)
+- `_improve_prompt` (func, строка 250)
+- `_warn_saved_model` (func, строка 272)
+- `_render_model_fields` (func, строка 287)
+- `_render_rag_bases_section` (func, строка 359)
+- `_render_web_search_section` (func, строка 387)
+- `_render_files_section` (func, строка 412)
+- `_save_uploaded_files` (func, строка 437)
+- `_submit_assistant_form` (func, строка 462)
+- `_render_assistant_list` (func, строка 498)
+- `_render_assistant_card` (func, строка 517)
+- `_render_assistant_card_info` (func, строка 535)
+- `_render_delete_confirmation` (func, строка 558)
+
+### `ui/pages/assistants_helpers.py`
+- `_format_tools_badge` (func, строка 10)
+- `_get_model_max_tokens_limit` (func, строка 29)
+- `_temperature_bounds` (func, строка 47)
+- `_clamp_temperature` (func, строка 61)
+- `_model_choice_lists` (func, строка 67)
+- `_finalize_tools` (func, строка 79)
 
 ### `ui/pages/chat.py`
-- `_get_preselected` (func, строка 46)
-- `_uploader_counter` (func, строка 52)
-- `_uploader_key` (func, строка 57)
-- `_detach_file` (func, строка 68)
-- `page_run_query` (func, строка 75)
-- `page_run_query._on_tokens` (func, строка 407)
+- `_get_preselected` (func, строка 35)
+- `_uploader_counter` (func, строка 41)
+- `_uploader_key` (func, строка 46)
+- `_detach_file` (func, строка 51)
+- `page_run_query` (func, строка 58)
+- `_resolve_assistant` (func, строка 95)
+- `_warn_saved_model` (func, строка 128)
+- `_render_header` (func, строка 145)
+- `_render_quick_actions` (func, строка 165)
+- `_render_assistant_info` (func, строка 189)
+- `_render_history` (func, строка 206)
+- `_render_message_actions` (func, строка 225)
+- `_file_badge_html` (func, строка 250)
+- `_render_attached_badge` (func, строка 259)
+- `_render_uploader_styles` (func, строка 272)
+- `_render_send_form` (func, строка 287)
+- `_accept_uploaded_file` (func, строка 315)
+- `_render_form_file_badge` (func, строка 336)
+- `_render_token_indicator` (func, строка 354)
+- `_handle_send` (func, строка 371)
+- `_handle_send._on_tokens` (func, строка 387)
+- `_context_is_acceptable` (func, строка 421)
 
 ### `ui/pages/connectors.py`
 - `_conn_tab_labels` (func, строка 80)
@@ -797,94 +931,172 @@
 - `_human_size` (func, строка 886)
 
 ### `ui/pages/orchestrator.py`
-- `_chat_pref_config_keys` (func, строка 143)
-- `_chat_prefs` (func, строка 155)
-- `_save_chat_pref` (func, строка 163)
-- `_make_state_keys` (func, строка 179)
-- `_init_orch_state` (func, строка 217)
-- `_sk` (func, строка 224)
-- `_ss` (func, строка 229)
-- `_set_ss` (func, строка 234)
-- `_pop_ss` (func, строка 238)
-- `_save_economy_cache` (func, строка 242)
-- `_load_economy_cache` (func, строка 261)
-- `_attachments_manifest_path` (func, строка 268)
-- `_load_attachments_manifest` (func, строка 272)
-- `_folder_picker_key` (func, строка 290)
-- `_reset_folder_choice` (func, строка 301)
-- `_thread_folder` (func, строка 308)
-- `_apply_folder_choice` (func, строка 333)
-- `_render_folder_picker` (func, строка 373)
-- `_render_folder_picker._label` (func, строка 408)
-- `_assistant_dicts` (func, строка 459)
-- `_make_send_adapter` (func, строка 474)
-- `_make_send_adapter._adapter` (func, строка 490)
-- `_make_dispatcher` (func, строка 509)
-- `_assistant_has_api_key` (func, строка 535)
-- `_strip_html_details_tags` (func, строка 550)
-- `_strip_empty_fenced_blocks` (func, строка 566)
-- `_strip_tool_calls` (func, строка 623)
-- `_strip_tool_calls_for_message` (func, строка 689)
-- `_first_two_lines` (func, строка 716)
-- `_format_call_args_preview` (func, строка 729)
-- `_extract_result_body` (func, строка 747)
-- `_render_generated_image` (func, строка 761)
-- `_render_parked_question` (func, строка 789)
-- `_render_tool_result` (func, строка 812)
-- `_render_event_group` (func, строка 919)
-- `_split_events_by_run` (func, строка 939)
-- `_render_events` (func, строка 970)
-- `_render_event` (func, строка 994)
-- `_attach_events` (func, строка 1057)
-- `_dialog_tree_root` (func, строка 1086)
-- `_live_subagent_runs` (func, строка 1115)
-- `_waiting_subagent_runs` (func, строка 1148)
-- `_render_subagent_status` (func, строка 1188)
-- `_render_subagent_status._poll_children` (func, строка 1219)
-- `_do_step` (func, строка 1231)
-- `_do_step.on_event` (func, строка 1243)
-- `_do_step._forward_child_event` (func, строка 1332)
-- `_reset_dialog` (func, строка 1441)
-- `_load_thread` (func, строка 1468)
-- `_persist_thread_workspace_meta` (func, строка 1509)
-- `_chat_toolbar_widget_key` (func, строка 1536)
-- `_sync_chat_pref_checkbox` (func, строка 1546)
-- `_chat_toolbar_pref_changed` (func, строка 1564)
-- `_render_chat_toolbar` (func, строка 1574)
-- `_token_line_cache_key` (func, строка 1630)
-- `_render_token_line` (func, строка 1680)
-- `_split_chat_prompt` (func, строка 1765)
-- `_render_chat_tab` (func, строка 1786)
-- `_render_chat_tab.on_event` (func, строка 1980)
-- `_render_chat_tab.on_event` (func, строка 2005)
-- `_render_chat_tab.on_event` (func, строка 2049)
-- `_render_chat_tab.on_event` (func, строка 2072)
-- `_services_with_web_search` (func, строка 2221)
-- `_temp_slider` (func, строка 2233)
-- `_get_max_tokens_limit` (func, строка 2242)
-- `_render_optional_model_section` (func, строка 2262)
-- `settings_tabs_key` (func, строка 2337)
-- `settings_section_key` (func, строка 2342)
-- `pin_settings_section` (func, строка 2347)
-- `settings_save_failed` (func, строка 2359)
-- `_render_models_settings` (func, строка 2372)
-- `_render_prompt_settings` (func, строка 2603)
-- `_render_economy_settings` (func, строка 2645)
-- `_render_orch_system_tools` (func, строка 2702)
-- `_render_orchestrator_functions_settings` (func, строка 2744)
-- `_render_orchestrator_instructions_settings` (func, строка 2825)
-- `_render_orch_skills_settings` (func, строка 2902)
-- `_render_orch_rag_bases` (func, строка 2946)
-- `_render_orch_connections` (func, строка 3001)
-- `_render_orch_memory` (func, строка 3047)
-- `_dialog_limit` (func, строка 3145)
-- `_render_delegation_settings` (func, строка 3162)
-- `_render_other_settings` (func, строка 3399)
-- `page_orchestrator` (func, строка 3438)
-- `page_devagent` (func, строка 3453)
+- `_chat_prefs` (func, строка 173)
+- `_save_chat_pref` (func, строка 181)
+- `_make_state_keys` (func, строка 197)
+- `_init_orch_state` (func, строка 202)
+- `_ss` (func, строка 209)
+- `_set_ss` (func, строка 214)
+- `_pop_ss` (func, строка 218)
+- `_save_economy_cache` (func, строка 222)
+- `_load_economy_cache` (func, строка 241)
+- `_folder_picker_key` (func, строка 256)
+- `_reset_folder_choice` (func, строка 267)
+- `_thread_folder` (func, строка 274)
+- `_apply_folder_choice` (func, строка 299)
+- `_render_folder_picker` (func, строка 339)
+- `_render_folder_picker._label` (func, строка 353)
+- `_folder_picker_options` (func, строка 391)
+- `_open_folder_dialog` (func, строка 414)
+- `_assistant_dicts` (func, строка 432)
+- `_make_send_adapter` (func, строка 447)
+- `_make_send_adapter._adapter` (func, строка 463)
+- `_make_dispatcher` (func, строка 482)
+- `_assistant_has_api_key` (func, строка 508)
+- `_render_generated_image` (func, строка 551)
+- `_render_parked_question` (func, строка 579)
+- `_tool_result_summary` (func, строка 602)
+- `_tool_result_header` (func, строка 634)
+- `_render_tool_call_args` (func, строка 656)
+- `_render_result_payload` (func, строка 673)
+- `_render_tool_result` (func, строка 690)
+- `_render_event_group` (func, строка 724)
+- `_render_events` (func, строка 746)
+- `_render_tool_call_event` (func, строка 770)
+- `_render_applied_event` (func, строка 781)
+- `_render_skill_event` (func, строка 786)
+- `_render_phase_event` (func, строка 795)
+- `_render_retry_event` (func, строка 808)
+- `_render_incomplete_retry_event` (func, строка 819)
+- `_render_sanitized_event` (func, строка 825)
+- `_render_error_event` (func, строка 839)
+- `_render_event` (func, строка 856)
+- `_dialog_tree_root` (func, строка 881)
+- `_live_subagent_runs` (func, строка 910)
+- `_waiting_subagent_runs` (func, строка 934)
+- `_render_subagent_status` (func, строка 954)
+- `_render_subagent_status._poll_children` (func, строка 985)
+- `_read_step_flags` (func, строка 1005)
+- `_new_loop_state` (func, строка 1016)
+- `_ensure_loop_state` (func, строка 1057)
+- `_register_root_run` (func, строка 1078)
+- `_register_root_run._forward_child_event` (func, строка 1107)
+- `_handle_stop_requested` (func, строка 1119)
+- `_run_agent_step` (func, строка 1139)
+- `_persist_step_to_thread` (func, строка 1154)
+- `_commit_loop_state` (func, строка 1175)
+- `_do_step` (func, строка 1194)
+- `_do_step.on_event` (func, строка 1206)
+- `_reset_dialog` (func, строка 1247)
+- `_load_thread` (func, строка 1274)
+- `_sync_chat_pref_checkbox` (func, строка 1318)
+- `_chat_toolbar_pref_changed` (func, строка 1336)
+- `_render_chat_toolbar` (func, строка 1346)
+- `_token_line_cache_key` (func, строка 1402)
+- `_render_token_line` (func, строка 1452)
+- `_economy_window_info` (func, строка 1502)
+- `_render_chat_tab` (func, строка 1550)
+- `_render_chat_header` (func, строка 1610)
+- `_render_chat_styles` (func, строка 1633)
+- `_render_chat_welcome` (func, строка 1647)
+- `_apply_autoscroll` (func, строка 1657)
+- `_chat_show_count` (func, строка 1671)
+- `_render_show_earlier` (func, строка 1677)
+- `_render_chat_feed` (func, строка 1692)
+- `_render_history_message` (func, строка 1700)
+- `_render_user_message` (func, строка 1724)
+- `_render_assistant_message` (func, строка 1737)
+- `_render_message_controls` (func, строка 1763)
+- `_render_loop_status` (func, строка 1785)
+- `_resume_after_confirmation` (func, строка 1809)
+- `_render_danger_confirmation` (func, строка 1823)
+- `_render_sanitized_confirmation` (func, строка 1853)
+- `_render_confirmation_buttons` (func, строка 1884)
+- `_render_confirmation_buttons.on_event` (func, строка 1904)
+- `_render_confirmation_buttons.on_event` (func, строка 1918)
+- `_handle_chat_submission` (func, строка 1925)
+- `_build_submission_text` (func, строка 1959)
+- `_ensure_thread` (func, строка 1975)
+- `_collect_attachment_context` (func, строка 2011)
+- `_cancel_dialog_tree` (func, строка 2054)
+- `_render_active_controls` (func, строка 2069)
+- `_services_with_web_search` (func, строка 2085)
+- `_temp_slider` (func, строка 2097)
+- `_render_optional_model_section` (func, строка 2106)
+- `_current_optional_pair` (func, строка 2150)
+- `pin_settings_section` (func, строка 2184)
+- `settings_save_failed` (func, строка 2196)
+- `_render_models_settings` (func, строка 2209)
+- `_warn_unavailable_pair` (func, строка 2237)
+- `_render_reasoning_effort` (func, строка 2255)
+- `_render_strong_model_section` (func, строка 2275)
+- `_render_optional_capability_sections` (func, строка 2326)
+- `_render_search_model_section` (func, строка 2368)
+- `_render_search_pair` (func, строка 2389)
+- `_render_search_prompt` (func, строка 2431)
+- `_save_models_settings` (func, строка 2445)
+- `_render_prompt_settings` (func, строка 2473)
+- `_render_economy_settings` (func, строка 2515)
+- `_render_orch_system_tools` (func, строка 2572)
+- `_render_orchestrator_functions_settings` (func, строка 2614)
+- `_render_function_cards` (func, строка 2636)
+- `_render_function_form` (func, строка 2662)
+- `_render_orchestrator_instructions_settings` (func, строка 2705)
+- `_render_instruction_cards` (func, строка 2725)
+- `_render_instruction_form` (func, строка 2752)
+- `_render_orch_skills_settings` (func, строка 2792)
+- `_render_orch_rag_bases` (func, строка 2836)
+- `_render_orch_connections` (func, строка 2891)
+- `_render_orch_memory` (func, строка 2937)
+- `_render_memory_dir_section` (func, строка 2977)
+- `_render_memory_editor` (func, строка 3006)
+- `_render_delegation_settings` (func, строка 3042)
+- `_live_orchestrator_entries` (func, строка 3075)
+- `_render_allowed_agents` (func, строка 3083)
+- `_render_allowed_assistants` (func, строка 3130)
+- `_render_verifier_section` (func, строка 3158)
+- `_number_input_setting` (func, строка 3196)
+- `_render_delegation_limits` (func, строка 3207)
+- `_render_dialog_limits` (func, строка 3238)
+- `_save_delegation_settings` (func, строка 3278)
+- `_render_other_settings` (func, строка 3306)
+- `page_orchestrator` (func, строка 3345)
+- `page_devagent` (func, строка 3360)
 
 ### `ui/pages/orchestrator_settings.py`
 - `page_orchestrator_settings` (func, строка 37)
+
+### `ui/pages/orchestrator_text.py`
+- `_strip_html_details_tags` (func, строка 25)
+- `_strip_empty_fenced_blocks` (func, строка 40)
+- `_strip_tool_calls` (func, строка 97)
+- `_strip_tool_calls_for_message` (func, строка 162)
+- `_first_two_lines` (func, строка 184)
+- `_format_call_args_preview` (func, строка 197)
+- `_extract_result_body` (func, строка 215)
+- `_split_events_by_run` (func, строка 229)
+- `_attach_events` (func, строка 260)
+- `_sk` (func, строка 294)
+- `settings_tabs_key` (func, строка 299)
+- `settings_section_key` (func, строка 304)
+- `_chat_toolbar_widget_key` (func, строка 309)
+- `_chat_pref_config_keys` (func, строка 319)
+- `_attachments_manifest_path` (func, строка 331)
+- `_load_attachments_manifest` (func, строка 336)
+- `_model_ids` (func, строка 346)
+- `_is_agent_active` (func, строка 351)
+- `_last_assistant_index` (func, строка 356)
+- `_split_chat_prompt` (func, строка 365)
+- `_dialog_limit` (func, строка 386)
+- `_get_max_tokens_limit` (func, строка 403)
+- `_reindex_history` (func, строка 427)
+- `_release_step_resources` (func, строка 442)
+- `_sync_safety_mode` (func, строка 462)
+- `_persist_thread_workspace_meta` (func, строка 472)
+- `_tool_result_title` (func, строка 496)
+- `_select_live_runs` (func, строка 504)
+- `_select_waiting_runs` (func, строка 524)
+- `build_state_keys` (func, строка 552)
 
 ### `ui/pages/orchestrators.py`
 - `_go_to_page` (func, строка 24)
@@ -1010,6 +1222,16 @@
 - `upgrade` (func, строка 35)
 - `downgrade` (func, строка 40)
 
+### `core/api_bearer.py`
+- `bearer_request_impl` (func, строка 27)
+
+### `core/api_deepseek.py`
+- `_deepseek_reasoning_effort` (func, строка 56)
+- `_deepseek_responses_request` (func, строка 73)
+- `_anthropic_web_search_used` (func, строка 172)
+- `_extract_anthropic_text` (func, строка 188)
+- `_deepseek_anthropic_web_search` (func, строка 212)
+
 ### `core/api_errors.py`
 - `APIError` (class, строка 28)
 - `APIError.__init__` (func, строка 39)
@@ -1032,56 +1254,81 @@
 - `ContextWindowError.__init__` (func, строка 187)
 - `api_error_message` (func, строка 212)
 
+### `core/api_gigachat.py`
+- `_gigachat_messages` (func, строка 17)
+- `gigachat_token` (func, строка 83)
+- `gigachat_models_url` (func, строка 108)
+
+### `core/api_history_guard.py`
+- `_parse_sanitized_info` (func, строка 22)
+- `_protect_history` (func, строка 48)
+
+### `core/api_http.py`
+- `gigachat_verify_impl` (func, строка 40)
+- `_retry_params` (func, строка 71)
+- `retry_call` (func, строка 96)
+- `_extract_error_body` (func, строка 131)
+- `_extract_gigachat_error` (func, строка 152)
+
 ### `core/api_layer.py`
-- `_gigachat_verify` (func, строка 69)
-- `_retry_params` (func, строка 98)
-- `retry_call` (func, строка 123)
-- `_parse_sanitized_info` (func, строка 171)
-- `_get_model_max_tokens` (func, строка 197)
-- `_clamp_max_tokens` (func, строка 218)
-- `_prepare_response_content` (func, строка 246)
-- `_format_function_call_item` (func, строка 281)
-- `_normalise_json_schema` (func, строка 309)
-- `_responses_json_format` (func, строка 328)
-- `_openai_response_format` (func, строка 341)
-- `_gigachat_response_format` (func, строка 355)
-- `_unwrap_json_text` (func, строка 372)
-- `_is_schema_rejection` (func, строка 400)
-- `_extract_responses_text` (func, строка 422)
-- `_extract_deepseek_responses_text` (func, строка 480)
-- `_responses_failure_details` (func, строка 495)
-- `_responses_incomplete_details` (func, строка 530)
-- `_responses_failure_message` (func, строка 569)
-- `_raise_responses_failure` (func, строка 584)
-- `_content_has_material` (func, строка 595)
-- `_normalise_tools` (func, строка 621)
-- `_has_native_function_tools` (func, строка 639)
-- `_protect_history` (func, строка 654)
-- `_estimate_tokens_in` (func, строка 727)
-- `_bearer_request` (func, строка 738)
-- `_deepseek_reasoning_effort` (func, строка 823)
-- `_deepseek_responses_request` (func, строка 839)
-- `_anthropic_web_search_used` (func, строка 953)
-- `_extract_anthropic_text` (func, строка 969)
-- `_deepseek_anthropic_web_search` (func, строка 993)
-- `_yandex_reasoning_effort` (func, строка 1109)
-- `_yandex_web_search_config` (func, строка 1136)
-- `_assistant_web_search_config` (func, строка 1166)
-- `_yandex_responses_request` (func, строка 1195)
-- `_gigachat_messages` (func, строка 1317)
-- `_gigachat_token` (func, строка 1383)
-- `_extract_openai_message_text` (func, строка 1413)
-- `send_vision_request` (func, строка 1436)
-- `send_image_generation_request` (func, строка 1545)
-- `_assistant_rag_context` (func, строка 1629)
-- `send_request` (func, строка 1680)
-- `send_request._call` (func, строка 1820)
-- `send_request._call._send_once` (func, строка 1821)
-- `_do_request` (func, строка 1872)
-- `_extract_error_body` (func, строка 2036)
-- `_extract_gigachat_error` (func, строка 2057)
-- `_gigachat_models_url` (func, строка 2072)
-- `test_connection` (func, строка 2091)
+- `_gigachat_verify` (func, строка 121)
+- `_bearer_request` (func, строка 144)
+- `_deepseek_responses_request` (func, строка 155)
+- `_deepseek_anthropic_web_search` (func, строка 172)
+- `_assistant_web_search_config` (func, строка 188)
+- `_yandex_responses_request` (func, строка 217)
+- `_gigachat_token` (func, строка 242)
+- `send_vision_request` (func, строка 262)
+- `send_image_generation_request` (func, строка 371)
+- `_assistant_rag_context` (func, строка 455)
+- `_resolve_chat_service` (func, строка 509)
+- `_resolve_generation_settings` (func, строка 524)
+- `_compose_user_content` (func, строка 542)
+- `_resolve_tool_options` (func, строка 590)
+- `_run_with_retry` (func, строка 617)
+- `_run_with_retry._send_once` (func, строка 626)
+- `_run_with_retry._call` (func, строка 644)
+- `send_request` (func, строка 666)
+- `_svc_key` (func, строка 736)
+- `_svc_folder` (func, строка 748)
+- `_request_bearer` (func, строка 759)
+- `_request_deepseek` (func, строка 776)
+- `_request_yandex` (func, строка 796)
+- `_request_gigachat` (func, строка 839)
+- `_do_request` (func, строка 909)
+- `_first_test_model` (func, строка 940)
+- `_probe_bearer` (func, строка 949)
+- `_probe_responses` (func, строка 972)
+- `_probe_deepseek` (func, строка 1000)
+- `_probe_yandex` (func, строка 1013)
+- `_probe_responses_yandex` (func, строка 1029)
+- `_probe_gigachat` (func, строка 1055)
+- `test_connection` (func, строка 1097)
+
+### `core/api_payload.py`
+- `_get_model_max_tokens` (func, строка 21)
+- `_clamp_max_tokens` (func, строка 42)
+- `_normalise_json_schema` (func, строка 77)
+- `_responses_json_format` (func, строка 96)
+- `_openai_response_format` (func, строка 109)
+- `_gigachat_response_format` (func, строка 123)
+- `_content_has_material` (func, строка 140)
+- `_normalise_tools` (func, строка 166)
+- `_has_native_function_tools` (func, строка 184)
+- `_estimate_tokens_in` (func, строка 199)
+
+### `core/api_responses.py`
+- `_prepare_response_content` (func, строка 19)
+- `_format_function_call_item` (func, строка 54)
+- `_unwrap_json_text` (func, строка 77)
+- `_is_schema_rejection` (func, строка 105)
+- `_extract_responses_text` (func, строка 127)
+- `_extract_deepseek_responses_text` (func, строка 185)
+- `_responses_failure_details` (func, строка 200)
+- `_responses_incomplete_details` (func, строка 235)
+- `_responses_failure_message` (func, строка 274)
+- `_raise_responses_failure` (func, строка 289)
+- `_extract_openai_message_text` (func, строка 300)
 
 ### `core/api_token_store.py`
 - `hash_token` (func, строка 63)
@@ -1101,6 +1348,11 @@
 - `public_view` (func, строка 266)
 - `list_tokens` (func, строка 286)
 - `create_token` (func, строка 291)
+
+### `core/api_yandex.py`
+- `yandex_reasoning_effort` (func, строка 36)
+- `yandex_web_search_config` (func, строка 63)
+- `yandex_responses_request_impl` (func, строка 93)
 
 ### `core/assistant_creator.py`
 - `_section_headers` (func, строка 22)
@@ -1837,88 +2089,98 @@
 - `render_available_tools_block` (func, строка 354)
 
 ### `core/orchestrators.py`
-- `_ensure_default_orchestrators` (func, строка 108)
-- `_refresh_marketplace_registry_cache` (func, строка 127)
-- `_devagent_default_config` (func, строка 149)
-- `_devagent_default_config._str1` (func, строка 160)
-- `_devagent_default_config._num` (func, строка 166)
-- `_devagent_default_config._truthy` (func, строка 172)
-- `_devagent_default_config._lst` (func, строка 183)
-- `_default_economy_tail_messages` (func, строка 235)
-- `_default_economy_cache_enabled` (func, строка 242)
-- `_default_economy_cache_multiplier` (func, строка 247)
-- `_get_known_tool_names` (func, строка 261)
-- `_invalidate_known_tool_names` (func, строка 300)
-- `list_orchestrators` (func, строка 314)
-- `get_orchestrator` (func, строка 319)
-- `get_orchestrator_by_slug` (func, строка 324)
-- `create_orchestrator` (func, строка 332)
-- `_mark_prompt_edited` (func, строка 370)
-- `reset_builtin_prompt` (func, строка 398)
-- `save_orchestrator` (func, строка 431)
-- `delete_orchestrator` (func, строка 475)
-- `_mark_marketplace_removed` (func, строка 506)
-- `_sync_orchestrator_folder` (func, строка 539)
-- `reload_orchestrator_from_folder` (func, строка 570)
-- `sync_all_orchestrator_folders` (func, строка 634)
-- `get_enabled_skills` (func, строка 652)
-- `set_enabled_skills` (func, строка 666)
-- `get_enabled_connections` (func, строка 692)
-- `set_enabled_connections` (func, строка 706)
-- `_extend_prompt_with_personal_card` (func, строка 732)
-- `_extend_prompt_with_memory` (func, строка 771)
-- `_extend_prompt_with_working_memory` (func, строка 839)
-- `_extend_prompt_with_connections` (func, строка 908)
-- `get_allowed_agents` (func, строка 995)
-- `set_allowed_agents` (func, строка 1015)
-- `get_universal_agent_enabled` (func, строка 1044)
-- `set_universal_agent_enabled` (func, строка 1065)
-- `get_effective_agents` (func, строка 1086)
-- `get_allowed_assistants` (func, строка 1118)
-- `set_allowed_assistants` (func, строка 1137)
-- `get_verifier_agent` (func, строка 1169)
-- `set_verifier_agent` (func, строка 1189)
-- `get_delegation_limits` (func, строка 1234)
-- `set_delegation_limits` (func, строка 1255)
-- `get_disabled_tools` (func, строка 1286)
-- `set_disabled_tools` (func, строка 1306)
-- `_extend_prompt_with_tools` (func, строка 1330)
-- `get_orchestrator_rag_bases` (func, строка 1354)
-- `set_orchestrator_rag_bases` (func, строка 1371)
-- `_extend_prompt_with_rag_bases` (func, строка 1397)
-- `_extend_prompt_with_delegation` (func, строка 1448)
-- `_extend_prompt_with_skills` (func, строка 1586)
-- `_extend_prompt_with_instructions` (func, строка 1608)
-- `_format_utc_offset` (func, строка 1688)
-- `_current_date_line` (func, строка 1699)
-- `_extend_prompt_with_current_date` (func, строка 1713)
-- `_extend_prompt_with_dialog` (func, строка 1818)
-- `build_assistant_dicts` (func, строка 1840)
-- `build_assistant_dicts._resolve_effort` (func, строка 1905)
-- `get_web_search_prompt` (func, строка 1931)
-- `get_web_search_config` (func, строка 1946)
-- `get_fetch_config` (func, строка 1974)
-- `get_fetch_config._result` (func, строка 2007)
-- `get_economy_tail_messages` (func, строка 2031)
-- `get_economy_cache_enabled` (func, строка 2049)
-- `get_economy_cache_multiplier` (func, строка 2067)
-- `get_economy_config` (func, строка 2086)
-- `export_orchestrator` (func, строка 2100)
-- `_validate_imported_tools` (func, строка 2146)
-- `import_orchestrator` (func, строка 2172)
-- `_import_instructions` (func, строка 2291)
-- `_import_functions` (func, строка 2318)
-- `orch_list_instructions` (func, строка 2336)
-- `orch_get_instruction` (func, строка 2341)
-- `orch_save_instruction` (func, строка 2346)
-- `orch_delete_instruction` (func, строка 2357)
-- `orch_list_functions` (func, строка 2364)
-- `orch_get_function` (func, строка 2369)
-- `orch_save_function` (func, строка 2374)
-- `orch_delete_function` (func, строка 2379)
-- `ensure_builtin_orchestrators` (func, строка 2388)
-- `load_devagent_config` (func, строка 2603)
-- `save_devagent_config` (func, строка 2642)
+- `_ensure_default_orchestrators` (func, строка 120)
+- `_refresh_marketplace_registry_cache` (func, строка 139)
+- `_devagent_default_config` (func, строка 161)
+- `_devagent_default_config._str1` (func, строка 172)
+- `_devagent_default_config._num` (func, строка 178)
+- `_devagent_default_config._truthy` (func, строка 184)
+- `_devagent_default_config._lst` (func, строка 195)
+- `_default_economy_tail_messages` (func, строка 247)
+- `_default_economy_cache_enabled` (func, строка 254)
+- `_default_economy_cache_multiplier` (func, строка 259)
+- `_get_known_tool_names` (func, строка 273)
+- `_invalidate_known_tool_names` (func, строка 312)
+- `list_orchestrators` (func, строка 326)
+- `get_orchestrator` (func, строка 331)
+- `get_orchestrator_by_slug` (func, строка 336)
+- `create_orchestrator` (func, строка 344)
+- `_mark_prompt_edited` (func, строка 382)
+- `reset_builtin_prompt` (func, строка 410)
+- `save_orchestrator` (func, строка 443)
+- `delete_orchestrator` (func, строка 487)
+- `_mark_marketplace_removed` (func, строка 518)
+- `_sync_orchestrator_folder` (func, строка 551)
+- `reload_orchestrator_from_folder` (func, строка 582)
+- `sync_all_orchestrator_folders` (func, строка 646)
+- `get_enabled_skills` (func, строка 664)
+- `set_enabled_skills` (func, строка 678)
+- `get_enabled_connections` (func, строка 704)
+- `set_enabled_connections` (func, строка 718)
+- `_extend_prompt_with_personal_card` (func, строка 744)
+- `_extend_prompt_with_memory` (func, строка 783)
+- `_extend_prompt_with_working_memory` (func, строка 851)
+- `_extend_prompt_with_connections` (func, строка 920)
+- `get_allowed_agents` (func, строка 1007)
+- `set_allowed_agents` (func, строка 1027)
+- `get_universal_agent_enabled` (func, строка 1056)
+- `set_universal_agent_enabled` (func, строка 1077)
+- `get_effective_agents` (func, строка 1098)
+- `get_allowed_assistants` (func, строка 1130)
+- `set_allowed_assistants` (func, строка 1149)
+- `get_verifier_agent` (func, строка 1181)
+- `set_verifier_agent` (func, строка 1201)
+- `get_delegation_limits` (func, строка 1246)
+- `set_delegation_limits` (func, строка 1267)
+- `get_disabled_tools` (func, строка 1298)
+- `set_disabled_tools` (func, строка 1318)
+- `_extend_prompt_with_tools` (func, строка 1342)
+- `get_orchestrator_rag_bases` (func, строка 1366)
+- `set_orchestrator_rag_bases` (func, строка 1383)
+- `_extend_prompt_with_rag_bases` (func, строка 1409)
+- `_delegation_availability` (func, строка 1460)
+- `_agent_delegation_lines` (func, строка 1481)
+- `_assistant_delegation_lines` (func, строка 1511)
+- `_verify_delegation_lines` (func, строка 1527)
+- `_extend_prompt_with_delegation` (func, строка 1532)
+- `_extend_prompt_with_skills` (func, строка 1577)
+- `_extend_prompt_with_instructions` (func, строка 1599)
+- `_format_utc_offset` (func, строка 1675)
+- `_current_date_line` (func, строка 1680)
+- `_extend_prompt_with_current_date` (func, строка 1689)
+- `_extend_prompt_with_dialog` (func, строка 1761)
+- `build_assistant_dicts` (func, строка 1783)
+- `build_assistant_dicts._resolve_effort` (func, строка 1848)
+- `get_web_search_prompt` (func, строка 1874)
+- `get_web_search_config` (func, строка 1889)
+- `get_fetch_config` (func, строка 1917)
+- `get_fetch_config._result` (func, строка 1950)
+- `get_economy_tail_messages` (func, строка 1974)
+- `get_economy_cache_enabled` (func, строка 1992)
+- `get_economy_cache_multiplier` (func, строка 2010)
+- `get_economy_config` (func, строка 2029)
+- `export_orchestrator` (func, строка 2043)
+- `_validate_imported_tools` (func, строка 2089)
+- `import_orchestrator` (func, строка 2115)
+- `_import_instructions` (func, строка 2234)
+- `_import_functions` (func, строка 2261)
+- `orch_list_instructions` (func, строка 2279)
+- `orch_get_instruction` (func, строка 2284)
+- `orch_save_instruction` (func, строка 2289)
+- `orch_delete_instruction` (func, строка 2300)
+- `orch_list_functions` (func, строка 2307)
+- `orch_get_function` (func, строка 2312)
+- `orch_save_function` (func, строка 2317)
+- `orch_delete_function` (func, строка 2322)
+- `_load_bundled_prompt_text` (func, строка 2331)
+- `_first_boot_config` (func, строка 2345)
+- `_builtin_tool_names` (func, строка 2375)
+- `_create_builtin_orchestrator` (func, строка 2385)
+- `_backfill_builtin_config` (func, строка 2416)
+- `_migrate_builtin_max_steps` (func, строка 2498)
+- `ensure_builtin_orchestrators` (func, строка 2506)
+- `load_devagent_config` (func, строка 2561)
+- `save_devagent_config` (func, строка 2600)
 
 ### `core/paths.py`
 - `ensure_data_dirs` (func, строка 44)
@@ -1955,6 +2217,10 @@
 - `card_cap` (func, строка 670)
 - `render_owner_card` (func, строка 687)
 - `rebuild_index` (func, строка 746)
+
+### `core/prompt_blocks.py`
+- `format_utc_offset` (func, строка 127)
+- `current_date_line` (func, строка 138)
 
 ### `core/prompt_guard.py`
 - `wrap_data` (func, строка 34)
@@ -2392,30 +2658,58 @@
 - `download_bytes` (func, строка 333)
 - `selenium_page_text` (func, строка 405)
 
+### `core/marketplace/agent_areas.py`
+- `_orchestrator_area_files` (func, строка 23)
+- `_assistant_area_files` (func, строка 55)
+- `area_files` (func, строка 93)
+- `_remove_stale_area_files` (func, строка 122)
+
+### `core/marketplace/agent_assistant.py`
+- `_check_assistant_attachments` (func, строка 37)
+- `_stage_assistant_package` (func, строка 56)
+- `_plan_assistant_attachments` (func, строка 92)
+- `_prepare_assistant_payload` (func, строка 128)
+- `_import_assistant_folder` (func, строка 172)
+- `_verify_assistant_area` (func, строка 206)
+- `_install_assistant` (func, строка 250)
+
 ### `core/marketplace/agent_installer.py`
-- `_orchestrator_area_files` (func, строка 52)
-- `_assistant_area_files` (func, строка 84)
-- `area_files` (func, строка 122)
-- `_remove_stale_area_files` (func, строка 151)
-- `_read_json` (func, строка 197)
-- `_read_text` (func, строка 209)
-- `_bundle_from_folder` (func, строка 218)
-- `_assistant_bundle_from_folder` (func, строка 294)
-- `_apply_config_defaults` (func, строка 344)
-- `_slug_taken` (func, строка 376)
-- `_pick_runtime_slug` (func, строка 401)
-- `_resolve_slug` (func, строка 430)
-- `_previous_package_meta` (func, строка 457)
-- `_merge_untouched` (func, строка 499)
-- `_merge_update_config` (func, строка 511)
-- `_agent_kind` (func, строка 534)
-- `_install_preflight` (func, строка 554)
-- `install_agent` (func, строка 657)
-- `_install_orchestrator` (func, строка 708)
-- `_previous_package_text` (func, строка 968)
-- `_merge_assistant_payload` (func, строка 1000)
-- `_install_assistant` (func, строка 1035)
-- `_fail_run` (func, строка 1319)
+- `install_agent` (func, строка 73)
+
+### `core/marketplace/agent_orchestrator.py`
+- `_stage_orchestrator_package` (func, строка 43)
+- `_backup_orchestrator_area` (func, строка 84)
+- `_merge_orchestrator_update` (func, строка 109)
+- `_import_orchestrator_bundle` (func, строка 144)
+- `_verify_orchestrator_area` (func, строка 170)
+- `_install_orchestrator` (func, строка 205)
+
+### `core/marketplace/agent_package.py`
+- `_read_json` (func, строка 26)
+- `_read_text` (func, строка 38)
+- `_bundle_from_folder` (func, строка 47)
+- `_assistant_bundle_from_folder` (func, строка 123)
+- `_apply_config_defaults` (func, строка 173)
+- `_previous_package_meta` (func, строка 203)
+- `_previous_package_text` (func, строка 245)
+- `_merge_untouched` (func, строка 277)
+- `_merge_update_config` (func, строка 289)
+- `_merge_assistant_payload` (func, строка 312)
+
+### `core/marketplace/agent_preflight.py`
+- `_slug_taken` (func, строка 39)
+- `_pick_runtime_slug` (func, строка 64)
+- `_resolve_slug` (func, строка 93)
+- `_agent_kind` (func, строка 120)
+- `_install_preflight` (func, строка 140)
+
+### `core/marketplace/agent_run.py`
+- `open_agent_run` (func, строка 20)
+- `write_agent_run_meta` (func, строка 48)
+- `register_agent` (func, строка 84)
+- `commit_agent_run` (func, строка 139)
+- `report_agent_import_failure` (func, строка 169)
+- `fail_agent_run` (func, строка 182)
 
 ### `core/marketplace/bootstrap.py`
 - `recover` (func, строка 27)
@@ -2457,28 +2751,32 @@
 - `allow_code` (func, строка 83)
 - `save_settings` (func, строка 88)
 
+### `core/marketplace/conflict_fork.py`
+- `next_fork_id` (func, строка 30)
+- `next_fork_slug` (func, строка 40)
+- `_fork` (func, строка 50)
+- `_clone_skill_record` (func, строка 132)
+- `restore_user_version` (func, строка 154)
+
+### `core/marketplace/conflict_state.py`
+- `ConflictError` (class, строка 26)
+- `entity_folder` (func, строка 30)
+- `_slug_owner` (func, строка 47)
+- `detect_local_modifications` (func, строка 62)
+- `local_state` (func, строка 97)
+
 ### `core/marketplace/conflicts.py`
-- `ConflictError` (class, строка 38)
-- `entity_folder` (func, строка 44)
-- `_slug_owner` (func, строка 61)
-- `detect_local_modifications` (func, строка 76)
-- `local_state` (func, строка 111)
-- `resolve_plan` (func, строка 149)
-- `_plan` (func, строка 259)
-- `_adoptable` (func, строка 274)
-- `adopt` (func, строка 294)
-- `_skill_id_of` (func, строка 351)
-- `resolve_three_way` (func, строка 366)
-- `_apply_choice` (func, строка 408)
-- `_fail` (func, строка 598)
-- `next_fork_id` (func, строка 621)
-- `next_fork_slug` (func, строка 631)
-- `_fork` (func, строка 641)
-- `_clone_skill_record` (func, строка 719)
-- `restore_user_version` (func, строка 743)
-- `reset_to_catalog` (func, строка 791)
-- `uninstall` (func, строка 953)
-- `_remove_connection` (func, строка 1024)
+- `resolve_plan` (func, строка 56)
+- `_plan` (func, строка 166)
+- `_adoptable` (func, строка 181)
+- `adopt` (func, строка 201)
+- `_skill_id_of` (func, строка 258)
+- `resolve_three_way` (func, строка 273)
+- `_apply_choice` (func, строка 315)
+- `_fail` (func, строка 505)
+- `reset_to_catalog` (func, строка 530)
+- `uninstall` (func, строка 692)
+- `_remove_connection` (func, строка 763)
 
 ### `core/marketplace/installer.py`
 - `InstallError` (class, строка 37)
@@ -2492,11 +2790,17 @@
 - `_write_skill_metadata` (func, строка 145)
 - `_licence_state` (func, строка 163)
 - `_utc_now` (func, строка 181)
-- `install_skill` (func, строка 186)
-- `install_entity` (func, строка 446)
-- `_fail_run` (func, строка 513)
-- `_display_name` (func, строка 555)
-- `_display_description` (func, строка 571)
+- `_skill_gate` (func, строка 186)
+- `_stage_skill_package` (func, строка 272)
+- `_prepare_skill_area` (func, строка 310)
+- `_import_skill_folder` (func, строка 346)
+- `_register_skill` (func, строка 366)
+- `_commit_skill_run` (func, строка 424)
+- `install_skill` (func, строка 450)
+- `install_entity` (func, строка 559)
+- `_fail_run` (func, строка 626)
+- `_display_name` (func, строка 668)
+- `_display_description` (func, строка 684)
 
 ### `core/marketplace/mcp_installer.py`
 - `preset_of` (func, строка 59)
@@ -2508,9 +2812,15 @@
 - `preset_config` (func, строка 176)
 - `find_connection` (func, строка 249)
 - `_connection_config` (func, строка 275)
-- `install_mcp` (func, строка 283)
-- `_secret_field_names` (func, строка 528)
-- `_apply_non_secret_changes` (func, строка 540)
+- `_mcp_gate` (func, строка 283)
+- `_resolve_mcp_target` (func, строка 332)
+- `_apply_mcp_target` (func, строка 358)
+- `_create_mcp_connection` (func, строка 381)
+- `_register_mcp` (func, строка 413)
+- `_mcp_report` (func, строка 454)
+- `install_mcp` (func, строка 488)
+- `_secret_field_names` (func, строка 657)
+- `_apply_non_secret_changes` (func, строка 669)
 
 ### `core/marketplace/migration.py`
 - `_data_dir` (func, строка 72)
@@ -2560,21 +2870,33 @@
 - `verify_index_signature` (func, строка 649)
 - `publish` (func, строка 691)
 
+### `core/marketplace/rag_area.py`
+- `_files_under` (func, строка 22)
+- `_write_text` (func, строка 35)
+- `_check_index` (func, строка 42)
+- `_build_index` (func, строка 77)
+
 ### `core/marketplace/rag_installer.py`
-- `_localized` (func, строка 55)
-- `distribution_of` (func, строка 69)
-- `check_distribution` (func, строка 75)
-- `base_manifest` (func, строка 187)
-- `_safe_slug` (func, строка 237)
-- `_slug_taken` (func, строка 248)
-- `_pick_runtime_slug` (func, строка 261)
-- `_resolve_slug` (func, строка 272)
-- `_files_under` (func, строка 294)
-- `_write_text` (func, строка 307)
-- `_check_index` (func, строка 314)
-- `_build_index` (func, строка 349)
-- `install_rag` (func, строка 365)
-- `_fail_run` (func, строка 636)
+- `_localized` (func, строка 61)
+- `distribution_of` (func, строка 75)
+- `check_distribution` (func, строка 81)
+- `base_manifest` (func, строка 193)
+- `_safe_slug` (func, строка 243)
+- `_slug_taken` (func, строка 254)
+- `_pick_runtime_slug` (func, строка 267)
+- `_resolve_slug` (func, строка 278)
+- `_rag_gate` (func, строка 300)
+- `_stage_rag_sources` (func, строка 361)
+- `_stage_rag_index` (func, строка 401)
+- `_prepare_rag_manifest` (func, строка 430)
+- `_plan_rag_placement` (func, строка 452)
+- `_write_rag_run_meta` (func, строка 462)
+- `_place_rag_files` (func, строка 499)
+- `_finalize_rag_index` (func, строка 518)
+- `_verify_rag_area` (func, строка 527)
+- `_register_rag` (func, строка 547)
+- `install_rag` (func, строка 592)
+- `_fail_run` (func, строка 725)
 
 ### `core/marketplace/registry.py`
 - `_session` (func, строка 50)
@@ -2861,6 +3183,26 @@
 - `release_stale_locks` (func, строка 438)
 - `set_next_run` (func, строка 455)
 
+### `core/orchestration/child_runner.py`
+- `resolve_child_agent` (func, строка 46)
+- `restore_child_history` (func, строка 64)
+- `child_display_name` (func, строка 99)
+- `bind_child_thread` (func, строка 106)
+- `build_child_dispatcher` (func, строка 128)
+- `build_child_dispatcher._send` (func, строка 156)
+- `open_child_sink` (func, строка 169)
+- `child_event_forwarder` (func, строка 193)
+- `child_event_forwarder._forward` (func, строка 207)
+- `apply_resume_state` (func, строка 228)
+- `step_child_loop` (func, строка 249)
+- `child_final_result` (func, строка 298)
+- `finish_child` (func, строка 327)
+
+### `core/orchestration/child_text.py`
+- `derive_child_thread_id` (func, строка 19)
+- `thread_files_dir_of` (func, строка 32)
+- `build_child_task_text` (func, строка 50)
+
 ### `core/orchestration/contracts.py`
 - `Artifact` (class, строка 218)
 - `Artifact.to_dict` (func, строка 230)
@@ -2954,85 +3296,86 @@
 - `notice_claimed` (func, строка 660)
 
 ### `core/orchestration/service.py`
-- `_as_int` (func, строка 140)
-- `read_limits` (func, строка 148)
-- `_dialog_limits_of` (func, строка 215)
-- `RunRecord` (class, строка 236)
-- `RunRecord.is_parked` (func, строка 308)
-- `RunRecord.is_terminal` (func, строка 314)
-- `RunRecord.to_result` (func, строка 318)
-- `RunRecord.to_record` (func, строка 336)
-- `_PoolSlot` (class, строка 410)
-- `_PoolSlot.__init__` (func, строка 421)
-- `_PoolSlot.__bool__` (func, строка 426)
-- `_PoolSlot.__repr__` (func, строка 429)
-- `_TreeState` (class, строка 433)
-- `_TreeState.__init__` (func, строка 445)
-- `_notice_key` (func, строка 464)
-- `_record_child_handoff` (func, строка 484)
-- `OrchestrationService` (class, строка 513)
-- `OrchestrationService.__init__` (func, строка 520)
-- `OrchestrationService.sweep_dead_runs` (func, строка 532)
-- `OrchestrationService.ensure_run` (func, строка 556)
-- `OrchestrationService.get_record` (func, строка 618)
-- `OrchestrationService.finish_run` (func, строка 623)
-- `OrchestrationService.close_root_run` (func, строка 687)
-- `OrchestrationService.release_tree` (func, строка 710)
-- `OrchestrationService.store_root` (func, строка 759)
-- `OrchestrationService.set_store_root` (func, строка 769)
-- `OrchestrationService.save_record` (func, строка 773)
-- `OrchestrationService.refresh_heartbeat` (func, строка 784)
-- `OrchestrationService.start_heartbeat` (func, строка 797)
-- `OrchestrationService.start_heartbeat._beat` (func, строка 808)
-- `OrchestrationService.record_from_store` (func, строка 824)
-- `OrchestrationService.revive_parked_run` (func, строка 842)
-- `OrchestrationService.list_records` (func, строка 918)
-- `OrchestrationService.roots_for_thread` (func, строка 962)
-- `OrchestrationService.post_notification` (func, строка 991)
-- `OrchestrationService.take_notifications` (func, строка 1010)
-- `OrchestrationService.has_notifications` (func, строка 1025)
-- `OrchestrationService._limit_error` (func, строка 1039)
-- `OrchestrationService._check_depth` (func, строка 1051)
-- `OrchestrationService._claim_run_slot` (func, строка 1060)
-- `OrchestrationService.acquire_pool` (func, строка 1074)
-- `OrchestrationService.release_pool` (func, строка 1103)
-- `OrchestrationService.pool_active` (func, строка 1139)
-- `OrchestrationService.subscribe` (func, строка 1149)
-- `OrchestrationService.subscribe._unsubscribe` (func, строка 1163)
-- `OrchestrationService._ancestors` (func, строка 1173)
-- `OrchestrationService.publish` (func, строка 1184)
-- `OrchestrationService.cancel` (func, строка 1211)
-- `OrchestrationService.is_cancelled` (func, строка 1267)
-- `OrchestrationService.parked_runs` (func, строка 1290)
-- `OrchestrationService.expire_parked` (func, строка 1307)
-- `OrchestrationService.expire_parked_in` (func, строка 1364)
-- `OrchestrationService.park_run` (func, строка 1381)
-- `OrchestrationService.take_parked_state` (func, строка 1457)
-- `OrchestrationService.continue_run` (func, строка 1462)
-- `OrchestrationService.answer_run` (func, строка 1552)
-- `OrchestrationService.set_child_runner` (func, строка 1662)
-- `OrchestrationService._run_child` (func, строка 1666)
-- `OrchestrationService.run` (func, строка 1729)
-- `OrchestrationService._prepare_child` (func, строка 1746)
-- `OrchestrationService._child_journal_path` (func, строка 1893)
-- `OrchestrationService._execute_child` (func, строка 1911)
-- `OrchestrationService.start` (func, строка 2004)
-- `OrchestrationService._background_worker` (func, строка 2040)
-- `OrchestrationService.poll` (func, строка 2096)
-- `OrchestrationService.wait` (func, строка 2117)
-- `OrchestrationService.list_runs` (func, строка 2149)
-- `OrchestrationService._release_run_slot` (func, строка 2154)
-- `OrchestrationService.invoke` (func, строка 2166)
-- `OrchestrationService.spawn_many` (func, строка 2199)
-- `OrchestrationService.spawn_many._worker` (func, строка 2217)
-- `derive_child_thread_id` (func, строка 2240)
-- `_thread_files_dir_of` (func, строка 2256)
-- `_build_child_task_text` (func, строка 2274)
-- `_tree_root_of` (func, строка 2327)
-- `_default_child_runner` (func, строка 2346)
-- `_default_child_runner._send` (func, строка 2465)
-- `_default_child_runner._child_event` (func, строка 2542)
-- `get_service` (func, строка 2683)
+- `_as_int` (func, строка 151)
+- `read_limits` (func, строка 159)
+- `_dialog_limits_of` (func, строка 226)
+- `RunRecord` (class, строка 247)
+- `RunRecord.is_parked` (func, строка 319)
+- `RunRecord.is_terminal` (func, строка 325)
+- `RunRecord.to_result` (func, строка 329)
+- `RunRecord.to_record` (func, строка 347)
+- `_PoolSlot` (class, строка 421)
+- `_PoolSlot.__init__` (func, строка 432)
+- `_PoolSlot.__bool__` (func, строка 437)
+- `_PoolSlot.__repr__` (func, строка 440)
+- `_TreeState` (class, строка 444)
+- `_TreeState.__init__` (func, строка 456)
+- `_notice_key` (func, строка 475)
+- `_record_child_handoff` (func, строка 495)
+- `OrchestrationService` (class, строка 524)
+- `OrchestrationService.__init__` (func, строка 531)
+- `OrchestrationService.sweep_dead_runs` (func, строка 543)
+- `OrchestrationService.ensure_run` (func, строка 567)
+- `OrchestrationService.get_record` (func, строка 629)
+- `OrchestrationService.finish_run` (func, строка 634)
+- `OrchestrationService.close_root_run` (func, строка 698)
+- `OrchestrationService.release_tree` (func, строка 721)
+- `OrchestrationService.store_root` (func, строка 770)
+- `OrchestrationService.set_store_root` (func, строка 780)
+- `OrchestrationService.save_record` (func, строка 784)
+- `OrchestrationService.refresh_heartbeat` (func, строка 795)
+- `OrchestrationService.start_heartbeat` (func, строка 808)
+- `OrchestrationService.start_heartbeat._beat` (func, строка 819)
+- `OrchestrationService.record_from_store` (func, строка 835)
+- `OrchestrationService.revive_parked_run` (func, строка 853)
+- `OrchestrationService.list_records` (func, строка 929)
+- `OrchestrationService.roots_for_thread` (func, строка 973)
+- `OrchestrationService.post_notification` (func, строка 1002)
+- `OrchestrationService.take_notifications` (func, строка 1021)
+- `OrchestrationService.has_notifications` (func, строка 1036)
+- `OrchestrationService._limit_error` (func, строка 1050)
+- `OrchestrationService._check_depth` (func, строка 1062)
+- `OrchestrationService._claim_run_slot` (func, строка 1071)
+- `OrchestrationService.acquire_pool` (func, строка 1085)
+- `OrchestrationService.release_pool` (func, строка 1114)
+- `OrchestrationService.pool_active` (func, строка 1150)
+- `OrchestrationService.subscribe` (func, строка 1160)
+- `OrchestrationService.subscribe._unsubscribe` (func, строка 1174)
+- `OrchestrationService._ancestors` (func, строка 1184)
+- `OrchestrationService.publish` (func, строка 1195)
+- `OrchestrationService.cancel` (func, строка 1222)
+- `OrchestrationService.is_cancelled` (func, строка 1278)
+- `OrchestrationService.parked_runs` (func, строка 1301)
+- `OrchestrationService.expire_parked` (func, строка 1318)
+- `OrchestrationService.expire_parked_in` (func, строка 1375)
+- `OrchestrationService.park_run` (func, строка 1392)
+- `OrchestrationService.take_parked_state` (func, строка 1468)
+- `OrchestrationService.continue_run` (func, строка 1473)
+- `OrchestrationService.answer_run` (func, строка 1563)
+- `OrchestrationService.set_child_runner` (func, строка 1673)
+- `OrchestrationService._run_child` (func, строка 1677)
+- `OrchestrationService.run` (func, строка 1740)
+- `OrchestrationService._resolve_resume_source` (func, строка 1757)
+- `OrchestrationService._resolve_spawn_parent` (func, строка 1802)
+- `OrchestrationService._configure_child_record` (func, строка 1828)
+- `OrchestrationService._prepare_child` (func, строка 1862)
+- `OrchestrationService._child_journal_path` (func, строка 1945)
+- `OrchestrationService._execute_child` (func, строка 1963)
+- `OrchestrationService.start` (func, строка 2056)
+- `OrchestrationService._background_worker` (func, строка 2092)
+- `OrchestrationService.poll` (func, строка 2148)
+- `OrchestrationService.wait` (func, строка 2169)
+- `OrchestrationService.list_runs` (func, строка 2201)
+- `OrchestrationService._release_run_slot` (func, строка 2206)
+- `OrchestrationService.invoke` (func, строка 2218)
+- `OrchestrationService.spawn_many` (func, строка 2251)
+- `OrchestrationService.spawn_many._worker` (func, строка 2269)
+- `derive_child_thread_id` (func, строка 2292)
+- `_thread_files_dir_of` (func, строка 2297)
+- `_build_child_task_text` (func, строка 2302)
+- `_tree_root_of` (func, строка 2313)
+- `_default_child_runner` (func, строка 2344)
+- `get_service` (func, строка 2482)
 
 ### `core/orchestration/tool_classes.py`
 - `_CallBlock` (class, строка 63)
@@ -4217,6 +4560,11 @@
 - `test_missing_pyright_is_an_environment_error` (func, строка 386)
 - `test_an_unparsable_report_fails_the_check` (func, строка 393)
 - `test_the_type_check_runs_before_the_manifest` (func, строка 401)
+- `test_the_budget_check_runs_before_the_manifest` (func, строка 407)
+- `test_a_missing_budget_script_is_an_environment_error` (func, строка 413)
+- `test_exceeding_the_structural_budget_fails_the_check` (func, строка 418)
+- `test_an_unmeasurable_structural_budget_is_an_environment_error` (func, строка 429)
+- `test_a_holding_structural_budget_passes_the_check` (func, строка 438)
 
 ### `tests/test_cli_commands.py`
 - `data_dir` (func, строка 29)
@@ -5251,6 +5599,32 @@
 - `test_no_json_schema_field_when_not_requested` (func, строка 42)
 - `test_adapter_form_call_unchanged` (func, строка 50)
 - `test_adapter_form_call_unchanged.adapter` (func, строка 55)
+
+### `tests/test_loop_golden_payloads.py`
+- `_normalise` (func, строка 62)
+- `_install` (func, строка 81)
+- `_install.fake_send` (func, строка 87)
+- `_install.spy` (func, строка 117)
+- `_install.spy.both` (func, строка 120)
+- `RecordingDispatcher` (class, строка 132)
+- `RecordingDispatcher.__init__` (func, строка 135)
+- `RecordingDispatcher._result` (func, строка 139)
+- `RecordingDispatcher.dispatch` (func, строка 147)
+- `RecordingDispatcher.dispatch_json` (func, строка 151)
+- `_copy` (func, строка 156)
+- `_result_view` (func, строка 164)
+- `_drive` (func, строка 181)
+- `scenario_read_tool` (func, строка 193)
+- `scenario_batch_calls` (func, строка 206)
+- `scenario_propose_staged` (func, строка 221)
+- `scenario_plan_awaiting` (func, строка 233)
+- `scenario_tool_error_feedback` (func, строка 243)
+- `scenario_dsml_fallback` (func, строка 256)
+- `scenario_manual_mode_gated` (func, строка 272)
+- `scenario_economy_window` (func, строка 283)
+- `_workspace_root` (func, строка 335)
+- `test_loop_payload_snapshot` (func, строка 345)
+- `_first_difference` (func, строка 370)
 
 ### `tests/test_marketplace_agent_installer.py`
 - `_agent_files` (func, строка 27)
@@ -7552,6 +7926,30 @@
 - `test_seed_from_own_threads_only` (func, строка 258)
 - `test_clear_one_scope_keeps_others` (func, строка 277)
 
+### `tests/test_refactor_budget.py`
+- `test_file_lines_does_not_count_the_trailing_newline` (func, строка 23)
+- `test_longest_function_sees_nested_functions` (func, строка 30)
+- `test_longest_function_of_a_file_without_functions` (func, строка 48)
+- `test_complexity_map_is_empty_for_an_absent_file` (func, строка 54)
+- `test_complexity_is_measured_with_ruff` (func, строка 58)
+- `test_compare_is_empty_when_every_value_is_within_the_budget` (func, строка 84)
+- `test_compare_reports_a_value_that_grew` (func, строка 90)
+- `test_compare_allows_a_value_to_fall` (func, строка 97)
+- `test_compare_reports_an_entry_that_is_no_longer_measured` (func, строка 103)
+- `test_compare_ignores_properties_the_budget_does_not_list` (func, строка 109)
+- `_budget` (func, строка 117)
+- `test_a_missing_budget_passes_and_says_so` (func, строка 123)
+- `test_an_unreadable_budget_is_an_environment_error` (func, строка 129)
+- `test_a_budget_without_limits_is_an_environment_error` (func, строка 135)
+- `test_the_gate_fails_when_a_measured_value_exceeds_the_budget` (func, строка 140)
+- `test_the_gate_passes_when_every_value_holds` (func, строка 148)
+- `test_a_measurement_problem_is_an_environment_error` (func, строка 154)
+- `test_main_returns_one_when_the_budget_is_exceeded` (func, строка 164)
+- `test_main_returns_two_for_an_environment_error` (func, строка 170)
+- `test_main_prints_the_result_as_json` (func, строка 175)
+- `test_the_committed_budget_lists_only_existing_files` (func, строка 184)
+- `test_the_committed_budget_holds_today` (func, строка 190)
+
 ### `tests/test_render_token_line.py`
 - `test_format_token_line_basic` (func, строка 10)
 - `test_format_token_line_with_economy_meta` (func, строка 17)
@@ -8174,7 +8572,10 @@
 - `test_the_resume_chain_is_capped` (func, строка 76)
 - `test_claims_about_earlier_dialogs_need_a_search` (func, строка 84)
 - `test_the_approval_gate_itself_is_unchanged_for_top_level_dialogs` (func, строка 94)
-- `test_the_prompt_stays_one_managed_file` (func, строка 105)
+- `test_a_nontrivial_change_starts_with_a_survey_and_a_spec` (func, строка 105)
+- `test_linters_run_before_the_test_tiers` (func, строка 120)
+- `test_an_approved_series_keeps_running` (func, строка 131)
+- `test_the_prompt_stays_one_managed_file` (func, строка 142)
 
 ### `tests/test_task_scout_default.py`
 - `platform` (func, строка 33)
@@ -10797,24 +11198,29 @@
 - `run` (func, строка 312)
 - `main` (func, строка 422)
 
+### `scripts/capture_loop_golden.py`
+- `_run` (func, строка 34)
+- `main` (func, строка 47)
+
 ### `scripts/ci_check.py`
-- `read_lines` (func, строка 57)
-- `clean_name` (func, строка 66)
-- `parse_requirements` (func, строка 74)
-- `parse_lock` (func, строка 99)
-- `version_tuple` (func, строка 130)
-- `_padded` (func, строка 151)
-- `satisfies` (func, строка 156)
-- `compare_lock` (func, строка 204)
-- `tail` (func, строка 227)
-- `run_process` (func, строка 233)
-- `check_ruff` (func, строка 251)
-- `load_budget` (func, строка 264)
-- `check_types` (func, строка 289)
-- `check_manifest` (func, строка 340)
-- `check_lock` (func, строка 352)
-- `check_tests` (func, строка 378)
-- `main` (func, строка 403)
+- `read_lines` (func, строка 64)
+- `clean_name` (func, строка 73)
+- `parse_requirements` (func, строка 81)
+- `parse_lock` (func, строка 106)
+- `version_tuple` (func, строка 137)
+- `_padded` (func, строка 158)
+- `satisfies` (func, строка 163)
+- `compare_lock` (func, строка 211)
+- `tail` (func, строка 234)
+- `run_process` (func, строка 240)
+- `check_ruff` (func, строка 258)
+- `load_budget` (func, строка 271)
+- `check_types` (func, строка 296)
+- `check_budget` (func, строка 347)
+- `check_manifest` (func, строка 370)
+- `check_lock` (func, строка 382)
+- `check_tests` (func, строка 408)
+- `main` (func, строка 434)
 
 ### `scripts/marketplace_publish.py`
 - `_read_manifest` (func, строка 65)
@@ -10842,6 +11248,21 @@
 - `_print_report` (func, строка 251)
 - `main` (func, строка 273)
 
+### `scripts/refactor_budget.py`
+- `_function_rows` (func, строка 55)
+- `_function_rows.walk` (func, строка 59)
+- `file_lines` (func, строка 73)
+- `longest_function` (func, строка 80)
+- `_ruff_command` (func, строка 91)
+- `complexity_map` (func, строка 97)
+- `measure` (func, строка 140)
+- `tail` (func, строка 170)
+- `compare` (func, строка 180)
+- `load_budget` (func, строка 213)
+- `check` (func, строка 230)
+- `report` (func, строка 255)
+- `main` (func, строка 276)
+
 ### `scripts/regenerate_project_map.py`
 - `build_publish_set` (func, строка 20)
 - `main` (func, строка 39)
@@ -10867,116 +11288,12 @@
 - `main` (func, строка 503)
 
 ### `dev_agent/agent_loop.py`
-- `_now_ts` (func, строка 159)
-- `_fence` (func, строка 173)
-- `format_subagent_notice` (func, строка 191)
-- `drain_subagent_notices` (func, строка 258)
-- `_tool_results_dir` (func, строка 342)
-- `_rotate_tool_result_spills` (func, строка 357)
-- `_spill_tool_result_doc` (func, строка 373)
-- `_compact_result_fields` (func, строка 398)
-- `_build_tool_result_preview` (func, строка 430)
-- `_apply_tool_result_cap` (func, строка 466)
-- `_summarize_single_tool_result_doc` (func, строка 561)
-- `summarize_tool_result_for_storage` (func, строка 584)
-- `_parse_loop_status` (func, строка 641)
-- `_parse_requires_user_response` (func, строка 650)
-- `_prose_contains_progress` (func, строка 668)
-- `_prose_looks_like_question` (func, строка 676)
-- `_looks_like_confirmation_request` (func, строка 695)
-- `_prose_looks_weak` (func, строка 703)
-- `_looks_like_plan` (func, строка 722)
-- `normalize_hyphens` (func, строка 760)
-- `classify_step_strength` (func, строка 764)
-- `_agent_brief_from_args` (func, строка 802)
-- `_delegation_parent_context` (func, строка 848)
-- `_delegation_job` (func, строка 875)
-- `_delegation_base_dir` (func, строка 1064)
-- `execute_delegation_calls` (func, строка 1094)
-- `execute_delegation_calls._work` (func, строка 1160)
-- `_summarise_result` (func, строка 1201)
-- `_extract_balanced_json_objects` (func, строка 1236)
-- `_unbalanced_json_details` (func, строка 1266)
-- `_unclosed_summary` (func, строка 1307)
-- `_repair_unclosed_braces` (func, строка 1322)
-- `_escape_raw_newlines_in_strings` (func, строка 1346)
-- `_repair_stray_bracket` (func, строка 1381)
-- `_collapse_value_escapes` (func, строка 1410)
-- `_unescape_json_string_body` (func, строка 1436)
-- `_try_layer_parse_chain` (func, строка 1471)
-- `_json_repair_cascade` (func, строка 1493)
-- `_json_loads_lenient` (func, строка 1547)
-- `_truncated_tool_json_segments` (func, строка 1567)
-- `_unparsed_tool_json_blocks` (func, строка 1592)
-- `_json_parse_cause` (func, строка 1615)
-- `_unparsed_tool_json_diagnostics` (func, строка 1638)
-- `_unparsed_block_signature` (func, строка 1681)
-- `_normalize_call` (func, строка 1698)
-- `_call_signature` (func, строка 1740)
-- `_coerce_dsml_param` (func, строка 1749)
-- `_coerce_dsml_param._attr` (func, строка 1759)
-- `_uses_dsml_markup` (func, строка 1806)
-- `_parse_dsml_json_value` (func, строка 1819)
-- `_unwrap_dsml_args` (func, строка 1872)
-- `_extract_dsml_calls` (func, строка 1902)
-- `_dsml_required_args` (func, строка 1946)
-- `_dsml_json_hint` (func, строка 1989)
-- `_dsml_validation_error` (func, строка 2001)
-- `_fallback_parse_propose_file` (func, строка 2025)
-- `_repair_unclosed_tool_json` (func, строка 2074)
-- `_cascade_recover_tool_calls` (func, строка 2112)
-- `parse_tool_calls` (func, строка 2139)
-- `AgentResult` (class, строка 2179)
-- `_maybe_task_state_context` (func, строка 2212)
-- `_snapshot_kind_of` (func, строка 2241)
-- `_last_snapshot` (func, строка 2261)
-- `_snapshot_content` (func, строка 2269)
-- `_append_context_snapshot` (func, строка 2274)
-- `refresh_context_snapshots` (func, строка 2292)
-- `_ensure_snapshot_visibility` (func, строка 2318)
-- `_maybe_thread_context` (func, строка 2343)
-- `_make_short_summary` (func, строка 2397)
-- `_classify_message` (func, строка 2425)
-- `_index_message` (func, строка 2450)
-- `_get_economy_tail_messages` (func, строка 2456)
-- `_economy_meta_key` (func, строка 2471)
-- `_make_meta_msg` (func, строка 2482)
-- `_estimate_messages_tokens` (func, строка 2507)
-- `_enforce_history_token_budget` (func, строка 2534)
-- `build_economy_context` (func, строка 2637)
-- `carry_over_economy_cache` (func, строка 2723)
-- `economy_cache_to_dict` (func, строка 2740)
-- `apply_economy_cache` (func, строка 2757)
-- `AgentLoopState` (class, строка 2781)
-- `_identical_block_count` (func, строка 2954)
-- `_dedupe_diagnostics` (func, строка 2983)
-- `_dominant_duplicate_call` (func, строка 3016)
-- `_record_tool_failure` (func, строка 3041)
-- `_tool_fail_guidance` (func, строка 3059)
-- `_mark_tool_failure` (func, строка 3077)
-- `_reset_tool_failures` (func, строка 3093)
-- `step_agent_loop` (func, строка 3102)
-- `_update_workspace_info` (func, строка 3122)
-- `_step_agent_loop_impl` (func, строка 3136)
-- `_step_agent_loop_impl.emit` (func, строка 3181)
-- `_step_agent_loop_impl._effective_assistant` (func, строка 3198)
-- `_step_agent_loop_impl._process_pending_action` (func, строка 3202)
-- `_step_agent_loop_impl._recoverable_error` (func, строка 3262)
-- `_step_agent_loop_impl._on_tokens` (func, строка 3350)
-- `_step_agent_loop_impl._on_sanitized` (func, строка 3359)
-- `_step_agent_loop_impl._on_retry` (func, строка 3362)
-- `_step_agent_loop_impl._on_incomplete` (func, строка 3378)
-- `approve_pending_confirmation` (func, строка 4102)
-- `approve_pending_confirmation.emit` (func, строка 4110)
-- `deny_pending_confirmation` (func, строка 4161)
-- `deny_pending_confirmation.emit` (func, строка 4169)
-- `approve_sanitized_content` (func, строка 4211)
-- `approve_sanitized_content.emit` (func, строка 4221)
-- `deny_sanitized_content` (func, строка 4258)
-- `deny_sanitized_content.emit` (func, строка 4267)
-- `run_agent_loop` (func, строка 4297)
-- `approve_and_apply` (func, строка 4401)
-- `discard` (func, строка 4405)
+- `_now_ts` (func, строка 221)
+- `step_agent_loop` (func, строка 243)
+- `_step_agent_loop_impl` (func, строка 260)
+- `run_agent_loop` (func, строка 287)
+- `approve_and_apply` (func, строка 389)
+- `discard` (func, строка 393)
 
 ### `dev_agent/assistant_detector.py`
 - `list_all_assistants_for_detection` (func, строка 45)
@@ -11026,6 +11343,26 @@
 - `_memory_relative` (func, строка 386)
 - `is_protected` (func, строка 400)
 - `resolve_in_project` (func, строка 410)
+
+### `dev_agent/document_tools.py`
+- `select_source` (func, строка 17)
+- `resolve_document` (func, строка 37)
+- `check_supported` (func, строка 69)
+- `read_document_bytes` (func, строка 81)
+- `parse_pages` (func, строка 90)
+- `parse_options` (func, строка 107)
+- `extract_kwargs` (func, строка 129)
+- `decide_render` (func, строка 134)
+- `build_render_kwargs` (func, строка 161)
+- `merge_renders` (func, строка 174)
+- `drop_small` (func, строка 205)
+- `empty_result` (func, строка 225)
+- `batch_size` (func, строка 245)
+- `group_batches` (func, строка 254)
+- `success_result` (func, строка 260)
+- `vision_available` (func, строка 294)
+- `document_images_dir` (func, строка 303)
+- `resolve_document_path` (func, строка 330)
 
 ### `dev_agent/llm_utils.py`
 - `_prefers_assistant_dict` (func, строка 31)
@@ -11100,84 +11437,32 @@
 - `_journal_directories` (func, строка 1616)
 - `prune_task_state_journals_once` (func, строка 1639)
 
+### `dev_agent/thread_scope.py`
+- `normalize_scope` (func, строка 21)
+- `select_targets` (func, строка 41)
+- `apply_active_thread` (func, строка 65)
+
 ### `dev_agent/tool_executor.py`
-- `_strip_line_numbers` (func, строка 77)
-- `_normalize_line_endings` (func, строка 97)
-- `_ws_tolerant_pattern` (func, строка 102)
-- `_norm_to_orig_map` (func, строка 128)
-- `_fuzzy_find_matches` (func, строка 142)
-- `_exact_spans` (func, строка 158)
-- `_line_of` (func, строка 171)
-- `_suggest_anchor_lines` (func, строка 176)
-- `_unknown_args` (func, строка 257)
-- `_usage_string` (func, строка 282)
-- `_coerce_numeric_args` (func, строка 307)
-- `_addresses_memory` (func, строка 381)
-- `workspace_guard_error` (func, строка 415)
-- `_subprocess_cwd` (func, строка 451)
-- `_validate_python_syntax` (func, строка 466)
-- `ToolExecutor` (class, строка 489)
-- `ToolExecutor.__init__` (func, строка 490)
-- `ToolExecutor.set_send_request` (func, строка 531)
-- `ToolExecutor.set_orchestrator_slug` (func, строка 536)
-- `ToolExecutor.dispatch` (func, строка 552)
-- `ToolExecutor.dispatch_json` (func, строка 612)
-- `ToolExecutor.read_file` (func, строка 622)
-- `ToolExecutor.list_files` (func, строка 697)
-- `ToolExecutor.list_files._entry_rel` (func, строка 739)
-- `ToolExecutor.list_files._sort_key` (func, строка 750)
-- `ToolExecutor.list_files._visible_children` (func, строка 753)
-- `ToolExecutor.list_files._make_file_entry` (func, строка 759)
-- `ToolExecutor.list_files._walk` (func, строка 770)
-- `ToolExecutor.propose_file` (func, строка 826)
-- `ToolExecutor.apply_patch` (func, строка 1003)
-- `ToolExecutor.apply_edit` (func, строка 1223)
-- `ToolExecutor.verify_file` (func, строка 1259)
-- `ToolExecutor.discard_edit` (func, строка 1311)
-- `ToolExecutor.create_backup` (func, строка 1318)
-- `ToolExecutor.restore_backup` (func, строка 1326)
-- `ToolExecutor.show_history` (func, строка 1334)
-- `ToolExecutor.run_test` (func, строка 1338)
-- `ToolExecutor.run_code` (func, строка 1433)
-- `ToolExecutor.web_search` (func, строка 1541)
-- `ToolExecutor._run_deepseek_web_search` (func, строка 1726)
-- `ToolExecutor._html_text_to_markdown` (func, строка 1811)
-- `ToolExecutor._url_fetch_result` (func, строка 1872)
-- `ToolExecutor.url_fetch` (func, строка 1909)
-- `ToolExecutor._resolve_image_path` (func, строка 2037)
-- `ToolExecutor._save_generated_image` (func, строка 2069)
-- `ToolExecutor.analyze_image` (func, строка 2106)
-- `ToolExecutor.generate_image` (func, строка 2176)
-- `ToolExecutor._rag_slug` (func, строка 2245)
-- `ToolExecutor._rag_access_allowed` (func, строка 2249)
-- `ToolExecutor.list_rag_bases` (func, строка 2266)
-- `ToolExecutor.rag_search` (func, строка 2312)
-- `ToolExecutor.rag_get_chunks` (func, строка 2404)
-- `ToolExecutor.set_history` (func, строка 2492)
-- `ToolExecutor._ensure_history_indexed` (func, строка 2502)
-- `ToolExecutor.get_history_index` (func, строка 2509)
-- `ToolExecutor.get_history_messages` (func, строка 2545)
-- `ToolExecutor.list_skills_library` (func, строка 2594)
-- `ToolExecutor.get_skill_folder` (func, строка 2608)
-- `ToolExecutor.get_skill_prompt` (func, строка 2648)
-- `ToolExecutor.get_skill_file` (func, строка 2698)
-- `ToolExecutor.mark_skill_adapted` (func, строка 2735)
-- `ToolExecutor.list_assistants` (func, строка 2752)
-- `ToolExecutor.get_assistant_by_id` (func, строка 2762)
-- `ToolExecutor.update_assistant_by_id` (func, строка 2769)
-- `ToolExecutor.list_instructions` (func, строка 2829)
-- `ToolExecutor.get_instruction` (func, строка 2844)
-- `ToolExecutor.detect_and_select_assistant` (func, строка 2860)
-- `ToolExecutor._orchestrator_instruction_text` (func, строка 2893)
-- `ToolExecutor._create_assistant_with_auto_model` (func, строка 2909)
-- `ToolExecutor.create_assistant_for_task` (func, строка 3068)
-- `ToolExecutor.list_recent_workspaces` (func, строка 3095)
-- `ToolExecutor.task_state_init` (func, строка 3119)
-- `ToolExecutor.task_state_read` (func, строка 3136)
-- `ToolExecutor.task_state_update` (func, строка 3149)
-- `ToolExecutor.task_state_mark_step` (func, строка 3157)
-- `ToolExecutor.task_state_clear` (func, строка 3176)
-- `ToolExecutor.current_datetime` (func, строка 3187)
+- `ToolExecutor` (class, строка 78)
+- `ToolExecutor.__init__` (func, строка 79)
+- `ToolExecutor.set_send_request` (func, строка 120)
+- `ToolExecutor.set_orchestrator_slug` (func, строка 125)
+- `ToolExecutor.dispatch` (func, строка 141)
+- `ToolExecutor.dispatch_json` (func, строка 201)
+
+### `dev_agent/tool_registry.py`
+- `normalize_overwrite` (func, строка 16)
+- `merge_append` (func, строка 28)
+- `enabled_services` (func, строка 42)
+- `drop_family` (func, строка 60)
+- `register_family` (func, строка 66)
+
+### `dev_agent/tool_validation.py`
+- `_workspace_usage` (func, строка 17)
+- `_disabled_refusal` (func, строка 26)
+- `_unknown_args_refusal` (func, строка 54)
+- `_rights_refusal` (func, строка 69)
+- `validate_tool_call` (func, строка 96)
 
 ### `dev_agent/transcript.py`
 - `_segment_number` (func, строка 86)
@@ -11224,80 +11509,80 @@
 - `sweep` (func, строка 982)
 
 ### `dev_agent/universal_agent.py`
-- `load_system_prompt` (func, строка 32)
-- `_workspace_usage` (func, строка 265)
-- `validate_tool_call` (func, строка 274)
-- `build_assistant_dict_from_config` (func, строка 375)
-- `build_assistant_dict_from_config._make_assistant` (func, строка 387)
-- `UniversalDevAgent` (class, строка 416)
-- `UniversalDevAgent.__init__` (func, строка 419)
-- `UniversalDevAgent.system_prompt` (func, строка 497)
-- `UniversalDevAgent.tool_catalog` (func, строка 502)
-- `UniversalDevAgent.dispatch` (func, строка 508)
-- `UniversalDevAgent._current_orchestrator_slug` (func, строка 520)
-- `UniversalDevAgent._is_disabled_for_orchestrator` (func, строка 529)
-- `UniversalDevAgent._disabled_tool_error` (func, строка 545)
-- `UniversalDevAgent._dispatch_impl` (func, строка 557)
-- `UniversalDevAgent.attach_orchestrator` (func, строка 607)
-- `UniversalDevAgent._pop_mcp_tools` (func, строка 663)
-- `UniversalDevAgent._attach_connection_tools` (func, строка 674)
-- `UniversalDevAgent.attach_orchestrator_catalog` (func, строка 729)
-- `UniversalDevAgent.dispatch_json` (func, строка 748)
-- `UniversalDevAgent._recreate_core_preserving_history` (func, строка 760)
-- `UniversalDevAgent.set_thread_id` (func, строка 785)
-- `UniversalDevAgent._persist_thread_workspace` (func, строка 807)
-- `UniversalDevAgent._sync_binding_after_switch` (func, строка 828)
-- `UniversalDevAgent._set_workspace` (func, строка 834)
-- `UniversalDevAgent._set_target_file` (func, строка 843)
-- `UniversalDevAgent._write_project_map` (func, строка 852)
-- `UniversalDevAgent._write_doc` (func, строка 855)
-- `UniversalDevAgent._read_doc` (func, строка 858)
-- `UniversalDevAgent._snapshot_all` (func, строка 861)
-- `UniversalDevAgent._restore_all` (func, строка 864)
-- `UniversalDevAgent._active_thread_id` (func, строка 870)
-- `UniversalDevAgent._list_thread_files` (func, строка 875)
-- `UniversalDevAgent._read_thread_file` (func, строка 883)
-- `UniversalDevAgent._read_document` (func, строка 899)
-- `UniversalDevAgent._extract_document_images` (func, строка 935)
-- `UniversalDevAgent._vision_available` (func, строка 1184)
-- `UniversalDevAgent._document_images_dir` (func, строка 1193)
-- `UniversalDevAgent._resolve_document_path` (func, строка 1225)
-- `UniversalDevAgent._thread_access_slugs` (func, строка 1261)
-- `UniversalDevAgent._normalize_orchestrator_arg` (func, строка 1279)
-- `UniversalDevAgent._as_bool` (func, строка 1297)
-- `UniversalDevAgent._search_in_threads` (func, строка 1310)
-- `UniversalDevAgent._list_threads` (func, строка 1374)
-- `UniversalDevAgent._read_thread` (func, строка 1396)
-- `UniversalDevAgent._list_orchestrators` (func, строка 1420)
-- `UniversalDevAgent._get_orchestrator` (func, строка 1425)
-- `UniversalDevAgent._create_orchestrator` (func, строка 1434)
-- `UniversalDevAgent._update_orchestrator` (func, строка 1465)
-- `UniversalDevAgent._delete_orchestrator` (func, строка 1477)
-- `UniversalDevAgent._reload_orchestrator` (func, строка 1486)
-- `UniversalDevAgent._list_orchestrator_functions` (func, строка 1495)
-- `UniversalDevAgent._get_orchestrator_function` (func, строка 1502)
-- `UniversalDevAgent._save_orchestrator_function` (func, строка 1511)
-- `UniversalDevAgent._delete_orchestrator_function` (func, строка 1520)
-- `UniversalDevAgent._list_orchestrator_instructions` (func, строка 1529)
-- `UniversalDevAgent._get_orchestrator_instruction` (func, строка 1536)
-- `UniversalDevAgent._save_orchestrator_instruction` (func, строка 1545)
-- `UniversalDevAgent._delete_orchestrator_instruction` (func, строка 1558)
-- `UniversalDevAgent._list_connections` (func, строка 1569)
-- `UniversalDevAgent._get_connection` (func, строка 1574)
-- `UniversalDevAgent._list_connector_services` (func, строка 1583)
-- `UniversalDevAgent._list_connection_presets` (func, строка 1587)
-- `UniversalDevAgent._create_connection` (func, строка 1599)
-- `UniversalDevAgent._update_connection` (func, строка 1638)
-- `UniversalDevAgent._delete_connection` (func, строка 1650)
-- `UniversalDevAgent._test_connection` (func, строка 1659)
-- `UniversalDevAgent._get_enabled_connections` (func, строка 1681)
-- `UniversalDevAgent._set_enabled_connections` (func, строка 1686)
-- `UniversalDevAgent._personal_scope` (func, строка 1698)
-- `UniversalDevAgent._get_personal_memory` (func, строка 1721)
-- `UniversalDevAgent._set_personal_memory` (func, строка 1739)
-- `UniversalDevAgent._list_personal_memory` (func, строка 1800)
-- `UniversalDevAgent._get_connection_memory` (func, строка 1809)
-- `UniversalDevAgent._set_connection_memory` (func, строка 1815)
+- `load_system_prompt` (func, строка 44)
+- `build_assistant_dict_from_config` (func, строка 72)
+- `build_assistant_dict_from_config._make_assistant` (func, строка 84)
+- `UniversalDevAgent` (class, строка 113)
+- `UniversalDevAgent.__init__` (func, строка 116)
+- `UniversalDevAgent.system_prompt` (func, строка 194)
+- `UniversalDevAgent.tool_catalog` (func, строка 199)
+- `UniversalDevAgent.dispatch` (func, строка 205)
+- `UniversalDevAgent._current_orchestrator_slug` (func, строка 217)
+- `UniversalDevAgent._is_disabled_for_orchestrator` (func, строка 226)
+- `UniversalDevAgent._disabled_tool_error` (func, строка 242)
+- `UniversalDevAgent._dispatch_impl` (func, строка 254)
+- `UniversalDevAgent.attach_orchestrator` (func, строка 304)
+- `UniversalDevAgent._pop_mcp_tools` (func, строка 360)
+- `UniversalDevAgent._attach_connection_tools` (func, строка 371)
+- `UniversalDevAgent._attach_service_family` (func, строка 402)
+- `UniversalDevAgent.attach_orchestrator_catalog` (func, строка 421)
+- `UniversalDevAgent.dispatch_json` (func, строка 440)
+- `UniversalDevAgent._recreate_core_preserving_history` (func, строка 452)
+- `UniversalDevAgent.set_thread_id` (func, строка 477)
+- `UniversalDevAgent._persist_thread_workspace` (func, строка 499)
+- `UniversalDevAgent._sync_binding_after_switch` (func, строка 520)
+- `UniversalDevAgent._set_workspace` (func, строка 526)
+- `UniversalDevAgent._set_target_file` (func, строка 535)
+- `UniversalDevAgent._write_project_map` (func, строка 544)
+- `UniversalDevAgent._write_doc` (func, строка 547)
+- `UniversalDevAgent._read_doc` (func, строка 550)
+- `UniversalDevAgent._snapshot_all` (func, строка 553)
+- `UniversalDevAgent._restore_all` (func, строка 556)
+- `UniversalDevAgent._active_thread_id` (func, строка 562)
+- `UniversalDevAgent._list_thread_files` (func, строка 567)
+- `UniversalDevAgent._read_thread_file` (func, строка 575)
+- `UniversalDevAgent._read_document` (func, строка 591)
+- `UniversalDevAgent._extract_document_images` (func, строка 627)
+- `UniversalDevAgent._vision_available` (func, строка 717)
+- `UniversalDevAgent._document_images_dir` (func, строка 725)
+- `UniversalDevAgent._resolve_document_path` (func, строка 741)
+- `UniversalDevAgent._thread_access_slugs` (func, строка 757)
+- `UniversalDevAgent._normalize_orchestrator_arg` (func, строка 775)
+- `UniversalDevAgent._as_bool` (func, строка 793)
+- `UniversalDevAgent._search_in_threads` (func, строка 806)
+- `UniversalDevAgent._list_threads` (func, строка 853)
+- `UniversalDevAgent._read_thread` (func, строка 875)
+- `UniversalDevAgent._list_orchestrators` (func, строка 899)
+- `UniversalDevAgent._get_orchestrator` (func, строка 904)
+- `UniversalDevAgent._create_orchestrator` (func, строка 913)
+- `UniversalDevAgent._update_orchestrator` (func, строка 944)
+- `UniversalDevAgent._delete_orchestrator` (func, строка 956)
+- `UniversalDevAgent._reload_orchestrator` (func, строка 965)
+- `UniversalDevAgent._list_orchestrator_functions` (func, строка 974)
+- `UniversalDevAgent._get_orchestrator_function` (func, строка 981)
+- `UniversalDevAgent._save_orchestrator_function` (func, строка 990)
+- `UniversalDevAgent._delete_orchestrator_function` (func, строка 999)
+- `UniversalDevAgent._list_orchestrator_instructions` (func, строка 1008)
+- `UniversalDevAgent._get_orchestrator_instruction` (func, строка 1015)
+- `UniversalDevAgent._save_orchestrator_instruction` (func, строка 1024)
+- `UniversalDevAgent._delete_orchestrator_instruction` (func, строка 1037)
+- `UniversalDevAgent._list_connections` (func, строка 1048)
+- `UniversalDevAgent._get_connection` (func, строка 1053)
+- `UniversalDevAgent._list_connector_services` (func, строка 1062)
+- `UniversalDevAgent._list_connection_presets` (func, строка 1066)
+- `UniversalDevAgent._create_connection` (func, строка 1078)
+- `UniversalDevAgent._update_connection` (func, строка 1117)
+- `UniversalDevAgent._delete_connection` (func, строка 1129)
+- `UniversalDevAgent._test_connection` (func, строка 1138)
+- `UniversalDevAgent._get_enabled_connections` (func, строка 1160)
+- `UniversalDevAgent._set_enabled_connections` (func, строка 1165)
+- `UniversalDevAgent._personal_scope` (func, строка 1177)
+- `UniversalDevAgent._get_personal_memory` (func, строка 1200)
+- `UniversalDevAgent._set_personal_memory` (func, строка 1218)
+- `UniversalDevAgent._owner_profile_refusal` (func, строка 1266)
+- `UniversalDevAgent._list_personal_memory` (func, строка 1287)
+- `UniversalDevAgent._get_connection_memory` (func, строка 1296)
+- `UniversalDevAgent._set_connection_memory` (func, строка 1302)
 
 ### `dev_agent/workspace_binding.py`
 - `_norm_tid` (func, строка 50)
@@ -11354,3 +11639,340 @@
 - `snapshot_all` (func, строка 976)
 - `list_snapshots` (func, строка 1009)
 - `restore_all` (func, строка 1028)
+
+### `dev_agent/tools/args.py`
+- `_unknown_args` (func, строка 35)
+- `_usage_string` (func, строка 60)
+- `_coerce_numeric_args` (func, строка 85)
+
+### `dev_agent/tools/assistants.py`
+- `_assistant_creation_schema` (func, строка 14)
+- `_looks_like_draft` (func, строка 32)
+- `_parse_assistant_draft` (func, строка 37)
+- `_strip_prompt_fence` (func, строка 71)
+- `_build_creation_evaluation` (func, строка 79)
+- `AssistantTools` (class, строка 102)
+- `AssistantTools.list_assistants` (func, строка 105)
+- `AssistantTools.get_assistant_by_id` (func, строка 115)
+- `AssistantTools.update_assistant_by_id` (func, строка 122)
+- `AssistantTools.detect_and_select_assistant` (func, строка 180)
+- `AssistantTools._orchestrator_instruction_text` (func, строка 213)
+- `AssistantTools._request_assistant_draft` (func, строка 229)
+- `AssistantTools._finish_assistant_creation` (func, строка 263)
+- `AssistantTools._create_assistant_with_auto_model` (func, строка 326)
+- `AssistantTools.create_assistant_for_task` (func, строка 356)
+
+### `dev_agent/tools/clock.py`
+- `ClockTools` (class, строка 9)
+- `ClockTools.current_datetime` (func, строка 12)
+
+### `dev_agent/tools/deps.py`
+- `ToolDeps` (class, строка 36)
+- `facade` (func, строка 56)
+- `build_deps` (func, строка 66)
+- `ToolMixin` (class, строка 78)
+- `ToolMixin.deps` (func, строка 81)
+
+### `dev_agent/tools/editing.py`
+- `EditingTools` (class, строка 12)
+- `EditingTools.propose_file` (func, строка 15)
+- `EditingTools.apply_edit` (func, строка 192)
+- `EditingTools.discard_edit` (func, строка 227)
+
+### `dev_agent/tools/exec.py`
+- `ExecTools` (class, строка 15)
+- `ExecTools.run_test` (func, строка 18)
+- `ExecTools.run_code` (func, строка 112)
+- `_subprocess_cwd` (func, строка 219)
+
+### `dev_agent/tools/file_tree.py`
+- `_sort_key` (func, строка 14)
+- `visible_children` (func, строка 19)
+- `make_file_entry` (func, строка 27)
+- `safe_rel` (func, строка 41)
+- `_list_dir_entry` (func, строка 49)
+- `walk_tree` (func, строка 71)
+- `walk_tree._walk` (func, строка 92)
+
+### `dev_agent/tools/files.py`
+- `FilesTools` (class, строка 16)
+- `FilesTools.read_file` (func, строка 19)
+- `FilesTools.list_files` (func, строка 93)
+- `FilesTools.verify_file` (func, строка 145)
+- `FilesTools.create_backup` (func, строка 197)
+- `FilesTools.restore_backup` (func, строка 205)
+- `FilesTools.show_history` (func, строка 213)
+
+### `dev_agent/tools/history.py`
+- `HistoryTools` (class, строка 11)
+- `HistoryTools.set_history` (func, строка 14)
+- `HistoryTools._ensure_history_indexed` (func, строка 24)
+- `HistoryTools.get_history_index` (func, строка 31)
+- `HistoryTools.get_history_messages` (func, строка 67)
+
+### `dev_agent/tools/images.py`
+- `ImageTools` (class, строка 13)
+- `ImageTools.analyze_image` (func, строка 16)
+- `ImageTools.generate_image` (func, строка 86)
+- `ImageTools._resolve_image_path` (func, строка 154)
+- `ImageTools._save_generated_image` (func, строка 186)
+
+### `dev_agent/tools/library.py`
+- `LibraryTools` (class, строка 12)
+- `LibraryTools.list_skills_library` (func, строка 15)
+- `LibraryTools.get_skill_folder` (func, строка 29)
+- `LibraryTools.get_skill_prompt` (func, строка 69)
+- `LibraryTools.get_skill_file` (func, строка 119)
+- `LibraryTools.mark_skill_adapted` (func, строка 156)
+- `LibraryTools.list_instructions` (func, строка 171)
+- `LibraryTools.get_instruction` (func, строка 186)
+
+### `dev_agent/tools/patch.py`
+- `_coerce_edits` (func, строка 25)
+- `_apply_one_edit` (func, строка 48)
+- `PatchTools` (class, строка 136)
+- `PatchTools._read_patch_target` (func, строка 139)
+- `PatchTools._commit_patch` (func, строка 181)
+- `PatchTools.apply_patch` (func, строка 233)
+
+### `dev_agent/tools/rag.py`
+- `RagTools` (class, строка 11)
+- `RagTools._rag_slug` (func, строка 14)
+- `RagTools._rag_access_allowed` (func, строка 18)
+- `RagTools.list_rag_bases` (func, строка 34)
+- `RagTools.rag_search` (func, строка 79)
+- `RagTools.rag_get_chunks` (func, строка 170)
+
+### `dev_agent/tools/task_state.py`
+- `TaskStateTools` (class, строка 9)
+- `TaskStateTools.task_state_init` (func, строка 12)
+- `TaskStateTools.task_state_read` (func, строка 29)
+- `TaskStateTools.task_state_update` (func, строка 42)
+- `TaskStateTools.task_state_mark_step` (func, строка 50)
+- `TaskStateTools.task_state_clear` (func, строка 69)
+
+### `dev_agent/tools/text_utils.py`
+- `_strip_line_numbers` (func, строка 11)
+- `_normalize_line_endings` (func, строка 31)
+- `_ws_tolerant_pattern` (func, строка 36)
+- `_norm_to_orig_map` (func, строка 62)
+- `_fuzzy_find_matches` (func, строка 76)
+- `_exact_spans` (func, строка 92)
+- `_line_of` (func, строка 105)
+- `_suggest_anchor_lines` (func, строка 110)
+- `_validate_python_syntax` (func, строка 139)
+
+### `dev_agent/tools/url_fetch.py`
+- `UrlFetchTools` (class, строка 13)
+- `UrlFetchTools.url_fetch` (func, строка 16)
+- `UrlFetchTools._html_text_to_markdown` (func, строка 143)
+- `UrlFetchTools._url_fetch_result` (func, строка 204)
+
+### `dev_agent/tools/web_search.py`
+- `WebSearchTools` (class, строка 12)
+- `WebSearchTools.web_search` (func, строка 15)
+- `WebSearchTools._run_deepseek_web_search` (func, строка 200)
+
+### `dev_agent/tools/workspace.py`
+- `WorkspaceTools` (class, строка 10)
+- `WorkspaceTools._addresses_memory` (func, строка 13)
+- `WorkspaceTools.list_recent_workspaces` (func, строка 17)
+- `_addresses_memory` (func, строка 61)
+- `workspace_guard_error` (func, строка 88)
+
+### `dev_agent/loop/context.py`
+- `_facade_attr` (func, строка 38)
+- `_maybe_task_state_context` (func, строка 59)
+- `_snapshot_kind_of` (func, строка 88)
+- `_last_snapshot` (func, строка 108)
+- `_snapshot_content` (func, строка 116)
+- `_append_context_snapshot` (func, строка 121)
+- `refresh_context_snapshots` (func, строка 140)
+- `_ensure_snapshot_visibility` (func, строка 173)
+- `_maybe_thread_context` (func, строка 198)
+- `_auto_continue_prefix` (func, строка 250)
+- `_make_short_summary` (func, строка 256)
+- `_classify_message` (func, строка 286)
+- `_index_message` (func, строка 312)
+- `_get_economy_tail_messages` (func, строка 319)
+- `_economy_meta_key` (func, строка 334)
+- `_make_meta_msg` (func, строка 345)
+- `_estimate_messages_tokens` (func, строка 369)
+- `_enforce_history_token_budget` (func, строка 396)
+- `build_economy_context` (func, строка 500)
+- `carry_over_economy_cache` (func, строка 587)
+- `economy_cache_to_dict` (func, строка 604)
+- `apply_economy_cache` (func, строка 621)
+
+### `dev_agent/loop/delegation.py`
+- `_agent_brief_from_args` (func, строка 49)
+- `_delegation_parent_context` (func, строка 95)
+- `_delegation_base_dir` (func, строка 122)
+- `_job_spawn_agent` (func, строка 152)
+- `_job_ask_parent` (func, строка 172)
+- `_job_answer_child` (func, строка 198)
+- `_job_verify_result` (func, строка 214)
+- `_job_sleep` (func, строка 230)
+- `_job_cancel_subagent` (func, строка 248)
+- `_job_read_subagent_thread` (func, строка 261)
+- `_job_subagent_result` (func, строка 283)
+- `_job_subagent_status` (func, строка 295)
+- `_job_read_subagent_state` (func, строка 306)
+- `_job_resume_subagent` (func, строка 316)
+- `_job_invoke_assistant` (func, строка 334)
+- `_delegation_job` (func, строка 370)
+- `_inherited_injection_protection` (func, строка 398)
+- `_validate_delegation_batch` (func, строка 413)
+- `_run_delegation_batch` (func, строка 446)
+- `_run_delegation_batch._work` (func, строка 451)
+- `execute_delegation_calls` (func, строка 478)
+
+### `dev_agent/loop/json_repair.py`
+- `_extract_balanced_json_objects` (func, строка 25)
+- `_unbalanced_json_details` (func, строка 55)
+- `_unclosed_summary` (func, строка 96)
+- `_repair_unclosed_braces` (func, строка 111)
+- `_escape_raw_newlines_in_strings` (func, строка 135)
+- `_repair_stray_bracket` (func, строка 170)
+- `_collapse_value_escapes` (func, строка 199)
+- `_unescape_json_string_body` (func, строка 225)
+- `_try_layer_parse_chain` (func, строка 260)
+- `_json_repair_cascade` (func, строка 282)
+- `_json_loads_lenient` (func, строка 336)
+- `_truncated_tool_json_segments` (func, строка 356)
+- `_unparsed_tool_json_blocks` (func, строка 381)
+- `_json_parse_cause` (func, строка 404)
+- `_unparsed_tool_json_diagnostics` (func, строка 427)
+- `_unparsed_block_signature` (func, строка 470)
+- `_normalize_call` (func, строка 487)
+
+### `dev_agent/loop/notices.py`
+- `_fence` (func, строка 29)
+- `format_subagent_notice` (func, строка 47)
+- `drain_subagent_notices` (func, строка 114)
+
+### `dev_agent/loop/parse.py`
+- `_call_signature` (func, строка 64)
+- `_coerce_dsml_param` (func, строка 73)
+- `_coerce_dsml_param._attr` (func, строка 83)
+- `_uses_dsml_markup` (func, строка 130)
+- `_parse_dsml_json_value` (func, строка 143)
+- `_unwrap_dsml_args` (func, строка 196)
+- `_extract_dsml_calls` (func, строка 226)
+- `_dsml_required_args` (func, строка 270)
+- `_dsml_json_hint` (func, строка 310)
+- `_dsml_validation_error` (func, строка 322)
+- `_fallback_parse_propose_file` (func, строка 346)
+- `_repair_unclosed_tool_json` (func, строка 395)
+- `_cascade_recover_tool_calls` (func, строка 433)
+- `parse_tool_calls` (func, строка 460)
+
+### `dev_agent/loop/results.py`
+- `_facade_attr` (func, строка 76)
+- `tool_results_dir` (func, строка 91)
+- `rotate_tool_result_spills` (func, строка 106)
+- `spill_tool_result_doc` (func, строка 123)
+- `compact_result_fields` (func, строка 148)
+- `build_tool_result_preview` (func, строка 180)
+- `apply_tool_result_cap` (func, строка 216)
+- `summarize_single_tool_result_doc` (func, строка 270)
+- `summarize_tool_result_for_storage` (func, строка 293)
+
+### `dev_agent/loop/signals.py`
+- `_parse_loop_status` (func, строка 122)
+- `_parse_requires_user_response` (func, строка 132)
+- `_prose_contains_progress` (func, строка 152)
+- `_prose_looks_like_question` (func, строка 161)
+- `_looks_like_confirmation_request` (func, строка 181)
+- `_prose_looks_weak` (func, строка 189)
+- `_looks_like_plan` (func, строка 209)
+- `normalize_hyphens` (func, строка 247)
+- `classify_step_strength` (func, строка 252)
+
+### `dev_agent/loop/state.py`
+- `AgentResult` (class, строка 23)
+- `AgentLoopState` (class, строка 53)
+
+### `dev_agent/loop/steps/approvals.py`
+- `_emit` (func, строка 32)
+- `_record_decision` (func, строка 38)
+- `_clear_confirmation` (func, строка 46)
+- `approve_pending_confirmation` (func, строка 55)
+- `deny_pending_confirmation` (func, строка 93)
+- `approve_sanitized_content` (func, строка 121)
+- `deny_sanitized_content` (func, строка 153)
+
+### `dev_agent/loop/steps/executing.py`
+- `_summarise_result` (func, строка 61)
+- `_update_workspace_info` (func, строка 88)
+- `_record_tool_failure` (func, строка 100)
+- `_tool_fail_guidance` (func, строка 118)
+- `_mark_tool_failure` (func, строка 131)
+- `_reset_tool_failures` (func, строка 141)
+- `_Batch` (class, строка 148)
+- `_Batch.__init__` (func, строка 151)
+- `_Batch.append` (func, строка 158)
+- `_Batch.fail` (func, строка 162)
+- `_Batch.succeed` (func, строка 170)
+- `_Batch.emit_result` (func, строка 176)
+- `_duplicate_refusal` (func, строка 182)
+- `_run_delegation` (func, строка 194)
+- `_run_write_tool` (func, строка 217)
+- `_refuse_dangerous` (func, строка 274)
+- `_park_for_confirmation` (func, строка 302)
+- `_dispatch_result` (func, строка 327)
+- `_run_generic_tool` (func, строка 353)
+- `_execute_call` (func, строка 401)
+- `_finish_batch` (func, строка 450)
+- `execute_step` (func, строка 498)
+
+### `dev_agent/loop/steps/models.py`
+- `_persist_user_message` (func, строка 41)
+- `_deliver_notices` (func, строка 59)
+- `_outgoing_history` (func, строка 81)
+- `call_model` (func, строка 97)
+- `call_model._on_tokens` (func, строка 132)
+- `call_model._on_sanitized` (func, строка 141)
+- `call_model._on_retry` (func, строка 144)
+- `call_model._on_incomplete` (func, строка 156)
+- `_recover_truncated_answer` (func, строка 210)
+- `_append_assistant_message` (func, строка 256)
+- `dump_tool_result` (func, строка 268)
+
+### `dev_agent/loop/steps/parsing.py`
+- `_identical_block_count` (func, строка 66)
+- `_dedupe_diagnostics` (func, строка 96)
+- `_dominant_duplicate_call` (func, строка 130)
+- `_continue_loop` (func, строка 157)
+- `_finish` (func, строка 167)
+- `_fail_json` (func, строка 176)
+- `parse_step` (func, строка 186)
+- `_handle_unparsed_blocks` (func, строка 228)
+- `_warn_partial_batch` (func, строка 282)
+- `_conclude_prose_step` (func, строка 309)
+- `_auto_apply_decision` (func, строка 352)
+- `_child_decision` (func, строка 374)
+
+### `dev_agent/loop/steps/prepare.py`
+- `now_ts` (func, строка 29)
+- `publish_active_thread` (func, строка 36)
+- `ensure_journal` (func, строка 59)
+- `prune_journals` (func, строка 74)
+- `begin_step` (func, строка 89)
+- `step_strength` (func, строка 111)
+- `_append_pair` (func, строка 116)
+- `run_pending_action` (func, строка 131)
+- `describe_missing_phase` (func, строка 190)
+- `safe_state` (func, строка 197)
+
+### `dev_agent/loop/steps/runner.py`
+- `step_agent_loop_impl` (func, строка 31)
+- `run_step` (func, строка 59)
+- `runtime_handlers` (func, строка 83)
+
+### `dev_agent/loop/steps/runtime.py`
+- `LoopRuntime` (class, строка 26)
+- `LoopRuntime.emit` (func, строка 43)
+- `LoopRuntime.require_send_request` (func, строка 60)
+- `LoopRuntime.drain` (func, строка 66)
+- `build_runtime` (func, строка 73)

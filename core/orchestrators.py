@@ -55,6 +55,18 @@ from core.orchestrator_folders import (
     save_orchestrator_instruction,
     sync_orchestrator_instructions,
 )
+from core.prompt_blocks import (
+    DIALOG_RULES_CHILD,
+    DIALOG_RULES_PARENT,
+    INVOKE_ASSISTANT_INTRO,
+    MONTH_NAMES,
+    SPAWN_AGENT_INTRO,
+    VERIFY_RESULT_INTRO,
+    WEEKDAY_NAMES,
+    WEEKDAY_NAMES_RU,
+    current_date_line,
+    format_utc_offset,
+)
 from core.services import (
     default_reasoning_effort,
     get_fetch_models,
@@ -1445,6 +1457,78 @@ def _extend_prompt_with_rag_bases(prompt: str, orchestrator_slug: str = DEVAGENT
         return prompt
 
 
+def _delegation_availability(orch_slug: str, enabled) -> Tuple[bool, bool, bool]:
+    """Return ``(agents, assistants, verify)`` availability flags for *orch_slug*.
+
+    *enabled* is the ``is_conditional_tool_enabled`` probe; a failure keeps the
+    historical default of each flag.
+    """
+    try:
+        agents = bool(enabled("spawn_agent", orch_slug))
+    except Exception:
+        agents = True
+    try:
+        assistants = bool(enabled("invoke_assistant", orch_slug))
+    except Exception:
+        assistants = False
+    try:
+        verify = bool(enabled("verify_result", orch_slug))
+    except Exception:
+        verify = False
+    return agents, assistants, verify
+
+
+def _agent_delegation_lines(orch_slug: str) -> List[str]:
+    """Return the block listing the agents this orchestrator may spawn."""
+    entries: List[str] = []
+    own_name = ""
+    try:
+        own = get_orchestrator(orch_slug)
+        own_name = str((own or {}).get("name") or "")
+    except Exception:
+        own_name = ""
+    entries.append("- `%s` - %s (you; self-delegation is always allowed)"
+                   % (orch_slug, own_name or "this orchestrator"))
+    try:
+        live = {str(o.get("slug") or ""): str(o.get("name") or "")
+                for o in list_orchestrators()}
+    except Exception:
+        live = {}
+    for slug in get_effective_agents(orch_slug):
+        if slug == orch_slug:
+            continue
+        suffix = ""
+        if slug == UNIVERSAL_AGENT_SLUG:
+            suffix = (" (available by default; your user can switch "
+                      "this right off in the delegation settings)")
+        entries.append("- `%s` - %s%s" % (slug, live.get(slug) or "name unknown",
+                                          suffix))
+    lines = list(SPAWN_AGENT_INTRO)
+    lines.extend(entries)
+    return lines
+
+
+def _assistant_delegation_lines(orch_slug: str) -> List[str]:
+    """Return the block listing the assistants this orchestrator may call."""
+    a_entries: List[str] = []
+    try:
+        from core.assistants import load_assistants_index
+        cards = {str(c.get("id") or ""): str(c.get("name") or "")
+                 for c in (load_assistants_index() or [])}
+    except Exception:
+        cards = {}
+    for aid in get_allowed_assistants(orch_slug):
+        a_entries.append("- `%s` - %s" % (aid, cards.get(aid) or "name unknown"))
+    lines = list(INVOKE_ASSISTANT_INTRO)
+    lines.extend(a_entries)
+    return lines
+
+
+def _verify_delegation_lines() -> List[str]:
+    """Return the block explaining how delegated results are verified."""
+    return list(VERIFY_RESULT_INTRO)
+
+
 def _extend_prompt_with_delegation(prompt: str, orchestrator_slug: str = DEVAGENT_SLUG) -> str:
     """Append a block listing the agents and assistants this orchestrator may call.
 
@@ -1465,115 +1549,22 @@ def _extend_prompt_with_delegation(prompt: str, orchestrator_slug: str = DEVAGEN
     except Exception:
         return prompt
 
-    lines: List[str] = []
-    agents_available = True
-    try:
-        agents_available = bool(is_conditional_tool_enabled("spawn_agent", orchestrator_slug))
-    except Exception:
-        agents_available = True
-    assistants_available = False
-    try:
-        assistants_available = bool(
-            is_conditional_tool_enabled("invoke_assistant", orchestrator_slug))
-    except Exception:
-        assistants_available = False
-    verify_available = False
-    try:
-        verify_available = bool(
-            is_conditional_tool_enabled("verify_result", orchestrator_slug))
-    except Exception:
-        verify_available = False
+    agents_available, assistants_available, verify_available = _delegation_availability(
+        orchestrator_slug, is_conditional_tool_enabled)
 
+    lines: List[str] = []
     if agents_available:
-        entries: List[str] = []
-        own_name = ""
-        try:
-            own = get_orchestrator(orchestrator_slug)
-            own_name = str((own or {}).get("name") or "")
-        except Exception:
-            own_name = ""
-        entries.append("- `%s` - %s (you; self-delegation is always allowed)"
-                       % (orchestrator_slug, own_name or "this orchestrator"))
-        try:
-            live = {str(o.get("slug") or ""): str(o.get("name") or "")
-                    for o in list_orchestrators()}
-        except Exception:
-            live = {}
-        for slug in get_effective_agents(orchestrator_slug):
-            if slug == orchestrator_slug:
-                continue
-            suffix = ""
-            if slug == UNIVERSAL_AGENT_SLUG:
-                suffix = (" (available by default; your user can switch "
-                          "this right off in the delegation settings)")
-            entries.append("- `%s` - %s%s" % (slug, live.get(slug) or "name unknown",
-                                              suffix))
-        lines.extend([
-            "## Available agents (spawn_agent)",
-            "",
-            "You may delegate a full agent task to these orchestrators. Pass "
-            "the slug in `agent_slug` and describe the task in `request.goal` "
-            "plus `request.brief`; every path you mention must be absolute:",
-            "",
-            "Add `background=true` to start a child and continue your own work: "
-            "the call returns its `run_id` at once, and the finish arrives as a "
-            "`[SUBAGENT_NOTICE:<run_id>:<status>]` system notice in a later "
-            "step. Check it with `subagent_status(run_id=...)`, read the "
-            "handoff with `read_subagent_state(run_id=...)` and continue "
-            "unfinished work with `resume_subagent(run_id=..., "
-            "request={goal, brief})` - omit `request` to continue the original "
-            "goal from the child journal. A child that stopped at "
-            "`awaiting_input`, `error`, `timeout` or `max_steps` has NOT "
-            "finished the job. When you have nothing else to do while a "
-            "background child runs, call `sleep(seconds=...)` instead of "
-            "polling `subagent_status`: it returns as soon as a child "
-            "finishes, or when the timeout expires. A status is not a "
-            "result: collect what the child produced with "
-            "`subagent_result(run_id=...)`, which returns the same result "
-            "object a blocking spawn does, and answers `ready: false` with "
-            "no result while the run is unfinished.",
-            "",
-        ])
-        lines.extend(entries)
+        lines.extend(_agent_delegation_lines(orchestrator_slug))
 
     if assistants_available:
-        a_entries: List[str] = []
-        try:
-            from core.assistants import load_assistants_index
-            cards = {str(c.get("id") or ""): str(c.get("name") or "")
-                     for c in (load_assistants_index() or [])}
-        except Exception:
-            cards = {}
-        for aid in get_allowed_assistants(orchestrator_slug):
-            a_entries.append("- `%s` - %s" % (aid, cards.get(aid) or "name unknown"))
         if lines:
             lines.append("")
-        lines.extend([
-            "## Available assistants (invoke_assistant)",
-            "",
-            "One-shot model calls, no tools and no agent loop. Pass the id in "
-            "`assistant_id`. Send a document as a file in `context_files` with "
-            "an absolute path - one file, one call - instead of pasting its "
-            "text or splitting it into several calls:",
-            "",
-        ])
-        lines.extend(a_entries)
+        lines.extend(_assistant_delegation_lines(orchestrator_slug))
 
     if verify_available:
         if lines:
             lines.append("")
-        lines.extend([
-            "## Verifying delegated work",
-            "",
-            "A fan-out gives you several results in one step, but not a check "
-            "that they are right. When a fan-out returned two or more results "
-            "and the outcome matters, call `verify_result(run_id=..., "
-            "criteria=...)` for the result you intend to rely on, before you "
-            "report it as done. State the criteria concretely: the verifier "
-            "sees only the result and the artifacts, never the reasoning that "
-            "produced them. If the verdict is `inconclusive`, say so instead "
-            "of presenting the result as verified.",
-        ])
+        lines.extend(_verify_delegation_lines())
 
     if not lines:
         return prompt
@@ -1671,29 +1662,19 @@ def _extend_prompt_with_instructions(prompt: str, orchestrator_slug: str = DEVAG
 
 # ─── Current date block ───────────────────────────────────────────────────
 
-# Weekday and month names are spelled out instead of using strftime("%A") so
-# the block does not depend on the process locale.
-_WEEKDAY_NAMES = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
-                  "Saturday", "Sunday")
+# Weekday and month names live in core.prompt_blocks together with the pure
+# formatters; the private aliases below keep the historical module surface.
+_WEEKDAY_NAMES = WEEKDAY_NAMES
 # Russian weekday names are returned by the ``current_datetime`` tool: models
 # answer users in Russian and translating the name themselves is a needless
 # chance to slip.
-_WEEKDAY_NAMES_RU = ("понедельник", "вторник", "среда", "четверг", "пятница",
-                     "суббота", "воскресенье")
-_MONTH_NAMES = ("January", "February", "March", "April", "May", "June",
-                "July", "August", "September", "October", "November",
-                "December")
+_WEEKDAY_NAMES_RU = WEEKDAY_NAMES_RU
+_MONTH_NAMES = MONTH_NAMES
 
 
 def _format_utc_offset(moment: datetime) -> str:
     """Return the UTC offset of *moment* as ``UTC+HH:MM``."""
-    offset = moment.utcoffset()
-    if offset is None:
-        return "UTC"
-    total = int(offset.total_seconds())
-    sign = "+" if total >= 0 else "-"
-    total = abs(total)
-    return "UTC%s%02d:%02d" % (sign, total // 3600, (total % 3600) // 60)
+    return format_utc_offset(moment)
 
 
 def _current_date_line(moment: datetime) -> str:
@@ -1702,12 +1683,7 @@ def _current_date_line(moment: datetime) -> str:
     The weekday and the month are spelled out so the model does not derive
     them from a numeric date - a frequent source of off-by-one errors.
     """
-    return "Today is %s, %02d %s %d." % (
-        _WEEKDAY_NAMES[moment.weekday()],
-        moment.day,
-        _MONTH_NAMES[moment.month - 1],
-        moment.year,
-    )
+    return current_date_line(moment)
 
 
 def _extend_prompt_with_current_date(prompt: str,
@@ -1774,45 +1750,12 @@ def _extend_prompt_with_current_date(prompt: str,
 # ─── Assistant-dict building (for agent loop) ─────────────────────────────
 
 
-#: Rules of the agent dialog. Kept as module constants rather than being
-#: assembled from fragments: the text is read by every orchestrator and a
-#: typo in one branch changes the behaviour of all of them.
-_DIALOG_RULES_PARENT = (
-    "## Answering a subagent's question\n",
-    "",
-    "A subagent can park its run and ask you a question when the brief does "
-    "not let it continue: it cannot reach the user, only you can answer.\n",
-    "",
-    "- The question arrives with `await_reason: question` and a `question` "
-    "object. Answer it with `answer_child(run_id, answer)`; the subagent "
-    "continues the SAME run, with the same files, context and step budget.\n",
-    "- If you do not know the answer, ask the user in the dialog first, then "
-    "pass their decision on. Never guess on the user's behalf.\n",
-    "- Be concrete: the subagent acts on your words. An answer is a decision "
-    "or a missing fact, not a new briefing - a new scope needs a new "
-    "delegation.\n",
-    "- The number of question/answer pairs per run is limited. When the "
-    "subagent keeps asking instead of working, reply with a directive to "
-    "finish with the information it already has.\n",
-)
+#: Rules of the agent dialog, stored verbatim in core.prompt_blocks: the text
+#: is read by every orchestrator and a typo in one branch changes the
+#: behaviour of all of them.
+_DIALOG_RULES_PARENT = DIALOG_RULES_PARENT
 
-_DIALOG_RULES_CHILD = (
-    "## Asking the agent that launched you\n",
-    "",
-    "When the brief does not let you continue - a decision only the parent "
-    "can make, a missing fact, an ambiguity that changes the result - park "
-    "your run with `ask_parent`.\n",
-    "",
-    "- Put the decision you need in `question`, the answers you can act on "
-    "in `options`, what is already finished in `done` and what you cannot do "
-    "without the answer in `blocked`.\n",
-    "- Asking parks the run: never start solving the same question in the "
-    "same step, and never repeat a question you already asked.\n",
-    "- The answer arrives as a user message and your work continues from "
-    "where it stopped, with the same files and step budget.\n",
-    "- Ask only for what you cannot decide yourself: the number of "
-    "question/answer pairs per run is limited, and a question costs a round.\n",
-)
+_DIALOG_RULES_CHILD = DIALOG_RULES_CHILD
 
 
 def _extend_prompt_with_dialog(prompt: str, orchestrator_slug: str = DEVAGENT_SLUG,
@@ -2385,107 +2328,98 @@ def orch_delete_function(slug: str, name: str) -> bool:
 # ─── Bootstrap ───────────────────────────────────────────────────────────
 
 
-def ensure_builtin_orchestrators() -> Dict[str, str]:
-    """Ensure the built-in 'dev_agent' orchestrator exists in the DB.
-
-    On first run, migrates settings from KV-store (devagent.* keys) and
-    system_prompt.md into the orchestrators table.  On subsequent runs,
-    always updates the prompt_text from the bundled system_prompt.md file
-    so it stays current with the code, and backfills missing config fields
-    from the current defaults without overwriting user-chosen values.
-
-    After the built-in DevAgent is ensured, bundled DEFAULT orchestrators
-    (defaults/orchestrators/*) are created if their slugs do not exist yet.
-
-    Returns a status dict, e.g. {"dev_agent": "created",
-    "ya_agent": "created"} or {"dev_agent": "updated"}.
-    """
+def _load_bundled_prompt_text() -> str:
+    """Return the bundled DevAgent system prompt (dev_agent/system_prompt.md)."""
     from pathlib import Path
 
-    from core.config import load_devagent_config as load_legacy_dev_cfg
-
-    # Load the single bundled system prompt from dev_agent/system_prompt.md.
-    # There is intentionally NO defaults/ copy: this file is the one source of
-    # truth for the built-in DevAgent prompt.
-    prompt_text = ""
     prompt_file = (
         Path(__file__).resolve().parent.parent
         / "dev_agent" / "system_prompt.md"
     )
     try:
-        prompt_text = prompt_file.read_text(encoding="utf-8")
+        return prompt_file.read_text(encoding="utf-8")
     except Exception:
-        prompt_text = "You are DevAgent, the embedded developer of SagaAI."
+        return "You are DevAgent, the embedded developer of SagaAI."
 
-    existing = repo_get_orchestrator_with_text(DEVAGENT_SLUG)
 
-    if existing is None:
-        # First boot: migrate from legacy KV config if available.
-        legacy = load_legacy_dev_cfg()
-        config = {
-            "strong_service": legacy.get("strong_service", "") or "DeepSeek",
-            "strong_model": legacy.get("strong_model", "") or "deepseek-flash",
-            "strong_temperature": float(legacy.get("strong_temperature", 0.4) or 0.4),
-            "strong_max_tokens": int(legacy.get("strong_max_tokens") or get_default_strong_max_tokens()) or get_default_strong_max_tokens(),
-            "strong_reasoning_effort": "xhigh",
-            "vision_service": legacy.get("vision_service", "") or "DeepSeek",
-            "vision_model": legacy.get("vision_model", "") or "deepseek-flash",
-            "image_service": legacy.get("image_service", "") or "",
-            "image_model": legacy.get("image_model", "") or "",
-            "search_service": legacy.get("search_service", "") or "DeepSeek",
-            "search_model": legacy.get("search_model", "") or "deepseek-flash",
-            "search_temperature": float(legacy.get("search_temperature", 0.4) or 0.4),
-            "search_max_tool_calls": int(legacy.get("search_max_tool_calls", 3) or 3),
-            "search_reasoning_effort": "high",
-            "web_search_prompt": str(legacy.get("web_search_prompt", "") or DEFAULT_WEB_SEARCH_PROMPT),
-            "fetch_service": legacy.get("fetch_service", "") or "",
-            "fetch_model": legacy.get("fetch_model", "") or "",
-            "economy_tail_messages": int(legacy.get("economy_tail_messages", _default_economy_tail_messages())
-                                         or _default_economy_tail_messages()),
-            "economy_cache_enabled": _default_economy_cache_enabled(),
-            "economy_cache_multiplier": _default_economy_cache_multiplier(),
-            "enabled_skills": [],
-            "enabled_connections": [],
-            "disabled_tools": [],
-        }
+def _first_boot_config(legacy: Dict[str, Any]) -> Dict[str, Any]:
+    """Build the DevAgent config on first boot from the legacy KV settings."""
+    return {
+        "strong_service": legacy.get("strong_service", "") or "DeepSeek",
+        "strong_model": legacy.get("strong_model", "") or "deepseek-flash",
+        "strong_temperature": float(legacy.get("strong_temperature", 0.4) or 0.4),
+        "strong_max_tokens": int(legacy.get("strong_max_tokens") or get_default_strong_max_tokens()) or get_default_strong_max_tokens(),
+        "strong_reasoning_effort": "xhigh",
+        "vision_service": legacy.get("vision_service", "") or "DeepSeek",
+        "vision_model": legacy.get("vision_model", "") or "deepseek-flash",
+        "image_service": legacy.get("image_service", "") or "",
+        "image_model": legacy.get("image_model", "") or "",
+        "search_service": legacy.get("search_service", "") or "DeepSeek",
+        "search_model": legacy.get("search_model", "") or "deepseek-flash",
+        "search_temperature": float(legacy.get("search_temperature", 0.4) or 0.4),
+        "search_max_tool_calls": int(legacy.get("search_max_tool_calls", 3) or 3),
+        "search_reasoning_effort": "high",
+        "web_search_prompt": str(legacy.get("web_search_prompt", "") or DEFAULT_WEB_SEARCH_PROMPT),
+        "fetch_service": legacy.get("fetch_service", "") or "",
+        "fetch_model": legacy.get("fetch_model", "") or "",
+        "economy_tail_messages": int(legacy.get("economy_tail_messages", _default_economy_tail_messages())
+                                     or _default_economy_tail_messages()),
+        "economy_cache_enabled": _default_economy_cache_enabled(),
+        "economy_cache_multiplier": _default_economy_cache_multiplier(),
+        "enabled_skills": [],
+        "enabled_connections": [],
+        "disabled_tools": [],
+    }
 
-        # Build tools list from the tool executor catalog.
-        try:
-            from dev_agent.tool_executor import TOOL_CATALOG as CORE_TOOLS
-            from dev_agent.universal_agent import WORKSPACE_TOOL_CATALOG
-            tool_names = [t["name"] for t in CORE_TOOLS] + [t["name"] for t in WORKSPACE_TOOL_CATALOG]
-        except Exception:
-            tool_names = []
 
-        orch_id = uuid.uuid4().hex[:8]
-        ok = repo_create_orchestrator(
-            orchestrator_id=orch_id,
-            slug=DEVAGENT_SLUG,
-            name="DevAgent",
-            description="Universal developer orchestrator - creates, debugs and maintains software projects.",
-            prompt_text=prompt_text,
-            config=config,
-            tools=tool_names,
-            max_steps=DEFAULT_MAX_STEPS,
-            auto_apply=True,
-            is_builtin=True,
-            sort_order=200,  # after user orchestrators
-        )
-        if ok:
-            # Write the fresh bundle (orchestrator.json) with current defaults
-            # so the folder on disk matches the clean-install state.
-            _sync_orchestrator_folder(DEVAGENT_SLUG)
-        result = {DEVAGENT_SLUG: "created" if ok else "error"}
-        result.update(_ensure_default_orchestrators())
-        return result
+def _builtin_tool_names() -> List[str]:
+    """Return the tool names the built-in DevAgent starts with."""
+    try:
+        from dev_agent.tool_executor import TOOL_CATALOG as CORE_TOOLS
+        from dev_agent.universal_agent import WORKSPACE_TOOL_CATALOG
+        return [t["name"] for t in CORE_TOOLS] + [t["name"] for t in WORKSPACE_TOOL_CATALOG]
+    except Exception:
+        return []
 
-    # Existing orchestrator - update prompt_text and backfill missing config fields.
-    config = existing.get("config", {})
-    if not isinstance(config, dict):
-        config = {}
 
-    # Backfill defaults for fields that did not exist when the config was created.
-    # Do NOT overwrite existing user-chosen values.
+def _create_builtin_orchestrator(prompt_text: str) -> Dict[str, str]:
+    """Create the built-in DevAgent record on first boot.
+
+    Settings are migrated from the legacy KV store (devagent.* keys) when it
+    has them; the bundle written afterwards matches the clean-install state.
+    """
+    from core.config import load_devagent_config as load_legacy_dev_cfg
+
+    config = _first_boot_config(load_legacy_dev_cfg())
+    ok = repo_create_orchestrator(
+        orchestrator_id=uuid.uuid4().hex[:8],
+        slug=DEVAGENT_SLUG,
+        name="DevAgent",
+        description="Universal developer orchestrator - creates, debugs and maintains software projects.",
+        prompt_text=prompt_text,
+        config=config,
+        tools=_builtin_tool_names(),
+        max_steps=DEFAULT_MAX_STEPS,
+        auto_apply=True,
+        is_builtin=True,
+        sort_order=200,  # after user orchestrators
+    )
+    if ok:
+        # Write the fresh bundle (orchestrator.json) with current defaults
+        # so the folder on disk matches the clean-install state.
+        _sync_orchestrator_folder(DEVAGENT_SLUG)
+    result = {DEVAGENT_SLUG: "created" if ok else "error"}
+    result.update(_ensure_default_orchestrators())
+    return result
+
+
+def _backfill_builtin_config(config: Dict[str, Any]) -> bool:
+    """Backfill config fields added after the record was created.
+
+    Returns True when at least one field changed. Existing user-chosen values
+    are never overwritten: a field is filled only while it is missing, empty,
+    or holds the sentinel that means "unset" for that particular key.
+    """
     config_defaults = {
         "strong_service": "DeepSeek",
         "strong_model": "deepseek-flash",
@@ -2512,31 +2446,21 @@ def ensure_builtin_orchestrators() -> Dict[str, str]:
 
     backfilled = False
 
-    # Add enabled_skills if missing (old configs created before the feature).
-    if "enabled_skills" not in config:
-        config["enabled_skills"] = []
-        backfilled = True
+    # Add the list-valued keys introduced after the first configs were written.
+    for list_key in ("enabled_skills", "enabled_connections", "disabled_tools"):
+        if list_key not in config:
+            config[list_key] = []
+            backfilled = True
 
-    # Add enabled_connections if missing (old configs created before the feature).
-    if "enabled_connections" not in config:
-        config["enabled_connections"] = []
-        backfilled = True
-
-    # Add disabled_tools if missing (old configs created before the feature).
-    if "disabled_tools" not in config:
-        config["disabled_tools"] = []
-        backfilled = True
-
-    # Add verifier_agent if missing (old configs created before result
-    # verification): an existing installation must not need a manual edit
-    # before the setting can be chosen in the UI.
+    # An existing installation must not need a manual edit before the setting
+    # can be chosen in the UI.
     if "verifier_agent" not in config:
         config["verifier_agent"] = ""
         backfilled = True
 
     # Legacy configs (created before cache-friendly economy mode) stored
     # economy_tail_messages=15 but have no cache fields. Treat that as the
-    # old built-in default and upgrade it to the new default (50).
+    # old built-in default and upgrade it to the new default.
     has_cache_fields = ("economy_cache_enabled" in config) or ("economy_cache_multiplier" in config)
     if not has_cache_fields and config.get("economy_tail_messages") == 15:
         config["economy_tail_messages"] = _default_economy_tail_messages()
@@ -2568,12 +2492,46 @@ def ensure_builtin_orchestrators() -> Dict[str, str]:
             config.pop(legacy_key, None)
             backfilled = True
 
-    # One-time migration of the legacy 100-step default to the current
-    # default. Guarded by a config marker so user-chosen values survive.
-    migrate_max_steps = False
-    if not config.get("max_steps_default_migrated") and existing.get("max_steps") == 100:
-        config["max_steps_default_migrated"] = True
-        migrate_max_steps = True
+    return backfilled
+
+
+def _migrate_builtin_max_steps(config: Dict[str, Any], existing: Dict[str, Any]) -> bool:
+    """Migrate the legacy 100-step default; return True when it applied."""
+    if config.get("max_steps_default_migrated") or existing.get("max_steps") != 100:
+        return False
+    config["max_steps_default_migrated"] = True
+    return True
+
+
+def ensure_builtin_orchestrators() -> Dict[str, str]:
+    """Ensure the built-in 'dev_agent' orchestrator exists in the DB.
+
+    On first run, migrates settings from KV-store (devagent.* keys) and
+    system_prompt.md into the orchestrators table.  On subsequent runs,
+    always updates the prompt_text from the bundled system_prompt.md file
+    so it stays current with the code, and backfills missing config fields
+    from the current defaults without overwriting user-chosen values.
+
+    After the built-in DevAgent is ensured, bundled DEFAULT orchestrators
+    (defaults/orchestrators/*) are created if their slugs do not exist yet.
+
+    Returns a status dict, e.g. {"dev_agent": "created",
+    "ya_agent": "created"} or {"dev_agent": "updated"}.
+    """
+    prompt_text = _load_bundled_prompt_text()
+    existing = repo_get_orchestrator_with_text(DEVAGENT_SLUG)
+
+    if existing is None:
+        return _create_builtin_orchestrator(prompt_text)
+
+    # Existing orchestrator - update prompt_text and backfill missing config fields.
+    config = existing.get("config", {})
+    if not isinstance(config, dict):
+        config = {}
+
+    backfilled = _backfill_builtin_config(config)
+    migrate_max_steps = _migrate_builtin_max_steps(config, existing)
+    if migrate_max_steps:
         backfilled = True
 
     update_kwargs: Dict[str, Any] = {}

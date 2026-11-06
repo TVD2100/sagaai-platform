@@ -15,8 +15,6 @@ Navigation structure:
   - Settings: Employees, Assistants, Skills, LLM Providers, Language.
   - About / Welcome at the bottom.
 """
-import json
-
 import streamlit as st
 
 import core.default_imports as default_imports
@@ -38,6 +36,18 @@ from core.recent_assistants import record_assistant_use
 from core.threads import list_chat_threads, load_thread_meta
 from core.threads_devagent import list_devagent_threads, migrate_platform_workspace_meta
 from core.version import __version__ as PLATFORM_VERSION
+
+# Theme/restore helpers live in ui/app_restore.py and are re-exported here so
+# existing callers and tests keep addressing them through the app module.
+from ui.app_restore import (  # noqa: F401
+    _THEME_MODES,
+    _apply_theme,
+    _build_ui_restore_payload,
+    _handle_thread_deeplink,
+    _restore_ui_reload_state,
+    _sync_saved_theme,
+    _sync_saved_theme_once,
+)
 from ui.components.flash import flash_warning, render_flash
 from ui.pages.access import page_access
 from ui.pages.chat import page_run_query
@@ -62,9 +72,6 @@ _DEVAGENT_ICON = "\U0001f6e0\ufe0f"      # built-in DevAgent: wrench + hammer
 _ASSISTANT_ICON = "\U0001f9e9"      # assistants
 _SLIB_ICON = "\U0001f9e0"          # skills library: puzzle piece
 _MARKETPLACE_ICON = "\U0001f6d2"    # marketplace: shopping trolley
-_THEME_MODES = ["System", "Light", "Dark"]
-
-
 def _build_orch_nav():
     """Return (visible, collapsed) employee navigation entries.
 
@@ -215,216 +222,6 @@ def _render_marketplace_nav(page: str, lang: str) -> None:
             st.markdown("</div>", unsafe_allow_html=True)
 
 
-def _apply_theme(mode: str, restore_payload: str = "") -> None:
-    """Persist the selected UI theme without losing the current page.
-
-    Streamlit reads the active theme from localStorage only when the parent
-    page loads, so a full browser reload is unavoidable. The JS must run in
-    the top-level document: st.components.v1.html renders inside a sandboxed
-    iframe whose sandbox flags do not include allow-top-navigation, so
-    location.replace would be silently ignored. st.html with
-    unsafe_allow_javascript=True executes the same script in the main
-    document instead. The reload normally wipes the server-side session
-    state and falls back to the welcome page. To keep the user where they
-    were, a minimal state snapshot is attached to a URL query parameter
-    before the reload; ui.app.main() restores it on the first rerun after
-    the reload (see _restore_ui_reload_state).
-    """
-    script = (
-        "(function () {"
-        "  var w = window.parent === window ? window : window.parent;"
-        "  var path = '/';"
-        "  try { path = w.location.pathname || '/'; } catch (e) {}"
-        "  var key = 'stActiveTheme-' + path + '-v2';"
-        "  w.localStorage.setItem(key, JSON.stringify({mode}));"
-        "  var url = new URL(w.location.href);"
-        "  url.searchParams.set('_sagaai_ui_restore', {restore});"
-        "  w.location.replace(url.toString());"
-        "})();"
-    ).replace("{mode}", json.dumps(mode))
-    script = script.replace("{restore}", json.dumps(restore_payload))
-    st.html(
-        '<!doctype html><html><body><script>{script}</script></body></html>'.replace("{script}", script),
-        unsafe_allow_javascript=True,
-    )
-
-
-
-
-def _sync_saved_theme(mode: str, restore_payload: str = "") -> None:
-    """One-time sync of localStorage with the saved theme on initial page load.
-
-    Streamlit paints the interface from localStorage whenever the parent page
-    loads; the sidebar selectbox value only mirrors the server-side config.
-    Manual switches persist the theme via _apply_theme, so after those the
-    stored value usually matches. On a cold start (server restart, a new
-    browser session, another port/origin) the stored value may be missing or
-    stale while the config still says 'Dark': the sidebar then shows 'Dark'
-    but the interface is painted light, and it only fixes itself when the
-    user re-selects the theme by hand. This script compares both sides and,
-    only when they differ, writes the saved value and does the single
-    browser reload Streamlit needs; the restore query param carries the
-    page/dialog snapshot so the user stays where they were (see _apply_theme
-    and _restore_ui_reload_state).
-    """
-    script = (
-        "(function () {"
-        "  var w = window.parent === window ? window : window.parent;"
-        "  var path = '/';"
-        "  try { path = w.location.pathname || '/'; } catch (e) {}"
-        "  var key = 'stActiveTheme-' + path + '-v2';"
-        "  var stored = null;"
-        "  try { stored = w.localStorage.getItem(key); } catch (e) { return; }"
-        "  if (stored === JSON.stringify({mode})) { return; }"
-        "  try { w.localStorage.setItem(key, JSON.stringify({mode})); } catch (e) {}"
-        "  if (stored === null && JSON.stringify({mode}) === JSON.stringify('System')) { return; }"
-        "  var url = new URL(w.location.href);"
-        "  url.searchParams.set('_sagaai_ui_restore', {restore});"
-        "  w.location.replace(url.toString());"
-        "})();"
-    ).replace("{mode}", json.dumps(mode))
-    script = script.replace("{restore}", json.dumps(restore_payload))
-    st.html(
-        '<!doctype html><html><body><script>{script}</script></body></html>'.replace("{script}", script),
-        unsafe_allow_javascript=True,
-    )
-
-
-def _sync_saved_theme_once(cfg: dict) -> None:
-    """Run the cold-start localStorage sync of the saved theme exactly once.
-
-    The flag survives the browser reload the sync triggers (the reload lands
-    in the same server session), so the page is not reloaded in a loop.
-    """
-    if st.session_state.get('_ui_theme_synced'):
-        return
-    st.session_state['_ui_theme_synced'] = True
-    saved_theme = cfg.get('ui_theme', '')
-    if saved_theme in _THEME_MODES:
-        _sync_saved_theme(saved_theme, _build_ui_restore_payload())
-
-
-def _build_ui_restore_payload() -> str:
-    """Return a JSON snapshot of the state needed to restore the UI after a reload.
-
-    Kept intentionally small: the current page, the active assistant/orchestrator
-    dialog, and the entity that drives the context-dependent sidebar actions.
-    Dialog message history itself is persisted in the database and reloaded by
-    the target page, so it is not serialised into the URL.
-    """
-    data = {}
-    page = st.session_state.get("current_page")
-    if page:
-        data["page"] = str(page)
-    tid = st.session_state.get("active_thread_id")
-    if tid:
-        data["active_thread_id"] = str(tid)
-    assistant_id = (
-        st.session_state.get("selected_assistant_id")
-        or st.session_state.get("selected_skill_id")
-    )
-    if assistant_id:
-        data["selected_assistant_id"] = str(assistant_id)
-    entity_type = st.session_state.get("last_active_entity_type")
-    if entity_type:
-        data["last_active_entity_type"] = str(entity_type)
-    entity_id = st.session_state.get("last_active_entity_id")
-    if entity_id:
-        data["last_active_entity_id"] = str(entity_id)
-    if page and page.startswith("orchestrator:") and not page.startswith("orchestrator_settings:"):
-        slug = page.split(":", 1)[1]
-        orch_tid = st.session_state.get(f"orch_{slug}_thread_id")
-        if orch_tid:
-            data["orch_thread_id"] = str(orch_tid)
-    return json.dumps(data)
-
-
-def _restore_ui_reload_state() -> None:
-    """Restore the page/dialog snapshot after a theme-switch reload.
-
-    Runs once per browser session. If the URL contains the restore marker it
-    is applied to session_state and then removed from the URL, so a later
-    manual reload does not resurrect the previous dialog state.
-    """
-    if st.session_state.get("_theme_restore_handled"):
-        return
-    try:
-        raw = st.query_params.get("_sagaai_ui_restore")
-    except Exception:
-        raw = None
-    if not raw:
-        return
-    st.session_state["_theme_restore_handled"] = True
-    try:
-        data = json.loads(raw)
-    except Exception:
-        data = {}
-    page = data.get("page")
-    if page:
-        st.session_state["current_page"] = str(page)
-    if data.get("active_thread_id"):
-        st.session_state["active_thread_id"] = str(data["active_thread_id"])
-    if data.get("selected_assistant_id"):
-        st.session_state["selected_assistant_id"] = str(data["selected_assistant_id"])
-        st.session_state["selected_skill_id"] = str(data["selected_assistant_id"])
-    if data.get("last_active_entity_type"):
-        st.session_state["last_active_entity_type"] = str(data["last_active_entity_type"])
-    if data.get("last_active_entity_id"):
-        st.session_state["last_active_entity_id"] = str(data["last_active_entity_id"])
-    if page and page.startswith("orchestrator:") and not page.startswith("orchestrator_settings:"):
-        slug = page.split(":", 1)[1]
-        import ui.pages.orchestrator as _orch_page
-        _orch_page._init_orch_state(slug)
-        orch_tid = data.get("orch_thread_id")
-        if orch_tid:
-            try:
-                _orch_page._load_thread(slug, str(orch_tid))
-            except Exception:
-                pass
-    try:
-        if "_sagaai_ui_restore" in st.query_params:
-            st.query_params.pop("_sagaai_ui_restore", None)
-    except Exception:
-        pass
-
-
-def _handle_thread_deeplink() -> None:
-    """Navigate to an employee thread passed as URL query parameters.
-
-    The Copy-URL toolbar buttons build a deep link of the form
-    ``?orchestrator=<slug>&thread=<tid>`` (``thread`` is optional).  On the
-    first run with such a link the target dialog is loaded and the
-    parameters are removed from the URL, so a later manual reload starts
-    on the welcome page instead of resurrecting the same deep link.
-    """
-    if st.session_state.get("_thread_deeplink_handled"):
-        return
-    try:
-        slug = (st.query_params.get("orchestrator") or "").strip()
-        tid = (st.query_params.get("thread") or "").strip()
-    except Exception:
-        return
-    if not slug:
-        return
-    st.session_state["_thread_deeplink_handled"] = True
-    import ui.pages.orchestrator as _orch_page
-    _orch_page._init_orch_state(slug)
-    if tid:
-        try:
-            _orch_page._load_thread(slug, tid)
-        except Exception:
-            # Unknown / corrupt thread id: start a fresh dialog instead.
-            _orch_page._reset_dialog(slug)
-    else:
-        _orch_page._reset_dialog(slug)
-    st.session_state["last_active_entity_type"] = "orchestrator"
-    st.session_state["last_active_entity_id"] = slug
-    st.session_state["current_page"] = f"orchestrator:{slug}"
-    try:
-        st.query_params.pop("orchestrator", None)
-        st.query_params.pop("thread", None)
-    except Exception:
-        pass
 
 
 def _run_dependency_check_once():
@@ -519,52 +316,59 @@ def _show_chat_db_archive_notice_once(lang) -> None:
     ))
 
 
-def main():
-    """Entry point called from app.py after st.set_page_config."""
-    # ── Authentication gate ────────────────────────────────────────────────
-    require_auth()
+def _seed_defaults_once() -> None:
+    """Seed bundled defaults and the marketplace registry once per session.
 
-    # Seed built-in instructions and DevAgent settings.
-    if not st.session_state.get("_defaults_seeded"):
-        default_imports.ensure_all_defaults()
-        # Entities that predate the catalog are adopted before anything reads
-        # the registry: the bundled defaults create their folders above, and
-        # the adoption turns those folders into registry rows. Without it an
-        # existing installation would report "not installed" and offer a
-        # second copy of what the user already has.
-        if marketplace_enabled():
-            try:
-                from core.marketplace import migration as marketplace_migration
+    The flag is set at the END: a failure above must not mark the session as
+    seeded, or the next render would skip the seeding entirely.
+    """
+    if st.session_state.get("_defaults_seeded"):
+        return
+    default_imports.ensure_all_defaults()
+    _adopt_preexisting_entities()
+    # One-time cleanup of leaked platform folders in foreign dialogs'
+    # saved workspace (workspace isolation v2, see core.threads_devagent).
+    # Idempotent; a failure here must never block the app start.
+    try:
+        migrate_platform_workspace_meta()
+    except Exception:
+        pass
+    st.session_state["_defaults_seeded"] = True
 
-                marketplace_migration.migrate()
-            except Exception:
-                pass
-        # Registry rows for skills installed before the marketplace existed.
-        # Seeding is a local DB write only - it never touches the catalog
-        # (the no-network test pins that), and a disabled marketplace is not
-        # allowed to write anything at all.
-        if marketplace_enabled():
-            try:
-                from core.marketplace import registry as marketplace_registry
 
-                marketplace_registry.seed_local_orphans()
-            except Exception:
-                pass
-        # One-time cleanup of leaked platform folders in foreign dialogs'
-        # saved workspace (workspace isolation v2, see core.threads_devagent).
-        # Idempotent; a failure here must never block the app start.
-        try:
-            migrate_platform_workspace_meta()
-        except Exception:
-            pass
-        st.session_state["_defaults_seeded"] = True
+def _adopt_preexisting_entities() -> None:
+    """Adopt entities that predate the marketplace catalog.
 
-    # Load env vars from shell profiles.
-    load_env_from_shell_profiles()
+    The bundled defaults create their folders before anything reads the
+    registry, and the adoption turns those folders into registry rows.
+    Without it an existing installation would report "not installed" and
+    offer a second copy of what the user already has. Seeding is a local DB
+    write only - it never touches the catalog (the no-network test pins
+    that), and a disabled marketplace is not allowed to write anything.
+    """
+    if not marketplace_enabled():
+        return
+    try:
+        from core.marketplace import migration as marketplace_migration
 
-    _run_dependency_check_once()
+        marketplace_migration.migrate()
+    except Exception:
+        pass
+    try:
+        from core.marketplace import registry as marketplace_registry
 
-    defaults = dict(
+        marketplace_registry.seed_local_orphans()
+    except Exception:
+        pass
+
+
+def _session_defaults() -> dict:
+    """Return the session-state defaults of a fresh dialog.
+
+    Only keys ABSENT from the session are filled in, so a value set before
+    the first render (a deep link, a test fixture) always wins.
+    """
+    return dict(
         show_assistant_form=False,
         edit_assistant_id=None,
         show_skill_form=False,
@@ -603,44 +407,41 @@ def main():
         storage_confirm_delete=None,
         storage_test_search=None,
     )
-    for k, v in defaults.items():
-        if k not in st.session_state:
-            st.session_state[k] = v
 
-    _restore_ui_reload_state()
-    _handle_thread_deeplink()
 
-    langs      = get_langs()
-    cfg        = load_config()
+def _resolve_languages() -> tuple:
+    """Return (langs, cfg, lang_names) with Russian placed first."""
+    langs = get_langs()
+    cfg = load_config()
     lang_names = list(langs.keys())
-    # Russian first
     if "\u0420\u0443\u0441\u0441\u043a\u0438\u0439" in lang_names:
         lang_names.remove("\u0420\u0443\u0441\u0441\u043a\u0438\u0439")
         lang_names.insert(0, "\u0420\u0443\u0441\u0441\u043a\u0438\u0439")
-    if "ui_lang" not in st.session_state or st.session_state.ui_lang not in lang_names:
-        saved = cfg.get("ui_lang", "")
-        default_lang = get_default_ui_lang()
-        if saved and saved in lang_names:
-            st.session_state.ui_lang = saved
-        elif default_lang and default_lang in lang_names:
-            st.session_state.ui_lang = default_lang
-        elif "\u0420\u0443\u0441\u0441\u043a\u0438\u0439" in lang_names:
-            st.session_state.ui_lang = "\u0420\u0443\u0441\u0441\u043a\u0438\u0439"
-        else:
-            st.session_state.ui_lang = lang_names[0] if lang_names else ""
+    return langs, cfg, lang_names
 
-    lang = st.session_state.get("ui_lang")
-    page = st.session_state["current_page"]
 
-    _show_db_archive_notice_once(lang)
-    _show_chat_db_archive_notice_once(lang)
+def _ensure_ui_lang(cfg: dict, lang_names: list) -> None:
+    """Pick the session language: stored choice, then the default, then Russian.
 
-    # One-time localStorage sync for the saved theme: after a cold start the
-    # sidebar shows the saved theme, but the page is painted from the
-    # browser-local storage which is only written on manual switches.
-    _sync_saved_theme_once(cfg)
+    A stored value outside the available languages is replaced, so a removed
+    language file cannot leave the session pointing at nothing.
+    """
+    if "ui_lang" in st.session_state and st.session_state.ui_lang in lang_names:
+        return
+    saved = cfg.get("ui_lang", "")
+    default_lang = get_default_ui_lang()
+    if saved and saved in lang_names:
+        st.session_state.ui_lang = saved
+    elif default_lang and default_lang in lang_names:
+        st.session_state.ui_lang = default_lang
+    elif "\u0420\u0443\u0441\u0441\u043a\u0438\u0439" in lang_names:
+        st.session_state.ui_lang = "\u0420\u0443\u0441\u0441\u043a\u0438\u0439"
+    else:
+        st.session_state.ui_lang = lang_names[0] if lang_names else ""
 
-    # ── Sidebar CSS ─────────────────────────────────────────────────────────
+
+def _render_sidebar_styles() -> None:
+    """Install the sidebar CSS: separators, active items, headers, footer."""
     st.markdown("""<style>
     section[data-testid="stSidebar"] hr {
         margin-top: 0.15rem !important;
@@ -688,380 +489,16 @@ def main():
     }
     </style>""", unsafe_allow_html=True)
 
-    with st.sidebar:
-        st.title(f"\U0001f916 {t('app_title', lang=lang)}")
-        st.markdown("---")
-        # ── New dialog button (context-dependent) ──────────────────────────
-        entity_type = st.session_state.get("last_active_entity_type")
-        entity_id   = st.session_state.get("last_active_entity_id")
 
-        if entity_type == "orchestrator":
-            new_dialog_label = f"\U0001f4ac {t('sidebar_new_dialog_agent', lang=lang)}"
-        elif entity_type == "assistant":
-            new_dialog_label = f"\U0001f4ac {t('sidebar_new_query', lang=lang)}"
-        else:
-            new_dialog_label = f"\U0001f4ac {t('sidebar_new_dialog', lang=lang)}"
+def _dispatch_page(page: str) -> None:
+    """Render the page the sidebar selected.
 
-        if st.button(
-            new_dialog_label, key="sb_new",
-            use_container_width=True,
-            type="primary" if (st.session_state.get("active_thread_id") or page.startswith("orchestrator:")) else "secondary",
-        ):
-            if entity_type == "orchestrator" and entity_id:
-                # Reset orchestrator state and start fresh chat
-                st.session_state.active_thread_id         = None
-                st.session_state["attached_file_context"] = ""
-                st.session_state["attached_file_name"]    = ""
-                st.session_state.force_send               = False
-                st.session_state.devagent_workspace       = ""
-                st.session_state.devagent_target_file     = ""
-                st.session_state.devagent_thread_id       = None
-                st.session_state.devagent_history         = []
-                st.session_state["current_page"]          = f"orchestrator:{entity_id}"
-                # Reset that orchestrator's state
-                import ui.pages.orchestrator as _orch_page
-                _orch_page._reset_dialog(entity_id)
-                st.rerun()
-            elif entity_type == "assistant" and entity_id:
-                # Reset assistant chat and start fresh
-                st.session_state.active_thread_id         = None
-                st.session_state["attached_file_context"] = ""
-                st.session_state["attached_file_name"]    = ""
-                st.session_state.force_send               = False
-                st.session_state["current_page"]          = "run"
-                # Set the selected skill for page_run_query
-                st.session_state["selected_skill_id"]     = entity_id
-                record_assistant_use(entity_id)
-                st.rerun()
-            else:
-                # Fallback: open DevAgent chat
-                st.session_state.active_thread_id         = None
-                st.session_state["attached_file_context"] = ""
-                st.session_state["attached_file_name"]    = ""
-                st.session_state.force_send               = False
-                st.session_state.devagent_workspace       = ""
-                st.session_state.devagent_target_file     = ""
-                st.session_state.devagent_thread_id       = None
-                st.session_state.devagent_history         = []
-                st.session_state["current_page"]          = f"orchestrator:{DEVAGENT_SLUG}"
-                import ui.pages.orchestrator as _orch_page
-                _orch_page._reset_dialog(DEVAGENT_SLUG)
-                st.rerun()
-
-        # ── Active dialog indicator ────────────────────────────────────────
-        active_tid = st.session_state.get("active_thread_id")
-        active_orch_slug = None
-        if page.startswith("orchestrator:") and not page.startswith("orchestrator_settings:"):
-            active_orch_slug = page.split(":", 1)[1]
-
-        # Show active chat info (compact)
-        if active_tid:
-            tmeta = load_thread_meta(active_tid)
-            st.markdown(
-                f'''<div style="background:#0d2137;border-radius:8px;
-                padding:6px 10px;margin-bottom:8px">
-                <div style="font-size:0.65rem;color:#7eb8f7;letter-spacing:.05em;
-                text-transform:uppercase">{t("sidebar_active_dialog", lang=lang)}</div>
-                <div style="font-size:0.8rem;color:#e0e0e0;font-weight:600;
-                margin-top:1px">{(tmeta.get("title") or t("untitled", lang=lang))[:40]}</div>
-                </div>''',
-                unsafe_allow_html=True,
-            )
-        elif active_orch_slug:
-            # Show which orchestrator is active even without a thread
-            from core.orchestrators import get_orchestrator
-            orch = get_orchestrator(active_orch_slug)
-            orch_name = orch.get("name", active_orch_slug) if orch else active_orch_slug
-            st.markdown(
-                f'''<div style="background:#0d2137;border-radius:8px;
-                padding:6px 10px;margin-bottom:8px">
-                <div style="font-size:0.65rem;color:#7eb8f7;letter-spacing:.05em;
-                text-transform:uppercase">{t("sidebar_active_agent", lang=lang)}</div>
-                <div style="font-size:0.8rem;color:#e0e0e0;font-weight:600;
-                margin-top:1px">{_DEVAGENT_ICON if active_orch_slug == DEVAGENT_SLUG else _ORCH_ICON} {orch_name}</div>
-                </div>''',
-                unsafe_allow_html=True,
-            )
-
-        # ── History button (right after New dialog / Active agent) ─────────
-        is_history_active = (page == "history")
-        if is_history_active:
-            st.markdown('<div class="nav-active">', unsafe_allow_html=True)
-        if st.button(
-            f"\U0001f4dc {t('nav_history', lang=lang)}",
-            key="nav_history",
-            use_container_width=True,
-        ):
-            st.session_state["current_page"] = "history"
-            st.rerun()
-        if is_history_active:
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        # ═══════════════════════════════════════════════════════════════════
-        #  EMPLOYEES (Orchestrators)
-        # ═══════════════════════════════════════════════════════════════════
-        st.markdown(
-            f'<div class="sidebar-section-header">{t("sidebar_section_employees", lang=lang)}</div>',
-            unsafe_allow_html=True,
-        )
-
-        visible_orchs, collapsed_orchs = _build_orch_nav()
-        total_orchs = len(visible_orchs) + len(collapsed_orchs)
-
-        def _render_orch_button(page_id, label, slug):
-            """Render one employee button together with its click handler."""
-            is_active = (page == page_id)
-            if is_active:
-                st.markdown('<div class="nav-active">', unsafe_allow_html=True)
-            if st.button(label, key=f"nav_{page_id}", use_container_width=True):
-                st.session_state["last_active_entity_type"] = "orchestrator"
-                st.session_state["last_active_entity_id"]   = slug
-                st.session_state["current_page"] = page_id
-                # Reset the employee search so the sidebar returns to the
-                # grouped layout on the next render (same as assistants).
-                st.session_state["orch_search_query"] = ""
-                st.session_state["orch_search_reset"] = int(st.session_state.get("orch_search_reset", 0)) + 1
-                # Reset orchestrator state for fresh entry
-                import ui.pages.orchestrator as _orch_page
-                _orch_page._reset_dialog(slug)
-                st.rerun()
-            if is_active:
-                st.markdown("</div>", unsafe_allow_html=True)
-
-        if total_orchs:
-            # The search field appears only when there are more than five
-            # employees (fixed block + collapsed remainder).
-            orch_search_query = ""
-            if total_orchs > DEFAULT_VISIBLE_ORCHESTRATORS:
-                orch_search_query = st.text_input(
-                    t("sidebar_search_employees", lang=lang),
-                    value=st.session_state.get("orch_search_query", ""),
-                    key=f"orch_search_input_{st.session_state.get('orch_search_reset', 0)}",
-                    placeholder=t("sidebar_search_employees_placeholder", lang=lang),
-                    label_visibility="collapsed",
-                )
-                st.session_state["orch_search_query"] = orch_search_query
-
-            if orch_search_query:
-                # Search mode: show every matching employee, no groups.
-                all_matching = [
-                    (page_id, label, slug)
-                    for page_id, label, slug in (visible_orchs + collapsed_orchs)
-                    if orch_search_query.lower() in label.lower()
-                ]
-                for page_id, label, slug in all_matching:
-                    _render_orch_button(page_id, label, slug)
-                if not all_matching:
-                    st.caption(t("sidebar_no_employees_found", lang=lang))
-            else:
-                # Normal mode: fixed visible block, then collapsed "All".
-                for page_id, label, slug in visible_orchs:
-                    _render_orch_button(page_id, label, slug)
-                if collapsed_orchs:
-                    all_label = t("sidebar_all_employees", lang=lang, count=len(collapsed_orchs))
-                    with st.expander(all_label, expanded=False):
-                        for page_id, label, slug in collapsed_orchs:
-                            _render_orch_button(page_id, label, slug)
-
-        # ═══════════════════════════════════════════════════════════════════
-        #  ASSISTANTS
-        # ═══════════════════════════════════════════════════════════════════
-        st.markdown(
-            f'<div class="sidebar-section-header">{t("sidebar_section_assistants", lang=lang)}</div>',
-            unsafe_allow_html=True,
-        )
-
-        visible_assistants, collapsed_assistants = _build_assistants_nav(lang)
-        has_skills = bool(visible_assistants or collapsed_assistants)
-
-        if has_skills:
-            # Search field: shown only when there are more than five
-            # assistants (fixed block + collapsed remainder) - the same
-            # rule as for the employees section above.
-            search_query = ""
-            total_assistants = len(visible_assistants) + len(collapsed_assistants)
-            if total_assistants > DEFAULT_VISIBLE_ASSISTANTS:
-                search_query = st.text_input(
-                    t("sidebar_search_skills", lang=lang),
-                    value=st.session_state.get("assistant_search_query") or st.session_state.get("skill_search_query", ""),
-                    key=f"assistant_search_input_{st.session_state.get('assistant_search_reset', 0)}",
-                    placeholder=t("sidebar_search_placeholder", lang=lang),
-                    label_visibility="collapsed",
-                )
-                st.session_state["assistant_search_query"] = search_query
-                st.session_state["skill_search_query"] = search_query
-
-            # Filter by search query
-            def _matches_search(name: str) -> bool:
-                if not search_query:
-                    return True
-                return search_query.lower() in name.lower()
-
-            if search_query:
-                # Search mode: show all matching assistants, no groups
-                all_matching = [
-                    (sid, name) for sid, name in (visible_assistants + collapsed_assistants)
-                    if _matches_search(name)
-                ]
-                for sid, name in all_matching:
-                    is_active = (
-                        page == "run"
-                        and (st.session_state.get("selected_assistant_id") or st.session_state.get("selected_skill_id")) == sid
-                    )
-                    label = f"{_ASSISTANT_ICON} {name}"
-                    if is_active:
-                        st.markdown('<div class="nav-active">', unsafe_allow_html=True)
-                    if st.button(label, key=f"nav_assistant_{sid}", use_container_width=True):
-                        record_assistant_use(sid)
-                        st.session_state["last_active_entity_type"] = "assistant"
-                        st.session_state["last_active_entity_id"]   = sid
-                        st.session_state["selected_assistant_id"]   = sid
-                        st.session_state["selected_skill_id"]        = sid
-                        st.session_state["assistant_search_query"]   = ""
-                        st.session_state["skill_search_query"]       = ""
-                        st.session_state["assistant_search_reset"]   = int(st.session_state.get("assistant_search_reset", 0)) + 1
-                        st.session_state["active_thread_id"]         = None
-                        st.session_state["attached_file_context"]    = ""
-                        st.session_state["attached_file_name"]       = ""
-                        st.session_state["current_page"]             = "run"
-                        st.rerun()
-                    if is_active:
-                        st.markdown("</div>", unsafe_allow_html=True)
-
-                if not all_matching:
-                    st.caption(t("sidebar_no_skills_found", lang=lang))
-            else:
-                # Normal mode: fixed visible block, then collapsed "All"
-                selected_assistant_id = st.session_state.get("selected_assistant_id") or st.session_state.get("selected_skill_id")
-
-                # Visible assistants (up to 5, newest activity first)
-                if visible_assistants:
-                    for sid, name in visible_assistants:
-                        is_active = (page == "run" and selected_assistant_id == sid)
-                        label = f"{_ASSISTANT_ICON} {name}"
-                        if is_active:
-                            st.markdown('<div class="nav-active">', unsafe_allow_html=True)
-                        if st.button(label, key=f"nav_assistant_{sid}", use_container_width=True):
-                            record_assistant_use(sid)
-                            st.session_state["last_active_entity_type"] = "assistant"
-                            st.session_state["last_active_entity_id"]   = sid
-                            st.session_state["selected_assistant_id"]    = sid
-                            st.session_state["selected_skill_id"]        = sid
-                            st.session_state["assistant_search_query"]   = ""
-                            st.session_state["skill_search_query"]       = ""
-                            st.session_state["assistant_search_reset"]   = int(st.session_state.get("assistant_search_reset", 0)) + 1
-                            st.session_state["active_thread_id"]         = None
-                            st.session_state["attached_file_context"]    = ""
-                            st.session_state["attached_file_name"]       = ""
-                            st.session_state["current_page"]             = "run"
-                            st.rerun()
-                        if is_active:
-                            st.markdown("</div>", unsafe_allow_html=True)
-
-                # All remaining assistants (collapsed by default)
-                if collapsed_assistants:
-                    all_label = t("sidebar_all_skills", lang=lang, count=len(collapsed_assistants))
-                    with st.expander(all_label, expanded=False):
-                        for sid, name in collapsed_assistants:
-                            is_active = (page == "run" and selected_assistant_id == sid)
-                            label = f"{_ASSISTANT_ICON} {name}"
-                            if is_active:
-                                st.markdown('<div class="nav-active">', unsafe_allow_html=True)
-                            if st.button(label, key=f"nav_assistant_{sid}", use_container_width=True):
-                                record_assistant_use(sid)
-                                st.session_state["last_active_entity_type"] = "assistant"
-                                st.session_state["last_active_entity_id"]   = sid
-                                st.session_state["selected_assistant_id"]    = sid
-                                st.session_state["selected_skill_id"]        = sid
-                                st.session_state["assistant_search_query"]   = ""
-                                st.session_state["skill_search_query"]       = ""
-                                st.session_state["assistant_search_reset"]   = int(st.session_state.get("assistant_search_reset", 0)) + 1
-                                st.session_state["active_thread_id"]         = None
-                                st.session_state["attached_file_context"]    = ""
-                                st.session_state["attached_file_name"]       = ""
-                                st.session_state["current_page"]             = "run"
-                                st.rerun()
-                            if is_active:
-                                st.markdown("</div>", unsafe_allow_html=True)
-
-        else:
-            st.caption(t("sidebar_no_skills", lang=lang))
-
-        st.markdown("---")
-
-        # ═══════════════════════════════════════════════════════════════════
-        #  MARKETPLACE (catalog subsections)
-        # ═══════════════════════════════════════════════════════════════════
-        if marketplace_enabled():
-            st.markdown(
-                f'<div class="sidebar-section-header">{t("sidebar_section_marketplace", lang=lang)}</div>',
-                unsafe_allow_html=True,
-            )
-            _render_marketplace_nav(page, lang)
-
-        st.markdown("---")
-
-        # ═══════════════════════════════════════════════════════════════════
-        #  SETTINGS
-        # ═══════════════════════════════════════════════════════════════════
-        st.markdown(
-            f'<div class="sidebar-section-header">{t("sidebar_section_settings", lang=lang)}</div>',
-            unsafe_allow_html=True,
-        )
-
-        # The three primary entries stay visible; everything else lives in
-        # the collapsed block right below them, in a fixed order.
-        for _page_id, _icon, _label_key in _SETTINGS_PRIMARY:
-            _render_nav_button(_page_id, _icon, _label_key, page, lang)
-
-        with st.expander(
-            t("sidebar_more", lang=lang, count=len(_SETTINGS_MORE)), expanded=False
-        ):
-            for _page_id, _icon, _label_key in _SETTINGS_MORE:
-                _render_nav_button(_page_id, _icon, _label_key, page, lang)
-
-        st.markdown("---")
-
-        # ═══════════════════════════════════════════════════════════════════
-        #  LANGUAGE & THEME
-        # ═══════════════════════════════════════════════════════════════════
-        cur_idx = lang_names.index(st.session_state.ui_lang) if st.session_state.ui_lang in lang_names else 0
-        selected_lang = st.selectbox(
-            t("lang_label", lang=lang), lang_names, index=cur_idx, key="lang_selector"
-        )
-        if selected_lang != st.session_state.ui_lang:
-            st.session_state.ui_lang = selected_lang
-            new_cfg = dict(cfg)
-            new_cfg["ui_lang"] = selected_lang
-            save_config(new_cfg)
-            st.rerun()
-
-        theme_modes = _THEME_MODES
-        current_theme = cfg.get("ui_theme", "System")
-        if current_theme not in theme_modes:
-            current_theme = "System"
-        selected_theme = st.selectbox(
-            t("theme_label", lang=lang),
-            options=theme_modes,
-            index=theme_modes.index(current_theme),
-            format_func=lambda mode: t(f"theme_{mode.lower()}", lang=lang),
-            key="theme_selector",
-        )
-        if selected_theme != current_theme:
-            new_cfg = dict(cfg)
-            new_cfg["ui_theme"] = selected_theme
-            save_config(new_cfg)
-            _apply_theme(selected_theme, _build_ui_restore_payload())
-
-        # ── Sidebar footer: copyright and license link ───────────────────────
-        st.markdown(
-            f'<div class="sidebar-footer">© 2026 Deinekin T.V. | v{PLATFORM_VERSION} | '
-            '<a href="https://github.com/TVD2100/sagaai-platform/blob/main/LICENSE" '
-            'target="_blank" rel="noopener">PolyForm Noncommercial License</a></div>',
-            unsafe_allow_html=True,
-        )
-
-    # ── Page dispatch ─────────────────────────────────────────────────────────
+    ``page`` is a bare name (``\"history\"``) or a value with a payload
+    (``\"orchestrator:<slug>\"`` / ``\"orchestrator_settings:<slug>\"``). The
+    settings branch is checked first: ``startswith(\"orchestrator\")`` would
+    otherwise swallow it. An unknown value falls back to the DevAgent chat,
+    which keeps a legacy ``\"devagent\"`` page working.
+    """
     if page == "welcome":
         page_welcome()
     elif page == "run":
@@ -1085,11 +522,9 @@ def main():
     elif page == "orchestrators":
         page_orchestrators()
     elif page.startswith("orchestrator_settings:"):
-        slug = page.split(":", 1)[1]
-        page_orchestrator_settings(slug)
+        page_orchestrator_settings(page.split(":", 1)[1])
     elif page.startswith("orchestrator:"):
-        slug = page.split(":", 1)[1]
-        page_orchestrator(slug)
+        page_orchestrator(page.split(":", 1)[1])
     elif page == "updates":
         page_updates()
     elif page == "access":
@@ -1097,8 +532,424 @@ def main():
     elif page == "settings":
         page_settings()
     else:
-        # Fallback for legacy "devagent" page value.
         page_orchestrator(DEVAGENT_SLUG)
+
+
+def _assistant_button(sid: str, name: str, page: str, is_active: bool) -> None:
+    """Render one assistant entry and its click handler.
+
+    The three places that list assistants (search results, the fixed block
+    and the collapsed remainder) share this one handler, so a change to the
+    reset sequence cannot drift between them.
+    """
+    label = f"{_ASSISTANT_ICON} {name}"
+    if is_active:
+        st.markdown('<div class="nav-active">', unsafe_allow_html=True)
+    if st.button(label, key=f"nav_assistant_{sid}", use_container_width=True):
+        record_assistant_use(sid)
+        st.session_state["last_active_entity_type"] = "assistant"
+        st.session_state["last_active_entity_id"] = sid
+        st.session_state["selected_assistant_id"] = sid
+        st.session_state["selected_skill_id"] = sid
+        st.session_state["assistant_search_query"] = ""
+        st.session_state["skill_search_query"] = ""
+        st.session_state["assistant_search_reset"] = int(st.session_state.get("assistant_search_reset", 0)) + 1
+        st.session_state["active_thread_id"] = None
+        st.session_state["attached_file_context"] = ""
+        st.session_state["attached_file_name"] = ""
+        st.session_state["current_page"] = "run"
+        st.rerun()
+    if is_active:
+        st.markdown("</div>", unsafe_allow_html=True)
+
+
+def _render_assistants_section(visible: list, collapsed: list, page: str, lang: str) -> None:
+    """Render the assistants block: search field, fixed entries and the rest.
+
+    The search field appears only above DEFAULT_VISIBLE_ASSISTANTS entries -
+    the same rule the employees section uses. A search query switches the
+    block to a flat list of matches with no groups.
+    """
+    search_query = ""
+    total = len(visible) + len(collapsed)
+    if total > DEFAULT_VISIBLE_ASSISTANTS:
+        search_query = st.text_input(
+            t("sidebar_search_skills", lang=lang),
+            value=st.session_state.get("assistant_search_query") or st.session_state.get("skill_search_query", ""),
+            key=f"assistant_search_input_{st.session_state.get('assistant_search_reset', 0)}",
+            placeholder=t("sidebar_search_placeholder", lang=lang),
+            label_visibility="collapsed",
+        )
+        st.session_state["assistant_search_query"] = search_query
+        st.session_state["skill_search_query"] = search_query
+
+    if search_query:
+        matches = [
+            (sid, name) for sid, name in (visible + collapsed)
+            if search_query.lower() in name.lower()
+        ]
+        current = st.session_state.get("selected_assistant_id") or st.session_state.get("selected_skill_id")
+        for sid, name in matches:
+            _assistant_button(sid, name, page, page == "run" and current == sid)
+        if not matches:
+            st.caption(t("sidebar_no_skills_found", lang=lang))
+        return
+
+    selected_assistant_id = st.session_state.get("selected_assistant_id") or st.session_state.get("selected_skill_id")
+    for sid, name in visible:
+        _assistant_button(sid, name, page, page == "run" and selected_assistant_id == sid)
+    if collapsed:
+        all_label = t("sidebar_all_skills", lang=lang, count=len(collapsed))
+        with st.expander(all_label, expanded=False):
+            for sid, name in collapsed:
+                _assistant_button(sid, name, page, page == "run" and selected_assistant_id == sid)
+
+
+def _render_new_dialog_button(page: str, lang: str) -> None:
+    """Render the top "new dialog" button with its context-dependent reset.
+
+    The label and the reset target follow the last active entity: an
+    orchestrator reopens its own chat, an assistant clears the assistant
+    chat, and anything else falls back to the DevAgent chat.
+    """
+    entity_type = st.session_state.get("last_active_entity_type")
+    entity_id = st.session_state.get("last_active_entity_id")
+
+    if entity_type == "orchestrator":
+        new_dialog_label = f"\U0001f4ac {t('sidebar_new_dialog_agent', lang=lang)}"
+    elif entity_type == "assistant":
+        new_dialog_label = f"\U0001f4ac {t('sidebar_new_query', lang=lang)}"
+    else:
+        new_dialog_label = f"\U0001f4ac {t('sidebar_new_dialog', lang=lang)}"
+
+    if st.button(
+        new_dialog_label, key="sb_new",
+        use_container_width=True,
+        type="primary" if (st.session_state.get("active_thread_id") or page.startswith("orchestrator:")) else "secondary",
+    ):
+        if entity_type == "orchestrator" and entity_id:
+            _reset_orchestrator_chat(entity_id)
+        elif entity_type == "assistant" and entity_id:
+            _reset_assistant_chat(entity_id)
+        else:
+            _reset_orchestrator_chat(DEVAGENT_SLUG)
+
+
+def _reset_orchestrator_chat(slug: str) -> None:
+    """Clear the chat state and reopen the chat of one orchestrator."""
+    st.session_state.active_thread_id = None
+    st.session_state["attached_file_context"] = ""
+    st.session_state["attached_file_name"] = ""
+    st.session_state.force_send = False
+    st.session_state.devagent_workspace = ""
+    st.session_state.devagent_target_file = ""
+    st.session_state.devagent_thread_id = None
+    st.session_state.devagent_history = []
+    st.session_state["current_page"] = f"orchestrator:{slug}"
+    import ui.pages.orchestrator as _orch_page
+
+    _orch_page._reset_dialog(slug)
+    st.rerun()
+
+
+def _reset_assistant_chat(entity_id: str) -> None:
+    """Clear the chat state and open a fresh assistant query."""
+    st.session_state.active_thread_id = None
+    st.session_state["attached_file_context"] = ""
+    st.session_state["attached_file_name"] = ""
+    st.session_state.force_send = False
+    st.session_state["current_page"] = "run"
+    st.session_state["selected_skill_id"] = entity_id
+    record_assistant_use(entity_id)
+    st.rerun()
+
+
+def _render_active_dialog_indicator(page: str, lang: str) -> None:
+    """Render the compact "current dialog" / "active employee" badge.
+
+    A bound thread wins over the bare page: its title identifies the dialog,
+    while a page without a thread can only show which employee is open.
+    """
+    active_tid = st.session_state.get("active_thread_id")
+    active_orch_slug = None
+    if page.startswith("orchestrator:") and not page.startswith("orchestrator_settings:"):
+        active_orch_slug = page.split(":", 1)[1]
+
+    if active_tid:
+        tmeta = load_thread_meta(active_tid)
+        st.markdown(
+            f'''<div style="background:#0d2137;border-radius:8px;
+            padding:6px 10px;margin-bottom:8px">
+            <div style="font-size:0.65rem;color:#7eb8f7;letter-spacing:.05em;
+            text-transform:uppercase">{t("sidebar_active_dialog", lang=lang)}</div>
+            <div style="font-size:0.8rem;color:#e0e0e0;font-weight:600;
+            margin-top:1px">{(tmeta.get("title") or t("untitled", lang=lang))[:40]}</div>
+            </div>''',
+            unsafe_allow_html=True,
+        )
+    elif active_orch_slug:
+        from core.orchestrators import get_orchestrator
+
+        orch = get_orchestrator(active_orch_slug)
+        orch_name = orch.get("name", active_orch_slug) if orch else active_orch_slug
+        st.markdown(
+            f'''<div style="background:#0d2137;border-radius:8px;
+            padding:6px 10px;margin-bottom:8px">
+            <div style="font-size:0.65rem;color:#7eb8f7;letter-spacing:.05em;
+            text-transform:uppercase">{t("sidebar_active_agent", lang=lang)}</div>
+            <div style="font-size:0.8rem;color:#e0e0e0;font-weight:600;
+            margin-top:1px">{_DEVAGENT_ICON if active_orch_slug == DEVAGENT_SLUG else _ORCH_ICON} {orch_name}</div>
+            </div>''',
+            unsafe_allow_html=True,
+        )
+
+
+def _render_history_button(page: str, lang: str) -> None:
+    """Render the history entry, highlighted while the history page is open."""
+    is_history_active = (page == "history")
+    if is_history_active:
+        st.markdown('<div class="nav-active">', unsafe_allow_html=True)
+    if st.button(
+        f"\U0001f4dc {t('nav_history', lang=lang)}",
+        key="nav_history",
+        use_container_width=True,
+    ):
+        st.session_state["current_page"] = "history"
+        st.rerun()
+    if is_history_active:
+        st.markdown("</div>", unsafe_allow_html=True)
+
+
+def _render_employee_button(page_id, label, slug, page):
+    """Render one employee button together with its click handler."""
+    is_active = (page == page_id)
+    if is_active:
+        st.markdown('<div class="nav-active">', unsafe_allow_html=True)
+    if st.button(label, key=f"nav_{page_id}", use_container_width=True):
+        st.session_state["last_active_entity_type"] = "orchestrator"
+        st.session_state["last_active_entity_id"] = slug
+        st.session_state["current_page"] = page_id
+        # Reset the employee search so the sidebar returns to the
+        # grouped layout on the next render (same as assistants).
+        st.session_state["orch_search_query"] = ""
+        st.session_state["orch_search_reset"] = int(st.session_state.get("orch_search_reset", 0)) + 1
+        import ui.pages.orchestrator as _orch_page
+
+        _orch_page._reset_dialog(slug)
+        st.rerun()
+    if is_active:
+        st.markdown("</div>", unsafe_allow_html=True)
+
+
+def _render_employees_section(page: str, lang: str) -> None:
+    """Render the employee navigation: search field, fixed entries, the rest.
+
+    The search field appears only above DEFAULT_VISIBLE_ORCHESTRATORS entries
+    (fixed block + collapsed remainder); a query switches the block to a flat
+    list of matches with no groups.
+    """
+    st.markdown(
+        f'<div class="sidebar-section-header">{t("sidebar_section_employees", lang=lang)}</div>',
+        unsafe_allow_html=True,
+    )
+
+    visible_orchs, collapsed_orchs = _build_orch_nav()
+    total_orchs = len(visible_orchs) + len(collapsed_orchs)
+
+    if total_orchs:
+        orch_search_query = ""
+        if total_orchs > DEFAULT_VISIBLE_ORCHESTRATORS:
+            orch_search_query = st.text_input(
+                t("sidebar_search_employees", lang=lang),
+                value=st.session_state.get("orch_search_query", ""),
+                key=f"orch_search_input_{st.session_state.get('orch_search_reset', 0)}",
+                placeholder=t("sidebar_search_employees_placeholder", lang=lang),
+                label_visibility="collapsed",
+            )
+            st.session_state["orch_search_query"] = orch_search_query
+
+        if orch_search_query:
+            all_matching = [
+                (page_id, label, slug)
+                for page_id, label, slug in (visible_orchs + collapsed_orchs)
+                if orch_search_query.lower() in label.lower()
+            ]
+            for page_id, label, slug in all_matching:
+                _render_employee_button(page_id, label, slug, page)
+            if not all_matching:
+                st.caption(t("sidebar_no_employees_found", lang=lang))
+        else:
+            for page_id, label, slug in visible_orchs:
+                _render_employee_button(page_id, label, slug, page)
+            if collapsed_orchs:
+                all_label = t("sidebar_all_employees", lang=lang, count=len(collapsed_orchs))
+                with st.expander(all_label, expanded=False):
+                    for page_id, label, slug in collapsed_orchs:
+                        _render_employee_button(page_id, label, slug, page)
+
+
+def _render_settings_section(page: str, lang: str) -> None:
+    """Render the settings header and its two navigation groups.
+
+    The three primary entries stay visible; everything else lives in the
+    collapsed block right below them, in a fixed order.
+    """
+    st.markdown(
+        f'<div class="sidebar-section-header">{t("sidebar_section_settings", lang=lang)}</div>',
+        unsafe_allow_html=True,
+    )
+    for _page_id, _icon, _label_key in _SETTINGS_PRIMARY:
+        _render_nav_button(_page_id, _icon, _label_key, page, lang)
+    with st.expander(
+        t("sidebar_more", lang=lang, count=len(_SETTINGS_MORE)), expanded=False
+    ):
+        for _page_id, _icon, _label_key in _SETTINGS_MORE:
+            _render_nav_button(_page_id, _icon, _label_key, page, lang)
+
+
+def _render_language_and_theme(lang: str, cfg: dict, lang_names: list) -> None:
+    """Render the language and theme selectors and apply a change at once.
+
+    A language change is stored and reruns the app; a theme change is stored
+    and applied in place, so the palette switches without an extra rerun.
+    """
+    cur_idx = lang_names.index(st.session_state.ui_lang) if st.session_state.ui_lang in lang_names else 0
+    selected_lang = st.selectbox(
+        t("lang_label", lang=lang), lang_names, index=cur_idx, key="lang_selector"
+    )
+    if selected_lang != st.session_state.ui_lang:
+        st.session_state.ui_lang = selected_lang
+        new_cfg = dict(cfg)
+        new_cfg["ui_lang"] = selected_lang
+        save_config(new_cfg)
+        st.rerun()
+
+    theme_modes = _THEME_MODES
+    current_theme = cfg.get("ui_theme", "System")
+    if current_theme not in theme_modes:
+        current_theme = "System"
+    selected_theme = st.selectbox(
+        t("theme_label", lang=lang),
+        options=theme_modes,
+        index=theme_modes.index(current_theme),
+        format_func=lambda mode: t(f"theme_{mode.lower()}", lang=lang),
+        key="theme_selector",
+    )
+    if selected_theme != current_theme:
+        new_cfg = dict(cfg)
+        new_cfg["ui_theme"] = selected_theme
+        save_config(new_cfg)
+        _apply_theme(selected_theme, _build_ui_restore_payload())
+
+
+def _render_sidebar_footer() -> None:
+    """Render the footer with the copyright, version and license link."""
+    st.markdown(
+        f'<div class="sidebar-footer">© 2026 Deinekin T.V. | v{PLATFORM_VERSION} | '
+        '<a href="https://github.com/TVD2100/sagaai-platform/blob/main/LICENSE" '
+        'target="_blank" rel="noopener">PolyForm Noncommercial License</a></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def _render_sidebar(page: str, lang: str, cfg: dict, lang_names: list) -> None:
+    """Render the whole sidebar: navigation, sections, language and theme.
+
+    The block order IS the widget order, and three smoke tests pin it:
+    settings entries come before the language selector, the language
+    selector before the theme selector.
+    """
+    with st.sidebar:
+        st.title(f"\U0001f916 {t('app_title', lang=lang)}")
+        st.markdown("---")
+        _render_new_dialog_button(page, lang)
+
+        _render_active_dialog_indicator(page, lang)
+
+        _render_history_button(page, lang)
+
+        _render_employees_section(page, lang)
+
+        # ═══════════════════════════════════════════════════════════════════
+        #  ASSISTANTS
+        # ═══════════════════════════════════════════════════════════════════
+        st.markdown(
+            f'<div class="sidebar-section-header">{t("sidebar_section_assistants", lang=lang)}</div>',
+            unsafe_allow_html=True,
+        )
+
+        visible_assistants, collapsed_assistants = _build_assistants_nav(lang)
+        has_skills = bool(visible_assistants or collapsed_assistants)
+
+        if has_skills:
+            _render_assistants_section(visible_assistants, collapsed_assistants, page, lang)
+        else:
+            st.caption(t("sidebar_no_skills", lang=lang))
+
+        st.markdown("---")
+
+        # ═══════════════════════════════════════════════════════════════════
+        #  MARKETPLACE (catalog subsections)
+        # ═══════════════════════════════════════════════════════════════════
+        if marketplace_enabled():
+            st.markdown(
+                f'<div class="sidebar-section-header">{t("sidebar_section_marketplace", lang=lang)}</div>',
+                unsafe_allow_html=True,
+            )
+            _render_marketplace_nav(page, lang)
+
+        st.markdown("---")
+
+        _render_settings_section(page, lang)
+
+        st.markdown("---")
+
+        _render_language_and_theme(lang, cfg, lang_names)
+
+        _render_sidebar_footer()
+
+
+def main():
+    """Entry point called from app.py after st.set_page_config."""
+    # ── Authentication gate ────────────────────────────────────────────────
+    require_auth()
+
+    # Seed built-in instructions and DevAgent settings (once per session).
+    _seed_defaults_once()
+
+    # Load env vars from shell profiles.
+    load_env_from_shell_profiles()
+
+    _run_dependency_check_once()
+
+    defaults = _session_defaults()
+    for k, v in defaults.items():
+        if k not in st.session_state:
+            st.session_state[k] = v
+
+    _restore_ui_reload_state()
+    _handle_thread_deeplink()
+
+    langs, cfg, lang_names = _resolve_languages()
+    _ensure_ui_lang(cfg, lang_names)
+
+    lang = st.session_state.get("ui_lang")
+    page = st.session_state["current_page"]
+
+    _show_db_archive_notice_once(lang)
+    _show_chat_db_archive_notice_once(lang)
+
+    # One-time localStorage sync for the saved theme: after a cold start the
+    # sidebar shows the saved theme, but the page is painted from the
+    # browser-local storage which is only written on manual switches.
+    _sync_saved_theme_once(cfg)
+
+    _render_sidebar_styles()
+
+    _render_sidebar(page, lang, cfg, lang_names)
+
+    # ── Page dispatch ─────────────────────────────────────────────────────────
+    _dispatch_page(page)
 
     # Queued notifications are painted here, once, AFTER the page body: a
     # page that saves something and calls st.rerun() keeps its confirmation
