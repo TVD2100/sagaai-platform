@@ -6,82 +6,33 @@
     "The ratchet exists so the god files can only shrink; see scripts/refactor_budget.py."
   ],
   "limits": {
-    "dev_agent/agent_loop.py": {
-      "file_lines": 396,
-      "function_lines": 100,
-      "max_cc": 9,
-      "longest_function": "run_agent_loop",
-      "most_complex": "run_agent_loop"
-    },
-    "dev_agent/tool_executor.py": {
-      "file_lines": 235,
-      "function_lines": 59,
-      "max_cc": 10,
-      "longest_function": "ToolExecutor.dispatch",
-      "most_complex": "dispatch"
-    },
-    "ui/pages/orchestrator.py": {
-      "file_lines": 3364,
-      "function_lines": 58,
-      "max_cc": 14,
-      "longest_function": "_render_chat_tab",
-      "most_complex": "_render_orch_rag_bases"
-    },
-    "ui/pages/assistants.py": {
-      "file_lines": 582,
-      "function_lines": 70,
-      "max_cc": 9,
-      "longest_function": "_render_model_fields",
-      "most_complex": "_render_model_fields"
-    },
-    "ui/pages/chat.py": {
-      "file_lines": 445,
-      "function_lines": 48,
-      "max_cc": 7,
-      "longest_function": "_handle_send",
-      "most_complex": "_handle_send"
-    },
-    "core/orchestrators.py": {
-      "file_lines": 2681,
-      "function_lines": 117,
-      "max_cc": 15,
-      "longest_function": "import_orchestrator",
-      "most_complex": "_extend_prompt_with_connections"
-    },
-    "core/orchestration/service.py": {
-      "file_lines": 2498,
-      "function_lines": 131,
+    "core/api_bearer.py": {
+      "file_lines": 104,
+      "function_lines": 77,
       "max_cc": 11,
-      "longest_function": "_default_child_runner",
-      "most_complex": "answer_run"
+      "longest_function": "bearer_request_impl",
+      "most_complex": "bearer_request_impl"
     },
-    "dev_agent/universal_agent.py": {
-      "file_lines": 1313,
-      "function_lines": 89,
-      "max_cc": 15,
-      "longest_function": "_extract_document_images",
-      "most_complex": "_create_connection"
+    "core/api_deepseek.py": {
+      "file_lines": 323,
+      "function_lines": 108,
+      "max_cc": 19,
+      "longest_function": "_deepseek_anthropic_web_search",
+      "most_complex": "_deepseek_responses_request"
     },
-    "ui/app.py": {
-      "file_lines": 960,
-      "function_lines": 55,
-      "max_cc": 17,
-      "longest_function": "_render_sidebar",
-      "most_complex": "_dispatch_page"
+    "core/api_gigachat.py": {
+      "file_lines": 127,
+      "function_lines": 64,
+      "max_cc": 13,
+      "longest_function": "_gigachat_messages",
+      "most_complex": "_gigachat_messages"
     },
-    "ui/app_restore.py": {
-      "file_lines": 226,
-      "function_lines": 47,
-      "max_cc": 15,
-      "longest_function": "_restore_ui_reload_state",
-      "most_complex": "_restore_ui_reload_state"
-    },
-    "core/api_layer.py": {
-      "file_lines": 1126,
-      "function_lines": 107,
-      "max_cc": 21,
-      "longest_function": "send_vision_request",
-      "most_complex": "send_vision_request"
+    "core/api_history_guard.py": {
+      "file_lines": 121,
+      "function_lines": 71,
+      "max_cc": 7,
+      "longest_function": "_protect_history",
+      "most_complex": "_protect_history"
     },
     "core/api_http.py": {
       "file_lines": 167,
@@ -89,6 +40,13 @@
       "max_cc": 7,
       "longest_function": "retry_call",
       "most_complex": "retry_call"
+    },
+    "core/api_layer.py": {
+      "file_lines": 1126,
+      "function_lines": 107,
+      "max_cc": 21,
+      "longest_function": "send_vision_request",
+      "most_complex": "send_vision_request"
     },
     "core/api_payload.py": {
       "file_lines": 210,
@@ -104,40 +62,12 @@
       "longest_function": "_extract_responses_text",
       "most_complex": "_extract_responses_text"
     },
-    "core/api_history_guard.py": {
-      "file_lines": 121,
-      "function_lines": 71,
-      "max_cc": 7,
-      "longest_function": "_protect_history",
-      "most_complex": "_protect_history"
-    },
-    "core/api_bearer.py": {
-      "file_lines": 104,
-      "function_lines": 77,
-      "max_cc": 11,
-      "longest_function": "bearer_request_impl",
-      "most_complex": "bearer_request_impl"
-    },
-    "core/api_deepseek.py": {
-      "file_lines": 323,
-      "function_lines": 108,
-      "max_cc": 19,
-      "longest_function": "_deepseek_anthropic_web_search",
-      "most_complex": "_deepseek_responses_request"
-    },
     "core/api_yandex.py": {
       "file_lines": 216,
       "function_lines": 121,
       "max_cc": 21,
       "longest_function": "yandex_responses_request_impl",
       "most_complex": "yandex_responses_request_impl"
-    },
-    "core/api_gigachat.py": {
-      "file_lines": 127,
-      "function_lines": 64,
-      "max_cc": 13,
-      "longest_function": "_gigachat_messages",
-      "most_complex": "_gigachat_messages"
     },
     "core/marketplace/agent_areas.py": {
       "file_lines": 169,
@@ -328,6 +258,34 @@
       "longest_function": "validate_archive",
       "most_complex": "validate_archive"
     },
+    "core/orchestration/service.py": {
+      "file_lines": 2498,
+      "function_lines": 131,
+      "max_cc": 11,
+      "longest_function": "_default_child_runner",
+      "most_complex": "answer_run"
+    },
+    "core/orchestrators.py": {
+      "file_lines": 2681,
+      "function_lines": 117,
+      "max_cc": 15,
+      "longest_function": "import_orchestrator",
+      "most_complex": "_extend_prompt_with_connections"
+    },
+    "dev_agent/agent_loop.py": {
+      "file_lines": 396,
+      "function_lines": 100,
+      "max_cc": 9,
+      "longest_function": "run_agent_loop",
+      "most_complex": "run_agent_loop"
+    },
+    "dev_agent/tool_executor.py": {
+      "file_lines": 235,
+      "function_lines": 59,
+      "max_cc": 10,
+      "longest_function": "ToolExecutor.dispatch",
+      "most_complex": "dispatch"
+    },
     "dev_agent/tools/__init__.py": {
       "file_lines": 31,
       "function_lines": 0,
@@ -467,6 +425,69 @@
       "max_cc": 8,
       "longest_function": "workspace_guard_error",
       "most_complex": "_addresses_memory"
+    },
+    "dev_agent/universal_agent.py": {
+      "file_lines": 1313,
+      "function_lines": 89,
+      "max_cc": 15,
+      "longest_function": "_extract_document_images",
+      "most_complex": "_create_connection"
+    },
+    "dev_agent/workspace_tools.py": {
+      "file_lines": 1151,
+      "function_lines": 98,
+      "max_cc": 13,
+      "longest_function": "build_project_map",
+      "most_complex": "render_project_map_markdown"
+    },
+    "scripts/verify_manifest.py": {
+      "file_lines": 606,
+      "function_lines": 45,
+      "max_cc": 10,
+      "longest_function": "build_manifest",
+      "most_complex": "add_file"
+    },
+    "ui/app.py": {
+      "file_lines": 960,
+      "function_lines": 55,
+      "max_cc": 17,
+      "longest_function": "_render_sidebar",
+      "most_complex": "_dispatch_page"
+    },
+    "ui/app_restore.py": {
+      "file_lines": 226,
+      "function_lines": 47,
+      "max_cc": 15,
+      "longest_function": "_restore_ui_reload_state",
+      "most_complex": "_restore_ui_reload_state"
+    },
+    "ui/pages/assistants.py": {
+      "file_lines": 582,
+      "function_lines": 70,
+      "max_cc": 9,
+      "longest_function": "_render_model_fields",
+      "most_complex": "_render_model_fields"
+    },
+    "ui/pages/chat.py": {
+      "file_lines": 445,
+      "function_lines": 48,
+      "max_cc": 7,
+      "longest_function": "_handle_send",
+      "most_complex": "_handle_send"
+    },
+    "ui/pages/history.py": {
+      "file_lines": 442,
+      "function_lines": 51,
+      "max_cc": 7,
+      "longest_function": "_render_thread_card",
+      "most_complex": "_render_delete_all_controls"
+    },
+    "ui/pages/orchestrator.py": {
+      "file_lines": 3364,
+      "function_lines": 58,
+      "max_cc": 14,
+      "longest_function": "_render_chat_tab",
+      "most_complex": "_render_orch_rag_bases"
     }
   }
 }

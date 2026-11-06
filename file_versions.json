@@ -352,8 +352,8 @@
           }
         },
         "dev_agent/workspace_tools.py": {
-          "version": "1.4.3",
-          "sha256": "44f9650c66ead7e334b41755465f6ae0abeb2a4c3bf1945395338d703b7c962d"
+          "version": "1.4.4",
+          "sha256": "d37aad0d94c7e414a9be76b02a4a8638107afb25498772482a3da1a23e289bd4"
         },
         "pytest.ini": {
           "version": "1.0.0",
@@ -376,11 +376,11 @@
           }
         },
         "scripts/verify_manifest.py": {
-          "version": "1.2.4",
-          "sha256": "eb915b5561dbabd505765d40bc2d845efd8371274bfb8a2e3566738491bb2438",
+          "version": "1.2.5",
+          "sha256": "d5032a8f7ef48613fe09079c04d3bae77959986ee111517740a351718a2c0f2d",
           "note": {
-            "ru": "`refactor_budget.json` отнесён к пакету кода: бюджет едет к пользователю вместе с кодом, который он ограничивает.",
-            "en": "`refactor_budget.json` is classified as part of the code unit: the budget ships with the code it constrains."
+            "ru": "Срез 13: проверка манифеста разделена на именованные фазы; состав проверок и тексты ошибок не изменились.",
+            "en": "Slice 13: manifest validation is split into named phases; the set of checks and the error texts are unchanged."
           }
         },
         "storage/__init__.py": {
@@ -1233,8 +1233,8 @@
           "note": "the MCP preset edit form resolves a preset by id, so a connection created from a hidden preset keeps its preset fields"
         },
         "ui/pages/history.py": {
-          "version": "1.0.2",
-          "sha256": "81a321a68fa5fabd9df1899910adb70320100ddebbab7720950aaad7729aa825"
+          "version": "1.0.3",
+          "sha256": "990f5aebd0cbe7f921f2278a53d014dedb9c4764b36f2ff4def58ef96a235afa"
         },
         "ui/pages/orchestrator.py": {
           "version": "1.27.0",
@@ -2550,11 +2550,11 @@
           "sha256": "59963f7094f2283ac8f00f35e85aa1432acb0a94954dc666d24ad9dd0803ca05"
         },
         "refactor_budget.json": {
-          "version": "1.2.0",
-          "sha256": "2486687ca62414a17b004fb24761ae9845e4e1b16c46eddecc826ac0a89bd19d",
+          "version": "1.2.1",
+          "sha256": "710d394c258736d87a7f16646cf878d0b78d736e8135508140bcd92fff6cb73e",
           "note": {
-            "ru": "Срез 10: в ратчет внесены core/api_layer.py и восемь провайдерных модулей.",
-            "en": "Slice 10: core/api_layer.py and eight provider modules added to the ratchet."
+            "ru": "Срез 13: в ратчет внесены ui/pages/history.py, dev_agent/workspace_tools.py и scripts/verify_manifest.py.",
+            "en": "Slice 13: ui/pages/history.py, dev_agent/workspace_tools.py and scripts/verify_manifest.py added to the ratchet."
           }
         },
         "tests/test_refactor_budget.py": {
@@ -2922,11 +2922,11 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.74.6",
-      "sha256": "709c6cc1ba85096664b478b96713ab71d3375c1bcba5d5a51c0cf4d795980edc",
+      "version": "1.74.7",
+      "sha256": "dfd405130baff6f82024e40f2ae0000f531039098312b1970f9779c3a4fc3ab5",
       "note": {
-        "ru": "Карта перегенерирована после правки промпта DevAgent v3.30 и тестов.",
-        "en": "The map is regenerated after the DevAgent v3.30 prompt and test edits."
+        "ru": "Карта перегенерирована после среза 13: фазовое разложение крупных функций и три новых файла в ратчете.",
+        "en": "The map is regenerated after slice 13: phased decomposition of the large functions and three new files in the ratchet."
       }
     },
     "README.md": {

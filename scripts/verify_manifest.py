@@ -357,22 +357,16 @@ def check_file_entry(rel, entry, errors, require_note):
         check_note_dict(entry.get("note"), errors, where)
 
 
-def verify(
-    root,
-    manifest,
-    strict=False,
-    fix_hashes=False,
-    json_out=False,
-):
-    """Validate the manifest; return exit code (0 ok, 1 violations, 2 fatal)."""
-    errors = []
-    warnings = []
-    fixed = 0
+def _check_schema(manifest, errors):
+    """Validate the top-level manifest schema.
 
-    # --- schema ---
+    Returns a dict with the normalised ``app_version``, ``units`` and
+    ``selectable`` sections, or None when the manifest is not a JSON object
+    at all - that case is fatal for the caller.
+    """
     if not isinstance(manifest, dict):
         errors.append("manifest must be a JSON object")
-        return 2, errors, warnings, fixed
+        return None
     if manifest.get("schema") != 1:
         errors.append("schema: expected 1, got %r" % manifest.get("schema"))
     app_ver = manifest.get("app_version")
@@ -390,7 +384,11 @@ def verify(
     if not isinstance(selectable, dict):
         errors.append("selectable: must be a dict")
         selectable = {}
+    return {"app_version": app_ver, "units": units, "selectable": selectable}
 
+
+def _check_section_entries(units, selectable, errors):
+    """Validate every manifest entry; return the set of covered paths."""
     covered = set()
     for unit_name, unit in units.items():
         check_unit(unit_name, unit, errors)
@@ -404,17 +402,27 @@ def verify(
         if rel in covered:
             errors.append("duplicate path %r across sections" % rel)
         covered.add(rel)
+    return covered
 
-    # --- presence + hashes (--fix-hashes recomputes mismatches) ---
-    def iter_entries():
-        for _, unit in units.items():
-            if isinstance(unit, dict) and isinstance(unit.get("files"), dict):
-                for rel, entry in unit["files"].items():
-                    yield rel, entry
-        for rel, entry in selectable.items():
-            yield rel, entry
 
-    for rel, entry in iter_entries():
+def _iter_entries(units, selectable):
+    """Yield every ``(path, entry)`` pair of the manifest."""
+    for _, unit in units.items():
+        if isinstance(unit, dict) and isinstance(unit.get("files"), dict):
+            for rel, entry in unit["files"].items():
+                yield rel, entry
+    for rel, entry in selectable.items():
+        yield rel, entry
+
+
+def _check_presence_and_hashes(root, units, selectable, errors, fix_hashes):
+    """Check that every listed file exists and its sha256 matches.
+
+    With *fix_hashes* a mismatch is rewritten in place instead of reported;
+    returns the number of recomputed hashes.
+    """
+    fixed = 0
+    for rel, entry in _iter_entries(units, selectable):
         if not isinstance(entry, dict):
             continue
         if not os.path.isfile(os.path.join(root, rel)):
@@ -427,28 +435,33 @@ def verify(
                 fixed += 1
             else:
                 errors.append("sha256 mismatch: %s" % rel)
+    return fixed
 
-    # --- coverage against git ---
+
+def _check_git_coverage(root, covered, errors, warnings):
+    """Compare the manifest against git-tracked files in both directions."""
     git_ok, tracked = git_ls_files(root)
-    if git_ok:
-        shipped_untracked = []
-        for rel in tracked:
-            if rel in COVERAGE_SKIP:
-                continue
-            if rel not in covered:
-                errors.append("tracked file not in manifest: %s" % rel)
-        for rel in sorted(covered):
-            if rel not in tracked:
-                shipped_untracked.append(rel)
-        if shipped_untracked:
-            warnings.append(
-                "manifest entries not yet tracked by git (new files, publish later): %s"
-                % ", ".join(shipped_untracked)
-            )
-    else:
+    if not git_ok:
         warnings.append("no git repo found - coverage check skipped")
+        return
+    shipped_untracked = []
+    for rel in tracked:
+        if rel in COVERAGE_SKIP:
+            continue
+        if rel not in covered:
+            errors.append("tracked file not in manifest: %s" % rel)
+    for rel in sorted(covered):
+        if rel not in tracked:
+            shipped_untracked.append(rel)
+    if shipped_untracked:
+        warnings.append(
+            "manifest entries not yet tracked by git (new files, publish later): %s"
+            % ", ".join(shipped_untracked)
+        )
 
-    # --- uncovered local files (walk, top level only) ---
+
+def _check_uncovered_local(root, covered, strict, errors, warnings):
+    """Walk the repository root and report files the manifest does not cover."""
     for dirpath, dirnames, filenames in os.walk(root):
         rel_dir = os.path.relpath(dirpath, root)
         if rel_dir == ".":
@@ -471,32 +484,74 @@ def verify(
             else:
                 warnings.append(msg)
 
-    # --- app_version consistency ---
+
+def _check_app_version(root, app_ver, errors):
+    """Require the manifest app_version to match core/version.py."""
     code_ver = read_app_version(root)
     if code_ver is not None and code_ver != app_ver:
         errors.append(
             "app_version %r != core/version.py __version__ %r" % (app_ver, code_ver)
         )
 
+
+def _emit_report(errors, warnings, fixed, entry_count, app_ver, json_out):
+    """Print the verification outcome; return the exit code."""
     code = 1 if errors else 0
     if json_out:
         print(json.dumps({
             "ok": code == 0,
             "errors": errors,
             "warnings": warnings,
-            "entries": len(covered),
+            "entries": entry_count,
             "fixed_hashes": fixed,
             "app_version": app_ver,
         }, ensure_ascii=False, indent=2))
-    else:
-        for msg in errors:
-            log("ERROR", msg)
-        for msg in warnings:
-            log("WARN", msg)
-        if fixed:
-            log("INFO", "recomputed %d sha256 value(s)" % fixed)
-        if code == 0:
-            log("OK", "manifest valid (%d entries, app_version %s)" % (len(covered), app_ver))
+        return code
+    for msg in errors:
+        log("ERROR", msg)
+    for msg in warnings:
+        log("WARN", msg)
+    if fixed:
+        log("INFO", "recomputed %d sha256 value(s)" % fixed)
+    if code == 0:
+        log("OK", "manifest valid (%d entries, app_version %s)" % (entry_count, app_ver))
+    return code
+
+
+def verify(
+    root,
+    manifest,
+    strict=False,
+    fix_hashes=False,
+    json_out=False,
+):
+    """Validate the manifest; return exit code (0 ok, 1 violations, 2 fatal)."""
+    errors = []
+    warnings = []
+
+    # --- schema ---
+    schema = _check_schema(manifest, errors)
+    if schema is None:
+        return 2, errors, warnings, 0
+    units = schema["units"]
+    selectable = schema["selectable"]
+    app_ver = schema["app_version"]
+
+    covered = _check_section_entries(units, selectable, errors)
+
+    # --- presence + hashes (--fix-hashes recomputes mismatches) ---
+    fixed = _check_presence_and_hashes(root, units, selectable, errors, fix_hashes)
+
+    # --- coverage against git ---
+    _check_git_coverage(root, covered, errors, warnings)
+
+    # --- uncovered local files (walk, top level only) ---
+    _check_uncovered_local(root, covered, strict, errors, warnings)
+
+    # --- app_version consistency ---
+    _check_app_version(root, app_ver, errors)
+
+    code = _emit_report(errors, warnings, fixed, len(covered), app_ver, json_out)
     return code, errors, warnings, fixed
 
 

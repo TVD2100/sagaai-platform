@@ -285,6 +285,243 @@ def _coerce_nonneg_int(value, default=0):
         return default
 
 
+def _confine_to_base(base, raw, kind):
+    """Resolve *raw* under *base* and reject anything outside it.
+
+    Returns ``(candidate, None)`` or ``(None, error_dict)``. The wording of
+    the escape error is part of the tool contract, so *kind* only supplies
+    the raw value echoed back to the caller.
+    """
+    candidate = (base / str(raw)).resolve()
+    try:
+        candidate.relative_to(base)
+    except ValueError:
+        return None, {"ok": False, "error": f"Path escapes project root: {kind}"}
+    return candidate, None
+
+
+def _resolve_file_list(base, files):
+    """Validate the explicit ``files`` list; return ``(paths, None)`` or an error dict."""
+    if isinstance(files, str):
+        files = [files]
+    if not isinstance(files, (list, tuple)) or not files:
+        return None, {"ok": False, "error": "'files' must be a non-empty list of file paths."}
+    explicit_files: List[Path] = []
+    for rel_f in files:
+        if not isinstance(rel_f, str) or not str(rel_f).strip():
+            return None, {"ok": False, "error": "'files' must contain non-empty file paths."}
+        candidate, error = _confine_to_base(base, rel_f, rel_f)
+        if error is not None:
+            return None, error
+        if not candidate.exists():
+            return None, {"ok": False, "error": f"File not found: {rel_f}"}
+        if not candidate.is_file():
+            return None, {"ok": False, "error": f"Path is not a file: {rel_f}"}
+        explicit_files.append(candidate)
+    return explicit_files, None
+
+
+def _resolve_path_argument(base, path):
+    """Resolve the ``path`` argument.
+
+    Returns ``(scan_root, explicit_file, error)``: on success *error* is None
+    and exactly one of the other two is meaningful - a file path yields an
+    explicit file scanned alone, a directory path becomes the scan root.
+    """
+    candidate, error = _confine_to_base(base, path, path)
+    if error is not None:
+        return None, None, error
+    if not candidate.exists():
+        return None, None, {"ok": False, "error": f"Path not found: {path}"}
+    if candidate.is_file():
+        return base, candidate, None
+    return candidate, None, None
+
+
+def _resolve_subdir_argument(base, subdir):
+    """Resolve the ``subdir`` argument; return the scan root or an error dict."""
+    candidate, error = _confine_to_base(base, subdir, subdir)
+    if error is not None:
+        return None, error
+    if not candidate.exists():
+        return None, {"ok": False, "error": f"Subdir not found: {subdir}"}
+    if not candidate.is_dir():
+        return None, {"ok": False, "error": f"Subdir is not a directory: {subdir}"}
+    return candidate, None
+
+
+def _resolve_scan_scope(base, files, path, subdir):
+    """Resolve the scan area from the files / path / subdir arguments.
+
+    ``files`` takes precedence over ``path``, which takes precedence over
+    ``subdir``. Returns ``(scan_root, explicit_file, explicit_files)`` on
+    success, or a ready-made ``{"ok": False, "error": ...}`` dict when an
+    argument is rejected - those messages are part of the tool contract.
+    """
+    if files is not None:
+        explicit_files, error = _resolve_file_list(base, files)
+        if error is not None:
+            return error
+        return base, None, explicit_files
+    if path:
+        scan_root, explicit_file, error = _resolve_path_argument(base, path)
+        if error is not None:
+            return error
+        return scan_root, explicit_file, []
+    if subdir:
+        scan_root, error = _resolve_subdir_argument(base, subdir)
+        if error is not None:
+            return error
+        return scan_root, None, []
+    return base, None, []
+
+
+def _normalize_extensions(extensions):
+    """Turn an extensions filter (string or list) into dotted suffixes or None."""
+    if isinstance(extensions, str):
+        extensions = [extensions]
+    if not extensions:
+        return None
+    allowed = {
+        e.lower() if e.startswith(".") else f".{e.lower()}"
+        for e in extensions if isinstance(e, str) and e
+    }
+    return allowed or None
+
+
+def _compile_search_pattern(query, regex, case_sensitive):
+    """Compile the search pattern.
+
+    Returns ``(pattern, None)`` on success or ``(None, error_dict)`` when the
+    query is not a valid regular expression. The query is compiled as a regex
+    even for a literal search, so an invalid pattern is reported identically
+    in both modes.
+    """
+    flags = 0 if case_sensitive else re.IGNORECASE
+    try:
+        pattern = re.compile(str(query), flags)
+    except re.error as exc:
+        return None, {"ok": False, "error": f"Invalid regex: {exc}"}
+    if not regex:
+        pattern = re.compile(re.escape(str(query)), flags)
+    return pattern, None
+
+
+def _read_search_file(target, counters):
+    """Read one file for searching; return its text or None.
+
+    Updates ``files_skipped_large`` / ``files_unreadable`` in *counters* and
+    falls back to cp1251 when the file is not valid UTF-8.
+    """
+    try:
+        if target.stat().st_size > config.MAX_FILE_SIZE_BYTES:
+            counters["files_skipped_large"] += 1
+            return None
+    except OSError:
+        counters["files_unreadable"] += 1
+        return None
+    try:
+        return target.read_text(encoding=config.DEFAULT_ENCODING)
+    except UnicodeDecodeError:
+        try:
+            return target.read_text(encoding="cp1251")
+        except (OSError, UnicodeDecodeError):
+            counters["files_unreadable"] += 1
+            return None
+    except OSError:
+        counters["files_unreadable"] += 1
+        return None
+
+
+def _match_entry(target, line_no, raw_line, lines_all, idx, context_before, context_after):
+    """Build one result entry for a matching line of *target*."""
+    try:
+        rel = config.to_project_relative(target)
+    except ValueError:
+        rel = str(target)
+    entry = {
+        "path": rel,
+        "line": line_no,
+        "text": raw_line.strip()[:200],
+    }
+    if context_before:
+        entry["before"] = [
+            lines_all[j].strip()[:CONTEXT_LINE_CHARS]
+            for j in range(max(0, idx - context_before), idx)
+        ]
+    if context_after:
+        entry["after"] = [
+            lines_all[j].strip()[:CONTEXT_LINE_CHARS]
+            for j in range(idx + 1, min(len(lines_all), idx + 1 + context_after))
+        ]
+    return entry
+
+
+def _scan_files(scan_files, pattern, max_results, context_before, context_after):
+    """Scan *scan_files* for *pattern*.
+
+    Returns ``(results, counters, truncated)``; the scan stops as soon as
+    *max_results* matches have been collected.
+    """
+    results: List[Dict[str, Any]] = []
+    counters = {"files_scanned": 0, "files_skipped_large": 0, "files_unreadable": 0}
+    truncated = False
+    for f in scan_files:
+        counters["files_scanned"] += 1
+        text = _read_search_file(f, counters)
+        if text is None:
+            continue
+        lines_all = text.splitlines()
+        for idx, raw_line in enumerate(lines_all):
+            if not pattern.search(raw_line):
+                continue
+            results.append(_match_entry(
+                f, idx + 1, raw_line, lines_all, idx, context_before, context_after
+            ))
+            if len(results) >= max_results:
+                truncated = True
+                break
+        if truncated:
+            break
+    return results, counters, truncated
+
+
+def _coerce_search_args(query, max_results, context_before, context_after):
+    """Validate and normalise the scalar search arguments.
+
+    Returns ``(query, max_results, context_before, context_after)`` or a
+    ready-made ``{"ok": False, "error": ...}`` dict for a missing query.
+    """
+    if query is None or str(query) == "":
+        return {"ok": False, "error": "Missing required argument 'query'."}
+    try:
+        max_results = max(1, int(max_results))
+    except (TypeError, ValueError):
+        max_results = 100
+    return (
+        query,
+        max_results,
+        _coerce_nonneg_int(context_before),
+        _coerce_nonneg_int(context_after),
+    )
+
+
+def _search_result(query, regex, case_sensitive, results, counters, truncated):
+    """Assemble the public result dict of search_in_files."""
+    return {
+        "ok": True,
+        "query": str(query),
+        "regex": bool(regex),
+        "case_sensitive": bool(case_sensitive),
+        "files_scanned": counters["files_scanned"],
+        "files_skipped_large": counters["files_skipped_large"],
+        "files_unreadable": counters["files_unreadable"],
+        "match_count": len(results),
+        "truncated": truncated,
+        "results": results,
+    }
+
+
 def search_in_files(
     query: str,
     subdir: Optional[str] = None,
@@ -299,98 +536,29 @@ def search_in_files(
 ) -> Dict[str, Any]:
     """Search text files in the workspace for *query*.
 
-    A codebase-exploration tool that replaces ad-hoc subprocess grep. The
-    query is treated as a literal substring by default; pass ``regex=True``
-    to interpret it as a regular expression. Only text files are scanned,
-    noise directories are skipped, and single-file mode narrows the scan to
-    the target file.
+    Literal substring by default; ``regex=True`` interprets it as a regular
+    expression. Only text files are scanned, noise directories are skipped,
+    and single-file mode narrows the scan to the target file.
 
-    Returns matching ``path``, ``line`` and ``text`` (trimmed to 200 chars),
-    capped at *max_results*. ``truncated`` reports whether the cap was hit.
-    ``files_skipped_large`` / ``files_unreadable`` report files skipped due to
-    the size limit or undecodable content (UTF-8 or cp1251).
-
-    *path* narrows the scan: a FILE path scans exactly that one file
-    (extension filtering is ignored for an explicit file); a DIRECTORY path
-    acts like *subdir*. When both are given, *path* takes precedence.
-
-    *files* narrows the scan to an explicit LIST of relative file paths
-    (e.g. ``files=["app.py", "tests/test_x.py"]``). Only those files are
-    scanned, extension filtering is ignored for them, and every path must
-    exist, be a file and stay inside the workspace. *files* takes precedence
-    over *path* and *subdir*.
-
-    When *context_before* / *context_after* are > 0, each match additionally
-    carries ``before`` / ``after`` lists with the surrounding lines (trimmed to
-    CONTEXT_LINE_CHARS chars). Invalid context values coerce to 0.
+    Returns ``path`` / ``line`` / ``text`` matches capped at *max_results*,
+    plus the ``truncated`` flag and the ``files_skipped_large`` /
+    ``files_unreadable`` counters. Priority of the scope arguments is
+    ``files`` > ``path`` > ``subdir``; an explicit file list or file path
+    ignores the extension filter. Positive ``context_before`` /
+    ``context_after`` attach trimmed ``before`` / ``after`` line windows.
     """
-    if query is None or str(query) == "":
-        return {"ok": False, "error": "Missing required argument 'query'."}
-
-    try:
-        max_results = max(1, int(max_results))
-    except (TypeError, ValueError):
-        max_results = 100
-
-    context_before = _coerce_nonneg_int(context_before)
-    context_after = _coerce_nonneg_int(context_after)
+    args = _coerce_search_args(query, max_results, context_before, context_after)
+    if isinstance(args, dict):
+        return args
+    query, max_results, context_before, context_after = args
 
     base = config.PROJECT_ROOT.resolve()
-    scan_root = base
-    explicit_file: Optional[Path] = None
-    explicit_files: List[Path] = []
-    if files is not None:
-        if isinstance(files, str):
-            files = [files]
-        if not isinstance(files, (list, tuple)) or not files:
-            return {"ok": False, "error": "'files' must be a non-empty list of file paths."}
-        for rel_f in files:
-            if not isinstance(rel_f, str) or not str(rel_f).strip():
-                return {"ok": False, "error": "'files' must contain non-empty file paths."}
-            candidate = (base / str(rel_f)).resolve()
-            try:
-                candidate.relative_to(base)
-            except ValueError:
-                return {"ok": False, "error": f"Path escapes project root: {rel_f}"}
-            if not candidate.exists():
-                return {"ok": False, "error": f"File not found: {rel_f}"}
-            if not candidate.is_file():
-                return {"ok": False, "error": f"Path is not a file: {rel_f}"}
-            explicit_files.append(candidate)
-    elif path:
-        candidate = (base / str(path)).resolve()
-        try:
-            candidate.relative_to(base)
-        except ValueError:
-            return {"ok": False, "error": f"Path escapes project root: {path}"}
-        if not candidate.exists():
-            return {"ok": False, "error": f"Path not found: {path}"}
-        if candidate.is_file():
-            explicit_file = candidate
-        else:
-            scan_root = candidate
-    elif subdir:
-        candidate = (base / str(subdir)).resolve()
-        try:
-            candidate.relative_to(base)
-        except ValueError:
-            return {"ok": False, "error": f"Path escapes project root: {subdir}"}
-        if not candidate.exists():
-            return {"ok": False, "error": f"Subdir not found: {subdir}"}
-        if not candidate.is_dir():
-            return {"ok": False, "error": f"Subdir is not a directory: {subdir}"}
-        scan_root = candidate
+    scope = _resolve_scan_scope(base, files, path, subdir)
+    if isinstance(scope, dict):
+        return scope
+    scan_root, explicit_file, explicit_files = scope
 
-    if isinstance(extensions, str):
-        extensions = [extensions]
-    allowed_ext: Optional[set] = None
-    if extensions:
-        allowed_ext = {
-            e.lower() if e.startswith(".") else f".{e.lower()}"
-            for e in extensions if isinstance(e, str) and e
-        }
-        if not allowed_ext:
-            allowed_ext = None
+    allowed_ext = _normalize_extensions(extensions)
 
     # An explicit allow-list OVERRIDES the built-in TEXT_EXTENSIONS set, so
     # files outside it (e.g. .csv) can be searched when the caller asks.
@@ -401,82 +569,15 @@ def search_in_files(
     else:
         scan_files = _iter_project_files(scan_root, allowed_extensions=allowed_ext)
 
-    flags = 0 if case_sensitive else re.IGNORECASE
-    try:
-        pattern = re.compile(str(query), flags)
-    except re.error as exc:
-        return {"ok": False, "error": f"Invalid regex: {exc}"}
-    if not regex:
-        pattern = re.compile(re.escape(str(query)), flags)
+    pattern, pattern_error = _compile_search_pattern(query, regex, case_sensitive)
+    if pattern_error is not None:
+        return pattern_error
 
-    results: List[Dict[str, Any]] = []
-    files_scanned = 0
-    files_skipped_large = 0
-    files_unreadable = 0
-    truncated = False
-    for f in scan_files:
-        files_scanned += 1
-        try:
-            if f.stat().st_size > config.MAX_FILE_SIZE_BYTES:
-                files_skipped_large += 1
-                continue
-        except OSError:
-            files_unreadable += 1
-            continue
-        try:
-            text = f.read_text(encoding=config.DEFAULT_ENCODING)
-        except UnicodeDecodeError:
-            try:
-                text = f.read_text(encoding="cp1251")
-            except (OSError, UnicodeDecodeError):
-                files_unreadable += 1
-                continue
-        except OSError:
-            files_unreadable += 1
-            continue
-        lines_all = text.splitlines()
-        for idx, raw_line in enumerate(lines_all):
-            line_no = idx + 1
-            if not pattern.search(raw_line):
-                continue
-            try:
-                rel = config.to_project_relative(f)
-            except ValueError:
-                rel = str(f)
-            entry = {
-                "path": rel,
-                "line": line_no,
-                "text": raw_line.strip()[:200],
-            }
-            if context_before:
-                entry["before"] = [
-                    lines_all[j].strip()[:CONTEXT_LINE_CHARS]
-                    for j in range(max(0, idx - context_before), idx)
-                ]
-            if context_after:
-                entry["after"] = [
-                    lines_all[j].strip()[:CONTEXT_LINE_CHARS]
-                    for j in range(idx + 1, min(len(lines_all), idx + 1 + context_after))
-                ]
-            results.append(entry)
-            if len(results) >= max_results:
-                truncated = True
-                break
-        if truncated:
-            break
+    results, counters, truncated = _scan_files(
+        scan_files, pattern, max_results, context_before, context_after
+    )
 
-    return {
-        "ok": True,
-        "query": str(query),
-        "regex": bool(regex),
-        "case_sensitive": bool(case_sensitive),
-        "files_scanned": files_scanned,
-        "files_skipped_large": files_skipped_large,
-        "files_unreadable": files_unreadable,
-        "match_count": len(results),
-        "truncated": truncated,
-        "results": results,
-    }
+    return _search_result(query, regex, case_sensitive, results, counters, truncated)
 
 
 def scan_folder() -> Dict[str, Any]:
