@@ -1,0 +1,356 @@
+{
+ "sent": [
+  {
+   "user_message": "Economy task",
+   "assistant": {
+    "text": "SYSTEM PROMPT: you are a test agent.",
+    "service": "mock",
+    "model": "mock-model",
+    "temperature": 0.0
+   },
+   "file_context": "",
+   "history": [
+    {
+     "role": "system",
+     "content": "ECONOMY MODE: ENABLED\nCurrent workspace: (workspace not yet queried)\nWeb search: disabled\n",
+     "hidden": true,
+     "_index": -2,
+     "_category": "system_notice"
+    }
+   ],
+   "lang": null,
+   "enable_injection_protection": true,
+   "sanitized_approved_paths": [],
+   "callbacks": [
+    "incomplete_callback",
+    "retry_callback",
+    "sanitized_callback",
+    "usage_callback"
+   ]
+  },
+  {
+   "user_message": "{\"tool_result\": {\"ok\": true, \"tool\": \"read_file\", \"path\": \"e.py\", \"content\": \"v = 5\\n\"}}",
+   "assistant": {
+    "text": "SYSTEM PROMPT: you are a test agent.",
+    "service": "mock",
+    "model": "mock-model",
+    "temperature": 0.0
+   },
+   "file_context": "",
+   "history": [
+    {
+     "role": "system",
+     "content": "ECONOMY MODE: ENABLED\nCurrent workspace: (workspace not yet queried)\nWeb search: disabled\n",
+     "hidden": true,
+     "_index": -2,
+     "_category": "system_notice"
+    },
+    {
+     "role": "user",
+     "content": "Economy task",
+     "ts": "<ts>",
+     "_index": 0,
+     "_category": "user_task",
+     "_summary": "Economy task"
+    },
+    {
+     "role": "assistant",
+     "content": "```json\n{\"tool\": \"read_file\", \"args\": {\"path\": \"e1.py\"}}\n```",
+     "ts": "<ts>",
+     "_index": 1,
+     "_category": "other",
+     "_summary": "```json\n{\"tool\": \"read_file\", \"args\": {\"path\": \"e1.py\"}}\n```"
+    }
+   ],
+   "lang": null,
+   "enable_injection_protection": true,
+   "sanitized_approved_paths": [],
+   "callbacks": [
+    "incomplete_callback",
+    "retry_callback",
+    "sanitized_callback",
+    "usage_callback"
+   ]
+  },
+  {
+   "user_message": "{\"tool_result\": {\"ok\": true, \"tool\": \"read_file\", \"path\": \"e.py\", \"content\": \"v = 5\\n\"}}",
+   "assistant": {
+    "text": "SYSTEM PROMPT: you are a test agent.",
+    "service": "mock",
+    "model": "mock-model",
+    "temperature": 0.0
+   },
+   "file_context": "",
+   "history": [
+    {
+     "role": "system",
+     "content": "ECONOMY MODE: ENABLED\nCurrent workspace: (workspace not yet queried)\nWeb search: disabled\n",
+     "hidden": true,
+     "_index": -2,
+     "_category": "system_notice"
+    },
+    {
+     "role": "user",
+     "content": "{\"tool_result\": {\"ok\": true, \"tool\": \"read_file\", \"path\": \"e.py\", \"content\": \"v = 5\\n\"}}",
+     "ts": "<ts>",
+     "hidden": true,
+     "_index": 2,
+     "_category": "tool_result",
+     "_summary": "File e.py updated"
+    },
+    {
+     "role": "assistant",
+     "content": "```json\n{\"tool\": \"read_file\", \"args\": {\"path\": \"e2.py\"}}\n```",
+     "ts": "<ts>",
+     "_index": 3,
+     "_category": "other",
+     "_summary": "```json\n{\"tool\": \"read_file\", \"args\": {\"path\": \"e2.py\"}}\n```"
+    }
+   ],
+   "lang": null,
+   "enable_injection_protection": true,
+   "sanitized_approved_paths": [],
+   "callbacks": [
+    "incomplete_callback",
+    "retry_callback",
+    "sanitized_callback",
+    "usage_callback"
+   ]
+  },
+  {
+   "user_message": "{\"tool_result\": {\"ok\": true, \"tool\": \"read_file\", \"path\": \"e.py\", \"content\": \"v = 5\\n\"}}",
+   "assistant": {
+    "text": "SYSTEM PROMPT: you are a test agent.",
+    "service": "mock",
+    "model": "mock-model",
+    "temperature": 0.0
+   },
+   "file_context": "",
+   "history": [
+    {
+     "role": "system",
+     "content": "ECONOMY MODE: ENABLED\nCurrent workspace: (workspace not yet queried)\nWeb search: disabled\n",
+     "hidden": true,
+     "_index": -2,
+     "_category": "system_notice"
+    },
+    {
+     "role": "user",
+     "content": "{\"tool_result\": {\"ok\": true, \"tool\": \"read_file\", \"path\": \"e.py\", \"content\": \"v = 5\\n\"}}",
+     "ts": "<ts>",
+     "hidden": true,
+     "_index": 4,
+     "_category": "tool_result",
+     "_summary": "File e.py updated"
+    },
+    {
+     "role": "assistant",
+     "content": "```json\n{\"tool\": \"read_file\", \"args\": {\"path\": \"e3.py\"}}\n```",
+     "ts": "<ts>",
+     "_index": 5,
+     "_category": "other",
+     "_summary": "```json\n{\"tool\": \"read_file\", \"args\": {\"path\": \"e3.py\"}}\n```"
+    }
+   ],
+   "lang": null,
+   "enable_injection_protection": true,
+   "sanitized_approved_paths": [],
+   "callbacks": [
+    "incomplete_callback",
+    "retry_callback",
+    "sanitized_callback",
+    "usage_callback"
+   ]
+  }
+ ],
+ "dispatched": [
+  {
+   "via": "dispatch_json",
+   "tool": "read_file",
+   "args": {
+    "path": "e1.py"
+   }
+  },
+  {
+   "via": "dispatch_json",
+   "tool": "read_file",
+   "args": {
+    "path": "e2.py"
+   }
+  },
+  {
+   "via": "dispatch_json",
+   "tool": "read_file",
+   "args": {
+    "path": "e3.py"
+   }
+  }
+ ],
+ "history_len": 8,
+ "result": {
+  "status": "awaiting_user",
+  "text": "Final answer after economy trimming.",
+  "steps": 4,
+  "applied": false,
+  "discarded": false,
+  "staged_path": null,
+  "staged_tool": null,
+  "error_code": null,
+  "error_message": "",
+  "history_len": 8,
+  "pending_confirmation_tool": null
+ },
+ "events": [
+  {
+   "type": "phase",
+   "phase": "calling_llm",
+   "step": 1,
+   "strength": "weak",
+   "model": "mock-model"
+  },
+  {
+   "type": "assistant_text",
+   "text": "```json\n{\"tool\": \"read_file\", \"args\": {\"path\": \"e1.py\"}}\n```",
+   "step": 1
+  },
+  {
+   "type": "phase",
+   "phase": "parsing",
+   "step": 1
+  },
+  {
+   "type": "phase",
+   "phase": "executing",
+   "tool": "read_file",
+   "step": 1
+  },
+  {
+   "type": "tool_call",
+   "tool": "read_file",
+   "args": {
+    "path": "e1.py"
+   },
+   "step": 1
+  },
+  {
+   "type": "tool_result",
+   "tool": "read_file",
+   "result": {
+    "ok": true,
+    "tool": "read_file",
+    "path": "e.py",
+    "content": "v = 5\n",
+    "summary": "Read e.py (0 lines)"
+   },
+   "step": 1
+  },
+  {
+   "type": "phase",
+   "phase": "calling_llm",
+   "step": 2,
+   "strength": "weak",
+   "model": "mock-model"
+  },
+  {
+   "type": "assistant_text",
+   "text": "```json\n{\"tool\": \"read_file\", \"args\": {\"path\": \"e2.py\"}}\n```",
+   "step": 2
+  },
+  {
+   "type": "phase",
+   "phase": "parsing",
+   "step": 2
+  },
+  {
+   "type": "phase",
+   "phase": "executing",
+   "tool": "read_file",
+   "step": 2
+  },
+  {
+   "type": "tool_call",
+   "tool": "read_file",
+   "args": {
+    "path": "e2.py"
+   },
+   "step": 2
+  },
+  {
+   "type": "tool_result",
+   "tool": "read_file",
+   "result": {
+    "ok": true,
+    "tool": "read_file",
+    "path": "e.py",
+    "content": "v = 5\n",
+    "summary": "Read e.py (0 lines)"
+   },
+   "step": 2
+  },
+  {
+   "type": "phase",
+   "phase": "calling_llm",
+   "step": 3,
+   "strength": "weak",
+   "model": "mock-model"
+  },
+  {
+   "type": "assistant_text",
+   "text": "```json\n{\"tool\": \"read_file\", \"args\": {\"path\": \"e3.py\"}}\n```",
+   "step": 3
+  },
+  {
+   "type": "phase",
+   "phase": "parsing",
+   "step": 3
+  },
+  {
+   "type": "phase",
+   "phase": "executing",
+   "tool": "read_file",
+   "step": 3
+  },
+  {
+   "type": "tool_call",
+   "tool": "read_file",
+   "args": {
+    "path": "e3.py"
+   },
+   "step": 3
+  },
+  {
+   "type": "tool_result",
+   "tool": "read_file",
+   "result": {
+    "ok": true,
+    "tool": "read_file",
+    "path": "e.py",
+    "content": "v = 5\n",
+    "summary": "Read e.py (0 lines)"
+   },
+   "step": 3
+  },
+  {
+   "type": "phase",
+   "phase": "calling_llm",
+   "step": 4,
+   "strength": "weak",
+   "model": "mock-model"
+  },
+  {
+   "type": "assistant_text",
+   "text": "Final answer after economy trimming.",
+   "step": 4
+  },
+  {
+   "type": "phase",
+   "phase": "parsing",
+   "step": 4
+  },
+  {
+   "type": "final",
+   "text": "Final answer after economy trimming.",
+   "status": "awaiting_user"
+  }
+ ]
+}

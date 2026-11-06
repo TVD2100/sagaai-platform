@@ -1,0 +1,472 @@
+{
+  "schema": 1,
+  "notes": [
+    "A budget, not a target: a number may fall (then edit this file in the same commit), it may not rise.",
+    "file_lines/function_lines are measured with ast; max_cc with ruff C901 (mccabe, max-complexity=1).",
+    "The ratchet exists so the god files can only shrink; see scripts/refactor_budget.py."
+  ],
+  "limits": {
+    "dev_agent/agent_loop.py": {
+      "file_lines": 396,
+      "function_lines": 100,
+      "max_cc": 9,
+      "longest_function": "run_agent_loop",
+      "most_complex": "run_agent_loop"
+    },
+    "dev_agent/tool_executor.py": {
+      "file_lines": 235,
+      "function_lines": 59,
+      "max_cc": 10,
+      "longest_function": "ToolExecutor.dispatch",
+      "most_complex": "dispatch"
+    },
+    "ui/pages/orchestrator.py": {
+      "file_lines": 3364,
+      "function_lines": 58,
+      "max_cc": 14,
+      "longest_function": "_render_chat_tab",
+      "most_complex": "_render_orch_rag_bases"
+    },
+    "ui/pages/assistants.py": {
+      "file_lines": 582,
+      "function_lines": 70,
+      "max_cc": 9,
+      "longest_function": "_render_model_fields",
+      "most_complex": "_render_model_fields"
+    },
+    "ui/pages/chat.py": {
+      "file_lines": 445,
+      "function_lines": 48,
+      "max_cc": 7,
+      "longest_function": "_handle_send",
+      "most_complex": "_handle_send"
+    },
+    "core/orchestrators.py": {
+      "file_lines": 2681,
+      "function_lines": 117,
+      "max_cc": 15,
+      "longest_function": "import_orchestrator",
+      "most_complex": "_extend_prompt_with_connections"
+    },
+    "core/orchestration/service.py": {
+      "file_lines": 2498,
+      "function_lines": 131,
+      "max_cc": 11,
+      "longest_function": "_default_child_runner",
+      "most_complex": "answer_run"
+    },
+    "dev_agent/universal_agent.py": {
+      "file_lines": 1313,
+      "function_lines": 89,
+      "max_cc": 15,
+      "longest_function": "_extract_document_images",
+      "most_complex": "_create_connection"
+    },
+    "ui/app.py": {
+      "file_lines": 960,
+      "function_lines": 55,
+      "max_cc": 17,
+      "longest_function": "_render_sidebar",
+      "most_complex": "_dispatch_page"
+    },
+    "ui/app_restore.py": {
+      "file_lines": 226,
+      "function_lines": 47,
+      "max_cc": 15,
+      "longest_function": "_restore_ui_reload_state",
+      "most_complex": "_restore_ui_reload_state"
+    },
+    "core/api_layer.py": {
+      "file_lines": 1126,
+      "function_lines": 107,
+      "max_cc": 21,
+      "longest_function": "send_vision_request",
+      "most_complex": "send_vision_request"
+    },
+    "core/api_http.py": {
+      "file_lines": 167,
+      "function_lines": 36,
+      "max_cc": 7,
+      "longest_function": "retry_call",
+      "most_complex": "retry_call"
+    },
+    "core/api_payload.py": {
+      "file_lines": 210,
+      "function_lines": 26,
+      "max_cc": 9,
+      "longest_function": "_clamp_max_tokens",
+      "most_complex": "_content_has_material"
+    },
+    "core/api_responses.py": {
+      "file_lines": 323,
+      "function_lines": 56,
+      "max_cc": 15,
+      "longest_function": "_extract_responses_text",
+      "most_complex": "_extract_responses_text"
+    },
+    "core/api_history_guard.py": {
+      "file_lines": 121,
+      "function_lines": 71,
+      "max_cc": 7,
+      "longest_function": "_protect_history",
+      "most_complex": "_protect_history"
+    },
+    "core/api_bearer.py": {
+      "file_lines": 104,
+      "function_lines": 77,
+      "max_cc": 11,
+      "longest_function": "bearer_request_impl",
+      "most_complex": "bearer_request_impl"
+    },
+    "core/api_deepseek.py": {
+      "file_lines": 323,
+      "function_lines": 108,
+      "max_cc": 19,
+      "longest_function": "_deepseek_anthropic_web_search",
+      "most_complex": "_deepseek_responses_request"
+    },
+    "core/api_yandex.py": {
+      "file_lines": 216,
+      "function_lines": 121,
+      "max_cc": 21,
+      "longest_function": "yandex_responses_request_impl",
+      "most_complex": "yandex_responses_request_impl"
+    },
+    "core/api_gigachat.py": {
+      "file_lines": 127,
+      "function_lines": 64,
+      "max_cc": 13,
+      "longest_function": "_gigachat_messages",
+      "most_complex": "_gigachat_messages"
+    },
+    "core/marketplace/agent_areas.py": {
+      "file_lines": 169,
+      "function_lines": 44,
+      "max_cc": 12,
+      "longest_function": "_remove_stale_area_files",
+      "most_complex": "_remove_stale_area_files"
+    },
+    "core/marketplace/agent_assistant.py": {
+      "file_lines": 373,
+      "function_lines": 120,
+      "max_cc": 8,
+      "longest_function": "_install_assistant",
+      "most_complex": "_verify_assistant_area"
+    },
+    "core/marketplace/agent_installer.py": {
+      "file_lines": 125,
+      "function_lines": 49,
+      "max_cc": 4,
+      "longest_function": "install_agent",
+      "most_complex": "install_agent"
+    },
+    "core/marketplace/agent_orchestrator.py": {
+      "file_lines": 319,
+      "function_lines": 111,
+      "max_cc": 5,
+      "longest_function": "_install_orchestrator",
+      "most_complex": "_install_orchestrator"
+    },
+    "core/marketplace/agent_package.py": {
+      "file_lines": 348,
+      "function_lines": 74,
+      "max_cc": 14,
+      "longest_function": "_bundle_from_folder",
+      "most_complex": "_bundle_from_folder"
+    },
+    "core/marketplace/agent_preflight.py": {
+      "file_lines": 242,
+      "function_lines": 99,
+      "max_cc": 9,
+      "longest_function": "_install_preflight",
+      "most_complex": "_install_preflight"
+    },
+    "core/marketplace/agent_run.py": {
+      "file_lines": 227,
+      "function_lines": 53,
+      "max_cc": 7,
+      "longest_function": "register_agent",
+      "most_complex": "fail_agent_run"
+    },
+    "core/marketplace/bootstrap.py": {
+      "file_lines": 97,
+      "function_lines": 39,
+      "max_cc": 5,
+      "longest_function": "bootstrap",
+      "most_complex": "recover"
+    },
+    "core/marketplace/bundles.py": {
+      "file_lines": 485,
+      "function_lines": 124,
+      "max_cc": 9,
+      "longest_function": "install",
+      "most_complex": "install"
+    },
+    "core/marketplace/catalog.py": {
+      "file_lines": 334,
+      "function_lines": 79,
+      "max_cc": 7,
+      "longest_function": "list_entities",
+      "most_complex": "list_entities"
+    },
+    "core/marketplace/config.py": {
+      "file_lines": 115,
+      "function_lines": 26,
+      "max_cc": 6,
+      "longest_function": "save_settings",
+      "most_complex": "save_settings"
+    },
+    "core/marketplace/conflict_fork.py": {
+      "file_lines": 203,
+      "function_lines": 80,
+      "max_cc": 7,
+      "longest_function": "_fork",
+      "most_complex": "restore_user_version"
+    },
+    "core/marketplace/conflict_state.py": {
+      "file_lines": 134,
+      "function_lines": 34,
+      "max_cc": 7,
+      "longest_function": "local_state",
+      "most_complex": "detect_local_modifications"
+    },
+    "core/marketplace/conflicts.py": {
+      "file_lines": 790,
+      "function_lines": 188,
+      "max_cc": 14,
+      "longest_function": "_apply_choice",
+      "most_complex": "resolve_plan"
+    },
+    "core/marketplace/installer.py": {
+      "file_lines": 697,
+      "function_lines": 107,
+      "max_cc": 8,
+      "longest_function": "install_skill",
+      "most_complex": "_skill_gate"
+    },
+    "core/marketplace/mcp_installer.py": {
+      "file_lines": 712,
+      "function_lines": 167,
+      "max_cc": 11,
+      "longest_function": "install_mcp",
+      "most_complex": "_secret_leaks"
+    },
+    "core/marketplace/migration.py": {
+      "file_lines": 414,
+      "function_lines": 73,
+      "max_cc": 10,
+      "longest_function": "_record",
+      "most_complex": "_record"
+    },
+    "core/marketplace/publish.py": {
+      "file_lines": 720,
+      "function_lines": 116,
+      "max_cc": 13,
+      "longest_function": "publish_entity",
+      "most_complex": "publish_entity"
+    },
+    "core/marketplace/rag_area.py": {
+      "file_lines": 92,
+      "function_lines": 33,
+      "max_cc": 5,
+      "longest_function": "_check_index",
+      "most_complex": "_check_index"
+    },
+    "core/marketplace/rag_installer.py": {
+      "file_lines": 756,
+      "function_lines": 131,
+      "max_cc": 13,
+      "longest_function": "install_rag",
+      "most_complex": "check_distribution"
+    },
+    "core/marketplace/registry.py": {
+      "file_lines": 701,
+      "function_lines": 70,
+      "max_cc": 10,
+      "longest_function": "seed_local_orphans",
+      "most_complex": "entity_file_manifest"
+    },
+    "core/marketplace/rollback.py": {
+      "file_lines": 208,
+      "function_lines": 119,
+      "max_cc": 24,
+      "longest_function": "rollback_run",
+      "most_complex": "rollback_run"
+    },
+    "core/marketplace/semver.py": {
+      "file_lines": 357,
+      "function_lines": 39,
+      "max_cc": 12,
+      "longest_function": "_parse_spec",
+      "most_complex": "_parse_spec"
+    },
+    "core/marketplace/source.py": {
+      "file_lines": 415,
+      "function_lines": 73,
+      "max_cc": 13,
+      "longest_function": "MarketplaceSource.fetch_index",
+      "most_complex": "fetch_index"
+    },
+    "core/marketplace/store.py": {
+      "file_lines": 603,
+      "function_lines": 33,
+      "max_cc": 6,
+      "longest_function": "install_lock",
+      "most_complex": "get_cached_package"
+    },
+    "core/marketplace/updates.py": {
+      "file_lines": 543,
+      "function_lines": 110,
+      "max_cc": 13,
+      "longest_function": "_apply_one",
+      "most_complex": "_apply_one"
+    },
+    "core/marketplace/verify.py": {
+      "file_lines": 328,
+      "function_lines": 81,
+      "max_cc": 13,
+      "longest_function": "validate_archive",
+      "most_complex": "validate_archive"
+    },
+    "dev_agent/tools/__init__.py": {
+      "file_lines": 31,
+      "function_lines": 0,
+      "max_cc": 0,
+      "longest_function": "",
+      "most_complex": ""
+    },
+    "dev_agent/tools/args.py": {
+      "file_lines": 140,
+      "function_lines": 52,
+      "max_cc": 17,
+      "longest_function": "_coerce_numeric_args",
+      "most_complex": "_coerce_numeric_args"
+    },
+    "dev_agent/tools/assistants.py": {
+      "file_lines": 383,
+      "function_lines": 62,
+      "max_cc": 9,
+      "longest_function": "AssistantTools._finish_assistant_creation",
+      "most_complex": "_parse_assistant_draft"
+    },
+    "dev_agent/tools/catalog.py": {
+      "file_lines": 47,
+      "function_lines": 0,
+      "max_cc": 0,
+      "longest_function": "",
+      "most_complex": ""
+    },
+    "dev_agent/tools/clock.py": {
+      "file_lines": 72,
+      "function_lines": 57,
+      "max_cc": 5,
+      "longest_function": "ClockTools.current_datetime",
+      "most_complex": "current_datetime"
+    },
+    "dev_agent/tools/deps.py": {
+      "file_lines": 87,
+      "function_lines": 10,
+      "max_cc": 2,
+      "longest_function": "build_deps",
+      "most_complex": "build_deps"
+    },
+    "dev_agent/tools/editing.py": {
+      "file_lines": 235,
+      "function_lines": 176,
+      "max_cc": 18,
+      "longest_function": "EditingTools.propose_file",
+      "most_complex": "propose_file"
+    },
+    "dev_agent/tools/exec.py": {
+      "file_lines": 235,
+      "function_lines": 105,
+      "max_cc": 12,
+      "longest_function": "ExecTools.run_code",
+      "most_complex": "run_test"
+    },
+    "dev_agent/tools/file_tree.py": {
+      "file_lines": 123,
+      "function_lines": 49,
+      "max_cc": 11,
+      "longest_function": "walk_tree",
+      "most_complex": "walk_tree"
+    },
+    "dev_agent/tools/files.py": {
+      "file_lines": 218,
+      "function_lines": 73,
+      "max_cc": 12,
+      "longest_function": "FilesTools.read_file",
+      "most_complex": "read_file"
+    },
+    "dev_agent/tools/history.py": {
+      "file_lines": 113,
+      "function_lines": 43,
+      "max_cc": 7,
+      "longest_function": "HistoryTools.get_history_messages",
+      "most_complex": "get_history_messages"
+    },
+    "dev_agent/tools/images.py": {
+      "file_lines": 225,
+      "function_lines": 69,
+      "max_cc": 9,
+      "longest_function": "ImageTools.analyze_image",
+      "most_complex": "analyze_image"
+    },
+    "dev_agent/tools/library.py": {
+      "file_lines": 202,
+      "function_lines": 49,
+      "max_cc": 7,
+      "longest_function": "LibraryTools.get_skill_prompt",
+      "most_complex": "get_skill_prompt"
+    },
+    "dev_agent/tools/patch.py": {
+      "file_lines": 286,
+      "function_lines": 86,
+      "max_cc": 13,
+      "longest_function": "_apply_one_edit",
+      "most_complex": "_apply_one_edit"
+    },
+    "dev_agent/tools/rag.py": {
+      "file_lines": 282,
+      "function_lines": 90,
+      "max_cc": 8,
+      "longest_function": "RagTools.rag_search",
+      "most_complex": "rag_search"
+    },
+    "dev_agent/tools/task_state.py": {
+      "file_lines": 82,
+      "function_lines": 18,
+      "max_cc": 2,
+      "longest_function": "TaskStateTools.task_state_mark_step",
+      "most_complex": "task_state_init"
+    },
+    "dev_agent/tools/text_utils.py": {
+      "file_lines": 164,
+      "function_lines": 27,
+      "max_cc": 8,
+      "longest_function": "_suggest_anchor_lines",
+      "most_complex": "_suggest_anchor_lines"
+    },
+    "dev_agent/tools/url_fetch.py": {
+      "file_lines": 243,
+      "function_lines": 126,
+      "max_cc": 13,
+      "longest_function": "UrlFetchTools.url_fetch",
+      "most_complex": "url_fetch"
+    },
+    "dev_agent/tools/web_search.py": {
+      "file_lines": 286,
+      "function_lines": 184,
+      "max_cc": 17,
+      "longest_function": "WebSearchTools.web_search",
+      "most_complex": "web_search"
+    },
+    "dev_agent/tools/workspace.py": {
+      "file_lines": 125,
+      "function_lines": 34,
+      "max_cc": 8,
+      "longest_function": "workspace_guard_error",
+      "most_complex": "_addresses_memory"
+    }
+  }
+}

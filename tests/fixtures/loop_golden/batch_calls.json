@@ -1,0 +1,184 @@
+{
+ "sent": [
+  {
+   "user_message": "List and read",
+   "assistant": {
+    "text": "SYSTEM PROMPT: you are a test agent.",
+    "service": "mock",
+    "model": "mock-model",
+    "temperature": 0.0
+   },
+   "file_context": "",
+   "history": [],
+   "lang": null,
+   "enable_injection_protection": true,
+   "sanitized_approved_paths": [],
+   "callbacks": [
+    "incomplete_callback",
+    "retry_callback",
+    "sanitized_callback",
+    "usage_callback"
+   ]
+  },
+  {
+   "user_message": "{\"tool_result\": {\"ok\": true, \"tool\": \"list_files\", \"files\": [\"a.py\"]}}\n{\"tool_result\": {\"ok\": true, \"tool\": \"read_file\", \"path\": \"a.py\", \"content\": \"y = 2\\n\"}}",
+   "assistant": {
+    "text": "SYSTEM PROMPT: you are a test agent.",
+    "service": "mock",
+    "model": "mock-model",
+    "temperature": 0.0
+   },
+   "file_context": "",
+   "history": [
+    {
+     "role": "user",
+     "content": "List and read",
+     "ts": "<ts>",
+     "_index": 0,
+     "_category": "user_task",
+     "_summary": "List and read"
+    },
+    {
+     "role": "assistant",
+     "content": "```json\n{\"tool\": \"list_files\", \"args\": {\"subdir\": \".\"}}\n```\n```json\n{\"tool\": \"read_file\", \"args\": {\"path\": \"a.py\"}}\n```",
+     "ts": "<ts>",
+     "_index": 1,
+     "_category": "other",
+     "_summary": "```json\n{\"tool\": \"list_files\", \"args\": {\"subdir\": \".\"}}\n```\n```json\n{\"tool\": \"re"
+    }
+   ],
+   "lang": null,
+   "enable_injection_protection": true,
+   "sanitized_approved_paths": [],
+   "callbacks": [
+    "incomplete_callback",
+    "retry_callback",
+    "sanitized_callback",
+    "usage_callback"
+   ]
+  }
+ ],
+ "dispatched": [
+  {
+   "via": "dispatch_json",
+   "tool": "list_files",
+   "args": {
+    "subdir": "."
+   }
+  },
+  {
+   "via": "dispatch_json",
+   "tool": "read_file",
+   "args": {
+    "path": "a.py"
+   }
+  }
+ ],
+ "result": {
+  "status": "awaiting_user",
+  "text": "Both calls are done. Final answer.",
+  "steps": 2,
+  "applied": false,
+  "discarded": false,
+  "staged_path": null,
+  "staged_tool": null,
+  "error_code": null,
+  "error_message": "",
+  "history_len": 4,
+  "pending_confirmation_tool": null
+ },
+ "events": [
+  {
+   "type": "phase",
+   "phase": "calling_llm",
+   "step": 1,
+   "strength": "weak",
+   "model": "mock-model"
+  },
+  {
+   "type": "assistant_text",
+   "text": "```json\n{\"tool\": \"list_files\", \"args\": {\"subdir\": \".\"}}\n```\n```json\n{\"tool\": \"read_file\", \"args\": {\"path\": \"a.py\"}}\n```",
+   "step": 1
+  },
+  {
+   "type": "phase",
+   "phase": "parsing",
+   "step": 1
+  },
+  {
+   "type": "phase",
+   "phase": "executing",
+   "tool": "list_files",
+   "step": 1
+  },
+  {
+   "type": "tool_call",
+   "tool": "list_files",
+   "args": {
+    "subdir": "."
+   },
+   "step": 1
+  },
+  {
+   "type": "tool_result",
+   "tool": "list_files",
+   "result": {
+    "ok": true,
+    "tool": "list_files",
+    "files": [
+     "a.py"
+    ],
+    "summary": "Listed 0 files"
+   },
+   "step": 1
+  },
+  {
+   "type": "phase",
+   "phase": "executing",
+   "tool": "read_file",
+   "step": 1
+  },
+  {
+   "type": "tool_call",
+   "tool": "read_file",
+   "args": {
+    "path": "a.py"
+   },
+   "step": 1
+  },
+  {
+   "type": "tool_result",
+   "tool": "read_file",
+   "result": {
+    "ok": true,
+    "tool": "read_file",
+    "path": "a.py",
+    "content": "y = 2\n",
+    "summary": "Read a.py (0 lines)"
+   },
+   "step": 1
+  },
+  {
+   "type": "phase",
+   "phase": "calling_llm",
+   "step": 2,
+   "strength": "weak",
+   "model": "mock-model"
+  },
+  {
+   "type": "assistant_text",
+   "text": "Both calls are done. Final answer.",
+   "step": 2
+  },
+  {
+   "type": "phase",
+   "phase": "parsing",
+   "step": 2
+  },
+  {
+   "type": "final",
+   "text": "Both calls are done. Final answer.",
+   "status": "awaiting_user"
+  }
+ ]
+}

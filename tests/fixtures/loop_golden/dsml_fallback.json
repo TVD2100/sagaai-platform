@@ -1,0 +1,159 @@
+{
+ "sent": [
+  {
+   "user_message": "Read dsml.py",
+   "assistant": {
+    "text": "SYSTEM PROMPT: you are a test agent.",
+    "service": "mock",
+    "model": "mock-model",
+    "temperature": 0.0
+   },
+   "file_context": "",
+   "history": [],
+   "lang": null,
+   "enable_injection_protection": true,
+   "sanitized_approved_paths": [],
+   "callbacks": [
+    "incomplete_callback",
+    "retry_callback",
+    "sanitized_callback",
+    "usage_callback"
+   ]
+  },
+  {
+   "user_message": "{\"tool_result\": {\"ok\": true, \"tool\": \"read_file\", \"path\": \"dsml.py\", \"content\": \"w = 4\\n\"}}\n{\"tool_result\": {\"ok\": true, \"notice\": \"Don't use DSML anymore, use only JSON for tool calling\"}}",
+   "assistant": {
+    "text": "SYSTEM PROMPT: you are a test agent.",
+    "service": "mock",
+    "model": "mock-model",
+    "temperature": 0.0
+   },
+   "file_context": "",
+   "history": [
+    {
+     "role": "user",
+     "content": "Read dsml.py",
+     "ts": "<ts>",
+     "_index": 0,
+     "_category": "user_task",
+     "_summary": "Read dsml.py"
+    },
+    {
+     "role": "assistant",
+     "content": "<｜｜DSML｜｜ invoke name=\"read_file\">\n<｜｜DSML｜｜ parameter name=\"path\">dsml.py</｜｜DSML｜｜ parameter>\n</｜｜DSML｜｜ invoke>",
+     "ts": "<ts>",
+     "_index": 1,
+     "_category": "other",
+     "_summary": "<｜｜DSML｜｜ invoke name=\"read_file\">"
+    }
+   ],
+   "lang": null,
+   "enable_injection_protection": true,
+   "sanitized_approved_paths": [],
+   "callbacks": [
+    "incomplete_callback",
+    "retry_callback",
+    "sanitized_callback",
+    "usage_callback"
+   ]
+  }
+ ],
+ "dispatched": [
+  {
+   "via": "dispatch_json",
+   "tool": "read_file",
+   "args": {
+    "path": "dsml.py"
+   }
+  }
+ ],
+ "result": {
+  "status": "awaiting_user",
+  "text": "Read through the fallback dialect. Final answer.",
+  "steps": 2,
+  "applied": false,
+  "discarded": false,
+  "staged_path": null,
+  "staged_tool": null,
+  "error_code": null,
+  "error_message": "",
+  "history_len": 4,
+  "pending_confirmation_tool": null
+ },
+ "events": [
+  {
+   "type": "phase",
+   "phase": "calling_llm",
+   "step": 1,
+   "strength": "weak",
+   "model": "mock-model"
+  },
+  {
+   "type": "assistant_text",
+   "text": "<｜｜DSML｜｜ invoke name=\"read_file\">\n<｜｜DSML｜｜ parameter name=\"path\">dsml.py</｜｜DSML｜｜ parameter>\n</｜｜DSML｜｜ invoke>",
+   "step": 1
+  },
+  {
+   "type": "phase",
+   "phase": "parsing",
+   "step": 1
+  },
+  {
+   "type": "phase",
+   "phase": "executing",
+   "tool": "read_file",
+   "step": 1
+  },
+  {
+   "type": "tool_call",
+   "tool": "read_file",
+   "args": {
+    "path": "dsml.py"
+   },
+   "step": 1
+  },
+  {
+   "type": "tool_result",
+   "tool": "read_file",
+   "result": {
+    "ok": true,
+    "tool": "read_file",
+    "path": "dsml.py",
+    "content": "w = 4\n",
+    "summary": "Read dsml.py (0 lines)"
+   },
+   "step": 1
+  },
+  {
+   "type": "tool_result",
+   "tool": "parse_tool_calls",
+   "result": {
+    "ok": true,
+    "notice": "Don't use DSML anymore, use only JSON for tool calling"
+   },
+   "step": 1
+  },
+  {
+   "type": "phase",
+   "phase": "calling_llm",
+   "step": 2,
+   "strength": "weak",
+   "model": "mock-model"
+  },
+  {
+   "type": "assistant_text",
+   "text": "Read through the fallback dialect. Final answer.",
+   "step": 2
+  },
+  {
+   "type": "phase",
+   "phase": "parsing",
+   "step": 2
+  },
+  {
+   "type": "final",
+   "text": "Read through the fallback dialect. Final answer.",
+   "status": "awaiting_user"
+  }
+ ]
+}

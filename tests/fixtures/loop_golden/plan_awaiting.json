@@ -1,0 +1,62 @@
+{
+ "sent": [
+  {
+   "user_message": "Do the work",
+   "assistant": {
+    "text": "SYSTEM PROMPT: you are a test agent.",
+    "service": "mock",
+    "model": "mock-model",
+    "temperature": 0.0
+   },
+   "file_context": "",
+   "history": [],
+   "lang": null,
+   "enable_injection_protection": true,
+   "sanitized_approved_paths": [],
+   "callbacks": [
+    "incomplete_callback",
+    "retry_callback",
+    "sanitized_callback",
+    "usage_callback"
+   ]
+  }
+ ],
+ "dispatched": [],
+ "result": {
+  "status": "awaiting_user",
+  "text": "План:\n1. Прочитать модуль.\n2. Разделить функцию.\nУтверждаете план?",
+  "steps": 1,
+  "applied": false,
+  "discarded": false,
+  "staged_path": null,
+  "staged_tool": null,
+  "error_code": null,
+  "error_message": "",
+  "history_len": 2,
+  "pending_confirmation_tool": null
+ },
+ "events": [
+  {
+   "type": "phase",
+   "phase": "calling_llm",
+   "step": 1,
+   "strength": "weak",
+   "model": "mock-model"
+  },
+  {
+   "type": "assistant_text",
+   "text": "План:\n1. Прочитать модуль.\n2. Разделить функцию.\nУтверждаете план?",
+   "step": 1
+  },
+  {
+   "type": "phase",
+   "phase": "parsing",
+   "step": 1
+  },
+  {
+   "type": "final",
+   "text": "План:\n1. Прочитать модуль.\n2. Разделить функцию.\nУтверждаете план?",
+   "status": "awaiting_user"
+  }
+ ]
+}
