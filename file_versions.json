@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "2.42.0",
+  "app_version": "2.42.1",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Песочницу можно отключить переключателем в панели чата: снятый флажок выполняет код с правами платформы, сохраняя лимиты времени и объёма вывода, а профиль запуска получает потолок изоляции, поэтому включённый на машине seatbelt больше не подменяет отключённый режим.",
-    "en": "The sandbox can be switched off from the chat toolbar: a cleared checkbox runs code with the platform rights while the time and output limits stay in force, and a run profile now carries an isolation ceiling, so a seatbelt backend present on the machine no longer overrides the disabled mode."
+    "ru": "Исправления режима песочницы по итогам первых диалогов: временный HOME больше не копится на диске, общий /tmp стал настоящим каталогом, доступным инструментам, запрет чтения сузился до баз данных и хранилища секретов (скиллы и папка диалога снова читаются), папка файлов диалога и рабочий каталог сотрудника доступны до выбора проекта, вложенный запуск наследует песочницу вместо второй, запись в .git разрешена при закрытых hooks и config, а действующий режим изоляции виден в системном промпте.",
+    "en": "Sandbox fixes from the first live dialogs: the temporary HOME no longer piles up on disk, the shared /tmp is a real directory the tools can read back, the read denial narrowed to the databases and the secret store (skills and dialog attachments read again), the dialog files folder and the employee working memory stay reachable before a project is chosen, a nested run inherits the sandbox instead of stacking a second one, writing to .git is allowed while hooks and config stay closed, and the isolation actually in force is stated in the system prompt."
   },
-  "updated": "2026-11-07T17:15:00Z",
+  "updated": "2026-11-07T19:20:00Z",
   "units": {
     "core": {
-      "version": "1.84.0",
+      "version": "1.84.1",
       "note": {
-        "ru": "Пакет: профиль запуска получил потолок изоляции (профиль off не поднимается до системной песочницы), переключатель «Песочница» в панели чата выключает изоляцию для диалога при сохранении лимитов, панель настроек учитывает потолок при выборе провайдера.",
-        "en": "Package: a run profile carries an isolation ceiling (the off profile is not upgraded to the OS sandbox), the chat toolbar sandbox switch disables isolation for the dialog while the limits stay, and the settings panel honours the ceiling when it reports a provider."
+        "ru": "Пакет: исправления песочницы - один временный HOME на установку с уборкой старых, настоящий общий /tmp, узкий список запрещённого чтения, папка диалога и рабочий каталог как разрешённые корни (dev_agent/tools/path_scope.py), наследование уже действующей песочницы, запись в .git без hooks и config, блок ## Code execution sandbox в системном промпте, уточнённое описание set_workspace.",
+        "en": "Package: sandbox fixes - one temporary HOME per installation with stale sweep, a real shared /tmp, a narrow read-deny list, the dialog folder and the working memory as addressable roots (dev_agent/tools/path_scope.py), inheritance of an enclosing sandbox, .git writes without hooks and config, the ## Code execution sandbox prompt block and a clearer set_workspace description."
       },
       "files": {
         "__init__.py": {
@@ -276,8 +276,8 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.74.0",
-          "sha256": "9be6a229c8f183108130d39da4aef4ecfc557073e1591f22f51800246a23b88e",
+          "version": "1.74.1",
+          "sha256": "351c2de393f7d69c673e33590282ba94e26f65f6b99127232075cdd20dbcb07a",
           "note": {
             "ru": "Релиз 2.41.0: подпись Ed25519 для обновлений и маркетплейса.",
             "en": "Release 2.41.0: Ed25519 signatures for updates and the marketplace."
@@ -308,8 +308,8 @@
           "sha256": "581317be1aba87ef7b2a236a67325fb2a292b9538187eb3f6217eeafcde6deed"
         },
         "dev_agent/config.py": {
-          "version": "1.5.0",
-          "sha256": "09413558ba1939f9848e2eb8a9a2fbaea000d343c1c00658de7a7b4907b51ad1"
+          "version": "1.6.0",
+          "sha256": "55ffa379af4d3728f10d260b9758c4398baab534987c264024cbf82e6b82ada1"
         },
         "dev_agent/llm_utils.py": {
           "version": "1.0.2",
@@ -368,8 +368,8 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.12.1",
-          "sha256": "853b81f9dd5f12ec610e01b8a1720a3a2e223f8d25397dbb0705234fdbf5744f",
+          "version": "1.12.2",
+          "sha256": "b1517ddcae70f4431a79333fe2f6b52239e582313150371658032cb572a1eb68",
           "note": {
             "ru": "Описания модулей подписи Ed25519 и конвейера обновлений в карте проекта.",
             "en": "Descriptions of the Ed25519 signing modules and the update pipeline in the project map."
@@ -2710,8 +2710,8 @@
           "sha256": "9c9b69472b1d3649d59d68f2d35db2b5b5b31d7a3de5d330201b28e7dd5f92fc"
         },
         "dev_agent/tools/exec.py": {
-          "version": "1.0.1",
-          "sha256": "aaf6208ff7d26b85f042363453e82df2002e8b13dbb89c1b95a3e349c0567483"
+          "version": "1.0.2",
+          "sha256": "6c6b5f4b548a04868bde60a9bc7f8f4588c4c6609e90d75e8a559e896d8b545a"
         },
         "dev_agent/tools/files.py": {
           "version": "1.0.1",
@@ -2754,8 +2754,8 @@
           "sha256": "c9c89e5afaff7194fe15b385a176872666ea240dbc004c964bf1e80740c204b3"
         },
         "dev_agent/tools/workspace.py": {
-          "version": "1.0.0",
-          "sha256": "c266e515ffbf93c186b573bc400e2825649657ba0610444511f51e0c09794536"
+          "version": "1.1.0",
+          "sha256": "76aff6874698d2bcc16b73b1d5c700158659f67e482710b6e0cbe399b3df0885"
         },
         "ui/pages/orchestrator_text.py": {
           "version": "1.2.0",
@@ -2798,8 +2798,8 @@
           }
         },
         "dev_agent/tool_catalog_data.py": {
-          "version": "1.0.0",
-          "sha256": "5e75e0dcd0b07c29a6918146c50d3e0f382af423a3c6f5c39cd8dd8984d4f32b",
+          "version": "1.0.1",
+          "sha256": "c8af658308b6c8da91aef2b759c98f0700097cf9534f7130c8fbf09788b5c420",
           "note": {
             "ru": "Каталог workspace-инструментов и белые списки имён аргументов, вынесенные из фасада universal_agent как данные без логики.",
             "en": "The workspace tool catalog and the argument-name allow-lists, moved out of the universal_agent facade as data without logic."
@@ -3026,8 +3026,8 @@
           "sha256": "ee572df28cdaa9f8e0c06a791c0644fda94d02cefad5928e6ca091c9c2bcd06e"
         },
         "core/orchestrator_prompt.py": {
-          "version": "1.0.0",
-          "sha256": "6c82204ffd07e30ffab295f37c99bdd8085586790cb3322fc66eaa716ba16b0b"
+          "version": "1.1.0",
+          "sha256": "bcb2f5aef6d64f3295b31946685f3ee4b3ed2bdbb6f0a7ba57b3dac852f081cc"
         },
         "core/orchestrator_models.py": {
           "version": "1.0.0",
@@ -3078,8 +3078,8 @@
           "sha256": "9a6484008352f44afd2e8c873a51d5630e101b024eed290265cec400112a2b1e"
         },
         "dev_agent/sandbox_env.py": {
-          "version": "1.0.0",
-          "sha256": "03d5ae713f4ba601e8cb2c098bb4017c0489b304e29af4524cae92c4bbcde75c"
+          "version": "1.1.0",
+          "sha256": "83d0154872bf51f90e54b4fd774db58ff69a02fb6a6df7d15b95c9b70cd145c8"
         },
         "dev_agent/sandbox_proc.py": {
           "version": "1.0.0",
@@ -3098,24 +3098,32 @@
           "sha256": "4ada4c07e4e077233b26e16a99e1aa3d220bba2ddfed9eae2b87aaec3212ee0c"
         },
         "core/sandbox/contracts.py": {
-          "version": "1.1.0",
-          "sha256": "9881ece348fdad56f03456bb576351cc37761472a26553e0cebec33410c553f1"
+          "version": "1.1.1",
+          "sha256": "1b84f1796d1b9c323cc0bda5909fff8c7115721c0a8a74d89d793251441c8544",
+          "note": {
+            "ru": "Profiles carry an isolation ceiling, so the run contract states it next to the minimum.",
+            "en": "Profiles carry an isolation ceiling, so the run contract states it next to the minimum."
+          }
         },
         "core/sandbox/policy.py": {
           "version": "1.1.0",
           "sha256": "cb4bd08119f622eec09be972372c5807082beb6817ef66cd6e4d84b5b9d979b2"
         },
         "core/sandbox/profiles.py": {
-          "version": "1.1.0",
-          "sha256": "d97cba558345894dd25d02bc813fd051887c4cdeb1d7540fa360ab69e282791e"
+          "version": "1.1.1",
+          "sha256": "6a55e59da1394df5dfa30aa143668ac1083a33a7bc4f3fc09da316026cb5ab91",
+          "note": {
+            "ru": "The off profile asks for no isolation and caps the ceiling at none, so a host sandbox cannot upgrade it.",
+            "en": "The off profile asks for no isolation and caps the ceiling at none, so a host sandbox cannot upgrade it."
+          }
         },
         "core/sandbox/runner.py": {
           "version": "1.0.0",
           "sha256": "f347518c83178d26dd90644895f2d92da2c5098cafbcc6db269c7691982b12bb"
         },
         "core/sandbox/providers/__init__.py": {
-          "version": "1.0.0",
-          "sha256": "8e08cc6e136a2a73c46a48a45ccfd4ab0cdb12b51f629936d5b53d2145f3021e"
+          "version": "1.0.1",
+          "sha256": "bef040d6e16749f2081818b17953dd8761619ff0ef91dbd85d4809335efddf43"
         },
         "core/sandbox/providers/process.py": {
           "version": "1.0.0",
@@ -3162,16 +3170,16 @@
           "sha256": "951aaa3705d93825729789ac36e327553b7b8060b23ed2653ba14731789b8259"
         },
         "core/sandbox/providers/bwrap.py": {
-          "version": "1.0.0",
-          "sha256": "08c6ce77d4812dd0462a630274382ffef7ca3830c8f376ff482ad763dd8f1ed6"
+          "version": "1.0.1",
+          "sha256": "6d4bc2d1f1521bbca2fa205e5e7187c676655a7238a8ad5b8cc2f470296247b1"
         },
         "core/sandbox/providers/container.py": {
           "version": "1.0.0",
           "sha256": "690414158e6a7abcc08409d651ed7d4574bbc23126eee97e9b610400a2d87e77"
         },
         "core/sandbox/providers/seatbelt.py": {
-          "version": "1.0.0",
-          "sha256": "ce7b3602b9a4aad96a71519cc29911499cc590bf36f4ca235139bb7142aff36b"
+          "version": "1.0.1",
+          "sha256": "aeebe9ecdc940b6d64b595a285e7e1bac6165cf8e1a9211a35586e0a9c60103e"
         },
         "core/sandbox/providers/wsl.py": {
           "version": "1.0.0",
@@ -3186,8 +3194,8 @@
           "sha256": "534026b3971abb551b3893bfec8fe6d4bb02a80a0d75cadaef1a43106e15cd8c"
         },
         "tests/test_sandbox_security.py": {
-          "version": "1.0.0",
-          "sha256": "a19d51cfbd1250b1c938b6200dd4013c7988e0bd725bc73e6381cd85f2084c67"
+          "version": "1.0.1",
+          "sha256": "623ee87fc30ceadbfdf1ed433ae805136d57c885424c377d5db373016f47a054"
         },
         "core/signing.py": {
           "version": "1.0.0",
@@ -3220,14 +3228,50 @@
         "tests/test_sandbox_off_profile.py": {
           "version": "1.0.0",
           "sha256": "fe2fef5ee58d17e6f62b91b299ec7334acf1a021c3b69231e52db7c72456c2db"
+        },
+        "core/sandbox/inheritance.py": {
+          "version": "1.0.0",
+          "sha256": "7bae3626f7bcd3c6bb88cd9fbe46f513fd7142fc09182c4d0a77a4049982b889"
+        },
+        "core/sandbox/providers/inherited.py": {
+          "version": "1.0.0",
+          "sha256": "cd8bd73c0fae3756453dda61eafb37ec6919439810ad349f968e100478849780"
+        },
+        "core/sandbox/status.py": {
+          "version": "1.0.0",
+          "sha256": "2e239206c83b3d2ad1b301eee48eee4aaf8aae4c8b513fd9be2810e17fb7bd70"
+        },
+        "dev_agent/tools/path_scope.py": {
+          "version": "1.0.0",
+          "sha256": "5ec3c3953c86c81116b90008465e0e4b2d758a3f98efe2d5e37a7d08e2aa3e89"
+        },
+        "tests/test_dialog_files_root.py": {
+          "version": "1.0.1",
+          "sha256": "372b57d65f2cd1e34d91eba8b8f39b4c37394d003bca783d226574e99bf7ecdb"
+        },
+        "tests/test_sandbox_env_cleanup.py": {
+          "version": "1.0.0",
+          "sha256": "83ac1d185c83f375e5cf0ada6bc3a89ba4ea336042015665f2ccf9a42d7c067d"
+        },
+        "tests/test_sandbox_inheritance.py": {
+          "version": "1.0.0",
+          "sha256": "9f4440c179e1353bf681d62c45135879a5c9eb397b43586036447f906e9e2abe"
+        },
+        "tests/test_sandbox_shared_tmp.py": {
+          "version": "1.0.1",
+          "sha256": "d16ed2de8ff401fe33304ea151190b4a4c92308c5567e54993f63fd51881af34"
+        },
+        "tests/test_sandbox_status.py": {
+          "version": "1.0.0",
+          "sha256": "7145bd44cf31d666d2ae42a35a20a9d8c8b95747a7e18cd91cfa81c3409597b5"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.76.0",
-      "sha256": "cb2852b2dbff1afd7ceec7025834acff04d5cc5c1dfeaa2753de06e62e3cd2fa",
+      "version": "1.76.1",
+      "sha256": "c58c77444140cb75a5eedafcae2704bb4fb6949b1e9bc734c98f61efce484b95",
       "note": {
         "ru": "Песочница исполнения: панель настройки профиля, активные запуски и журнал отказов.",
         "en": "Execution sandbox: the profile settings panel, live runs and the refusal journal."
@@ -3242,19 +3286,19 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.77.0",
-      "sha256": "8c294cf6e58863ed870caee46c3ee9e0916ec85daa025d6bb10f56fef3efc709",
+      "version": "1.77.1",
+      "sha256": "bac2f3960cfd0c03b163b8b4ba6088c302959741f589b0da204795fb97326b1c",
       "note": {
         "ru": "Регенерация: _as_own_error в verify.py.",
         "en": "Regenerated: _as_own_error in verify.py."
       }
     },
     "README.md": {
-      "version": "1.61.0",
-      "sha256": "d2aeef2b410886a8cf62b99c3bc144a654ccc23c33f5b1d4f17c7b8f1aa6f33f",
+      "version": "1.61.1",
+      "sha256": "ee1bb93ce8c8fd6f0b39b096f1e4d50546ecde0b0f5d2f463002be625c4033f4",
       "note": {
-        "ru": "В описании конвейера упомянут структурный бюджет крупных файлов.",
-        "en": "The pipeline description mentions the structural budget of the god files."
+        "ru": "Строка статуса версии обновлена до 2.42.1.",
+        "en": "The version status line is updated to 2.42.1."
       }
     },
     "defaults/README.md": {
@@ -3666,8 +3710,8 @@
       }
     },
     "AGENT.md": {
-      "version": "1.52.0",
-      "sha256": "27e87c46dc2f3070260c1f68a084d57c51b0960022686094ee83d4f4ab4ef435",
+      "version": "1.52.1",
+      "sha256": "c97f2b6d4e435b947f67ea02200711a0617524636a102a239bc84d3b85d68543",
       "note": {
         "ru": "Инвентарь базовых файлов: core/signing.py и core/marketplace/attest.py.",
         "en": "Base-file inventory: core/signing.py and core/marketplace/attest.py."

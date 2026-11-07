@@ -590,11 +590,7 @@ def _extend_prompt_with_instructions_impl(prompt: str, orchestrator_slug: str = 
 
 
 _WEEKDAY_NAMES = WEEKDAY_NAMES
-
-
 _WEEKDAY_NAMES_RU = WEEKDAY_NAMES_RU
-
-
 _MONTH_NAMES = MONTH_NAMES
 
 
@@ -604,11 +600,7 @@ def _format_utc_offset(moment: datetime) -> str:
 
 
 def _current_date_line(moment: datetime) -> str:
-    """Return the one-line date statement for *moment*.
-
-    The weekday and the month are spelled out so the model does not derive
-    them from a numeric date - a frequent source of off-by-one errors.
-    """
+    """Return the one-line date statement, with the weekday and month spelled out."""
     return current_date_line(moment)
 
 
@@ -622,22 +614,12 @@ def _extend_prompt_with_current_date(prompt: str,
     the current one. The block is emitted for EVERY orchestrator, so no role
     prompt has to carry the date itself.
 
-    The block states the date only, with no usage instructions: the system
-    prompt is already large and the fact speaks for itself. ``
-    build_assistant_dicts`` appends it LAST - the only block that changes over
-    time sits at the tail, so the provider's cached prefix survives until the
-    date rolls over.
+    The block states the date only, with no usage instructions.
 
     Args:
         prompt: current system prompt text.
         orchestrator_slug: employee whose config may switch the block off.
-        now: moment to report; defaults to the current local time. Tests pass
-            a fixed value to keep the output deterministic.
-
-    Returns:
-        The prompt with the block appended, or the prompt unchanged when the
-        orchestrator disabled it (``current_date_enabled: false``) or the
-        moment cannot be resolved (the prompt must never break over metadata).
+        now: moment to report; defaults to the current local time.
     """
     try:
         orch = get_orchestrator(orchestrator_slug)
@@ -674,9 +656,26 @@ def _extend_prompt_with_current_date(prompt: str,
 
 
 _DIALOG_RULES_PARENT = DIALOG_RULES_PARENT
-
-
 _DIALOG_RULES_CHILD = DIALOG_RULES_CHILD
+
+
+def _extend_prompt_with_sandbox(prompt: str, cfg: dict, workspace: str = "") -> str:
+    """Append the sandbox status block built from *cfg* by the sandbox layer.
+
+    The model chooses the commands, so it has to know the profile in force
+    before it emits one; a status that disagreed with the policy would be
+    worse than none.
+    """
+    try:
+        from core.sandbox import status as sandbox_status
+
+        lines = sandbox_status.prompt_lines(cfg, workspace)
+    except Exception:  # pragma: no cover - metadata never breaks the prompt
+        return prompt
+    if not lines:
+        return prompt
+    block = "\n".join(lines)
+    return f"{prompt}\n\n{block}" if prompt.strip() else block
 
 
 def _extend_prompt_with_dialog(prompt: str, orchestrator_slug: str = DEVAGENT_SLUG,
@@ -710,13 +709,10 @@ def build_assistant_dicts_impl(orchestrator_slug: str = DEVAGENT_SLUG,
     Falls back to DevAgent defaults if the orchestrator is missing.
 
     If the orchestrator has enabled standardized skills (config key
-    "enabled_skills"), their metadata is appended to the system prompt sent
-    to the model.
+    "enabled_skills"), their metadata is appended to the system prompt.
 
-    *workspace* is the project folder of the calling dialog. It is needed to
-    expand a project-relative ``MEMORY_DIR`` override; empty means "no project
-    selected", which the working-memory block reports honestly instead of
-    guessing a path.
+    *workspace* is the project folder of the calling dialog; empty means "no
+    project selected", which the working-memory block reports honestly.
     """
     orch = get_orchestrator(orchestrator_slug)
     if orch is None:
@@ -753,6 +749,9 @@ def build_assistant_dicts_impl(orchestrator_slug: str = DEVAGENT_SLUG,
     # Append the available-tools catalog (system + custom functions),
     # excluding disabled tools.
     prompt = _extend_prompt_with_tools(prompt, orchestrator_slug)
+    # The sandbox status goes right before the date: it is what the model has
+    # to read before it emits a command.
+    prompt = _extend_prompt_with_sandbox(prompt, cfg, workspace)
     # Append the current date LAST: it is the only block that changes over
     # time, so keeping it at the tail preserves the provider's cached prefix
     # until the date rolls over.

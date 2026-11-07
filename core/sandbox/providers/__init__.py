@@ -12,6 +12,7 @@ from typing import List
 
 from core.sandbox.providers.bwrap import BwrapProvider
 from core.sandbox.providers.container import ContainerProvider
+from core.sandbox.providers.inherited import InheritedProvider
 from core.sandbox.providers.process import ProcessProvider
 from core.sandbox.providers.seatbelt import SeatbeltProvider
 from core.sandbox.providers.wsl import WslProvider
@@ -25,6 +26,11 @@ def default_providers(subprocess_module=None) -> List:
     their probe decides availability at run time, so the policy picks the
     strongest one this machine can actually honour.
 
+    The inherited provider reports a sandbox the current process already
+    runs inside. Its availability is false on an ordinary start and true
+    only inside a confined child, where every wrapping probe must fail -
+    without it a nested run would be denied even though it is confined.
+
     ``subprocess_module`` is forwarded to the process provider so a caller
     that already owns a spawn module (the tool layer's dependency bundle,
     which tests replace) keeps using it instead of the global one.
@@ -33,7 +39,8 @@ def default_providers(subprocess_module=None) -> List:
             SeatbeltProvider(subprocess_module=subprocess_module),
             BwrapProvider(subprocess_module=subprocess_module),
             WslProvider(subprocess_module=subprocess_module),
-            ContainerProvider(subprocess_module=subprocess_module)]
+            ContainerProvider(subprocess_module=subprocess_module),
+            InheritedProvider(subprocess_module=subprocess_module)]
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

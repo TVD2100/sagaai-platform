@@ -139,54 +139,144 @@ def test_a_symbolic_link_inside_the_workspace_does_not_widen_it(zone):
 
 
 @requires_os
-def test_a_writable_profile_cannot_write_into_git_metadata(zone):
-    """Generated code must not be able to rewrite the repository history.
+def test_a_writable_profile_cannot_write_into_git_hooks(zone):
+    """Generated code must not be able to plant a program git will run.
 
-    The workspace is writable on purpose, and ``.git`` sits inside it: a
-    plain subpath grant would let a run stage commits, rewrite hooks or plant
-    a config that runs on the next platform command. The profile keeps the
-    project editable and the repository metadata read-only.
+    The workspace is writable on purpose, and ``.git`` sits inside it. The
+    index, the object files and the refs must stay writable - staging and
+    committing is ordinary project work - but git EXECUTES hooks, and its
+    config can name a program to run, so those entries stay read-only.
     """
     workspace, _home, _env = zone
     git_dir = workspace / ".git"
-    git_dir.mkdir()
-    head = git_dir / "HEAD"
-    head.write_text("ref: refs/heads/main\n")
+    (git_dir / "hooks").mkdir(parents=True)
+    hook = git_dir / "hooks" / "pre-commit"
+    hook.write_text("#!/bin/sh\necho clean\n")
+    hook.chmod(0o755)
+    (git_dir / "config").write_text("[core]\n\trepositoryformatversion = 0\n")
 
-    result = _run(zone, "open('.git/HEAD', 'w').write('pwned')")
+    result = _run(zone, "open('.git/hooks/pre-commit', 'w').write('pwned')")
 
     assert result.ok is False
-    assert head.read_text() == "ref: refs/heads/main\n"
+    assert hook.read_text() != "pwned"
+
+    config = _run(zone, "open('.git/config', 'w').write('[core]\n\tfsmonitor = x\n')")
+    assert config.ok is False
 
 
 @requires_os
-def test_the_platform_data_directory_is_unreadable_from_a_run(zone):
-    """The provider keys survive the run: the child cannot open the data dir.
+def test_a_writable_profile_cannot_write_into_git_modules(zone):
+    """A nested repository carries its own hooks, so it stays read-only too."""
+    workspace, _home, _env = zone
+    git_dir = workspace / ".git"
+    (git_dir / "modules" / "sub").mkdir(parents=True)
+    target = git_dir / "modules" / "sub" / "HEAD"
+    target.write_text("ref: refs/heads/main\n")
+
+    result = _run(zone, "open('.git/modules/sub/HEAD', 'w').write('pwned')")
+
+    assert result.ok is False
+    assert target.read_text() == "ref: refs/heads/main\n"
+
+
+@requires_os
+def test_a_writable_profile_can_stage_a_commit_into_git(zone):
+    """The rest of ``.git`` stays writable: staging is ordinary work.
+
+    The instruction set tells the agent to commit its change, and ``git add``
+    writes the index and the object files. A profile that denied the whole
+    directory made the documented workflow impossible inside the sandbox.
+    """
+    workspace, _home, _env = zone
+    git_dir = workspace / ".git"
+    (git_dir / "refs" / "heads").mkdir(parents=True)
+    index = git_dir / "index"
+
+    result = _run(zone, "open('.git/index', 'wb').write(b'DIRC')")
+
+    assert result.ok is True, result.error
+    assert index.read_bytes() == b"DIRC"
+
+    ref = _run(zone, "open('.git/refs/heads/main', 'w').write('abc123\\n')")
+    assert ref.ok is True, ref.error
+
+
+@requires_os
+def test_protected_git_paths_names_only_existing_entries(zone):
+    """A policy must not claim a protection it cannot demonstrate."""
+    from core.sandbox.providers.seatbelt import protected_git_paths
+
+    workspace, _home, _env = zone
+    assert protected_git_paths(str(workspace)) == []
+
+    git_dir = workspace / ".git"
+    git_dir.mkdir()
+    assert protected_git_paths(str(workspace)) == []
+
+    (git_dir / "hooks").mkdir()
+    found = protected_git_paths(str(workspace))
+    assert len(found) == 1
+    assert found[0].endswith(os.path.join(".git", "hooks"))
+
+
+@requires_os
+def test_the_platform_database_is_unreadable_from_a_run(zone):
+    """The provider keys survive the run: the child cannot open the database.
 
     The environment is filtered, but the data directory sits on the same
-    disk as the project. Listing it is the cheapest probe a hostile program
-    would try first, so it is the one this test makes.
+    disk as the project. Opening the platform database is the cheapest probe
+    a hostile program would try first, so it is the one this test makes.
     """
     from core.paths import DATA_DIR
 
-    if not Path(DATA_DIR).exists():  # pragma: no cover - headless install
-        pytest.skip("this install has no data directory")
+    database = Path(DATA_DIR) / "sagaai.db"
+    if not database.exists():  # pragma: no cover - headless install
+        pytest.skip("this install has no database")
 
-    result = _run(zone, "import os; print(os.listdir(%r))" % str(DATA_DIR))
+    result = _run(zone, "open(%r, 'rb').read(200)" % str(database))
 
     assert result.ok is False
-    assert "sagaai.db" not in result.stdout
 
 
-def test_sensitive_reads_protects_the_data_directory(zone):
-    """The list is built from the install, not hard-coded per machine."""
+@requires_os
+def test_a_skill_package_is_readable_from_a_run(zone):
+    """A run works WITH the installed skills, so their files stay readable.
+
+    Denying the whole installation root made every skill script unrunnable
+    and the dialog folder unreadable: the run was asked to use those files,
+    and the credential stores are denied individually instead.
+    """
+    from core.paths import DATA_DIR
+
+    skills = Path(DATA_DIR) / "skills"
+    if not skills.is_dir():  # pragma: no cover - headless install
+        pytest.skip("this install has no skills folder")
+
+    result = _run(zone, "import os; print(len(os.listdir(%r)))" % str(skills))
+
+    assert result.ok is True
+
+
+def test_sensitive_reads_protects_the_credential_stores(zone):
+    """The list is built from the install and names the stores, not the root."""
     from core.paths import DATA_DIR
     from core.sandbox.providers.seatbelt import sensitive_reads
 
     workspace, _home, _env = zone
     blocked = sensitive_reads(str(workspace))
+    base = Path(DATA_DIR).resolve()
 
-    assert str(Path(DATA_DIR).resolve()) in blocked
+    # The installation root itself stays readable: it holds the skills, the
+    # shipped defaults and the dialog history a run is asked to work with.
+    assert str(base) not in blocked
+    # What actually carries credentials is denied by name.
+    for name in ("personal", "connectors", "keys", "certs"):
+        candidate = base / name
+        if candidate.exists():
+            assert str(candidate) in blocked
+    for pattern in ("*.db", "*.db-wal"):
+        for candidate in base.glob(pattern):
+            assert str(candidate) in blocked
 
 
 def test_sensitive_reads_leaves_a_workspace_that_contains_the_data(zone):

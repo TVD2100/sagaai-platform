@@ -1,10 +1,17 @@
-"""Recent workspace folders and the empty-state guard."""
+"""Recent workspace folders and the empty-state guard.
+
+The guard answers one question: may this tool call run before the user has
+chosen a project folder? File tools must not - they would touch an arbitrary
+folder - while the working memory and the dialog's own files folder never
+depended on a project and stay reachable.
+"""
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from .. import config
 from .deps import ToolMixin
+from .path_scope import addresses_dialog_files, addresses_memory
 
 
 class WorkspaceTools(ToolMixin):
@@ -59,30 +66,13 @@ _WORKSPACE_GUARD_SUGGESTION = (
 
 
 def _addresses_memory(args: Optional[Dict[str, Any]]) -> bool:
-    """True when the call's path arguments point into the working memory.
+    """True when the call's path arguments point into the working memory."""
+    return addresses_memory(args, config)
 
-    Every file tool takes its target as ``path``, ``files``, ``subdir`` or
-    ``file_path``; a call whose targets are ALL inside the working-memory root
-    needs no project folder.
-    """
-    if not isinstance(args, dict):
-        return False
-    targets: List[str] = []
-    for key in ("path", "subdir", "file_path"):
-        value = args.get(key)
-        if isinstance(value, str) and value.strip():
-            targets.append(value)
-    files = args.get("files")
-    if isinstance(files, str) and files.strip():
-        targets.append(files)
-    elif isinstance(files, (list, tuple)):
-        targets.extend(f for f in files if isinstance(f, str) and f.strip())
-    if not targets:
-        return False
-    try:
-        return all(config.is_memory_path(t) for t in targets)
-    except Exception:
-        return False
+
+def _addresses_dialog_files(args: Optional[Dict[str, Any]]) -> bool:
+    """True when the call's path arguments point into the dialog files folder."""
+    return addresses_dialog_files(args, config)
 
 
 def workspace_guard_error(tool_name: str, args: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
@@ -90,9 +80,8 @@ def workspace_guard_error(tool_name: str, args: Optional[Dict[str, Any]] = None)
 
     Returns None when the empty state is not active, when the tool does not
     operate on project files, or for run_test/run_code in ``code`` mode
-    (allowed: the child process runs with a neutral cwd - see
-    ``_subprocess_cwd``). ``path`` mode of those two tools IS blocked: a
-    script must live in a real project.
+    (allowed: the child runs with a neutral cwd). ``path`` mode of those two
+    tools IS blocked: a script must live in a real project.
     """
     if not isinstance(tool_name, str):
         return None
@@ -101,11 +90,11 @@ def workspace_guard_error(tool_name: str, args: Optional[Dict[str, Any]] = None)
         needs_ws = bool((args or {}).get("path"))
     if not needs_ws:
         return None
-    # Working memory (the employee's own data folder) lives in the installation
-    # and never depended on a project: a tool that addresses it is allowed in
-    # the empty state, otherwise an employee could not read its own registries
-    # before the user picks a folder.
-    if _addresses_memory(args):
+    # The working memory and the dialog files folder both live in the
+    # installation and never depended on a project: a tool that addresses one
+    # of them is allowed in the empty state, otherwise an employee could not
+    # read its own registries before the user picks a folder.
+    if _addresses_memory(args) or _addresses_dialog_files(args):
         return None
     if bool(getattr(config, "WORKSPACE_SELECTED", True)):
         return None
@@ -119,7 +108,6 @@ def workspace_guard_error(tool_name: str, args: Optional[Dict[str, Any]] = None)
         ),
         "suggestion": _WORKSPACE_GUARD_SUGGESTION,
     }
-
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

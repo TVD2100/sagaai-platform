@@ -675,7 +675,27 @@
 # settings panel applies the same ceiling when it reports which provider a
 # profile would run under, so the panel and the run cannot disagree.
 
-__version__ = "2.42.0"
+# 2.42.1 fixes what the first sandboxed dialogs exposed. A temporary HOME was
+# created per run and never removed, so a laptop quietly collected a gigabyte of
+# dead profiles: the workspace keeps one per installation now and stale ones are
+# swept at start. The shared /tmp of the network profiles was a private mount
+# nothing could read back, which broke tools that hand a file to a sibling
+# process (a colour scan, sips); it is the real temporary directory the run may
+# write to now. The read-deny list named the whole data directory, so a skill or
+# a dialog attachment looked unreadable to a profile that had every right to
+# read it - the denial is narrowed to the databases and the credential storage
+# it was meant for, while the dialog files folder and the working memory join
+# the workspace as roots a path may address. A run already inside a sandbox
+# inherits it instead of nesting a second one. Writing to .git is allowed again
+# (hooks, config and the object store stay closed), because refusing it broke
+# the documented sync flow while the closed paths still keep a write from
+# running code on the next git command. The system prompt now states the mode in
+# force: profile, provider, real guarantees, write boundaries, network and
+# limits, taken from the same policy decision the run makes. The set_workspace
+# description tells the model when to call it instead of asking for a path it
+# was already given.
+
+__version__ = "2.42.1"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -26,7 +26,7 @@ from core.dangerous import tool_needs_confirmation
 
 from .. import config
 from ..sandbox_approval import approvals_granted, consume_transport_approval
-from ..sandbox_env import build_child_env
+from ..sandbox_env import build_child_env, discard_env_home
 from .deps import ToolMixin
 from .exec_support import (
     confirmation_result,
@@ -114,6 +114,10 @@ class ExecTools(ToolMixin):
                     os.unlink(cleanup)
                 except OSError:
                     pass
+            # The child's private HOME holds package caches and temporary
+            # files; a new one is created for the next run, so keeping this
+            # one would only accumulate one cache tree per execution.
+            discard_env_home(env)
 
         return result_payload(result, tool, timeout_s, code_hash)
 

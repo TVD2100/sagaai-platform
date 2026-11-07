@@ -17,7 +17,6 @@ rather than a missing guarantee.
 """
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 from typing import Any, List, Optional
@@ -60,9 +59,14 @@ def build_argv(bwrap: str, profile: SandboxProfile, workspace: str) -> List[str]
     for blocked in sensitive_reads(workspace):
         argv += ["--tmpfs", blocked]
     if workspace and profile.writable:
-        git_dir = os.path.join(workspace, ".git")
-        if os.path.isdir(git_dir):
-            argv += ["--ro-bind", git_dir, git_dir]
+        # git EXECUTES hooks and can be told to run a program by its config,
+        # so those entries stay read-only; the index, objects and refs stay
+        # writable because staging and committing are ordinary project work.
+        # Mounts apply in order, so a later read-only bind wins over the
+        # writable workspace bind above.
+        from core.sandbox.providers.seatbelt import protected_git_paths
+        for blocked in protected_git_paths(workspace):
+            argv += ["--ro-bind", blocked, blocked]
     argv.append("--")
     return argv
 
@@ -102,13 +106,32 @@ class BwrapProvider(SandboxProvider):
 
     def run(self, request: SandboxRequest, profile: SandboxProfile,
             limits: ResourceLimits) -> SandboxResult:
-        """Execute *request* inside a bubblewrap namespace."""
+        """Execute *request* inside a bubblewrap namespace.
+
+        A run that already executes inside a namespace is not wrapped again:
+        the mounts of the enclosing namespace are the ones in force, and a
+        second ``bwrap`` would only add a layer that cannot widen them. The
+        grants are compared first, so a run that needs more than the
+        enclosing policy gives is refused with an explanation.
+        """
+        from core.sandbox import inheritance
+
+        enclosing = inheritance.enclosing_sandbox(request.env)
+        if enclosing is not None:
+            verdict = inheritance.compare(enclosing, profile)
+            if not verdict.ok:
+                return SandboxResult(ok=False, provider=self.name,
+                                     isolation=enclosing.isolation,
+                                     denied=True, error=verdict.error)
+            return run_wrapped(self.name, enclosing.isolation, [], request,
+                               limits, subprocess_module=self._subprocess)
         executable = _resolve_bwrap()
         if not executable:
             return SandboxResult(ok=False, provider=self.name, isolation=self.isolation,
                                  error="bwrap is not installed on this machine.")
         prefix = build_argv(executable, profile, request.workspace or request.cwd)
-        return run_wrapped(self.name, self.isolation, prefix, request, limits,
+        marked = inheritance.with_marker(request, profile)
+        return run_wrapped(self.name, self.isolation, prefix, marked, limits,
                            subprocess_module=self._subprocess)
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.

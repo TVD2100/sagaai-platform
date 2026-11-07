@@ -327,6 +327,57 @@ def memory_root() -> Optional[Path]:
     return MEMORY_ROOT
 
 
+# ─── Dialog files root (the thread's own uploads folder) ─────────────────────
+# Every dialog owns a folder of uploads and artifacts: HISTORY_DIR/<tid>/files.
+# It is a third allowed root next to the project and the working memory, so the
+# agent can read an attachment or save a produced file without first switching
+# the workspace to the installation root. The folder is derived from
+# ACTIVE_THREAD_ID on every call rather than cached: the thread changes between
+# steps of the same process, and a stale value would silently point the tools
+# at another dialog's files.
+THREAD_FILES_PREFIX: str = "thread:"
+
+
+def thread_files_root() -> Optional[Path]:
+    """Return the dialog-files folder of the active thread, or None.
+
+    Resolution failure (no thread, no history directory) yields None, which
+    disables the third root instead of guessing a path.
+    """
+    tid = str(ACTIVE_THREAD_ID or "").strip()
+    if not tid or "/" in tid or "\\" in tid or tid in (".", ".."):
+        return None
+    try:
+        from core.paths import get_thread_dir
+
+        return (Path(get_thread_dir(tid)) / "files").resolve()
+    except Exception:
+        return None
+
+
+def is_thread_files_path(path) -> bool:
+    """True when *path* addresses the dialog-files folder (prefix or absolute)."""
+    raw = str(path or "")
+    if raw.lower().startswith(THREAD_FILES_PREFIX):
+        return True
+    if not raw:
+        return False
+    root = thread_files_root()
+    if root is None:
+        return False
+    try:
+        p = Path(raw).expanduser()
+    except (OSError, RuntimeError):
+        return False
+    if not p.is_absolute():
+        return False
+    try:
+        p.resolve().relative_to(root)
+        return True
+    except (ValueError, OSError, RuntimeError):
+        return False
+
+
 def is_memory_path(path) -> bool:
     """True when *path* addresses the working-memory root (prefix or absolute)."""
     raw = str(path or "")
@@ -351,9 +402,10 @@ def to_project_relative(path) -> str:
     """Return a normalized, POSIX-style path relative to its allowed root.
 
     A path inside PROJECT_ROOT becomes project-relative; a path inside the
-    working-memory root becomes ``memory:<relative>`` so the model can address
+    working-memory root becomes ``memory:<relative>``; a path inside the
+    dialog files folder becomes ``thread:<relative>`` so the model can address
     it again with the same string. Raises ValueError when the resolved path
-    escapes BOTH roots (path traversal protection). Accepts absolute or
+    escapes ALL roots (path traversal protection). Accepts absolute or
     relative inputs.
     """
     raw = str(path or "")
@@ -363,6 +415,8 @@ def to_project_relative(path) -> str:
                 f"Working memory is not available for this employee: {path!r}"
             )
         return MEMORY_PREFIX + _memory_relative(raw[len(MEMORY_PREFIX):])
+    if raw.lower().startswith(THREAD_FILES_PREFIX):
+        return THREAD_FILES_PREFIX + _thread_files_relative(raw[len(THREAD_FILES_PREFIX):])
     p = Path(raw)
     if not p.is_absolute():
         p = (PROJECT_ROOT / p)
@@ -376,6 +430,13 @@ def to_project_relative(path) -> str:
         try:
             rel = resolved.relative_to(MEMORY_ROOT)
             return MEMORY_PREFIX + rel.as_posix()
+        except ValueError:
+            pass
+    dialog_root = thread_files_root()
+    if dialog_root is not None:
+        try:
+            rel = resolved.relative_to(dialog_root)
+            return THREAD_FILES_PREFIX + rel.as_posix()
         except ValueError:
             pass
     raise ValueError(
@@ -397,6 +458,21 @@ def _memory_relative(sub: str) -> str:
     return rel.as_posix()
 
 
+def _thread_files_relative(sub: str) -> str:
+    """Validate a ``thread:`` sub-path and return it in POSIX form."""
+    root = thread_files_root()
+    if root is None:
+        raise ValueError("The dialog files folder is not available for this thread")
+    candidate = (root / sub.strip().lstrip("/")).resolve()
+    try:
+        rel = candidate.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(
+            f"Path escapes the dialog files folder: {sub!r}"
+        ) from exc
+    return rel.as_posix()
+
+
 def is_protected(path) -> bool:
     """True if the given path targets one of the inviolable-core files."""
     try:
@@ -410,15 +486,20 @@ def is_protected(path) -> bool:
 def resolve_in_project(path) -> Path:
     """Resolve a path inside one of the allowed roots.
 
-    Two roots are accepted: the active project (PROJECT_ROOT) and the
-    employee's working-data folder (MEMORY_ROOT), the latter addressed by the
-    ``memory:`` prefix or by an absolute path inside it. Returns an absolute
+    Three roots are accepted: the active project (PROJECT_ROOT), the
+    employee's working-data folder (MEMORY_ROOT) and the dialog files folder
+    of the active thread, the last two addressed by the ``memory:`` /
+    ``thread:`` prefix or by an absolute path inside them. Returns an absolute
     Path. Raises ValueError on traversal.
     """
     rel = to_project_relative(path)  # validates containment
     if rel.startswith(MEMORY_PREFIX):
         assert MEMORY_ROOT is not None  # to_project_relative already checked
         return (MEMORY_ROOT / rel[len(MEMORY_PREFIX):]).resolve()
+    if rel.startswith(THREAD_FILES_PREFIX):
+        root = thread_files_root()
+        assert root is not None  # to_project_relative already checked
+        return (root / rel[len(THREAD_FILES_PREFIX):]).resolve()
     return (PROJECT_ROOT / rel).resolve()
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

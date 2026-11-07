@@ -82,6 +82,13 @@ class SandboxProfile:
     #: backend would be picked and the profile would quietly gain a
     #: guarantee it was never meant to have.
     max_isolation: str = ""
+    #: Whether the run may write to the machine's shared temporary tree.
+    #: Tools that stage an intermediate file at a hardcoded path - a scanner
+    #: backend writing /tmp/<file>, an image converter - ignore TMPDIR and
+    #: fail without it, so a profile that grants writes has to say whether
+    #: that tree is part of the grant. ``read_only`` never asks for it: the
+    #: profile exists to write nothing at all.
+    shared_tmp: bool = False
     description: str = ""
     #: Capabilities a provider must declare to honour this profile. The
     #: isolation level alone is not enough: a provider can be at 'os' and
@@ -96,6 +103,7 @@ class SandboxProfile:
             "name": self.name,
             "isolation": self.isolation,
             "max_isolation": self.max_isolation,
+            "shared_tmp": self.shared_tmp,
             "network": self.network,
             "writable": self.writable,
             "requires": list(self.requires),

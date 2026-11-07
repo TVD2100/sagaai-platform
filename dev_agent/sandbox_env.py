@@ -12,6 +12,7 @@ from anywhere in the tool layer without an import cycle.
 from __future__ import annotations
 
 import os
+import shutil
 import tempfile
 from pathlib import Path
 from typing import Dict, Optional
@@ -31,6 +32,12 @@ ENV_ALLOWLIST = (
     "TERM",
 )
 
+#: Environment variable a sandbox provider stamps into a child with the
+#: grants of the policy it applied (see ``core.sandbox.inheritance``). It is
+#: forwarded deliberately: a nested run must be able to tell that it already
+#: executes inside a sandbox, and a lost marker would make it try to nest.
+SANDBOX_GRANTS_VAR = "SAGAAI_SANDBOX_GRANTS"
+
 #: Prefixes that are NEVER forwarded, even when explicitly requested. The
 #: check is a safety net for callers that pass an extra mapping.
 _BLOCKED_PREFIXES = ("SAGAAI_", "AWS_", "GITHUB_", "OPENAI_", "ANTHROPIC_",
@@ -48,8 +55,12 @@ class _BlockedEnv(dict):
     @staticmethod
     def _forbidden(key: str) -> bool:
         upper = str(key).upper()
-        if upper in ("SSH_AUTH_SOCK", "PYTHONPATH"):
-            return False if upper == "PYTHONPATH" else True
+        if upper == "SSH_AUTH_SOCK":
+            return True
+        if upper == SANDBOX_GRANTS_VAR:
+            # A capability description, not a secret: the child needs it to
+            # avoid entering a second, forbidden sandbox.
+            return False
         return any(upper.startswith(p) for p in _BLOCKED_PREFIXES)
 
     def __setitem__(self, key, value):  # noqa: D105 - dict protocol
@@ -65,6 +76,41 @@ class _BlockedEnv(dict):
         if self._forbidden(key):
             return default
         return super().setdefault(key, default)
+
+
+#: Prefix of the temporary HOME this module creates for a child process.
+#: It marks the directory as ours, so an explicitly supplied home is never
+#: removed by ``discard_env_home``.
+AUTO_HOME_PREFIX = "sagaai-run-"
+
+
+def discard_env_home(env: Optional[Dict[str, str]]) -> bool:
+    """Remove the temporary HOME that ``build_child_env`` created for *env*.
+
+    A run needs its own HOME and TMPDIR, but nothing needs them afterwards:
+    left behind, they accumulate one directory of caches per execution and
+    quietly fill the disk. Removal is best effort - a leftover directory
+    must never turn a finished run into an error.
+
+    Only a directory this module created is removed, identified by its name
+    prefix: a caller that supplied ``sandbox_home`` explicitly owns it and
+    is left to clean it up itself.
+
+    Returns:
+        True when a directory was removed, False when there was nothing of
+        ours to remove.
+    """
+    home = str((env or {}).get("HOME") or "")
+    if not home:
+        return False
+    path = Path(home)
+    if not path.name.startswith(AUTO_HOME_PREFIX):
+        return False
+    try:
+        shutil.rmtree(path, ignore_errors=True)
+    except OSError:  # pragma: no cover - defensive
+        return False
+    return not path.exists()
 
 
 def build_child_env(*, project_root: Optional[Path],
@@ -113,6 +159,12 @@ def build_child_env(*, project_root: Optional[Path],
         env["PYTHONPATH"] = str(Path(project_root))
     else:
         env.pop("PYTHONPATH", None)
+
+    # An enclosing sandbox is inherited, not re-created: the child must be
+    # able to see that it already runs confined.
+    inherited = os.environ.get(SANDBOX_GRANTS_VAR, "").strip()
+    if inherited:
+        env[SANDBOX_GRANTS_VAR] = inherited
 
     if extra:
         env.update(extra)

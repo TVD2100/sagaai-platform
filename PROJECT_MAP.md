@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-07T17:25:39+00:00`
-- Файлов: **792**
+- Обновлено: `2026-11-07T19:03:16+00:00`
+- Файлов: **801**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **10733**
-- Отпечаток содержимого: `sha256:e5dcb4798a81f4b485702b5a1f40c032dc113efc62849c4a6b27aa2d17cbbc6f` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 2, JSON: 36, Markdown: 41, PEM certificate: 1, Python: 712, TOML: 2, Text: 2
+- Python-символов: **10850**
+- Отпечаток содержимого: `sha256:39c1babb35f0c9609569c19a2231adabd84dd925954eb0038f3e54080a201506` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 2, JSON: 36, Markdown: 41, PEM certificate: 1, Python: 721, TOML: 2, Text: 2
 
 ## Файлы и назначение
 
@@ -205,14 +205,17 @@
 | `core/sandbox/__init__.py` | Python | Execution sandbox package: contracts, profiles, policy, provider registry | - |
 | `core/sandbox/active.py` | Python | Records which provider actually runs the tools and exposes it to the settings panel | - |
 | `core/sandbox/contracts.py` | Python | Sandbox value types: isolation order, resource limits, isolation ceiling, run request/result | - |
+| `core/sandbox/inheritance.py` | Python | Detection of a run that is already inside a sandbox: the marker, its format and the check that stops a nested sandbox | - |
 | `core/sandbox/launcher.py` | Python | Child-side launcher: applies the resource ceilings and reports them back (no preexec_fn) | - |
 | `core/sandbox/policy.py` | Python | Fail-closed provider selection: unknown profile, unreachable isolation or a provider stronger than the profile ceiling denies the run; limits only tighten | - |
 | `core/sandbox/profiles.py` | Python | Named execution profiles (read_only, workspace_write, network, legacy_process, off) | - |
 | `core/sandbox/runner.py` | Python | Single entry point: plan, execute and journal one sandbox run | storage |
+| `core/sandbox/status.py` | Python | Sandbox status for the system prompt: describe() reads the policy decision, format_lines() states profile, provider, guarantees, write scope, network and limits | - |
 | `core/sandbox/providers/__init__.py` | Python | Isolation backend registry: the providers a build ships | - |
 | `core/sandbox/providers/_spawn.py` | Python | Shared spawn path of the OS-level providers: argv, environment, timeouts, output caps, kill-tree and cancellation | - |
 | `core/sandbox/providers/bwrap.py` | Python | T1 provider on Linux: bubblewrap namespaces, network-off and a read-only root with writable workspace | - |
 | `core/sandbox/providers/container.py` | Python | T2 provider: Docker run with translated argv, read-only mounts, process/memory ceilings and container-level cancellation | - |
+| `core/sandbox/providers/inherited.py` | Python | Provider of a run already inside a sandbox: inherits it instead of nesting a second one | - |
 | `core/sandbox/providers/process.py` | Python | T0 provider: child process with built environment and hard limits (no OS isolation) | - |
 | `core/sandbox/providers/seatbelt.py` | Python | T1 provider on macOS: sandbox-exec profile generated from the sandbox profile, network-off and write confinement | - |
 | `core/sandbox/providers/wsl.py` | Python | Windows provider: runs the command inside the WSL2 distribution, translating drives to /mnt and refusing unreachable paths | - |
@@ -325,6 +328,7 @@
 | `tests/test_devagent_db_archive_notice.py` | Python | Unit tests for the archive notice rendered on start-up: it names the archive path and the preserved counts, it is shown once per session, an installation without a notice stays silent, a damaged notice file does not break the page, and the message is translated in every shipped language | ui |
 | `tests/test_devagent_instructions.py` | Python | Invariant tests for the canonical DevAgent instruction files (connector_creator, ssh_connector, github_connector, mcp_connector): structure, draft flow, memory discipline, no-secrets rules | - |
 | `tests/test_devagent_thread_workspace.py` | Python | DevAgent thread workspace persistence tests | storage |
+| `tests/test_dialog_files_root.py` | Python | _(описание не задано)_ | - |
 | `tests/test_dispatcher_connections.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_dispatcher_tool_gating.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_document_images.py` | Python | Unit tests for core/document_images: per-format extraction and anchors, deduplication, size and zip-limits, signature checks, page rendering and blank-page skipping, scan detection, file naming and batching, the recognition prompt | - |
@@ -443,11 +447,15 @@
 | `tests/test_render_token_line.py` | Python | Token line renderer tests | - |
 | `tests/test_resume_checkpoint.py` | Python | _(описание не задано)_ | - |
 | `tests/test_safety_mode.py` | Python | Safety-mode gate tests | - |
+| `tests/test_sandbox_env_cleanup.py` | Python | _(описание не задано)_ | - |
+| `tests/test_sandbox_inheritance.py` | Python | _(описание не задано)_ | - |
 | `tests/test_sandbox_off_profile.py` | Python | Tests: the switchable sandbox-off profile - no isolation claimed, the isolation ceiling honoured, resource limits still applied | - |
 | `tests/test_sandbox_phase0.py` | Python | Tests: approval context, child environment allowlist, process limits and kill-tree | - |
 | `tests/test_sandbox_phase1.py` | Python | Tests: sandbox contracts, profiles, fail-closed policy, limit clamping and the run journal | storage |
 | `tests/test_sandbox_phase3.py` | Python | Tests: container and WSL providers, approval tickets and the HTTP confirmation route | - |
 | `tests/test_sandbox_security.py` | Python | Security tests: child environment allowlist, secret redaction, escaping limits and fail-closed refusals | - |
+| `tests/test_sandbox_shared_tmp.py` | Python | _(описание не задано)_ | - |
+| `tests/test_sandbox_status.py` | Python | _(описание не задано)_ | - |
 | `tests/test_sanitized_approval_flow.py` | Python | Sanitized-content approval flow tests (loop stops, user approves, protected payload not re-triggered) | - |
 | `tests/test_save_orchestrator_folder_sync.py` | Python | Unit tests: save_orchestrator keeps a successful database write when the folder mirror fails | - |
 | `tests/test_schedules_calc.py` | Python | Unit tests for the schedule arithmetic: interval steps in the rule's zone, the blocked-weekday mask, the quiet window, daylight-saving edges and a rule that can never fire | - |
@@ -779,12 +787,13 @@
 | `dev_agent/tools/images.py` | Python | Multimodal tools: analyze_image (project images or dialog uploads through the assigned vision model) and generate_image (the prompt, the optional save path, the JPEG written to disk) | deps |
 | `dev_agent/tools/library.py` | Python | Skills and instructions: list_skills_library, get_skill_folder, get_skill_prompt, get_skill_file, mark_skill_adapted and the instruction lookup tools | deps |
 | `dev_agent/tools/patch.py` | Python | apply_patch: exact anchors first, then the whitespace-tolerant fuzzy match with CRLF normalisation, occurrences and suggestions when an anchor is missing; the phases live in _coerce_edits, _apply_one_edit, _read_patch_target and _commit_patch so the tool body stays a coordinator | deps, safe_writer, text_utils |
+| `dev_agent/tools/path_scope.py` | Python | Which folder a tool call addresses, judged by its path arguments: all_targets applies a predicate to every path, files, subdir and file_path target of one call, addresses_memory and addresses_dialog_files name the two roots that stay reachable before a project folder is chosen; one project-relative target in a batch is enough to refuse it | - |
 | `dev_agent/tools/rag.py` | Python | RAG tools: list_rag_bases and rag_search with the base search mode (bm25, vector, hybrid) resolved from the base settings, and rag_get_chunks for restoring the context around a hit | deps |
 | `dev_agent/tools/task_state.py` | Python | Task journal tools: task_state_init, task_state_read, task_state_update, task_state_mark_step and task_state_clear over the per-thread TASK_STATE__<thread_id>.md file | deps |
 | `dev_agent/tools/text_utils.py` | Python | Text helpers shared by the handlers: the usage string of a tool signature, line-window normalisation and the small formatting routines several tool groups need | - |
 | `dev_agent/tools/url_fetch.py` | Python | url_fetch: fetching one page or PDF as Markdown through the configured page-fetch model or Selenium, with the 30 000 character cap and the sanitised [DATA_FROM_URL_FETCH] body | deps |
 | `dev_agent/tools/web_search.py` | Python | web_search with the provider route: the search model of the orchestrator, the DeepSeek Anthropic branch, allowed domains, context size and the sanitised result | deps |
-| `dev_agent/tools/workspace.py` | Python | Workspace guard helpers of the package: workspace_guard_error builds the structured workspace_not_selected answer, _addresses_memory decides whether a path form reaches the working-memory root, and list_recent_workspaces returns the recent-folder menu; the remaining workspace tools live in dev_agent/workspace_tools.py | deps |
+| `dev_agent/tools/workspace.py` | Python | Workspace guard of the package: workspace_guard_error builds the structured workspace_not_selected answer and list_recent_workspaces returns the recent-folder menu; the remaining workspace tools live in dev_agent/workspace_tools.py | deps, path_scope |
 | `dev_agent/loop/__init__.py` | Python | Package of the agent-loop building blocks the agent_loop facade re-exports: state, notices, the tool-result size policy, the answer parser and the JSON repair layer; the package splits the former single module without moving a public name | - |
 | `dev_agent/loop/context.py` | Python | What the loop injects and how much of it: the per-thread task-state block and the dialog artifacts folder (with the uploads notice), appended to the history chain as hidden append-only snapshots only when their content changed, re-appended at the tail when one slides out of the sent window; the economy mode itself - the history categories and one-line summaries, the message index, the tail/meta key, the token budget with hysteresis that folds its cut into the anchor, build_economy_context with the legacy and cache-friendly window strategies, and the carry/serialize/apply helpers that keep the anchor alive between user turns; facade-patched helpers are read at call time | - |
 | `dev_agent/loop/delegation.py` | Python | The fan-out phase of the loop, kept outside dispatch: the delegation and tree-routed tool names, _agent_brief_from_args, _delegation_parent_context and _delegation_base_dir (which folder a child inherits, empty state included), one handler per routed tool (spawn, resume, verify, sleep, cancel, status, result, journal read, thread read, ask/answer), batch validation before any pool slot is taken, and the parallel runner that keeps results in call order; the service, not the loop, owns the pool semaphore, the tree counter and cancellation | - |
@@ -2321,12 +2330,13 @@
 - `_extend_prompt_with_delegation_impl` (func, строка 461)
 - `_extend_prompt_with_skills_impl` (func, строка 506)
 - `_extend_prompt_with_instructions_impl` (func, строка 527)
-- `_format_utc_offset` (func, строка 601)
-- `_current_date_line` (func, строка 606)
-- `_extend_prompt_with_current_date` (func, строка 615)
-- `_extend_prompt_with_dialog` (func, строка 682)
-- `build_assistant_dicts_impl` (func, строка 704)
-- `build_assistant_dicts_impl._resolve_effort` (func, строка 769)
+- `_format_utc_offset` (func, строка 597)
+- `_current_date_line` (func, строка 602)
+- `_extend_prompt_with_current_date` (func, строка 607)
+- `_extend_prompt_with_sandbox` (func, строка 662)
+- `_extend_prompt_with_dialog` (func, строка 681)
+- `build_assistant_dicts_impl` (func, строка 703)
+- `build_assistant_dicts_impl._resolve_effort` (func, строка 768)
 
 ### `core/orchestrator_shared.py`
 - `bind_facade` (func, строка 39)
@@ -3481,11 +3491,21 @@
 - `ResourceLimits` (class, строка 46)
 - `ResourceLimits.to_dict` (func, строка 58)
 - `SandboxProfile` (class, строка 71)
-- `SandboxProfile.to_dict` (func, строка 93)
-- `SandboxRequest` (class, строка 108)
-- `SandboxRequest.fingerprint` (func, строка 124)
-- `SandboxResult` (class, строка 144)
-- `SandboxResult.to_dict` (func, строка 167)
+- `SandboxProfile.to_dict` (func, строка 100)
+- `SandboxRequest` (class, строка 116)
+- `SandboxRequest.fingerprint` (func, строка 132)
+- `SandboxResult` (class, строка 152)
+- `SandboxResult.to_dict` (func, строка 175)
+
+### `core/sandbox/inheritance.py`
+- `EnclosingSandbox` (class, строка 42)
+- `format_marker` (func, строка 51)
+- `parse_marker` (func, строка 63)
+- `enclosing_sandbox` (func, строка 88)
+- `Verdict` (class, строка 104)
+- `mark_env` (func, строка 111)
+- `with_marker` (func, строка 124)
+- `compare` (func, строка 138)
 
 ### `core/sandbox/launcher.py`
 - `limits_spec` (func, строка 71)
@@ -3509,9 +3529,9 @@
 - `SandboxRegistry.run` (func, строка 192)
 
 ### `core/sandbox/profiles.py`
-- `get_profile` (func, строка 96)
-- `all_profiles` (func, строка 101)
-- `profile_names` (func, строка 106)
+- `get_profile` (func, строка 99)
+- `all_profiles` (func, строка 104)
+- `profile_names` (func, строка 109)
 
 ### `core/sandbox/runner.py`
 - `build_request` (func, строка 20)
@@ -3521,20 +3541,31 @@
 - `_record` (func, строка 80)
 - `_main_engine` (func, строка 114)
 
+### `core/sandbox/status.py`
+- `reset_cache` (func, строка 27)
+- `describe` (func, строка 33)
+- `_default_providers` (func, строка 81)
+- `_is_isolated` (func, строка 91)
+- `_guarantee_words` (func, строка 96)
+- `format_lines` (func, строка 107)
+- `prompt_lines` (func, строка 175)
+- `_text` (func, строка 200)
+- `block` (func, строка 208)
+
 ### `core/sandbox/providers/__init__.py`
-- `default_providers` (func, строка 20)
+- `default_providers` (func, строка 21)
 
 ### `core/sandbox/providers/_spawn.py`
 - `run_wrapped` (func, строка 25)
 - `log_path_for` (func, строка 111)
 
 ### `core/sandbox/providers/bwrap.py`
-- `_resolve_bwrap` (func, строка 33)
-- `build_argv` (func, строка 38)
-- `BwrapProvider` (class, строка 70)
-- `BwrapProvider.__init__` (func, строка 79)
-- `BwrapProvider.available` (func, строка 84)
-- `BwrapProvider.run` (func, строка 103)
+- `_resolve_bwrap` (func, строка 32)
+- `build_argv` (func, строка 37)
+- `BwrapProvider` (class, строка 74)
+- `BwrapProvider.__init__` (func, строка 83)
+- `BwrapProvider.available` (func, строка 88)
+- `BwrapProvider.run` (func, строка 107)
 
 ### `core/sandbox/providers/container.py`
 - `_resolve_docker` (func, строка 44)
@@ -3550,6 +3581,16 @@
 - `ContainerProvider.run` (func, строка 180)
 - `_kill_container` (func, строка 198)
 
+### `core/sandbox/providers/inherited.py`
+- `capabilities_of` (func, строка 31)
+- `InheritedProvider` (class, строка 41)
+- `InheritedProvider.__init__` (func, строка 46)
+- `InheritedProvider._enclosing` (func, строка 50)
+- `InheritedProvider.isolation` (func, строка 55)
+- `InheritedProvider.capabilities` (func, строка 61)
+- `InheritedProvider.available` (func, строка 66)
+- `InheritedProvider.run` (func, строка 70)
+
 ### `core/sandbox/providers/process.py`
 - `ProcessProvider` (class, строка 25)
 - `ProcessProvider.__init__` (func, строка 35)
@@ -3557,15 +3598,17 @@
 - `ProcessProvider.run` (func, строка 43)
 
 ### `core/sandbox/providers/seatbelt.py`
-- `_real` (func, строка 41)
-- `_escape` (func, строка 49)
-- `build_profile` (func, строка 54)
-- `_writable_paths` (func, строка 96)
-- `sensitive_reads` (func, строка 106)
-- `SeatbeltProvider` (class, строка 140)
-- `SeatbeltProvider.__init__` (func, строка 149)
-- `SeatbeltProvider.available` (func, строка 154)
-- `SeatbeltProvider.run` (func, строка 172)
+- `user_temp_dirs` (func, строка 74)
+- `protected_git_paths` (func, строка 106)
+- `_real` (func, строка 130)
+- `_escape` (func, строка 138)
+- `build_profile` (func, строка 143)
+- `_writable_paths` (func, строка 190)
+- `sensitive_reads` (func, строка 200)
+- `SeatbeltProvider` (class, строка 251)
+- `SeatbeltProvider.__init__` (func, строка 260)
+- `SeatbeltProvider.available` (func, строка 265)
+- `SeatbeltProvider.run` (func, строка 283)
 
 ### `core/sandbox/providers/wsl.py`
 - `_resolve_wsl` (func, строка 42)
@@ -5611,6 +5654,25 @@
 - `test_to_dict_contains_new_columns` (func, строка 166)
 - `test_migration_clears_platform_folders_for_foreign_threads` (func, строка 182)
 - `test_migration_clears_platform_target_file` (func, строка 230)
+
+### `tests/test_dialog_files_root.py`
+- `dialog_root` (func, строка 25)
+- `test_thread_files_root_follows_the_active_thread` (func, строка 38)
+- `test_thread_files_root_is_none_without_a_thread` (func, строка 42)
+- `test_thread_files_root_rejects_a_traversing_thread_id` (func, строка 48)
+- `test_thread_prefix_resolves_inside_the_folder` (func, строка 56)
+- `test_thread_prefix_accepts_nested_paths` (func, строка 61)
+- `test_an_absolute_path_inside_the_folder_is_accepted` (func, строка 66)
+- `test_an_absolute_path_reports_the_thread_prefix` (func, строка 71)
+- `test_thread_prefix_cannot_escape_the_folder` (func, строка 76)
+- `test_thread_prefix_without_a_thread_is_rejected` (func, строка 81)
+- `test_a_project_path_is_not_reported_as_a_dialog_path` (func, строка 87)
+- `test_dialog_paths_are_allowed_without_a_selected_project` (func, строка 98)
+- `test_an_absolute_dialog_path_is_allowed_without_a_project` (func, строка 105)
+- `test_project_paths_stay_blocked_without_a_selected_project` (func, строка 110)
+- `test_mixing_a_project_target_with_a_dialog_target_stays_blocked` (func, строка 116)
+- `test_propose_file_writes_into_the_dialog_folder` (func, строка 126)
+- `test_read_file_reads_an_upload_through_the_prefix` (func, строка 154)
 
 ### `tests/test_dispatcher_connections.py`
 - `isolated_data_dir` (func, строка 17)
@@ -8584,6 +8646,37 @@
 - `test_run_test_skips_confirmation_when_safety_disabled` (func, строка 51)
 - `test_run_test_requires_confirmation_when_safety_enabled` (func, строка 62)
 
+### `tests/test_sandbox_env_cleanup.py`
+- `_Deps` (class, строка 17)
+- `_Deps.config` (class, строка 20)
+- `_bare_executor` (func, строка 26)
+- `test_build_child_env_creates_a_prefixed_home` (func, строка 33)
+- `test_discard_env_home_removes_the_created_home` (func, строка 44)
+- `test_discard_env_home_keeps_a_caller_supplied_home` (func, строка 52)
+- `test_discard_env_home_is_safe_without_a_home` (func, строка 61)
+- `test_run_command_removes_the_child_home` (func, строка 67)
+- `test_run_command_removes_the_child_home.fake_run_under_sandbox` (func, строка 71)
+
+### `tests/test_sandbox_inheritance.py`
+- `test_marker_round_trips_every_grant` (func, строка 28)
+- `test_a_malformed_marker_is_treated_as_absent` (func, строка 40)
+- `test_the_request_environment_is_copied_not_mutated` (func, строка 45)
+- `test_with_marker_returns_a_new_request` (func, строка 52)
+- `test_a_narrower_request_runs_inside_a_wider_policy` (func, строка 63)
+- `test_a_write_inside_a_read_only_policy_is_refused` (func, строка 69)
+- `test_network_inside_an_offline_policy_is_refused` (func, строка 76)
+- `test_a_stronger_isolation_request_is_refused` (func, строка 83)
+- `test_the_provider_is_unavailable_outside_a_sandbox` (func, строка 93)
+- `test_the_provider_reports_the_enclosing_grants` (func, строка 101)
+- `test_an_online_policy_does_not_claim_network_off` (func, строка 111)
+- `test_a_read_only_policy_does_not_claim_write_confined` (func, строка 118)
+- `test_the_inherited_provider_is_registered_by_default` (func, строка 123)
+- `test_seatbelt_does_not_wrap_an_already_confined_run` (func, строка 132)
+- `test_seatbelt_does_not_wrap_an_already_confined_run.fake_run_wrapped` (func, строка 140)
+- `test_seatbelt_refuses_a_write_inside_a_read_only_sandbox` (func, строка 156)
+- `test_the_environment_builder_keeps_the_marker` (func, строка 167)
+- `test_the_environment_builder_never_forwards_other_platform_variables` (func, строка 177)
+
 ### `tests/test_sandbox_off_profile.py`
 - `_StubProvider` (class, строка 28)
 - `_StubProvider.__init__` (func, строка 31)
@@ -8714,28 +8807,69 @@
 - `test_a_writable_profile_can_write_inside_the_workspace` (func, строка 83)
 - `test_a_writable_profile_cannot_write_outside_the_workspace` (func, строка 93)
 - `test_a_symbolic_link_inside_the_workspace_does_not_widen_it` (func, строка 115)
-- `test_a_writable_profile_cannot_write_into_git_metadata` (func, строка 142)
-- `test_the_platform_data_directory_is_unreadable_from_a_run` (func, строка 163)
-- `test_sensitive_reads_protects_the_data_directory` (func, строка 181)
-- `test_sensitive_reads_leaves_a_workspace_that_contains_the_data` (func, строка 192)
-- `test_a_read_only_profile_cannot_write_into_the_workspace` (func, строка 207)
-- `test_a_no_network_profile_cannot_open_a_socket` (func, строка 221)
-- `test_a_long_wait_does_not_block_another_dialog` (func, строка 235)
-- `test_a_long_wait_does_not_block_another_dialog.long_run` (func, строка 250)
-- `test_a_long_wait_does_not_block_another_dialog.other_dialog` (func, строка 258)
-- `test_the_binding_lock_is_balanced_after_a_suspended_wait` (func, строка 280)
-- `test_the_launcher_plans_only_limits_the_platform_can_hold` (func, строка 300)
-- `test_the_launcher_is_skipped_when_there_is_nothing_to_enforce` (func, строка 316)
-- `test_the_launcher_bounds_the_size_of_a_written_file` (func, строка 326)
-- `test_the_launcher_bounds_cpu_time` (func, строка 339)
-- `test_a_running_child_is_stopped_from_another_thread` (func, строка 355)
-- `test_a_running_child_is_stopped_from_another_thread.worker` (func, строка 367)
-- `test_cancelling_a_run_kills_its_grandchildren` (func, строка 393)
-- `test_cancelling_a_run_kills_its_grandchildren.worker` (func, строка 405)
-- `test_cancelling_one_run_leaves_its_sibling_alive` (func, строка 434)
-- `test_cancelling_one_run_leaves_its_sibling_alive.worker` (func, строка 439)
-- `test_cancelling_another_dialog_leaves_this_run_alone` (func, строка 464)
-- `test_cancelling_another_dialog_leaves_this_run_alone.worker` (func, строка 469)
+- `test_a_writable_profile_cannot_write_into_git_hooks` (func, строка 142)
+- `test_a_writable_profile_cannot_write_into_git_modules` (func, строка 168)
+- `test_a_writable_profile_can_stage_a_commit_into_git` (func, строка 183)
+- `test_protected_git_paths_names_only_existing_entries` (func, строка 205)
+- `test_the_platform_database_is_unreadable_from_a_run` (func, строка 223)
+- `test_a_skill_package_is_readable_from_a_run` (func, строка 242)
+- `test_sensitive_reads_protects_the_credential_stores` (func, строка 260)
+- `test_sensitive_reads_leaves_a_workspace_that_contains_the_data` (func, строка 282)
+- `test_a_read_only_profile_cannot_write_into_the_workspace` (func, строка 297)
+- `test_a_no_network_profile_cannot_open_a_socket` (func, строка 311)
+- `test_a_long_wait_does_not_block_another_dialog` (func, строка 325)
+- `test_a_long_wait_does_not_block_another_dialog.long_run` (func, строка 340)
+- `test_a_long_wait_does_not_block_another_dialog.other_dialog` (func, строка 348)
+- `test_the_binding_lock_is_balanced_after_a_suspended_wait` (func, строка 370)
+- `test_the_launcher_plans_only_limits_the_platform_can_hold` (func, строка 390)
+- `test_the_launcher_is_skipped_when_there_is_nothing_to_enforce` (func, строка 406)
+- `test_the_launcher_bounds_the_size_of_a_written_file` (func, строка 416)
+- `test_the_launcher_bounds_cpu_time` (func, строка 429)
+- `test_a_running_child_is_stopped_from_another_thread` (func, строка 445)
+- `test_a_running_child_is_stopped_from_another_thread.worker` (func, строка 457)
+- `test_cancelling_a_run_kills_its_grandchildren` (func, строка 483)
+- `test_cancelling_a_run_kills_its_grandchildren.worker` (func, строка 495)
+- `test_cancelling_one_run_leaves_its_sibling_alive` (func, строка 524)
+- `test_cancelling_one_run_leaves_its_sibling_alive.worker` (func, строка 529)
+- `test_cancelling_another_dialog_leaves_this_run_alone` (func, строка 554)
+- `test_cancelling_another_dialog_leaves_this_run_alone.worker` (func, строка 559)
+
+### `tests/test_sandbox_shared_tmp.py`
+- `test_writable_network_profiles_grant_the_shared_tree` (func, строка 34)
+- `test_confined_profiles_do_not_grant_the_shared_tree` (func, строка 40)
+- `test_shared_tmp_is_reported_in_the_profile_mapping` (func, строка 45)
+- `test_network_profile_policy_allows_writing_to_tmp` (func, строка 50)
+- `test_workspace_write_policy_does_not_name_the_shared_tree` (func, строка 56)
+- `test_read_only_policy_does_not_name_the_shared_tree` (func, строка 62)
+- `test_user_temp_dirs_reports_an_existing_directory` (func, строка 68)
+- `test_user_temp_dirs_is_empty_when_there_is_no_system_temp` (func, строка 75)
+
+### `tests/test_sandbox_status.py`
+- `StubProvider` (class, строка 22)
+- `StubProvider.__init__` (func, строка 25)
+- `StubProvider.available` (func, строка 31)
+- `StubProvider.run` (func, строка 34)
+- `_os_provider` (func, строка 38)
+- `_clear_cache` (func, строка 44)
+- `test_the_status_names_the_provider_the_policy_selects` (func, строка 54)
+- `test_an_unknown_profile_is_reported_as_unknown` (func, строка 65)
+- `test_a_profile_without_a_provider_is_denied` (func, строка 73)
+- `test_the_limits_come_from_the_profile` (func, строка 82)
+- `test_the_answer_is_cached_per_profile` (func, строка 88)
+- `test_the_answer_is_cached_per_profile.fake_defaults` (func, строка 92)
+- `test_the_block_states_the_profile_provider_and_guarantees` (func, строка 108)
+- `test_the_block_says_git_staging_works_but_hooks_are_closed` (func, строка 120)
+- `test_a_read_only_profile_tells_the_model_to_use_the_file_tools` (func, строка 129)
+- `test_a_network_profile_reports_the_shared_temporary_tree` (func, строка 137)
+- `test_an_off_profile_admits_there_is_no_operating_system_boundary` (func, строка 146)
+- `test_an_unknown_profile_block_states_the_refusal` (func, строка 153)
+- `test_a_denied_profile_block_states_the_refusal` (func, строка 161)
+- `test_the_block_never_raises_on_broken_input` (func, строка 170)
+- `test_the_prompt_block_is_appended_for_the_employee_profile` (func, строка 179)
+- `test_the_prompt_block_is_appended_for_the_employee_profile.fake_block` (func, строка 185)
+- `test_the_cleared_toolbar_switch_reports_the_off_profile` (func, строка 199)
+- `test_the_cleared_toolbar_switch_reports_the_off_profile.fake_block` (func, строка 204)
+- `test_set_workspace_description_says_when_to_call_it` (func, строка 218)
 
 ### `tests/test_sanitized_approval_flow.py`
 - `_read_result` (func, строка 43)
@@ -12227,11 +12361,14 @@
 - `ensure_runtime_dirs` (func, строка 277)
 - `set_memory_root` (func, строка 295)
 - `memory_root` (func, строка 325)
-- `is_memory_path` (func, строка 330)
-- `to_project_relative` (func, строка 350)
-- `_memory_relative` (func, строка 386)
-- `is_protected` (func, строка 400)
-- `resolve_in_project` (func, строка 410)
+- `thread_files_root` (func, строка 341)
+- `is_thread_files_path` (func, строка 358)
+- `is_memory_path` (func, строка 381)
+- `to_project_relative` (func, строка 401)
+- `_memory_relative` (func, строка 447)
+- `_thread_files_relative` (func, строка 461)
+- `is_protected` (func, строка 476)
+- `resolve_in_project` (func, строка 486)
 
 ### `dev_agent/document_tools.py`
 - `select_source` (func, строка 17)
@@ -12281,12 +12418,13 @@
 - `approval_context` (func, строка 80)
 
 ### `dev_agent/sandbox_env.py`
-- `_BlockedEnv` (class, строка 40)
-- `_BlockedEnv._forbidden` (func, строка 49)
-- `_BlockedEnv.__setitem__` (func, строка 55)
-- `_BlockedEnv.update` (func, строка 60)
-- `_BlockedEnv.setdefault` (func, строка 64)
-- `build_child_env` (func, строка 70)
+- `_BlockedEnv` (class, строка 47)
+- `_BlockedEnv._forbidden` (func, строка 56)
+- `_BlockedEnv.__setitem__` (func, строка 66)
+- `_BlockedEnv.update` (func, строка 71)
+- `_BlockedEnv.setdefault` (func, строка 75)
+- `discard_env_home` (func, строка 87)
+- `build_child_env` (func, строка 116)
 
 ### `dev_agent/sandbox_proc.py`
 - `_reader` (func, строка 34)
@@ -12610,9 +12748,9 @@
 - `ExecTools` (class, строка 42)
 - `ExecTools._execute` (func, строка 46)
 - `ExecTools._run_command` (func, строка 94)
-- `ExecTools._run_under_sandbox` (func, строка 120)
-- `ExecTools.run_test` (func, строка 159)
-- `ExecTools.run_code` (func, строка 175)
+- `ExecTools._run_under_sandbox` (func, строка 124)
+- `ExecTools.run_test` (func, строка 163)
+- `ExecTools.run_code` (func, строка 179)
 
 ### `dev_agent/tools/exec_support.py`
 - `redact_secrets` (func, строка 39)
@@ -12675,6 +12813,11 @@
 - `PatchTools._commit_patch` (func, строка 181)
 - `PatchTools.apply_patch` (func, строка 233)
 
+### `dev_agent/tools/path_scope.py`
+- `all_targets` (func, строка 21)
+- `addresses_memory` (func, строка 52)
+- `addresses_dialog_files` (func, строка 57)
+
 ### `dev_agent/tools/rag.py`
 - `RagTools` (class, строка 11)
 - `RagTools._rag_slug` (func, строка 14)
@@ -12714,11 +12857,12 @@
 - `WebSearchTools._run_deepseek_web_search` (func, строка 200)
 
 ### `dev_agent/tools/workspace.py`
-- `WorkspaceTools` (class, строка 10)
-- `WorkspaceTools._addresses_memory` (func, строка 13)
-- `WorkspaceTools.list_recent_workspaces` (func, строка 17)
-- `_addresses_memory` (func, строка 61)
-- `workspace_guard_error` (func, строка 88)
+- `WorkspaceTools` (class, строка 17)
+- `WorkspaceTools._addresses_memory` (func, строка 20)
+- `WorkspaceTools.list_recent_workspaces` (func, строка 24)
+- `_addresses_memory` (func, строка 68)
+- `_addresses_dialog_files` (func, строка 73)
+- `workspace_guard_error` (func, строка 78)
 
 ### `dev_agent/loop/context.py`
 - `_facade_attr` (func, строка 38)

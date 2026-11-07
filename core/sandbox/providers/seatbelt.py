@@ -17,8 +17,10 @@ reported as a working isolation level.
 """
 from __future__ import annotations
 
+import glob
 import os
 import subprocess
+import tempfile
 from typing import Any, List, Optional
 
 from core.sandbox.contracts import ResourceLimits, SandboxProfile, SandboxRequest, SandboxResult
@@ -36,6 +38,93 @@ SANDBOX_EXEC = "/usr/bin/sandbox-exec"
 #: let one run rewrite a neighbour's temporary data. The child's own HOME
 #: and TMPDIR are granted separately, from its environment.
 _ALWAYS_WRITABLE = ("/dev",)
+
+#: The machine's shared temporary tree. It is granted only to a profile that
+#: asks for it (``shared_tmp``) and only to a writable profile: a tool that
+#: stages an intermediate file at a hardcoded ``/tmp/<name>`` path ignores
+#: the child's TMPDIR and fails without the real tree. The paths are listed
+#: both resolved and in their macOS symlink form, because the backend that
+#: writes the file may name it either way.
+_SHARED_TMP = ("/tmp", "/private/tmp", "/var/tmp", "/private/var/tmp")
+
+#: Entries inside ``.git`` that stay read-only even in a writable profile.
+#: The rest of the directory is writable, because staging and committing are
+#: ordinary project work: ``git add`` writes the index, the object files and
+#: the refs. These entries are different in kind - git EXECUTES hooks, and the
+#: config can name a program to run (``core.fsmonitor``, ``core.hooksPath``,
+#: a ``!`` alias), so a run that could write them would gain execution on the
+#: next command the platform runs in that repository.
+_PROTECTED_GIT_ENTRIES = ("hooks", "config", "modules")
+
+
+#: Files in the installation root that carry credentials or private state.
+#: They are denied individually: the root also holds the skills, the shipped
+#: defaults and the dialog history, which a run may legitimately read.
+_SECRET_GLOBS = (
+    "*.db", "*.db-wal", "*.db-shm", "*.sqlite", "*.sqlite3",
+    "*.pem", "*.key", "*.p12", "*.pfx",
+    ".env", ".env.*",
+)
+#: Folders in the installation root that hold credentials or private state.
+_SECRET_DIRS = (
+    "personal", "connectors", "keys", "certs", "services", "system_prompts",
+)
+
+
+def user_temp_dirs() -> List[str]:
+    """Return the system-wide temporary trees of the current user.
+
+    A program that stages an intermediate file does not always honour
+    ``TMPDIR``: the macOS frameworks ask the system for the per-user temp
+    directory (``/var/folders/<xx>/<hash>/T``), which no environment
+    variable controls, and a converter that writes there fails inside a
+    sandbox that only granted ``/tmp``. The directory is derived from this
+    process's own temporary directory by walking up to the ``T`` component,
+    so the value matches what the child's framework calls will resolve to
+    on this machine.
+
+    Returns:
+        Zero or more absolute paths, deduplicated. An unresolved location
+        yields an empty list: a guess must never widen the write grant.
+    """
+    found: List[str] = []
+    try:
+        current = _real(tempfile.gettempdir())
+    except Exception:  # pragma: no cover - a broken temp dir is not fatal
+        return found
+    for _ in range(8):
+        parent, name = os.path.split(current)
+        if not parent or parent == current:
+            break
+        if name == "T":
+            found.append(current)
+            break
+        current = parent
+    return found
+
+
+def protected_git_paths(workspace: str) -> List[str]:
+    """Return the ``.git`` entries a run may never write, even in its project.
+
+    Only entries that exist are returned: a path with nothing behind it needs
+    no rule, and naming it would make the generated policy claim a protection
+    it cannot demonstrate. A workspace that is not a repository yields an
+    empty list.
+
+    Args:
+        workspace: project root a run was given.
+    """
+    if not workspace:
+        return []
+    git_dir = os.path.join(_real(workspace), ".git")
+    if not os.path.isdir(git_dir):
+        return []
+    found = []
+    for name in _PROTECTED_GIT_ENTRIES:
+        candidate = os.path.join(git_dir, name)
+        if os.path.exists(candidate):
+            found.append(candidate)
+    return found
 
 
 def _real(path: str) -> str:
@@ -69,6 +158,9 @@ def build_profile(profile: SandboxProfile, workspace: str,
     # profile simply does not include the workspace in the allowed set: the
     # temporary area stays writable because the interpreter itself needs it.
     allowed = [_real(p) for p in _ALWAYS_WRITABLE]
+    if profile.shared_tmp and profile.writable:
+        allowed += [_real(p) for p in _SHARED_TMP]
+        allowed += user_temp_dirs()
     allowed += [_real(p) for p in (writable_paths or [])]
     if profile.writable and workspace:
         allowed.insert(0, _real(workspace))
@@ -80,9 +172,11 @@ def build_profile(profile: SandboxProfile, workspace: str,
         rules.append("(allow file-write* " +
                      " ".join('(subpath "%s")' % _escape(p) for p in allowed) + ")")
     # The last matching rule wins, so the denials below override the allow
-    # list above: the repository metadata stays the platform's, and the
-    # secrets on the same disk stay unreadable.
-    blocked_writes = [os.path.join(_real(workspace), ".git")] if workspace else []
+    # list above: the repository hooks and config stay the platform's - git
+    # executes them - while the index, objects and refs stay writable, so a
+    # run can stage and commit the change it was asked to make. The secrets
+    # on the same disk stay unreadable.
+    blocked_writes = protected_git_paths(workspace)
     if blocked_writes:
         rules.append("(deny file-write* " +
                      " ".join('(subpath "%s")' % _escape(p) for p in blocked_writes) + ")")
@@ -109,15 +203,30 @@ def sensitive_reads(workspace: str) -> List[str]:
     A filtered environment hides the provider keys from the child, but the
     files that hold them are still on the same disk: without this list the
     sandbox would happily let generated code open the platform database or
-    the user's SSH keys. A path that lies inside the workspace is skipped -
-    the project is what the run was asked to inspect, and denying it would
-    make the profile unusable when the platform itself is the project.
+    the user's SSH keys.
+
+    The installation root is NOT denied as a whole. It holds the skill
+    packages, the shipped defaults, the projects under ``apps`` and the
+    dialog history - the very files a run is asked to work with. Denying the
+    directory wholesale made skill scripts unrunnable and the dialog folder
+    unreadable, so only the files and folders that actually carry
+    credentials are listed here.
+
+    A path that lies inside the workspace is skipped - the project is what
+    the run was asked to inspect, and denying it would make the profile
+    unusable when the platform itself is the project. The same holds for a
+    path that CONTAINS the workspace: the run needs the folder it was given,
+    and the files below it stay protected individually.
     """
-    candidates = []
+    candidates: List[str] = []
     try:
         from core.paths import DATA_DIR
 
-        candidates.append(str(DATA_DIR))
+        base = str(DATA_DIR)
+        for pattern in _SECRET_GLOBS:
+            candidates.extend(sorted(glob.glob(os.path.join(base, pattern))))
+        for name in _SECRET_DIRS:
+            candidates.append(os.path.join(base, name))
     except Exception:  # pragma: no cover - a headless run has no data dir
         pass
     home = os.path.expanduser("~")
@@ -132,6 +241,8 @@ def sensitive_reads(workspace: str) -> List[str]:
             continue
         if workspace_real and (real == workspace_real or
                                real.startswith(workspace_real + os.sep)):
+            continue
+        if workspace_real and workspace_real.startswith(real + os.sep):
             continue
         result.append(real)
     return result
@@ -171,11 +282,33 @@ class SeatbeltProvider(SandboxProvider):
 
     def run(self, request: SandboxRequest, profile: SandboxProfile,
             limits: ResourceLimits) -> SandboxResult:
-        """Execute *request* inside the generated profile."""
+        """Execute *request* inside the generated profile.
+
+        A run that already executes inside a sandbox is NOT wrapped again:
+        the operating system refuses a nested ``sandbox_apply``, and the
+        enclosing policy is the only one the kernel can still enforce. The
+        grants of the two policies are compared first, so a run that needs
+        more than the enclosing policy gives is refused with an explanation
+        instead of dying inside the wrapper.
+        """
+        from core.sandbox import inheritance
+
+        enclosing = inheritance.enclosing_sandbox(request.env)
+        if enclosing is not None:
+            verdict = inheritance.compare(enclosing, profile)
+            if not verdict.ok:
+                return SandboxResult(ok=False, provider=self.name,
+                                     isolation=enclosing.isolation,
+                                     denied=True, error=verdict.error)
+            # Already confined by the outer policy: run the program directly
+            # and report the isolation that is actually in force.
+            return run_wrapped(self.name, enclosing.isolation, [], request,
+                               limits, subprocess_module=self._subprocess)
         policy = build_profile(profile, request.workspace or request.cwd,
                                _writable_paths(request))
         prefix = [SANDBOX_EXEC, "-p", policy, "--"]
-        return run_wrapped(self.name, self.isolation, prefix, request, limits,
+        marked = inheritance.with_marker(request, profile)
+        return run_wrapped(self.name, self.isolation, prefix, marked, limits,
                            subprocess_module=self._subprocess)
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
