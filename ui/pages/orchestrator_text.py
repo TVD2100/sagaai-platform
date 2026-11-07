@@ -324,11 +324,13 @@ def _chat_pref_config_keys() -> Dict[str, tuple]:
     ``chat_economy_mode`` config key stays readable but is no longer
     consulted, so an install with the old value saved simply ignores it.
     """
-    # Three INDEPENDENT preferences. "safety_mode" governs execution
+    # Four INDEPENDENT preferences. "safety_mode" governs execution
     # confirmations only; "injection_protection" governs the sanitisation of
-    # external content. Tying them to one checkbox meant that a user asking
-    # for fewer confirmations silently lost injection protection as well.
+    # external content; "sandbox" governs whether generated code runs
+    # isolated. Tying them to one checkbox meant that a user asking for
+    # fewer confirmations silently lost injection protection as well.
     return {"web_search": ("chat_web_search", False),
+            "sandbox": ("chat_sandbox", True),
             "safety_mode": ("chat_safety_mode", True),
             "injection_protection": ("chat_injection_protection", True)}
 
@@ -595,6 +597,7 @@ def build_state_keys(slug: str, prefs: dict, economy_mode: bool,
         f"orch_{slug}_edit_oinstr": None,
         f"orch_{slug}_safety_mode": prefs["safety_mode"],
         f"orch_{slug}_injection_protection": prefs["injection_protection"],
+        f"orch_{slug}_sandbox": prefs["sandbox"],
         # Folder staged in the "folder picker" block ("" = Авто / no explicit
         # choice) plus a widget-key counter used to reset the selector after
         # a send without touching an already-instantiated widget's state.

@@ -1309,5 +1309,8 @@
   "warn_empty": "Please enter a message.",
   "web_search_context_auto": "Auto (provider default)",
   "orch_injection_label": "🛡️ Injection protection",
-  "orch_injection_help": "Controls ONLY sanitisation of external content: pages, documents and tool results are checked for injected instructions. Turning it off does not affect execution confirmation."
+  "orch_injection_help": "Controls ONLY sanitisation of external content: pages, documents and tool results are checked for injected instructions. Turning it off does not affect execution confirmation.",
+  "orch_sandbox_toggle_label": "Sandbox",
+  "orch_sandbox_toggle_help": "Isolates the code being run: writes are allowed only inside the project and the network is closed. Clearing this checkbox disables isolation completely — the code runs with the platform’s own rights (time and output limits still apply). Other modes are chosen in Settings → Other → “Execution sandbox”.",
+  "orch_sandbox_profile_off": "sandbox disabled"
 }

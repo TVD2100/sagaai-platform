@@ -10,10 +10,11 @@ platform setting:
     marketplace.allow_code          install executable files (default true)
     marketplace.require_signature   refuse unsigned manifests (default false)
     marketplace.channel             release channel name (default "main")
+    marketplace.signature_keyring   public keys the catalog is checked against
 
-``allow_code`` defaults to true because the catalog currently holds only
-the owner's own entities; the switch exists so a future catalog open to
-third parties can be closed without a code change.
+``allow_code`` defaults to true because the catalog currently holds only the
+owner's own entities; the switch lets a future catalog open to third parties
+be closed without a code change.
 """
 from __future__ import annotations
 
@@ -27,6 +28,7 @@ DEFAULTS: Dict[str, Any] = {
     "marketplace.allow_code": True,
     "marketplace.require_signature": False,
     "marketplace.channel": "main",
+    "marketplace.signature_keyring": "",
 }
 
 _TRUE = ("1", "true", "yes", "on")
@@ -36,12 +38,8 @@ def _as_bool(value: Any, fallback: bool) -> bool:
     """Coerce a stored config value to bool, falling back on garbage."""
     if isinstance(value, bool):
         return value
-    if value is None:
-        return fallback
-    text = str(value).strip().lower()
-    if not text:
-        return fallback
-    return text in _TRUE
+    text = "" if value is None else str(value).strip().lower()
+    return text in _TRUE if text else fallback
 
 
 def _load_raw() -> dict:
@@ -72,6 +70,8 @@ def marketplace_settings() -> Dict[str, Any]:
         ),
         "channel": str(raw.get("marketplace.channel") or DEFAULTS["marketplace.channel"]).strip()
         or DEFAULTS["marketplace.channel"],
+        # Trust anchors are local files: a key shipped with a catalog proves nothing.
+        "signature_keyring": str(raw.get("marketplace.signature_keyring") or "").strip(),
     }
 
 

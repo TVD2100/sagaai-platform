@@ -61,6 +61,22 @@ def _manifest(entity_id="demo_skill", version="1.0.0", type_="skill", **extra):
     return manifest
 
 
+def _signing_keys(tmp_path: Path, root: Path) -> str:
+    """Create a signing pair and put its public half into the catalog keyring.
+
+    Publishing has no unsigned mode, so every test that builds a catalog needs
+    a key. The returned path is the private half.
+    """
+    private = tmp_path / "private" / "marketplace.pem"
+    private.parent.mkdir(parents=True, exist_ok=True)
+    staging = root / "keys" / "staging.pub"
+    staging.parent.mkdir(parents=True, exist_ok=True)
+    publish_mod.generate_keypair(str(private), str(staging))
+    key_id = publish_mod.key_id_of_private(str(private))
+    os.replace(staging, root / "keys" / f"{key_id}.pub")
+    return str(private)
+
+
 # ─── Deterministic package ────────────────────────────────────────────────
 
 class TestPackage:
@@ -352,52 +368,57 @@ class TestIndex:
 class TestSignature:
     def test_a_signed_index_verifies(self, tmp_path):
         root = tmp_path / "catalog"
-        keys = tmp_path / "private"
-        key_id = "test-key"
-        publish_mod.generate_keypair(
-            str(keys / "marketplace.pem"),
-            str(root / "keys" / f"{key_id}.pub"),
-            key_id,
-        )
+        private = _signing_keys(tmp_path, root)
         folder = _write_folder(tmp_path / "src", SKILL_FILES)
 
         report = publish_mod.publish(
-            str(root), str(folder), _manifest(),
-            private_key_path=str(keys / "marketplace.pem"), key_id=key_id,
+            str(root), str(folder), _manifest(), private_key_path=private
         )
 
         assert report["signed"] is True
-        check = publish_mod.verify_index_signature(
-            str(root), str(root / "keys" / f"{key_id}.pub")
-        )
+        assert report["index_signature_verified"] is True
+        check = publish_mod.verify_index_signature(str(root), str(root / "keys"))
         assert check["ok"] is True
-        assert check["key_id"] == key_id
+        assert check["key_id"] == publish_mod.key_id_of_private(private)
+
+    def test_every_manifest_carries_its_own_signature(self, tmp_path):
+        """A version manifest, the latest pointer and the index are all signed."""
+        root = tmp_path / "catalog"
+        private = _signing_keys(tmp_path, root)
+        folder = _write_folder(tmp_path / "src", SKILL_FILES)
+
+        publish_mod.publish(
+            str(root), str(folder), _manifest(), private_key_path=private
+        )
+
+        for name in (
+            "skills/demo_skill/1.0.0/entity.json",
+            "skills/demo_skill/latest/entity.json",
+            "index.json",
+        ):
+            assert (root / (name + ".sig")).is_file(), name
+            check = publish_mod.verify_file(
+                str(root / name), key_dir=str(root / "keys")
+            )
+            assert check["ok"] is True, (name, check)
 
     def test_an_edited_index_stops_verifying(self, tmp_path):
         """The signature covers the whole index, not just its entities."""
         root = tmp_path / "catalog"
-        key_id = "test-key"
-        publish_mod.generate_keypair(
-            str(tmp_path / "private" / "m.pem"),
-            str(root / "keys" / f"{key_id}.pub"),
-            key_id,
-        )
+        private = _signing_keys(tmp_path, root)
         folder = _write_folder(tmp_path / "src", SKILL_FILES)
         publish_mod.publish(
-            str(root), str(folder), _manifest(),
-            private_key_path=str(tmp_path / "private" / "m.pem"), key_id=key_id,
+            str(root), str(folder), _manifest(), private_key_path=private
         )
         index_path = root / "index.json"
         index = json.loads(index_path.read_text(encoding="utf-8"))
         index["entities"][0]["version"] = "9.9.9"
         index_path.write_text(json.dumps(index, ensure_ascii=False), encoding="utf-8")
 
-        check = publish_mod.verify_index_signature(
-            str(root), str(root / "keys" / f"{key_id}.pub")
-        )
+        check = publish_mod.verify_index_signature(str(root), str(root / "keys"))
 
         assert check["ok"] is False
-        assert check["reason"] in ("index_changed", "signature_invalid")
+        assert check["reason"] == "index_changed"
 
     def test_a_missing_signature_is_reported_not_raised(self, tmp_path):
         root = tmp_path / "catalog"
@@ -414,11 +435,40 @@ class TestSignature:
         assert check["ok"] is False
         assert check["reason"] == "signature_missing"
 
+    def test_an_untrusted_key_does_not_verify(self, tmp_path):
+        """A signature by a key outside the keyring is not a valid release."""
+        root = tmp_path / "catalog"
+        private = _signing_keys(tmp_path, root)
+        folder = _write_folder(tmp_path / "src", SKILL_FILES)
+        publish_mod.publish(
+            str(root), str(folder), _manifest(), private_key_path=private
+        )
+        other = tmp_path / "keys"
+        other.mkdir()
+        publish_mod.generate_keypair(
+            str(tmp_path / "other.pem"), str(other / "other.pub")
+        )
+
+        check = publish_mod.verify_index_signature(str(root), str(other))
+
+        assert check["ok"] is False
+        assert check["reason"] == "unknown_key_id"
+
+    def test_publishing_without_a_key_is_refused(self, tmp_path, monkeypatch):
+        """No unsigned mode: a release nobody can verify is worse than none."""
+        monkeypatch.delenv(publish_mod.SIGNING_KEY_ENV, raising=False)
+        folder = _write_folder(tmp_path / "src", SKILL_FILES)
+        root = tmp_path / "catalog"
+
+        with pytest.raises(publish_mod.PublishError) as excinfo:
+            publish_mod.publish(str(root), str(folder), _manifest())
+
+        assert excinfo.value.code == "signing_key_missing"
+        assert not root.exists()
+
     def test_the_private_key_is_not_world_readable(self, tmp_path):
         private = tmp_path / "private" / "m.pem"
-        publish_mod.generate_keypair(
-            str(private), str(tmp_path / "keys" / "k.pub"), "k"
-        )
+        publish_mod.generate_keypair(str(private), str(tmp_path / "keys" / "k.pub"))
 
         mode = os.stat(private).st_mode & 0o777
 
@@ -432,6 +482,7 @@ def test_the_cli_publishes_a_folder(tmp_path):
 
     root = tmp_path / "catalog"
     folder = _write_folder(tmp_path / "src", SKILL_FILES)
+    private = _signing_keys(tmp_path, root)
     manifest_path = tmp_path / "entity.json"
     manifest_path.write_text(
         json.dumps({"name": {"en": "Demo"}}, ensure_ascii=False), encoding="utf-8"
@@ -440,16 +491,65 @@ def test_the_cli_publishes_a_folder(tmp_path):
     status = main([
         "--root", str(root), "--type", "skill", "--id", "demo_skill",
         "--version", "1.0.0", "--path", str(folder),
-        "--manifest", str(manifest_path),
+        "--manifest", str(manifest_path), "--sign-key", private,
     ])
 
     assert status == 0
     assert (root / "index.json").is_file()
+    assert (root / "index.json.sig").is_file()
     entity = json.loads(
         (root / "skills/demo_skill/1.0.0/entity.json").read_text(encoding="utf-8")
     )
     assert entity["name"] == {"en": "Demo"}
     assert entity["id"] == "demo_skill"
+
+
+def test_the_cli_refuses_to_publish_without_a_key(tmp_path, monkeypatch, capsys):
+    from scripts.marketplace_publish import main
+
+    monkeypatch.delenv("SAGAII_SIGNING_KEY", raising=False)
+    root = tmp_path / "catalog"
+    folder = _write_folder(tmp_path / "src", SKILL_FILES)
+
+    status = main([
+        "--root", str(root), "--type", "skill", "--id", "demo_skill",
+        "--version", "1.0.0", "--path", str(folder),
+    ])
+
+    assert status == 1
+    assert "signing_key_missing" in capsys.readouterr().err
+    assert not (root / "index.json").exists()
+
+
+def test_the_cli_verifies_a_published_catalog(tmp_path, capsys):
+    from scripts.marketplace_publish import main
+
+    root = tmp_path / "catalog"
+    folder = _write_folder(tmp_path / "src", SKILL_FILES)
+    private = _signing_keys(tmp_path, root)
+    publish_mod.publish(str(root), str(folder), _manifest(), private_key_path=private)
+
+    status = main(["--root", str(root), "--verify-only"])
+
+    assert status == 0
+    assert json.loads(capsys.readouterr().out)["ok"] is True
+
+
+def test_the_cli_creates_a_key_named_after_itself(tmp_path):
+    """``--init-key`` writes ``keys/<key_id>.pub``; the name is the id."""
+    from scripts.marketplace_publish import main
+
+    root = tmp_path / "catalog"
+    private = tmp_path / "private" / "m.pem"
+
+    status = main([
+        "--root", str(root), "--init-key", "--private-key", str(private),
+    ])
+
+    assert status == 0
+    key_id = publish_mod.key_id_of_private(str(private))
+    assert (root / "keys" / f"{key_id}.pub").is_file()
+    assert not (root / "keys" / ".pending.pub").exists()
 
 
 def test_a_helper_agent_publishes_as_its_own_kind(tmp_path):
@@ -461,6 +561,7 @@ def test_a_helper_agent_publishes_as_its_own_kind(tmp_path):
     index entry without downloading the package.
     """
     root = tmp_path / "catalog"
+    private = _signing_keys(tmp_path, root)
     folder = _write_folder(tmp_path / "helper", {
         "manifest.json": json.dumps({"name": "Meeting Minutes", "service": "DeepSeek"}),
         "prompt.md": "## Role\nWrite minutes.\n",
@@ -475,6 +576,7 @@ def test_a_helper_agent_publishes_as_its_own_kind(tmp_path):
             "version": "1.0.0",
             "name": {"en": "Meeting Minutes"},
         },
+        private_key_path=private,
     )
 
     entity = json.loads(
@@ -498,6 +600,7 @@ def test_a_recommended_package_survives_the_publish(tmp_path):
     "Extras" block while the author's build looked correct.
     """
     root = tmp_path / "catalog"
+    private = _signing_keys(tmp_path, root)
     folder = _write_folder(tmp_path / "agent", AGENT_FILES)
     recommends = [{"type": "rag", "id": "demo_base", "default_selected": True}]
 
@@ -511,6 +614,7 @@ def test_a_recommended_package_survives_the_publish(tmp_path):
             "name": {"en": "Demo"},
             "recommends": recommends,
         },
+        private_key_path=private,
     )
 
     entity = json.loads(
@@ -546,11 +650,13 @@ class TestStandaloneExport:
         export_standalone(str(script))
         folder = _write_folder(tmp_path / "src", SKILL_FILES)
         root = tmp_path / "catalog"
+        private = _signing_keys(tmp_path, root)
         env = {key: value for key, value in os.environ.items() if key != "PYTHONPATH"}
 
         result = subprocess.run(
             [sys.executable, str(script), "--root", str(root), "--type", "skill",
-             "--id", "demo_skill", "--version", "1.0.0", "--path", str(folder)],
+             "--id", "demo_skill", "--version", "1.0.0", "--path", str(folder),
+             "--sign-key", private],
             capture_output=True, text=True, cwd=str(tmp_path), env=env, timeout=120,
         )
 

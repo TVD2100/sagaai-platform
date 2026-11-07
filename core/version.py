@@ -655,7 +655,27 @@
 # Every run, refusals included, lands in the sandbox journal the settings
 # panel reads.
 
-__version__ = "2.40.0"
+# 2.41.0 signs what an installation downloads. A release manifest and every
+# catalog manifest carry a detached Ed25519 signature over the exact bytes that
+# were published; the client verifies it before parsing the document and before
+# a package is fetched. Trust anchors live in the installation (keys/*.pem), not
+# in the channel they vouch for, and a keyring may hold several keys so a
+# rotation never strands an installation. The stable channel and the explicit
+# require_signature setting turn a failed check into a refusal; development
+# channels record the report and continue, so local work needs no key.
+#
+# 2.42.0 makes the sandbox switchable from the chat toolbar. A profile now
+# carries an isolation ceiling next to its minimum: the policy skips any
+# provider stronger than the ceiling, so a profile that exists to run code
+# WITHOUT isolation is not silently upgraded on a machine that happens to have
+# an OS sandbox. The new ``off`` profile asks for no isolation, keeps the
+# resource ceilings and the built environment, and is what the toolbar
+# checkbox selects while it is cleared; the checkbox is on by default, stored
+# per employee and restored together with the other chat preferences. The
+# settings panel applies the same ceiling when it reports which provider a
+# profile would run under, so the panel and the run cannot disagree.
+
+__version__ = "2.42.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

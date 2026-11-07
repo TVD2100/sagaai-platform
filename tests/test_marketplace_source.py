@@ -10,6 +10,7 @@ and the retry behaviour.
 import io
 import json
 import sys
+import urllib.error
 from pathlib import Path
 
 import pytest
@@ -94,6 +95,10 @@ class TestConditionalGet:
                 return None
 
         def _urlopen(request, timeout=30):
+            if request.full_url.endswith(".sig"):
+                # The transport asks for the sidecar first; this catalog
+                # publishes an unsigned index, so the request is simply absent.
+                raise urllib.error.HTTPError(request.full_url, 404, "Not Found", {}, io.BytesIO(b""))
             calls.append(dict(request.headers))
             if len(calls) == 1:
                 return _Response(
@@ -101,8 +106,6 @@ class TestConditionalGet:
                     {"ETag": "\"abc\""},
                 )
             # A real server answers 304 with no body when the tag matches.
-            import urllib.error
-
             raise urllib.error.HTTPError(request.full_url, 304, "Not Modified", {}, io.BytesIO(b""))
 
         source = MarketplaceSource("http://127.0.0.1:1/catalog", urlopen=_urlopen)
@@ -158,6 +161,8 @@ class TestRetries:
                 return None
 
         def _urlopen(request, timeout=30):
+            if request.full_url.endswith(".sig"):
+                raise urllib.error.HTTPError(request.full_url, 404, "Not Found", {}, io.BytesIO(b""))
             attempts.append(1)
             if len(attempts) < 3:
                 raise TimeoutError("timed out")

@@ -17,7 +17,12 @@ from __future__ import annotations
 
 from typing import Iterable, List, Optional, Sequence
 
-from core.sandbox.contracts import SandboxProfile, SandboxResult, satisfies
+from core.sandbox.contracts import (
+    SandboxProfile,
+    SandboxResult,
+    isolation_rank,
+    satisfies,
+)
 from core.sandbox.profiles import get_profile
 
 
@@ -63,15 +68,43 @@ def _ordered(providers: Sequence[SandboxProvider]) -> List[SandboxProvider]:
                   reverse=True)
 
 
+def within_isolation_ceiling(provider_level: str, max_level: str) -> bool:
+    """True when *provider_level* does not exceed the *max_level* ceiling.
+
+    An empty ceiling means "no ceiling": the profile states a minimum only.
+    A ceiling that names an unknown level is treated as no ceiling - the
+    minimum requirement still applies, so an unknown name can never hand
+    out a stronger guarantee than the profile asked for.
+
+    Public because the settings panel reports the provider a profile would
+    actually run under: a panel that ignored the ceiling would name a
+    backend the policy then refuses to use.
+    """
+    wanted = str(max_level or "")
+    if not wanted:
+        return True
+    ceiling = isolation_rank(wanted)
+    offered = isolation_rank(provider_level)
+    if ceiling < 0 or offered < 0:
+        return True
+    return offered <= ceiling
+
+
 def select_provider(profile: SandboxProfile,
                     providers: Iterable[SandboxProvider]) -> Optional[SandboxProvider]:
     """Return the strongest available provider that meets *profile*.
 
     ``None`` means the requirement cannot be met on this machine; the caller
     must deny the run, never fall back to a weaker provider.
+
+    ``profile.max_isolation`` caps the choice from above: a profile that
+    exists to run code WITHOUT isolation must not be silently upgraded to a
+    sandboxing backend just because this machine happens to have one.
     """
     for provider in _ordered(list(providers)):
         if not satisfies(provider.isolation, profile.isolation):
+            continue
+        if not within_isolation_ceiling(provider.isolation, profile.max_isolation):
             continue
         offered = set(getattr(provider, "capabilities", ()) or ())
         if not set(profile.requires).issubset(offered):

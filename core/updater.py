@@ -320,7 +320,8 @@ def _local_manifest(base):
     A mirror is what an air-gapped installation and a test both use: the
     published file tree is copied to a folder and the channel points at it.
     A path that does not exist returns None so the caller falls through to
-    the URL path and reports it as an unreachable channel.
+    the URL path and reports it as an unreachable channel. The raw bytes are
+    returned as well: a signature covers bytes, not a parsed dict.
     '''
     text = str(base or '')
     if '://' in text:
@@ -330,25 +331,129 @@ def _local_manifest(base):
         return None
     path = os.path.join(folder, MANIFEST_NAME)
     try:
-        with open(path, 'r', encoding='utf-8') as handle:
-            return json.load(handle), None
+        with open(path, 'rb') as handle:
+            raw = handle.read()
     except OSError as exc:
-        return None, 'cannot read manifest from %s: %s' % (path, exc)
-    except ValueError as exc:
-        return None, 'manifest is not valid JSON: %s' % exc
+        return None, 'cannot read manifest from %s: %s' % (path, exc), None
+    try:
+        return json.loads(raw.decode('utf-8')), None, raw
+    except (ValueError, UnicodeDecodeError) as exc:
+        return None, 'manifest is not valid JSON: %s' % exc, None
+
+
+#: Signature report of the last fetched manifest, keyed by channel base. The
+#: UI reads it to say whether the manifest it just checked was signed; it is
+#: kept outside the manifest dict so the payload stays exactly as published.
+_MANIFEST_SIGNATURES = {}
+
+
+def manifest_signature(channel=DEFAULT_CHANNEL):
+    '''Return the signature report of *channel*, or an empty dict.
+
+    Empty means the manifest was never fetched through
+    :func:`fetch_manifest` - a caller that supplies its own manifest has no
+    transport to verify and no report to show.
+    '''
+    base = str(channel or DEFAULT_CHANNEL).rstrip('/')
+    return dict(_MANIFEST_SIGNATURES.get(base) or {})
+
+
+def _keyring_dir():
+    '''Folder of trusted public keys: env override, else ``<root>/keys``.
+
+    Trust anchors never come from the channel: a key downloaded next to the
+    manifest it is meant to vouch for proves nothing.
+    '''
+    explicit = os.environ.get('SAGAII_SIGNATURE_KEYRING', '').strip()
+    return explicit or os.path.join(default_root(), 'keys')
+
+
+def _read_manifest_signature(base):
+    '''Return the detached signature of the manifest, or None when absent.
+
+    A missing sidecar is not a transport failure - whether it is a refusal is
+    the channel policy's decision.
+    '''
+    text = str(base or '')
+    if '://' not in text:
+        folder = os.path.abspath(os.path.expanduser(text))
+        path = os.path.join(folder, MANIFEST_NAME + '.sig')
+        try:
+            with open(path, 'r', encoding='utf-8') as handle:
+                record = json.load(handle)
+        except (OSError, ValueError):
+            return None
+        return record if isinstance(record, dict) else None
+    url = text.rstrip('/') + '/' + MANIFEST_NAME + '.sig'
+    try:
+        request = Request(url, headers={'User-Agent': USER_AGENT})
+        with urlopen(request, timeout=DOWNLOAD_TIMEOUT) as response:
+            record = json.loads(response.read().decode('utf-8'))
+    except Exception:  # noqa: BLE001 - an absent sidecar is not a failure
+        return None
+    return record if isinstance(record, dict) else None
+
+
+def _signature_report(base, raw, manifest):
+    '''Verify a manifest under the channel policy and return the report.
+
+    ``enforced`` comes from the channel name and from
+    ``marketplace.require_signature``: a stable channel or an installation
+    that demands signatures refuses an unsigned manifest, a development
+    channel only records it.
+    '''
+    from core import signing
+
+    settings = {}
+    try:
+        from core.marketplace import config as marketplace_config
+
+        settings = dict(marketplace_config.marketplace_settings() or {})
+    except Exception:  # noqa: BLE001 - the channel policy still applies
+        settings = {}
+    policy = signing.policy_for(base, settings)
+    if raw is None:
+        result = {'ok': False, 'key_id': None, 'reason': 'payload_missing'}
+    else:
+        result = signing.verify_bytes(
+            raw,
+            _read_manifest_signature(base),
+            signing.load_keyring(_keyring_dir()),
+            legacy_document=manifest if isinstance(manifest, dict) else None,
+        )
+    return {
+        'verified': bool(result.get('ok')),
+        'enforced': bool(policy.get('enforced')),
+        'key_id': result.get('key_id'),
+        'reason': str(result.get('reason') or ''),
+        'channel': policy.get('channel'),
+        'policy': policy.get('mode'),
+    }
+
+
+def _accept_manifest(base, raw, manifest):
+    '''Record the signature report; refuse the manifest when required.'''
+    report = _signature_report(base, raw, manifest)
+    _MANIFEST_SIGNATURES[base] = report
+    if report['enforced'] and not report['verified']:
+        _MANIFEST_SIGNATURES[base] = report
+        return None, 'manifest signature refused: %s' % report['reason']
+    return manifest, None
 
 
 def fetch_manifest(channel=DEFAULT_CHANNEL):
-    '''Fetch and parse the update manifest; returns (dict, error).
+    '''Fetch, verify and parse the update manifest; returns (dict, error).
 
     A channel is either a base URL or a local folder: the local form is what
     an air-gapped installation uses and what a test can build without a
-    server, so both go through the same validation further down.
+    server. The signature is checked before the payload is trusted, so a
+    tampered manifest never reaches :func:`check_updates`.
     '''
     base = str(channel or DEFAULT_CHANNEL).rstrip('/')
     local = _local_manifest(base)
     if local is not None:
-        return local
+        manifest, err, raw = local
+        return (None, err) if err is not None else _accept_manifest(base, raw, manifest)
     url = base + '/' + MANIFEST_NAME
     try:
         request = Request(url, headers={'User-Agent': USER_AGENT})
@@ -357,9 +462,10 @@ def fetch_manifest(channel=DEFAULT_CHANNEL):
     except Exception as exc:  # noqa: BLE001 - any network/protocol failure
         return None, 'cannot fetch manifest from %s: %s' % (url, exc)
     try:
-        return json.loads(raw.decode('utf-8')), None
+        manifest = json.loads(raw.decode('utf-8'))
     except (ValueError, UnicodeDecodeError) as exc:
         return None, 'manifest is not valid JSON: %s' % exc
+    return _accept_manifest(base, raw, manifest)
 
 
 def _validate_manifest(manifest):
@@ -402,6 +508,7 @@ def check_updates(root, manifest=None, channel=DEFAULT_CHANNEL):
     local_version, sha256}. Files are compared by sha256; version is
     informational. local_version comes from state.json (last applied).
     '''
+    requested = channel
     if manifest is None:
         manifest, err = fetch_manifest(channel)
         if err is not None:
@@ -446,6 +553,7 @@ def check_updates(root, manifest=None, channel=DEFAULT_CHANNEL):
         'available': available,
         'up_to_date': not available,
         'source': channel,
+        'signature': manifest_signature(requested),
     }
 
 

@@ -17,7 +17,7 @@ import time
 from typing import Any, Dict, List
 
 from core.i18n import t
-from core.sandbox.profiles import LEGACY_PROCESS
+from core.sandbox.profiles import LEGACY_PROCESS, OFF
 from ui.pages.orchestrator_shared import late, st_proxy
 
 # Resolved through the page facade on every access: the test suite swaps the
@@ -31,6 +31,10 @@ save_orchestrator = late("save_orchestrator")
 
 #: Label of the legacy profile in the selector (it has no sandbox of its own).
 _LEGACY_LABEL_KEY = "orch_sandbox_profile_legacy"
+#: Label of the profile the toolbar checkbox switches to when it is cleared.
+_OFF_LABEL_KEY = "orch_sandbox_profile_off"
+#: The two profiles that never depend on the machine: they isolate nothing.
+_NO_ISOLATION = (LEGACY_PROCESS, OFF)
 
 
 def _provider_rows() -> List[Dict[str, Any]]:
@@ -53,17 +57,22 @@ def _provider_rows() -> List[Dict[str, Any]]:
 def _profile_rows(providers: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Return one row per profile and whether this machine can honour it.
 
-    A provider qualifies only when it reaches the required isolation AND
-    declares every capability the profile needs: an ``os`` backend that
-    leaves the network reachable cannot honour a no-network profile, and
-    choosing it would silently weaken the guarantee.
+    A provider qualifies only when it reaches the required isolation, stays
+    within the profile's isolation ceiling AND declares every capability the
+    profile needs: an ``os`` backend that leaves the network reachable cannot
+    honour a no-network profile, and choosing it would silently weaken the
+    guarantee. The ceiling works the other way round - a profile that asks
+    for no isolation must not be reported as running under the strongest
+    backend this machine has.
     """
     from core.sandbox.contracts import satisfies
+    from core.sandbox.policy import within_isolation_ceiling
 
     rows = []
     for profile in _profiles():
         usable = [p for p in providers
                   if p["available"] and satisfies(p["isolation"], profile.isolation)
+                  and within_isolation_ceiling(p["isolation"], profile.max_isolation)
                   and _offers(p, profile)]
         rows.append({"profile": profile, "usable": bool(usable),
                      "via": usable[0]["name"] if usable else ""})
@@ -98,6 +107,8 @@ def _profile_label(profile: Any, usable: bool, lang: str) -> str:
     """Return the selector label of *profile* with its availability."""
     if profile.name == LEGACY_PROCESS:
         return "%s (%s)" % (profile.name, t(_LEGACY_LABEL_KEY, lang=lang))
+    if profile.name == OFF:
+        return "%s (%s)" % (profile.name, t(_OFF_LABEL_KEY, lang=lang))
     status = (t("orch_sandbox_available", lang=lang) if usable
               else t("orch_sandbox_refused", lang=lang))
     return "%s - %s" % (profile.name, status)
@@ -232,7 +243,8 @@ def render_sandbox_settings(slug: str, lang: str) -> None:
             by_name[name]["profile"] if name in by_name else _stub_profile(name),
             bool(by_name[name]["usable"]) if name in by_name else False, lang),
     )
-    chosen_ok = bool(by_name.get(chosen, {}).get("usable")) or chosen == LEGACY_PROCESS
+    chosen_ok = (bool(by_name.get(chosen, {}).get("usable"))
+                 or chosen in _NO_ISOLATION)
     if not chosen_ok:
         st.warning(t("orch_sandbox_refused", lang=lang))
     if st.button(t("orch_save_btn", lang=lang), key=f"orch_sandbox_save_{slug}",

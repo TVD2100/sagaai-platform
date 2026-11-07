@@ -61,8 +61,8 @@ t = late("t")
 
 
 def _render_chat_toolbar(slug: str, lang: str) -> None:
-    """Render the single chat toolbar (web search / economy / safety /
-    settings / new dialog / copy URL).
+    """Render the single chat toolbar (web search / sandbox / safety /
+    injection / settings / new dialog / copy URL).
 
     The toolbar is rendered ONCE at the top of the chat and stays on screen
     while the history scrolls (the host container is sticky - see
@@ -70,26 +70,29 @@ def _render_chat_toolbar(slug: str, lang: str) -> None:
     session slots used by the agent loop, so there is a single source of
     truth for each preference.
     """
-    cols = st.columns([1, 1, 1, 1, 1, 0.8])
-    for col, (pref, label, help_text) in zip(cols[:3], toolbar_specs(t, lang)):
+    specs = toolbar_specs(t, lang)
+    # One column per checkbox, then the three action buttons.
+    cols = st.columns([1] * len(specs) + [0.8, 1, 1])
+    for col, (pref, label, help_text) in zip(cols, specs):
         with col:
             st.checkbox(label, key=_chat_toolbar_widget_key(slug, pref),
                         help=help_text, on_change=_chat_toolbar_pref_changed,
                         args=(slug, pref))
 
-    with cols[3]:
+    settings_col, reset_col, copy_col = cols[len(specs):]
+    with settings_col:
         if st.button("⚙️ " + t("nav_settings", lang=lang),
                      key=f"orch_settings_{slug}",
                      use_container_width=True, type="secondary"):
             st.session_state["current_page"] = f"orchestrator_settings:{slug}"
             st.rerun()
-    with cols[4]:
+    with reset_col:
         if st.button(t("orch_new_dialog", lang=lang),
                      key=f"orch_reset_{slug}",
                      use_container_width=True, type="secondary"):
             _reset_dialog(slug)
             st.rerun()
-    with cols[5]:
+    with copy_col:
         url_params = {"orchestrator": slug}
         tid = _ss(slug, "thread_id")
         if tid:

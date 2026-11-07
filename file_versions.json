@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "2.40.0",
+  "app_version": "2.42.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Исполнение кода переведено в песочницу: run_code и run_test больше не запускают процесс напрямую. Запрос называет профиль, политика выбирает сильнейшую изоляцию, которую машина действительно может дать, и отказывает в запуске, если она недостижима. Провайдеры: дочерний процесс с окружением по allowlist и жёсткими лимитами, sandbox-exec на macOS, bubblewrap на Linux, контейнер Docker и дистрибутив WSL2 на Windows; контейнер получает переведённый argv и корень только для чтения, запись - лишь в рабочую папку. Лимиты ставит запускатор до старта программы, дерево процессов убивается по таймауту и по отмене, а запуск, припаркованный на подтверждение, ждёт серверный тикет, привязанный к запуску, хешу операции и времени жизни. Все запуски, включая отказы, попадают в журнал песочницы.",
-    "en": "Code execution is sandboxed: run_code and run_test no longer start a child directly. A request names a profile, the policy picks the strongest isolation the machine can actually honour and refuses the run when that isolation is unreachable. Providers cover a child process with an allowlisted environment and hard limits, sandbox-exec on macOS, bubblewrap on Linux, a Docker container and the WSL2 distribution on Windows; a container gets the translated argv and a read-only root with only the workspace writable. Limits are applied by a launcher before the program starts, the process tree is killed on timeout and on cancellation, and a run parked for confirmation waits for a server-side ticket bound to the run, the operation hash and a time to live. Every run, refusals included, lands in the sandbox journal."
+    "ru": "Песочницу можно отключить переключателем в панели чата: снятый флажок выполняет код с правами платформы, сохраняя лимиты времени и объёма вывода, а профиль запуска получает потолок изоляции, поэтому включённый на машине seatbelt больше не подменяет отключённый режим.",
+    "en": "The sandbox can be switched off from the chat toolbar: a cleared checkbox runs code with the platform rights while the time and output limits stay in force, and a run profile now carries an isolation ceiling, so a seatbelt backend present on the machine no longer overrides the disabled mode."
   },
-  "updated": "2026-11-07T06:30:55Z",
+  "updated": "2026-11-07T17:15:00Z",
   "units": {
     "core": {
-      "version": "1.82.0",
+      "version": "1.84.0",
       "note": {
-        "ru": "Пакет: страница оркестратора и его API разложены по темам за фасадом с прежними путями импорта; бизнес-логика чата и шага цикла вынесена из интерфейса в ядро (core/chat_turn, core/orchestrator_step); структурный ратчет расширен глобальными потолками; тестовый набор изолирует глобальное состояние явно.",
-        "en": "Package: the orchestrator page and its API are split by topic behind a facade that keeps every import path; the chat-turn and loop-step business logic moved out of the interface into the core (core/chat_turn, core/orchestrator_step); the structural ratchet gained global ceilings; the test suite isolates global state explicitly."
+        "ru": "Пакет: профиль запуска получил потолок изоляции (профиль off не поднимается до системной песочницы), переключатель «Песочница» в панели чата выключает изоляцию для диалога при сохранении лимитов, панель настроек учитывает потолок при выборе провайдера.",
+        "en": "Package: a run profile carries an isolation ceiling (the off profile is not upgraded to the OS sandbox), the chat toolbar sandbox switch disables isolation for the dialog while the limits stay, and the settings panel honours the ceiling when it reports a provider."
       },
       "files": {
         "__init__.py": {
@@ -268,19 +268,19 @@
           "sha256": "d86fc7a17fc4658703a260c69609e834b2bd0a130c834fe285e9dc41ed234f8f"
         },
         "core/updater.py": {
-          "version": "1.1.0",
-          "sha256": "574040fa525c037c863f001171740a968942f21e05621c053a1d5f9f2778272b"
+          "version": "1.2.0",
+          "sha256": "d4a542940943f7e0309979fb9af5763ce3ff87ce1730245ccbd8976f4ea5f676"
         },
         "core/updater_apply.py": {
           "version": "1.1.2",
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.72.4",
-          "sha256": "171d8b8f75305edeb7dc45dad90ea51ef11f09e3a90d1a9dcd67366d14e8d2f0",
+          "version": "1.74.0",
+          "sha256": "9be6a229c8f183108130d39da4aef4ecfc557073e1591f22f51800246a23b88e",
           "note": {
-            "ru": "Релиз 2.34.0: расписания запуска задач агентами.",
-            "en": "Release 2.34.0: scheduled agent runs."
+            "ru": "Релиз 2.41.0: подпись Ed25519 для обновлений и маркетплейса.",
+            "en": "Release 2.41.0: Ed25519 signatures for updates and the marketplace."
           }
         },
         "dev_agent/__init__.py": {
@@ -368,11 +368,11 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.11.1",
-          "sha256": "d6406fc032307d19634f221b47606bad78b5e59c0c1b21bce8d0f12a892f8c4e",
+          "version": "1.12.1",
+          "sha256": "853b81f9dd5f12ec610e01b8a1720a3a2e223f8d25397dbb0705234fdbf5744f",
           "note": {
-            "ru": "Описания новых модулей страницы оркестратора.",
-            "en": "Descriptions of the new orchestrator page modules."
+            "ru": "Описания модулей подписи Ed25519 и конвейера обновлений в карте проекта.",
+            "en": "Descriptions of the Ed25519 signing modules and the update pipeline in the project map."
           }
         },
         "scripts/verify_manifest.py": {
@@ -872,8 +872,8 @@
           "sha256": "cb508065c5803865d76a440adf6cdac7e3dbdd3ac665d45ed324ac76bbf64d0a"
         },
         "tests/test_orchestrator_chat_prefs.py": {
-          "version": "1.0.2",
-          "sha256": "08e672898b82dc13e259a6ae0fad3b05cd00cb8c63316bcd96dce4571abc57d4",
+          "version": "1.1.0",
+          "sha256": "2f0112b2cd9a780f9ec66dc764fb332d50ab45692d8a44742693b43e825fcb30",
           "note": {
             "ru": "Проверки отсутствия переключателя эконом-режима и игнорирования chat_economy_mode.",
             "en": "Checks that the economy switch is gone and chat_economy_mode is ignored."
@@ -1674,8 +1674,8 @@
           }
         },
         "core/marketplace/config.py": {
-          "version": "1.0.1",
-          "sha256": "25ba036e7dba8c32ccf9aecb83d258f2ab9ea6f134c017432198dff69333bbc9",
+          "version": "1.1.0",
+          "sha256": "08bb8e7e7009b32cc0a8cddf8f1c092c51af012fb23b21802cc5496f6fb97172",
           "note": {
             "ru": "Настройки маркетплейса: переключатель enabled, канал и лимиты.",
             "en": "Marketplace settings: the enabled switch, channel and limits."
@@ -1690,8 +1690,8 @@
           }
         },
         "core/marketplace/installer.py": {
-          "version": "1.0.2",
-          "sha256": "5c66ceb87d60afbe23253ddd2051a6f7fc52dda1d1453feca27ccc84896516bc",
+          "version": "1.1.0",
+          "sha256": "436f3f5b78a1ea2d3507a67447a6787243157f5eb2caddd3f7b28bb7cce3fcd6",
           "note": {
             "ru": "Установщик навыка: журнал прогона, атомарная запись и откат.",
             "en": "Skill installer: run journal, atomic write and rollback."
@@ -1722,8 +1722,8 @@
           }
         },
         "core/marketplace/source.py": {
-          "version": "1.0.1",
-          "sha256": "63b8139d54cd31def1e77c2465966fa00e7915ec561e2b573f6e461aedd3fafb",
+          "version": "1.1.0",
+          "sha256": "26bba78b7640492d74b1895e7f3c87f00f56a47bdc9425ccce2f2fe6d2271fea",
           "note": {
             "ru": "Транспорт каталога: чтение индекса, сущности и пакета.",
             "en": "Catalog transport: reading the index, an entity and a package."
@@ -1746,11 +1746,11 @@
           }
         },
         "core/marketplace/verify.py": {
-          "version": "1.0.1",
-          "sha256": "516928eedb519c4c49f93380ae34b55fa013015c0eac80fe90a6ca79a08d343f",
+          "version": "1.1.2",
+          "sha256": "d47e06dc007d7003cb06cd35c66b5a78c43761a941a27c6101d1879fab76bde1",
           "note": {
-            "ru": "Проверка пакета: sha256-манифест и целостность установки.",
-            "en": "Package verification: the sha256 manifest and installed integrity."
+            "ru": "Сигнатурные обёртки сведены к одному _forward: отказ attest пересобирается классом VerifyError этого модуля, файл держится в структурном бюджете.",
+            "en": "The signature wrappers collapsed into one _forward: an attest refusal is rebuilt with this module VerifyError class, and the file stays inside the structural budget."
           }
         },
         "ui/pages/marketplace.py": {
@@ -1770,8 +1770,8 @@
           }
         },
         "tests/marketplace_fixtures.py": {
-          "version": "1.0.2",
-          "sha256": "2702c0c0e8391324ce39c6dba8439c6e1926a0988c788575805626e0fbb6dcf8",
+          "version": "1.0.3",
+          "sha256": "1e54c2f716f263b4a146a31db9b15128c9ece703ea97d29f32f2c64b4de549c4",
           "note": {
             "ru": "Общие фикстуры тестов маркетплейса: локальный каталог, HTTP-сервер, установка.",
             "en": "Shared marketplace test fixtures: local catalog, HTTP server and install."
@@ -1794,8 +1794,12 @@
           "sha256": "c61bfe4dacff98a42dc0c7d7254891c5172ac94eef3159ce0fea7e56f8cf96dd"
         },
         "tests/test_marketplace_limits.py": {
-          "version": "1.0.0",
-          "sha256": "8ef9967a319e07b929ee0b21cfdc1599279a85a35a6d7e9934089339cc7d14e8"
+          "version": "1.0.2",
+          "sha256": "be768419bb8e11ff8736caead26bea17c2803cfb2c5c79d90e94614d0389d9a9",
+          "note": {
+            "ru": "Регрессия: класс отказа принадлежит модулю, через который вызвана проверка.",
+            "en": "Regression: the refusal class belongs to the module the check was called through."
+          }
         },
         "tests/test_marketplace_local_mods.py": {
           "version": "1.0.1",
@@ -1818,8 +1822,8 @@
           "sha256": "8a825463df93c4b70ea832197da3019357a99b8c0bbe143d52ea1ba67190b276"
         },
         "tests/test_marketplace_source.py": {
-          "version": "1.0.0",
-          "sha256": "5428daa07aac3184b715496d79e104331591174759610c8a8e84495bb9b44561"
+          "version": "1.0.1",
+          "sha256": "ea739c890086ae534655a86c626d7f111aa43dc4892399d08e7ae3aba50f0baa"
         },
         "tests/test_marketplace_store.py": {
           "version": "1.0.0",
@@ -1866,8 +1870,8 @@
           "sha256": "2637732e86e5a03c36c54fc83943fc08f7b874476b0732b1d7a83dc260c0c7d3"
         },
         "tests/test_marketplace_publish.py": {
-          "version": "1.0.3",
-          "sha256": "a7fd09b5af1aae1de397f2db55664578f6a73d114b29a9dcb86c5dec09f08934"
+          "version": "1.0.4",
+          "sha256": "66ea5a6205a47f6d074e7d53f4722c4e9092b129ee08d33d0a6fc4227e9696f7"
         },
         "tests/test_marketplace_rag_installer.py": {
           "version": "1.0.1",
@@ -1882,8 +1886,8 @@
           "sha256": "48b61c6424a07917eadf4da036ac6bd12af10cbe3a3d416af6168cb59e4bad4d"
         },
         "scripts/marketplace_publish.py": {
-          "version": "1.0.0",
-          "sha256": "443ba1ffdf57a0b4b3b119027443d2e4600e6929433f82b4eb4b7c590c6373cd"
+          "version": "1.1.0",
+          "sha256": "a000a71adda074d95436461fae06fde4c6dcf82f55e674ee1e3d9374565f6586"
         },
         "core/marketplace/agent_installer.py": {
           "version": "1.1.2",
@@ -1902,8 +1906,8 @@
           "sha256": "504945c040a09b40333e9174a37d862ea1702231bef2d23c25ed7989d38ae575"
         },
         "core/marketplace/publish.py": {
-          "version": "1.1.0",
-          "sha256": "4b43b4fa8b363ba1b5401a012bc2ba5a172d664114a0439e301667d54f40ca6e"
+          "version": "1.2.0",
+          "sha256": "4f6ded8eb0b0667d4a29c61fafa6baa8c4d86617e37209cce25f0bd5def26ac0"
         },
         "core/marketplace/rag_installer.py": {
           "version": "1.0.2",
@@ -2754,8 +2758,8 @@
           "sha256": "c266e515ffbf93c186b573bc400e2825649657ba0610444511f51e0c09794536"
         },
         "ui/pages/orchestrator_text.py": {
-          "version": "1.1.1",
-          "sha256": "b77733e2240de9c590ffaaf44b7b7c4055f2bcc852be12fe4430bcf0f822e7da",
+          "version": "1.2.0",
+          "sha256": "07ac7d3527a90deea5613d8918d094c306457376f39765be404f4cc073e61871",
           "note": {
             "ru": "Добавлена build_state_keys - карта ключей session_state диалога, принимающая настройки и константы страницы аргументами.",
             "en": "Added build_state_keys - the chat session-state key map, taking the page settings and constants as arguments."
@@ -2970,8 +2974,8 @@
           "sha256": "82be8cf3549d1874466d0f42b012bdc6ffeee64580f429dd4f46054cc80d2ad1"
         },
         "ui/pages/orchestrator_loop.py": {
-          "version": "1.0.2",
-          "sha256": "de2d93b42ec9bc54ab5ba1bf5fb2f32aef2401e09af5691edb1b42271a8d65b5",
+          "version": "1.1.0",
+          "sha256": "dfa42d0d66c40fb502f7407d667790b79bce82ea656ca812de287f0940248f8e",
           "note": {
             "ru": "Запись шага в тред вынесена в core/orchestrator_step.",
             "en": "The step write into the thread moved to core/orchestrator_step."
@@ -2986,8 +2990,8 @@
           "sha256": "ec532e5b1734ba7a03ea0183f5507808c489bb75854095d9f4b5b51fb40adcde"
         },
         "ui/pages/orchestrator_chat_input.py": {
-          "version": "1.0.1",
-          "sha256": "46bc311929b5bd464aca00a999a289ee85adc248f3480cb0cddc741b44df8017"
+          "version": "1.1.0",
+          "sha256": "7ebd8455f8d9b0f86293cd116f8b86d90fc86e62a838594a8ba33442d6c770ab"
         },
         "ui/pages/orchestrator_settings_models.py": {
           "version": "1.0.0",
@@ -3066,8 +3070,8 @@
           "sha256": "65ce2bf95f4ee618fd44982ec4f57d03a2d2cdd7d9bb93bf6e33853613b67066"
         },
         "ui/pages/orchestrator_flags.py": {
-          "version": "1.0.0",
-          "sha256": "c0e585244fd7a931d9b10b10cca2099e0254f8782bf0b11512822b0d204c39e0"
+          "version": "1.1.0",
+          "sha256": "3e4288a308923f8057e5be9114dabdcbe0bfec313d64c32d2688831776e7a79a"
         },
         "dev_agent/tools/exec_support.py": {
           "version": "1.0.0",
@@ -3090,20 +3094,20 @@
           "sha256": "abf9ca337919aac7000abe0302f0b03bb5852d5a8cae185d12f73cb930134291"
         },
         "core/sandbox/__init__.py": {
-          "version": "1.0.0",
-          "sha256": "0e0ab3c267cb8f7b560462f575322adf932101d6d9296ba7d84f4bc3c24c86e1"
+          "version": "1.1.0",
+          "sha256": "4ada4c07e4e077233b26e16a99e1aa3d220bba2ddfed9eae2b87aaec3212ee0c"
         },
         "core/sandbox/contracts.py": {
-          "version": "1.0.0",
-          "sha256": "9b5588b2fe15033f5d31365030b52b94552556c14072c7e77e0aed3ddb4242f3"
+          "version": "1.1.0",
+          "sha256": "9881ece348fdad56f03456bb576351cc37761472a26553e0cebec33410c553f1"
         },
         "core/sandbox/policy.py": {
-          "version": "1.0.0",
-          "sha256": "ac5a9bd25adeb028e38f6815812e8084e4e3c536546c021a8b0eb99076dc05b8"
+          "version": "1.1.0",
+          "sha256": "cb4bd08119f622eec09be972372c5807082beb6817ef66cd6e4d84b5b9d979b2"
         },
         "core/sandbox/profiles.py": {
-          "version": "1.0.0",
-          "sha256": "f0863c552bf2906a46e36f9a8a970354b5577eb505f3e48247b5eda5b846a6e5"
+          "version": "1.1.0",
+          "sha256": "d97cba558345894dd25d02bc813fd051887c4cdeb1d7540fa360ab69e282791e"
         },
         "core/sandbox/runner.py": {
           "version": "1.0.0",
@@ -3126,8 +3130,8 @@
           "sha256": "76899d9ea120bea7c231327f7966fc96068cf4146f6cc57d06d41f3f62d8ace8"
         },
         "ui/pages/orchestrator_sandbox.py": {
-          "version": "1.0.1",
-          "sha256": "46b11a0da39cb015bdcd8ba682efb0054cb5ad0cf6124ed5bfcc270c35603964",
+          "version": "1.1.0",
+          "sha256": "3cd933cf28ad9c5d40d239ec23c0daf4efb9a254e4ae0af571c41639a86d0353",
           "note": {
             "ru": "Панель песочницы читает streamlit через прокси страницы, поэтому подмена модуля в тестах на неё действует.",
             "en": "The sandbox panel reaches streamlit through the page proxy, so a module swap in tests applies to it."
@@ -3184,14 +3188,46 @@
         "tests/test_sandbox_security.py": {
           "version": "1.0.0",
           "sha256": "a19d51cfbd1250b1c938b6200dd4013c7988e0bd725bc73e6381cd85f2084c67"
+        },
+        "core/signing.py": {
+          "version": "1.0.0",
+          "sha256": "ade1f202c389aa992e95299df87932648e5f9001b9d65c8b4b23ff04a905cec4"
+        },
+        "core/marketplace/attest.py": {
+          "version": "1.0.0",
+          "sha256": "a5ccddc004bbe5c86fe559d19e759c999aa4732d9e9a9c5195492721c7bf78b7"
+        },
+        "scripts/sign_release.py": {
+          "version": "1.0.0",
+          "sha256": "0e1d80eaf25298e66831c9debb3f04def388848dd27318cfc78e8245e5d9d548"
+        },
+        "tests/test_signing.py": {
+          "version": "1.0.0",
+          "sha256": "41718499553dc54d0f0d8b94d7949e3ee3a9003af83313d1cdeccb3282a063ec"
+        },
+        "tests/test_marketplace_attest.py": {
+          "version": "1.0.0",
+          "sha256": "bd213d1f50185b6236e453528622860d62f827785690f86a17131e651392abe3"
+        },
+        "tests/test_sign_release.py": {
+          "version": "1.0.0",
+          "sha256": "b847d0d0b29dabdbeaba53c32c4ed3e05028913a9ed414ebfd4ecf4a7c4a06a1"
+        },
+        "tests/scenarios/test_marketplace_signing_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "661b5ff4d91db8cd82a7d2422cec0b2f53350b7112f96e95d3dac4d5a168c469"
+        },
+        "tests/test_sandbox_off_profile.py": {
+          "version": "1.0.0",
+          "sha256": "fe2fef5ee58d17e6f62b91b299ec7334acf1a021c3b69231e52db7c72456c2db"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.74.3",
-      "sha256": "27fb02c34ed637abef5a248424ec6b378da441d798c5b2e29783ee4eecbfcda1",
+      "version": "1.76.0",
+      "sha256": "cb2852b2dbff1afd7ceec7025834acff04d5cc5c1dfeaa2753de06e62e3cd2fa",
       "note": {
         "ru": "Песочница исполнения: панель настройки профиля, активные запуски и журнал отказов.",
         "en": "Execution sandbox: the profile settings panel, live runs and the refusal journal."
@@ -3206,16 +3242,16 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.75.4",
-      "sha256": "9f9b07d7ddd8c324f34a117fdf6019b478ddb735cd19cb05ae2ed197f1452591",
+      "version": "1.77.0",
+      "sha256": "8c294cf6e58863ed870caee46c3ee9e0916ec85daa025d6bb10f56fef3efc709",
       "note": {
-        "ru": "Регенерация: страница оркестратора, панель песочницы и модули core/sandbox.",
-        "en": "Regenerated: the orchestrator page, the sandbox panel and the core/sandbox modules."
+        "ru": "Регенерация: _as_own_error в verify.py.",
+        "en": "Regenerated: _as_own_error in verify.py."
       }
     },
     "README.md": {
-      "version": "1.59.4",
-      "sha256": "e186603306afdec943cf0038ad4608ef3c8358cfac51f223b3fd1a6707d35600",
+      "version": "1.61.0",
+      "sha256": "d2aeef2b410886a8cf62b99c3bc144a654ccc23c33f5b1d4f17c7b8f1aa6f33f",
       "note": {
         "ru": "В описании конвейера упомянут структурный бюджет крупных файлов.",
         "en": "The pipeline description mentions the structural budget of the god files."
@@ -3294,8 +3330,8 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.28.3",
-      "sha256": "11d53e80c2fcc7ad87f086e7d9c736130c6178f9d175ebe6576f6b1772e01c2e",
+      "version": "1.29.0",
+      "sha256": "58e3cba30f2e2c4caffb4ac02bb6bd99f91ef0c3e0944996a0befe437b5936aa",
       "note": {
         "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
         "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
@@ -3310,8 +3346,8 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.28.3",
-      "sha256": "bfaffe56a0476c29053a13f3a06c0b360f74a2be667408cd75d7ad7746f8f22d",
+      "version": "1.29.0",
+      "sha256": "902be907ae6726e30058cff03585cdf63d3eaa5c4d0148cf38e83c56991a3575",
       "note": {
         "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
         "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
@@ -3326,8 +3362,8 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.28.3",
-      "sha256": "f9a3c52e3c116a7603e2533bbe124f919f7348227a42e09d079e760794a1edec",
+      "version": "1.29.0",
+      "sha256": "1fe182d50af3bbc2b1546bc5feef394783a555a6983d773a393a25a2d18bfd17",
       "note": {
         "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
         "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
@@ -3558,8 +3594,8 @@
       }
     },
     "langs/en.json": {
-      "version": "1.28.3",
-      "sha256": "e2d7ce39fcbb13793975ac3de0f2c0a042650b9099c220be1b8b78a8a56d2293",
+      "version": "1.29.0",
+      "sha256": "5107f19a85d7a4e531c60c404d5823c47588ef6b9869a51d197a246a8f060029",
       "note": {
         "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
         "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
@@ -3574,8 +3610,8 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.28.3",
-      "sha256": "10e7e7ae800a26ae804b2e5dd3e604271cbec151065b695353b24ff6e1d48c64",
+      "version": "1.29.0",
+      "sha256": "de561482d79e7a7a1b174ad5f2b6ced547cb3cbc9fe25cac9679930081ea829f",
       "note": {
         "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
         "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
@@ -3590,8 +3626,8 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.28.3",
-      "sha256": "f9a3c52e3c116a7603e2533bbe124f919f7348227a42e09d079e760794a1edec",
+      "version": "1.29.0",
+      "sha256": "1fe182d50af3bbc2b1546bc5feef394783a555a6983d773a393a25a2d18bfd17",
       "note": {
         "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
         "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
@@ -3630,11 +3666,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.50.2",
-      "sha256": "d3aa09bf33d7084bc7a98ec16c841a54a1cd48ea4398db501e10f3d188047563",
+      "version": "1.52.0",
+      "sha256": "27e87c46dc2f3070260c1f68a084d57c51b0960022686094ee83d4f4ab4ef435",
       "note": {
-        "ru": "Правило: ход чата и запись шага живут в core, а не в рендере.",
-        "en": "Rule: the chat turn and the step write live in core, not in the renderer."
+        "ru": "Инвентарь базовых файлов: core/signing.py и core/marketplace/attest.py.",
+        "en": "Base-file inventory: core/signing.py and core/marketplace/attest.py."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/connector_creator.md": {
@@ -3843,6 +3879,14 @@
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
+      }
+    },
+    "keys/README.md": {
+      "version": "1.0.0",
+      "sha256": "17fcbf1969b1f28ed2e5c656a793d7937e56b72093e536543691c09af2419f2c",
+      "note": {
+        "ru": "Ключи доверия для подписи обновлений и маркетплейса: генерация пары, подпись и проверка манифестов, порядок ротации ключа. Здесь лежат только открытые половины.",
+        "en": "Trust anchors for update and marketplace signatures: key generation, manifest signing and verification, and the rotation order. Only public halves live here."
       }
     }
   }

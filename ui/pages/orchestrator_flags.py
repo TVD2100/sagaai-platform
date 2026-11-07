@@ -9,15 +9,19 @@ own widget key and its own syncing into the running loop state.
 
 * ``safety_mode`` - ask the user before a dangerous execution;
 * ``injection_protection`` - sanitise external content before it reaches the
-  model.
+  model;
+* ``sandbox`` - run generated code isolated from the machine. It is the only
+  switch that changes HOW a permitted run executes, so it reads the profile
+  stored in the employee settings instead of owning a second definition.
 """
 
-from typing import Tuple
+from typing import Optional, Tuple
 
 #: Default of each switch when the session slot was never written.
 PROTECTION_DEFAULTS = {
     "safety_mode": True,
     "injection_protection": True,
+    "sandbox": True,
 }
 
 PROTECTION_ORDER = ("safety_mode", "injection_protection")
@@ -32,6 +36,8 @@ def toolbar_specs(t, lang: str) -> tuple:
     return (
         ("web_search", t("orch_web_search_label", lang=lang),
          t("orch_web_search_help", lang=lang)),
+        ("sandbox", t("orch_sandbox_toggle_label", lang=lang),
+         t("orch_sandbox_toggle_help", lang=lang)),
         ("safety_mode", t("orch_safety_label", lang=lang),
          t("orch_safety_help", lang=lang)),
         ("injection_protection", t("orch_injection_label", lang=lang),
@@ -47,6 +53,25 @@ def sandbox_profile(read_orchestrator, slug: str) -> str:
     """
     orch = read_orchestrator(slug) or {}
     return str((orch.get("config") or {}).get("sandbox_profile") or "")
+
+
+def effective_sandbox_profile(read_orchestrator, slug: str,
+                              enabled: Optional[bool] = None) -> str:
+    """Return the profile a run of this employee executes under.
+
+    The toolbar checkbox is the switch the user owns; ``None`` means the slot
+    has not been written yet and the switch defaults to on. While it is on,
+    the profile comes from the employee settings, so the checkbox never
+    overrides a deliberate choice of profile. While it is off, the run uses
+    the ``off`` profile: no OS isolation, but the same resource limits and
+    the same built environment, because a runaway child must not be able to
+    take the application down.
+    """
+    from core.sandbox.profiles import OFF
+
+    if enabled is False:
+        return OFF
+    return sandbox_profile(read_orchestrator, slug)
 
 
 def read_protection_flags(read) -> Tuple[bool, bool]:

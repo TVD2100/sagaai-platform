@@ -12,9 +12,7 @@ Metadata is fetched raw by tag, packages come from GitHub Releases
 ``core/updater.py`` makes - so no new dependency is introduced.
 
 ``MarketplaceSource`` accepts an explicit ``base_url`` and an injected
-``urlopen``: tests point it at a local ``http.server`` and never touch the
-network. The domain allowlist applies only to the production URL - a
-``base_url`` given explicitly (local server, ``file://``) is trusted.
+``urlopen``; the domain allowlist applies only to the production URL.
 """
 from __future__ import annotations
 
@@ -26,7 +24,7 @@ import urllib.parse
 import urllib.request
 from typing import Callable, Dict, Optional
 
-from core.marketplace import store
+from core.marketplace import attest, store
 
 DEFAULT_BASE_URL = (
     "https://raw.githubusercontent.com/TVD2100/sagaai-marketplace/main"
@@ -77,12 +75,7 @@ def _is_local(url: str) -> bool:
 
 
 def _mark_stale(payload: dict) -> dict:
-    """Return a copy of a cached index marked as stale.
-
-    The caller served the index because the catalog could not be reached;
-    the flag lets the showcase tell the user the data may be out of date
-    instead of silently presenting an old catalog as current.
-    """
+    """Return a copy of a cached index marked as stale (served offline)."""
     marked = dict(payload)
     marked["stale"] = True
     return marked
@@ -105,10 +98,13 @@ class MarketplaceSource:
         self,
         base_url: Optional[str] = None,
         urlopen: Optional[Callable] = None,
+        channel: Optional[str] = None,
     ):
         self.base_url = (base_url or DEFAULT_BASE_URL).rstrip("/")
         self._urlopen = urlopen or urllib.request.urlopen
         self._enforce_allowlist = base_url is None
+        self.channel = channel
+        self.signatures: Dict[str, dict] = {}
 
     # ── URL helpers ───────────────────────────────────────────────────
 
@@ -197,9 +193,8 @@ class MarketplaceSource:
         """Return the catalog index, using a conditional GET.
 
         ``force=True`` sends no validators. Otherwise the cached ``ETag`` /
-        ``Last-Modified`` go out, and a ``304`` keeps the cached payload.
-        A transport failure falls back to the cache so the section still
-        renders offline with a staleness marker.
+        ``Last-Modified`` go out, and a ``304`` keeps the cached payload. A
+        transport failure falls back to the cache with a staleness marker.
         """
         cache = self._load_cached_index()
         cached_index = cache.get("index") if isinstance(cache.get("index"), dict) else None
@@ -250,6 +245,7 @@ class MarketplaceSource:
                 {"url": url},
             )
 
+        self.signatures["index.json"] = attest.check_manifest(self.fetch_bytes, "index.json", raw, payload, self.channel)
         etag = None
         last_modified = None
         get_header = getattr(response, "headers", None)
@@ -289,8 +285,9 @@ class MarketplaceSource:
         """
         tag = version or "latest"
         cache_path = self._entity_cache_path(type_, id_, tag)
+        relative = f"{type_folder(type_)}/{id_}/{tag}/entity.json"
         try:
-            raw = self.fetch_bytes(f"{type_folder(type_)}/{id_}/{tag}/entity.json")
+            raw = self.fetch_bytes(relative)
         except SourceError:
             cached = store.read_json(cache_path, default=None)
             if isinstance(cached, dict):
@@ -311,6 +308,7 @@ class MarketplaceSource:
                 "Entity manifest must be a JSON object",
                 {"type": type_, "id": id_, "version": tag},
             )
+        self.signatures[relative] = attest.check_manifest(self.fetch_bytes, relative, raw, payload, self.channel)
         try:
             store.atomic_write_json(cache_path, payload)
         except OSError:
@@ -398,18 +396,20 @@ class MarketplaceSource:
 def default_source(base_url: Optional[str] = None) -> MarketplaceSource:
     """Return a source bound to the configured or production catalog.
 
-    ``marketplace.base_url`` from the config wins; an empty value keeps the
-    production repository. Tests pass their own ``base_url`` instead of
-    relying on this helper.
+    ``marketplace.base_url`` and ``marketplace.channel`` from the config win;
+    the channel decides the signature policy.
     """
-    if base_url:
-        return MarketplaceSource(base_url)
-    try:
-        from core.marketplace import config as marketplace_config
+    settings: dict = {}
+    if not base_url:
+        try:
+            from core.marketplace import config as marketplace_config
 
-        configured = str(marketplace_config.marketplace_settings().get("base_url") or "").strip()
-    except Exception:
-        configured = ""
-    return MarketplaceSource(configured or None)
+            settings = dict(marketplace_config.marketplace_settings() or {})
+        except Exception:  # noqa: BLE001 - the production catalog still works
+            settings = {}
+    configured = str(settings.get("base_url") or "").strip()
+    return MarketplaceSource(base_url or configured or None, channel=settings.get("channel"))
+
+
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

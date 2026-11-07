@@ -51,6 +51,14 @@ def _checkbox_by_key(st, key):
     return None
 
 
+def _checkbox_label(st, key):
+    """Return the label of a checkbox; the mock records it positionally."""
+    for name, args, kwargs in st.calls:
+        if name == "checkbox" and kwargs.get("key") == key:
+            return str(args[0]) if args else ""
+    return ""
+
+
 def _orch_dict(slug="custom1", config=None):
     """Build a minimal orchestrator dict; config is merged over the base."""
     cfg = {"strong_service": "DeepSeek", "strong_model": "m1"}
@@ -141,15 +149,119 @@ def test_checkbox_values_come_from_saved_config(ui_env, monkeypatch):
 
 
 def test_checkbox_defaults_without_saved_config(ui_env, monkeypatch):
-    """Without saved prefs the defaults are: web off, safety on."""
+    """Without saved prefs the defaults are: web off, safety on, sandbox on."""
     slug = "custom1"
     _render_chat(ui_env, monkeypatch, slug, _orch_dict(slug=slug))
 
     ws = _checkbox_by_key(ui_env, f"orch_{slug}_web_search")
     safety = _checkbox_by_key(ui_env, f"orch_{slug}_safety_mode")
+    sandbox = _checkbox_by_key(ui_env, f"orch_{slug}_sandbox")
     assert ws is not None and ws["value"] is False
     assert safety is not None and safety["value"] is True
+    # Isolation is ON by default: switching it off is a deliberate act.
+    assert sandbox is not None and sandbox["value"] is True
     assert _checkbox_by_key(ui_env, f"orch_{slug}_economy_mode") is None
+
+
+def test_sandbox_checkbox_carries_a_real_tooltip(ui_env, monkeypatch):
+    """The sandbox switch explains itself and where the other modes live."""
+    slug = "custom1"
+    _render_chat(ui_env, monkeypatch, slug, _orch_dict(slug=slug))
+
+    sandbox = _checkbox_by_key(ui_env, f"orch_{slug}_sandbox")
+    assert sandbox is not None
+    label = _checkbox_label(ui_env, f"orch_{slug}_sandbox")
+    assert label, "the sandbox checkbox has no label"
+    help_text = str(sandbox.get("help") or "")
+    assert help_text, "the sandbox checkbox has no tooltip"
+    # The tooltip names the settings section that holds the other modes.
+    from core.i18n import t
+
+    assert help_text == t("orch_sandbox_toggle_help", lang="English")
+    assert "Settings" in help_text
+
+
+def test_a_saved_sandbox_choice_is_restored(ui_env, monkeypatch):
+    """A cleared checkbox in the config must come back cleared."""
+    slug = "custom1"
+    orch = _orch_dict(slug=slug, config={"chat_sandbox": False})
+    _render_chat(ui_env, monkeypatch, slug, orch)
+
+    sandbox = _checkbox_by_key(ui_env, f"orch_{slug}_sandbox")
+
+    assert sandbox is not None and sandbox["value"] is False
+    assert ui_env.session_state[f"orch_{slug}_sandbox"] is False
+
+
+# ─── the switch reaches the tool dispatcher ──────────────────────────────────
+
+
+def _dispatcher_for(ui_env, monkeypatch, slug, orch_dict):
+    """Render the page, then build the dispatcher of this employee.
+
+    The dispatcher is created on demand by the send path, so the test asks
+    for it explicitly - that is exactly what the loop does before a run.
+    """
+    import ui.pages.orchestrator as orch_page
+
+    _render_chat(ui_env, monkeypatch, slug, orch_dict)
+    return orch_page, orch_page._make_dispatcher(slug)
+
+
+def test_a_cleared_checkbox_puts_the_dispatcher_into_off_mode(ui_env, monkeypatch):
+    """Clearing the toolbar switch must actually disable the isolation.
+
+    Given an employee with a sandbox profile saved,
+    when  the toolbar switch is off in the session,
+    then  the dispatcher of the running dialog executes under ``off``,
+    and   turning the switch back on restores the saved profile.
+    """
+    from core.sandbox.profiles import OFF
+
+    slug = "custom1"
+    orch = _orch_dict(slug=slug, config={"sandbox_profile": "read_only"})
+    ui_env.session_state[f"orch_{slug}_sandbox"] = False
+
+    orch_page, dispatcher = _dispatcher_for(ui_env, monkeypatch, slug, orch)
+
+    assert dispatcher.core._sandbox_profile == OFF
+
+    # Switching isolation back on restores the employee's own profile.
+    ui_env.session_state[f"orch_{slug}_sandbox"] = True
+    orch_page._make_dispatcher(slug)
+
+    assert dispatcher.core._sandbox_profile == "read_only"
+
+
+def test_the_saved_profile_is_used_while_the_switch_is_on(ui_env, monkeypatch):
+    """The checkbox never overrides a deliberate profile choice."""
+    slug = "custom1"
+    orch = _orch_dict(slug=slug, config={"sandbox_profile": "network"})
+
+    _, dispatcher = _dispatcher_for(ui_env, monkeypatch, slug, orch)
+
+    assert dispatcher.core._sandbox_profile == "network"
+
+
+def test_the_sandbox_pref_persists_like_the_other_switches(ui_env, monkeypatch):
+    """_save_chat_pref writes chat_sandbox and keeps unrelated keys."""
+    import ui.pages.orchestrator as orch_page
+
+    orch = {"slug": "custom1", "name": "Custom", "config": {
+        "strong_service": "DeepSeek", "strong_model": "m1",
+    }}
+    monkeypatch.setattr(orch_page, "get_orchestrator",
+                        lambda s: orch if s == "custom1" else None)
+    saved = {}
+    monkeypatch.setattr(orch_page, "save_orchestrator",
+                        lambda slug, config=None, **kw: (
+                            saved.update({"config": dict(config or {})}), True)[-1])
+
+    ok = orch_page._save_chat_pref("custom1", "sandbox", False)
+
+    assert ok is True
+    assert saved["config"]["chat_sandbox"] is False
+    assert saved["config"]["strong_service"] == "DeepSeek"
 
 
 def test_toolbar_renders_once_without_bottom_duplicates(ui_env, monkeypatch):

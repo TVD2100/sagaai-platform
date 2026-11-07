@@ -11,11 +11,9 @@ Three independent checks live here:
 
 A package that fails any check never reaches the skills library: the
 installer calls these functions while the package is still in staging.
-
-``verify_signature`` is a deliberate stub: the manifest already carries
-``signature``/``key_id`` fields and ``keys/`` exists, so enabling Ed25519
-later is a change of one function body rather than a breaking format
-change.
+``verify_signature`` and ``install_gate`` forward to
+:mod:`core.marketplace.attest`, which owns the keyring, the channel policy
+and the ``.sig`` sidecar format.
 """
 from __future__ import annotations
 
@@ -25,7 +23,7 @@ import tarfile
 import unicodedata
 from typing import Dict, Iterable, List, Optional, Set
 
-from core.marketplace import registry, store
+from core.marketplace import attest, registry, store
 
 # Limits (D-15). A skill package is tens of kilobytes; these bounds exist to
 # stop a hostile archive from exhausting disk or memory during unpacking.
@@ -280,40 +278,40 @@ def verify_files(staging: str, files: Dict[str, str]) -> List[str]:
     return mismatched
 
 
-def verify_signature(
-    entity: dict,
-    raw_index: Optional[bytes] = None,
-    key_dir: Optional[str] = None,
-) -> dict:
-    """Verify the catalog signature of an entity manifest.
+def signature_keyring(key_dir: Optional[str] = None) -> str:
+    """Return the folder of public keys the marketplace trusts."""
+    return attest.signature_keyring(key_dir)
 
-    Signature verification (Ed25519 over canonical JSON) is not part of this
-    slice. When ``marketplace.require_signature`` is false - the default -
-    the check passes and reports ``verified: False, enforced: False`` so the
-    caller can record the state. When the flag is true the call fails with
-    ``signature_not_implemented`` instead of silently accepting an unsigned
-    package: a configuration that demands signatures must not be satisfied
-    by a stub. ``keys/`` holds the trust anchors once signing lands.
+
+def _forward(name: str, entity: dict, **kwargs) -> dict:
+    """Call the ``attest`` counterpart and re-raise its refusal as ours.
+
+    ``attest`` imports ``VerifyError`` by name at call time, so after a
+    reload the raised object may belong to another copy of this module and
+    would slip past a caller's ``except VerifyError``; the refusal is
+    rebuilt here against this module's class.
     """
-    required = False
     try:
-        from core.marketplace import config as marketplace_config
+        return getattr(attest, name)(entity, **kwargs)
+    except VerifyError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - normalised to this module's class
+        raise VerifyError(str(getattr(exc, "code", "signature_required")),
+                          str(getattr(exc, "message", exc)),
+                          dict(getattr(exc, "details", {}) or {})) from None
 
-        required = bool(marketplace_config.marketplace_settings().get("require_signature"))
-    except Exception:
-        required = False
-    if required:
-        raise VerifyError(
-            "signature_not_implemented",
-            "Signature verification is enabled but not implemented in this build",
-            {"id": entity.get("id"), "key_id": entity.get("key_id")},
-        )
-    return {
-        "verified": False,
-        "enforced": False,
-        "key_id": entity.get("key_id"),
-        "reason": "signature verification is not implemented in this slice",
-    }
+
+def verify_signature(entity: dict, raw_index: Optional[bytes] = None, key_dir: Optional[str] = None,
+                     signature: Optional[dict] = None, raw_entity: Optional[bytes] = None,
+                     channel: Optional[str] = None) -> dict:
+    """Verify the catalog signature of an entity manifest."""
+    return _forward("verify_signature", entity, raw_index=raw_index, key_dir=key_dir,
+                    signature=signature, raw_entity=raw_entity, channel=channel)
+
+
+def install_gate(entity: dict, source=None, channel: Optional[str] = None) -> dict:
+    """Refuse an install whose manifest lacks a trusted signature."""
+    return _forward("install_gate", entity, source=source, channel=channel)
 
 
 def is_code_path(rel_path: str) -> bool:

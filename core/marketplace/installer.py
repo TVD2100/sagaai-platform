@@ -3,7 +3,7 @@ core.marketplace.installer - skill installation with a full rollback path.
 
 A run follows a fixed order (D-07):
 
-  1. platform compatibility check
+  1. signature gate, platform compatibility check
   2. runtime folder selection
   3. package download and sha256 verification
   4. archive validation and unpacking into staging
@@ -15,10 +15,9 @@ A run follows a fixed order (D-07):
   9. ``marketplace_installed`` row written LAST, inside its own session
  10. staging cleanup and the run log entry
 
-Any failure between 4 and 9 triggers the same rollback the user-facing
-undo uses: files restored from the backup, the created folder removed, the
-``skills.json`` copy restored byte-for-byte and no registry row left
-behind.
+A failure between 4 and 9 triggers the rollback the undo uses: files
+restored, the created folder removed, ``skills.json`` restored and no
+registry row left behind.
 
 The installer never talks to the network directly - it asks a
 ``MarketplaceSource`` for the package, and tests inject their own source.
@@ -29,8 +28,8 @@ import os
 import shutil
 from typing import Dict, List, Optional, Tuple
 
+from core.marketplace import attest, registry, rollback, store, verify
 from core.marketplace import config as marketplace_config
-from core.marketplace import registry, rollback, store, verify
 from core.marketplace import source as source_mod
 
 
@@ -460,13 +459,11 @@ def install_skill(
     Parameters:
         entity: parsed ``entity.json`` of the skill.
         channel: release channel name recorded on the registry row.
-        allow_code: install ``scripts/*`` files; ``None`` reads the setting.
-            The default is ``true`` - the catalog holds the owner's own
-            entities (D-12).
+        allow_code: install ``scripts/*`` files; ``None`` reads the setting
+            (default ``true``: the catalog holds the owner's own entities).
         source: catalog transport; tests inject their own, production
             callers leave it ``None`` to use the configured catalog.
-        accept_license: explicit licence acceptance for entities that
-            require it.
+        accept_license: explicit licence acceptance when the entity needs it.
 
     Re-installing the same version is a no-op: the existing row keeps its
     ``installed_at``, no second folder appears and the run log does not
@@ -567,14 +564,17 @@ def install_entity(
 ) -> dict:
     """Install any catalog entity, dispatching on its type.
 
-    The showcase calls this one function for every card, so the page never
-    has to know which installer handles which type. Skills keep their
-    original ``install_skill`` behaviour; an agent goes through
-    :mod:`core.marketplace.agent_installer`, a base through
-    :mod:`core.marketplace.rag_installer` and an MCP server through
+    The showcase calls this for every card, so the page never has to know
+    which installer handles which type: skills go to ``install_skill``, an
+    agent to :mod:`core.marketplace.agent_installer`, a base to
+    :mod:`core.marketplace.rag_installer`, an MCP server to
     :mod:`core.marketplace.mcp_installer`.
     """
     type_ = str((entity or {}).get("type") or "skill").strip()
+    try:
+        attest.install_gate(entity, source=source, channel=channel)
+    except verify.VerifyError as exc:
+        raise InstallError(exc.code, exc.message, exc.details or {}) from exc
     if type_ == "skill":
         return install_skill(
             entity,

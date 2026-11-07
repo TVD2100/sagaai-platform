@@ -30,6 +30,7 @@ import argparse
 import inspect
 import json
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -95,7 +96,10 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", help="semver of the version being published")
     parser.add_argument("--path", help="folder that holds the entity files")
     parser.add_argument("--manifest", default="", help="descriptive entity.json")
-    parser.add_argument("--key-id", default="sagaai-marketplace-2026")
+    parser.add_argument("--key-id", default="",
+                        help="accepted for compatibility; the id comes from the key")
+    parser.add_argument("--public-key", default="",
+                        help="keyring folder or PEM file used by --verify-only")
     parser.add_argument("--sign-key", default="", help="Ed25519 private key (PEM)")
     parser.add_argument("--channel", default="main", help="channel recorded in the index")
     parser.add_argument("--init-key", action="store_true",
@@ -126,6 +130,31 @@ def _report_text(report: dict) -> str:
     return "\n".join(lines)
 
 
+_IMPORT_BLOCK_RE = re.compile(
+    r"^from core\.signing import \(.*?^\)\n", re.MULTILINE | re.DOTALL
+)
+
+
+def _read_source(path: str) -> str:
+    """Return the text of *path*."""
+    with open(path, "r", encoding="utf-8") as handle:
+        return handle.read()
+
+
+def _strip_module(text: str) -> str:
+    """Drop the module docstring, licence trailer and future import.
+
+    The standalone copy carries one header and one footer of its own, and a
+    ``from __future__`` line is only valid at the very top of a file - pasted
+    further down it is a syntax error.
+    """
+    text = text.split("# SPDX-FileCopyrightText")[0].rstrip()
+    first = text.index('"""')
+    second = text.index('"""', first + 3)
+    body = text[second + 3:].lstrip("\n")
+    return body.replace("from __future__ import annotations\n", "", 1).lstrip("\n")
+
+
 def export_standalone(destination: str) -> dict:
     """Write a copy of this publisher that does not import the platform.
 
@@ -134,19 +163,13 @@ def export_standalone(destination: str) -> dict:
     sliced by markers: a function may contain any text, and only its real
     source is what the catalog needs. Returns ``{"path", "bytes", "sha256"}``.
     """
-    core_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        "core", "marketplace", "publish.py",
-    )
-    with open(core_path, "r", encoding="utf-8") as handle:
-        library = handle.read()
-    # Drop the module docstring and the licence trailer of the library; the
-    # standalone copy carries its own header and footer.
-    library = library.split("# SPDX-FileCopyrightText")[0].rstrip()
-    first = library.index('"""')
-    second = library.index('"""', first + 3)
-    body = library[second + 3:].lstrip("\n")
-    body = body.replace("from __future__ import annotations\n", "", 1).lstrip("\n")
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    library = _strip_module(_read_source(os.path.join(here, "core", "marketplace", "publish.py")))
+    # The signing primitives live in ``core.signing``; the catalog copy has no
+    # platform next to it, so their body is pasted in ahead of the publisher.
+    signing = _strip_module(_read_source(os.path.join(here, "core", "signing.py")))
+    library = _IMPORT_BLOCK_RE.sub("", library, count=1)
+    body = signing + "\n\n" + library
 
     pieces = [inspect.getsource(func).rstrip()
               for func in (_read_manifest, _build_parser, _report_text, _run, main)]
@@ -204,15 +227,24 @@ def _run(args) -> int:
         return 0
 
     if args.verify_only:
-        public_path = os.path.join(root, "keys", f"{args.key_id}.pub")
-        check = publish_mod.verify_index_signature(root, public_path)
+        # The keyring is the trust anchor: every key in it verifies, so a
+        # rotation keeps the catalog readable under either key.
+        keys_dir = args.public_key or os.path.join(root, "keys")
+        check = publish_mod.verify_index_signature(root, keys_dir)
         print(json.dumps(check, ensure_ascii=False, indent=2))
         return 0 if check.get("ok") else 1
 
     if args.init_key:
         private_path = args.private_key or os.path.expanduser("~/.sagaai/marketplace.pem")
-        public_path = os.path.join(root, "keys", f"{args.key_id}.pub")
-        report = publish_mod.generate_keypair(private_path, public_path, args.key_id)
+        keys_dir = os.path.join(root, "keys")
+        os.makedirs(keys_dir, exist_ok=True)
+        staging = os.path.join(keys_dir, ".pending.pub")
+        report = publish_mod.generate_keypair(private_path, staging)
+        # The public half is named after the key it holds, so the file name and
+        # the signature record can never disagree.
+        public_path = os.path.join(keys_dir, f"{report['key_id']}.pub")
+        os.replace(staging, public_path)
+        report["public_path"] = public_path
         print(json.dumps(report, ensure_ascii=False, indent=2))
         print("Keep the private key out of the repository.", file=sys.stderr)
         return 0

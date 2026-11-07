@@ -75,6 +75,13 @@ class SandboxProfile:
     isolation: str
     network: bool = False
     writable: bool = False
+    #: Strongest isolation this profile may be executed under. Empty means
+    #: the profile accepts anything that reaches ``isolation``. A profile
+    #: that exists to run code WITHOUT isolation sets it below the levels a
+    #: stronger provider could supply - otherwise the strongest available
+    #: backend would be picked and the profile would quietly gain a
+    #: guarantee it was never meant to have.
+    max_isolation: str = ""
     description: str = ""
     #: Capabilities a provider must declare to honour this profile. The
     #: isolation level alone is not enough: a provider can be at 'os' and
@@ -88,6 +95,7 @@ class SandboxProfile:
         return {
             "name": self.name,
             "isolation": self.isolation,
+            "max_isolation": self.max_isolation,
             "network": self.network,
             "writable": self.writable,
             "requires": list(self.requires),

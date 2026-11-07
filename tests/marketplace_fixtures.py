@@ -347,7 +347,10 @@ def serve_catalog(tmp_path):
         handler = lambda *args, **kwargs: _QuietHandler(  # noqa: E731
             *args, directory=str(directory), **kwargs
         )
-        httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        try:
+            httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        except PermissionError as exc:
+            pytest.skip(f"loopback sockets are not permitted here: {exc}")
         thread = threading.Thread(target=httpd.serve_forever, daemon=True)
         thread.start()
         servers.append((httpd, thread))

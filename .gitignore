@@ -19,6 +19,7 @@
 /personal/
 /connectors/
 /agents_data/
+/.marketplace/
 
 # DevAgent workspace artifacts (repo root)
 /.dev_agent/
@@ -41,6 +42,12 @@ dist/
 # Secrets / environment
 .env
 .env.*
+
+# Signing keys: only the public halves in keys/ are ever committed
+*.pem
+!keys/*.pem
+keys/private/
+keys/*.key
 
 # DevAgent task-state journals (runtime)
 /dev_agent/task_states/

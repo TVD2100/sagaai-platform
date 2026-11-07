@@ -222,21 +222,138 @@ class TestCodePathDetection:
         assert verify.is_code_path(rel_path) is expected
 
 
-class TestSignatureStub:
-    def test_not_enforced_by_default(self, marketplace_data_dir):
-        result = verify.verify_signature({"id": "demo", "key_id": "k1"})
-        assert result["verified"] is False
-        assert result["enforced"] is False
-        assert result["key_id"] == "k1"
-
-    def test_required_but_unimplemented_fails_loudly(self, marketplace_data_dir):
+class TestSignatureCheck:
+    def _signed(self, tmp_path, monkeypatch, payload: bytes, key_name="k"):
+        """Sign *payload* with a fresh key and install it as the keyring."""
+        from core import signing
         from core.marketplace import config as marketplace_config
 
-        marketplace_config.save_settings(require_signature=True)
+        keys = tmp_path / "keys"
+        keys.mkdir(parents=True, exist_ok=True)
+        private = tmp_path / f"{key_name}.pem"
+        public = keys / f"{key_name}.pub"
+        signing.generate_keypair(str(private), str(public))
+        record = signing.sign_bytes(payload, signing.load_private_key(str(private)))
+        settings = {"enabled": True, "base_url": "", "allow_code": True,
+                    "require_signature": False, "channel": "main",
+                    "signature_keyring": str(keys)}
+        monkeypatch.setattr(
+            marketplace_config, "marketplace_settings", lambda: dict(settings)
+        )
+        return record, settings, keys
+
+    def test_unsigned_is_not_verified_but_tolerated_on_a_warning_channel(
+        self, tmp_path, monkeypatch
+    ):
+        _, _, _ = self._signed(tmp_path, monkeypatch, b'{"id": "demo"}')
+
+        result = verify.verify_signature(
+            {"id": "demo"}, raw_entity=b'{"id": "demo"}', signature=None
+        )
+
+        assert result["verified"] is False
+        assert result["enforced"] is False
+        assert result["reason"] == "signature_missing"
+        assert result["policy"] == "warn"
+
+    def test_a_signed_manifest_verifies(self, tmp_path, monkeypatch):
+        payload = b'{"id": "demo", "version": "1.0.0"}'
+        record, _, keys = self._signed(tmp_path, monkeypatch, payload)
+
+        result = verify.verify_signature(
+            {"id": "demo"}, raw_entity=payload, signature=record, key_dir=str(keys)
+        )
+
+        assert result["verified"] is True
+        assert result["key_id"] == record["key_id"]
+
+    def test_an_edited_manifest_is_refused(self, tmp_path, monkeypatch):
+        payload = b'{"id": "demo", "version": "1.0.0"}'
+        record, _, keys = self._signed(tmp_path, monkeypatch, payload)
+
+        result = verify.verify_signature(
+            {"id": "demo"},
+            raw_entity=b'{"id": "demo", "version": "9.9.9"}',
+            signature=record,
+            key_dir=str(keys),
+        )
+
+        assert result["verified"] is False
+        assert result["reason"] == "signature_invalid"
+
+    def test_requiring_signatures_turns_a_failure_into_an_error(
+        self, tmp_path, monkeypatch
+    ):
+        record, settings, keys = self._signed(tmp_path, monkeypatch, b'{"id": "demo"}')
+        settings["require_signature"] = True
+
         with pytest.raises(verify.VerifyError) as excinfo:
-            verify.verify_signature({"id": "demo"})
-        # A configuration that demands signatures must not be satisfied by
-        # a stub that silently accepts everything.
-        assert excinfo.value.code == "signature_not_implemented"
+            verify.verify_signature(
+                {"id": "demo"}, raw_entity=b'{"id": "other"}',
+                signature=record, key_dir=str(keys),
+            )
+
+        assert excinfo.value.code == "signature_required"
+
+    def test_an_untrusted_key_is_refused(self, tmp_path, monkeypatch):
+        payload = b'{"id": "demo"}'
+        record, _, _ = self._signed(tmp_path, monkeypatch, payload)
+        other = tmp_path / "other"
+        other.mkdir()
+        from core import signing
+
+        signing.generate_keypair(str(tmp_path / "x.pem"), str(other / "x.pub"))
+
+        result = verify.verify_signature(
+            {"id": "demo"}, raw_entity=payload, signature=record, key_dir=str(other)
+        )
+
+        assert result["verified"] is False
+        assert result["reason"] == "unknown_key_id"
+
+    def test_the_keyring_defaults_to_the_installation_keys(self, tmp_path, monkeypatch):
+        from core.marketplace import config as marketplace_config
+
+        monkeypatch.setattr(
+            marketplace_config, "marketplace_settings",
+            lambda: {"signature_keyring": ""},
+        )
+
+        path = verify.signature_keyring()
+
+        assert path.endswith(os.path.join("sagaai_github_clean_copy", "keys")) or os.path.basename(path) == "keys"
+
+    def test_a_configured_keyring_wins(self, tmp_path, monkeypatch):
+        from core.marketplace import config as marketplace_config
+
+        monkeypatch.setattr(
+            marketplace_config, "marketplace_settings",
+            lambda: {"signature_keyring": str(tmp_path / "trusted")},
+        )
+
+        assert verify.signature_keyring() == str(tmp_path / "trusted")
+
+    def test_the_refusal_belongs_to_the_calling_module(
+        self, tmp_path, monkeypatch
+    ):
+        """A refusal raised through ``verify`` is a ``verify.VerifyError``.
+
+        The policy layer imports the exception class by name when it raises,
+        so a reloaded package would otherwise hand the caller an object from
+        another copy of this module and ``except VerifyError`` would miss it.
+        """
+        record, settings, keys = self._signed(tmp_path, monkeypatch, b'{"id": "demo"}')
+        settings["require_signature"] = True
+
+        with pytest.raises(verify.VerifyError) as excinfo:
+            verify.verify_signature(
+                {"id": "demo"}, raw_entity=b'{"id": "other"}',
+                signature=record, key_dir=str(keys),
+            )
+
+        assert excinfo.value.code == "signature_required"
+        assert excinfo.value.details.get("reason") == "signature_invalid"
+
+
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

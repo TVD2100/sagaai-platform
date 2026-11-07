@@ -34,6 +34,17 @@ import tarfile
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
+from core.signing import (
+    SIGNING_KEY_ENV,
+    SigningError,
+    generate_keypair,  # noqa: F401 - part of the publisher's public surface
+    key_id_of,
+    key_id_of_private,  # noqa: F401 - used by the CLI to name the key file
+    load_public_key,
+    verify_file,
+    write_signature,
+)
+
 #: Index schema written by :func:`rebuild_index`.
 INDEX_SCHEMA = "sagaai.marketplace.index/1"
 
@@ -95,19 +106,6 @@ def _now_iso() -> str:
 def sha256_bytes(data: bytes) -> str:
     """Return the hex sha256 of *data*."""
     return hashlib.sha256(data).hexdigest()
-
-
-def canonical_json(payload) -> bytes:
-    """Return the canonical JSON encoding of *payload*.
-
-    Sorted keys, no insignificant whitespace, UTF-8 without ASCII escaping.
-    A signature is computed over exactly these bytes, so the platform must be
-    able to reproduce them from the parsed document - which is why the
-    encoding is fixed here instead of using ``json.dumps`` defaults.
-    """
-    return json.dumps(
-        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
-    ).encode("utf-8")
 
 
 #: Agent kinds a publisher may ship. An agent entity is either an
@@ -298,6 +296,57 @@ def _write_json(path: str, payload: dict) -> None:
         handle.write("\n")
 
 
+def _check_republish(
+    target: str,
+    manifest_path: str,
+    package_path: str,
+    extra: Dict[str, bytes],
+    full: dict,
+    package: bytes,
+    entity_id: str,
+    version: str,
+) -> bool:
+    """Return True when the version must be written, refuse a content change.
+
+    Identical bytes are a no-op; the same version with other content is
+    refused, because a client that pinned it would receive unreviewed bytes.
+    """
+    if not os.path.isfile(manifest_path):
+        return True
+    existing_package = b""
+    if os.path.isfile(package_path):
+        with open(package_path, "rb") as handle:
+            existing_package = handle.read()
+    same_extra = True
+    for name, payload in extra.items():
+        existing_extra = os.path.join(target, name)
+        if not os.path.isfile(existing_extra):
+            same_extra = False
+            break
+        with open(existing_extra, "rb") as handle:
+            if handle.read() != payload:
+                same_extra = False
+                break
+    if _read_json(manifest_path) == full and existing_package == package and same_extra:
+        return False
+    raise PublishError(
+        "version_exists",
+        f"Version {version} of '{entity_id}' is already published with other content",
+        {"id": entity_id, "version": version},
+    )
+
+
+def _maybe_sign(path: str, private_key_path: Optional[str]) -> None:
+    """Sign *path* when a key is configured; leave it alone otherwise.
+
+    ``publish_entity`` is also called by tooling that only rewrites a tree
+    (a rebuild, a migration); such a caller has no key and must not be forced
+    to have one. The publishing entry point itself has no such choice.
+    """
+    if private_key_path or os.environ.get(SIGNING_KEY_ENV, "").strip():
+        sign_manifest(path, private_key_path)
+
+
 def publish_entity(
     root: str,
     entity_folder: Optional[str],
@@ -305,19 +354,20 @@ def publish_entity(
     *,
     package_name: str = "package.tar.gz",
     extra_files: Optional[Dict[str, bytes]] = None,
+    private_key_path: Optional[str] = None,
 ) -> dict:
     """Publish one version of an entity into a catalog tree.
 
-    The package and its manifest are written once, into the versioned folder;
-    ``latest/entity.json`` is then refreshed to point at the newest version.
-    Publishing the same version twice with the same content is a no-op, and
-    with different content it is refused: a published version never changes
-    under a client that pinned it.
+    The package and its manifest are written once into the versioned folder;
+    ``latest/entity.json`` is then refreshed. Re-publishing the same version
+    with the same content is a no-op, with other content it is refused: a
+    published version never changes under a client that pinned it.
 
     *entity_folder* may be ``None`` for an entity that ships no files (an MCP
-    server is a preset, nothing else): its manifest then carries neither
-    ``files`` nor ``package``, which is exactly what the installer expects -
-    a package block the catalog cannot serve would be a promise it breaks.
+    server is a preset): its manifest then carries neither ``files`` nor
+    ``package``, which is what the installer expects - a package block the
+    catalog cannot serve would be a promise it breaks. *private_key_path*
+    signs the manifest and the refreshed pointer.
 
     Returns a report with ``type``, ``id``, ``version``, ``path``,
     ``package_sha256`` and ``changed``.
@@ -367,32 +417,9 @@ def publish_entity(
         full["distribution"] = distribution
 
     package_path = os.path.join(target, package_name)
-    changed = True
-    if os.path.isfile(manifest_path):
-        existing_manifest = _read_json(manifest_path)
-        existing_package = b""
-        if os.path.isfile(package_path):
-            with open(package_path, "rb") as handle:
-                existing_package = handle.read()
-        same_extra = True
-        for name, payload in extra.items():
-            existing_extra = os.path.join(target, name)
-            if not os.path.isfile(existing_extra):
-                same_extra = False
-                break
-            with open(existing_extra, "rb") as handle:
-                if handle.read() != payload:
-                    same_extra = False
-                    break
-        if (existing_manifest is not None and existing_manifest == full
-                and existing_package == package and same_extra):
-            changed = False
-        else:
-            raise PublishError(
-                "version_exists",
-                f"Version {version} of '{entity_id}' is already published with other content",
-                {"id": entity_id, "version": version},
-            )
+    changed = _check_republish(
+        target, manifest_path, package_path, extra, full, package, entity_id, version
+    )
     if changed:
         os.makedirs(target, exist_ok=True)
         if package:
@@ -402,8 +429,9 @@ def publish_entity(
             with open(os.path.join(target, name), "wb") as handle:
                 handle.write(payload)
         _write_json(manifest_path, full)
+        _maybe_sign(manifest_path, private_key_path)
 
-    _refresh_latest(root, type_, entity_id)
+    _refresh_latest(root, type_, entity_id, private_key_path=private_key_path)
     return {
         "ok": True,
         "type": type_,
@@ -434,8 +462,18 @@ def _version_key(version: str) -> tuple:
     return (parts, 0 if pre else 1, pre)
 
 
-def _refresh_latest(root: str, type_: str, entity_id: str) -> Optional[str]:
-    """Point ``<type>/<id>/latest/entity.json`` at the newest version."""
+def _refresh_latest(
+    root: str,
+    type_: str,
+    entity_id: str,
+    *,
+    private_key_path: Optional[str] = None,
+) -> Optional[str]:
+    """Point ``<type>/<id>/latest/entity.json`` at the newest version.
+
+    The pointer is signed when a key is available: it is the file a client
+    fetches to ask for the newest release.
+    """
     versions = list_versions(root, type_, entity_id)
     if not versions:
         return None
@@ -452,6 +490,7 @@ def _refresh_latest(root: str, type_: str, entity_id: str) -> Optional[str]:
         root, type_folder(type_), entity_id, "latest", "entity.json"
     )
     _write_json(latest_path, payload)
+    _maybe_sign(latest_path, private_key_path)
     return newest
 
 
@@ -561,132 +600,89 @@ def rebuild_index(
     return index
 
 
-# ─── Signature ────────────────────────────────────────────────────────────
+# ─── Signature ─────────────────────────────────────────────────────
 
-def _load_signing_key(private_key_path: str):
-    """Return the Ed25519 private key stored at *private_key_path*."""
-    from cryptography.hazmat.primitives import serialization
-
-    try:
-        with open(private_key_path, "rb") as handle:
-            raw = handle.read()
-    except OSError as exc:
-        raise PublishError(
-            "key_missing", f"Signing key not found: {private_key_path}", {"path": private_key_path}
-        ) from exc
-    try:
-        return serialization.load_pem_private_key(raw, password=None)
-    except Exception as exc:
-        raise PublishError(
-            "invalid_key", f"Signing key is not a readable private key: {exc}", {}
-        ) from exc
+def _publish_error(exc) -> "PublishError":
+    """Translate a signing failure into a publish refusal."""
+    return PublishError(
+        str(getattr(exc, "code", "signing_failed")),
+        str(getattr(exc, "message", exc)),
+        dict(getattr(exc, "details", {}) or {}),
+    )
 
 
-def generate_keypair(private_key_path: str, public_key_path: str, key_id: str) -> dict:
-    """Create an Ed25519 key pair and write both halves to disk.
+def resolve_signing_key(private_key_path: Optional[str]) -> Optional[str]:
+    """Return the signing key path, or None when the environment holds it.
 
-    The private key is written with owner-only permissions and never leaves
-    the publisher's machine; the public key is what ships in ``keys/``.
-    Returns ``{"key_id", "public_key", "private_key", "fingerprint"}``.
+    Publishing has no unsigned mode: without a key the run is refused here
+    rather than producing a release nobody can verify.
     """
-    from cryptography.hazmat.primitives import serialization
-    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    source = str(private_key_path or "").strip()
+    if source:
+        return source
+    if os.environ.get(SIGNING_KEY_ENV, "").strip():
+        return None
+    raise PublishError(
+        "signing_key_missing",
+        "Publishing requires the Ed25519 private key: pass --sign-key or set "
+        + SIGNING_KEY_ENV,
+        {},
+    )
 
-    private = Ed25519PrivateKey.generate()
-    private_pem = private.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption(),
-    )
-    public_pem = private.public_key().public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    )
-    os.makedirs(os.path.dirname(os.path.abspath(private_key_path)), exist_ok=True)
-    with open(private_key_path, "wb") as handle:
-        handle.write(private_pem)
+
+def sign_manifest(manifest_path: str, private_key_path: Optional[str] = "") -> dict:
+    """Sign one manifest and drop ``<manifest>.sig`` beside it.
+
+    An entity manifest is signed at publish time, so an installation can tell
+    an entry written by the key holder from one planted in the channel.
+    """
     try:
-        os.chmod(private_key_path, 0o600)
-    except OSError:
-        pass
-    os.makedirs(os.path.dirname(os.path.abspath(public_key_path)), exist_ok=True)
-    with open(public_key_path, "wb") as handle:
-        handle.write(public_pem)
-    return {
-        "key_id": key_id,
-        "public_key": public_key_path,
-        "private_key": private_key_path,
-        "fingerprint": sha256_bytes(public_pem),
-    }
+        return write_signature(manifest_path, private_key_path or None)
+    except SigningError as exc:
+        raise _publish_error(exc) from exc
 
 
-def sign_index(root: str, private_key_path: str, key_id: str) -> dict:
-    """Sign ``index.json`` and write ``index.json.sig``.
+def sign_index(root: str, private_key_path: Optional[str] = "") -> dict:
+    """Sign the bytes of ``index.json`` and write ``index.json.sig``.
 
-    The signature covers the canonical JSON of the whole index, so any change
-    to any entry invalidates it. Returns the signature record that was
-    written.
+    The signature covers the file as stored, so a client verifies the very
+    bytes it downloaded. Returns the record that was written.
     """
     index_path = os.path.join(root, "index.json")
-    payload = _read_json(index_path)
-    if payload is None:
+    if not os.path.isfile(index_path):
         raise PublishError("index_missing", "index.json is missing or unreadable", {})
-    private = _load_signing_key(private_key_path)
-    message = canonical_json(payload)
-    signature = private.sign(message)
-    record = {
-        "schema": "sagaai.marketplace.signature/1",
-        "algorithm": "ed25519",
-        "key_id": str(key_id or ""),
-        "index_sha256": sha256_bytes(message),
-        "signature": signature.hex(),
-        "signed_at": _now_iso(),
-    }
-    _write_json(os.path.join(root, "index.json.sig"), record)
-    return record
+    return sign_manifest(index_path, private_key_path)
 
 
 def verify_index_signature(root: str, public_key_path: str) -> dict:
-    """Check ``index.json.sig`` against ``index.json`` and a public key.
+    """Check ``index.json.sig`` against ``index.json`` and a trusted key.
 
-    Returns ``{"ok": bool, "reason": str}``; a missing signature is reported
-    as ``signature_missing`` instead of raising, so a caller can decide
-    whether an unsigned catalog is acceptable.
+    *public_key_path* may be one PEM file or a keyring folder; a folder trusts
+    every readable key in it, which lets a retiring key and its replacement
+    verify at the same time. A missing signature is reported, not raised.
     """
-    from cryptography.exceptions import InvalidSignature
-    from cryptography.hazmat.primitives import serialization
-    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-
-    record = _read_json(os.path.join(root, "index.json.sig"))
-    payload = _read_json(os.path.join(root, "index.json"))
-    if payload is None:
+    index_path = os.path.join(root, "index.json")
+    if not os.path.isfile(index_path):
         return {"ok": False, "reason": "index_missing"}
-    if record is None:
+    if not os.path.isfile(index_path + ".sig"):
         return {"ok": False, "reason": "signature_missing"}
-    try:
-        with open(public_key_path, "rb") as handle:
-            raw = handle.read()
-        key = serialization.load_pem_public_key(raw)
-        if not isinstance(key, Ed25519PublicKey):
-            return {"ok": False, "reason": "key_is_not_ed25519"}
-    except Exception as exc:
-        return {"ok": False, "reason": f"key_unreadable: {exc}"}
-    message = canonical_json(payload)
-    digest = sha256_bytes(message)
-    if str(record.get("index_sha256") or "") != digest:
-        return {"ok": False, "reason": "index_changed"}
-    try:
-        signature = bytes.fromhex(str(record.get("signature") or ""))
-    except ValueError:
-        return {"ok": False, "reason": "signature_malformed"}
-    try:
-        key.verify(signature, message)
-    except InvalidSignature:
-        return {"ok": False, "reason": "signature_invalid"}
-    return {"ok": True, "reason": "verified", "key_id": record.get("key_id")}
+    path = str(public_key_path or "")
+    key_dir = path if os.path.isdir(path) else None
+    keys = None
+    if key_dir is None:
+        try:
+            key = load_public_key(path)
+        except SigningError:
+            return {"ok": False, "reason": "key_unreadable"}
+        keys = {key_id_of(key): key}
+    result = verify_file(index_path, key_dir=key_dir, keys=keys)
+    reason = str(result.get("reason") or "")
+    if reason == "signature_invalid":
+        reason = "index_changed"
+    return {"ok": bool(result.get("ok")), "reason": reason, "key_id": result.get("key_id")}
 
 
-# ─── One-call publish ─────────────────────────────────────────────────────
+# ─── One-call publish ──────────────────────────────────────────────────
 
 def publish(
     root: str,
@@ -694,27 +690,30 @@ def publish(
     manifest: dict,
     *,
     private_key_path: Optional[str] = None,
-    key_id: str = "sagaai-marketplace-2026",
+    key_id: str = "",
     channel: str = "main",
 ) -> dict:
-    """Publish one entity version and refresh (and optionally sign) the index.
+    """Publish one entity version, sign every manifest and sign the index.
 
-    This is the call ``scripts/publish.py`` makes: write the immutable
-    version, refresh the pointers, rebuild the index, sign it last.
+    The order is the contract: the immutable version is written, its manifest
+    is signed, the pointers are refreshed, the index is rebuilt and signed
+    last. A run without a key is refused before anything is written: an
+    unsigned release looks exactly like a signed one to a client that cannot
+    check it. *key_id* is accepted for compatibility and ignored.
     """
-    report = publish_entity(root, entity_folder, manifest)
+    signing_key = resolve_signing_key(private_key_path)
+    report = publish_entity(root, entity_folder, manifest, private_key_path=signing_key)
     index = rebuild_index(root, channel=channel)
-    signature = None
-    if private_key_path:
-        signature = sign_index(root, private_key_path, key_id)
-    verification = None
-    if private_key_path:
-        public_path = os.path.join(root, "keys", f"{key_id}.pub")
-        if os.path.isfile(public_path):
-            verification = verify_index_signature(root, public_path)
+    index_record = sign_index(root, signing_key)
+    keys_dir = os.path.join(root, "keys")
+    entity_path = os.path.join(root, str(report.get("path") or ""))
+    entity_check = verify_file(entity_path, key_dir=keys_dir) if os.path.isfile(entity_path) else {}
+    index_check = verify_index_signature(root, keys_dir)
     report["index_entities"] = len(index.get("entities") or [])
-    report["signed"] = bool(signature)
-    report["signature_verified"] = bool((verification or {}).get("ok"))
+    report["key_id"] = index_record.get("key_id")
+    report["signed"] = True
+    report["signature_verified"] = bool(entity_check.get("ok"))
+    report["index_signature_verified"] = bool(index_check.get("ok"))
     return report
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-07T15:19:53+00:00`
-- Файлов: **783**
+- Обновлено: `2026-11-07T17:25:39+00:00`
+- Файлов: **792**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **10543**
-- Отпечаток содержимого: `sha256:63d17913a9cc16b0b6efb8dc5d427bd4039af1e44e0b060c358360eaa2ef1be4` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 2, JSON: 36, Markdown: 40, PEM certificate: 1, Python: 704, TOML: 2, Text: 2
+- Python-символов: **10733**
+- Отпечаток содержимого: `sha256:e5dcb4798a81f4b485702b5a1f40c032dc113efc62849c4a6b27aa2d17cbbc6f` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 2, JSON: 36, Markdown: 41, PEM certificate: 1, Python: 712, TOML: 2, Text: 2
 
 ## Файлы и назначение
 
@@ -41,10 +41,10 @@
 | `ui/pages/orchestrator_chat.py` | Python | Chat tab of the orchestrator page: the reading sequence over the section helpers, the confirmation dialogs and the message controls | ui |
 | `ui/pages/orchestrator_chat_input.py` | Python | Chat input area: the toolbar, attachment collection and the token/economy line under the prompt | ui |
 | `ui/pages/orchestrator_feed.py` | Python | Event feed of the chat page: the _EVENT_RENDERERS table, tool call and tool result rendering, the run grouping and the per-message controls | ui |
-| `ui/pages/orchestrator_flags.py` | Python | Settings flags of the orchestrator: safety mode, injection protection and sandbox switches | - |
+| `ui/pages/orchestrator_flags.py` | Python | Settings flags of the orchestrator: safety mode, injection protection, the sandbox switch and the profile a run executes under (off when the switch is cleared) | - |
 | `ui/pages/orchestrator_folder.py` | Python | Workspace folder picker of the chat page: the auto/recent/native menu, the manual path entry and applying a choice to the thread | ui |
 | `ui/pages/orchestrator_loop.py` | Python | Agent step and run tree of the chat page: _do_step split into phases, run registration and stop requests, the subagent status and loop status panels | storage, ui |
-| `ui/pages/orchestrator_sandbox.py` | Python | Settings panel: available providers and which profiles this machine can honour | storage, ui |
+| `ui/pages/orchestrator_sandbox.py` | Python | Settings panel: available providers and which profiles this machine can honour (the profile ceiling included), the profile selector and the live run journal | storage, ui |
 | `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings page: tabbed sections (eleven tabs including Memory), the active tab is kept across reruns and pinned after a save | ui |
 | `ui/pages/orchestrator_settings_delegation.py` | Python | Delegation settings tab: the allowed agents and assistants, the delegation limits and the stale-id display | storage, ui |
 | `ui/pages/orchestrator_settings_models.py` | Python | Model settings tab: strong model, economy tail, prompt settings and the service list | ui |
@@ -152,6 +152,7 @@
 | `core/recent_workspaces.py` | Python | Recent workspaces tracking, scoped per orchestrator (slug-keyed dict seeded from own threads; up to 10 entries with an optional limit; platform paths hidden; legacy flat list read as dev_agent) | storage |
 | `core/render.py` | Python | Markdown rendering / clipboard helpers | - |
 | `core/services.py` | Python | Service definitions discovery (services/*.json, defaults win) plus capability catalogs: reasoning-effort options (service-wide and per-model), embedding/rag models, vision and image-generation models and the URL-fetch models (get_fetch_models / svc_supports_fetch); a profile without fetch_models does not support provider-side fetching | - |
+| `core/signing.py` | Python | Detached Ed25519 signatures over raw bytes: key id derived from the public key, keyring loaded from a folder of PEM files, sign_bytes/verify_bytes, write_signature/verify_file, channel policy (stable refuses, a development channel warns) and a journal of decisions; imports nothing from core, so the standalone catalog publisher reuses it | - |
 | `core/skills.py` | Python | DEPRECATED shim -> core/assistants.py (legacy aliases) | - |
 | `core/skills_library.py` | Python | Standardized skills library: registry skills.json, ZIP/GitHub/folder imports, metadata for orchestrator system prompts | - |
 | `core/ssh_connector.py` | Python | SSH/SFTP service layer for the ssh connector (paramiko, lazy import) | - |
@@ -161,7 +162,7 @@
 | `core/threads.py` | Python | Chat thread persistence for assistants | storage |
 | `core/threads_devagent.py` | Python | DevAgent/orchestrator thread persistence (devagent.db) and the thread-search service layer (search_thread_messages, list_threads_filtered, read_thread_window) with access control; thread workspace meta (last folder) and the legacy-meta cleanup migration; read_thread_file extracts attachment text of binary documents through core.document_text | storage |
 | `core/tools_utils.py` | Python | Tool definitions list for the Skills/Assistants pages; RAG tool descriptions carry the per-base search mode | - |
-| `core/updater.py` | Python | _(описание не задано)_ | - |
+| `core/updater.py` | Python | Update pipeline: fetch_manifest, check_updates, stage_updates, apply_updates, rollback_updates; every release manifest is verified against a detached Ed25519 signature and the keyring before its payload is trusted | - |
 | `core/updater_apply.py` | Python | _(описание не задано)_ | - |
 | `core/url_fetch.py` | Python | URL-fetch transport: fetch_endpoint resolves fetch_base_url (or derives the sibling /v1/tools/fetch from base_url, never duplicating the version segment), validate_fetch_url enforces http/https, the 8192-character cap, no embedded credentials and no local/private hosts (SSRF guard, literal addresses only), fetch_page_content posts {url} with the provider bearer key and returns {title, content} in Markdown, extract_pdf_markdown turns PDF bytes into '### Page N' sections via pypdf, selenium_page_text renders a page in headless Chrome and returns its visible text; every failure is raised through the APIError contract (ApiKeyMissing/ProviderHTTP/RequestTimeout/Network/ProviderResponse) or SeleniumUnavailableError | - |
 | `core/version.py` | Python | Single source of truth for the SagaAI platform version (semver __version__ plus a documented release history); 2.23.0 records the subagent control tools, 2.30.0 records the ## Current date prompt block and the current_datetime tool (why the block is last, why it carries no time of day, the per-employee switch), 2.31.0 records the agent dialog (ask_parent parking, answer_child resuming the same run, the five frozen dialog limits, expiry and cleanup, the restart path), 2.34.0 records scheduled runs (rules, the scheduler loop, the headless run as an ordinary dialog, blocked days, the quiet window and the error hold) | - |
@@ -173,6 +174,7 @@
 | `core/marketplace/agent_package.py` | Python | Kind of an agent package and its parsing: orchestrator or assistant plus the files each kind installs, read before anything is written so a package declaring another kind than the installed one is refused instead of half-applied | - |
 | `core/marketplace/agent_preflight.py` | Python | Pre-flight checks of an agent install: the kind, the platform range, the licence and the executable-code gate, all decided before the first file changes | - |
 | `core/marketplace/agent_run.py` | Python | Run bookkeeping of an agent install: the journal entry written before any change, the registry row and the journal marked done or failed, so an interrupted run can be rolled back on the next cold start | - |
+| `core/marketplace/attest.py` | Python | Signature policy of the marketplace: trust anchors read from the installation (marketplace.signature_keyring, SAGAII_SIGNATURE_KEYRING), verify_signature over the bytes a manifest arrived as, check_manifest for the transport and install_gate that refuses an unsigned entity before its package is downloaded | - |
 | `core/marketplace/bootstrap.py` | Python | Marketplace cold start: recover undoes a run interrupted by a crash and the one-time seeding of registry rows for skills installed before the marketplace existed; never touches the network | - |
 | `core/marketplace/bundles.py` | Python | Curated entity sets installed as one run: the recommended package of an agent card (recommends/bundle lists shown as checkboxes) and a catalog-level bundles/<id>.json pinning exact versions; both become one plan that states what each member would do and never touches the disk | - |
 | `core/marketplace/catalog.py` | Python | Catalog view for the showcase: index entries, entity cards with licence, required tools and platform range, plus the installed-version lookup | - |
@@ -180,7 +182,7 @@
 | `core/marketplace/conflict_fork.py` | Python | The fork resolution and its reverse action: the edited folder is copied to a new id and folder name while the original is brought to the catalog, and restore_user_version puts the backed-up files of a take_catalog run back in place | - |
 | `core/marketplace/conflict_state.py` | Python | What an installation looks like right now: the registry row of a catalog id, the folder it occupies, whether another entity took the folder and which declared files the user edited; comparison goes by content hash, never by modification time | - |
 | `core/marketplace/conflicts.py` | Python | Conflict matrix: resolve_plan answers what to do with an installed entity and the three resolutions (keep_mine, take_catalog with a backup of every replaced file, fork) sit next to adopt, reset_to_catalog and uninstall; the state it reads lives in conflict_state.py and the fork path in conflict_fork.py | - |
-| `core/marketplace/installer.py` | Python | Skill installer: run journal written before any file changes, package copied to a temporary folder and verified by sha256, atomic move into place and the single transaction over marketplace_installed and skills.json | - |
+| `core/marketplace/installer.py` | Python | Skill installer: run journal written before any file changes, the signature gate before the package download, package copied to a temporary folder and verified by sha256, atomic move into place and the single transaction over marketplace_installed and skills.json | - |
 | `core/marketplace/mcp_installer.py` | Python | Installation of an MCP entity: an MCP entity ships no files, it is a connector preset (transport config, credential fields, memory seed), so the installer creates a connection from that preset; identity is (service, preset_id) rather than a folder name | - |
 | `core/marketplace/migration.py` | Python | Adoption of entities installed before the catalog: LEGACY_DEFAULTS maps a bundled orchestrator, a prebuilt knowledge base, a preset skill and a connector preset to a synthetic bundled version, so the registry reports them as installed instead of offering a second copy; the bundled Universal-Agent is adopted the same way - the executor ships with the platform and with the catalog, so the preinstalled folder gets a registry row instead of a second install under a suffix | - |
 | `core/marketplace/publish.py` | Python | Catalog publisher tooling: builds the files the catalog repository layout expects (entity manifest, index entry, hashes, signature) so an author never hand-edits a manifest or a hash, using only the standard library and cryptography | - |
@@ -189,10 +191,10 @@
 | `core/marketplace/registry.py` | Python | Installed registry: marketplace_installed rows keyed by catalog id, removal markers in marketplace_removed, export_registry_cache and the seed_local_orphans pass | storage |
 | `core/marketplace/rollback.py` | Python | Run rollback: restores the files, the registry row and skills.json byte for byte, and marks the journal entry as rolled back with its reason | - |
 | `core/marketplace/semver.py` | Python | Version parsing and comparison: semver ordering and the platform range check used by the catalog and the update path | - |
-| `core/marketplace/source.py` | Python | Catalog transport: reads the index, one entity and its package over HTTP with timeouts and a typed error for every failure | - |
+| `core/marketplace/source.py` | Python | Catalog transport: reads the index, one entity and its package over HTTP with timeouts and a typed error for every failure, and records the signature report of every manifest it downloads so the installer-side gate needs no second request; the channel decides whether an unsigned manifest is refused or only reported | - |
 | `core/marketplace/store.py` | Python | Marketplace storage: data directory, per-run backups and package cache, the bounded run journal and the atomic replace helper | - |
 | `core/marketplace/updates.py` | Python | Updates: check_entity_updates compares installed versions with the catalog and reports per-entity refusals, apply_entity_updates runs the update with the conflict policy | - |
-| `core/marketplace/verify.py` | Python | Package verification: the sha256 manifest check, verify_package for a downloaded package and verify_installed against the recorded file hashes | - |
+| `core/marketplace/verify.py` | Python | Package verification: the sha256 manifest check, verify_package for a downloaded package and verify_installed against the recorded file hashes; verify_signature and install_gate delegate to core.marketplace.attest so the signature policy lives in one module | - |
 | `core/schedules/__init__.py` | Python | Package marker of the schedule subsystem (no logic): the import surface for model, calc, store, runner, daemon and form | - |
 | `core/schedules/calc.py` | Python | Pure schedule arithmetic: resolve_zone, compute_next_run over intervals in the rule's own time zone with the blocked-weekday mask and the quiet window applied, and the walk that advances a rule point by point without touching the database - the single authority on when a rule fires, shared by the preview and the engine | - |
 | `core/schedules/daemon.py` | Python | The scheduler loop: one background thread per process with an idempotent bootstrap, a heartbeat for is_alive, tick_once that claims due rules and spends one worker per rule, the running_workers counter, a manual wake-up, and stop_scheduler for a clean shutdown and for tests | - |
@@ -202,10 +204,10 @@
 | `core/schedules/store.py` | Python | SQLite persistence of schedule rules and their run history: create/get/list/update/delete of a rule, list_due for the engine, the run rows (open_run, open_manual_run, finish_run, get_run_row, list_runs, count_runs, active_run, runs_today), the claim that makes one point fire at most once, and settle_schedule/set_next_run for the counters and the next point | storage |
 | `core/sandbox/__init__.py` | Python | Execution sandbox package: contracts, profiles, policy, provider registry | - |
 | `core/sandbox/active.py` | Python | Records which provider actually runs the tools and exposes it to the settings panel | - |
-| `core/sandbox/contracts.py` | Python | Sandbox value types: isolation order, resource limits, run request/result | - |
+| `core/sandbox/contracts.py` | Python | Sandbox value types: isolation order, resource limits, isolation ceiling, run request/result | - |
 | `core/sandbox/launcher.py` | Python | Child-side launcher: applies the resource ceilings and reports them back (no preexec_fn) | - |
-| `core/sandbox/policy.py` | Python | Fail-closed provider selection: unknown profile or unreachable isolation denies the run; limits only tighten | - |
-| `core/sandbox/profiles.py` | Python | Named execution profiles (read_only, workspace_write, network, legacy_process) | - |
+| `core/sandbox/policy.py` | Python | Fail-closed provider selection: unknown profile, unreachable isolation or a provider stronger than the profile ceiling denies the run; limits only tighten | - |
+| `core/sandbox/profiles.py` | Python | Named execution profiles (read_only, workspace_write, network, legacy_process, off) | - |
 | `core/sandbox/runner.py` | Python | Single entry point: plan, execute and journal one sandbox run | storage |
 | `core/sandbox/providers/__init__.py` | Python | Isolation backend registry: the providers a build ships | - |
 | `core/sandbox/providers/_spawn.py` | Python | Shared spawn path of the OS-level providers: argv, environment, timeouts, output caps, kill-tree and cancellation | - |
@@ -345,6 +347,7 @@
 | `tests/test_loop_golden_payloads.py` | Python | Golden tests of the agent loop's observable behaviour on eight scenarios: the payload sent to the model, the dispatcher calls in order and the whole sequence of on_event publications | - |
 | `tests/test_marketplace_agent_installer.py` | Python | Unit tests for installing an agent entity: the config merge happens before the import, the importer writes the folder and the row, an unknown or switching kind is refused and a failed step leaves no half-installed orchestrator | - |
 | `tests/test_marketplace_assistant_installer.py` | Python | Unit tests for installing a helper agent: the assistant profile folder and the assistants row, text-only attachments, the kind recorded in the registry and the update path that keeps user attachments and an edited prompt | - |
+| `tests/test_marketplace_attest.py` | Python | Marketplace signature policy: trust anchors are local files, an edited manifest fails verification, the transport refuses an unsigned index before parsing it on an enforcing channel, and the install gate refuses before a package request | - |
 | `tests/test_marketplace_bundles.py` | Python | Unit tests for bundled entity sets: the recommended package preview with its per-member states, the catalog bundle record with pinned versions and the rollback of the already-installed members when a later one fails | - |
 | `tests/test_marketplace_card_extras.py` | Python | Unit tests for the extra card blocks: the recommended package labelled with readable type names, the disabled members that stay visible, and the credentials hint shown after a connector bundle is installed | - |
 | `tests/test_marketplace_catalog.py` | Python | Unit tests for the catalog view: index entries, entity cards with licence and platform range, and the installed-version lookup | - |
@@ -440,6 +443,7 @@
 | `tests/test_render_token_line.py` | Python | Token line renderer tests | - |
 | `tests/test_resume_checkpoint.py` | Python | _(описание не задано)_ | - |
 | `tests/test_safety_mode.py` | Python | Safety-mode gate tests | - |
+| `tests/test_sandbox_off_profile.py` | Python | Tests: the switchable sandbox-off profile - no isolation claimed, the isolation ceiling honoured, resource limits still applied | - |
 | `tests/test_sandbox_phase0.py` | Python | Tests: approval context, child environment allowlist, process limits and kill-tree | - |
 | `tests/test_sandbox_phase1.py` | Python | Tests: sandbox contracts, profiles, fail-closed policy, limit clamping and the run journal | storage |
 | `tests/test_sandbox_phase3.py` | Python | Tests: container and WSL providers, approval tickets and the HTTP confirmation route | - |
@@ -457,6 +461,8 @@
 | `tests/test_service_model_catalogs.py` | Python | Vision/image model catalog tests for service profiles | - |
 | `tests/test_sidebar_employees_nav.py` | Python | _(описание не задано)_ | - |
 | `tests/test_sidebar_nav.py` | Python | Unit tests for the sidebar blocks: the four section headers, the five marketplace subsections under the marketplace switch, the three primary settings entries plus the collapsed More block, and the shared section key between the menu and the showcase tabs | - |
+| `tests/test_sign_release.py` | Python | Release signing CLI: keygen, sign, verify and keyring subcommands over a temporary manifest and key pair, including the refusal of an edited manifest and of an unknown key | - |
+| `tests/test_signing.py` | Python | Signature primitives: the key id is derived from the key, a signature covers exactly the bytes it was computed over, an unknown key id is a refusal, several keys verify at once during a rotation, and the channel policy decides between a refusal and a journalled warning | - |
 | `tests/test_single_model_config.py` | Python | Single-model config tests (legacy weak_* tolerance, vision/image keys, no weak_* persistence) | storage |
 | `tests/test_skill_build_base.py` | Python | Unit: Rag Base Creator build_base.py - dry-run plan, bm25 build with zero embedding calls, and the --slug contract (override, normalisation, refusal without Latin, replace) | storage |
 | `tests/test_skills_adaptation.py` | Python | _(описание не задано)_ | storage, ui |
@@ -563,6 +569,7 @@
 | `tests/scenarios/test_license_consistency_scenario.py` | Python | Scenario: license migration to PolyForm Noncommercial 1.0.0 - canonical LICENSE text, no MIT SPDX identifier among published files, README/UI/AGENT.md agreement, 2.x version and manifest consistency, documented licensing history | - |
 | `tests/scenarios/test_loop_stuck_protection_scenarios.py` | Python | Loop-stuck protection scenarios: per-tool failure counter hints, duplicate-call flood compaction, prose loop_status continue | - |
 | `tests/scenarios/test_marketplace_conflict_scenario.py` | Python | Scenario tests for the conflict paths: a locally edited skill offers the three resolutions, keep_mine keeps the edit, take_catalog backs up and replaces, fork creates a new entity | ui |
+| `tests/scenarios/test_marketplace_signing_scenario.py` | Python | Signed marketplace scenario: a release published with the release key is read by the catalog transport and installed, while an edited manifest, a catalog without an index signature, a foreign keyring and a rotated key each end in the documented outcome | - |
 | `tests/scenarios/test_marketplace_skill_scenario.py` | Python | Scenario tests for installing a skill from the showcase: the card renders, install writes the files and the registry row, a refusal is shown instead of a broken install | - |
 | `tests/scenarios/test_marketplace_updates_scenario.py` | Python | Scenario tests for the Updates page: a check lists the available version, an edited installation is marked and updated with keep_mine, a platform refusal is reported instead of offering the button, the journal offers the undo of a finished install | - |
 | `tests/scenarios/test_mcp_e2e_scenario.py` | Python | Scenario: MCP e2e demo - a connector (python + stdlib server) is created and enabled, mcp_list_tools lists its tools, the dynamic mcp__conn__echo tool dispatches and returns echo:hello, a failing tool surfaces is_error | storage |
@@ -726,12 +733,14 @@
 | `certs/russian_trusted_root_ca.pem` | PEM certificate | Russian Trusted Root CA certificate for GigaChat TLS | - |
 | `scripts/capture_loop_golden.py` | Python | Re-records the agent-loop golden snapshots (UPDATE_GOLDEN=1) and immediately re-runs the suite without the flag, so a snapshot that cannot be reproduced fails the same command | - |
 | `scripts/ci_check.py` | Python | The single gate runner: ruff, pyright against the committed error budget, the structural budget of the god files, the version manifest, lock agreement of both constraint files and the whole test suite in one sequential process; --list and --only select the checks, the exit code reports passed, failed or unrunnable | - |
-| `scripts/marketplace_publish.py` | Python | Command-line publisher of one entity version into the catalog repository: builds the entity folder, the index entry and the hashes through core.marketplace.publish and commits them | - |
+| `scripts/marketplace_publish.py` | Python | Command-line publisher of one entity version into the catalog repository: builds the entity folder, the index entry and the hashes through core.marketplace.publish, signs the manifests and commits them | - |
 | `scripts/migrate_agent_data.py` | Python | CLI over core.memory_migration: --workspace to plan another project, --agents to scope the run, a dry-run by default and --apply to copy the files | - |
 | `scripts/rag_eval.py` | Python | Offline search-quality harness: indexes the benchmark corpus with the real core.rag_bm25 and scores a ground-truth query set with Recall@k / MRR / nDCG@k | - |
 | `scripts/refactor_budget.py` | Python | Structural ratchet for the god files: measures file length, longest function and the highest cyclomatic complexity with ruff C901, compares them against refactor_budget.json and reports ok/fail/env; the mccabe probe runs from a temporary config so the repository's ruff.toml is never touched | - |
 | `scripts/regenerate_project_map.py` | Python | CANONICAL generator of PROJECT_MAP.md: publish scope from file_versions.json (units + selectable) + responsibility dictionary; run it to regenerate the map (never hand-edit it) | - |
+| `scripts/sign_release.py` | Python | Release signing CLI: keygen writes an Ed25519 pair, sign writes file_versions.json.sig, verify checks a manifest against a key or a keyring folder, keyring prints the trusted keys and their ids | - |
 | `scripts/verify_manifest.py` | Python | Manifest validator/maintainer: schema, coverage of git-tracked files, sha256 freshness, app_version consistency; prompt versions come from file headers on --init/--add; build artifacts of an editable install (``*.egg-info``) are skipped by suffix in the coverage walk; modes --init/--add/--fix-hashes/--json/--strict | - |
+| `keys/README.md` | Markdown | Trust anchors for update and marketplace signatures: how to generate the release key, sign and verify a manifest, the rotation order and the channel policy that decides when a signature is required | - |
 | `dev_agent/__init__.py` | Python | Package marker | agent_loop, backup_manager, safe_writer, tool_executor, universal_agent, workspace_tools |
 | `dev_agent/agent_loop.py` | Python | Provider-independent agent loop (single-model routing, economy mode, strength-classified tools); carries the run identity (run_id/parent_run_id/depth) in state and fans out independent spawn_agent calls in the executing phase; a parked child stops at the step boundary and resumes from the delivered [PARENT ANSWER] message, the question notice reaches the parent as a hidden system line, and the child-mode confirmation refusal keeps a subagent autonomous | storage |
 | `dev_agent/assistant_detector.py` | Python | Assistant detection/creation helpers (renamed from skill_detector) | storage |
@@ -1053,15 +1062,15 @@
 
 ### `ui/pages/orchestrator_chat_input.py`
 - `_render_chat_toolbar` (func, строка 63)
-- `_token_line_cache_key` (func, строка 104)
-- `_render_token_line_impl` (func, строка 154)
-- `_economy_window_info` (func, строка 204)
-- `_handle_chat_submission` (func, строка 252)
-- `_build_submission_text` (func, строка 286)
-- `_ensure_thread` (func, строка 302)
-- `_collect_attachment_context` (func, строка 338)
-- `_services_with_web_search` (func, строка 381)
-- `_temp_slider` (func, строка 393)
+- `_token_line_cache_key` (func, строка 107)
+- `_render_token_line_impl` (func, строка 157)
+- `_economy_window_info` (func, строка 207)
+- `_handle_chat_submission` (func, строка 255)
+- `_build_submission_text` (func, строка 289)
+- `_ensure_thread` (func, строка 305)
+- `_collect_attachment_context` (func, строка 341)
+- `_services_with_web_search` (func, строка 384)
+- `_temp_slider` (func, строка 396)
 
 ### `ui/pages/orchestrator_feed.py`
 - `_render_generated_image` (func, строка 35)
@@ -1084,9 +1093,10 @@
 - `_render_event_impl` (func, строка 337)
 
 ### `ui/pages/orchestrator_flags.py`
-- `toolbar_specs` (func, строка 26)
-- `sandbox_profile` (func, строка 42)
-- `read_protection_flags` (func, строка 52)
+- `toolbar_specs` (func, строка 30)
+- `sandbox_profile` (func, строка 48)
+- `effective_sandbox_profile` (func, строка 58)
+- `read_protection_flags` (func, строка 77)
 
 ### `ui/pages/orchestrator_folder.py`
 - `_folder_picker_key` (func, строка 37)
@@ -1103,44 +1113,44 @@
 - `_make_send_adapter_impl` (func, строка 87)
 - `_make_send_adapter_impl._adapter` (func, строка 103)
 - `_make_dispatcher_impl` (func, строка 122)
-- `_assistant_has_api_key_impl` (func, строка 147)
-- `_dialog_tree_root` (func, строка 162)
-- `_live_subagent_runs` (func, строка 191)
-- `_waiting_subagent_runs` (func, строка 215)
-- `_render_subagent_status` (func, строка 235)
-- `_render_subagent_status._poll_children` (func, строка 266)
-- `_read_step_flags` (func, строка 278)
-- `_new_loop_state` (func, строка 289)
-- `_ensure_loop_state` (func, строка 330)
-- `_register_root_run` (func, строка 353)
-- `_register_root_run._forward_child_event` (func, строка 382)
-- `_handle_stop_requested` (func, строка 394)
-- `_run_agent_step` (func, строка 414)
-- `_persist_step_to_thread` (func, строка 429)
-- `_commit_loop_state` (func, строка 443)
-- `_do_step_impl` (func, строка 463)
-- `_do_step_impl.on_event` (func, строка 475)
-- `_reset_dialog_impl` (func, строка 511)
-- `_load_thread_impl` (func, строка 538)
-- `_sync_chat_pref_checkbox` (func, строка 579)
+- `_assistant_has_api_key_impl` (func, строка 148)
+- `_dialog_tree_root` (func, строка 163)
+- `_live_subagent_runs` (func, строка 192)
+- `_waiting_subagent_runs` (func, строка 216)
+- `_render_subagent_status` (func, строка 236)
+- `_render_subagent_status._poll_children` (func, строка 267)
+- `_read_step_flags` (func, строка 279)
+- `_new_loop_state` (func, строка 290)
+- `_ensure_loop_state` (func, строка 331)
+- `_register_root_run` (func, строка 354)
+- `_register_root_run._forward_child_event` (func, строка 383)
+- `_handle_stop_requested` (func, строка 395)
+- `_run_agent_step` (func, строка 415)
+- `_persist_step_to_thread` (func, строка 430)
+- `_commit_loop_state` (func, строка 444)
+- `_do_step_impl` (func, строка 464)
+- `_do_step_impl.on_event` (func, строка 476)
+- `_reset_dialog_impl` (func, строка 512)
+- `_load_thread_impl` (func, строка 539)
+- `_sync_chat_pref_checkbox` (func, строка 580)
 - `_chat_toolbar_pref_changed` (func, строка 597)
 - `_cancel_dialog_tree` (func, строка 607)
 
 ### `ui/pages/orchestrator_sandbox.py`
-- `_provider_rows` (func, строка 36)
-- `_profile_rows` (func, строка 53)
-- `_offers` (func, строка 73)
-- `_profiles` (func, строка 80)
-- `_current_profile` (func, строка 87)
-- `_profile_label` (func, строка 97)
-- `_save_profile` (func, строка 106)
-- `_render_active_runs` (func, строка 125)
-- `_render_active_runs._live` (func, строка 144)
-- `_render_one_run` (func, строка 162)
-- `render_sandbox_settings` (func, строка 185)
-- `_render_recent_runs` (func, строка 246)
-- `_format_when` (func, строка 268)
-- `_stub_profile` (func, строка 276)
+- `_provider_rows` (func, строка 40)
+- `_profile_rows` (func, строка 57)
+- `_offers` (func, строка 82)
+- `_profiles` (func, строка 89)
+- `_current_profile` (func, строка 96)
+- `_profile_label` (func, строка 106)
+- `_save_profile` (func, строка 117)
+- `_render_active_runs` (func, строка 136)
+- `_render_active_runs._live` (func, строка 155)
+- `_render_one_run` (func, строка 173)
+- `render_sandbox_settings` (func, строка 196)
+- `_render_recent_runs` (func, строка 258)
+- `_format_when` (func, строка 280)
+- `_stub_profile` (func, строка 288)
 
 ### `ui/pages/orchestrator_settings.py`
 - `page_orchestrator_settings` (func, строка 38)
@@ -1225,22 +1235,22 @@
 - `settings_section_key` (func, строка 304)
 - `_chat_toolbar_widget_key` (func, строка 309)
 - `_chat_pref_config_keys` (func, строка 319)
-- `_attachments_manifest_path` (func, строка 336)
-- `_load_attachments_manifest` (func, строка 341)
-- `_model_ids` (func, строка 351)
-- `_is_agent_active` (func, строка 356)
-- `_last_assistant_index` (func, строка 361)
-- `_split_chat_prompt` (func, строка 370)
-- `_dialog_limit` (func, строка 391)
-- `_get_max_tokens_limit` (func, строка 408)
-- `_reindex_history` (func, строка 432)
-- `_release_step_resources` (func, строка 447)
-- `_sync_safety_mode` (func, строка 467)
-- `_persist_thread_workspace_meta` (func, строка 481)
-- `_tool_result_title` (func, строка 505)
-- `_select_live_runs` (func, строка 513)
-- `_select_waiting_runs` (func, строка 533)
-- `build_state_keys` (func, строка 561)
+- `_attachments_manifest_path` (func, строка 338)
+- `_load_attachments_manifest` (func, строка 343)
+- `_model_ids` (func, строка 353)
+- `_is_agent_active` (func, строка 358)
+- `_last_assistant_index` (func, строка 363)
+- `_split_chat_prompt` (func, строка 372)
+- `_dialog_limit` (func, строка 393)
+- `_get_max_tokens_limit` (func, строка 410)
+- `_reindex_history` (func, строка 434)
+- `_release_step_resources` (func, строка 449)
+- `_sync_safety_mode` (func, строка 469)
+- `_persist_thread_workspace_meta` (func, строка 483)
+- `_tool_result_title` (func, строка 507)
+- `_select_live_runs` (func, строка 515)
+- `_select_waiting_runs` (func, строка 535)
+- `build_state_keys` (func, строка 563)
 
 ### `ui/pages/orchestrators.py`
 - `_go_to_page` (func, строка 24)
@@ -2621,6 +2631,42 @@
 - `svc_supports_fetch` (func, строка 219)
 - `get_fetch_models` (func, строка 229)
 
+### `core/signing.py`
+- `SigningError` (class, строка 63)
+- `SigningError.__init__` (func, строка 70)
+- `_now_iso` (func, строка 79)
+- `sha256_hex` (func, строка 89)
+- `canonical_json` (func, строка 94)
+- `signature_path` (func, строка 106)
+- `_serialization` (func, строка 111)
+- `_ed25519_private` (func, строка 123)
+- `_ed25519_public` (func, строка 130)
+- `public_key_der` (func, строка 139)
+- `public_key_pem` (func, строка 148)
+- `key_id_from_public` (func, строка 157)
+- `key_id_from_pem` (func, строка 167)
+- `key_id_of` (func, строка 172)
+- `key_id_of_private` (func, строка 178)
+- `load_public_key_bytes` (func, строка 189)
+- `load_public_key` (func, строка 213)
+- `load_private_key` (func, строка 225)
+- `generate_keypair` (func, строка 281)
+- `keyring_paths` (func, строка 319)
+- `load_keyring` (func, строка 336)
+- `keyring_report` (func, строка 353)
+- `sign_bytes` (func, строка 369)
+- `write_json_file` (func, строка 387)
+- `write_signature` (func, строка 405)
+- `read_signature` (func, строка 423)
+- `_decode_signature` (func, строка 433)
+- `_decode_legacy_signature` (func, строка 444)
+- `verify_bytes` (func, строка 456)
+- `verify_file` (func, строка 507)
+- `channel_name` (func, строка 547)
+- `channel_policy` (func, строка 561)
+- `policy_for` (func, строка 584)
+- `append_journal` (func, строка 595)
+
 ### `core/skills_library.py`
 - `SkillsLibraryError` (class, строка 51)
 - `_data_dir` (func, строка 65)
@@ -2816,17 +2862,22 @@
 - `_compare_versions` (func, строка 289)
 - `_effective_channel` (func, строка 304)
 - `_local_manifest` (func, строка 317)
-- `fetch_manifest` (func, строка 341)
-- `_validate_manifest` (func, строка 365)
-- `_manifest_entries` (func, строка 375)
-- `check_updates` (func, строка 397)
-- `stage_updates` (func, строка 452)
-- `_download_file` (func, строка 531)
-- `apply_updates` (func, строка 584)
-- `rollback_updates` (func, строка 623)
-- `_build_cli` (func, строка 640)
-- `_load_local_manifest` (func, строка 681)
-- `main` (func, строка 698)
+- `manifest_signature` (func, строка 350)
+- `_keyring_dir` (func, строка 361)
+- `_read_manifest_signature` (func, строка 371)
+- `_signature_report` (func, строка 397)
+- `_accept_manifest` (func, строка 434)
+- `fetch_manifest` (func, строка 444)
+- `_validate_manifest` (func, строка 471)
+- `_manifest_entries` (func, строка 481)
+- `check_updates` (func, строка 503)
+- `stage_updates` (func, строка 560)
+- `_download_file` (func, строка 639)
+- `apply_updates` (func, строка 692)
+- `rollback_updates` (func, строка 731)
+- `_build_cli` (func, строка 748)
+- `_load_local_manifest` (func, строка 789)
+- `main` (func, строка 806)
 
 ### `core/updater_apply.py`
 - `_utc_now` (func, строка 50)
@@ -2921,6 +2972,15 @@
 - `report_agent_import_failure` (func, строка 169)
 - `fail_agent_run` (func, строка 182)
 
+### `core/marketplace/attest.py`
+- `_settings` (func, строка 34)
+- `signature_keyring` (func, строка 44)
+- `policy_for` (func, строка 64)
+- `verify_signature` (func, строка 73)
+- `fetch_signature` (func, строка 123)
+- `check_manifest` (func, строка 141)
+- `install_gate` (func, строка 171)
+
 ### `core/marketplace/bootstrap.py`
 - `recover` (func, строка 27)
 - `bootstrap` (func, строка 57)
@@ -2954,9 +3014,9 @@
 - `fetch_card` (func, строка 307)
 
 ### `core/marketplace/config.py`
-- `_as_bool` (func, строка 35)
-- `_load_raw` (func, строка 47)
-- `marketplace_settings` (func, строка 58)
+- `_as_bool` (func, строка 37)
+- `_load_raw` (func, строка 45)
+- `marketplace_settings` (func, строка 56)
 - `is_enabled` (func, строка 78)
 - `allow_code` (func, строка 83)
 - `save_settings` (func, строка 88)
@@ -2989,25 +3049,25 @@
 - `_remove_connection` (func, строка 763)
 
 ### `core/marketplace/installer.py`
-- `InstallError` (class, строка 37)
-- `_current_version` (func, строка 49)
-- `_platform_compatible` (func, строка 59)
-- `_pick_runtime_slug` (func, строка 84)
-- `_entity_files` (func, строка 98)
-- `_split_code_files` (func, строка 110)
-- `_skills_registry_path` (func, строка 122)
-- `_backup_registry_file` (func, строка 129)
-- `_write_skill_metadata` (func, строка 145)
-- `_licence_state` (func, строка 163)
-- `_utc_now` (func, строка 181)
-- `_skill_gate` (func, строка 186)
-- `_stage_skill_package` (func, строка 272)
-- `_prepare_skill_area` (func, строка 310)
-- `_import_skill_folder` (func, строка 346)
-- `_register_skill` (func, строка 366)
-- `_commit_skill_run` (func, строка 424)
-- `install_skill` (func, строка 450)
-- `install_entity` (func, строка 559)
+- `InstallError` (class, строка 36)
+- `_current_version` (func, строка 48)
+- `_platform_compatible` (func, строка 58)
+- `_pick_runtime_slug` (func, строка 83)
+- `_entity_files` (func, строка 97)
+- `_split_code_files` (func, строка 109)
+- `_skills_registry_path` (func, строка 121)
+- `_backup_registry_file` (func, строка 128)
+- `_write_skill_metadata` (func, строка 144)
+- `_licence_state` (func, строка 162)
+- `_utc_now` (func, строка 180)
+- `_skill_gate` (func, строка 185)
+- `_stage_skill_package` (func, строка 271)
+- `_prepare_skill_area` (func, строка 309)
+- `_import_skill_folder` (func, строка 345)
+- `_register_skill` (func, строка 365)
+- `_commit_skill_run` (func, строка 423)
+- `install_skill` (func, строка 449)
+- `install_entity` (func, строка 556)
 - `_fail_run` (func, строка 626)
 - `_display_name` (func, строка 668)
 - `_display_description` (func, строка 684)
@@ -3051,34 +3111,36 @@
 - `legacy_ids_of` (func, строка 406)
 
 ### `core/marketplace/publish.py`
-- `PublishError` (class, строка 64)
-- `PublishError.__init__` (func, строка 71)
-- `type_folder` (func, строка 80)
-- `_now_iso` (func, строка 85)
-- `sha256_bytes` (func, строка 95)
-- `canonical_json` (func, строка 100)
-- `_check_agent_kind` (func, строка 119)
-- `_check_id` (func, строка 138)
-- `_check_version` (func, строка 150)
-- `collect_files` (func, строка 164)
-- `build_package` (func, строка 205)
-- `build_manifest` (func, строка 233)
-- `version_dir` (func, строка 281)
-- `_write_json` (func, строка 293)
-- `publish_entity` (func, строка 301)
-- `list_versions` (func, строка 419)
-- `_version_key` (func, строка 430)
-- `_refresh_latest` (func, строка 437)
-- `_read_json` (func, строка 460)
-- `_index_entry` (func, строка 470)
-- `collect_entries` (func, строка 496)
-- `collect_bundles` (func, строка 516)
-- `rebuild_index` (func, строка 539)
-- `_load_signing_key` (func, строка 566)
-- `generate_keypair` (func, строка 585)
-- `sign_index` (func, строка 623)
-- `verify_index_signature` (func, строка 649)
-- `publish` (func, строка 691)
+- `PublishError` (class, строка 75)
+- `PublishError.__init__` (func, строка 82)
+- `type_folder` (func, строка 91)
+- `_now_iso` (func, строка 96)
+- `sha256_bytes` (func, строка 106)
+- `_check_agent_kind` (func, строка 117)
+- `_check_id` (func, строка 136)
+- `_check_version` (func, строка 148)
+- `collect_files` (func, строка 162)
+- `build_package` (func, строка 203)
+- `build_manifest` (func, строка 231)
+- `version_dir` (func, строка 279)
+- `_write_json` (func, строка 291)
+- `_check_republish` (func, строка 299)
+- `_maybe_sign` (func, строка 339)
+- `publish_entity` (func, строка 350)
+- `list_versions` (func, строка 447)
+- `_version_key` (func, строка 458)
+- `_refresh_latest` (func, строка 465)
+- `_read_json` (func, строка 499)
+- `_index_entry` (func, строка 509)
+- `collect_entries` (func, строка 535)
+- `collect_bundles` (func, строка 555)
+- `rebuild_index` (func, строка 578)
+- `_publish_error` (func, строка 605)
+- `resolve_signing_key` (func, строка 614)
+- `sign_manifest` (func, строка 633)
+- `sign_index` (func, строка 645)
+- `verify_index_signature` (func, строка 657)
+- `publish` (func, строка 687)
 
 ### `core/marketplace/rag_area.py`
 - `_files_under` (func, строка 22)
@@ -3172,25 +3234,25 @@
 - `max_satisfying` (func, строка 342)
 
 ### `core/marketplace/source.py`
-- `type_folder` (func, строка 55)
-- `SourceError` (class, строка 60)
-- `_domain_of` (func, строка 64)
-- `_is_local` (func, строка 70)
-- `_mark_stale` (func, строка 79)
-- `MarketplaceSource` (class, строка 91)
-- `MarketplaceSource.__init__` (func, строка 104)
-- `MarketplaceSource._join` (func, строка 115)
-- `MarketplaceSource._check_domain` (func, строка 120)
-- `MarketplaceSource._open` (func, строка 140)
-- `MarketplaceSource.fetch_bytes` (func, строка 167)
-- `MarketplaceSource._load_cached_index` (func, строка 191)
-- `MarketplaceSource.fetch_index` (func, строка 196)
-- `MarketplaceSource._entity_cache_path` (func, строка 272)
-- `MarketplaceSource.fetch_entity` (func, строка 277)
-- `MarketplaceSource.package_url` (func, строка 320)
-- `MarketplaceSource.fetch_package` (func, строка 337)
-- `MarketplaceSource.fetch_bundle` (func, строка 354)
-- `default_source` (func, строка 398)
+- `type_folder` (func, строка 53)
+- `SourceError` (class, строка 58)
+- `_domain_of` (func, строка 62)
+- `_is_local` (func, строка 68)
+- `_mark_stale` (func, строка 77)
+- `MarketplaceSource` (class, строка 84)
+- `MarketplaceSource.__init__` (func, строка 97)
+- `MarketplaceSource._join` (func, строка 111)
+- `MarketplaceSource._check_domain` (func, строка 116)
+- `MarketplaceSource._open` (func, строка 136)
+- `MarketplaceSource.fetch_bytes` (func, строка 163)
+- `MarketplaceSource._load_cached_index` (func, строка 187)
+- `MarketplaceSource.fetch_index` (func, строка 192)
+- `MarketplaceSource._entity_cache_path` (func, строка 268)
+- `MarketplaceSource.fetch_entity` (func, строка 273)
+- `MarketplaceSource.package_url` (func, строка 318)
+- `MarketplaceSource.fetch_package` (func, строка 335)
+- `MarketplaceSource.fetch_bundle` (func, строка 352)
+- `default_source` (func, строка 396)
 
 ### `core/marketplace/store.py`
 - `MarketplaceBusyError` (class, строка 38)
@@ -3263,18 +3325,21 @@
 - `_apply_one` (func, строка 432)
 
 ### `core/marketplace/verify.py`
-- `VerifyError` (class, строка 38)
-- `sha256_bytes` (func, строка 42)
-- `sha256_file` (func, строка 47)
-- `verify_package` (func, строка 52)
-- `_normalise` (func, строка 80)
-- `_unsafe_reason` (func, строка 85)
-- `_member_name` (func, строка 108)
-- `validate_archive` (func, строка 123)
-- `extract_archive` (func, строка 206)
-- `verify_files` (func, строка 265)
-- `verify_signature` (func, строка 283)
-- `is_code_path` (func, строка 319)
+- `VerifyError` (class, строка 36)
+- `sha256_bytes` (func, строка 40)
+- `sha256_file` (func, строка 45)
+- `verify_package` (func, строка 50)
+- `_normalise` (func, строка 78)
+- `_unsafe_reason` (func, строка 83)
+- `_member_name` (func, строка 106)
+- `validate_archive` (func, строка 121)
+- `extract_archive` (func, строка 204)
+- `verify_files` (func, строка 263)
+- `signature_keyring` (func, строка 281)
+- `_forward` (func, строка 286)
+- `verify_signature` (func, строка 304)
+- `install_gate` (func, строка 312)
+- `is_code_path` (func, строка 317)
 
 ### `core/schedules/calc.py`
 - `resolve_zone` (func, строка 40)
@@ -3394,7 +3459,7 @@
 - `set_next_run` (func, строка 455)
 
 ### `core/sandbox/__init__.py`
-- `default_registry` (func, строка 42)
+- `default_registry` (func, строка 43)
 
 ### `core/sandbox/active.py`
 - `ActiveRun` (class, строка 34)
@@ -3416,36 +3481,37 @@
 - `ResourceLimits` (class, строка 46)
 - `ResourceLimits.to_dict` (func, строка 58)
 - `SandboxProfile` (class, строка 71)
-- `SandboxProfile.to_dict` (func, строка 86)
-- `SandboxRequest` (class, строка 100)
-- `SandboxRequest.fingerprint` (func, строка 116)
-- `SandboxResult` (class, строка 136)
-- `SandboxResult.to_dict` (func, строка 159)
+- `SandboxProfile.to_dict` (func, строка 93)
+- `SandboxRequest` (class, строка 108)
+- `SandboxRequest.fingerprint` (func, строка 124)
+- `SandboxResult` (class, строка 144)
+- `SandboxResult.to_dict` (func, строка 167)
 
 ### `core/sandbox/launcher.py`
 - `limits_spec` (func, строка 71)
 - `wrap` (func, строка 99)
 
 ### `core/sandbox/policy.py`
-- `SandboxProvider` (class, строка 24)
-- `SandboxProvider.available` (func, строка 39)
-- `SandboxProvider.run` (func, строка 43)
-- `_deny` (func, строка 48)
-- `_ordered` (func, строка 54)
-- `select_provider` (func, строка 66)
-- `resolve_profile` (func, строка 87)
-- `plan_run` (func, строка 92)
-- `_tighten` (func, строка 116)
-- `SandboxRegistry` (class, строка 139)
-- `SandboxRegistry.__init__` (func, строка 147)
-- `SandboxRegistry.add` (func, строка 150)
-- `SandboxRegistry.providers` (func, строка 155)
-- `SandboxRegistry.run` (func, строка 159)
+- `SandboxProvider` (class, строка 29)
+- `SandboxProvider.available` (func, строка 44)
+- `SandboxProvider.run` (func, строка 48)
+- `_deny` (func, строка 53)
+- `_ordered` (func, строка 59)
+- `within_isolation_ceiling` (func, строка 71)
+- `select_provider` (func, строка 93)
+- `resolve_profile` (func, строка 120)
+- `plan_run` (func, строка 125)
+- `_tighten` (func, строка 149)
+- `SandboxRegistry` (class, строка 172)
+- `SandboxRegistry.__init__` (func, строка 180)
+- `SandboxRegistry.add` (func, строка 183)
+- `SandboxRegistry.providers` (func, строка 188)
+- `SandboxRegistry.run` (func, строка 192)
 
 ### `core/sandbox/profiles.py`
-- `get_profile` (func, строка 75)
-- `all_profiles` (func, строка 80)
-- `profile_names` (func, строка 85)
+- `get_profile` (func, строка 96)
+- `all_profiles` (func, строка 101)
+- `profile_names` (func, строка 106)
 
 ### `core/sandbox/runner.py`
 - `build_request` (func, строка 20)
@@ -4122,10 +4188,10 @@
 - `_QuietHandler.log_message` (func, строка 331)
 - `serve_catalog` (func, строка 336)
 - `serve_catalog._start` (func, строка 346)
-- `free_port` (func, строка 364)
-- `read_json_file` (func, строка 373)
-- `make_installed_row` (func, строка 383)
-- `list_files_under` (func, строка 424)
+- `free_port` (func, строка 367)
+- `read_json_file` (func, строка 376)
+- `make_installed_row` (func, строка 386)
+- `list_files_under` (func, строка 427)
 
 ### `tests/test_agent_dialog.py`
 - `service` (func, строка 39)
@@ -6067,6 +6133,38 @@
 - `TestAssistantInUpdates.test_the_update_entry_states_the_kind` (func, строка 252)
 - `TestAssistantInUpdates.test_a_skill_entry_carries_no_kind` (func, строка 285)
 
+### `tests/test_marketplace_attest.py`
+- `_keyring` (func, строка 24)
+- `_record` (func, строка 34)
+- `_fetching` (func, строка 39)
+- `_fetching.fetch` (func, строка 42)
+- `TestKeyringLocation` (class, строка 53)
+- `TestKeyringLocation.test_the_installation_folder_is_the_default` (func, строка 54)
+- `TestKeyringLocation.test_the_configured_folder_wins` (func, строка 62)
+- `TestKeyringLocation.test_an_explicit_argument_wins_over_the_setting` (func, строка 69)
+- `TestVerifySignature` (class, строка 79)
+- `TestVerifySignature.test_a_signed_manifest_verifies` (func, строка 80)
+- `TestVerifySignature.test_an_edited_manifest_is_refused` (func, строка 96)
+- `TestVerifySignature.test_a_missing_signature_is_never_verified` (func, строка 110)
+- `TestVerifySignature.test_the_stable_channel_turns_a_failure_into_an_error` (func, строка 121)
+- `TestVerifySignature.test_require_signature_wins_over_the_channel` (func, строка 135)
+- `TestVerifySignature.test_a_payload_is_required` (func, строка 150)
+- `TestCheckManifest` (class, строка 162)
+- `TestCheckManifest.test_a_signed_manifest_passes` (func, строка 163)
+- `TestCheckManifest.test_a_missing_sidecar_is_tolerated_on_a_warning_channel` (func, строка 176)
+- `TestCheckManifest.test_the_stable_channel_refuses_before_parsing` (func, строка 186)
+- `TestCheckManifest.test_a_malformed_sidecar_is_not_silently_dropped` (func, строка 198)
+- `_FakeSource` (class, строка 210)
+- `_FakeSource.__init__` (func, строка 213)
+- `TestInstallGate` (class, строка 218)
+- `TestInstallGate._entity` (func, строка 219)
+- `TestInstallGate.test_a_verified_entity_passes` (func, строка 222)
+- `TestInstallGate.test_an_enforcing_channel_refuses_an_unsigned_entity` (func, строка 231)
+- `TestInstallGate.test_a_warning_channel_reports_and_continues` (func, строка 241)
+- `TestInstallGate.test_a_missing_transport_means_no_signature` (func, строка 250)
+- `TestInstallerIntegration` (class, строка 258)
+- `TestInstallerIntegration.test_the_gate_runs_before_the_package_is_downloaded` (func, строка 259)
+
 ### `tests/test_marketplace_bundles.py`
 - `_agent_entity` (func, строка 28)
 - `_skill_entity` (func, строка 55)
@@ -6271,9 +6369,16 @@
 - `TestFileVerification.test_missing_file_is_reported` (func, строка 207)
 - `TestCodePathDetection` (class, строка 212)
 - `TestCodePathDetection.test_recognises_executable_paths` (func, строка 221)
-- `TestSignatureStub` (class, строка 225)
-- `TestSignatureStub.test_not_enforced_by_default` (func, строка 226)
-- `TestSignatureStub.test_required_but_unimplemented_fails_loudly` (func, строка 232)
+- `TestSignatureCheck` (class, строка 225)
+- `TestSignatureCheck._signed` (func, строка 226)
+- `TestSignatureCheck.test_unsigned_is_not_verified_but_tolerated_on_a_warning_channel` (func, строка 245)
+- `TestSignatureCheck.test_a_signed_manifest_verifies` (func, строка 259)
+- `TestSignatureCheck.test_an_edited_manifest_is_refused` (func, строка 270)
+- `TestSignatureCheck.test_requiring_signatures_turns_a_failure_into_an_error` (func, строка 284)
+- `TestSignatureCheck.test_an_untrusted_key_is_refused` (func, строка 298)
+- `TestSignatureCheck.test_the_keyring_defaults_to_the_installation_keys` (func, строка 314)
+- `TestSignatureCheck.test_a_configured_keyring_wins` (func, строка 326)
+- `TestSignatureCheck.test_the_refusal_belongs_to_the_calling_module` (func, строка 336)
 
 ### `tests/test_marketplace_local_mods.py`
 - `_install` (func, строка 22)
@@ -6380,40 +6485,47 @@
 ### `tests/test_marketplace_publish.py`
 - `_write_folder` (func, строка 39)
 - `_manifest` (func, строка 48)
-- `TestPackage` (class, строка 66)
-- `TestPackage.test_the_same_files_produce_the_same_bytes` (func, строка 67)
-- `TestPackage.test_a_changed_file_changes_the_package` (func, строка 80)
-- `TestPackage.test_the_package_unpacks_with_the_declared_names` (func, строка 86)
-- `TestPackage.test_hidden_and_bytecode_files_are_not_collected` (func, строка 98)
-- `TestPackage.test_an_empty_folder_is_refused` (func, строка 108)
-- `TestPublishEntity` (class, строка 117)
-- `TestPublishEntity.test_it_writes_the_version_folder_and_the_latest_pointer` (func, строка 118)
-- `TestPublishEntity.test_publishing_the_same_content_twice_is_a_noop` (func, строка 137)
-- `TestPublishEntity.test_the_same_version_with_other_content_is_refused` (func, строка 147)
-- `TestPublishEntity.test_the_latest_pointer_follows_the_newest_version` (func, строка 159)
-- `TestPublishEntity.test_a_pre_release_sorts_below_its_release` (func, строка 175)
-- `TestPublishEntity.test_an_invalid_id_or_version_is_refused` (func, строка 183)
-- `TestPublishEntity.test_an_unknown_type_is_refused` (func, строка 199)
-- `TestPublishEntity.test_an_agent_with_an_unknown_kind_is_refused` (func, строка 210)
-- `TestPublishEntity.test_an_agent_without_a_kind_publishes_as_an_employee` (func, строка 222)
-- `TestPublishEntity.test_an_entity_without_files_publishes_from_its_manifest` (func, строка 235)
-- `TestPublishEntity.test_a_file_backed_type_cannot_skip_its_package` (func, строка 251)
-- `TestPublishEntity.test_a_file_less_entity_notices_a_manifest_change` (func, строка 257)
-- `TestIndex` (class, строка 275)
-- `TestIndex.test_the_index_lists_every_entity_of_every_type` (func, строка 276)
-- `TestIndex.test_the_platform_reads_the_published_catalog` (func, строка 294)
-- `TestIndex.test_the_published_package_verifies_and_installs` (func, строка 316)
-- `TestSignature` (class, строка 352)
-- `TestSignature.test_a_signed_index_verifies` (func, строка 353)
-- `TestSignature.test_an_edited_index_stops_verifying` (func, строка 376)
-- `TestSignature.test_a_missing_signature_is_reported_not_raised` (func, строка 402)
-- `TestSignature.test_the_private_key_is_not_world_readable` (func, строка 417)
-- `test_the_cli_publishes_a_folder` (func, строка 430)
-- `test_a_helper_agent_publishes_as_its_own_kind` (func, строка 455)
-- `test_a_recommended_package_survives_the_publish` (func, строка 493)
-- `TestStandaloneExport` (class, строка 525)
-- `TestStandaloneExport.test_the_export_compiles_without_the_platform` (func, строка 526)
-- `TestStandaloneExport.test_the_exported_copy_publishes_a_catalog` (func, строка 539)
+- `_signing_keys` (func, строка 64)
+- `TestPackage` (class, строка 82)
+- `TestPackage.test_the_same_files_produce_the_same_bytes` (func, строка 83)
+- `TestPackage.test_a_changed_file_changes_the_package` (func, строка 96)
+- `TestPackage.test_the_package_unpacks_with_the_declared_names` (func, строка 102)
+- `TestPackage.test_hidden_and_bytecode_files_are_not_collected` (func, строка 114)
+- `TestPackage.test_an_empty_folder_is_refused` (func, строка 124)
+- `TestPublishEntity` (class, строка 133)
+- `TestPublishEntity.test_it_writes_the_version_folder_and_the_latest_pointer` (func, строка 134)
+- `TestPublishEntity.test_publishing_the_same_content_twice_is_a_noop` (func, строка 153)
+- `TestPublishEntity.test_the_same_version_with_other_content_is_refused` (func, строка 163)
+- `TestPublishEntity.test_the_latest_pointer_follows_the_newest_version` (func, строка 175)
+- `TestPublishEntity.test_a_pre_release_sorts_below_its_release` (func, строка 191)
+- `TestPublishEntity.test_an_invalid_id_or_version_is_refused` (func, строка 199)
+- `TestPublishEntity.test_an_unknown_type_is_refused` (func, строка 215)
+- `TestPublishEntity.test_an_agent_with_an_unknown_kind_is_refused` (func, строка 226)
+- `TestPublishEntity.test_an_agent_without_a_kind_publishes_as_an_employee` (func, строка 238)
+- `TestPublishEntity.test_an_entity_without_files_publishes_from_its_manifest` (func, строка 251)
+- `TestPublishEntity.test_a_file_backed_type_cannot_skip_its_package` (func, строка 267)
+- `TestPublishEntity.test_a_file_less_entity_notices_a_manifest_change` (func, строка 273)
+- `TestIndex` (class, строка 291)
+- `TestIndex.test_the_index_lists_every_entity_of_every_type` (func, строка 292)
+- `TestIndex.test_the_platform_reads_the_published_catalog` (func, строка 310)
+- `TestIndex.test_the_published_package_verifies_and_installs` (func, строка 332)
+- `TestSignature` (class, строка 368)
+- `TestSignature.test_a_signed_index_verifies` (func, строка 369)
+- `TestSignature.test_every_manifest_carries_its_own_signature` (func, строка 384)
+- `TestSignature.test_an_edited_index_stops_verifying` (func, строка 405)
+- `TestSignature.test_a_missing_signature_is_reported_not_raised` (func, строка 423)
+- `TestSignature.test_an_untrusted_key_does_not_verify` (func, строка 438)
+- `TestSignature.test_publishing_without_a_key_is_refused` (func, строка 457)
+- `TestSignature.test_the_private_key_is_not_world_readable` (func, строка 469)
+- `test_the_cli_publishes_a_folder` (func, строка 480)
+- `test_the_cli_refuses_to_publish_without_a_key` (func, строка 507)
+- `test_the_cli_verifies_a_published_catalog` (func, строка 524)
+- `test_the_cli_creates_a_key_named_after_itself` (func, строка 538)
+- `test_a_helper_agent_publishes_as_its_own_kind` (func, строка 555)
+- `test_a_recommended_package_survives_the_publish` (func, строка 595)
+- `TestStandaloneExport` (class, строка 629)
+- `TestStandaloneExport.test_the_export_compiles_without_the_platform` (func, строка 630)
+- `TestStandaloneExport.test_the_exported_copy_publishes_a_catalog` (func, строка 643)
 
 ### `tests/test_marketplace_rag_installer.py`
 - `_make_index` (func, строка 34)
@@ -6531,44 +6643,44 @@
 - `TestMaxSatisfying.test_returns_none_when_nothing_matches` (func, строка 149)
 
 ### `tests/test_marketplace_source.py`
-- `TestIndex` (class, строка 28)
-- `TestIndex.test_fetches_index` (func, строка 29)
-- `TestIndex.test_caches_index_on_disk` (func, строка 41)
-- `TestIndex.test_serves_cache_when_catalog_is_unreachable` (func, строка 52)
-- `TestIndex.test_invalid_json_raises` (func, строка 67)
-- `TestConditionalGet` (class, строка 79)
-- `TestConditionalGet.test_304_keeps_the_cached_payload` (func, строка 80)
-- `TestConditionalGet.test_304_keeps_the_cached_payload._Response` (class, строка 85)
-- `TestConditionalGet.test_304_keeps_the_cached_payload._Response.__init__` (func, строка 86)
-- `TestConditionalGet.test_304_keeps_the_cached_payload._Response.read` (func, строка 90)
-- `TestConditionalGet.test_304_keeps_the_cached_payload._Response.close` (func, строка 93)
-- `TestConditionalGet.test_304_keeps_the_cached_payload._urlopen` (func, строка 96)
-- `TestConditionalGet.test_force_skips_the_validator` (func, строка 117)
-- `TestConditionalGet.test_force_skips_the_validator._Response` (class, строка 122)
-- `TestConditionalGet.test_force_skips_the_validator._Response.__init__` (func, строка 125)
-- `TestConditionalGet.test_force_skips_the_validator._Response.read` (func, строка 128)
-- `TestConditionalGet.test_force_skips_the_validator._Response.close` (func, строка 131)
-- `TestConditionalGet.test_force_skips_the_validator._urlopen` (func, строка 134)
-- `TestRetries` (class, строка 144)
-- `TestRetries.test_transient_failure_is_retried` (func, строка 145)
-- `TestRetries.test_transient_failure_is_retried._Response` (class, строка 151)
-- `TestRetries.test_transient_failure_is_retried._Response.read` (func, строка 154)
-- `TestRetries.test_transient_failure_is_retried._Response.close` (func, строка 157)
-- `TestRetries.test_transient_failure_is_retried._urlopen` (func, строка 160)
-- `TestRetries.test_gives_up_after_three_attempts` (func, строка 170)
-- `TestRetries.test_gives_up_after_three_attempts._urlopen` (func, строка 176)
-- `TestAllowlist` (class, строка 187)
-- `TestAllowlist.test_production_channel_rejects_foreign_domains` (func, строка 188)
-- `TestAllowlist.test_production_channel_allows_github` (func, строка 198)
-- `TestAllowlist.test_loopback_is_always_allowed` (func, строка 208)
-- `TestAllowlist.test_explicit_base_url_is_trusted` (func, строка 215)
-- `TestEntityAndPackage` (class, строка 224)
-- `TestEntityAndPackage.test_fetch_entity_by_version` (func, строка 225)
-- `TestEntityAndPackage.test_fetch_entity_latest_pointer` (func, строка 234)
-- `TestEntityAndPackage.test_entity_served_from_cache_when_offline` (func, строка 241)
-- `TestEntityAndPackage.test_missing_package_url_raises` (func, строка 252)
-- `TestEntityAndPackage.test_package_is_cached_after_download` (func, строка 260)
-- `TestEntityAndPackage.test_second_fetch_uses_the_cache` (func, строка 272)
+- `TestIndex` (class, строка 29)
+- `TestIndex.test_fetches_index` (func, строка 30)
+- `TestIndex.test_caches_index_on_disk` (func, строка 42)
+- `TestIndex.test_serves_cache_when_catalog_is_unreachable` (func, строка 53)
+- `TestIndex.test_invalid_json_raises` (func, строка 68)
+- `TestConditionalGet` (class, строка 80)
+- `TestConditionalGet.test_304_keeps_the_cached_payload` (func, строка 81)
+- `TestConditionalGet.test_304_keeps_the_cached_payload._Response` (class, строка 86)
+- `TestConditionalGet.test_304_keeps_the_cached_payload._Response.__init__` (func, строка 87)
+- `TestConditionalGet.test_304_keeps_the_cached_payload._Response.read` (func, строка 91)
+- `TestConditionalGet.test_304_keeps_the_cached_payload._Response.close` (func, строка 94)
+- `TestConditionalGet.test_304_keeps_the_cached_payload._urlopen` (func, строка 97)
+- `TestConditionalGet.test_force_skips_the_validator` (func, строка 120)
+- `TestConditionalGet.test_force_skips_the_validator._Response` (class, строка 125)
+- `TestConditionalGet.test_force_skips_the_validator._Response.__init__` (func, строка 128)
+- `TestConditionalGet.test_force_skips_the_validator._Response.read` (func, строка 131)
+- `TestConditionalGet.test_force_skips_the_validator._Response.close` (func, строка 134)
+- `TestConditionalGet.test_force_skips_the_validator._urlopen` (func, строка 137)
+- `TestRetries` (class, строка 147)
+- `TestRetries.test_transient_failure_is_retried` (func, строка 148)
+- `TestRetries.test_transient_failure_is_retried._Response` (class, строка 154)
+- `TestRetries.test_transient_failure_is_retried._Response.read` (func, строка 157)
+- `TestRetries.test_transient_failure_is_retried._Response.close` (func, строка 160)
+- `TestRetries.test_transient_failure_is_retried._urlopen` (func, строка 163)
+- `TestRetries.test_gives_up_after_three_attempts` (func, строка 175)
+- `TestRetries.test_gives_up_after_three_attempts._urlopen` (func, строка 181)
+- `TestAllowlist` (class, строка 192)
+- `TestAllowlist.test_production_channel_rejects_foreign_domains` (func, строка 193)
+- `TestAllowlist.test_production_channel_allows_github` (func, строка 203)
+- `TestAllowlist.test_loopback_is_always_allowed` (func, строка 213)
+- `TestAllowlist.test_explicit_base_url_is_trusted` (func, строка 220)
+- `TestEntityAndPackage` (class, строка 229)
+- `TestEntityAndPackage.test_fetch_entity_by_version` (func, строка 230)
+- `TestEntityAndPackage.test_fetch_entity_latest_pointer` (func, строка 239)
+- `TestEntityAndPackage.test_entity_served_from_cache_when_offline` (func, строка 246)
+- `TestEntityAndPackage.test_missing_package_url_raises` (func, строка 257)
+- `TestEntityAndPackage.test_package_is_cached_after_download` (func, строка 265)
+- `TestEntityAndPackage.test_second_fetch_uses_the_cache` (func, строка 277)
 
 ### `tests/test_marketplace_store.py`
 - `TestLayout` (class, строка 23)
@@ -7337,16 +7449,23 @@
 - `_rerender` (func, строка 36)
 - `_markdown_calls` (func, строка 43)
 - `_checkbox_by_key` (func, строка 47)
-- `_orch_dict` (func, строка 54)
-- `_render_chat` (func, строка 65)
-- `test_devagent_page_uses_devagent_welcome` (func, строка 81)
-- `test_custom_orchestrator_keeps_generic_welcome` (func, строка 96)
-- `test_checkbox_values_come_from_saved_config` (func, строка 112)
-- `test_checkbox_defaults_without_saved_config` (func, строка 143)
-- `test_toolbar_renders_once_without_bottom_duplicates` (func, строка 155)
-- `test_save_chat_pref_merges_config` (func, строка 173)
-- `test_save_chat_pref_rejects_unknown_key_and_missing_orch` (func, строка 200)
-- `test_chat_prefs_fallback_on_non_dict_config` (func, строка 214)
+- `_checkbox_label` (func, строка 54)
+- `_orch_dict` (func, строка 62)
+- `_render_chat` (func, строка 73)
+- `test_devagent_page_uses_devagent_welcome` (func, строка 89)
+- `test_custom_orchestrator_keeps_generic_welcome` (func, строка 104)
+- `test_checkbox_values_come_from_saved_config` (func, строка 120)
+- `test_checkbox_defaults_without_saved_config` (func, строка 151)
+- `test_sandbox_checkbox_carries_a_real_tooltip` (func, строка 166)
+- `test_a_saved_sandbox_choice_is_restored` (func, строка 184)
+- `_dispatcher_for` (func, строка 199)
+- `test_a_cleared_checkbox_puts_the_dispatcher_into_off_mode` (func, строка 211)
+- `test_the_saved_profile_is_used_while_the_switch_is_on` (func, строка 236)
+- `test_the_sandbox_pref_persists_like_the_other_switches` (func, строка 246)
+- `test_toolbar_renders_once_without_bottom_duplicates` (func, строка 267)
+- `test_save_chat_pref_merges_config` (func, строка 285)
+- `test_save_chat_pref_rejects_unknown_key_and_missing_orch` (func, строка 312)
+- `test_chat_prefs_fallback_on_non_dict_config` (func, строка 326)
 
 ### `tests/test_orchestrator_connections.py`
 - `isolated_data_dir` (func, строка 18)
@@ -8465,6 +8584,23 @@
 - `test_run_test_skips_confirmation_when_safety_disabled` (func, строка 51)
 - `test_run_test_requires_confirmation_when_safety_enabled` (func, строка 62)
 
+### `tests/test_sandbox_off_profile.py`
+- `_StubProvider` (class, строка 28)
+- `_StubProvider.__init__` (func, строка 31)
+- `_StubProvider.available` (func, строка 37)
+- `_StubProvider.run` (func, строка 40)
+- `test_off_profile_declares_no_isolation_and_a_ceiling` (func, строка 54)
+- `test_off_profile_keeps_the_resource_limits` (func, строка 66)
+- `test_off_is_listed_after_the_isolating_profiles` (func, строка 75)
+- `test_profile_dict_carries_the_ceiling` (func, строка 84)
+- `test_off_profile_selects_the_plain_process_provider` (func, строка 95)
+- `test_the_same_machine_still_isolates_a_normal_profile` (func, строка 105)
+- `test_off_profile_is_never_denied_for_lack_of_a_provider` (func, строка 115)
+- `test_off_profile_runs_through_the_registry` (func, строка 123)
+- `test_off_profile_runs_through_the_registry._run` (func, строка 131)
+- `test_ceiling_helper` (func, строка 156)
+- `test_a_profile_without_a_ceiling_accepts_the_strongest_backend` (func, строка 161)
+
 ### `tests/test_sandbox_phase0.py`
 - `test_the_flag_reaches_the_dispatcher_instead_of_vanishing` (func, строка 32)
 - `test_other_arguments_are_preserved` (func, строка 49)
@@ -8906,6 +9042,60 @@
 - `test_the_marketplace_block_sits_before_the_settings_block` (func, строка 145)
 - `test_mcp_is_a_marketplace_subsection_and_not_a_settings_entry` (func, строка 153)
 - `test_a_marketplace_subsection_click_records_the_section` (func, строка 161)
+
+### `tests/test_sign_release.py`
+- `_keypair` (func, строка 21)
+- `_payload` (func, строка 30)
+- `TestSign` (class, строка 37)
+- `TestSign.test_signing_writes_a_verifying_sidecar` (func, строка 38)
+- `TestSign.test_a_missing_key_refuses_before_writing_anything` (func, строка 53)
+- `TestSign.test_a_missing_payload_is_refused` (func, строка 62)
+- `TestSign.test_the_key_can_come_from_the_environment` (func, строка 71)
+- `TestSign.test_several_files_are_signed_in_one_run` (func, строка 82)
+- `TestVerify` (class, строка 97)
+- `TestVerify.test_a_signed_manifest_verifies` (func, строка 98)
+- `TestVerify.test_an_edited_manifest_is_refused` (func, строка 109)
+- `TestVerify.test_a_signature_by_an_untrusted_key_is_refused` (func, строка 121)
+- `TestVerify.test_a_missing_signature_is_refused` (func, строка 133)
+- `TestKeygen` (class, строка 144)
+- `TestKeygen.test_the_public_half_is_named_after_the_key` (func, строка 145)
+- `TestKeygen.test_an_explicit_public_path_is_used_as_given` (func, строка 157)
+- `TestKeygen.test_the_private_half_is_owner_only` (func, строка 167)
+- `TestKeyring` (class, строка 176)
+- `TestKeyring.test_every_readable_key_is_listed` (func, строка 177)
+- `TestKeyring.test_a_missing_folder_reports_no_trusted_keys` (func, строка 185)
+- `test_every_subcommand_is_reachable` (func, строка 194)
+
+### `tests/test_signing.py`
+- `_pair` (func, строка 23)
+- `_keyring` (func, строка 31)
+- `_manifest` (func, строка 40)
+- `TestKeyId` (class, строка 49)
+- `TestKeyId.test_the_id_is_derived_from_the_key` (func, строка 50)
+- `TestKeyId.test_two_keys_get_different_ids` (func, строка 57)
+- `TestKeyId.test_a_non_ed25519_key_is_refused` (func, строка 63)
+- `TestKeyId.test_the_private_key_is_not_world_readable` (func, строка 78)
+- `TestSignAndVerify` (class, строка 86)
+- `TestSignAndVerify.test_a_signed_manifest_verifies` (func, строка 87)
+- `TestSignAndVerify.test_one_changed_byte_breaks_the_signature` (func, строка 100)
+- `TestSignAndVerify.test_an_edited_record_is_refused` (func, строка 113)
+- `TestSignAndVerify.test_a_missing_signature_is_reported` (func, строка 127)
+- `TestSignAndVerify.test_an_unknown_key_id_is_a_refusal` (func, строка 136)
+- `TestSignAndVerify.test_signing_without_a_key_is_an_error` (func, строка 149)
+- `TestSignAndVerify.test_the_key_can_come_from_the_environment` (func, строка 159)
+- `TestSignAndVerify.test_the_environment_may_name_a_key_file` (func, строка 170)
+- `TestRotation` (class, строка 179)
+- `TestRotation.test_both_keys_are_trusted_at_once` (func, строка 180)
+- `TestRotation.test_retiring_a_key_stops_accepting_it` (func, строка 195)
+- `TestRotation.test_an_unreadable_key_file_does_not_hide_the_others` (func, строка 211)
+- `TestChannelPolicy` (class, строка 228)
+- `TestChannelPolicy.test_the_channel_name_is_the_trailing_segment` (func, строка 229)
+- `TestChannelPolicy.test_stable_requires_a_signature` (func, строка 234)
+- `TestChannelPolicy.test_a_development_channel_only_warns` (func, строка 240)
+- `TestChannelPolicy.test_the_explicit_setting_wins_over_the_channel` (func, строка 248)
+- `TestJournal` (class, строка 257)
+- `TestJournal.test_each_decision_lands_on_its_own_line` (func, строка 258)
+- `TestJournal.test_a_missing_path_is_not_an_error` (func, строка 269)
 
 ### `tests/test_single_model_config.py`
 - `isolated_data_dir` (func, строка 35)
@@ -10857,6 +11047,20 @@
 - `test_remove_asks_once_then_deletes` (func, строка 136)
 - `test_downgrade_warns_and_requires_a_confirmation` (func, строка 163)
 
+### `tests/scenarios/test_marketplace_signing_scenario.py`
+- `_release_pair` (func, строка 26)
+- `_entity_folder` (func, строка 38)
+- `_manifest` (func, строка 47)
+- `_publish` (func, строка 59)
+- `_trust` (func, строка 76)
+- `_source` (func, строка 87)
+- `test_a_signed_release_is_visible_and_installs` (func, строка 94)
+- `test_an_edited_manifest_is_refused` (func, строка 126)
+- `test_an_unsigned_index_is_refused_on_stable` (func, строка 146)
+- `test_a_warning_channel_reports_an_unsigned_index` (func, строка 163)
+- `test_a_client_that_trusts_another_key_refuses_the_release` (func, строка 179)
+- `test_a_rotated_key_keeps_old_releases_readable` (func, строка 201)
+
 ### `tests/scenarios/test_marketplace_skill_scenario.py`
 - `_install` (func, строка 29)
 - `_skill_folder` (func, строка 39)
@@ -11887,12 +12091,14 @@
 - `main` (func, строка 434)
 
 ### `scripts/marketplace_publish.py`
-- `_read_manifest` (func, строка 65)
-- `_build_parser` (func, строка 87)
-- `_report_text` (func, строка 113)
-- `export_standalone` (func, строка 129)
-- `_run` (func, строка 198)
-- `main` (func, строка 252)
+- `_read_manifest` (func, строка 66)
+- `_build_parser` (func, строка 88)
+- `_report_text` (func, строка 117)
+- `_read_source` (func, строка 138)
+- `_strip_module` (func, строка 144)
+- `export_standalone` (func, строка 158)
+- `_run` (func, строка 221)
+- `main` (func, строка 284)
 
 ### `scripts/migrate_agent_data.py`
 - `_format_entry` (func, строка 32)
@@ -11933,6 +12139,15 @@
 ### `scripts/regenerate_project_map.py`
 - `build_publish_set` (func, строка 20)
 - `main` (func, строка 39)
+
+### `scripts/sign_release.py`
+- `_load_key` (func, строка 47)
+- `_cmd_sign` (func, строка 52)
+- `_cmd_verify` (func, строка 77)
+- `_cmd_keygen` (func, строка 95)
+- `_cmd_keyring` (func, строка 113)
+- `_build_parser` (func, строка 120)
+- `main` (func, строка 152)
 
 ### `scripts/verify_manifest.py`
 - `log` (func, строка 118)

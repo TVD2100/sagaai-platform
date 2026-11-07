@@ -1309,5 +1309,8 @@
   "warn_empty": "请输入消息。",
   "web_search_context_auto": "自动（提供商默认）",
   "orch_injection_label": "🛡️ 注入防护",
-  "orch_injection_help": "仅控制外部内容的净化：页面、文档和工具结果会检查是否包含注入的指令。关闭它不会影响执行确认。"
+  "orch_injection_help": "仅控制外部内容的净化：页面、文档和工具结果会检查是否包含注入的指令。关闭它不会影响执行确认。",
+  "orch_sandbox_toggle_label": "沙箱",
+  "orch_sandbox_toggle_help": "隔离所运行的代码：只允许在项目内写入，网络已关闭。取消勾选将完全关闭隔离——代码以平台自身的权限运行（时间和输出限制仍然生效）。其他模式在 设置 → 其他 → “执行沙箱” 中选择。",
+  "orch_sandbox_profile_off": "无沙箱"
 }

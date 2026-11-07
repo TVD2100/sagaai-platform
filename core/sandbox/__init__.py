@@ -31,6 +31,7 @@ from core.sandbox.profiles import (
     DEFAULT_PROFILE,
     LEGACY_PROCESS,
     NETWORK,
+    OFF,
     READ_ONLY,
     WORKSPACE_WRITE,
     all_profiles,
@@ -48,7 +49,7 @@ def default_registry() -> SandboxRegistry:
 
 __all__: List[str] = [
     "DEFAULT_PROFILE", "ISOLATION_ORDER", "LEGACY_PROCESS", "NETWORK",
-    "READ_ONLY", "WORKSPACE_WRITE", "ResourceLimits", "SandboxProfile",
+    "OFF", "READ_ONLY", "WORKSPACE_WRITE", "ResourceLimits", "SandboxProfile",
     "SandboxProvider", "SandboxRegistry", "SandboxRequest", "SandboxResult",
     "all_profiles", "default_registry", "get_profile", "isolation_rank",
     "plan_run", "profile_names", "satisfies", "select_provider",
