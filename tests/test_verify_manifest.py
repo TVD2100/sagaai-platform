@@ -190,3 +190,21 @@ def test_changelog_local_only_is_coverage_skip(tmp_path):
     rc, out, err = _run_verifier(repo)
     assert rc == 0, (out, err)
     assert "CHANGELOG.md" not in (out + err)
+
+
+def test_the_manifest_signature_is_a_sidecar(tmp_path):
+    """The signature of the manifest cannot be an entry of the manifest."""
+    repo = _build_repo(tmp_path)
+    assert _run_verifier(repo, "--init")[0] == 0
+
+    (repo / "file_versions.json.sig").write_text("{}\n", encoding="utf-8")
+    _git(repo, "add", "file_versions.json.sig")
+    _git(repo, "commit", "-q", "-m", "sign the manifest")
+
+    rc, out, err = _run_verifier(repo)
+    assert rc == 0, (out, err)
+    assert "file_versions.json.sig" not in (out + err)
+
+    manifest = json.loads((repo / "file_versions.json").read_text(encoding="utf-8"))
+    assert "file_versions.json.sig" not in manifest["selectable"]
+    assert "file_versions.json.sig" not in manifest["units"]["core"]["files"]

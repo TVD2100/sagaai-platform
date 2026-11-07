@@ -6,6 +6,15 @@ Public keys SagaAI uses to check the signatures of update manifests
 marketplace read it by default and never from the channel they verify - a key
 delivered next to the manifest it vouches for proves nothing.
 
+## Installed anchor
+
+`ed25519-public.pem` in this folder is the release key installations trust.
+Its private half lives on the publishing machine at `~/.sagaai/ed25519.pem`
+(mode `0600`), never in the repository, and must be backed up: losing it means
+new releases can no longer be signed, and the published public key has to be
+replaced through a release signed by the old one. `python3
+scripts/sign_release.py keyring keys/` prints the `key_id` in force.
+
 ## Generating the release key
 
 Run once, on the machine that publishes releases:

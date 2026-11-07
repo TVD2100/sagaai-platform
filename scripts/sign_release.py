@@ -112,7 +112,8 @@ def _cmd_keygen(args):
 
 def _cmd_keyring(args):
     """List the keys a verifier would trust."""
-    report = keyring_report(args.keyring or DEFAULT_KEYRING)
+    folder = args.keyring or args.folder or DEFAULT_KEYRING
+    report = keyring_report(folder)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if report.get("ok") else 1
 
@@ -144,6 +145,8 @@ def _build_parser():
     keygen.set_defaults(func=_cmd_keygen)
 
     keyring = sub.add_parser("keyring", help="list trusted public keys")
+    keyring.add_argument("folder", nargs="?", default="",
+                         help="folder of public keys (default: keys/)")
     keyring.add_argument("--keyring", default="")
     keyring.set_defaults(func=_cmd_keyring)
     return parser

@@ -1,15 +1,15 @@
 {
   "schema": 1,
-  "app_version": "2.42.1",
+  "app_version": "2.43.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Исправления режима песочницы по итогам первых диалогов: временный HOME больше не копится на диске, общий /tmp стал настоящим каталогом, доступным инструментам, запрет чтения сузился до баз данных и хранилища секретов (скиллы и папка диалога снова читаются), папка файлов диалога и рабочий каталог сотрудника доступны до выбора проекта, вложенный запуск наследует песочницу вместо второй, запись в .git разрешена при закрытых hooks и config, а действующий режим изоляции виден в системном промпте.",
-    "en": "Sandbox fixes from the first live dialogs: the temporary HOME no longer piles up on disk, the shared /tmp is a real directory the tools can read back, the read denial narrowed to the databases and the secret store (skills and dialog attachments read again), the dialog files folder and the employee working memory stay reachable before a project is chosen, a nested run inherits the sandbox instead of stacking a second one, writing to .git is allowed while hooks and config stay closed, and the isolation actually in force is stated in the system prompt."
+    "ru": "Релизный ключ и политика безопасности. Публичная половина подписи Ed25519 теперь лежит в keys/ed25519-public.pem как якорь доверия - до этого механизм был готов, но проверять было нечем, и канал stable отказывал в каждом обновлении. file_versions.json подписан отделённой подписью (.sig рядом с манифестом); сама подпись не входит в список файлов манифеста, который подписывает. Добавлен SECURITY.md: как сообщить об уязвимости, какие версии поддерживаются, что гарантирует песочница исполнения кода и что именно нужно беречь в установке. sign_release.py keyring снова принимает папку позиционным аргументом, как и показано во всех документах.",
+    "en": "Release key and a security policy. The public half of the Ed25519 signature now lives in keys/ed25519-public.pem as the trust anchor - the mechanism existed before, but nothing could be checked against it and the stable channel refused every update. file_versions.json carries a detached signature (a .sig sidecar); the signature itself is not an entry of the manifest it signs. SECURITY.md is added: how to report a vulnerability, which versions are supported, what the execution sandbox guarantees and what an installation must keep safe. sign_release.py keyring accepts the folder positionally again, the form every document shows."
   },
   "updated": "2026-11-07T19:20:00Z",
   "units": {
     "core": {
-      "version": "1.84.1",
+      "version": "1.85.0",
       "note": {
         "ru": "Пакет: исправления песочницы - один временный HOME на установку с уборкой старых, настоящий общий /tmp, узкий список запрещённого чтения, папка диалога и рабочий каталог как разрешённые корни (dev_agent/tools/path_scope.py), наследование уже действующей песочницы, запись в .git без hooks и config, блок ## Code execution sandbox в системном промпте, уточнённое описание set_workspace.",
         "en": "Package: sandbox fixes - one temporary HOME per installation with stale sweep, a real shared /tmp, a narrow read-deny list, the dialog folder and the working memory as addressable roots (dev_agent/tools/path_scope.py), inheritance of an enclosing sandbox, .git writes without hooks and config, the ## Code execution sandbox prompt block and a clearer set_workspace description."
@@ -276,8 +276,8 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.74.1",
-          "sha256": "351c2de393f7d69c673e33590282ba94e26f65f6b99127232075cdd20dbcb07a",
+          "version": "1.75.0",
+          "sha256": "24e8b78e513ba9625cddd86a423265ab8b14807ecff73984c0196bc820f674b1",
           "note": {
             "ru": "Релиз 2.41.0: подпись Ed25519 для обновлений и маркетплейса.",
             "en": "Release 2.41.0: Ed25519 signatures for updates and the marketplace."
@@ -376,8 +376,8 @@
           }
         },
         "scripts/verify_manifest.py": {
-          "version": "1.2.5",
-          "sha256": "d5032a8f7ef48613fe09079c04d3bae77959986ee111517740a351718a2c0f2d",
+          "version": "1.3.0",
+          "sha256": "f5cd12bdca4f329b1f509d8997b2d8b5942bb92070192f732c92f647f46d459d",
           "note": {
             "ru": "Срез 13: проверка манифеста разделена на именованные фазы; состав проверок и тексты ошибок не изменились.",
             "en": "Slice 13: manifest validation is split into named phases; the set of checks and the error texts are unchanged."
@@ -1168,8 +1168,8 @@
           "sha256": "973f260075d8ea4fb5a3d91bb3804bcc94626594fb3fb533de3d14b3274c0edf"
         },
         "tests/test_verify_manifest.py": {
-          "version": "1.0.3",
-          "sha256": "fa4d452002a16edc292c203c9b91f47cfb492127658cc1f1ddc127a4ef63c7ca"
+          "version": "1.1.0",
+          "sha256": "d6a9af024fac198c2ed1c1b03c752d993fbda47edff8d7899d35caa1f9e4cb92"
         },
         "tests/test_web_search_prompt.py": {
           "version": "1.0.2",
@@ -3206,8 +3206,8 @@
           "sha256": "a5ccddc004bbe5c86fe559d19e759c999aa4732d9e9a9c5195492721c7bf78b7"
         },
         "scripts/sign_release.py": {
-          "version": "1.0.0",
-          "sha256": "0e1d80eaf25298e66831c9debb3f04def388848dd27318cfc78e8245e5d9d548"
+          "version": "1.0.1",
+          "sha256": "cbfad70bf524e3e53820bb17b2053aa40bb6a525657ebe1e040a4b87049a0d4c"
         },
         "tests/test_signing.py": {
           "version": "1.0.0",
@@ -3218,8 +3218,8 @@
           "sha256": "bd213d1f50185b6236e453528622860d62f827785690f86a17131e651392abe3"
         },
         "tests/test_sign_release.py": {
-          "version": "1.0.0",
-          "sha256": "b847d0d0b29dabdbeaba53c32c4ed3e05028913a9ed414ebfd4ecf4a7c4a06a1"
+          "version": "1.0.1",
+          "sha256": "85da758e1bfec15282fd92c520893a498cb85e9ecfce4f3221c4f62ef42bee6f"
         },
         "tests/scenarios/test_marketplace_signing_scenario.py": {
           "version": "1.0.0",
@@ -3270,8 +3270,8 @@
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.76.1",
-      "sha256": "c58c77444140cb75a5eedafcae2704bb4fb6949b1e9bc734c98f61efce484b95",
+      "version": "1.77.0",
+      "sha256": "3d4facb0fc46a366bc6c02327b73e4b3e5e9a5c236297800bc17c502a244049e",
       "note": {
         "ru": "Песочница исполнения: панель настройки профиля, активные запуски и журнал отказов.",
         "en": "Execution sandbox: the profile settings panel, live runs and the refusal journal."
@@ -3286,16 +3286,16 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.77.1",
-      "sha256": "bac2f3960cfd0c03b163b8b4ba6088c302959741f589b0da204795fb97326b1c",
+      "version": "1.78.0",
+      "sha256": "dfff61ced035859fb7d40645d579ae35fb38159024787c8740192a1d6794068a",
       "note": {
-        "ru": "Регенерация: _as_own_error в verify.py.",
-        "en": "Regenerated: _as_own_error in verify.py."
+        "ru": "Регенерация: SECURITY.md и публичный ключ доверия в карте проекта.",
+        "en": "Regenerated: SECURITY.md and the public trust anchor in the project map."
       }
     },
     "README.md": {
-      "version": "1.61.1",
-      "sha256": "ee1bb93ce8c8fd6f0b39b096f1e4d50546ecde0b0f5d2f463002be625c4033f4",
+      "version": "1.62.0",
+      "sha256": "32031824a043ae36df487668aded4d90a6680e31bbe16843d49ad5089c49ad33",
       "note": {
         "ru": "Строка статуса версии обновлена до 2.42.1.",
         "en": "The version status line is updated to 2.42.1."
@@ -3710,8 +3710,8 @@
       }
     },
     "AGENT.md": {
-      "version": "1.52.1",
-      "sha256": "c97f2b6d4e435b947f67ea02200711a0617524636a102a239bc84d3b85d68543",
+      "version": "1.53.0",
+      "sha256": "f6ee767b882b217e1b78896fa01055fee17acac7e3f419e1f67201b05c1a95ad",
       "note": {
         "ru": "Инвентарь базовых файлов: core/signing.py и core/marketplace/attest.py.",
         "en": "Base-file inventory: core/signing.py and core/marketplace/attest.py."
@@ -3926,11 +3926,27 @@
       }
     },
     "keys/README.md": {
-      "version": "1.0.0",
-      "sha256": "17fcbf1969b1f28ed2e5c656a793d7937e56b72093e536543691c09af2419f2c",
+      "version": "1.1.0",
+      "sha256": "5d5442531004dcf19e2350e26ddf6e3dcfcc52a87055b6fce1b5413ca74ccc00",
       "note": {
-        "ru": "Ключи доверия для подписи обновлений и маркетплейса: генерация пары, подпись и проверка манифестов, порядок ротации ключа. Здесь лежат только открытые половины.",
-        "en": "Trust anchors for update and marketplace signatures: key generation, manifest signing and verification, and the rotation order. Only public halves live here."
+        "ru": "Каталог ключей доверия: установленный якорь, генерация релизной пары, подпись и проверка манифеста, ротация ключей и политика каналов.",
+        "en": "The trusted-keys folder: the installed anchor, generating the release pair, signing and verifying the manifest, key rotation and the channel policy."
+      }
+    },
+    "SECURITY.md": {
+      "version": "1.0.0",
+      "sha256": "1ad3d6958ef8d2c659f65009ca0821e5cb489d8a7a501f28b28c38f2f7184d74",
+      "note": {
+        "ru": "Политика безопасности: как сообщить об уязвимости, поддерживаемые версии, политика каналов подписи, что гарантирует песочница исполнения кода и что нужно беречь в установке.",
+        "en": "Security policy: how to report a vulnerability, supported versions, the signature channel policy, what the execution sandbox guarantees and what an installation must keep safe."
+      }
+    },
+    "keys/ed25519-public.pem": {
+      "version": "1.0.0",
+      "sha256": "04d115a3a64458ccf71823cb27bf27e1ac0906b0f9149e56c57603056ad48a8f",
+      "note": {
+        "ru": "Публичная половина релизного ключа Ed25519 - якорь доверия для подписи манифеста обновлений. Приватная половина в репозиторий не попадает.",
+        "en": "Public half of the Ed25519 release key - the trust anchor for the update manifest signature. The private half never enters the repository."
       }
     }
   }

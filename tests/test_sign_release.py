@@ -189,6 +189,15 @@ class TestKeyring:
 
         assert status == 0
 
+    def test_the_folder_is_taken_positionally(self, tmp_path, capsys):
+        """``keyring keys/`` is the form the documentation shows."""
+        _private, key_id = _keypair(tmp_path, "one")
+
+        status = sign_release.main(["keyring", str(tmp_path / "keys")])
+
+        assert status == 0
+        assert key_id in capsys.readouterr().out
+
 
 @pytest.mark.parametrize("command", ["sign", "verify", "keygen", "keyring"])
 def test_every_subcommand_is_reachable(command):

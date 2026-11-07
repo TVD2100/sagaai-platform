@@ -695,7 +695,21 @@
 # description tells the model when to call it instead of asking for a path it
 # was already given.
 
-__version__ = "2.42.1"
+# 2.43.0 establishes the trust anchor. The release key pair exists and its
+# public half ships in ``keys/ed25519-public.pem``, so an installation can check
+# a signature without having to download the key that vouches for it: until now
+# the mechanism was built but nothing vouched for anything, and the stable
+# channel refused every release while the development channel merely warned.
+# ``file_versions.json`` now carries a detached ``.sig`` next to it. The
+# signature is a sidecar by construction - it cannot be listed inside the
+# manifest it signs, or the first release would need the signature of the
+# previous one - and the manifest verifier skips it explicitly. A security
+# policy (``SECURITY.md``) states the supported line, the private reporting
+# channel, the channel policy and what the sandbox does and does not guarantee.
+# ``sign_release.py keyring`` accepts the folder positionally again, the form
+# every document about it shows.
+
+__version__ = "2.43.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

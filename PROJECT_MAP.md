@@ -2,17 +2,18 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-07T19:03:16+00:00`
-- Файлов: **801**
+- Обновлено: `2026-11-07T19:46:46+00:00`
+- Файлов: **803**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **10850**
-- Отпечаток содержимого: `sha256:39c1babb35f0c9609569c19a2231adabd84dd925954eb0038f3e54080a201506` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 2, JSON: 36, Markdown: 41, PEM certificate: 1, Python: 721, TOML: 2, Text: 2
+- Python-символов: **10852**
+- Отпечаток содержимого: `sha256:7ffeb19eee4cff07f86c5af43617fb8253d329c5b1796cb669f52cd1629ece9c` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 2, JSON: 36, Markdown: 42, PEM certificate: 2, Python: 721, TOML: 2, Text: 2
 
 ## Файлы и назначение
 
 | Файл | Язык | Назначение | Зависит от |
 | --- | --- | --- | --- |
+| `SECURITY.md` | Markdown | _(описание не задано)_ | - |
 | `__init__.py` | Python | Package marker | - |
 | `alembic.ini` | Config | Alembic configuration; script location points at migrations/ | - |
 | `app.py` | Python | Process entry point: same-process marker, the marketplace recovery hook and the cold-start database-format switches (devagent.db, then the assistant dialogues of sagaai.db) before Streamlit is imported, so an interrupted install is undone and the layout is current before the UI opens | storage, ui |
@@ -749,6 +750,7 @@
 | `scripts/sign_release.py` | Python | Release signing CLI: keygen writes an Ed25519 pair, sign writes file_versions.json.sig, verify checks a manifest against a key or a keyring folder, keyring prints the trusted keys and their ids | - |
 | `scripts/verify_manifest.py` | Python | Manifest validator/maintainer: schema, coverage of git-tracked files, sha256 freshness, app_version consistency; prompt versions come from file headers on --init/--add; build artifacts of an editable install (``*.egg-info``) are skipped by suffix in the coverage walk; modes --init/--add/--fix-hashes/--json/--strict | - |
 | `keys/README.md` | Markdown | Trust anchors for update and marketplace signatures: how to generate the release key, sign and verify a manifest, the rotation order and the channel policy that decides when a signature is required | - |
+| `keys/ed25519-public.pem` | PEM certificate | _(описание не задано)_ | - |
 | `dev_agent/__init__.py` | Python | Package marker | agent_loop, backup_manager, safe_writer, tool_executor, universal_agent, workspace_tools |
 | `dev_agent/agent_loop.py` | Python | Provider-independent agent loop (single-model routing, economy mode, strength-classified tools); carries the run identity (run_id/parent_run_id/depth) in state and fans out independent spawn_agent calls in the executing phase; a parked child stops at the step boundary and resumes from the delivered [PARENT ANSWER] message, the question notice reaches the parent as a hidden system line, and the child-mode confirmation refusal keeps a subagent autonomous | storage |
 | `dev_agent/assistant_detector.py` | Python | Assistant detection/creation helpers (renamed from skill_detector) | storage |
@@ -9198,7 +9200,8 @@
 - `TestKeyring` (class, строка 176)
 - `TestKeyring.test_every_readable_key_is_listed` (func, строка 177)
 - `TestKeyring.test_a_missing_folder_reports_no_trusted_keys` (func, строка 185)
-- `test_every_subcommand_is_reachable` (func, строка 194)
+- `TestKeyring.test_the_folder_is_taken_positionally` (func, строка 192)
+- `test_every_subcommand_is_reachable` (func, строка 203)
 
 ### `tests/test_signing.py`
 - `_pair` (func, строка 23)
@@ -10455,6 +10458,7 @@
 - `test_app_version_change_is_detected` (func, строка 151)
 - `test_ci_configuration_is_repo_local` (func, строка 161)
 - `test_changelog_local_only_is_coverage_skip` (func, строка 181)
+- `test_the_manifest_signature_is_a_sidecar` (func, строка 195)
 
 ### `tests/test_web_search_prompt.py`
 - `test_default_prompt_is_stable` (func, строка 39)
@@ -12280,35 +12284,35 @@
 - `_cmd_verify` (func, строка 77)
 - `_cmd_keygen` (func, строка 95)
 - `_cmd_keyring` (func, строка 113)
-- `_build_parser` (func, строка 120)
-- `main` (func, строка 152)
+- `_build_parser` (func, строка 121)
+- `main` (func, строка 155)
 
 ### `scripts/verify_manifest.py`
-- `log` (func, строка 118)
-- `find_root` (func, строка 123)
-- `git_ls_files` (func, строка 135)
-- `sha256_file` (func, строка 151)
-- `read_app_version` (func, строка 159)
-- `header_version` (func, строка 179)
-- `classify` (func, строка 189)
-- `load_manifest` (func, строка 199)
-- `save_manifest` (func, строка 205)
-- `now_iso` (func, строка 214)
-- `build_manifest` (func, строка 218)
-- `add_file` (func, строка 265)
-- `check_note_dict` (func, строка 307)
-- `check_unit` (func, строка 319)
-- `check_file_entry` (func, строка 335)
-- `_check_schema` (func, строка 360)
-- `_check_section_entries` (func, строка 390)
-- `_iter_entries` (func, строка 408)
-- `_check_presence_and_hashes` (func, строка 418)
-- `_check_git_coverage` (func, строка 441)
-- `_check_uncovered_local` (func, строка 463)
-- `_check_app_version` (func, строка 488)
-- `_emit_report` (func, строка 497)
-- `verify` (func, строка 521)
-- `main` (func, строка 558)
+- `log` (func, строка 123)
+- `find_root` (func, строка 128)
+- `git_ls_files` (func, строка 140)
+- `sha256_file` (func, строка 156)
+- `read_app_version` (func, строка 164)
+- `header_version` (func, строка 184)
+- `classify` (func, строка 194)
+- `load_manifest` (func, строка 204)
+- `save_manifest` (func, строка 210)
+- `now_iso` (func, строка 219)
+- `build_manifest` (func, строка 223)
+- `add_file` (func, строка 270)
+- `check_note_dict` (func, строка 312)
+- `check_unit` (func, строка 324)
+- `check_file_entry` (func, строка 340)
+- `_check_schema` (func, строка 365)
+- `_check_section_entries` (func, строка 395)
+- `_iter_entries` (func, строка 413)
+- `_check_presence_and_hashes` (func, строка 423)
+- `_check_git_coverage` (func, строка 446)
+- `_check_uncovered_local` (func, строка 468)
+- `_check_app_version` (func, строка 493)
+- `_emit_report` (func, строка 502)
+- `verify` (func, строка 526)
+- `main` (func, строка 563)
 
 ### `dev_agent/agent_loop.py`
 - `_now_ts` (func, строка 221)

@@ -43,15 +43,15 @@ MANIFEST_NAME = "file_versions.json"
 COVERAGE_SKIP = {
     ".gitignore",
     MANIFEST_NAME,
+    MANIFEST_NAME + ".sig",  # a sidecar is not an entry of the manifest
     "CHANGELOG.md",
     # Repository automation, not a shipped file. GitHub refuses workflow
     # files over the publish API, so an installation can never download this
     # one: listing it would advertise an undeliverable file and fail the whole
     # update run on a 404.
     ".github/workflows/ci.yml",
-    # Internal repo-maintenance instructions for DevAgent; they guide editing
-    # and publishing this repository copy and are never offered to end users
-    # as selectable updates.
+    # Internal repo-maintenance instructions for DevAgent; never offered to
+    # end users as selectable updates.
     "defaults/orchestrators/dev_agent/instructions/local_repo_guide.md",
     "defaults/orchestrators/dev_agent/instructions/repo_sync.md",
 }
