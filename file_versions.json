@@ -368,8 +368,8 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.8.1",
-          "sha256": "748fb1d3be3d9ad99a59b65eee42b727edc516d2d860e2774ebe8b4aae29d051",
+          "version": "1.8.2",
+          "sha256": "f3c06dee9afd9f6c647f126d1b71e8110c79ca90eef60630122eb1807eefd1b4",
           "note": {
             "ru": "Описания девяти модулей core/marketplace, появившихся при разделении установки агента и матрицы конфликтов.",
             "en": "Descriptions of the nine core/marketplace modules created by splitting the agent installation and the conflict matrix."
@@ -1434,8 +1434,8 @@
           }
         },
         "core/orchestration/tools.py": {
-          "version": "1.12.1",
-          "sha256": "13af75f35565fe47d31fea85773a7ec720ae2bf1f29a1847176434ffadb04eb3",
+          "version": "1.13.0",
+          "sha256": "f28b4ae19b7546ec7389ba5755ccab75b0cf329e4ddb8e0a79601cf515e33100",
           "note": {
             "ru": "read_subagent_thread сохраняет пояснение ридера о пустой переписке и отвечает resume_unavailable с указанием на журнал, когда у ребёнка нет строки индекса; прочие сбои чтения сохраняют собственную ошибку.",
             "en": "read_subagent_thread keeps the reader note about an empty conversation and answers resume_unavailable pointing at the journal when a child has no index row; other read failures keep their own error."
@@ -2542,24 +2542,24 @@
           "sha256": "e135a930695e7a09a1df75c2417f26fa2063327c6e2c90c965cab15a77238b67"
         },
         "scripts/refactor_budget.py": {
-          "version": "1.0.0",
-          "sha256": "8a68f0bbd6e5d91e56f9b4c8a437d187c33ed8840b0fbfc1341951f97d6e88f6"
+          "version": "1.1.0",
+          "sha256": "ccc6805ae99eeae88f12519e51a8967b388fbeb25ed45df5a0ebcf356cd242c1"
         },
         "scripts/capture_loop_golden.py": {
           "version": "1.0.0",
           "sha256": "59963f7094f2283ac8f00f35e85aa1432acb0a94954dc666d24ad9dd0803ca05"
         },
         "refactor_budget.json": {
-          "version": "1.2.1",
-          "sha256": "710d394c258736d87a7f16646cf878d0b78d736e8135508140bcd92fff6cb73e",
+          "version": "1.4.0",
+          "sha256": "36945d5a3f26c2bf7ebab3f0e7af60044eed739dfb55f98b98c4b5d11573d27d",
           "note": {
             "ru": "Срез 13: в ратчет внесены ui/pages/history.py, dev_agent/workspace_tools.py и scripts/verify_manifest.py.",
             "en": "Slice 13: ui/pages/history.py, dev_agent/workspace_tools.py and scripts/verify_manifest.py added to the ratchet."
           }
         },
         "tests/test_refactor_budget.py": {
-          "version": "1.0.0",
-          "sha256": "548ad31b34354de2564c6331c0b833560670d0506b4cc7204ab6018daa32c909"
+          "version": "1.1.0",
+          "sha256": "6d040cc55340bb72c831e335c3d204df0eec1b8f4a8368acb3902b38a2035c8b"
         },
         "tests/test_loop_golden_payloads.py": {
           "version": "1.0.0",
@@ -2900,14 +2900,66 @@
         "dev_agent/tools/file_tree.py": {
           "version": "1.0.0",
           "sha256": "ec3c827566c116212813a1a89cdca17a2277af0d2b8e937cc1d5259fffbfe9ad"
+        },
+        "core/orchestration/tools_clock.py": {
+          "version": "1.0.0",
+          "sha256": "8957e33d412af2a2101b3ef9fce03f0596c9b8fb703100eb561b8b9e1c5ba92b"
+        },
+        "core/orchestration/tools_constants.py": {
+          "version": "1.0.0",
+          "sha256": "1b1ebcf3513bedc9c81fd0ea2e46c1c5b6d9578a912fa0eadb94d54eec1a266b"
+        },
+        "core/orchestration/tools_notes.py": {
+          "version": "1.0.0",
+          "sha256": "f95c2d5d6ab05c6ede2ac6eb481badc1e249febe37239905f0fb669a1aac9bcc"
+        },
+        "core/orchestration/tools_rights.py": {
+          "version": "1.0.0",
+          "sha256": "b4f28b5adfa8f365131a6694010be0bdd271eddf1823a4ed517ee559c6f1da60"
+        },
+        "core/orchestration/tools_records.py": {
+          "version": "1.0.0",
+          "sha256": "e119ff5e716f9998e213eab7aec7ac1170bcf657f4d0142675986992dd41334f"
+        },
+        "core/orchestration/tools_spawn.py": {
+          "version": "1.0.0",
+          "sha256": "ac3d79bdc564e83388bb2158c47ef319cd75ea3628b41e6e61d0ec2352389f8c"
+        },
+        "core/orchestration/tools_status.py": {
+          "version": "1.0.0",
+          "sha256": "3935312292561eb42de237763659d43955f797604306e59b9f6d509441339783"
+        },
+        "core/orchestration/tools_journal.py": {
+          "version": "1.0.0",
+          "sha256": "e5f50683351817253b4b6cda56256e1131b2b156e4628627f859432b4d529d0a"
+        },
+        "core/orchestration/tools_control.py": {
+          "version": "1.0.0",
+          "sha256": "55f04a6d8a0d9055f4ff51ae2b07bce21b21aa8f987652c62482ba88974139ff"
+        },
+        "core/orchestration/tools_dialog.py": {
+          "version": "1.0.0",
+          "sha256": "a549179f996754210c8ef261a827bf61520a29320c25bb425b0a3b8f04ca8a82"
+        },
+        "core/orchestration/tools_wait.py": {
+          "version": "1.0.0",
+          "sha256": "1e83d2a529cb38e5fa7f269beded9a1f47be5bd8495da8b85b17f453e6ed9adc"
+        },
+        "core/orchestration/tools_catalog.py": {
+          "version": "1.0.0",
+          "sha256": "7a81f60cca17ad26ae2d93209a39b9f3af571cd2618c9d1467d367d774bf26b7"
+        },
+        "tests/test_orchestration_tools_facade.py": {
+          "version": "1.0.0",
+          "sha256": "f39fc1d763a2374de3a6502e109f6c81471c0a3d5fd8c5f913bf5f1aa90a456d"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.71.5",
-      "sha256": "fb9e2a23632181dfda02e87581a3991925d4e576bd39379d7691909ce1b78ff0",
+      "version": "1.71.7",
+      "sha256": "a1db22b36f1609b3a9a19a304ecc0a4a084cce05e98af0e65ec9fac3fc746a0e",
       "note": {
         "ru": "Архитектура: промпт DevAgent v3.30 - спека изменения в скретче, а не проектная спецификация.",
         "en": "Architecture: DevAgent prompt v3.30 - the spec describes the change in the scratch area, not the project."
@@ -2922,8 +2974,8 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.74.7",
-      "sha256": "dfd405130baff6f82024e40f2ae0000f531039098312b1970f9779c3a4fc3ab5",
+      "version": "1.74.10",
+      "sha256": "20c3b9c3e68517390608f4eee4198a608c39fd78e0c968c25493db168f4929d5",
       "note": {
         "ru": "Карта перегенерирована после среза 13: фазовое разложение крупных функций и три новых файла в ратчете.",
         "en": "The map is regenerated after slice 13: phased decomposition of the large functions and three new files in the ratchet."
@@ -3346,8 +3398,8 @@
       }
     },
     "AGENT.md": {
-      "version": "1.47.4",
-      "sha256": "0dac82995f9bdcc053544311507dc94f6bfa42316124a707f12927719e2e25af",
+      "version": "1.47.6",
+      "sha256": "a8b659631c0a429d41ab2ed71d6f66e4de553b731c1feb5de2aa63a8451312c0",
       "note": {
         "ru": "Срез 12: инвентарь базовых файлов пополнен модулем обхода дерева dev_agent/tools/file_tree.py (264 файла).",
         "en": "Slice 12: the inventory of base files gained the directory-walk module dev_agent/tools/file_tree.py (264 files)."
