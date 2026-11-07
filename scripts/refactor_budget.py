@@ -94,12 +94,15 @@ def _ruff_command() -> List[str]:
     return [executable] if executable else [sys.executable, "-m", "ruff"]
 
 
-def complexity_map(paths: List[str]) -> Tuple[Dict[str, int], str]:
+def complexity_map(paths: List[str], base: str = "") -> Tuple[Dict[str, int], str]:
     """Return ``{"path::function": cc}`` for *paths*, and an error message.
 
-    The probe config lives in a temporary file so the repository's own
-    ``ruff.toml`` is never touched. An empty error string means success.
+    Keys are relative to *base* (the repository root by default): the caller
+    that measures another tree gets names it can compare against its own
+    file list. The probe config lives in a temporary file so the repository's
+    own ``ruff.toml`` is never touched. An empty error string means success.
     """
+    anchor = base or ROOT
     existing = [p for p in paths if os.path.isfile(p)]
     if not existing:
         return {}, ""
@@ -131,7 +134,7 @@ def complexity_map(paths: List[str]) -> Tuple[Dict[str, int], str]:
         match = _CC_LINE.match(line.strip())
         if not match:
             continue
-        rel = os.path.relpath(match.group("path"), ROOT).replace(os.sep, "/")
+        rel = os.path.relpath(match.group("path"), anchor).replace(os.sep, "/")
         key = rel + "::" + match.group("name")
         result[key] = max(result.get(key, 0), int(match.group("cc")))
     return result, ""
@@ -175,6 +178,98 @@ def tail(text: str, limit: int = 20) -> str:
 
 #: The properties compared against the budget, in reporting order.
 PROPERTIES = ("file_lines", "function_lines", "max_cc")
+
+#: The global properties compared against the budget, in reporting order.
+#: They describe the WHOLE production tree rather than one listed file, so
+#: the gate cannot be dodged by adding a file the budget never listed.
+GLOBAL_PROPERTIES = ("max_function_lines", "max_cc")
+
+#: Directories the global scan skips. Runtime data lives in the same tree as
+#: the sources, and tests are excluded on purpose: a test fixture is allowed
+#: to be long, and a ceiling raised to fit one would stop guarding the code.
+GLOBAL_SKIP_DIRS = {
+    ".git", ".dev_agent", "__pycache__", ".pytest_cache", ".venv", "venv",
+    ".ruff_cache", "env", "build", "dist", "apps", "connectors", "assistants",
+    "history", "orchestrators", "rag_bases", "skills", "system_prompts",
+    "threads", "data", "deliverables", "personal_assistant_data", "tests",
+}
+
+
+def iter_source_files(root: str) -> List[str]:
+    """Return every production ``.py`` file under *root*, as relative paths.
+
+    Runtime data directories live in the same tree as the sources, so the
+    walk skips them explicitly; ``tests`` is skipped too (a fixture is
+    allowed to be long). The list is sorted so two runs agree.
+    """
+    found: List[str] = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = sorted(d for d in dirnames if d not in GLOBAL_SKIP_DIRS)
+        for name in filenames:
+            if not name.endswith(".py"):
+                continue
+            full = os.path.join(dirpath, name)
+            found.append(os.path.relpath(full, root).replace(os.sep, "/"))
+    return sorted(found)
+
+
+def measure_global(root: str = "") -> Tuple[Dict[str, object], str]:
+    """Measure the two tree-wide properties, and return them with a problem.
+
+    The properties are the length of the longest function and the highest
+    cyclomatic complexity anywhere in the production tree. Both are measured
+    over the SAME file list, so a value always has a named owner. A file that
+    cannot be read or parsed is skipped, exactly as the per-file measurement
+    does - a broken file must not turn into a gate failure of its own.
+    """
+    base = root or ROOT
+    paths = iter_source_files(base)
+    if not paths:
+        return {}, "no Python sources found under %s" % base
+    longest_name, longest_len = "", 0
+    for rel in paths:
+        name, length = longest_function(os.path.join(base, rel))
+        if length > longest_len:
+            longest_name, longest_len = rel + "::" + name, length
+    cc_map, problem = complexity_map([os.path.join(base, rel) for rel in paths], base)
+    if problem:
+        return {}, problem
+    top_cc, top_cc_name = 0, ""
+    for key, value in cc_map.items():
+        if value > top_cc:
+            top_cc, top_cc_name = value, key
+    return {
+        "max_function_lines": longest_len,
+        "max_cc": top_cc,
+        "longest_function": longest_name,
+        "most_complex": top_cc_name,
+    }, ""
+
+
+def compare_global(limits: Dict[str, object], measured: Dict[str, object]) -> List[str]:
+    """Return one message per tree-wide limit violation.
+
+    The same rule as the per-file budget applies: a value may fall, it may
+    not rise. A missing limit is simply not checked, so a budget written
+    before the global section existed keeps working.
+    """
+    problems: List[str] = []
+    for prop in GLOBAL_PROPERTIES:
+        allowed = limits.get(prop)
+        if allowed is None:
+            continue
+        actual = int(measured.get(prop) or 0)
+        if actual > int(allowed):
+            where = ""
+            if prop == "max_cc":
+                where = measured.get("most_complex") or ""
+            elif prop == "max_function_lines":
+                where = measured.get("longest_function") or ""
+            suffix = " (in %s)" % where if where else ""
+            problems.append(
+                "whole tree: %s is %d%s, above the budget of %d" % (prop, actual, suffix, int(allowed))
+            )
+    return problems
 
 
 def compare(budget: Dict[str, Dict[str, int]],
@@ -247,9 +342,18 @@ def check(budget_path: str = "") -> Tuple[str, str]:
     if problem:
         return "env", problem
     problems = compare(limits, measured)
+    globals_limits = document.get("global")
+    if isinstance(globals_limits, dict) and globals_limits:
+        measured_globals, problem = measure_global()
+        if problem:
+            return "env", problem
+        problems = problems + compare_global(globals_limits, measured_globals)
     if problems:
         return "fail", "structural budget exceeded:\n  " + "\n  ".join(problems)
-    return "ok", "structural budget holds for %d files" % len(limits)
+    summary = "structural budget holds for %d files" % len(limits)
+    if isinstance(globals_limits, dict) and globals_limits:
+        summary += " and the whole tree"
+    return "ok", summary
 
 
 def report() -> int:
@@ -269,6 +373,16 @@ def report() -> int:
         print("%s: file=%s function=%s (%s) cc=%s (%s)" % (
             name, entry.get("file_lines"), entry.get("function_lines"),
             entry.get("longest_function"), entry.get("max_cc"), entry.get("most_complex"),
+        ))
+    globals_limits = (document or {}).get("global")
+    if isinstance(globals_limits, dict) and globals_limits:
+        globals_measured, problem = measure_global()
+        if problem:
+            print(problem, file=sys.stderr)
+            return 2
+        print("whole tree: max_function_lines=%s (%s) max_cc=%s (%s)" % (
+            globals_measured.get("max_function_lines"), globals_measured.get("longest_function"),
+            globals_measured.get("max_cc"), globals_measured.get("most_complex"),
         ))
     return 0
 

@@ -3,7 +3,8 @@
   "notes": [
     "A budget, not a target: a number may fall (then edit this file in the same commit), it may not rise.",
     "file_lines/function_lines are measured with ast; max_cc with ruff C901 (mccabe, max-complexity=1).",
-    "The ratchet exists so the god files can only shrink; see scripts/refactor_budget.py."
+    "The ratchet exists so the god files can only shrink; see scripts/refactor_budget.py.",
+    "The \"global\" section holds two absolute ceilings for the whole production tree (tests excluded): the longest function and the highest complexity. It guards the tree against a file the per-file list never named."
   ],
   "limits": {
     "core/api_bearer.py": {
@@ -265,6 +266,97 @@
       "longest_function": "_default_child_runner",
       "most_complex": "answer_run"
     },
+    "core/orchestration/tools.py": {
+      "file_lines": 155,
+      "function_lines": 0,
+      "max_cc": 0,
+      "longest_function": "",
+      "most_complex": ""
+    },
+    "core/orchestration/tools_catalog.py": {
+      "file_lines": 247,
+      "function_lines": 27,
+      "max_cc": 0,
+      "longest_function": "spawn_tool_entry",
+      "most_complex": ""
+    },
+    "core/orchestration/tools_clock.py": {
+      "file_lines": 36,
+      "function_lines": 4,
+      "max_cc": 0,
+      "longest_function": "_time",
+      "most_complex": ""
+    },
+    "core/orchestration/tools_constants.py": {
+      "file_lines": 21,
+      "function_lines": 0,
+      "max_cc": 0,
+      "longest_function": "",
+      "most_complex": ""
+    },
+    "core/orchestration/tools_control.py": {
+      "file_lines": 224,
+      "function_lines": 100,
+      "max_cc": 11,
+      "longest_function": "resume_subagent",
+      "most_complex": "resume_subagent"
+    },
+    "core/orchestration/tools_dialog.py": {
+      "file_lines": 190,
+      "function_lines": 94,
+      "max_cc": 13,
+      "longest_function": "ask_parent",
+      "most_complex": "ask_parent"
+    },
+    "core/orchestration/tools_journal.py": {
+      "file_lines": 148,
+      "function_lines": 121,
+      "max_cc": 14,
+      "longest_function": "read_subagent_thread",
+      "most_complex": "read_subagent_thread"
+    },
+    "core/orchestration/tools_notes.py": {
+      "file_lines": 190,
+      "function_lines": 66,
+      "max_cc": 14,
+      "longest_function": "run_note",
+      "most_complex": "run_note"
+    },
+    "core/orchestration/tools_records.py": {
+      "file_lines": 115,
+      "function_lines": 26,
+      "max_cc": 7,
+      "longest_function": "_confine_run",
+      "most_complex": "_load_run_record"
+    },
+    "core/orchestration/tools_rights.py": {
+      "file_lines": 106,
+      "function_lines": 28,
+      "max_cc": 4,
+      "longest_function": "_allowlist_context",
+      "most_complex": "_allowlist_context"
+    },
+    "core/orchestration/tools_spawn.py": {
+      "file_lines": 197,
+      "function_lines": 93,
+      "max_cc": 9,
+      "longest_function": "spawn_agent",
+      "most_complex": "spawn_agent"
+    },
+    "core/orchestration/tools_status.py": {
+      "file_lines": 293,
+      "function_lines": 95,
+      "max_cc": 14,
+      "longest_function": "subagent_result",
+      "most_complex": "read_subagent_state"
+    },
+    "core/orchestration/tools_wait.py": {
+      "file_lines": 211,
+      "function_lines": 141,
+      "max_cc": 22,
+      "longest_function": "sleep_tool",
+      "most_complex": "sleep_tool"
+    },
     "core/orchestrators.py": {
       "file_lines": 2681,
       "function_lines": 117,
@@ -489,5 +581,11 @@
       "longest_function": "_render_chat_tab",
       "most_complex": "_render_orch_rag_bases"
     }
+  },
+  "global": {
+    "max_function_lines": 188,
+    "max_cc": 29,
+    "longest_function": "core/marketplace/conflicts.py::_apply_choice",
+    "most_complex": "core/threads_devagent.py::search_thread_messages"
   }
 }

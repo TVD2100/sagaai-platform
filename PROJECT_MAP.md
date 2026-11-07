@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-06T22:02:17+00:00`
-- Файлов: **715**
+- Обновлено: `2026-11-06T22:58:39+00:00`
+- Файлов: **728**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **10049**
-- Отпечаток содержимого: `sha256:421aba20eda83dfe34e4172858b914495736585fe6c5c306c2040fbd006b0f5f` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 2, JSON: 36, Markdown: 40, PEM certificate: 1, Python: 636, TOML: 2, Text: 2
+- Python-символов: **10087**
+- Отпечаток содержимого: `sha256:45396481ae8eb47ed876f5333664d00aaa66de465e20492313a2ead608c39794` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 2, JSON: 36, Markdown: 40, PEM certificate: 1, Python: 649, TOML: 2, Text: 2
 
 ## Файлы и назначение
 
@@ -185,7 +185,19 @@
 | `core/orchestration/runs.py` | Python | Durable run store for delegated runs: save/load/list_runs with atomically written timestamped records under <install>/.dev_agent/orchestration/runs/<root_run_id>, duplicate sweeping, corrupt files set aside, heal() that turns a dead running claim into failed/stale_run, the parked fields of a run (question, round, deadline, dialog_limits frozen at spawn), expire_unanswered for a wait that ran out, prune_root/remove_older_than housekeeping and the atomic claim_notice/notice_claimed pair with a round discriminator, so two questions of one run publish two notices instead of one | - |
 | `core/orchestration/service.py` | Python | OrchestrationService: run registry and run tree, ensure_run/run/release_tree, cascade cancel with a CancelledByParent reason, subscriber feed, slot pool (max_active_subagents), max_depth, total_subagent_runs accounting, per-run timeout and step cap, derived child thread ids ({parent}__s{run_id[:8]}) and the child tool bans; the agent dialog lives here too - park_run freezes the run as awaiting_input with await_reason=question and its deadline, answer_run resumes the same run with the parent answer while refusing an expired wait, expire_parked/expire_parked_in finish an unanswered run as failed/answer_not_received, roots_for_thread restores the tree root of a dialog after a restart and revive_parked_run lifts a durable record back into the registry; a cancellation request is a record flag the child loop checks at step boundaries | - |
 | `core/orchestration/tool_classes.py` | Python | Classifies the tools a run called into the documented groups of read_subagent_thread and read_subagent_state, so the parent sees what the child touched without parsing its log | - |
-| `core/orchestration/tools.py` | Python | Delegation tool wrappers: spawn_agent and invoke_assistant with argument validation, allowlist rights, invalid_args and not_implemented; ask_parent parks the calling child with its question and returns the spent rounds, answer_child resumes a parked run with the parent answer and reports the next question when the child asks again; cancel_subagent, read_subagent_thread, subagent_status/result/state, resume_subagent and sleep complete the child-control surface; read_subagent_thread keeps the reader's own note about an empty conversation and reports a child without an index row as resume_unavailable pointing at the journal, while any other reader failure keeps its original error | storage |
+| `core/orchestration/tools.py` | Python | Facade of the delegation tools: re-exports every public name at the old path and holds no function of its own, so the agent loop and the catalog keep importing from here while a test that replaces tools.spawn_agent or tools.time stays in charge | - |
+| `core/orchestration/tools_catalog.py` | Python | Catalog entries of the delegation tools: the name, description and argument spec the model sees, kept as data without logic | - |
+| `core/orchestration/tools_clock.py` | Python | Clock of the delegation tools: reads the attributes of the facade at call time, so a test that replaces tools.time steers the wait instead of sleeping in real time | - |
+| `core/orchestration/tools_constants.py` | Python | Limits shared by the delegation tools: the status wait, the state text and the sleep ceiling | - |
+| `core/orchestration/tools_control.py` | Python | Stopping and continuing work: cancel_subagent marks a run cancelled at the next step boundary, resume_subagent continues a finished run from its journal, verify_result runs the verifier | - |
+| `core/orchestration/tools_dialog.py` | Python | The question protocol: ask_parent parks the calling child, answer_child resumes it with the decision, and the dialog limits bound the exchange | - |
+| `core/orchestration/tools_journal.py` | Python | Reading a child conversation: read_subagent_thread in its window, tail and around modes, with absolute message indices and tool results optional | - |
+| `core/orchestration/tools_notes.py` | Python | Text the delegation tools carry into a result: the progress note, the journal note, the payload attachment and the fenced question block | - |
+| `core/orchestration/tools_records.py` | Python | Reading a run record and deciding what the caller may see: the record loader, the tree root resolution, the confinement of a run to its caller and the live-result check | storage |
+| `core/orchestration/tools_rights.py` | Python | Who may be called: the allowlist context of the caller, the available agents and assistants, and the brief validation, each returning a refusal code instead of raising | - |
+| `core/orchestration/tools_spawn.py` | Python | Starting work: spawn_agent launches a child orchestrator with its own tools and thread, invoke_assistant makes one model call to an assistant | - |
+| `core/orchestration/tools_status.py` | Python | Reporting on a run: subagent_status with its optional long poll, subagent_result for a finished run and read_subagent_state for the child journal | - |
+| `core/orchestration/tools_wait.py` | Python | Waiting for children: sleep_tool returns on the first finished child or on the timeout without cancelling anything, plus the terminal and active run helpers | - |
 | `core/orchestration/transcript_reader.py` | Python | Read side of the transcript store: resolve a child's folder from its index row, tolerantly read every segment in order (a torn last line is skipped, a compressed segment is read through gzip), and return a window with roles, contents and an optional sequence range; a child whose row exists but whose file has not been written yet answers an honest empty window with a note (read_window, read_tail, read_around, describe) instead of falling back to a messages table that never held it, while a dialog without a transcript keeps the legacy path unchanged | storage |
 | `core/orchestration/transcript_sink.py` | Python | Bridges the runner and the transcript store: turns the messages of one step into records, strips UI render data, appends them without raising into the run, and flushes the index fields of the thread (transcript path, parent, size) so a reader can find the folder | storage |
 | `core/orchestration/verify.py` | Python | Verification of a delegated result: Verdict (passed/failed/inconclusive), resolve_verifier, build_verifier_brief (summary and artifacts only - never the transcript), parse_verdict (conservative), verify_result launching the verifier as a child of the target tree | - |
@@ -335,6 +347,7 @@
 | `tests/test_orchestration_subagent_result.py` | Python | Unit tests for collecting a finished run with subagent_result: the answer is exactly the object a blocking spawn returns, an unfinished run has no result key at all, a cancelled run keeps its own code, the wait is capped, refusals (missing id, unknown run, another tree) and the stored-record fallback. | - |
 | `tests/test_orchestration_subagent_tools.py` | Python | Unit tests for the observation tools: subagent_status over one run, a whole tree and a bounded wait, read_subagent_state sections and caps, and resume_subagent with and without an explicit request | - |
 | `tests/test_orchestration_tools.py` | Python | Unit tests for the spawn_agent/invoke_assistant wrappers: rights checks, unknown targets, argument validation and catalog entries | - |
+| `tests/test_orchestration_tools_facade.py` | Python | Boundary tests of the split: every public name is reachable at the old path, the facade holds no function of its own and stays small, a replaced tools.time and tools.spawn_agent stay in charge, and no implementation module imports the facade at module level | - |
 | `tests/test_orchestration_verify.py` | Python | Unit tests for verify_result: contract refusals, the three verdicts, conservative parsing, the visibility boundary, own thread and journal, tree limits, catalog and prompt gating, fan-out acceptance | storage |
 | `tests/test_orchestrator_chat_prefs.py` | Python | _(описание не задано)_ | ui |
 | `tests/test_orchestrator_connections.py` | Python | Unit tests for the connection prompt extension: enabled binding, per-service tool catalogs, credentials-pending marker, memory quick notes | storage |
@@ -3398,50 +3411,74 @@
 - `_target_of` (func, строка 120)
 - `written_targets` (func, строка 129)
 
-### `core/orchestration/tools.py`
-- `run_note` (func, строка 86)
-- `_attach_note` (func, строка 154)
-- `fence_question_payload` (func, строка 163)
-- `fence_question_payload._once` (func, строка 182)
-- `_note_for_payload` (func, строка 214)
-- `_journal_note` (func, строка 225)
-- `_allowlist_context` (func, строка 254)
-- `_available_agents` (func, строка 284)
-- `check_agent_allowed` (func, строка 289)
-- `check_assistant_allowed` (func, строка 314)
-- `_validate_brief` (func, строка 330)
-- `spawn_agent` (func, строка 342)
-- `invoke_assistant` (func, строка 437)
-- `subagent_status` (func, строка 506)
-- `subagent_result` (func, строка 577)
-- `_is_live_result` (func, строка 674)
-- `read_subagent_state` (func, строка 684)
-- `_child_thread_row_missing` (func, строка 767)
-- `_load_run_record` (func, строка 790)
-- `_resolve_run_root` (func, строка 816)
-- `_confine_run` (func, строка 829)
-- `read_subagent_thread` (func, строка 857)
-- `cancel_subagent` (func, строка 980)
-- `resume_subagent` (func, строка 1040)
-- `verify_result` (func, строка 1139)
-- `_terminal_run_ids` (func, строка 1174)
-- `_active_run_ids` (func, строка 1198)
-- `sleep_tool` (func, строка 1221)
-- `ask_parent` (func, строка 1364)
-- `answer_child` (func, строка 1460)
-- `read_dialog_limits` (func, строка 1501)
-- `ask_parent_tool_entry` (func, строка 1526)
-- `answer_child_tool_entry` (func, строка 1549)
-- `spawn_tool_entry` (func, строка 1565)
-- `subagent_status_tool_entry` (func, строка 1594)
-- `read_subagent_state_tool_entry` (func, строка 1609)
-- `resume_subagent_tool_entry` (func, строка 1623)
-- `read_subagent_thread_tool_entry` (func, строка 1638)
-- `cancel_subagent_tool_entry` (func, строка 1658)
-- `subagent_result_tool_entry` (func, строка 1674)
-- `sleep_tool_entry` (func, строка 1698)
-- `verify_result_tool_entry` (func, строка 1724)
-- `invoke_tool_entry` (func, строка 1746)
+### `core/orchestration/tools_catalog.py`
+- `ask_parent_tool_entry` (func, строка 13)
+- `answer_child_tool_entry` (func, строка 35)
+- `spawn_tool_entry` (func, строка 50)
+- `subagent_status_tool_entry` (func, строка 78)
+- `read_subagent_state_tool_entry` (func, строка 92)
+- `resume_subagent_tool_entry` (func, строка 105)
+- `read_subagent_thread_tool_entry` (func, строка 119)
+- `cancel_subagent_tool_entry` (func, строка 138)
+- `subagent_result_tool_entry` (func, строка 153)
+- `sleep_tool_entry` (func, строка 176)
+- `verify_result_tool_entry` (func, строка 201)
+- `invoke_tool_entry` (func, строка 222)
+
+### `core/orchestration/tools_clock.py`
+- `_time` (func, строка 14)
+- `monotonic` (func, строка 20)
+- `wall_time` (func, строка 25)
+- `sleep` (func, строка 30)
+
+### `core/orchestration/tools_control.py`
+- `cancel_subagent` (func, строка 29)
+- `resume_subagent` (func, строка 88)
+- `verify_result` (func, строка 189)
+
+### `core/orchestration/tools_dialog.py`
+- `ask_parent` (func, строка 30)
+- `answer_child` (func, строка 125)
+- `read_dialog_limits` (func, строка 165)
+
+### `core/orchestration/tools_journal.py`
+- `read_subagent_thread` (func, строка 25)
+
+### `core/orchestration/tools_notes.py`
+- `run_note` (func, строка 26)
+- `_attach_note` (func, строка 93)
+- `fence_question_payload` (func, строка 101)
+- `fence_question_payload._once` (func, строка 120)
+- `_note_for_payload` (func, строка 151)
+- `_journal_note` (func, строка 161)
+
+### `core/orchestration/tools_records.py`
+- `_load_run_record` (func, строка 19)
+- `_resolve_run_root` (func, строка 44)
+- `_confine_run` (func, строка 56)
+- `_is_live_result` (func, строка 83)
+- `_child_thread_row_missing` (func, строка 92)
+
+### `core/orchestration/tools_rights.py`
+- `_allowlist_context` (func, строка 22)
+- `_available_agents` (func, строка 51)
+- `check_agent_allowed` (func, строка 55)
+- `check_assistant_allowed` (func, строка 79)
+- `_validate_brief` (func, строка 94)
+
+### `core/orchestration/tools_spawn.py`
+- `spawn_agent` (func, строка 34)
+- `invoke_assistant` (func, строка 128)
+
+### `core/orchestration/tools_status.py`
+- `subagent_status` (func, строка 44)
+- `subagent_result` (func, строка 114)
+- `read_subagent_state` (func, строка 210)
+
+### `core/orchestration/tools_wait.py`
+- `sleep_tool` (func, строка 23)
+- `_terminal_run_ids` (func, строка 165)
+- `_active_run_ids` (func, строка 188)
 
 ### `core/orchestration/transcript_reader.py`
 - `_as_int` (func, строка 49)
@@ -6867,6 +6904,26 @@
 - `test_a_refused_resume_explains_why_a_retry_will_not_help._Svc.get_record` (func, строка 453)
 - `test_a_refused_resume_explains_why_a_retry_will_not_help._Svc.record_from_store` (func, строка 456)
 
+### `tests/test_orchestration_tools_facade.py`
+- `_facade_tree` (func, строка 55)
+- `_module_source` (func, строка 60)
+- `test_every_name_the_module_exposed_is_still_reachable` (func, строка 72)
+- `test_the_facade_defines_no_functions_of_its_own` (func, строка 78)
+- `test_the_facade_stays_small` (func, строка 85)
+- `test_the_facade_lists_every_public_name_in_all` (func, строка 91)
+- `test_the_facade_owns_the_clock` (func, строка 100)
+- `test_the_facade_owns_the_clock.FakeTime` (class, строка 109)
+- `test_the_facade_owns_the_clock.FakeTime.__init__` (func, строка 110)
+- `test_the_facade_owns_the_clock.FakeTime.monotonic` (func, строка 114)
+- `test_the_facade_owns_the_clock.FakeTime.time` (func, строка 117)
+- `test_the_facade_owns_the_clock.FakeTime.sleep` (func, строка 120)
+- `test_the_facade_owns_the_clock.Service` (class, строка 124)
+- `test_the_facade_owns_the_clock.Service.get_record` (func, строка 125)
+- `test_the_facade_owns_the_clock.Service.is_cancelled` (func, строка 128)
+- `test_the_facade_owns_the_clock.Service.has_notifications` (func, строка 131)
+- `test_resume_reaches_the_facade_binding_of_spawn_agent` (func, строка 147)
+- `test_no_implementation_module_imports_the_facade_at_module_level` (func, строка 173)
+
 ### `tests/test_orchestration_verify.py`
 - `_answer` (func, строка 53)
 - `FakeRecord` (class, строка 61)
@@ -7960,8 +8017,21 @@
 - `test_main_returns_one_when_the_budget_is_exceeded` (func, строка 164)
 - `test_main_returns_two_for_an_environment_error` (func, строка 170)
 - `test_main_prints_the_result_as_json` (func, строка 175)
-- `test_the_committed_budget_lists_only_existing_files` (func, строка 184)
-- `test_the_committed_budget_holds_today` (func, строка 190)
+- `_tree` (func, строка 184)
+- `test_iter_source_files_skips_tests_and_runtime_data` (func, строка 193)
+- `test_measure_global_names_the_longest_function_and_the_top_complexity` (func, строка 205)
+- `test_measure_global_of_a_tree_without_sources_is_a_problem` (func, строка 226)
+- `test_compare_global_is_empty_when_every_value_is_within_the_budget` (func, строка 232)
+- `test_compare_global_reports_a_value_that_grew` (func, строка 238)
+- `test_compare_global_allows_a_value_to_fall` (func, строка 244)
+- `test_compare_global_ignores_properties_the_budget_does_not_list` (func, строка 248)
+- `test_the_gate_fails_when_a_tree_wide_value_exceeds_the_budget` (func, строка 254)
+- `test_the_gate_passes_when_the_tree_wide_values_hold` (func, строка 265)
+- `test_a_budget_without_the_global_section_skips_the_tree_wide_measurement` (func, строка 272)
+- `test_a_budget_without_the_global_section_skips_the_tree_wide_measurement.boom` (func, строка 277)
+- `test_the_committed_budget_lists_only_existing_files` (func, строка 288)
+- `test_the_committed_budget_holds_today` (func, строка 294)
+- `test_the_committed_budget_guards_the_whole_tree` (func, строка 300)
 
 ### `tests/test_render_token_line.py`
 - `test_format_token_line_basic` (func, строка 10)
@@ -11268,13 +11338,16 @@
 - `longest_function` (func, строка 80)
 - `_ruff_command` (func, строка 91)
 - `complexity_map` (func, строка 97)
-- `measure` (func, строка 140)
-- `tail` (func, строка 170)
-- `compare` (func, строка 180)
-- `load_budget` (func, строка 213)
-- `check` (func, строка 230)
-- `report` (func, строка 255)
-- `main` (func, строка 276)
+- `measure` (func, строка 143)
+- `tail` (func, строка 173)
+- `iter_source_files` (func, строка 198)
+- `measure_global` (func, строка 216)
+- `compare_global` (func, строка 249)
+- `compare` (func, строка 275)
+- `load_budget` (func, строка 308)
+- `check` (func, строка 325)
+- `report` (func, строка 359)
+- `main` (func, строка 390)
 
 ### `scripts/regenerate_project_map.py`
 - `build_publish_set` (func, строка 20)

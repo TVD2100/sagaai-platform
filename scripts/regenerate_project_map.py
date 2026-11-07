@@ -902,7 +902,22 @@ roles.update({
     "core/marketplace/conflict_state.py": "What an installation looks like right now: the registry row of a catalog id, the folder it occupies, whether another entity took the folder and which declared files the user edited; comparison goes by content hash, never by modification time",
     "core/marketplace/conflict_fork.py": "The fork resolution and its reverse action: the edited folder is copied to a new id and folder name while the original is brought to the catalog, and restore_user_version puts the backed-up files of a take_catalog run back in place",
 })
-
+roles.update({
+    "core/orchestration/tools.py": "Facade of the delegation tools: re-exports every public name at the old path and holds no function of its own, so the agent loop and the catalog keep importing from here while a test that replaces tools.spawn_agent or tools.time stays in charge",
+    "core/orchestration/tools_clock.py": "Clock of the delegation tools: reads the attributes of the facade at call time, so a test that replaces tools.time steers the wait instead of sleeping in real time",
+    "core/orchestration/tools_constants.py": "Limits shared by the delegation tools: the status wait, the state text and the sleep ceiling",
+    "core/orchestration/tools_notes.py": "Text the delegation tools carry into a result: the progress note, the journal note, the payload attachment and the fenced question block",
+    "core/orchestration/tools_rights.py": "Who may be called: the allowlist context of the caller, the available agents and assistants, and the brief validation, each returning a refusal code instead of raising",
+    "core/orchestration/tools_records.py": "Reading a run record and deciding what the caller may see: the record loader, the tree root resolution, the confinement of a run to its caller and the live-result check",
+    "core/orchestration/tools_spawn.py": "Starting work: spawn_agent launches a child orchestrator with its own tools and thread, invoke_assistant makes one model call to an assistant",
+    "core/orchestration/tools_status.py": "Reporting on a run: subagent_status with its optional long poll, subagent_result for a finished run and read_subagent_state for the child journal",
+    "core/orchestration/tools_journal.py": "Reading a child conversation: read_subagent_thread in its window, tail and around modes, with absolute message indices and tool results optional",
+    "core/orchestration/tools_control.py": "Stopping and continuing work: cancel_subagent marks a run cancelled at the next step boundary, resume_subagent continues a finished run from its journal, verify_result runs the verifier",
+    "core/orchestration/tools_dialog.py": "The question protocol: ask_parent parks the calling child, answer_child resumes it with the decision, and the dialog limits bound the exchange",
+    "core/orchestration/tools_wait.py": "Waiting for children: sleep_tool returns on the first finished child or on the timeout without cancelling anything, plus the terminal and active run helpers",
+    "core/orchestration/tools_catalog.py": "Catalog entries of the delegation tools: the name, description and argument spec the model sees, kept as data without logic",
+    "tests/test_orchestration_tools_facade.py": "Boundary tests of the split: every public name is reachable at the old path, the facade holds no function of its own and stays small, a replaced tools.time and tools.spawn_agent stay in charge, and no implementation module imports the facade at module level",
+})
 
 if __name__ == "__main__":
     main()
