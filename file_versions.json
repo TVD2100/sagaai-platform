@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "app_version": "2.39.0",
+  "app_version": "2.40.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Два самых больших модуля платформы разложены по темам: страница оркестратора и его API разделены на модули с фасадом, который сохраняет прежние пути импорта. Бизнес-логика хода чата и шага цикла переехала из интерфейса в ядро, поэтому страницы больше не пишут в тред сами. Тестовый набор сам отвечает за глобальное состояние, которое меняет: фикстура восстановления запрашивается явно, а новый страж падает с именем файла-нарушителя вместо череды чужих падений.",
-    "en": "The two largest modules of the platform are split by topic: the orchestrator page and its API are now packages of modules behind a facade that keeps every import path intact. The business logic of a chat turn and of a loop step moved from the interface into the core, so the pages no longer write to a thread themselves. The test suite owns the global state it mutates: the restore fixture is requested explicitly, and a new guard fails with the name of the offending file instead of a chain of unrelated failures."
+    "ru": "Исполнение кода переведено в песочницу: run_code и run_test больше не запускают процесс напрямую. Запрос называет профиль, политика выбирает сильнейшую изоляцию, которую машина действительно может дать, и отказывает в запуске, если она недостижима. Провайдеры: дочерний процесс с окружением по allowlist и жёсткими лимитами, sandbox-exec на macOS, bubblewrap на Linux, контейнер Docker и дистрибутив WSL2 на Windows; контейнер получает переведённый argv и корень только для чтения, запись - лишь в рабочую папку. Лимиты ставит запускатор до старта программы, дерево процессов убивается по таймауту и по отмене, а запуск, припаркованный на подтверждение, ждёт серверный тикет, привязанный к запуску, хешу операции и времени жизни. Все запуски, включая отказы, попадают в журнал песочницы.",
+    "en": "Code execution is sandboxed: run_code and run_test no longer start a child directly. A request names a profile, the policy picks the strongest isolation the machine can actually honour and refuses the run when that isolation is unreachable. Providers cover a child process with an allowlisted environment and hard limits, sandbox-exec on macOS, bubblewrap on Linux, a Docker container and the WSL2 distribution on Windows; a container gets the translated argv and a read-only root with only the workspace writable. Limits are applied by a launcher before the program starts, the process tree is killed on timeout and on cancellation, and a run parked for confirmation waits for a server-side ticket bound to the run, the operation hash and a time to live. Every run, refusals included, lands in the sandbox journal."
   },
   "updated": "2026-11-07T06:30:55Z",
   "units": {
@@ -92,8 +92,8 @@
           "sha256": "a8cb424b24598c983769fa2fc3de0b74376b87f7cfe6f2c313b18169f35aaf7a"
         },
         "core/dangerous.py": {
-          "version": "1.0.1",
-          "sha256": "e753b3e3d7b4659421cfd7ed911c053ef92db2254cb50433c1c834e5e3176af1"
+          "version": "1.0.2",
+          "sha256": "a20f47b93ce4838780a8887e937fc04717a72c3d5620de4e27d71e38015e5e44"
         },
         "core/default_imports.py": {
           "version": "1.3.1",
@@ -276,8 +276,8 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.72.3",
-          "sha256": "82537c5dd9a1a49f0132f6e9d2b30c3d86d6a410436c053fa642a6f918751f05",
+          "version": "1.72.4",
+          "sha256": "171d8b8f75305edeb7dc45dad90ea51ef11f09e3a90d1a9dcd67366d14e8d2f0",
           "note": {
             "ru": "Релиз 2.34.0: расписания запуска задач агентами.",
             "en": "Release 2.34.0: scheduled agent runs."
@@ -288,8 +288,8 @@
           "sha256": "02cc557d34eb035b5f0c85cbea2d1094cbad8abac15ef56adc0d17f89e7f1566"
         },
         "dev_agent/agent_loop.py": {
-          "version": "1.25.0",
-          "sha256": "93bc0619b2e4c7458e4da14d139d4acac15fc48caee7e2874a5f427b11cbac34",
+          "version": "1.25.1",
+          "sha256": "7b2898a7917ac85ae85464d7a3e975fdb8390279351ccfb7bbe77becd3374cf8",
           "note": {
             "ru": "Извещения о завершённых субагентах вынесены в dev_agent/loop/notices.py, политика размера tool-результатов - в dev_agent/loop/results.py, разбор ответа модели в tool-вызовы (DSML и точка входа) - в dev_agent/loop/parse.py, восстановление некорректного JSON - в dev_agent/loop/json_repair.py, анализ смысла ответа (loop_status, план, вопрос, сила шага) - в dev_agent/loop/signals.py; фасад реэкспортирует их имена.",
             "en": "Finished-subagent notices moved into dev_agent/loop/notices.py, the tool-result size policy into dev_agent/loop/results.py, the model-answer-to-tool-calls parsing (DSML and the entry point) into dev_agent/loop/parse.py, the malformed-JSON recovery into dev_agent/loop/json_repair.py and the answer-signal analysis (loop_status, plan, question, step strength) into dev_agent/loop/signals.py; the facade re-exports their names."
@@ -328,8 +328,8 @@
           }
         },
         "dev_agent/tool_executor.py": {
-          "version": "1.18.0",
-          "sha256": "7f6df0e4523cc8fe1acbca21d758f52d7b9a8373bb9b4d08d3a02ac4a43cd7b2",
+          "version": "1.18.1",
+          "sha256": "7cf2bf2ffa702c0e8d72172647dff60fd693cd17d430262b50070fcd66192b54",
           "note": {
             "ru": "Фасад набора инструментов: диспетчер и защиты остались здесь, тела инструментов разложены по пакету dev_agent/tools/ (19 модулей по предметным областям); зависимости миксины получают через tools.deps.build_deps, который читает фасад на каждом вызове. Файл: 3289 -> 229 строк, самая длинная функция 217 -> 59 строк, максимальная цикломатика 30 -> 10.",
             "en": "Tool-set facade: the dispatcher and the guards stay here while the tool bodies moved into the dev_agent/tools package (19 subject modules); the mixins read their dependencies through tools.deps.build_deps, which resolves the facade on every call. File: 3289 -> 229 lines, longest function 217 -> 59, max cyclomatic complexity 30 -> 10."
@@ -344,8 +344,8 @@
           }
         },
         "dev_agent/workspace_binding.py": {
-          "version": "1.3.0",
-          "sha256": "d300f48af436252c859cadc2bfc5f512fb27b112cf022c5f5fcc82182721b2f8",
+          "version": "1.3.1",
+          "sha256": "9d795305bed5193cb5f3b37175593619d7f803bd31b367de2a3b763ae0209f8c",
           "note": {
             "ru": "Привязка дочернего запуска создаёт строку индекса треда ребёнка (kind=subagent, родитель, относительный путь переписки, рабочая папка) идемпотентно и без права уронить запуск сбоем хранилища - без неё любой читатель переписки отвечал «Thread not found».",
             "en": "Binding a child run writes the child thread index row (kind=subagent, parent, history-relative transcript path, workspace) idempotently and without letting a store failure break the run - without it every transcript reader answered \"Thread not found\"."
@@ -368,8 +368,8 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.11.0",
-          "sha256": "60f441846d6fdafe3d85e871a9e975fafb8e9e41167c76cf08e06b4fde22622a",
+          "version": "1.11.1",
+          "sha256": "d6406fc032307d19634f221b47606bad78b5e59c0c1b21bce8d0f12a892f8c4e",
           "note": {
             "ru": "Описания новых модулей страницы оркестратора.",
             "en": "Descriptions of the new orchestrator page modules."
@@ -388,8 +388,8 @@
           "sha256": "46c652f62e73918dd32517ed1018e4bea6d0fa9c4e8536bfa38b00c25467b5e7"
         },
         "storage/db.py": {
-          "version": "1.2.3",
-          "sha256": "0ca99ef9bbd918930065b627dec13ace510b81b4e0a3c323f70ecfa278a8e090"
+          "version": "1.2.4",
+          "sha256": "66d1e91a7df8ae92c94e14682a6d466b394e22389ceb9a889713bf82b57d98f7"
         },
         "storage/models.py": {
           "version": "1.3.1",
@@ -1108,8 +1108,8 @@
           "sha256": "c3784e53de17a822e808836c146c0a1ab451edbdc2b1187ee2eb376ea1d0d1ef"
         },
         "tests/test_tool_executor_env.py": {
-          "version": "1.0.0",
-          "sha256": "2d4fd62d7ff7d98f8891d9afecd6b0fe082446d0c454d3be188cfe8090d2620b"
+          "version": "1.0.1",
+          "sha256": "55adc5c10c1576320dc3de0f6f4ff95ee5e9854813688c1e3e7414140ca562cb"
         },
         "tests/test_tool_result_size_cap.py": {
           "version": "1.1.2",
@@ -1249,11 +1249,11 @@
           }
         },
         "ui/pages/orchestrator_settings.py": {
-          "version": "1.4.1",
-          "sha256": "89ee8c208ffcf92fb669ab481f88317d12ae1bde5f9eb6110b9e02c81b3750ab",
+          "version": "1.4.3",
+          "sha256": "aecddbb52a1b7efb57f7e682c132a3373b476561e5cbb21f8e0d21c912adebdb",
           "note": {
-            "ru": "Десятая вкладка настроек - «Делегирование»; открытая секция удерживается после сохранения.",
-            "en": "The tenth settings tab - Delegation; the open section is kept after a save."
+            "ru": "Десятая вкладка настроек - «Делегирование»; открытая секция удерживается после сохранения. Раздел «Песочница исполнения» открывает вкладку «Другое».",
+            "en": "The tenth settings tab - Delegation; the open section is kept after a save. The sandbox panel opens the Other tab."
           }
         },
         "ui/pages/orchestrators.py": {
@@ -1910,8 +1910,8 @@
           "sha256": "d013d1fd5aa81e0d7e6daa693009b8612233397d12eade15474a125f5b9a1899"
         },
         "tests/test_copyright_headers.py": {
-          "version": "1.0.3",
-          "sha256": "6afd5b932ba81efa42a093f3482e1b9b52aa5c5b04112ca268d79dfce0453e80"
+          "version": "1.0.4",
+          "sha256": "d00df6c51c91d8418421654bfb2641b4548009e43d9adefcb3cad4ebba9817d1"
         },
         "tests/test_marketplace_assistant_installer.py": {
           "version": "1.0.2",
@@ -2266,8 +2266,8 @@
           "sha256": "87a27bb16db4230b0743748a043645bbb32991c5fa5d173c95bc89ccdf261b88"
         },
         "core/gateway/dialog.py": {
-          "version": "1.1.0",
-          "sha256": "923573edf17dadc1c78381e749821809878b81441dae0a0d8237d604bb2f1145"
+          "version": "1.1.1",
+          "sha256": "73efb59e058212dfa14fab11c52108cfe90dba86c72c308e3f2bb87787a437f8"
         },
         "core/gateway/dto.py": {
           "version": "1.2.0",
@@ -2538,8 +2538,8 @@
           }
         },
         "tests/test_api_golden.py": {
-          "version": "1.0.0",
-          "sha256": "77375089823af68a70ebee1acf807a4233266a4a5c17f7f1f6cf99d48a2ddb5e"
+          "version": "1.0.1",
+          "sha256": "121efb86a688f078f96127995bc1cec42491f8d6c7ee5c9304a5ec0fd1f60e81"
         },
         "tests/golden/api_contract.json": {
           "version": "1.0.0",
@@ -2626,8 +2626,8 @@
           }
         },
         "dev_agent/loop/json_repair.py": {
-          "version": "1.0.0",
-          "sha256": "21eac76c983eeb5b10bbdfe92a6d4109697740d103e4990ba5c2296db73e5336"
+          "version": "1.0.1",
+          "sha256": "a60c9e25ebbed4de5387a965edc241df8703f384dc8bcd6536c6a3023f5576e4"
         },
         "dev_agent/loop/signals.py": {
           "version": "1.0.0",
@@ -2650,12 +2650,12 @@
           "sha256": "21c0e8ca11434e437c5e3a06a43fb5ed8c05ccc8de17760ad8de4116eeca4bff"
         },
         "dev_agent/loop/steps/approvals.py": {
-          "version": "1.0.0",
-          "sha256": "9ece7f3ec1830b1967140731626d6798c806127f851227db42be3ac106a23413"
+          "version": "1.0.1",
+          "sha256": "4c37b1a8e884da898be98d1a28ec09bdf4df6491e6dc541a60f21380a96b904f"
         },
         "dev_agent/loop/steps/executing.py": {
-          "version": "1.0.0",
-          "sha256": "01ffb90ebfbb7c92ad56db2616c392b7503ea8a2553a24d3d40502a0458f746a"
+          "version": "1.0.1",
+          "sha256": "14ce8bdac25926f3927b19a0fd74ff04304514881601d033542bc62b0347934d"
         },
         "dev_agent/loop/steps/models.py": {
           "version": "1.0.0",
@@ -2682,16 +2682,16 @@
           "sha256": "17a836f63d8e221d703f65fb9816462a49254a21481030e9bdafecc15f107eb1"
         },
         "dev_agent/tools/args.py": {
-          "version": "1.0.0",
-          "sha256": "ac7baffaca3de94cbc56c71b8f88e358d1488a6faab0c2821363480b6586632b"
+          "version": "1.0.1",
+          "sha256": "97c72f57f82b388cadda79a6f4dc4b6434945b7fc4255312f5f30834c8f3f398"
         },
         "dev_agent/tools/assistants.py": {
           "version": "1.0.1",
           "sha256": "d9757e33cc42671cabf3b185debc700fef3deac4a9b50a93c291b668aea39e5b"
         },
         "dev_agent/tools/catalog.py": {
-          "version": "1.0.0",
-          "sha256": "0c7e64cf34b1e6b883f043425af4edc8bd9ff066014080903f045fd4c01a043a"
+          "version": "1.0.1",
+          "sha256": "daac99969fc091735214784205196d95cd0275174058731cf6a2ca47e8897ab4"
         },
         "dev_agent/tools/clock.py": {
           "version": "1.0.0",
@@ -2706,8 +2706,8 @@
           "sha256": "9c9b69472b1d3649d59d68f2d35db2b5b5b31d7a3de5d330201b28e7dd5f92fc"
         },
         "dev_agent/tools/exec.py": {
-          "version": "1.0.0",
-          "sha256": "b8e0a0ec85e0621fb5e3da58ce59c1240eb96b1301de760f2f574eb816ce5235"
+          "version": "1.0.1",
+          "sha256": "aaf6208ff7d26b85f042363453e82df2002e8b13dbb89c1b95a3e349c0567483"
         },
         "dev_agent/tools/files.py": {
           "version": "1.0.1",
@@ -2754,8 +2754,8 @@
           "sha256": "c266e515ffbf93c186b573bc400e2825649657ba0610444511f51e0c09794536"
         },
         "ui/pages/orchestrator_text.py": {
-          "version": "1.1.0",
-          "sha256": "7c4635bd47f40159d5e75738939c30254d6c6e55ba741b2d089bb904c8199aa9",
+          "version": "1.1.1",
+          "sha256": "b77733e2240de9c590ffaaf44b7b7c4055f2bcc852be12fe4430bcf0f822e7da",
           "note": {
             "ru": "Добавлена build_state_keys - карта ключей session_state диалога, принимающая настройки и константы страницы аргументами.",
             "en": "Added build_state_keys - the chat session-state key map, taking the page settings and constants as arguments."
@@ -2970,8 +2970,8 @@
           "sha256": "82be8cf3549d1874466d0f42b012bdc6ffeee64580f429dd4f46054cc80d2ad1"
         },
         "ui/pages/orchestrator_loop.py": {
-          "version": "1.0.1",
-          "sha256": "767a7f615c85c26b463dc4bf4822cacfd3663906e1938c811a258d6c6745da3b",
+          "version": "1.0.2",
+          "sha256": "de2d93b42ec9bc54ab5ba1bf5fb2f32aef2401e09af5691edb1b42271a8d65b5",
           "note": {
             "ru": "Запись шага в тред вынесена в core/orchestrator_step.",
             "en": "The step write into the thread moved to core/orchestrator_step."
@@ -2986,8 +2986,8 @@
           "sha256": "ec532e5b1734ba7a03ea0183f5507808c489bb75854095d9f4b5b51fb40adcde"
         },
         "ui/pages/orchestrator_chat_input.py": {
-          "version": "1.0.0",
-          "sha256": "b6fdbab2e21505c15e35a83cf6ae5bbe71e69aa31c7f53c5e6e485247385f4d6"
+          "version": "1.0.1",
+          "sha256": "46bc311929b5bd464aca00a999a289ee85adc248f3480cb0cddc741b44df8017"
         },
         "ui/pages/orchestrator_settings_models.py": {
           "version": "1.0.0",
@@ -3064,17 +3064,137 @@
         "tests/scenarios/conftest.py": {
           "version": "1.0.0",
           "sha256": "65ce2bf95f4ee618fd44982ec4f57d03a2d2cdd7d9bb93bf6e33853613b67066"
+        },
+        "ui/pages/orchestrator_flags.py": {
+          "version": "1.0.0",
+          "sha256": "c0e585244fd7a931d9b10b10cca2099e0254f8782bf0b11512822b0d204c39e0"
+        },
+        "dev_agent/tools/exec_support.py": {
+          "version": "1.0.0",
+          "sha256": "9a6484008352f44afd2e8c873a51d5630e101b024eed290265cec400112a2b1e"
+        },
+        "dev_agent/sandbox_env.py": {
+          "version": "1.0.0",
+          "sha256": "03d5ae713f4ba601e8cb2c098bb4017c0489b304e29af4524cae92c4bbcde75c"
+        },
+        "dev_agent/sandbox_proc.py": {
+          "version": "1.0.0",
+          "sha256": "a6f75015e178679f18d488721aff1582ddf10a3b3c7102198fb1ba71341befdd"
+        },
+        "dev_agent/sandbox_approval.py": {
+          "version": "1.0.0",
+          "sha256": "19f69257b11d973426f7d1b038c4c06a1827ede67304fdd86d5aaaf38879ad2a"
+        },
+        "tests/test_sandbox_phase0.py": {
+          "version": "1.0.0",
+          "sha256": "abf9ca337919aac7000abe0302f0b03bb5852d5a8cae185d12f73cb930134291"
+        },
+        "core/sandbox/__init__.py": {
+          "version": "1.0.0",
+          "sha256": "0e0ab3c267cb8f7b560462f575322adf932101d6d9296ba7d84f4bc3c24c86e1"
+        },
+        "core/sandbox/contracts.py": {
+          "version": "1.0.0",
+          "sha256": "9b5588b2fe15033f5d31365030b52b94552556c14072c7e77e0aed3ddb4242f3"
+        },
+        "core/sandbox/policy.py": {
+          "version": "1.0.0",
+          "sha256": "ac5a9bd25adeb028e38f6815812e8084e4e3c536546c021a8b0eb99076dc05b8"
+        },
+        "core/sandbox/profiles.py": {
+          "version": "1.0.0",
+          "sha256": "f0863c552bf2906a46e36f9a8a970354b5577eb505f3e48247b5eda5b846a6e5"
+        },
+        "core/sandbox/runner.py": {
+          "version": "1.0.0",
+          "sha256": "f347518c83178d26dd90644895f2d92da2c5098cafbcc6db269c7691982b12bb"
+        },
+        "core/sandbox/providers/__init__.py": {
+          "version": "1.0.0",
+          "sha256": "8e08cc6e136a2a73c46a48a45ccfd4ab0cdb12b51f629936d5b53d2145f3021e"
+        },
+        "core/sandbox/providers/process.py": {
+          "version": "1.0.0",
+          "sha256": "d92ab82b6ec86ee584c0fd2e73120f483ff9d198ca2ca65d90356ddecf0f0c50"
+        },
+        "storage/sandbox_journal.py": {
+          "version": "1.0.0",
+          "sha256": "df3137bb6e45a7bf3765f723858c5c1dea88860a208580f0857996406fc59921"
+        },
+        "migrations/versions/0009_sandbox_tables.py": {
+          "version": "1.0.0",
+          "sha256": "76899d9ea120bea7c231327f7966fc96068cf4146f6cc57d06d41f3f62d8ace8"
+        },
+        "ui/pages/orchestrator_sandbox.py": {
+          "version": "1.0.1",
+          "sha256": "46b11a0da39cb015bdcd8ba682efb0054cb5ad0cf6124ed5bfcc270c35603964",
+          "note": {
+            "ru": "Панель песочницы читает streamlit через прокси страницы, поэтому подмена модуля в тестах на неё действует.",
+            "en": "The sandbox panel reaches streamlit through the page proxy, so a module swap in tests applies to it."
+          }
+        },
+        "tests/test_sandbox_phase1.py": {
+          "version": "1.0.0",
+          "sha256": "a0358c0c928cf012e59ba0106e39eb50c957212022620fb6feba36c8aa0577c3"
+        },
+        "tests/scenarios/test_sandbox_scenario.py": {
+          "version": "1.0.1",
+          "sha256": "f18c3b4d88dbfb8b93d1a0e3a5fc6cc19e53874ce55b061383c80e930c48c87e"
+        },
+        "core/gateway/approvals.py": {
+          "version": "1.0.0",
+          "sha256": "2eb07a89e16b49d1b30e8c094a38b0323a5d501fe3d06199d758fc195bc882fe"
+        },
+        "core/sandbox/active.py": {
+          "version": "1.0.0",
+          "sha256": "c5a1679d1c3ef7ee5edbdf672248e9f7bec15769d69fdd72fd706e4d6ea766be"
+        },
+        "core/sandbox/launcher.py": {
+          "version": "1.0.0",
+          "sha256": "f6a3449d9aa05877da7bc02e58a6356edfa251508afa24cb5a98f1547d0a05ef"
+        },
+        "core/sandbox/providers/_spawn.py": {
+          "version": "1.0.0",
+          "sha256": "951aaa3705d93825729789ac36e327553b7b8060b23ed2653ba14731789b8259"
+        },
+        "core/sandbox/providers/bwrap.py": {
+          "version": "1.0.0",
+          "sha256": "08c6ce77d4812dd0462a630274382ffef7ca3830c8f376ff482ad763dd8f1ed6"
+        },
+        "core/sandbox/providers/container.py": {
+          "version": "1.0.0",
+          "sha256": "690414158e6a7abcc08409d651ed7d4574bbc23126eee97e9b610400a2d87e77"
+        },
+        "core/sandbox/providers/seatbelt.py": {
+          "version": "1.0.0",
+          "sha256": "ce7b3602b9a4aad96a71519cc29911499cc590bf36f4ca235139bb7142aff36b"
+        },
+        "core/sandbox/providers/wsl.py": {
+          "version": "1.0.0",
+          "sha256": "5cd7c8016a3e69ae888ec8f56a4baa3320a0c73b1e6086ce515ccb94882bb4bc"
+        },
+        "migrations/versions/0010_sandbox_cancelled.py": {
+          "version": "1.0.0",
+          "sha256": "d2217dffce5c099156f4b7273c066e1b92d16d22256f5345d8d430ec94f0d12b"
+        },
+        "tests/test_sandbox_phase3.py": {
+          "version": "1.0.0",
+          "sha256": "534026b3971abb551b3893bfec8fe6d4bb02a80a0d75cadaef1a43106e15cd8c"
+        },
+        "tests/test_sandbox_security.py": {
+          "version": "1.0.0",
+          "sha256": "a19d51cfbd1250b1c938b6200dd4013c7988e0bd725bc73e6381cd85f2084c67"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.74.1",
-      "sha256": "95e10f0932c800462d3d5a8b75b54ce48fabb25ab16148223749cb2db73fad2c",
+      "version": "1.74.3",
+      "sha256": "27fb02c34ed637abef5a248424ec6b378da441d798c5b2e29783ee4eecbfcda1",
       "note": {
-        "ru": "Слой бизнес-логики страниц: core/chat_turn и core/orchestrator_step.",
-        "en": "The page business-logic layer: core/chat_turn and core/orchestrator_step."
+        "ru": "Песочница исполнения: панель настройки профиля, активные запуски и журнал отказов.",
+        "en": "Execution sandbox: the profile settings panel, live runs and the refusal journal."
       }
     },
     "LICENSE": {
@@ -3086,16 +3206,16 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.75.1",
-      "sha256": "6d210ab1dd5a27043283bd65947ac799258faff1161de6c8d5016a4882c16ece",
+      "version": "1.75.4",
+      "sha256": "9f9b07d7ddd8c324f34a117fdf6019b478ddb735cd19cb05ae2ed197f1452591",
       "note": {
-        "ru": "Регенерация: одиннадцать файлов страницы оркестратора с описаниями.",
-        "en": "Regenerated: eleven orchestrator page files with descriptions."
+        "ru": "Регенерация: страница оркестратора, панель песочницы и модули core/sandbox.",
+        "en": "Regenerated: the orchestrator page, the sandbox panel and the core/sandbox modules."
       }
     },
     "README.md": {
-      "version": "1.59.3",
-      "sha256": "471f1d04fabae6e236df673f30b13889c1ea309591b62555c58c3b2e7c671fd8",
+      "version": "1.59.4",
+      "sha256": "e186603306afdec943cf0038ad4608ef3c8358cfac51f223b3fd1a6707d35600",
       "note": {
         "ru": "В описании конвейера упомянут структурный бюджет крупных файлов.",
         "en": "The pipeline description mentions the structural budget of the god files."
@@ -3174,8 +3294,8 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.28.2",
-      "sha256": "fbb194652490c10f5546e97fd91201bd23bdaabc397dfc405f2c083465972069",
+      "version": "1.28.3",
+      "sha256": "11d53e80c2fcc7ad87f086e7d9c736130c6178f9d175ebe6576f6b1772e01c2e",
       "note": {
         "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
         "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
@@ -3190,8 +3310,8 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.28.2",
-      "sha256": "11b0c0bfd47b47514b2d11a7911d4ba15cfcfb693dce9431db548eab3baa1c2c",
+      "version": "1.28.3",
+      "sha256": "bfaffe56a0476c29053a13f3a06c0b360f74a2be667408cd75d7ad7746f8f22d",
       "note": {
         "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
         "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
@@ -3206,8 +3326,8 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.28.2",
-      "sha256": "0d91aa5c3790e334a7bdec49d830c5362ee9cfc4d81d9961115c85a3a484333f",
+      "version": "1.28.3",
+      "sha256": "f9a3c52e3c116a7603e2533bbe124f919f7348227a42e09d079e760794a1edec",
       "note": {
         "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
         "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
@@ -3438,8 +3558,8 @@
       }
     },
     "langs/en.json": {
-      "version": "1.28.2",
-      "sha256": "611dc48d26801f2885920ee0ae78fadf9d1e9a9400e252f020d05da16dfcee1f",
+      "version": "1.28.3",
+      "sha256": "e2d7ce39fcbb13793975ac3de0f2c0a042650b9099c220be1b8b78a8a56d2293",
       "note": {
         "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
         "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
@@ -3454,8 +3574,8 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.28.2",
-      "sha256": "753e7fed25cd527655499659317b67b13edda004b4f8736a894fc1e248608fd0",
+      "version": "1.28.3",
+      "sha256": "10e7e7ae800a26ae804b2e5dd3e604271cbec151065b695353b24ff6e1d48c64",
       "note": {
         "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
         "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
@@ -3470,8 +3590,8 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.28.2",
-      "sha256": "0d91aa5c3790e334a7bdec49d830c5362ee9cfc4d81d9961115c85a3a484333f",
+      "version": "1.28.3",
+      "sha256": "f9a3c52e3c116a7603e2533bbe124f919f7348227a42e09d079e760794a1edec",
       "note": {
         "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
         "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
@@ -3510,8 +3630,8 @@
       }
     },
     "AGENT.md": {
-      "version": "1.50.1",
-      "sha256": "bb20c389f5a685ab13482e4ce6ea84314609d1dac2f9ae02c1d36397552ee14c",
+      "version": "1.50.2",
+      "sha256": "d3aa09bf33d7084bc7a98ec16c841a54a1cd48ea4398db501e10f3d188047563",
       "note": {
         "ru": "Правило: ход чата и запись шага живут в core, а не в рендере.",
         "en": "Rule: the chat turn and the step write live in core, not in the renderer."
@@ -3702,8 +3822,8 @@
       }
     },
     "server/routes/runs.py": {
-      "version": "1.1.0",
-      "sha256": "799bb696132836069f84629314cb41299366334f73649d0c453d2d0ffbaba051",
+      "version": "1.1.1",
+      "sha256": "2aa45a075b32f9364a577d266743f41788622fad65128bd9033542a400854cb0",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
@@ -3718,8 +3838,8 @@
       }
     },
     "server/schemas.py": {
-      "version": "1.1.0",
-      "sha256": "a323cb9ee43a0160a81569bb32c259df7807e964f42ba3a8a64904c665036405",
+      "version": "1.1.1",
+      "sha256": "4a9186d95d63898d3de0baea2a23a69bb2c8fc5a8169ccd2801060cec678702b",
       "note": {
         "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
         "en": "Optional content file (non-code). Can be updated individually."
