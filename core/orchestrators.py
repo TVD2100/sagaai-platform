@@ -1,2681 +1,398 @@
+# -*- coding: utf-8 -*-
 """
 core.orchestrators - public API for orchestrator management.
 
 Orchestrators are self-contained autonomous agents (like DevAgent).
-Each orchestrator has its own system prompt, model configuration (main/search + optional vision/image),
-tool set, economy settings, and instructions.  Orchestrators appear as
-separate pages in the sidebar navigation and can be exported/imported as JSON.
+Each orchestrator has its own system prompt, model configuration
+(main/search + optional vision/image), tool set, economy settings and
+instructions. They appear as separate pages in the sidebar navigation and
+can be exported/imported as JSON.
 
-Since the "Orchestrators" feature (v1), every user-created orchestrator also
-has a personal folder under DATA_DIR/orchestrators/<slug>/ that stores:
-  - orchestrator.json   (full export bundle)
-  - system_prompt.md    (latest system prompt, easy to edit directly)
-  - instructions/*.md   (orchestrator-specific instructions, one file per instruction)
-  - functions/*.py      (custom Python functions the orchestrator can call)
+Since the Orchestrators feature, every orchestrator also has a personal
+folder under DATA_DIR/orchestrators/<slug>/ that stores the export bundle,
+the system prompt, its instructions and its custom functions. The folder is
+the source of truth; a DB cache holds the instructions for the runtime hot
+path and is rebuilt at startup and after every write.
 
-The folder is the source of truth. A DB cache (orchestrator_instructions)
-holds instructions for the runtime hot path; it is rebuilt at startup and
-after every write. Orchestrators can be exported/imported as JSON.
+The implementation is split by theme across the sibling modules:
 
-Since the standardized-skills feature, an orchestrator can also have a list of
-enabled skill IDs stored in its config under the "enabled_skills" key. The
-metadata of those skills is appended to the system prompt so the orchestrator
-knows which skills are available to it.
+* ``orchestrator_defaults`` -- defaults and static configuration,
+* ``orchestrator_store``    -- reading, writing and folder synchronisation,
+* ``orchestrator_links``    -- skills, connections, RAG bases and delegation,
+* ``orchestrator_prompt``   -- assembly of the system prompt,
+* ``orchestrator_models``   -- model, web-search, fetch and economy settings,
+* ``orchestrator_transfer`` -- export and import of a bundle,
+* ``orchestrator_instr``    -- instructions and custom functions,
+* ``orchestrator_builtin``  -- built-in orchestrators and the DevAgent bridge.
 
-DevAgent can read and edit those folders directly, which allows iterating on
-an orchestrator through the normal DevAgent workflow.
+This module stays the single public surface. A name the tests replace
+through the module object is a thin wrapper over ``<name>_impl`` in its
+satellite, and the satellites resolve such names late through this module,
+so a patch installed here reaches the implementation wherever it lives.
 """
-import json
-import uuid
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+import sys as _sys
 
-from core.config import (
-    get_default_economy_cache_enabled,
-    get_default_economy_cache_multiplier,
-    get_default_economy_tail_messages,
-    get_default_strong_max_tokens,
+from core.orchestrator_builtin import (
+    _backfill_builtin_config,
+    _builtin_tool_names,
+    _create_builtin_orchestrator,
+    _ensure_default_orchestrators,
+    _first_boot_config,
+    _load_bundled_prompt_text,
+    _migrate_builtin_max_steps,
+    _refresh_marketplace_registry_cache,
+    ensure_builtin_orchestrators,
+    load_devagent_config,
+    save_devagent_config,
+)
+from core.orchestrator_defaults import (
+    _DEVAGENT_DEFAULT_CONFIG,
+    _MAX_PROMPT_TEXT_LENGTH,
+    DEFAULT_WEB_SEARCH_PROMPT,
+    DEVAGENT_SLUG,
+    PROMPT_USER_EDITED_KEY,
+    UNIVERSAL_AGENT_CONFIG_KEY,
+    UNIVERSAL_AGENT_SLUG,
+    _default_economy_cache_enabled,
+    _default_economy_cache_multiplier,
+    _default_economy_tail_messages,
+    _devagent_default_config,
+    _get_known_tool_names,
+    _invalidate_known_tool_names,
 )
 from core.orchestrator_folders import (
-    delete_orchestrator_function,
-    delete_orchestrator_instruction,
-    ensure_orchestrator_dir,
     get_orchestrator_function,
     get_orchestrator_instruction,
-    list_orchestrator_folder_slugs,
-    list_orchestrator_functions,
-    list_orchestrator_instructions,
-    load_orchestrator_bundle,
-    load_orchestrator_prompt_file,
-    orchestrator_folder_exists,
-    remove_orchestrator_dir,
-    safe_orchestrator_slug,
-    save_orchestrator_bundle,
-    save_orchestrator_function,
-    save_orchestrator_instruction,
-    sync_orchestrator_instructions,
 )
-from core.prompt_blocks import (
-    DIALOG_RULES_CHILD,
-    DIALOG_RULES_PARENT,
-    INVOKE_ASSISTANT_INTRO,
-    MONTH_NAMES,
-    SPAWN_AGENT_INTRO,
-    VERIFY_RESULT_INTRO,
-    WEEKDAY_NAMES,
-    WEEKDAY_NAMES_RU,
-    current_date_line,
-    format_utc_offset,
+from core.orchestrator_instr import (
+    orch_delete_function,
+    orch_delete_instruction,
+    orch_get_function,
+    orch_get_instruction_impl,
+    orch_list_functions,
+    orch_list_instructions,
+    orch_save_function,
+    orch_save_instruction,
 )
-from core.services import (
-    default_reasoning_effort,
-    get_fetch_models,
-    service_supports_reasoning_effort,
-    svc_supports_fetch,
+from core.orchestrator_links import (
+    DELEGATION_LIMIT_KEYS,
+    get_allowed_agents_impl,
+    get_allowed_assistants_impl,
+    get_delegation_limits,
+    get_disabled_tools_impl,
+    get_effective_agents_impl,
+    get_enabled_connections_impl,
+    get_enabled_skills,
+    get_orchestrator_rag_bases,
+    get_universal_agent_enabled,
+    get_verifier_agent_impl,
+    set_allowed_agents,
+    set_allowed_assistants,
+    set_delegation_limits,
+    set_disabled_tools,
+    set_enabled_connections,
+    set_enabled_skills,
+    set_orchestrator_rag_bases,
+    set_universal_agent_enabled,
+    set_verifier_agent,
 )
-from core.services import (
-    get_services as _get_services,
+from core.orchestrator_models import (
+    get_economy_cache_enabled,
+    get_economy_cache_multiplier,
+    get_economy_config,
+    get_economy_tail_messages,
+    get_fetch_config,
+    get_web_search_config,
+    get_web_search_prompt_impl,
 )
-from storage.models import DEFAULT_MAX_STEPS
+from core.orchestrator_prompt import (
+    _DIALOG_RULES_CHILD,
+    _DIALOG_RULES_PARENT,
+    _MONTH_NAMES,
+    _WEEKDAY_NAMES,
+    _WEEKDAY_NAMES_RU,
+    _agent_delegation_lines,
+    _assistant_delegation_lines,
+    _current_date_line,
+    _delegation_availability,
+    _extend_prompt_with_connections_impl,
+    _extend_prompt_with_current_date,
+    _extend_prompt_with_delegation_impl,
+    _extend_prompt_with_dialog,
+    _extend_prompt_with_instructions_impl,
+    _extend_prompt_with_memory_impl,
+    _extend_prompt_with_personal_card_impl,
+    _extend_prompt_with_rag_bases_impl,
+    _extend_prompt_with_skills_impl,
+    _extend_prompt_with_tools_impl,
+    _extend_prompt_with_working_memory_impl,
+    _format_utc_offset,
+    _verify_delegation_lines,
+    build_assistant_dicts_impl,
+)
+from core.orchestrator_shared import bind_facade as _bind_facade
+from core.orchestrator_store import (
+    _mark_marketplace_removed,
+    _mark_prompt_edited,
+    _sync_orchestrator_folder_impl,
+    create_orchestrator,
+    delete_orchestrator_impl,
+    get_orchestrator_by_slug,
+    get_orchestrator_impl,
+    list_orchestrators_impl,
+    reload_orchestrator_from_folder,
+    reset_builtin_prompt_impl,
+    save_orchestrator,
+    sync_all_orchestrator_folders,
+)
+from core.orchestrator_transfer import (
+    _EXPORT_FORMAT,
+    _import_functions,
+    _import_instructions,
+    _validate_imported_tools,
+    export_orchestrator,
+    import_orchestrator,
+)
+from core.services import get_services as _get_services
 from storage.repository import (
     repo_create_orchestrator,
-    repo_delete_all_orchestrator_instructions,
-    repo_delete_orchestrator,
-    repo_get_orchestrator_by_slug,
     repo_get_orchestrator_with_text,
-    repo_list_orchestrators,
     repo_update_orchestrator,
 )
 
-# Built-in DevAgent orchestrator slug.
-DEVAGENT_SLUG = "dev_agent"
+# Names the API exposes; every import above is a deliberate re-export.
+__all__ = [
+    "DEFAULT_WEB_SEARCH_PROMPT",
+    "DELEGATION_LIMIT_KEYS",
+    "DEVAGENT_SLUG",
+    "PROMPT_USER_EDITED_KEY",
+    "UNIVERSAL_AGENT_CONFIG_KEY",
+    "UNIVERSAL_AGENT_SLUG",
+    "_DEVAGENT_DEFAULT_CONFIG",
+    "_DIALOG_RULES_CHILD",
+    "_DIALOG_RULES_PARENT",
+    "_EXPORT_FORMAT",
+    "_MAX_PROMPT_TEXT_LENGTH",
+    "_MONTH_NAMES",
+    "_WEEKDAY_NAMES",
+    "_WEEKDAY_NAMES_RU",
+    "_agent_delegation_lines",
+    "_assistant_delegation_lines",
+    "_backfill_builtin_config",
+    "_builtin_tool_names",
+    "_create_builtin_orchestrator",
+    "_current_date_line",
+    "_default_economy_cache_enabled",
+    "_default_economy_cache_multiplier",
+    "_default_economy_tail_messages",
+    "_delegation_availability",
+    "_devagent_default_config",
+    "_ensure_default_orchestrators",
+    "_extend_prompt_with_connections",
+    "_extend_prompt_with_current_date",
+    "_extend_prompt_with_delegation",
+    "_extend_prompt_with_dialog",
+    "_extend_prompt_with_instructions",
+    "_extend_prompt_with_memory",
+    "_extend_prompt_with_personal_card",
+    "_extend_prompt_with_rag_bases",
+    "_extend_prompt_with_skills",
+    "_extend_prompt_with_tools",
+    "_extend_prompt_with_working_memory",
+    "_first_boot_config",
+    "_format_utc_offset",
+    "_get_known_tool_names",
+    "_get_services",
+    "_import_functions",
+    "_import_instructions",
+    "_invalidate_known_tool_names",
+    "_load_bundled_prompt_text",
+    "_mark_marketplace_removed",
+    "_mark_prompt_edited",
+    "_migrate_builtin_max_steps",
+    "_refresh_marketplace_registry_cache",
+    "_sync_orchestrator_folder",
+    "_validate_imported_tools",
+    "_verify_delegation_lines",
+    "build_assistant_dicts",
+    "build_skill_dicts",
+    "create_orchestrator",
+    "delete_orchestrator",
+    "ensure_builtin_orchestrators",
+    "export_orchestrator",
+    "get_allowed_agents",
+    "get_allowed_assistants",
+    "get_delegation_limits",
+    "get_disabled_tools",
+    "get_economy_cache_enabled",
+    "get_economy_cache_multiplier",
+    "get_economy_config",
+    "get_economy_tail_messages",
+    "get_effective_agents",
+    "get_enabled_connections",
+    "get_enabled_skills",
+    "get_fetch_config",
+    "get_orchestrator",
+    "get_orchestrator_by_slug",
+    "get_orchestrator_function",
+    "get_orchestrator_instruction",
+    "get_orchestrator_rag_bases",
+    "get_universal_agent_enabled",
+    "get_verifier_agent",
+    "get_web_search_config",
+    "get_web_search_prompt",
+    "import_orchestrator",
+    "list_orchestrators",
+    "load_devagent_config",
+    "orch_delete_function",
+    "orch_delete_instruction",
+    "orch_get_function",
+    "orch_get_instruction",
+    "orch_list_functions",
+    "orch_list_instructions",
+    "orch_save_function",
+    "orch_save_instruction",
+    "reload_orchestrator_from_folder",
+    "repo_create_orchestrator",
+    "repo_get_orchestrator_with_text",
+    "repo_update_orchestrator",
+    "reset_builtin_prompt",
+    "save_devagent_config",
+    "save_orchestrator",
+    "set_allowed_agents",
+    "set_allowed_assistants",
+    "set_delegation_limits",
+    "set_disabled_tools",
+    "set_enabled_connections",
+    "set_enabled_skills",
+    "set_orchestrator_rag_bases",
+    "set_universal_agent_enabled",
+    "set_verifier_agent",
+    "sync_all_orchestrator_folders",
+]
 
-# Bundled general-purpose executor. Unlike an ordinary allowlist entry it is
-# offered to every orchestrator by default (see
-# ``get_universal_agent_enabled``): the user switches it off per orchestrator
-# in the delegation settings, and the config keeps only that explicit
-# decision - never a list entry that a settings save could drop.
-UNIVERSAL_AGENT_SLUG = "universal_agent"
-UNIVERSAL_AGENT_CONFIG_KEY = "universal_agent_enabled"
 
-# Default system prompt for the web-search sub-agent. Every orchestrator can
-# override it via the ``web_search_prompt`` config key; dynamic, task-specific
-# additions are passed through the ``instructions`` argument of the web_search
-# tool and appended to this base prompt at call time.
-DEFAULT_WEB_SEARCH_PROMPT = (
-    "You are a helpful research assistant. Use web search to find "
-    "accurate, up-to-date information. Answer the user's query "
-    "concisely based on the search results. Cite sources when possible."
-)
+def _extend_prompt_with_connections(*args, **kwargs):
+    """Call ``_extend_prompt_with_connections_impl`` with the arguments the caller passed."""
+    return _extend_prompt_with_connections_impl(*args, **kwargs)
 
-# Config marker recorded when the user edits the built-in orchestrator's
-# system prompt through the UI. While it is set, the boot-time refresh in
-# ensure_builtin_orchestrators() keeps the user text instead of overwriting
-# it with the bundled dev_agent/system_prompt.md. Clearing the marker
-# (reset_builtin_prompt / the Reset button) resumes the shipped-prompt
-# refresh on the next boot.
-PROMPT_USER_EDITED_KEY = "prompt_user_edited"
 
+def _extend_prompt_with_delegation(*args, **kwargs):
+    """Call ``_extend_prompt_with_delegation_impl`` with the arguments the caller passed."""
+    return _extend_prompt_with_delegation_impl(*args, **kwargs)
 
-def _ensure_default_orchestrators() -> Dict[str, str]:
-    """Create default orchestrators from defaults/orchestrators/*.
 
-    Imported lazily to avoid a circular import with core.default_imports.
+def _extend_prompt_with_instructions(*args, **kwargs):
+    """Call ``_extend_prompt_with_instructions_impl`` with the arguments the caller passed."""
+    return _extend_prompt_with_instructions_impl(*args, **kwargs)
 
-    The marketplace master switch is read here because both branches of
-    ``ensure_builtin_orchestrators`` reach the bundled defaults through
-    this single call. With the switch off the bundled folder stays the
-    only source and the marketplace keeps its hands off the defaults.
-    """
-    from core.default_imports import ensure_default_orchestrators
-    from core.marketplace import is_enabled as marketplace_enabled
 
-    results = ensure_default_orchestrators()
-    if marketplace_enabled():
-        _refresh_marketplace_registry_cache()
-    return results
+def _extend_prompt_with_memory(*args, **kwargs):
+    """Call ``_extend_prompt_with_memory_impl`` with the arguments the caller passed."""
+    return _extend_prompt_with_memory_impl(*args, **kwargs)
 
 
-def _refresh_marketplace_registry_cache() -> None:
-    """Export the marketplace registry cache after the defaults are seeded.
+def _extend_prompt_with_personal_card(*args, **kwargs):
+    """Call ``_extend_prompt_with_personal_card_impl`` with the arguments the caller passed."""
+    return _extend_prompt_with_personal_card_impl(*args, **kwargs)
 
-    Bundled defaults are local entities, not catalog ones, so nothing is
-    written to ``marketplace_installed`` here; what this keeps in step is
-    the exported cache the marketplace pages read. A failure is ignored on
-    purpose: a stale cache must never block the start-up of defaults.
-    """
-    try:
-        from core.marketplace import registry as marketplace_registry
 
-        marketplace_registry.export_registry_cache()
-    except Exception:
-        pass
+def _extend_prompt_with_rag_bases(*args, **kwargs):
+    """Call ``_extend_prompt_with_rag_bases_impl`` with the arguments the caller passed."""
+    return _extend_prompt_with_rag_bases_impl(*args, **kwargs)
 
-# ─── Default config for the DevAgent orchestrator ─────────────────────────
-# The values come from the canonical orchestrator bundle
-# (orchestrators/dev_agent/orchestrator.json, config section) via the
-# core.config helper. This is the single source of truth for first-boot
-# creation, backfill and the build_assistant_dicts fallback.
 
+def _extend_prompt_with_skills(*args, **kwargs):
+    """Call ``_extend_prompt_with_skills_impl`` with the arguments the caller passed."""
+    return _extend_prompt_with_skills_impl(*args, **kwargs)
 
-def _devagent_default_config() -> Dict[str, Any]:
-    """Build the DevAgent orchestrator config from the canonical bundle.
 
-    Reads ``core.config.get_devagent_defaults()`` (bundle config section with
-    built-in fallback) and normalizes types to the shape expected by the
-    orchestrator storage. This is the single source of truth for first-boot
-    creation, backfill and the build_assistant_dicts fallback.
-    """
-    from core.config import get_devagent_defaults as _daf_defaults
-    defaults = _daf_defaults()
+def _extend_prompt_with_tools(*args, **kwargs):
+    """Call ``_extend_prompt_with_tools_impl`` with the arguments the caller passed."""
+    return _extend_prompt_with_tools_impl(*args, **kwargs)
 
-    def _str1(key, fallback):
-        val = defaults.get(key)
-        if val is not None and str(val).strip():
-            return str(val).strip()
-        return fallback
 
-    def _num(key, fallback, cast):
-        try:
-            return cast(defaults.get(key, fallback))
-        except (TypeError, ValueError):
-            return fallback
+def _extend_prompt_with_working_memory(*args, **kwargs):
+    """Call ``_extend_prompt_with_working_memory_impl`` with the arguments the caller passed."""
+    return _extend_prompt_with_working_memory_impl(*args, **kwargs)
 
-    def _truthy(key, fallback=False):
-        """Normalize a boolean flag stored as bool, string or number."""
-        val = defaults.get(key)
-        if isinstance(val, bool):
-            return val
-        if isinstance(val, (int, float)):
-            return bool(val)
-        if isinstance(val, str):
-            return val.strip().lower() in ("1", "true", "yes", "on")
-        return fallback
 
-    def _lst(key):
-        val = defaults.get(key)
-        if isinstance(val, list):
-            return [str(x).strip() for x in val if str(x).strip()]
-        if isinstance(val, str):
-            try:
-                parsed = json.loads(val)
-                if isinstance(parsed, list):
-                    return [str(x).strip() for x in parsed if str(x).strip()]
-            except (json.JSONDecodeError, TypeError):
-                pass
-        return []
+def _sync_orchestrator_folder(*args, **kwargs):
+    """Call ``_sync_orchestrator_folder_impl`` with the arguments the caller passed."""
+    return _sync_orchestrator_folder_impl(*args, **kwargs)
 
-    return {
-        "strong_service": _str1("strong_service", "DeepSeek"),
-        "strong_model": _str1("strong_model", "deepseek-flash"),
-        "strong_temperature": _num("strong_temperature", 0.4, float),
-        "strong_max_tokens": _num("strong_max_tokens", 384000, int),
-        "strong_reasoning_effort": _str1("strong_reasoning_effort", "xhigh"),
-        # Optional multimodal models (single-model mode): "" = not assigned.
-        "vision_service": _str1("vision_service", "DeepSeek"),
-        "vision_model": _str1("vision_model", "deepseek-flash"),
-        "image_service": _str1("image_service", ""),
-        "image_model": _str1("image_model", ""),
-        "search_service": _str1("search_service", "DeepSeek"),
-        "search_model": _str1("search_model", "deepseek-flash"),
-        "search_temperature": _num("search_temperature", 0.4, float),
-        "search_max_tool_calls": _num("search_max_tool_calls", 3, int),
-        "search_reasoning_effort": _str1("search_reasoning_effort", "high"),
-        "web_search_prompt": _str1("web_search_prompt", DEFAULT_WEB_SEARCH_PROMPT),
-        # Optional url-fetch model: "" = not assigned (tool absent).
-        "fetch_service": _str1("fetch_service", ""),
-        "fetch_model": _str1("fetch_model", ""),
-        # Selenium rendering of pages: an alternative to the provider fetch
-        # API. Either the model or this flag keeps url_fetch available.
-        "fetch_selenium": _truthy("fetch_selenium", False),
-        "economy_tail_messages": get_default_economy_tail_messages(),
-        "economy_cache_enabled": get_default_economy_cache_enabled(),
-        "economy_cache_multiplier": get_default_economy_cache_multiplier(),
-        "enabled_skills": _lst("enabled_skills"),
-        "enabled_connections": _lst("enabled_connections"),
-        "disabled_tools": _lst("disabled_tools"),
-        # Agent that checks delegated results: "" = not appointed, and the
-        # ``verify_result`` tool is then not offered at all.
-        "verifier_agent": _str1("verifier_agent", ""),
-    }
 
+def build_assistant_dicts(*args, **kwargs):
+    """Call ``build_assistant_dicts_impl`` with the arguments the caller passed."""
+    return build_assistant_dicts_impl(*args, **kwargs)
 
-# Backward-compatible alias (tests/legacy code may import this name).
-_DEVAGENT_DEFAULT_CONFIG: Dict[str, Any] = _devagent_default_config()
 
+def delete_orchestrator(*args, **kwargs):
+    """Call ``delete_orchestrator_impl`` with the arguments the caller passed."""
+    return delete_orchestrator_impl(*args, **kwargs)
 
-def _default_economy_tail_messages() -> int:
-    """Return the default economy tail length from the canonical DevAgent
-    orchestrator bundle or the built-in fallback (50). This is the single
-    source of truth for the default value."""
-    return get_default_economy_tail_messages()
 
+def get_allowed_agents(*args, **kwargs):
+    """Call ``get_allowed_agents_impl`` with the arguments the caller passed."""
+    return get_allowed_agents_impl(*args, **kwargs)
 
-def _default_economy_cache_enabled() -> bool:
-    """Return the default cache-friendly economy mode flag."""
-    return get_default_economy_cache_enabled()
 
+def get_allowed_assistants(*args, **kwargs):
+    """Call ``get_allowed_assistants_impl`` with the arguments the caller passed."""
+    return get_allowed_assistants_impl(*args, **kwargs)
 
-def _default_economy_cache_multiplier() -> int:
-    """Return the default cache-window multiplier (xN)."""
-    return get_default_economy_cache_multiplier()
 
+def get_disabled_tools(*args, **kwargs):
+    """Call ``get_disabled_tools_impl`` with the arguments the caller passed."""
+    return get_disabled_tools_impl(*args, **kwargs)
 
-# ─── Import validation helpers ────────────────────────────────────────────
 
-# Set of tool names that are KNOWN and allowed for orchestrators.
-# Any tool name present in import/export must be in this set to be accepted.
-# Populated lazily on first use (to avoid import-time dependency on
-# dev_agent.tool_executor).
-_KNOWN_TOOL_NAMES: Optional[set] = None
+def get_effective_agents(*args, **kwargs):
+    """Call ``get_effective_agents_impl`` with the arguments the caller passed."""
+    return get_effective_agents_impl(*args, **kwargs)
 
 
-def _get_known_tool_names() -> set:
-    """Return the set of all allowed tool names across core + workspace catalogs.
+def get_enabled_connections(*args, **kwargs):
+    """Call ``get_enabled_connections_impl`` with the arguments the caller passed."""
+    return get_enabled_connections_impl(*args, **kwargs)
 
-    Cached on first call; use ``_invalidate_known_tool_names()`` if the
-    tool catalog changes at runtime (rare).
-    """
-    global _KNOWN_TOOL_NAMES
-    if _KNOWN_TOOL_NAMES is not None:
-        return _KNOWN_TOOL_NAMES
-    try:
-        from dev_agent.tool_executor import TOOL_CATALOG as CORE_TOOLS
-        from dev_agent.universal_agent import WORKSPACE_TOOL_CATALOG
-        _KNOWN_TOOL_NAMES = (
-        {t["name"] for t in CORE_TOOLS}
-        | {t["name"] for t in WORKSPACE_TOOL_CATALOG}
-        | {"list_skills", "get_skill_by_id", "update_skill_by_id",
-           "create_skill_for_task", "detect_and_select_skill",
-           "list_skills_library", "get_skill_folder", "get_skill_prompt", "get_skill_file"}
-    )
-    except Exception:
-        # During early bootstrap or tests, the catalogs may not be importable.
-        # Fall back to a minimal known set that covers the most common tools.
-        _KNOWN_TOOL_NAMES = {
-            "read_file", "list_files", "propose_file", "verify_file",
-            "create_backup", "restore_backup", "show_history", "run_test",
-            "run_code", "list_skills", "get_skill_by_id", "update_skill_by_id",
-            "list_instructions", "get_instruction", "detect_and_select_skill",
-            "create_skill_for_task",
-            "list_skills_library", "get_skill_folder", "get_skill_prompt", "get_skill_file",
-            "web_search", "get_history_index",
-            "get_history_messages",
-            "set_workspace", "set_target_file", "current_workspace",
-            "scan_folder", "assess_workspace", "build_project_map",
-            "write_project_map", "write_doc", "read_doc",
-            "snapshot_all", "list_snapshots", "restore_all",
-        }
-    return _KNOWN_TOOL_NAMES
 
+def get_orchestrator(*args, **kwargs):
+    """Call ``get_orchestrator_impl`` with the arguments the caller passed."""
+    return get_orchestrator_impl(*args, **kwargs)
 
-def _invalidate_known_tool_names() -> None:
-    """Clear the cached known-tool-names set so it is rebuilt on next use."""
-    global _KNOWN_TOOL_NAMES
-    _KNOWN_TOOL_NAMES = None
 
+def get_verifier_agent(*args, **kwargs):
+    """Call ``get_verifier_agent_impl`` with the arguments the caller passed."""
+    return get_verifier_agent_impl(*args, **kwargs)
 
-# Prompt length limit for imported orchestrators (characters).
-# Imports larger than this are rejected to prevent resource-exhaustion.
-_MAX_PROMPT_TEXT_LENGTH = 100_000
 
+def get_web_search_prompt(*args, **kwargs):
+    """Call ``get_web_search_prompt_impl`` with the arguments the caller passed."""
+    return get_web_search_prompt_impl(*args, **kwargs)
 
-# ─── List / Get ──────────────────────────────────────────────────────────
 
+def list_orchestrators(*args, **kwargs):
+    """Call ``list_orchestrators_impl`` with the arguments the caller passed."""
+    return list_orchestrators_impl(*args, **kwargs)
 
-def list_orchestrators() -> List[Dict[str, Any]]:
-    """Return all orchestrators (without prompt_text), for navigation."""
-    return repo_list_orchestrators()
 
+def orch_get_instruction(*args, **kwargs):
+    """Call ``orch_get_instruction_impl`` with the arguments the caller passed."""
+    return orch_get_instruction_impl(*args, **kwargs)
 
-def get_orchestrator(slug: str) -> Optional[Dict[str, Any]]:
-    """Return a full orchestrator dict including prompt_text and config."""
-    return repo_get_orchestrator_with_text(slug)
 
+def reset_builtin_prompt(*args, **kwargs):
+    """Call ``reset_builtin_prompt_impl`` with the arguments the caller passed."""
+    return reset_builtin_prompt_impl(*args, **kwargs)
 
-def get_orchestrator_by_slug(slug: str) -> Optional[Dict[str, Any]]:
-    """Return orchestrator metadata (no prompt_text), or None."""
-    return repo_get_orchestrator_by_slug(slug)
 
-
-# ─── Create / Update / Delete ────────────────────────────────────────────
-
-
-def create_orchestrator(slug: str, name: str, description: str = "",
-                        prompt_text: str = "", config: dict = None,
-                        tools: list = None, max_steps: int = DEFAULT_MAX_STEPS,
-                        auto_apply: bool = True) -> Optional[str]:
-    """Create a new orchestrator. Returns the id on success, None on failure.
-
-    Also creates the orchestrator's personal folder on disk and writes an
-    initial bundle (orchestrator.json).
-    """
-    # Normalise slug to [a-z0-9_]+ so it is safe as a DB slug and a folder
-    # name. Empty input (or a slug made only of invalid characters) is
-    # rejected instead of silently creating an 'unnamed' folder.
-    slug = safe_orchestrator_slug(slug)
-    if not slug:
-        return None
-    # Ensure no duplicate slug.
-    existing = repo_get_orchestrator_by_slug(slug)
-    if existing:
-        return None
-    orch_id = uuid.uuid4().hex[:8]
-    ok = repo_create_orchestrator(
-        orchestrator_id=orch_id,
-        slug=slug,
-        name=name.strip(),
-        description=description,
-        prompt_text=prompt_text,
-        config=config or {},
-        tools=tools or [],
-        max_steps=max_steps,
-        auto_apply=auto_apply,
-        is_builtin=False,
-        sort_order=100,  # user-created orchestrators go before DevAgent
-    )
-    if ok:
-        _sync_orchestrator_folder(slug)
-    return orch_id if ok else None
-
-
-def _mark_prompt_edited(orch: Dict[str, Any], kwargs: Dict[str, Any]) -> Dict[str, Any]:
-    """Record the prompt_user_edited marker when the system prompt changes.
-
-    Called by save_orchestrator() and save_devagent_config() so a user edit of
-    the built-in orchestrator's prompt survives the boot-time refresh in
-    ensure_builtin_orchestrators(). The marker lives in the config dict and is
-    only set for built-in orchestrators whose prompt_text is actually updated.
-    Returns the (possibly copied) kwargs dict.
-    """
-    if "prompt_text" not in kwargs or not orch.get("is_builtin"):
-        return kwargs
-    # Prefer a config dict passed in the same call; otherwise take the stored
-    # one. Never drop a caller-provided config.
-    if isinstance(kwargs.get("config"), dict):
-        cfg = dict(kwargs["config"])
-    else:
-        cfg = orch.get("config", {})
-        if not isinstance(cfg, dict):
-            cfg = {}
-        cfg = dict(cfg)
-    if cfg.get(PROMPT_USER_EDITED_KEY) is True:
-        return kwargs
-    cfg[PROMPT_USER_EDITED_KEY] = True
-    kwargs = dict(kwargs)
-    kwargs["config"] = cfg
-    return kwargs
-
-
-def reset_builtin_prompt(slug: str = DEVAGENT_SLUG) -> bool:
-    """Drop the prompt_user_edited marker and restore the shipped prompt.
-
-    Clears the marker so the next ensure_builtin_orchestrators() boot refresh
-    re-applies the bundled dev_agent/system_prompt.md, and refreshes the prompt
-    immediately for the running session. Only built-in orchestrators are
-    affected. Returns True on success.
-    """
-    orch = repo_get_orchestrator_with_text(slug)
-    if orch is None or not orch.get("is_builtin"):
-        return False
-    cfg = orch.get("config", {})
-    if not isinstance(cfg, dict):
-        cfg = {}
-    cfg = dict(cfg)
-    cfg.pop(PROMPT_USER_EDITED_KEY, None)
-    kwargs: Dict[str, Any] = {"config": cfg}
-    if slug == DEVAGENT_SLUG:
-        try:
-            from pathlib import Path
-            prompt_file = (
-                Path(__file__).resolve().parent.parent
-                / "dev_agent" / "system_prompt.md"
-            )
-            kwargs["prompt_text"] = prompt_file.read_text(encoding="utf-8")
-        except Exception:
-            pass
-    ok = repo_update_orchestrator(orch["id"], **kwargs)
-    if ok:
-        _sync_orchestrator_folder(slug)
-    return ok
-
-
-def save_orchestrator(slug: str, **kwargs) -> bool:
-    """Update an existing orchestrator by slug.
-
-    Supported kwargs: name, description, prompt_text, config, tools,
-    max_steps, auto_apply, sort_order, memory_dir.
-
-    ``memory_dir`` is a convenience key: it is written into ``config`` (the
-    stored location of the setting) instead of becoming a column, so the
-    working-data-folder resolver keeps a single source of truth.
-
-    Returns True on success.
-    """
-    orch = repo_get_orchestrator_with_text(slug)
-    if orch is None:
-        return False
-    if "memory_dir" in kwargs:
-        raw_dir = kwargs.pop("memory_dir")
-        base_cfg = kwargs.get("config")
-        if not isinstance(base_cfg, dict):
-            stored = orch.get("config", {})
-            base_cfg = dict(stored) if isinstance(stored, dict) else {}
-        base_cfg = dict(base_cfg)
-        text = str(raw_dir or "").strip()
-        if text:
-            base_cfg["memory_dir"] = text
-        else:
-            # An empty value means "use the default": drop the key instead of
-            # storing an empty string the resolver would have to special-case.
-            base_cfg.pop("memory_dir", None)
-        kwargs["config"] = base_cfg
-    kwargs = _mark_prompt_edited(orch, kwargs)
-    ok = repo_update_orchestrator(orch["id"], **kwargs)
-    if ok:
-        # The folder bundle only mirrors the DB record. A failed mirror write
-        # (read-only volume, permissions, a stale bundle) must not turn a
-        # successful update into an exception: the caller would lose the
-        # confirmation and the user would see "nothing happened".
-        try:
-            _sync_orchestrator_folder(slug)
-        except Exception:
-            pass
-    return ok
-
-
-def delete_orchestrator(slug: str) -> bool:
-    """Delete an orchestrator.  Built-in orchestrators cannot be deleted.
-
-    Also removes the orchestrator's personal folder from disk.
-    """
-    orch = repo_get_orchestrator_with_text(slug)
-    if orch is None:
-        return False
-    if orch.get("is_builtin"):
-        return False
-    ok = repo_delete_orchestrator(orch["id"])
-    if ok:
-        # The orchestrator_instructions cache rows would otherwise survive
-        # the deletion and could leak into a future orchestrator created
-        # with the same slug.
-        repo_delete_all_orchestrator_instructions(slug)
-        remove_orchestrator_dir(slug)
-        _mark_marketplace_removed(slug, orch)
-        # The personal memory of the employee is archived (never silently
-        # destroyed) so an accidental deletion stays recoverable.
-        try:
-            from core import personal_memory as pm
-            pm.delete_memory(
-                pm.format_scope(pm.SCOPE_ORCHESTRATOR, slug),
-                archived_by="delete_orchestrator",
-            )
-        except Exception:
-            pass
-    return ok
-
-
-def _mark_marketplace_removed(slug: str, orch: Optional[Dict[str, Any]] = None) -> None:
-    """Record a deliberate deletion so nothing resurrects the orchestrator.
-
-    The bundled default import recreates any orchestrator folder that is
-    missing, and the marketplace keeps its own record of removals. Without
-    this marker a deleted catalog agent comes back on the next start with a
-    fresh prompt and settings the user did not choose.
-
-    The catalog id comes from the ``marketplace`` marker the installer wrote
-    into the orchestrator config; an orchestrator created by hand has no such
-    marker and is simply a local deletion the marketplace never sees.
-    """
-    config = (orch or {}).get("config")
-    marker = config.get("marketplace") if isinstance(config, dict) else None
-    entity_id = str((marker or {}).get("id") or "") if isinstance(marker, dict) else ""
-    try:
-        from core.marketplace import registry
-
-        if not entity_id:
-            # An adopted entity carries no installer marker: its catalog id is
-            # the registry row that owns this folder.
-            for row in registry.list_installed("agent"):
-                if str(row.get("runtime_slug") or "") == slug:
-                    entity_id = str(row.get("id") or "")
-                    break
-        if not entity_id:
-            return
-        registry.remove_installed("agent", entity_id)
-        registry.mark_removed("agent", entity_id, slug, via="user")
-    except Exception:
-        pass
-
-
-def _sync_orchestrator_folder(slug: str) -> None:
-    """Write the current orchestrator record as orchestrator.json bundle.
-
-    Uses get_orchestrator() so the bundle always has the latest prompt_text
-    and config from the DB.  Does not overwrite the functions/ or
-    instructions/ parts of an existing folder (they are edited by
-    DevAgent / the user separately). Instructions cache is rebuilt too.
-    """
-    orch = repo_get_orchestrator_with_text(slug)
-    if orch is None:
-        return
-    bundle = {
-        "format": _EXPORT_FORMAT,
-        "slug": orch.get("slug", slug),
-        "name": orch.get("name", ""),
-        "description": orch.get("description", ""),
-        "prompt_text": orch.get("prompt_text", ""),
-        "config": orch.get("config", {}),
-        "tools": orch.get("tools", []),
-        "max_steps": orch.get("max_steps", DEFAULT_MAX_STEPS),
-        "auto_apply": orch.get("auto_apply", True),
-        "exported_at": datetime.now().isoformat(),
-    }
-    save_orchestrator_bundle(slug, bundle)
-    # Keep the instruction cache in sync too (rebuild from md files).
-    try:
-        sync_orchestrator_instructions(slug)
-    except Exception:
-        pass
-
-
-def reload_orchestrator_from_folder(slug: str) -> Dict[str, Any]:
-    """Reload an orchestrator from its folder into the DB.
-
-    Reads orchestrator.json (and system_prompt.md when present) and updates
-    the DB record. This is the "folders first" direction used at startup and
-    by the settings Sync button. Instructions are rebuilt into the cache.
-
-    Returns a status dict: {ok, slug, action, error}.
-    """
-    if not orchestrator_folder_exists(slug):
-        return {"ok": False, "slug": slug, "action": "skip", "error": "folder missing"}
-    bundle = load_orchestrator_bundle(slug)
-    if bundle is None:
-        return {"ok": False, "slug": slug, "action": "skip", "error": "unreadable orchestrator.json"}
-
-    prompt_text = str(bundle.get("prompt_text") or "")
-    prompt_file_text = load_orchestrator_prompt_file(slug)
-    if prompt_file_text.strip():
-        prompt_text = prompt_file_text
-
-    config = bundle.get("config")
-    if not isinstance(config, dict):
-        config = {}
-    raw_tools = bundle.get("tools")
-    if not isinstance(raw_tools, list):
-        raw_tools = []
-    tools, _rejected = _validate_imported_tools(raw_tools)
-
-    existing = repo_get_orchestrator_with_text(slug)
-    if existing is not None:
-        update_kwargs: Dict[str, Any] = dict(
-            name=str(bundle.get("name") or slug),
-            description=str(bundle.get("description") or ""),
-            config=config,
-            tools=tools,
-            max_steps=int(bundle.get("max_steps", existing.get("max_steps", DEFAULT_MAX_STEPS)) or DEFAULT_MAX_STEPS),
-            auto_apply=bool(bundle.get("auto_apply", existing.get("auto_apply", True))),
-        )
-        if not existing.get("is_builtin"):
-            update_kwargs["prompt_text"] = prompt_text
-        repo_update_orchestrator(existing["id"], **update_kwargs)
-        sync_orchestrator_instructions(slug)
-        return {"ok": True, "slug": slug, "action": "updated"}
-
-    orch_id = uuid.uuid4().hex[:8]
-    ok = repo_create_orchestrator(
-        orchestrator_id=orch_id,
-        slug=slug,
-        name=str(bundle.get("name") or slug),
-        description=str(bundle.get("description") or ""),
-        prompt_text=prompt_text,
-        config=config,
-        tools=tools,
-        max_steps=int(bundle.get("max_steps", DEFAULT_MAX_STEPS) or DEFAULT_MAX_STEPS),
-        auto_apply=bool(bundle.get("auto_apply", True)),
-        is_builtin=False,
-        sort_order=int(bundle.get("sort_order", 100) or 100),
-    )
-    if ok:
-        sync_orchestrator_instructions(slug)
-        return {"ok": True, "slug": slug, "action": "created"}
-    return {"ok": False, "slug": slug, "action": "skip", "error": "db create failed"}
-
-
-def sync_all_orchestrator_folders() -> Dict[str, Any]:
-    """Reload every existing orchestrator folder into the DB.
-
-    Called at startup and by the settings Sync button. Returns per-slug status.
-    """
-    results: Dict[str, Any] = {}
-    for slug in list_orchestrator_folder_slugs():
-        try:
-            res = reload_orchestrator_from_folder(slug)
-            results[slug] = res.get("action", "error") + ("" if res.get("ok") else ": " + str(res.get("error", "")))
-        except Exception as exc:
-            results[slug] = "error: " + str(exc)
-    return results
-
-
-# ─── Enabled standardized skills ─────────────────────────────────────────
-
-
-def get_enabled_skills(orchestrator_slug: str = DEVAGENT_SLUG) -> List[str]:
-    """Return the list of enabled skill IDs for an orchestrator.
-
-    The info is stored in the orchestrator's config under "enabled_skills".
-    Missing/invalid values are treated as an empty list.
-    """
-    orch = get_orchestrator(orchestrator_slug)
-    cfg = orch.get("config", {}) if orch else {}
-    skills = cfg.get("enabled_skills") or []
-    if not isinstance(skills, list):
-        return []
-    return [str(s) for s in skills if isinstance(s, str) and s]
-
-
-def set_enabled_skills(orchestrator_slug: str, skill_ids: List[str]) -> bool:
-    """Store the list of enabled skill IDs for an orchestrator.
-
-    Also syncs the orchestrator bundle on disk. Returns True on success.
-    """
-    normalized = []
-    for s in (skill_ids or []):
-        if isinstance(s, str) and s.strip() and s.strip() not in normalized:
-            normalized.append(s.strip())
-    orch = get_orchestrator(orchestrator_slug)
-    if orch is None:
-        return False
-    cfg = orch.get("config", {})
-    if not isinstance(cfg, dict):
-        cfg = {}
-    cfg = dict(cfg)
-    cfg["enabled_skills"] = normalized
-    ok = repo_update_orchestrator(orch["id"], config=cfg)
-    if ok:
-        _sync_orchestrator_folder(orchestrator_slug)
-    return ok
-
-
-# ─── Enabled connections (connectors) ────────────────────────────────────
-
-
-def get_enabled_connections(orchestrator_slug: str = DEVAGENT_SLUG) -> List[str]:
-    """Return the list of enabled connection ids for an orchestrator.
-
-    The info is stored in the orchestrator's config under
-    "enabled_connections". Missing/invalid values are treated as an empty list.
-    """
-    orch = get_orchestrator(orchestrator_slug)
-    cfg = orch.get("config", {}) if orch else {}
-    connections = cfg.get("enabled_connections") or []
-    if not isinstance(connections, list):
-        return []
-    return [str(c) for c in connections if isinstance(c, str) and c]
-
-
-def set_enabled_connections(orchestrator_slug: str, connection_ids: List[str]) -> bool:
-    """Store the list of enabled connection ids for an orchestrator.
-
-    Also syncs the orchestrator bundle on disk. Returns True on success.
-    """
-    normalized = []
-    for c in (connection_ids or []):
-        if isinstance(c, str) and c.strip() and c.strip() not in normalized:
-            normalized.append(c.strip())
-    orch = get_orchestrator(orchestrator_slug)
-    if orch is None:
-        return False
-    cfg = orch.get("config", {})
-    if not isinstance(cfg, dict):
-        cfg = {}
-    cfg = dict(cfg)
-    cfg["enabled_connections"] = normalized
-    ok = repo_update_orchestrator(orch["id"], config=cfg)
-    if ok:
-        _sync_orchestrator_folder(orchestrator_slug)
-    return ok
-
-
-# ─── Personal memory: prompt injection ───────────────────────────────────────
-
-
-def _extend_prompt_with_personal_card(prompt: str,
-                                      orchestrator_slug: str = DEVAGENT_SLUG) -> str:
-    """Append the owner profile card to the system prompt.
-
-    The card holds what the platform knows about the owner - stable rules,
-    preferences and environment facts - and is injected for every employee, so
-    a new dialog never starts by re-asking the same questions.
-
-    Args:
-        prompt: current system prompt text.
-        orchestrator_slug: employee that will read the card; kept for symmetry
-            with the other extenders and future per-employee filtering.
-
-    Returns:
-        The prompt with the ``## Owner profile`` block appended, or the prompt
-        unchanged when the card is empty or the memory layer is unavailable.
-    """
-    try:
-        from core import personal_memory as pm
-        body = pm.render_owner_card(pm.card_cap())
-    except Exception:
-        return prompt
-    if not body.strip():
-        return prompt
-
-    block = "\n".join([
-        "## Owner profile",
-        "",
-        "Facts about the person you work for, maintained across dialogs. Follow "
-        "the rules and preferences below without asking again; update them "
-        "with `set_personal_memory` when you learn something durable:",
-        "",
-        body,
-    ])
-    if prompt.strip():
-        return f"{prompt}\n\n{block}"
-    return block
-
-
-def _extend_prompt_with_memory(prompt: str,
-                               orchestrator_slug: str = DEVAGENT_SLUG) -> str:
-    """Append the personal-memory rules and the employee's own memory size.
-
-    The block is emitted for EVERY employee, even when no note exists yet: the
-    rules tell the employee that keeping notes is part of the job, and a fresh
-    install never starts the practice otherwise. The notes themselves are NOT
-    inlined - a scope can reach 64 KB - so the block only reports the state of
-    the employee's own scope and how to read it.
-
-    Args:
-        prompt: current system prompt text.
-        orchestrator_slug: employee whose own scope is described.
-
-    Returns:
-        The prompt with the ``## Memory`` block appended.
-    """
-    from core import personal_memory as pm
-
-    scope = pm.format_scope(pm.SCOPE_ORCHESTRATOR, orchestrator_slug)
-    size_line = ('Your own scope `current` is empty - add the first note worth '
-                 'keeping.')
-    try:
-        meta = pm.memory_meta(scope)
-    except Exception:
-        meta = {}
-    if meta.get('exists'):
-        size = int(meta.get('bytes') or 0)
-        limit = int(meta.get('max_bytes') or 0)
-        revision = meta.get('revision', 0)
-        updated = meta.get('updated_at') or 'unknown'
-        size_line = (f'Your own scope `current` holds {size} of {limit} bytes '
-                     f'of notes (revision {revision}, last updated {updated}); '
-                     'its text is not inlined here.')
-
-    lines = [
-        '## Memory',
-        '',
-        'Your memory outlives a single dialog. Two stores exist and never '
-        'merge: personal memory holds HOW to work (agreements, preferences, '
-        'limits), and the working-data folder holds the CONTENT of the work '
-        '(files, registries, journals).',
-        '',
-        size_line,
-        '',
-        f'Scopes: `current` - your own notes (`{scope}`); `user` - the owner '
-        'profile shared by every employee; `project` - notes about the active '
-        'working folder.',
-        '',
-        '- Read `current` with `get_personal_memory` before a task that may '
-        'depend on earlier decisions; read `user` when you need the rules or '
-        'preferences of the owner.',
-        '- Write a durable note with `set_personal_memory` (mode `append`) '
-        'when the owner corrects your approach, when you settle a decision '
-        'that will matter next time, or when you discover a limit worth '
-        'remembering. Skip one-off details and anything already visible in '
-        'this prompt.',
-        '- `user` is the card of the owner: extend it with `append`. A rewrite '
-        'with mode `replace` is refused unless the owner asked for it and the '
-        'call passes `overwrite_owner_profile=true`.',
-        '- Keep notes short and factual; never store credentials there.',
-    ]
-    block = '\n'.join(lines)
-    if prompt.strip():
-        return f'{prompt}\n\n{block}'
-    return block
-
-
-def _extend_prompt_with_working_memory(prompt: str,
-                                       orchestrator_slug: str = DEVAGENT_SLUG,
-                                       workspace: str = "") -> str:
-    """Append the ``## Working memory`` block - where the role's data lives.
-
-    The block is emitted for EVERY orchestrator: the path of the working-data
-    folder and the way to address it are platform facts, not role specifics.
-    Without it every new employee had to be told the path in its own prompt,
-    so the same fact drifted out of sync with the resolver and a role that
-    forgot the line wrote nowhere. The role's prompt keeps only what is
-    genuinely its own - the unit of work, the file layout, the update rules.
-
-    Args:
-        prompt: current system prompt text.
-        orchestrator_slug: employee whose folder is described.
-        workspace: active project folder; empty means "no project selected".
-
-    Returns:
-        The prompt with the block appended, or the prompt unchanged when the
-        resolver is unavailable (the prompt must never break over metadata).
-    """
-    try:
-        from core import orchestrator_folders as of
-        resolved = of.resolve_data_dir(orchestrator_slug, workspace)
-    except Exception:
-        return prompt
-    path = str(resolved.get("path") or "")
-    if not path:
-        return prompt
-
-    source = str(resolved.get("source") or "default")
-    scope = str(resolved.get("scope") or "central")
-    lines = [
-        "## Working memory",
-        "",
-        "Where the CONTENT of your work lives - registries, cards, journals. "
-        "It is not the same as personal memory: personal memory keeps HOW to "
-        "work, this folder keeps WHAT you work on.",
-        "",
-        f"- folder: `{path}`",
-        f"- set by: `{source}` (scope: `{scope}`)",
-        "- reach it with the file tools (read_file, propose_file, apply_patch, "
-        "verify_file, list_files, search_in_files) using the `memory:` prefix "
-        "- memory:registry.md, memory:projects/<key>/card.md - or the absolute "
-        "path above.",
-        "- the folder does not depend on the project a dialog works in, so the "
-        "same memory is available in every dialog, even before a project "
-        "folder is chosen.",
-        "- the file layout, the record formats and the update rules are yours "
-        "to define - see the memory section of this prompt.",
-    ]
-    legacy = resolved.get("legacy")
-    if isinstance(legacy, dict) and legacy.get("files") and not legacy.get("is_active"):
-        lines.append(
-            f"- a folder from the previous layout still holds {legacy.get('files')} "
-            f"file(s): `{legacy.get('path')}`. Do not move or delete it on your "
-            "own; report it to the owner."
-        )
-    if not resolved.get("exists"):
-        lines.append(
-            "- the folder does not exist yet: create it with the first write."
-        )
-
-    block = "\n".join(lines)
-    if prompt.strip():
-        return f"{prompt}\n\n{block}"
-    return block
-
-
-def _extend_prompt_with_connections(prompt: str, orchestrator_slug: str = DEVAGENT_SLUG) -> str:
-    """Append a metadata block describing enabled connections to the prompt.
-
-    The block lists each enabled connection (service, name, account - never
-    the token) and the connection tools (GitHub REST, SSH) available to the
-    orchestrator with their signatures. Returns the original prompt when no
-    connections are enabled or on error (best effort).
-    """
-    enabled = get_enabled_connections(orchestrator_slug)
-    if not enabled:
-        return prompt
-    try:
-        from core.connectors import get_connection
-    except Exception:
-        return prompt
-
-    # Determine which tool sets the enabled connections need.
-    services = set()
-    conn_lines = []
-    for conn_id in enabled:
-        conn = get_connection(conn_id)
-        if not isinstance(conn, dict):
-            continue
-        service = str(conn.get("service") or "?")
-        services.add(service)
-        name = str(conn.get("name") or "?")
-        account = str(conn.get("account") or "")
-        line = f"- `{conn_id}` - {service} ({name})"
-        if account:
-            line += f", account: {account}"
-        if str(conn.get("credentials_status") or "") == "pending":
-            line += " (credentials pending - fill them on the Connectors page)"
-        conn_lines.append(line)
-
-    lines = [
-        "## Available service connections",
-        "",
-        "The following external service connections are enabled for you. "
-        "Use them via the connection tools listed below; tokens and "
-        "credentials are handled by the platform and are never passed to "
-        "you:",
-        "",
-    ]
-    lines.extend(conn_lines)
-
-    lines.append("")
-    lines.append("Available connection tools:")
-    try:
-        if "github_rest" in services:
-            from core.github_tools_rest import get_tools as get_github_rest_tools
-            for tool in get_github_rest_tools():
-                lines.append(f"- `{tool['name']}` - {tool['desc']}")
-        if "ssh" in services:
-            from core.ssh_tools import get_tools as get_ssh_tools
-            for tool in get_ssh_tools():
-                lines.append(f"- `{tool['name']}` - {tool['desc']}")
-    except Exception:
-        pass
-
-    # Compact usage notes so orchestrators can call the tools correctly even
-    # without loading the full connector instruction.
-    lines.append("")
-    lines.append("Quick usage notes:")
-    lines.append("- Always pass `connector_id` (from the list above) as the first argument.")
-    lines.append("- Each connection keeps a memory notes file: read it with `get_connection_memory` (and load the matching connector instruction) before working with the connection; after finishing a task, offer to update that memory with `set_connection_memory` (newly discovered limits, paths, rules - never secrets).")
-    if "github_rest" in services:
-        lines.append("- `repo` accepts `owner/repo` or a bare repo name of the authenticated user.")
-        lines.append("- New repo names must be lowercase, without spaces.")
-        lines.append("- `ghr_upload_file` creates a NEW file; use `ghr_update_file` to change an existing file.")
-        lines.append("- Prefer `ghr_batch_commit` / `ghr_batch_commit_paths` / `ghr_batch_upsert` to publish many files in ONE commit.")
-        lines.append("- Before updating a file, read it with `ghr_read_file` first.")
-        lines.append("- For the full usage guide, load the `github_connector` instruction if it is listed in `## Available instructions` of this orchestrator.")
-    if "ssh" in services:
-        lines.append("- `ssh_exec` runs one shell command and returns the exit status, stdout and stderr (each truncated to 100 KB).")
-        lines.append("- `ssh_upload_file` streams a local workspace file to the server (capped at 50 MB) and verifies the transfer by sha256.")
-        lines.append("- `ssh_write_file` overwrites the remote file (max 1 MB); pass `create_dirs=true` to create the parent chain.")
-        lines.append("- Before overwriting a file, read it with `ssh_read_file` first.")
-        lines.append("- For the full usage guide, load the `ssh_connector` instruction if it is listed in `## Available instructions` of this orchestrator.")
-
-    block = "\n".join(lines)
-    if prompt.strip():
-        return f"{prompt}\n\n{block}"
-    return block
-
-
-# ─── Delegation: allowlist and limits ──────────────────────────────────
-
-def get_allowed_agents(orchestrator_slug: str = DEVAGENT_SLUG) -> List[str]:
-    """Return the orchestrator slugs this orchestrator may spawn.
-
-    Stored in the config under ``allowed_agents``. The orchestrator's OWN
-    slug is always allowed (self-delegation needs no configuration), so it
-    is not required in this list. Missing or invalid values yield an empty
-    list - which still means "self only", never "nothing".
-    """
-    orch = get_orchestrator(orchestrator_slug)
-    cfg = orch.get("config", {}) if orch else {}
-    agents = cfg.get("allowed_agents") or []
-    if not isinstance(agents, list):
-        return []
-    out: List[str] = []
-    for a in agents:
-        if isinstance(a, str) and a.strip() and a.strip() not in out:
-            out.append(a.strip())
-    return out
-
-
-def set_allowed_agents(orchestrator_slug: str, agent_slugs: List[str]) -> bool:
-    """Store the allowlist of spawnable orchestrators; syncs the folder.
-
-    The orchestrator's own slug is dropped from the stored list: it is
-    allowed by definition, and keeping it would confuse the settings UI
-    (a checkbox for yourself next to the boxes for other agents).
-    """
-    normalized: List[str] = []
-    for a in (agent_slugs or []):
-        if not isinstance(a, str):
-            continue
-        val = a.strip()
-        if not val or val == orchestrator_slug or val in normalized:
-            continue
-        normalized.append(val)
-    orch = get_orchestrator(orchestrator_slug)
-    if orch is None:
-        return False
-    cfg = orch.get("config", {})
-    if not isinstance(cfg, dict):
-        cfg = {}
-    cfg = dict(cfg)
-    cfg["allowed_agents"] = normalized
-    ok = repo_update_orchestrator(orch["id"], config=cfg)
-    if ok:
-        _sync_orchestrator_folder(orchestrator_slug)
-    return ok
-
-
-def get_universal_agent_enabled(orchestrator_slug: str = DEVAGENT_SLUG) -> bool:
-    """Return whether the bundled Universal-Agent is offered to this orchestrator.
-
-    The answer comes from ``config.universal_agent_enabled`` and defaults to
-    True: the executor is available out of the box, and the user takes that
-    right away per orchestrator with a checkbox. An ABSENT key therefore
-    means "on" - that is what makes a freshly created employee delegate to
-    it without any configuration step.
-
-    A stored non-boolean value (hand-edited folder, older import) is read
-    through its truthiness so a recorded decision is never silently lost.
-    """
-    orch = get_orchestrator(orchestrator_slug)
-    cfg = orch.get("config", {}) if orch else {}
-    if not isinstance(cfg, dict):
-        return True
-    if UNIVERSAL_AGENT_CONFIG_KEY not in cfg:
-        return True
-    return bool(cfg.get(UNIVERSAL_AGENT_CONFIG_KEY))
-
-
-def set_universal_agent_enabled(orchestrator_slug: str, enabled: bool) -> bool:
-    """Store the Universal-Agent availability decision; syncs the folder.
-
-    Only the explicit decision is written: the ``allowed_agents`` list stays
-    exactly what the user chose, so a later settings save cannot lose the
-    flag and the flag cannot turn into a stray list entry.
-    """
-    orch = get_orchestrator(orchestrator_slug)
-    if orch is None:
-        return False
-    cfg = orch.get("config", {})
-    if not isinstance(cfg, dict):
-        cfg = {}
-    cfg = dict(cfg)
-    cfg[UNIVERSAL_AGENT_CONFIG_KEY] = bool(enabled)
-    ok = repo_update_orchestrator(orch["id"], config=cfg)
-    if ok:
-        _sync_orchestrator_folder(orchestrator_slug)
-    return ok
-
-
-def get_effective_agents(orchestrator_slug: str = DEVAGENT_SLUG) -> List[str]:
-    """Return every non-self agent this orchestrator may actually spawn.
-
-    The configured ``allowed_agents`` plus the bundled Universal-Agent while
-    its flag is on and the employee exists. This - not the raw allowlist -
-    is the list the runtime enforces and the prompt advertises, so the two
-    can never disagree about who is callable.
-
-    The universal slug is skipped when the orchestrator IS that agent (an
-    employee never delegates to itself through this entry - self-delegation
-    is a separate, always-available right) and when the employee has been
-    deleted from the installation.
-    """
-    agents = [a for a in get_allowed_agents(orchestrator_slug)
-              if a != orchestrator_slug]
-    if orchestrator_slug == UNIVERSAL_AGENT_SLUG:
-        return agents
-    try:
-        enabled = get_universal_agent_enabled(orchestrator_slug)
-    except Exception:
-        enabled = True
-    if not enabled or UNIVERSAL_AGENT_SLUG in agents:
-        return agents
-    try:
-        live = get_orchestrator(UNIVERSAL_AGENT_SLUG)
-    except Exception:
-        live = None
-    if not live:
-        return agents
-    return agents + [UNIVERSAL_AGENT_SLUG]
-
-
-def get_allowed_assistants(orchestrator_slug: str = DEVAGENT_SLUG) -> List[str]:
-    """Return the assistant ids this orchestrator may call one-shot.
-
-    Stored in the config under ``allowed_assistants``. Unlike ``spawn_agent``
-    there is no default right to call an assistant: an empty list means
-    ``invoke_assistant`` is not registered at all.
-    """
-    orch = get_orchestrator(orchestrator_slug)
-    cfg = orch.get("config", {}) if orch else {}
-    ids = cfg.get("allowed_assistants") or []
-    if not isinstance(ids, list):
-        return []
-    out: List[str] = []
-    for a in ids:
-        if isinstance(a, str) and a.strip() and a.strip() not in out:
-            out.append(a.strip())
-    return out
-
-
-def set_allowed_assistants(orchestrator_slug: str, assistant_ids: List[str]) -> bool:
-    """Store the allowlist of callable assistants; syncs the folder.
-
-    Two safeguards live here rather than in the settings UI, because any
-    caller (import, API) must get the same protection: ids are normalised
-    and, when the assistants table is readable, an id that matches no live
-    card is dropped. A stale id would otherwise sit in the config and turn
-    every call of that assistant into ``unknown_assistant``.
-    """
-    normalized: List[str] = []
-    for a in (assistant_ids or []):
-        if isinstance(a, str) and a.strip() and a.strip() not in normalized:
-            normalized.append(a.strip())
-    try:
-        from core.assistants import get_assistant_by_id
-        normalized = [aid for aid in normalized if get_assistant_by_id(aid)]
-    except Exception:
-        pass
-    orch = get_orchestrator(orchestrator_slug)
-    if orch is None:
-        return False
-    cfg = orch.get("config", {})
-    if not isinstance(cfg, dict):
-        cfg = {}
-    cfg = dict(cfg)
-    cfg["allowed_assistants"] = normalized
-    ok = repo_update_orchestrator(orch["id"], config=cfg)
-    if ok:
-        _sync_orchestrator_folder(orchestrator_slug)
-    return ok
-
-
-def get_verifier_agent(orchestrator_slug: str = DEVAGENT_SLUG) -> str:
-    """Return the agent that checks this orchestrator's delegated results.
-
-    Stored in the config under ``verifier_agent``. An empty string means "not
-    appointed": the ``verify_result`` tool is not offered, and a call to it is
-    refused with ``verifier_not_configured`` rather than falling back to some
-    default agent - a silent substitution would hide the fact that nobody is
-    checking anything.
-
-    The slug is deliberately NOT required to appear in ``allowed_agents``:
-    the right to CHECK a result is a separate right, and folding it into the
-    call allowlist would make verification depend on an unrelated list.
-    """
-    orch = get_orchestrator(orchestrator_slug)
-    cfg = orch.get("config", {}) if orch else {}
-    if not isinstance(cfg, dict):
-        return ""
-    return str(cfg.get("verifier_agent") or "").strip()
-
-
-def set_verifier_agent(orchestrator_slug: str, agent_slug: str) -> bool:
-    """Appoint (or clear) the verifier of an orchestrator; syncs the folder.
-
-    An empty value clears the appointment. A non-empty value must name a LIVE
-    orchestrator: a stale slug would make every verification fail with
-    ``unknown_agent`` while the settings page shows a choice that looks valid.
-    """
-    slug = str(agent_slug or "").strip()
-    orch = get_orchestrator(orchestrator_slug)
-    if orch is None:
-        return False
-    if slug and get_orchestrator(slug) is None:
-        return False
-    cfg = orch.get("config", {})
-    if not isinstance(cfg, dict):
-        cfg = {}
-    cfg = dict(cfg)
-    cfg["verifier_agent"] = slug
-    ok = repo_update_orchestrator(orch["id"], config=cfg)
-    if ok:
-        _sync_orchestrator_folder(orchestrator_slug)
-    return ok
-
-
-#: Delegation limit keys with their documented defaults. The defaults live
-#: in core.orchestration.contracts; this table is the UI-facing order.
-DELEGATION_LIMIT_KEYS = (
-    ("max_depth", 1),
-    ("max_active_subagents", 5),
-    ("subagent_max_steps", 300),
-    ("subagent_budget_tokens", 0),
-    ("subagent_timeout_seconds", 3600),
-    ("total_subagent_runs", 64),
-    # ── Agent dialog ───────────────────────────────────────────────────────
-    # Kept in the SAME tuple as the delegation limits: the dialog is part of
-    # the delegation surface, and a separate settings block would let the two
-    # drift apart in the UI and in the resolver.
-    ("dialog_rounds", 5),
-    ("question_max_chars", 1500),
-    ("answer_max_chars", 4000),
-    ("answer_wait_seconds", 900),
-    ("max_parked_runs", 8),
-)
-
-
-def get_delegation_limits(orchestrator_slug: str = DEVAGENT_SLUG) -> Dict[str, int]:
-    """Return the six delegation limits of an orchestrator.
-
-    Values come from the config (``max_depth``, ``max_active_subagents``,
-    ``subagent_max_steps``, ``subagent_budget_tokens``,
-    ``subagent_timeout_seconds``, ``total_subagent_runs``) and fall back to
-    the documented defaults. Read-only: the runtime uses the same resolver,
-    ``core.orchestration.service.read_limits``, so UI and runtime cannot
-    disagree about a missing key.
-    """
-    orch = get_orchestrator(orchestrator_slug)
-    cfg = orch.get("config", {}) if orch else {}
-    if not isinstance(cfg, dict):
-        cfg = {}
-    try:
-        from core.orchestration.service import read_limits
-        return read_limits(cfg)
-    except Exception:
-        return {key: default for key, default in DELEGATION_LIMIT_KEYS}
-
-
-def set_delegation_limits(orchestrator_slug: str, limits: Dict[str, Any]) -> bool:
-    """Store the six delegation limits; syncs the folder.
-
-    Only known keys are written, values are clamped to their safe ranges
-    (a non-positive pool or timeout is meaningless and would break spawning),
-    and unknown keys are ignored so a caller cannot smuggle arbitrary config
-    through this helper.
-    """
-    from core.orchestration.service import read_limits
-    orch = get_orchestrator(orchestrator_slug)
-    if orch is None:
-        return False
-    cfg = orch.get("config", {})
-    if not isinstance(cfg, dict):
-        cfg = {}
-    cfg = dict(cfg)
-    incoming = limits if isinstance(limits, dict) else {}
-    merged = {key: incoming.get(key, cfg.get(key, default))
-              for key, default in DELEGATION_LIMIT_KEYS}
-    resolved = read_limits(merged)
-    for key, _default in DELEGATION_LIMIT_KEYS:
-        cfg[key] = int(resolved[key])
-    ok = repo_update_orchestrator(orch["id"], config=cfg)
-    if ok:
-        _sync_orchestrator_folder(orchestrator_slug)
-    return ok
-
-
-# ─── Disabled tools (blacklist) ─────────────────────────────────────────
-
-
-def get_disabled_tools(orchestrator_slug: str = DEVAGENT_SLUG) -> List[str]:
-    """Return the list of disabled tool names for an orchestrator.
-
-    The info is stored in the orchestrator's config under "disabled_tools".
-    An empty list means "all tools enabled". Names are stored as canonical
-    tool names (legacy aliases resolved); missing/invalid values are treated
-    as an empty list.
-    """
-    orch = get_orchestrator(orchestrator_slug)
-    cfg = orch.get("config", {}) if orch else {}
-    tools = cfg.get("disabled_tools") or []
-    if not isinstance(tools, list):
-        return []
-    out = []
-    for t in tools:
-        if isinstance(t, str) and t.strip() and t.strip() not in out:
-            out.append(t.strip())
-    return out
-
-
-def set_disabled_tools(orchestrator_slug: str, tool_names: List[str]) -> bool:
-    """Store the list of disabled tool names for an orchestrator.
-
-    Entries are normalized to canonical tool names via
-    ``core.orchestrator_tools.normalize_disabled`` (legacy aliases are
-    resolved, so disabling ``list_skills`` disables ``list_assistants``) and
-    the orchestrator bundle on disk is synced. Returns True on success.
-    """
-    from core.orchestrator_tools import normalize_disabled
-    normalized = normalize_disabled(tool_names)
-    orch = get_orchestrator(orchestrator_slug)
-    if orch is None:
-        return False
-    cfg = orch.get("config", {})
-    if not isinstance(cfg, dict):
-        cfg = {}
-    cfg = dict(cfg)
-    cfg["disabled_tools"] = normalized
-    ok = repo_update_orchestrator(orch["id"], config=cfg)
-    if ok:
-        _sync_orchestrator_folder(orchestrator_slug)
-    return ok
-
-
-def _extend_prompt_with_tools(prompt: str, orchestrator_slug: str = DEVAGENT_SLUG) -> str:
-    """Append the '## Available tools' block to an orchestrator prompt.
-
-    Lists every tool the orchestrator may call (system tools, enabled
-    connection tools and custom functions), excluding the tools disabled via
-    the ``disabled_tools`` config key. Returns the original prompt when the
-    catalog is empty or unreadable (best effort).
-    """
-    try:
-        from core.orchestrator_tools import render_available_tools_block
-        disabled = set(get_disabled_tools(orchestrator_slug))
-        block = render_available_tools_block(orchestrator_slug, disabled=disabled)
-        if not block:
-            return prompt
-        if prompt.strip():
-            return f"{prompt}\n\n{block}"
-        return block
-    except Exception:
-        return prompt
-
-
-# ─── Assigned RAG knowledge bases ──────────────────────────────────────
-
-
-def get_orchestrator_rag_bases(orchestrator_slug: str = DEVAGENT_SLUG) -> List[str]:
-    """Return the list of RAG base slugs assigned to an orchestrator.
-
-    The list is stored in the orchestrator config under "rag_bases".
-    DevAgent (slug="dev_agent") is special: it may use any base, so an
-    empty list means "all bases". Other orchestrators receive only the
-    bases explicitly assigned here; bases not listed are forbidden even
-    if their slug is known.
-    """
-    orch = get_orchestrator(orchestrator_slug)
-    cfg = orch.get("config", {}) if orch else {}
-    bases = cfg.get("rag_bases") or []
-    if not isinstance(bases, list):
-        return []
-    return [str(b) for b in bases if isinstance(b, str) and b]
-
-
-def set_orchestrator_rag_bases(orchestrator_slug: str, base_slugs: List[str]) -> bool:
-    """Store the list of RAG base slugs assigned to an orchestrator.
-
-    Duplicates are removed and each entry is normalized to lowercase.
-    Returns True on success.
-    """
-    normalized = []
-    for b in (base_slugs or []):
-        if isinstance(b, str) and b.strip():
-            val = b.strip().lower()
-            if val not in normalized:
-                normalized.append(val)
-    orch = get_orchestrator(orchestrator_slug)
-    if orch is None:
-        return False
-    cfg = orch.get("config", {})
-    if not isinstance(cfg, dict):
-        cfg = {}
-    cfg = dict(cfg)
-    cfg["rag_bases"] = normalized
-    ok = repo_update_orchestrator(orch["id"], config=cfg)
-    if ok:
-        _sync_orchestrator_folder(orchestrator_slug)
-    return ok
-
-
-def _extend_prompt_with_rag_bases(prompt: str, orchestrator_slug: str = DEVAGENT_SLUG) -> str:
-    """Append the assigned RAG knowledge bases as a metadata block.
-
-    The block tells the orchestrator which bases it may search via the
-    ``rag_search`` tool. DevAgent sees all bases; other orchestrators see
-    only their assigned list. Inactive bases (missing provider credentials)
-    are marked so the model knows they require API keys.
-    Returns the original prompt when there is nothing to append or on error.
-    """
-    try:
-        from core.rag import list_bases_with_activity
-        if orchestrator_slug == DEVAGENT_SLUG:
-            assigned = None  # all bases
-        else:
-            assigned = set(get_orchestrator_rag_bases(orchestrator_slug))
-            if not assigned:
-                return prompt
-        # with_stats=False: the prompt block only needs metadata (name,
-        # status, active); opening every SQLite index here slows down
-        # orchestrator renders with large bases.
-        bases = list_bases_with_activity(with_stats=False)
-        rows = []
-        for b in bases:
-            bslug = str(b.get("slug") or "")
-            if not bslug:
-                continue
-            if assigned is not None and bslug not in assigned:
-                continue
-            active = bool(b.get("active", True))
-            name = str(b.get("name") or bslug)
-            status = str(b.get("status") or "draft")
-            mode = str(b.get("search_mode") or "").strip().lower() or "bm25"
-            flag = "" if active else " [INACTIVE: provider API keys required]"
-            rows.append(f"- `{bslug}` — {name} (status: {status}, search: {mode}){flag}")
-        if not rows:
-            return prompt
-        block = (
-            "## Available RAG knowledge bases\n\n"
-            "Use only these bases with the `rag_search` tool. Bases not listed "
-            "here are forbidden even if you know their identifiers. The "
-            "'search' tag is the base's search mode (bm25 = own lexical "
-            "index, no API keys; vector = embeddings; hybrid = both).\n\n"
-            + "\n".join(rows)
-        )
-        if prompt.strip():
-            return f"{prompt}\n\n{block}"
-        return block
-    except Exception:
-        return prompt
-
-
-def _delegation_availability(orch_slug: str, enabled) -> Tuple[bool, bool, bool]:
-    """Return ``(agents, assistants, verify)`` availability flags for *orch_slug*.
-
-    *enabled* is the ``is_conditional_tool_enabled`` probe; a failure keeps the
-    historical default of each flag.
-    """
-    try:
-        agents = bool(enabled("spawn_agent", orch_slug))
-    except Exception:
-        agents = True
-    try:
-        assistants = bool(enabled("invoke_assistant", orch_slug))
-    except Exception:
-        assistants = False
-    try:
-        verify = bool(enabled("verify_result", orch_slug))
-    except Exception:
-        verify = False
-    return agents, assistants, verify
-
-
-def _agent_delegation_lines(orch_slug: str) -> List[str]:
-    """Return the block listing the agents this orchestrator may spawn."""
-    entries: List[str] = []
-    own_name = ""
-    try:
-        own = get_orchestrator(orch_slug)
-        own_name = str((own or {}).get("name") or "")
-    except Exception:
-        own_name = ""
-    entries.append("- `%s` - %s (you; self-delegation is always allowed)"
-                   % (orch_slug, own_name or "this orchestrator"))
-    try:
-        live = {str(o.get("slug") or ""): str(o.get("name") or "")
-                for o in list_orchestrators()}
-    except Exception:
-        live = {}
-    for slug in get_effective_agents(orch_slug):
-        if slug == orch_slug:
-            continue
-        suffix = ""
-        if slug == UNIVERSAL_AGENT_SLUG:
-            suffix = (" (available by default; your user can switch "
-                      "this right off in the delegation settings)")
-        entries.append("- `%s` - %s%s" % (slug, live.get(slug) or "name unknown",
-                                          suffix))
-    lines = list(SPAWN_AGENT_INTRO)
-    lines.extend(entries)
-    return lines
-
-
-def _assistant_delegation_lines(orch_slug: str) -> List[str]:
-    """Return the block listing the assistants this orchestrator may call."""
-    a_entries: List[str] = []
-    try:
-        from core.assistants import load_assistants_index
-        cards = {str(c.get("id") or ""): str(c.get("name") or "")
-                 for c in (load_assistants_index() or [])}
-    except Exception:
-        cards = {}
-    for aid in get_allowed_assistants(orch_slug):
-        a_entries.append("- `%s` - %s" % (aid, cards.get(aid) or "name unknown"))
-    lines = list(INVOKE_ASSISTANT_INTRO)
-    lines.extend(a_entries)
-    return lines
-
-
-def _verify_delegation_lines() -> List[str]:
-    """Return the block explaining how delegated results are verified."""
-    return list(VERIFY_RESULT_INTRO)
-
-
-def _extend_prompt_with_delegation(prompt: str, orchestrator_slug: str = DEVAGENT_SLUG) -> str:
-    """Append a block listing the agents and assistants this orchestrator may call.
-
-    The block answers the question the model otherwise spends a step probing:
-    "who exactly can I delegate to, and under what name?". Every entry carries
-    the call argument (``agent_slug`` or ``assistant_id``) next to the human
-    name, because the tool contract wants the identifier while the model
-    reasons about the name.
-
-    Self-delegation is always listed: an orchestrator may always spawn itself,
-    so the list is never empty even with no other agent configured.
-
-    Returns the original prompt on error or when neither delegation tool is
-    available (best effort - the orchestrator still works without the block).
-    """
-    try:
-        from core.orchestrator_tools import is_conditional_tool_enabled
-    except Exception:
-        return prompt
-
-    agents_available, assistants_available, verify_available = _delegation_availability(
-        orchestrator_slug, is_conditional_tool_enabled)
-
-    lines: List[str] = []
-    if agents_available:
-        lines.extend(_agent_delegation_lines(orchestrator_slug))
-
-    if assistants_available:
-        if lines:
-            lines.append("")
-        lines.extend(_assistant_delegation_lines(orchestrator_slug))
-
-    if verify_available:
-        if lines:
-            lines.append("")
-        lines.extend(_verify_delegation_lines())
-
-    if not lines:
-        return prompt
-    block = "\n".join(lines)
-    if prompt.strip():
-        return f"{prompt}\n\n{block}"
-    return block
-
-
-def _extend_prompt_with_skills(prompt: str, enabled_skills: List[str]) -> str:
-    """Append the metadata block of enabled skills to a system prompt.
-
-    Returns the original prompt if no skills are enabled or if the library
-    cannot be read (best effort - the orchestrator still works without
-    the skills block).
-    """
-    if not enabled_skills:
-        return prompt
-    try:
-        from core.skills_library import build_skills_metadata_text
-        skills_text = build_skills_metadata_text(enabled_skills)
-        if skills_text:
-            if prompt.strip():
-                return f"{prompt}\n\n{skills_text}"
-            return skills_text
-    except Exception:
-        pass
-    return prompt
-
-
-
-def _extend_prompt_with_instructions(prompt: str, orchestrator_slug: str = DEVAGENT_SLUG) -> str:
-    """Append the metadata block of available instructions to a system prompt.
-
-    Lists orchestrator-specific instructions of the given orchestrator plus
-    any global instructions (if present). The block tells the orchestrator
-    how to load the full text of each instruction, so the main system prompt
-    only needs to say: "for this task type, first load the matching instruction".
-    Returns the original prompt when there are no instructions or on error.
-    """
-    try:
-        from core.instructions import list_instructions_for as list_global_instructions
-        from core.orchestrator_folders import list_orchestrator_instructions as list_orch_instructions
-
-        local = [i for i in list_orch_instructions(orchestrator_slug)
-                 if isinstance(i, dict) and i.get("id")]
-        glob = [i for i in list_global_instructions(orchestrator_slug)
-                if isinstance(i, dict) and i.get("id")]
-        if not local and not glob:
-            return prompt
-
-        lines = [
-            "## Available instructions",
-            "",
-            "The following instructions may be useful for certain task types. "
-            "When a task matches an instruction type, first load and follow "
-            "the corresponding instruction:",
-            "",
-        ]
-        if local:
-            lines.append(f"Instructions of orchestrator '{orchestrator_slug}':")
-            for inst in sorted(local, key=lambda x: (x.get("name") or x["id"]).lower()):
-                iid = inst["id"]
-                name = inst.get("name") or iid
-                desc = (inst.get("description") or "").strip()
-                lines.append(
-                    f"- **{name}** (id: `{iid}`) - load full text via "
-                    f"`get_orchestrator_instruction('{orchestrator_slug}', '{iid}')`"
-                )
-                if desc:
-                    lines.append(f"  {desc}")
-            lines.append("")
-        if glob:
-            lines.append("Global instructions:")
-            for inst in sorted(glob, key=lambda x: (x.get("name") or x["id"]).lower()):
-                iid = inst["id"]
-                name = inst.get("name") or iid
-                desc = (inst.get("description") or "").strip()
-                lines.append(
-                    f"- **{name}** (id: `{iid}`) - load full text via "
-                    f"`get_instruction('{iid}')`"
-                )
-                if desc:
-                    lines.append(f"  {desc}")
-            lines.append("")
-        lines.append(
-            "Use these instructions as guidance when performing the matching tasks."
-        )
-        block = "\n".join(lines)
-        if prompt.strip():
-            return f"{prompt}\n\n{block}"
-        return block
-    except Exception:
-        return prompt
-
-# ─── Current date block ───────────────────────────────────────────────────
-
-# Weekday and month names live in core.prompt_blocks together with the pure
-# formatters; the private aliases below keep the historical module surface.
-_WEEKDAY_NAMES = WEEKDAY_NAMES
-# Russian weekday names are returned by the ``current_datetime`` tool: models
-# answer users in Russian and translating the name themselves is a needless
-# chance to slip.
-_WEEKDAY_NAMES_RU = WEEKDAY_NAMES_RU
-_MONTH_NAMES = MONTH_NAMES
-
-
-def _format_utc_offset(moment: datetime) -> str:
-    """Return the UTC offset of *moment* as ``UTC+HH:MM``."""
-    return format_utc_offset(moment)
-
-
-def _current_date_line(moment: datetime) -> str:
-    """Return the one-line date statement for *moment*.
-
-    The weekday and the month are spelled out so the model does not derive
-    them from a numeric date - a frequent source of off-by-one errors.
-    """
-    return current_date_line(moment)
-
-
-def _extend_prompt_with_current_date(prompt: str,
-                                     orchestrator_slug: str = DEVAGENT_SLUG,
-                                     now: Optional[datetime] = None) -> str:
-    """Append the ``## Current date`` block - the only source of "today".
-
-    A model has no clock: without this block every date-dependent answer is a
-    guess or a reading of a file that recorded the date it was WRITTEN, not
-    the current one. The block is emitted for EVERY orchestrator, so no role
-    prompt has to carry the date itself.
-
-    The block states the date only, with no usage instructions: the system
-    prompt is already large and the fact speaks for itself. ``
-    build_assistant_dicts`` appends it LAST - the only block that changes over
-    time sits at the tail, so the provider's cached prefix survives until the
-    date rolls over.
-
-    Args:
-        prompt: current system prompt text.
-        orchestrator_slug: employee whose config may switch the block off.
-        now: moment to report; defaults to the current local time. Tests pass
-            a fixed value to keep the output deterministic.
-
-    Returns:
-        The prompt with the block appended, or the prompt unchanged when the
-        orchestrator disabled it (``current_date_enabled: false``) or the
-        moment cannot be resolved (the prompt must never break over metadata).
-    """
-    try:
-        orch = get_orchestrator(orchestrator_slug)
-        cfg = (orch or {}).get("config", {}) or {}
-        flag = cfg.get("current_date_enabled", True)
-        if isinstance(flag, str):
-            enabled = flag.strip().lower() not in ("0", "false", "no", "off")
-        else:
-            enabled = bool(flag)
-        if not enabled:
-            return prompt
-
-        moment = now if now is not None else datetime.now()
-        if moment.tzinfo is None:
-            # A naive value is local by definition: attach the system zone so
-            # the offset line reports what the clock actually means.
-            moment = moment.astimezone()
-        tz_name = moment.tzname() or ""
-        tz_part = _format_utc_offset(moment)
-        tz_text = "%s (%s)" % (tz_name, tz_part) if tz_name else tz_part
-        lines = [
-            "## Current date",
-            "",
-            _current_date_line(moment),
-            "Installation timezone: %s." % tz_text,
-        ]
-    except Exception:
-        return prompt
-
-    block = "\n".join(lines)
-    if prompt.strip():
-        return f"{prompt}\n\n{block}"
-    return block
-
-
-# ─── Assistant-dict building (for agent loop) ─────────────────────────────
-
-
-#: Rules of the agent dialog, stored verbatim in core.prompt_blocks: the text
-#: is read by every orchestrator and a typo in one branch changes the
-#: behaviour of all of them.
-_DIALOG_RULES_PARENT = DIALOG_RULES_PARENT
-
-_DIALOG_RULES_CHILD = DIALOG_RULES_CHILD
-
-
-def _extend_prompt_with_dialog(prompt: str, orchestrator_slug: str = DEVAGENT_SLUG,
-                               role: str = "parent") -> str:
-    """Append the rules of the agent dialog for the given role.
-
-    ``role`` is ``parent`` for an orchestrator that may answer a parked child
-    and ``child`` for the subagent that may ask. The block is best effort: a
-    config read failure returns the prompt unchanged rather than breaking it.
-    """
-    try:
-        from core.orchestrator_tools import is_conditional_tool_enabled
-        tool = "answer_child" if role == "parent" else "ask_parent"
-        if not is_conditional_tool_enabled(tool, orchestrator_slug):
-            return prompt
-    except Exception:
-        return prompt
-    lines = _DIALOG_RULES_PARENT if role == "parent" else _DIALOG_RULES_CHILD
-    block = "".join(lines).rstrip()
-    if prompt.strip():
-        return prompt + "\n\n" + block
-    return block
-
-
-def build_assistant_dicts(orchestrator_slug: str = DEVAGENT_SLUG,
-                          workspace: str = "",
-                          dialog_role: str = "parent") -> Tuple[dict, dict]:
-    """Build (strong_assistant, weak_assistant) from an orchestrator's config.
-
-    Assistant dicts are compatible with ``core.api_layer.send_request``.
-    Falls back to DevAgent defaults if the orchestrator is missing.
-
-    If the orchestrator has enabled standardized skills (config key
-    "enabled_skills"), their metadata is appended to the system prompt sent
-    to the model.
-
-    *workspace* is the project folder of the calling dialog. It is needed to
-    expand a project-relative ``MEMORY_DIR`` override; empty means "no project
-    selected", which the working-memory block reports honestly instead of
-    guessing a path.
-    """
-    orch = get_orchestrator(orchestrator_slug)
-    if orch is None:
-        orch = {
-            "prompt_text": "",
-            "config": _devagent_default_config(),
-        }
-    cfg = orch.get("config", {})
-    prompt = orch.get("prompt_text", "")
-
-    # Append metadata of enabled standardized skills (Skills library).
-    enabled_skills = cfg.get("enabled_skills") or []
-    prompt = _extend_prompt_with_skills(prompt, enabled_skills)
-    prompt = _extend_prompt_with_instructions(prompt, orchestrator_slug)
-    # Append the owner profile card shared by all employees.
-    prompt = _extend_prompt_with_personal_card(prompt, orchestrator_slug)
-    # Append the employee's own memory size and the scope tools it may use.
-    prompt = _extend_prompt_with_memory(prompt, orchestrator_slug)
-    # Append the working-data folder: path plus the way to address it. This is
-    # a platform fact, so no employee prompt has to repeat it (and drift).
-    prompt = _extend_prompt_with_working_memory(prompt, orchestrator_slug, workspace)
-    # Append enabled external service connections (connectors).
-    prompt = _extend_prompt_with_connections(prompt, orchestrator_slug)
-    # Append assigned RAG knowledge bases (DevAgent: all; others: assigned).
-    prompt = _extend_prompt_with_rag_bases(prompt, orchestrator_slug)
-    # Append the agents and assistants this orchestrator may delegate to.
-    prompt = _extend_prompt_with_delegation(prompt, orchestrator_slug)
-    # Append the rules of the agent dialog before the tool catalog: the rules
-    # talk about the two tools, and a reader who meets the rules first already
-    # knows what the catalog entries are for. The dialog role decides the
-    # text: a top-level dialog answers its children, a child asks its parent.
-    prompt = _extend_prompt_with_dialog(prompt, orchestrator_slug,
-                                        role=dialog_role)
-    # Append the available-tools catalog (system + custom functions),
-    # excluding disabled tools.
-    prompt = _extend_prompt_with_tools(prompt, orchestrator_slug)
-    # Append the current date LAST: it is the only block that changes over
-    # time, so keeping it at the tail preserves the provider's cached prefix
-    # until the date rolls over.
-    prompt = _extend_prompt_with_current_date(prompt, orchestrator_slug)
-
-    strong_svc = cfg.get("strong_service", "") or cfg.get("service", "DeepSeek")
-    strong_mdl = cfg.get("strong_model", "") or cfg.get("model", "deepseek-flash")
-    strong_temp = float(cfg.get("strong_temperature", 0.2) or 0.2)
-    strong_max_tokens = int(cfg.get("strong_max_tokens", 0) or 0)
-
-    services = _get_services()
-    strong_svc_def = services.get(strong_svc, {})
-
-    def _resolve_effort(cfg_key: str, svc_def: dict, strong: bool, model_id: str = "") -> str:
-        raw = cfg.get(cfg_key, "")
-        if isinstance(raw, str) and raw.strip():
-            return raw.strip().lower()
-        if service_supports_reasoning_effort(svc_def):
-            return default_reasoning_effort(svc_def, strong=strong, model=model_id) or ""
-        return ""
-
-    strong_effort = _resolve_effort("strong_reasoning_effort", strong_svc_def, True, strong_mdl)
-
-    strong = {
-        "text": prompt,
-        "service": strong_svc,
-        "model": strong_mdl,
-        "temperature": strong_temp,
-    }
-    if strong_effort:
-        strong["reasoning_effort"] = strong_effort
-    if strong_max_tokens > 0:
-        strong["max_tokens"] = strong_max_tokens
-    # Single-model mode: the weak alias receives an identical copy of the
-    # main assistant so legacy consumers keep working unchanged.
-    weak = dict(strong)
-    return strong, weak
-
-
-def get_web_search_prompt(orchestrator_slug: str = DEVAGENT_SLUG) -> str:
-    """Return the base system prompt for the web-search sub-agent.
-
-    Reads the orchestrator's ``web_search_prompt`` config key. Falls back to
-    ``DEFAULT_WEB_SEARCH_PROMPT`` when the key is missing or empty so older
-    orchestrators keep working unchanged.
-    """
-    orch = get_orchestrator(orchestrator_slug)
-    cfg = orch.get("config", {}) if orch else {}
-    prompt = cfg.get("web_search_prompt", "")
-    if isinstance(prompt, str) and prompt.strip():
-        return prompt.strip()
-    return DEFAULT_WEB_SEARCH_PROMPT
-
-
-def get_web_search_config(orchestrator_slug: str = DEVAGENT_SLUG) -> Dict[str, Any]:
-    """Return the web-search config for an orchestrator.
-
-    Returns {"service": str, "model": str, "temperature": float,
-    "max_tool_calls": int, "prompt": str} or empty strings/0 for
-    service/model when not configured.
-    """
-    orch = get_orchestrator(orchestrator_slug)
-    cfg = orch.get("config", {}) if orch else {}
-    search_svc = cfg.get("search_service", "") or ""
-    search_svc_def = _get_services().get(search_svc, {})
-    search_effort = cfg.get("search_reasoning_effort", "")
-    search_mdl = cfg.get("search_model", "") or ""
-    if not (isinstance(search_effort, str) and search_effort.strip()):
-        if service_supports_reasoning_effort(search_svc_def):
-            search_effort = default_reasoning_effort(search_svc_def, strong=False, model=search_mdl) or "high"
-        else:
-            search_effort = ""
-    return {
-        "service": search_svc,
-        "model": cfg.get("search_model", "") or "",
-        "temperature": float(cfg.get("search_temperature", 0.4) or 0.4),
-        "max_tool_calls": int(cfg.get("search_max_tool_calls", 3) or 3),
-        "reasoning_effort": str(search_effort).strip().lower() if search_effort else "",
-        "prompt": get_web_search_prompt(orchestrator_slug),
-    }
-
-
-def get_fetch_config(orchestrator_slug: str = DEVAGENT_SLUG) -> Dict[str, Any]:
-    """Return the url-fetch config of an orchestrator.
-
-    Two independent switches keep the ``url_fetch`` tool available:
-
-    * a page-fetch model - pages are downloaded through the provider's
-      Search/Fetch API (the entry is valid only when both the service and
-      its catalog still contain the model, so a removed provider or model
-      silently switches this branch off);
-    * ``fetch_selenium`` - pages are rendered in a real browser by
-      Selenium and the visible text is converted to Markdown by the
-      orchestrator's main model.
-
-    A direct PDF link works with either switch: the file is downloaded and
-    its text is extracted locally.
-
-    Returns:
-        {"service": str, "model": str, "configured": bool,
-        "selenium": bool, "llm_service": str, "llm_model": str}.
-        ``service``/``model`` are "" when no usable fetch pair is assigned;
-        ``selenium`` mirrors the checkbox; ``llm_service``/``llm_model``
-        name the main model used for Markdown conversion ("" when the
-        orchestrator has none). ``configured`` is True when url_fetch is
-        usable at all - a fetch pair or Selenium.
-    """
-    orch = get_orchestrator(orchestrator_slug)
-    cfg = orch.get("config", {}) if orch else {}
-    svc_name = str(cfg.get("fetch_service", "") or "").strip()
-    model = str(cfg.get("fetch_model", "") or "").strip()
-    selenium = bool(cfg.get("fetch_selenium"))
-    llm_service = str(cfg.get("strong_service", "") or "").strip()
-    llm_model = str(cfg.get("strong_model", "") or "").strip()
-
-    def _result(pair_service: str, pair_model: str, configured: bool):
-        return {
-            "service": pair_service,
-            "model": pair_model,
-            "configured": configured,
-            "selenium": selenium,
-            "llm_service": llm_service,
-            "llm_model": llm_model,
-        }
-
-    if not svc_name or not model:
-        return _result("", "", selenium)
-    svc_def = _get_services().get(svc_name) or {}
-    if not svc_supports_fetch(svc_def):
-        return _result("", "", selenium)
-    available = [
-        str(m.get("id") if isinstance(m, dict) else m)
-        for m in get_fetch_models(svc_def)
-    ]
-    if model not in available:
-        return _result("", "", selenium)
-    return _result(svc_name, model, True)
-
-
-def get_economy_tail_messages(orchestrator_slug: str = DEVAGENT_SLUG) -> int:
-    """Return the number of recent messages passed in economy mode.
-
-    Reads the value from the orchestrator config. If no value is stored
-    (first boot), falls back to the default from the canonical DevAgent
-    orchestrator bundle (orchestrators/dev_agent/orchestrator.json).
-    """
-    orch = get_orchestrator(orchestrator_slug)
-    cfg = orch.get("config", {}) if orch else {}
-    raw = cfg.get("economy_tail_messages")
-    if raw is not None:
-        try:
-            return int(raw)
-        except (TypeError, ValueError):
-            pass
-    return _default_economy_tail_messages()
-
-
-def get_economy_cache_enabled(orchestrator_slug: str = DEVAGENT_SLUG) -> bool:
-    """Return whether cache-friendly economy mode is enabled for an orchestrator.
-
-    Reads the value from the orchestrator config. If no value is stored
-    (first boot or older config), falls back to the default from the
-    canonical DevAgent orchestrator bundle
-    (orchestrators/dev_agent/orchestrator.json).
-    """
-    orch = get_orchestrator(orchestrator_slug)
-    cfg = orch.get("config", {}) if orch else {}
-    raw = cfg.get("economy_cache_enabled")
-    if raw is not None:
-        if isinstance(raw, bool):
-            return raw
-        return str(raw).strip().lower() in ("1", "true", "yes", "on")
-    return _default_economy_cache_enabled()
-
-
-def get_economy_cache_multiplier(orchestrator_slug: str = DEVAGENT_SLUG) -> int:
-    """Return the cache-window multiplier (xN) for an orchestrator.
-
-    Reads the value from the orchestrator config. If no value is stored
-    (first boot or older config), falls back to the default from the
-    canonical DevAgent orchestrator bundle
-    (orchestrators/dev_agent/orchestrator.json).
-    """
-    orch = get_orchestrator(orchestrator_slug)
-    cfg = orch.get("config", {}) if orch else {}
-    raw = cfg.get("economy_cache_multiplier")
-    if raw is not None:
-        try:
-            return max(1, int(raw))
-        except (TypeError, ValueError):
-            pass
-    return _default_economy_cache_multiplier()
-
-
-def get_economy_config(orchestrator_slug: str = DEVAGENT_SLUG) -> Dict[str, Any]:
-    """Return economy-mode settings for an orchestrator."""
-    return {
-        "tail_messages": get_economy_tail_messages(orchestrator_slug),
-        "cache_enabled": get_economy_cache_enabled(orchestrator_slug),
-        "cache_multiplier": get_economy_cache_multiplier(orchestrator_slug),
-    }
-
-
-# ─── Export / Import ─────────────────────────────────────────────────────
-
-_EXPORT_FORMAT = "sagaai_orchestrator/v1"
-
-
-def export_orchestrator(slug: str) -> Optional[Dict[str, Any]]:
-    """Export an orchestrator as a JSON-serializable dict.
-
-    Includes the orchestrator's personal folder data: custom functions
-    (raw Python source) and orchestrator-specific instructions. The global
-    DevAgent instructions are NOT included in this export.
-    """
-    orch = get_orchestrator(slug)
-    if orch is None:
-        return None
-
-    # Gather orchestrator-specific instructions from the folder.
-    orch_instr = []
-    for inst in list_orchestrator_instructions(slug):
-        full = get_orchestrator_instruction(slug, inst["id"])
-        if full:
-            orch_instr.append({
-                "id": full.get("id", ""),
-                "name": full.get("name", ""),
-                "description": full.get("description", ""),
-                "prompt_text": full.get("text", ""),
-            })
-
-    # Gather custom functions (raw source code).
-    functions = {}
-    for fn in list_orchestrator_functions(slug):
-        full = get_orchestrator_function(slug, fn["name"])
-        if full:
-            functions[fn["name"]] = full["code"]
-
-    return {
-        "format": _EXPORT_FORMAT,
-        "slug": orch.get("slug", ""),
-        "name": orch.get("name", ""),
-        "description": orch.get("description", ""),
-        "prompt_text": orch.get("prompt_text", ""),
-        "config": orch.get("config", {}),
-        "tools": orch.get("tools", []),
-        "max_steps": orch.get("max_steps", DEFAULT_MAX_STEPS),
-        "auto_apply": orch.get("auto_apply", True),
-        "instructions": orch_instr,
-        "functions": functions,
-        "exported_at": datetime.now().isoformat(),
-    }
-
-
-def _validate_imported_tools(tools: list) -> Tuple[list, List[str]]:
-    """Validate a tool-name list against the known catalog.
-
-    Returns (filtered_tools, rejected_tool_names). Unknown tools are
-    silently dropped; rejected names are returned for reporting.
-    """
-    if not tools:
-        return [], []
-    known = _get_known_tool_names()
-    filtered: list = []
-    rejected: List[str] = []
-    for t in tools:
-        if isinstance(t, str):
-            if t in known:
-                filtered.append(t)
-            else:
-                rejected.append(t)
-        elif isinstance(t, dict):
-            # Dict tools (e.g. {"type": "web_search", ...}) are always
-            # accepted; they are validated at runtime by the API layer.
-            filtered.append(t)
-        else:
-            rejected.append(str(t))
-    return filtered, rejected
-
-
-def import_orchestrator(data: Dict[str, Any], overwrite: bool = False) -> Dict[str, Any]:
-    """Import an orchestrator from an export dict.
-
-    Returns {"ok": bool, "slug": str, "error": str, "instructions_imported": int,
-             "functions_imported": int, "tools_filtered": int, "tools_rejected": [...]}.
-    If ``overwrite`` is True and the slug already exists, the existing
-    orchestrator is updated in-place. Otherwise a new slug is generated.
-
-    Validation performed during import:
-      - The format marker must be "sagaai_orchestrator/v1".
-      - prompt_text is truncated if it exceeds the configured limit.
-      - tools are filtered: unknown tool names are silently dropped.
-      - For built-in orchestrators (is_builtin=True), prompt_text is
-        NEVER overwritten - it always comes from the bundled
-        system_prompt.md file.
-    """
-    # Validate format.
-    if not isinstance(data, dict):
-        return {"ok": False, "error": "Invalid export data: not a dict.", "slug": ""}
-    if data.get("format") != _EXPORT_FORMAT:
-        return {"ok": False, "error": f"Unknown format: {data.get('format', 'none')}", "slug": ""}
-
-    raw = str(data.get("slug") or "").strip()
-    slug = safe_orchestrator_slug(raw)
-    # Reject slugs that contain anything beyond [a-z0-9_] (a path-traversal
-    # attempt like '../evil' normalizes to something else and must not be
-    # silently accepted as a different slug).
-    if not slug or slug != raw.lower():
-        return {"ok": False, "error": "Missing or invalid slug in export data.", "slug": ""}
-
-    name = data.get("name", "").strip() or slug
-    description = data.get("description", "")
-    prompt_text = data.get("prompt_text", "")
-    config = data.get("config", {}) or {}
-    raw_tools = data.get("tools", []) or []
-    max_steps = int(data.get("max_steps", DEFAULT_MAX_STEPS) or DEFAULT_MAX_STEPS)
-    auto_apply = bool(data.get("auto_apply", True))
-
-    # Validate prompt_text length.
-    if isinstance(prompt_text, str) and len(prompt_text) > _MAX_PROMPT_TEXT_LENGTH:
-        prompt_text = prompt_text[:_MAX_PROMPT_TEXT_LENGTH] + "\n...[truncated on import]...\n"
-
-    # Validate tools against the known catalog.
-    tools, tools_rejected = _validate_imported_tools(raw_tools)
-
-    existing = repo_get_orchestrator_with_text(slug)
-
-    if existing:
-        if not overwrite:
-            # Generate a new slug: append "-2", "-3", etc.
-            base = slug.rstrip("_0123456789")
-            suffix = 2
-            while True:
-                candidate = f"{base}_{suffix}"
-                if not repo_get_orchestrator_with_text(candidate):
-                    slug = candidate
-                    break
-                suffix += 1
-        else:
-            # Update existing.
-            # For built-in orchestrators, NEVER overwrite prompt_text -
-            # it is always refreshed from the bundled file on boot.
-            update_kwargs: Dict[str, Any] = dict(
-                name=name,
-                description=description,
-                config=config,
-                tools=tools,
-                max_steps=max_steps,
-                auto_apply=auto_apply,
-            )
-            if not existing.get("is_builtin"):
-                update_kwargs["prompt_text"] = prompt_text
-            repo_update_orchestrator(existing["id"], **update_kwargs)
-
-            instructions_imported = _import_instructions(slug, data.get("instructions", []))
-            functions_imported = _import_functions(slug, data.get("functions", {}))
-            _sync_orchestrator_folder(slug)
-            return {
-                "ok": True,
-                "slug": slug,
-                "action": "updated",
-                "instructions_imported": instructions_imported,
-                "functions_imported": functions_imported,
-                "tools_filtered": len(tools),
-                "tools_rejected": tools_rejected,
-            }
-
-    # Create new.
-    orch_id = uuid.uuid4().hex[:8]
-    ok = repo_create_orchestrator(
-        orchestrator_id=orch_id,
-        slug=slug,
-        name=name,
-        description=description,
-        prompt_text=prompt_text,
-        config=config,
-        tools=tools,
-        max_steps=max_steps,
-        auto_apply=auto_apply,
-        is_builtin=False,
-        sort_order=100,
-    )
-    if not ok:
-        return {"ok": False, "error": "Failed to create orchestrator in DB.", "slug": ""}
-
-    instructions_imported = _import_instructions(slug, data.get("instructions", []))
-    functions_imported = _import_functions(slug, data.get("functions", {}))
-    _sync_orchestrator_folder(slug)
-    return {
-        "ok": True,
-        "slug": slug,
-        "action": "created",
-        "instructions_imported": instructions_imported,
-        "functions_imported": functions_imported,
-        "tools_filtered": len(tools),
-        "tools_rejected": tools_rejected,
-    }
-
-
-def _import_instructions(slug: str, instructions: list) -> int:
-    """Import instruction dicts into the orchestrator folder. Returns count.
-
-    Instructions are saved as orchestrator-specific instructions of *slug*
-    (same location export_orchestrator reads them from). Existing ids are
-    overwritten with the imported content. The global instructions table is
-    never touched by imports.
-    """
-    imported = 0
-    for inst in (instructions or []):
-        if not isinstance(inst, dict):
-            continue
-        iid = str(inst.get("id", "") or "").strip()
-        if not iid:
-            continue
-        ok = save_orchestrator_instruction(
-            slug,
-            iid,
-            name=str(inst.get("name", "") or iid),
-            description=str(inst.get("description", "") or ""),
-            prompt_text=str(inst.get("prompt_text", "") or ""),
-        )
-        if ok:
-            imported += 1
-    return imported
-
-
-def _import_functions(slug: str, functions: dict) -> int:
-    """Import custom functions into the orchestrator folder. Returns count."""
-    imported = 0
-    if not isinstance(functions, dict):
-        return imported
-    ensure_orchestrator_dir(slug)
-    for fname, code in functions.items():
-        if not isinstance(fname, str) or not isinstance(code, str):
-            continue
-        if save_orchestrator_function(slug, fname, code):
-            imported += 1
-    return imported
-
-
-# ─── Orchestrator-specific instructions (folder storage) ────────────────
-
-# Re-exported for convenience and for the UI.
-
-def orch_list_instructions(slug: str) -> list:
-    """Return metadata for orchestrator-specific instructions."""
-    return list_orchestrator_instructions(slug)
-
-
-def orch_get_instruction(slug: str, instruction_id: str) -> Optional[dict]:
-    """Return a full orchestrator-specific instruction, or None."""
-    return get_orchestrator_instruction(slug, instruction_id)
-
-
-def orch_save_instruction(slug: str, instruction_id: str, name: str,
-                          description: str = "", prompt_text: str = "") -> str:
-    """Create or update an orchestrator-specific instruction.
-
-    Returns the effective instruction id on success, '' on failure.
-    """
-    return save_orchestrator_instruction(
-        slug, instruction_id, name, description, prompt_text
-    )
-
-
-def orch_delete_instruction(slug: str, instruction_id: str) -> bool:
-    """Delete an orchestrator-specific instruction."""
-    return delete_orchestrator_instruction(slug, instruction_id)
-
-
-# ─── Orchestrator-specific functions (folder storage) ────────────────────
-
-def orch_list_functions(slug: str) -> list:
-    """Return metadata for custom functions of an orchestrator."""
-    return list_orchestrator_functions(slug)
-
-
-def orch_get_function(slug: str, name: str) -> Optional[dict]:
-    """Return a full custom function dict including source code."""
-    return get_orchestrator_function(slug, name)
-
-
-def orch_save_function(slug: str, name: str, code: str) -> bool:
-    """Create or update a custom function."""
-    return save_orchestrator_function(slug, name, code)
-
-
-def orch_delete_function(slug: str, name: str) -> bool:
-    """Delete a custom function."""
-    return delete_orchestrator_function(slug, name)
-
-
-
-# ─── Bootstrap ───────────────────────────────────────────────────────────
-
-
-def _load_bundled_prompt_text() -> str:
-    """Return the bundled DevAgent system prompt (dev_agent/system_prompt.md)."""
-    from pathlib import Path
-
-    prompt_file = (
-        Path(__file__).resolve().parent.parent
-        / "dev_agent" / "system_prompt.md"
-    )
-    try:
-        return prompt_file.read_text(encoding="utf-8")
-    except Exception:
-        return "You are DevAgent, the embedded developer of SagaAI."
-
-
-def _first_boot_config(legacy: Dict[str, Any]) -> Dict[str, Any]:
-    """Build the DevAgent config on first boot from the legacy KV settings."""
-    return {
-        "strong_service": legacy.get("strong_service", "") or "DeepSeek",
-        "strong_model": legacy.get("strong_model", "") or "deepseek-flash",
-        "strong_temperature": float(legacy.get("strong_temperature", 0.4) or 0.4),
-        "strong_max_tokens": int(legacy.get("strong_max_tokens") or get_default_strong_max_tokens()) or get_default_strong_max_tokens(),
-        "strong_reasoning_effort": "xhigh",
-        "vision_service": legacy.get("vision_service", "") or "DeepSeek",
-        "vision_model": legacy.get("vision_model", "") or "deepseek-flash",
-        "image_service": legacy.get("image_service", "") or "",
-        "image_model": legacy.get("image_model", "") or "",
-        "search_service": legacy.get("search_service", "") or "DeepSeek",
-        "search_model": legacy.get("search_model", "") or "deepseek-flash",
-        "search_temperature": float(legacy.get("search_temperature", 0.4) or 0.4),
-        "search_max_tool_calls": int(legacy.get("search_max_tool_calls", 3) or 3),
-        "search_reasoning_effort": "high",
-        "web_search_prompt": str(legacy.get("web_search_prompt", "") or DEFAULT_WEB_SEARCH_PROMPT),
-        "fetch_service": legacy.get("fetch_service", "") or "",
-        "fetch_model": legacy.get("fetch_model", "") or "",
-        "economy_tail_messages": int(legacy.get("economy_tail_messages", _default_economy_tail_messages())
-                                     or _default_economy_tail_messages()),
-        "economy_cache_enabled": _default_economy_cache_enabled(),
-        "economy_cache_multiplier": _default_economy_cache_multiplier(),
-        "enabled_skills": [],
-        "enabled_connections": [],
-        "disabled_tools": [],
-    }
-
-
-def _builtin_tool_names() -> List[str]:
-    """Return the tool names the built-in DevAgent starts with."""
-    try:
-        from dev_agent.tool_executor import TOOL_CATALOG as CORE_TOOLS
-        from dev_agent.universal_agent import WORKSPACE_TOOL_CATALOG
-        return [t["name"] for t in CORE_TOOLS] + [t["name"] for t in WORKSPACE_TOOL_CATALOG]
-    except Exception:
-        return []
-
-
-def _create_builtin_orchestrator(prompt_text: str) -> Dict[str, str]:
-    """Create the built-in DevAgent record on first boot.
-
-    Settings are migrated from the legacy KV store (devagent.* keys) when it
-    has them; the bundle written afterwards matches the clean-install state.
-    """
-    from core.config import load_devagent_config as load_legacy_dev_cfg
-
-    config = _first_boot_config(load_legacy_dev_cfg())
-    ok = repo_create_orchestrator(
-        orchestrator_id=uuid.uuid4().hex[:8],
-        slug=DEVAGENT_SLUG,
-        name="DevAgent",
-        description="Universal developer orchestrator - creates, debugs and maintains software projects.",
-        prompt_text=prompt_text,
-        config=config,
-        tools=_builtin_tool_names(),
-        max_steps=DEFAULT_MAX_STEPS,
-        auto_apply=True,
-        is_builtin=True,
-        sort_order=200,  # after user orchestrators
-    )
-    if ok:
-        # Write the fresh bundle (orchestrator.json) with current defaults
-        # so the folder on disk matches the clean-install state.
-        _sync_orchestrator_folder(DEVAGENT_SLUG)
-    result = {DEVAGENT_SLUG: "created" if ok else "error"}
-    result.update(_ensure_default_orchestrators())
-    return result
-
-
-def _backfill_builtin_config(config: Dict[str, Any]) -> bool:
-    """Backfill config fields added after the record was created.
-
-    Returns True when at least one field changed. Existing user-chosen values
-    are never overwritten: a field is filled only while it is missing, empty,
-    or holds the sentinel that means "unset" for that particular key.
-    """
-    config_defaults = {
-        "strong_service": "DeepSeek",
-        "strong_model": "deepseek-flash",
-        "strong_temperature": 0.4,
-        "strong_max_tokens": get_default_strong_max_tokens(),
-        "strong_reasoning_effort": "xhigh",
-        "vision_service": "DeepSeek",
-        "vision_model": "deepseek-flash",
-        "image_service": "",
-        "image_model": "",
-        "search_service": "DeepSeek",
-        "search_model": "deepseek-flash",
-        "search_temperature": 0.4,
-        "search_max_tool_calls": 3,
-        "search_reasoning_effort": "high",
-        "web_search_prompt": DEFAULT_WEB_SEARCH_PROMPT,
-        "fetch_service": "",
-        "fetch_model": "",
-        "fetch_selenium": False,
-        "economy_tail_messages": _default_economy_tail_messages(),
-        "economy_cache_enabled": _default_economy_cache_enabled(),
-        "economy_cache_multiplier": _default_economy_cache_multiplier(),
-    }
-
-    backfilled = False
-
-    # Add the list-valued keys introduced after the first configs were written.
-    for list_key in ("enabled_skills", "enabled_connections", "disabled_tools"):
-        if list_key not in config:
-            config[list_key] = []
-            backfilled = True
-
-    # An existing installation must not need a manual edit before the setting
-    # can be chosen in the UI.
-    if "verifier_agent" not in config:
-        config["verifier_agent"] = ""
-        backfilled = True
-
-    # Legacy configs (created before cache-friendly economy mode) stored
-    # economy_tail_messages=15 but have no cache fields. Treat that as the
-    # old built-in default and upgrade it to the new default.
-    has_cache_fields = ("economy_cache_enabled" in config) or ("economy_cache_multiplier" in config)
-    if not has_cache_fields and config.get("economy_tail_messages") == 15:
-        config["economy_tail_messages"] = _default_economy_tail_messages()
-        backfilled = True
-
-    for k, v in config_defaults.items():
-        cur = config.get(k)
-        if cur is None or cur == "":
-            config[k] = v
-            backfilled = True
-        elif k == "strong_max_tokens":
-            # A stored 0 means "use the model default", but the required
-            # default for the built-in DevAgent is 384000 output tokens.
-            # Treat 0 as unset here so buggy first-boot configs are fixed.
-            try:
-                if int(cur) <= 0:
-                    config[k] = v
-                    backfilled = True
-            except (TypeError, ValueError):
-                config[k] = v
-                backfilled = True
-
-    # Single-model migration: drop legacy weak_* keys from the stored config
-    # so the canonical config carries one main model. Reads stay tolerant:
-    # the compatibility views map the weak aliases onto the main model.
-    for legacy_key in ("weak_service", "weak_model", "weak_temperature",
-                       "weak_max_tokens", "weak_reasoning_effort"):
-        if legacy_key in config:
-            config.pop(legacy_key, None)
-            backfilled = True
-
-    return backfilled
-
-
-def _migrate_builtin_max_steps(config: Dict[str, Any], existing: Dict[str, Any]) -> bool:
-    """Migrate the legacy 100-step default; return True when it applied."""
-    if config.get("max_steps_default_migrated") or existing.get("max_steps") != 100:
-        return False
-    config["max_steps_default_migrated"] = True
-    return True
-
-
-def ensure_builtin_orchestrators() -> Dict[str, str]:
-    """Ensure the built-in 'dev_agent' orchestrator exists in the DB.
-
-    On first run, migrates settings from KV-store (devagent.* keys) and
-    system_prompt.md into the orchestrators table.  On subsequent runs,
-    always updates the prompt_text from the bundled system_prompt.md file
-    so it stays current with the code, and backfills missing config fields
-    from the current defaults without overwriting user-chosen values.
-
-    After the built-in DevAgent is ensured, bundled DEFAULT orchestrators
-    (defaults/orchestrators/*) are created if their slugs do not exist yet.
-
-    Returns a status dict, e.g. {"dev_agent": "created",
-    "ya_agent": "created"} or {"dev_agent": "updated"}.
-    """
-    prompt_text = _load_bundled_prompt_text()
-    existing = repo_get_orchestrator_with_text(DEVAGENT_SLUG)
-
-    if existing is None:
-        return _create_builtin_orchestrator(prompt_text)
-
-    # Existing orchestrator - update prompt_text and backfill missing config fields.
-    config = existing.get("config", {})
-    if not isinstance(config, dict):
-        config = {}
-
-    backfilled = _backfill_builtin_config(config)
-    migrate_max_steps = _migrate_builtin_max_steps(config, existing)
-    if migrate_max_steps:
-        backfilled = True
-
-    update_kwargs: Dict[str, Any] = {}
-    if backfilled:
-        update_kwargs["config"] = config
-    if migrate_max_steps:
-        update_kwargs["max_steps"] = DEFAULT_MAX_STEPS
-    # Honour a user-edited system prompt: while the prompt_user_edited marker is
-    # set, keep the stored text instead of overwriting it with the bundled
-    # dev_agent/system_prompt.md. The shipped prompt is re-applied (and the
-    # marker cleared) through reset_builtin_prompt().
-    if config.get(PROMPT_USER_EDITED_KEY) is True:
-        repo_update_orchestrator(existing["id"], **update_kwargs)
-    else:
-        repo_update_orchestrator(existing["id"], prompt_text=prompt_text, **update_kwargs)
-    if backfilled:
-        _sync_orchestrator_folder(DEVAGENT_SLUG)
-    result = {DEVAGENT_SLUG: "updated"}
-    result.update(_ensure_default_orchestrators())
-    return result
-
-
-# ─── Backward compatibility ──────────────────────────────────────────────
-# load_devagent_config / save_devagent_config are re-exported from core.config
-# but now use the orchestrator under the hood.
-
-def load_devagent_config(orch_slug: str = DEVAGENT_SLUG) -> Dict[str, str]:
-    """Read DevAgent-compatible config dict from the orchestrator store.
-
-    Returns a flat dict with string values, compatible with the legacy
-    ``core.config.load_devagent_config()`` contract.
-    """
-    orch = get_orchestrator(orch_slug)
-    cfg = orch.get("config", {}) if orch else {}
-    return {
-        "service": cfg.get("strong_service", "") or "DeepSeek",
-        "model": cfg.get("strong_model", "") or "deepseek-flash",
-        "temperature": str(cfg.get("strong_temperature", 0.2) or 0.2),
-        "prompt_text": orch.get("prompt_text", "") if orch else "",
-        "strong_service": cfg.get("strong_service", "") or "DeepSeek",
-        "strong_model": cfg.get("strong_model", "") or "deepseek-flash",
-        "strong_temperature": str(cfg.get("strong_temperature", 0.4) or 0.4),
-        "strong_max_tokens": str(cfg.get("strong_max_tokens", 0) or 0),
-        # Single-model mode: the weak_* keys are legacy READ aliases of the
-        # main model (tolerant read; never written back).
-        "weak_service": cfg.get("strong_service", "") or "DeepSeek",
-        "weak_model": cfg.get("strong_model", "") or "deepseek-flash",
-        "weak_temperature": str(cfg.get("strong_temperature", 0.4) or 0.4),
-        "weak_max_tokens": str(cfg.get("strong_max_tokens", 0) or 0),
-        "vision_service": cfg.get("vision_service", "") or "",
-        "vision_model": cfg.get("vision_model", "") or "",
-        "image_service": cfg.get("image_service", "") or "",
-        "image_model": cfg.get("image_model", "") or "",
-        "search_service": cfg.get("search_service", "") or "DeepSeek",
-        "search_model": cfg.get("search_model", "") or "deepseek-flash",
-        "search_temperature": str(cfg.get("search_temperature", 0.4) or 0.4),
-        "search_max_tool_calls": str(cfg.get("search_max_tool_calls", 3) or 3),
-        "web_search_prompt": get_web_search_prompt(orch_slug),
-        "economy_tail_messages": str(get_economy_tail_messages(orch_slug)),
-        "economy_cache_enabled": str(get_economy_cache_enabled(orch_slug)),
-        "economy_cache_multiplier": str(get_economy_cache_multiplier(orch_slug)),
-        "enabled_skills": repr(get_enabled_skills(orch_slug)),
-    }
-
-
-def save_devagent_config(
-    service: str = "", model: str = "", temperature: float = 0.2,
-    prompt_text: str = "",
-    strong_service: str = "", strong_model: str = "",
-    strong_temperature: float = 0.2,
-    strong_max_tokens: int = 0,
-    weak_service: str = "", weak_model: str = "",
-    weak_temperature: float = 0.5,
-    weak_max_tokens: int = 0,
-    search_service: str = "", search_model: str = "",
-    search_temperature: float = 0.3,
-    search_max_tool_calls: int = 3,
-    vision_service: Optional[str] = None,
-    vision_model: Optional[str] = None,
-    image_service: Optional[str] = None,
-    image_model: Optional[str] = None,
-    web_search_prompt: Optional[str] = None,
-    economy_tail_messages: Optional[int] = None,
-    economy_cache_enabled: Optional[bool] = None,
-    economy_cache_multiplier: Optional[int] = None,
-) -> bool:
-    """Save DevAgent configuration to the orchestrator store.
-
-    Single-model mode: the weak_* parameters are tolerated for backward
-    compatibility but are never persisted. vision_/image_* fields are
-    stored only when passed (None keeps the current value).
-    """
-    orch = get_orchestrator(DEVAGENT_SLUG)
-    if orch is None:
-        return False
-    config = orch.get("config", {})
-    config["strong_service"] = strong_service or service
-    config["strong_model"] = strong_model or model
-    config["strong_temperature"] = strong_temperature or temperature
-    config["strong_max_tokens"] = strong_max_tokens or get_default_strong_max_tokens()
-    # Single-model mode: weak_* values are never persisted; the legacy
-    # parameters stay in the signature for backward compatibility.
-    for _legacy_key in ("weak_service", "weak_model", "weak_temperature",
-                        "weak_max_tokens", "weak_reasoning_effort"):
-        config.pop(_legacy_key, None)
-    if vision_service is not None:
-        config["vision_service"] = vision_service
-    if vision_model is not None:
-        config["vision_model"] = vision_model
-    if image_service is not None:
-        config["image_service"] = image_service
-    if image_model is not None:
-        config["image_model"] = image_model
-    config["search_service"] = search_service or ""
-    config["search_model"] = search_model or ""
-    config["search_temperature"] = search_temperature
-    config["search_max_tool_calls"] = search_max_tool_calls
-    if web_search_prompt is not None:
-        config["web_search_prompt"] = web_search_prompt
-    if economy_tail_messages is not None:
-        config["economy_tail_messages"] = economy_tail_messages
-    if economy_cache_enabled is not None:
-        config["economy_cache_enabled"] = economy_cache_enabled
-    if economy_cache_multiplier is not None:
-        config["economy_cache_multiplier"] = max(1, int(economy_cache_multiplier))
-
-    # Record a user edit of the built-in prompt so the boot-time refresh in
-    # ensure_builtin_orchestrators() keeps it instead of restoring the bundled
-    # dev_agent/system_prompt.md.
-    if prompt_text and prompt_text.strip():
-        config[PROMPT_USER_EDITED_KEY] = True
-
-    ok = repo_update_orchestrator(
-        orch["id"],
-        prompt_text=prompt_text,
-        config=config,
-    )
-    if ok:
-        _sync_orchestrator_folder(DEVAGENT_SLUG)
-    return ok
-
-
-# ─── Legacy aliases (old "skill" terminology) ────────────────────────────────
-# Kept so older UI code keeps working; new code must use build_assistant_dicts.
+# Legacy alias (old "skill" terminology): new code uses build_assistant_dicts.
 build_skill_dicts = build_assistant_dicts
+
+
+# The satellites resolve their late references through this object: bind it
+# last, when every wrapper above is defined.
+_bind_facade(_sys.modules[__name__])
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

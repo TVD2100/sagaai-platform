@@ -2,14 +2,17 @@
 """
 ui.pages.orchestrator - reusable orchestrator chat page.
 
-Parameterised by orchestrator slug.  Both DevAgent and custom orchestrators
+Parameterised by orchestrator slug. Both DevAgent and custom orchestrators
 render through this module. History and Settings live on dedicated pages
 (ui.pages.history and ui.pages.orchestrator_settings).
 
+The page itself is split by responsibility across the sibling modules; this
+module is the public surface. A helper the tests replace through the module
+object is wrapped here, so a patch installed on this module reaches the
+implementation wherever it lives.
+
 All user-facing strings go through t(key, lang=lang).
 """
-import json
-import os
 from typing import Any, Callable, Dict, List, Optional
 
 import streamlit as st
@@ -114,6 +117,156 @@ from dev_agent.agent_loop import (
 from dev_agent.universal_agent import UniversalDevAgent
 from storage.models import DEFAULT_MAX_STEPS
 from ui.components.flash import flash_error, flash_success
+from ui.pages.orchestrator_chat import (
+    _apply_autoscroll,
+    _chat_show_count,
+    _render_active_controls,
+    _render_assistant_message,
+    _render_chat_feed,
+    _render_chat_header,
+    _render_chat_styles,
+    _render_chat_tab,
+    _render_chat_welcome,
+    _render_confirmation_buttons,
+    _render_danger_confirmation,
+    _render_history_message,
+    _render_loop_status,
+    _render_message_controls,
+    _render_sanitized_confirmation,
+    _render_show_earlier,
+    _render_user_message,
+    _resume_after_confirmation,
+)
+from ui.pages.orchestrator_chat_input import (
+    _build_submission_text,
+    _collect_attachment_context,
+    _economy_window_info,
+    _ensure_thread,
+    _handle_chat_submission,
+    _render_chat_toolbar,
+    _render_token_line_impl,
+    _services_with_web_search,
+    _temp_slider,
+    _token_line_cache_key,
+)
+from ui.pages.orchestrator_feed import (
+    _EVENT_RENDERERS,
+    _HIDDEN_EVENT_TYPES,
+    _VISIBLE_PHASES,
+    _render_applied_event,
+    _render_error_event,
+    _render_event_group,
+    _render_event_impl,
+    _render_events,
+    _render_generated_image,
+    _render_incomplete_retry_event,
+    _render_parked_question,
+    _render_phase_event,
+    _render_result_payload,
+    _render_retry_event,
+    _render_sanitized_event,
+    _render_skill_event,
+    _render_tool_call_args,
+    _render_tool_call_event,
+    _render_tool_result_impl,
+    _tool_result_header,
+    _tool_result_summary,
+)
+from ui.pages.orchestrator_folder import (
+    FOLDER_PICKER_BROWSE,
+    FOLDER_PICKER_LIMIT,
+    _apply_folder_choice,
+    _folder_picker_key,
+    _folder_picker_options,
+    _open_folder_dialog,
+    _render_folder_picker,
+    _reset_folder_choice,
+    _thread_folder_impl,
+)
+from ui.pages.orchestrator_loop import (
+    _assistant_dicts,
+    _assistant_has_api_key_impl,
+    _cancel_dialog_tree,
+    _chat_toolbar_pref_changed,
+    _commit_loop_state,
+    _dialog_tree_root,
+    _do_step_impl,
+    _ensure_loop_state,
+    _handle_stop_requested,
+    _live_subagent_runs,
+    _load_thread_impl,
+    _make_dispatcher_impl,
+    _make_send_adapter_impl,
+    _new_loop_state,
+    _persist_step_to_thread,
+    _read_step_flags,
+    _register_root_run,
+    _render_subagent_status,
+    _reset_dialog_impl,
+    _run_agent_step,
+    _sync_chat_pref_checkbox,
+    _waiting_subagent_runs,
+)
+from ui.pages.orchestrator_settings_delegation import (
+    _live_orchestrator_entries,
+    _number_input_setting,
+    _render_allowed_agents,
+    _render_allowed_assistants,
+    _render_delegation_limits,
+    _render_delegation_settings,
+    _render_dialog_limits,
+    _render_other_settings,
+    _render_verifier_section,
+    _save_delegation_settings,
+)
+from ui.pages.orchestrator_settings_models import (
+    _current_optional_pair,
+    _render_economy_settings,
+    _render_models_settings,
+    _render_optional_capability_sections,
+    _render_optional_model_section,
+    _render_prompt_settings,
+    _render_reasoning_effort,
+    _render_search_model_section,
+    _render_search_pair,
+    _render_search_prompt,
+    _render_strong_model_section,
+    _save_models_settings,
+    _warn_unavailable_pair,
+)
+from ui.pages.orchestrator_settings_orch import (
+    _render_function_cards,
+    _render_function_form,
+    _render_instruction_cards,
+    _render_instruction_form,
+    _render_memory_dir_section,
+    _render_memory_editor,
+    _render_orch_connections,
+    _render_orch_memory,
+    _render_orch_rag_bases,
+    _render_orch_skills_settings,
+    _render_orch_system_tools,
+    _render_orchestrator_functions_settings,
+    _render_orchestrator_instructions_settings,
+)
+from ui.pages.orchestrator_shared import (
+    SETTINGS_SECTIONS,
+    pin_settings_section_impl,
+    settings_save_failed_impl,
+)
+from ui.pages.orchestrator_state import (
+    CHAT_PAGE_SIZE,
+    ECONOMY_MODE_ALWAYS_ON,
+    _chat_prefs,
+    _init_orch_state_impl,
+    _load_economy_cache,
+    _make_state_keys,
+    _pop_ss,
+    _save_chat_pref,
+    _save_economy_cache,
+    _set_ss_impl,
+    _ss_impl,
+)
 from ui.pages.orchestrator_text import (  # noqa: F401  re-exported for the page and the tests
     _attach_events,
     _attachments_manifest_path,
@@ -147,3200 +300,344 @@ from ui.pages.orchestrator_text import (  # noqa: F401  re-exported for the page
     settings_tabs_key,
 )
 
-# Pagination window for the chat feed: render at most this many messages
-# initially and widen the window by the same amount on "show earlier".
-CHAT_PAGE_SIZE = 50
+# Names the page exposes; every import above is a deliberate re-export.
+__all__ = [
+    "AgentLoopState",
+    "Any",
+    "CHAT_PAGE_SIZE",
+    "Callable",
+    "DEFAULT_ANSWER_MAX_CHARS",
+    "DEFAULT_ANSWER_WAIT_SECONDS",
+    "DEFAULT_DIALOG_ROUNDS",
+    "DEFAULT_MAX_PARKED_RUNS",
+    "DEFAULT_MAX_STEPS",
+    "DEFAULT_QUESTION_MAX_CHARS",
+    "DEVAGENT_SLUG",
+    "Dict",
+    "ECONOMY_MODE_ALWAYS_ON",
+    "FOLDER_PICKER_BROWSE",
+    "FOLDER_PICKER_LIMIT",
+    "List",
+    "MAX_THREAD_FILE_BYTES",
+    "Optional",
+    "SETTINGS_SECTIONS",
+    "UNIVERSAL_AGENT_SLUG",
+    "UniversalDevAgent",
+    "_EVENT_RENDERERS",
+    "_HIDDEN_EVENT_TYPES",
+    "_VISIBLE_PHASES",
+    "_apply_autoscroll",
+    "_apply_folder_choice",
+    "_assistant_dicts",
+    "_assistant_has_api_key",
+    "_attach_events",
+    "_attachments_manifest_path",
+    "_build_submission_text",
+    "_cancel_dialog_tree",
+    "_chat_pref_config_keys",
+    "_chat_prefs",
+    "_chat_show_count",
+    "_chat_toolbar_pref_changed",
+    "_chat_toolbar_widget_key",
+    "_collect_attachment_context",
+    "_commit_loop_state",
+    "_current_optional_pair",
+    "_dialog_limit",
+    "_dialog_tree_root",
+    "_do_step",
+    "_economy_window_info",
+    "_ensure_loop_state",
+    "_ensure_thread",
+    "_extract_result_body",
+    "_first_two_lines",
+    "_folder_picker_key",
+    "_folder_picker_options",
+    "_format_call_args_preview",
+    "_get_max_tokens_limit",
+    "_handle_chat_submission",
+    "_handle_stop_requested",
+    "_init_orch_state",
+    "_is_agent_active",
+    "_last_assistant_index",
+    "_live_orchestrator_entries",
+    "_live_subagent_runs",
+    "_load_attachments_manifest",
+    "_load_economy_cache",
+    "_load_thread",
+    "_make_dispatcher",
+    "_make_send_adapter",
+    "_make_state_keys",
+    "_md_to_txt",
+    "_model_ids",
+    "_new_loop_state",
+    "_number_input_setting",
+    "_open_folder_dialog",
+    "_persist_step_to_thread",
+    "_persist_thread_workspace_meta",
+    "_pop_ss",
+    "_read_step_flags",
+    "_register_root_run",
+    "_reindex_history",
+    "_release_step_resources",
+    "_render_active_controls",
+    "_render_allowed_agents",
+    "_render_allowed_assistants",
+    "_render_applied_event",
+    "_render_assistant_message",
+    "_render_chat_feed",
+    "_render_chat_header",
+    "_render_chat_styles",
+    "_render_chat_tab",
+    "_render_chat_toolbar",
+    "_render_chat_welcome",
+    "_render_confirmation_buttons",
+    "_render_danger_confirmation",
+    "_render_delegation_limits",
+    "_render_delegation_settings",
+    "_render_dialog_limits",
+    "_render_economy_settings",
+    "_render_error_event",
+    "_render_event",
+    "_render_event_group",
+    "_render_events",
+    "_render_folder_picker",
+    "_render_function_cards",
+    "_render_function_form",
+    "_render_generated_image",
+    "_render_history_message",
+    "_render_incomplete_retry_event",
+    "_render_instruction_cards",
+    "_render_instruction_form",
+    "_render_loop_status",
+    "_render_memory_dir_section",
+    "_render_memory_editor",
+    "_render_message_controls",
+    "_render_models_settings",
+    "_render_optional_capability_sections",
+    "_render_optional_model_section",
+    "_render_orch_connections",
+    "_render_orch_memory",
+    "_render_orch_rag_bases",
+    "_render_orch_skills_settings",
+    "_render_orch_system_tools",
+    "_render_orchestrator_functions_settings",
+    "_render_orchestrator_instructions_settings",
+    "_render_other_settings",
+    "_render_parked_question",
+    "_render_phase_event",
+    "_render_prompt_settings",
+    "_render_reasoning_effort",
+    "_render_result_payload",
+    "_render_retry_event",
+    "_render_sanitized_confirmation",
+    "_render_sanitized_event",
+    "_render_search_model_section",
+    "_render_search_pair",
+    "_render_search_prompt",
+    "_render_show_earlier",
+    "_render_skill_event",
+    "_render_strong_model_section",
+    "_render_subagent_status",
+    "_render_token_line",
+    "_render_tool_call_args",
+    "_render_tool_call_event",
+    "_render_tool_result",
+    "_render_user_message",
+    "_render_verifier_section",
+    "_reset_dialog",
+    "_reset_folder_choice",
+    "_resume_after_confirmation",
+    "_run_agent_step",
+    "_save_chat_pref",
+    "_save_delegation_settings",
+    "_save_economy_cache",
+    "_save_models_settings",
+    "_select_live_runs",
+    "_select_waiting_runs",
+    "_services_with_web_search",
+    "_set_ss",
+    "_sk",
+    "_split_chat_prompt",
+    "_split_events_by_run",
+    "_ss",
+    "_strip_empty_fenced_blocks",
+    "_strip_html_details_tags",
+    "_strip_tool_calls",
+    "_strip_tool_calls_for_message",
+    "_sync_chat_pref_checkbox",
+    "_sync_safety_mode",
+    "_temp_slider",
+    "_thread_folder",
+    "_token_line_cache_key",
+    "_tool_result_header",
+    "_tool_result_summary",
+    "_tool_result_title",
+    "_waiting_subagent_runs",
+    "_warn_unavailable_pair",
+    "add_recent_workspace",
+    "append_thread_message",
+    "apply_economy_cache",
+    "approve_pending_confirmation",
+    "approve_sanitized_content",
+    "build_assistant_dicts",
+    "build_economy_context",
+    "build_saved_files_registry",
+    "build_state_keys",
+    "build_thread_files_notice",
+    "carry_over_economy_cache",
+    "check_context",
+    "clipboard_button",
+    "combine_nonempty",
+    "create_devagent_thread",
+    "dagent_config",
+    "default_reasoning_effort",
+    "deny_pending_confirmation",
+    "deny_sanitized_content",
+    "economy_cache_to_dict",
+    "flash_error",
+    "flash_success",
+    "folder_dialog",
+    "format_token_line",
+    "format_ts_label",
+    "get_allowed_agents",
+    "get_allowed_assistants",
+    "get_delegation_limits",
+    "get_disabled_tools",
+    "get_economy_config",
+    "get_economy_tail_messages",
+    "get_enabled_connections",
+    "get_enabled_skills",
+    "get_fetch_config",
+    "get_fetch_models",
+    "get_image_models",
+    "get_model_reasoning_effort_options",
+    "get_orchestrator",
+    "get_orchestrator_rag_bases",
+    "get_recent_workspaces",
+    "get_services",
+    "get_universal_agent_enabled",
+    "get_verifier_agent",
+    "get_vision_models",
+    "get_web_search_config",
+    "list_bases_with_activity",
+    "list_connections",
+    "list_library_skills",
+    "list_orchestrators",
+    "list_system_tools",
+    "list_thread_files",
+    "load_config",
+    "load_thread_messages",
+    "load_thread_meta",
+    "orch_delete_function",
+    "orch_delete_instruction",
+    "orch_get_function",
+    "orch_get_instruction",
+    "orch_list_functions",
+    "orch_list_instructions",
+    "orch_save_function",
+    "orch_save_instruction",
+    "page_devagent",
+    "page_orchestrator",
+    "render_autoscroll",
+    "reset_builtin_prompt",
+    "save_orchestrator",
+    "save_thread_file_data",
+    "send_request",
+    "service_supports_reasoning_effort",
+    "set_allowed_agents",
+    "set_allowed_assistants",
+    "set_delegation_limits",
+    "set_disabled_tools",
+    "set_enabled_connections",
+    "set_enabled_skills",
+    "set_orchestrator_rag_bases",
+    "set_universal_agent_enabled",
+    "set_verifier_agent",
+    "settings_section_key",
+    "settings_tabs_key",
+    "st",
+    "step_agent_loop",
+    "sum_thread_tokens",
+    "t",
+    "wb",
+    "wt",
+]
+
+
+def _assistant_has_api_key(*args, **kwargs):
+    """Call ``_assistant_has_api_key_impl`` with the arguments the caller passed."""
+    return _assistant_has_api_key_impl(*args, **kwargs)
+
+
+def _do_step(*args, **kwargs):
+    """Call ``_do_step_impl`` with the arguments the caller passed."""
+    return _do_step_impl(*args, **kwargs)
+
+
+def _init_orch_state(*args, **kwargs):
+    """Call ``_init_orch_state_impl`` with the arguments the caller passed."""
+    return _init_orch_state_impl(*args, **kwargs)
+
+
+def _load_thread(*args, **kwargs):
+    """Call ``_load_thread_impl`` with the arguments the caller passed."""
+    return _load_thread_impl(*args, **kwargs)
+
+
+def _make_dispatcher(*args, **kwargs):
+    """Call ``_make_dispatcher_impl`` with the arguments the caller passed."""
+    return _make_dispatcher_impl(*args, **kwargs)
+
+
+def _make_send_adapter(*args, **kwargs):
+    """Call ``_make_send_adapter_impl`` with the arguments the caller passed."""
+    return _make_send_adapter_impl(*args, **kwargs)
+
+
+def _render_event(*args, **kwargs):
+    """Call ``_render_event_impl`` with the arguments the caller passed."""
+    return _render_event_impl(*args, **kwargs)
+
+
+def _render_token_line(*args, **kwargs):
+    """Call ``_render_token_line_impl`` with the arguments the caller passed."""
+    return _render_token_line_impl(*args, **kwargs)
+
+
+def _render_tool_result(*args, **kwargs):
+    """Call ``_render_tool_result_impl`` with the arguments the caller passed."""
+    return _render_tool_result_impl(*args, **kwargs)
+
+
+def _reset_dialog(*args, **kwargs):
+    """Call ``_reset_dialog_impl`` with the arguments the caller passed."""
+    return _reset_dialog_impl(*args, **kwargs)
+
+
+def _set_ss(*args, **kwargs):
+    """Call ``_set_ss_impl`` with the arguments the caller passed."""
+    return _set_ss_impl(*args, **kwargs)
+
+
+def _ss(*args, **kwargs):
+    """Call ``_ss_impl`` with the arguments the caller passed."""
+    return _ss_impl(*args, **kwargs)
+
+
+def _thread_folder(*args, **kwargs):
+    """Call ``_thread_folder_impl`` with the arguments the caller passed."""
+    return _thread_folder_impl(*args, **kwargs)
+
+
+def pin_settings_section(*args, **kwargs):
+    """Call ``pin_settings_section_impl`` with the arguments the caller passed."""
+    return pin_settings_section_impl(*args, **kwargs)
+
+
+def settings_save_failed(*args, **kwargs):
+    """Call ``settings_save_failed_impl`` with the arguments the caller passed."""
+    return settings_save_failed_impl(*args, **kwargs)
 
-# How many recently used folders the "Выбор папки" selector offers
-# (in addition to the leading "Авто" entry).
-FOLDER_PICKER_LIMIT = 10
-
-# Sentinel entry of the folder selector that OPENS the native dialog instead
-# of staging a folder. It is an action, not a value: the selector is rebuilt
-# with a fresh widget key after the dialog closes, so it never sticks.
-FOLDER_PICKER_BROWSE = "\x00browse"
-
-
-# Economy mode is a fixed property of the chat: the compact context is the
-# supported way to run a dialog, so the chat has no switch for it. The agent
-# loop keeps honouring ``economy_mode`` - the UI simply always passes True.
-ECONOMY_MODE_ALWAYS_ON = True
-
-
-# ─── Session-state helpers ────────────────────────────────────────────────────
-
-
-def _chat_prefs(slug: str) -> Dict[str, bool]:
-    orch = get_orchestrator(slug)
-    cfg = orch.get("config", {}) if orch else {}
-    if not isinstance(cfg, dict):
-        cfg = {}
-    return {key: bool(cfg.get(conf_key, default)) for key, (conf_key, default) in _chat_pref_config_keys().items()}
-
-
-def _save_chat_pref(slug: str, key: str, value: bool) -> bool:
-    mapping = _chat_pref_config_keys()
-    if key not in mapping:
-        return False
-    conf_key, _ = mapping[key]
-    orch = get_orchestrator(slug)
-    if orch is None:
-        return False
-    cfg = orch.get("config", {})
-    if not isinstance(cfg, dict):
-        cfg = {}
-    cfg = dict(cfg)
-    cfg[conf_key] = bool(value)
-    return save_orchestrator(slug, config=cfg)
-
-
-def _make_state_keys(slug: str) -> dict:
-    """Return a dict of session-state key -> default for this orchestrator."""
-    return build_state_keys(slug, _chat_prefs(slug), ECONOMY_MODE_ALWAYS_ON, CHAT_PAGE_SIZE)
-
-
-def _init_orch_state(slug: str) -> None:
-    """Initialise session_state keys for the given orchestrator slug."""
-    for k, v in _make_state_keys(slug).items():
-        if k not in st.session_state:
-            st.session_state[k] = v
-
-
-def _ss(slug: str, key: str):
-    """Get a slug-prefixed session-state value."""
-    return st.session_state.get(_sk(slug, key))
-
-
-def _set_ss(slug: str, key: str, value):
-    st.session_state[_sk(slug, key)] = value
-
-
-def _pop_ss(slug: str, key: str):
-    return st.session_state.pop(_sk(slug, key), None)
-
-
-def _save_economy_cache(slug: str, state) -> None:
-    """Persist the cache-friendly economy window parameters.
-
-    The loop state itself gets cleared for terminal statuses (done, applied,
-    discarded, error, ...), but the anchor must survive so the next turn
-    continues the accumulation window instead of restarting from the
-    bare tail.
-
-    A state whose anchor was never established (None) carries no
-    accumulation to preserve; skipping the save leaves an existing
-    persisted anchor intact instead of clobbering it.
-    """
-    if state is None:
-        return
-    if getattr(state, "economy_anchor", None) is None:
-        return
-    _set_ss(slug, "economy_cache", economy_cache_to_dict(state))
-
-
-def _load_economy_cache(slug: str, state) -> None:
-    """Restore persisted economy window parameters onto a fresh loop state."""
-    cache = _ss(slug, "economy_cache")
-    if isinstance(cache, dict):
-        apply_economy_cache(cache, state)
-
-
-# NOTE (workspace isolation v2): the workspace-side attachment writer was
-# removed - uploads are stored ONLY in history/<tid>/files, so a dialog can
-# never create files inside a foreign project folder. The reader above is
-# kept to re-announce manifests written by older builds.
-
-
-# ─── Folder picker ("Выбор папки") ────────────────────────────────────────────
-
-def _folder_picker_key(slug: str) -> str:
-    """Return the widget key of the folder selector for this orchestrator.
-
-    The key embeds a counter, so snapping the selector back to "Авто" after
-    a send creates a BRAND-NEW widget instead of mutating an existing one
-    (Streamlit forbids changing a widget's session state after it was
-    instantiated in the same run).
-    """
-    return f"orch_folder_pick_{slug}_{int(_ss(slug, 'folder_picker_counter') or 0)}"
-
-
-def _reset_folder_choice(slug: str) -> None:
-    """Snap the folder selector back to "Авто" (via a fresh widget key)."""
-    _set_ss(slug, "folder_choice", "")
-    _set_ss(slug, "folder_picker_counter",
-            int(_ss(slug, "folder_picker_counter") or 0) + 1)
-
-
-def _thread_folder(slug: str) -> str:
-    """Return the working folder of THIS dialog (authoritative source).
-
-    Prefers the thread binding: the live config may belong to a
-    neighbouring dialog or hold a temporary detour the agent itself made.
-    Falls back to the live workspace when the dialog has no thread and to
-    a staged choice when the user just picked one.
-    """
-    tid = _ss(slug, "thread_id")
-    if tid:
-        try:
-            bound = wb.get_thread_workspace(tid)
-            if bound:
-                return str(bound)
-        except Exception:
-            pass
-    try:
-        cur = wt.current_workspace()
-        if cur.get("workspace_selected", True):
-            return str(cur.get("root", "") or "")
-    except Exception:
-        pass
-    return ""
-
-
-def _apply_folder_choice(slug: str) -> Optional[str]:
-    """Apply the folder staged in the selector BEFORE the LLM call.
-
-    Called from the send path so the agent never spends a step calling
-    ``set_workspace`` itself. The switch is recorded in the recent-folders
-    history by ``set_workspace`` and bound to the dialog's thread, which
-    makes it authoritative on the next dispatch. Afterwards the selector
-    snaps back to "Авто" - the folder becomes dialog-managed, so a
-    temporary detour the agent makes later is never overwritten by the UI.
-
-    Returns the applied path, or None when nothing was staged (the normal
-    case after the first message) or the folder was already in effect.
-    """
-    path = str(_ss(slug, "folder_choice") or "").strip()
-    if not path:
-        return None
-    if not os.path.isdir(path):
-        _reset_folder_choice(slug)
-        return None
-    tid = _ss(slug, "thread_id")
-    # Compare against THIS dialog's thread binding - not the live config,
-    # which may belong to a neighbouring dialog or to a temporary detour
-    # the agent itself made while inspecting another folder.
-    already = bool(tid) and wb.get_thread_workspace(tid) == path
-    if not already:
-        try:
-            wt.set_workspace(path, slug=slug)
-        except Exception:
-            _reset_folder_choice(slug)
-            return None
-        if tid:
-            try:
-                wb.register_thread(tid, workspace=path, target_file=None)
-                _persist_thread_workspace_meta(tid)
-            except Exception:
-                pass
-    _reset_folder_choice(slug)
-    return path
-
-
-def _render_folder_picker(slug: str, lang: str) -> None:
-    """Render the "Выбор папки" block right above the chat input.
-
-    Offers "Авто", the orchestrator's recent folders (up to
-    FOLDER_PICKER_LIMIT) and - last - an entry that opens the native OS folder
-    dialog. The dialog lives INSIDE the selector: a separate "Обзор…" button
-    reads as "attach a file" and was clicked by mistake. Selecting a folder
-    does not touch the workspace immediately - it is applied when the next
-    message is sent, and the dialog entry is an ACTION whose fresh widget key
-    rebuilds the selector.
-    """
-    options = _folder_picker_options(slug)
-    staged = str(_ss(slug, "folder_choice") or "")
-
-    def _label(path: str) -> str:
-        if not path:
-            return t("orch_folder_auto", lang=lang)
-        if path == FOLDER_PICKER_BROWSE:
-            return t("orch_folder_browse", lang=lang)
-        return f"📁 {os.path.basename(path.rstrip('/')) or path} - {path}"
-
-    index = options.index(staged) if staged in options else 0
-
-    picked = st.selectbox(
-        t("orch_folder_picker_label", lang=lang),
-        options=range(len(options)),
-        format_func=lambda i: _label(options[i]),
-        index=index,
-        key=_folder_picker_key(slug),
-    )
-    try:
-        picked_value = options[int(picked)]
-    except Exception:
-        # A stale widget value (for example after the dialog entry vanished
-        # because the native picker stopped being available) must never
-        # wipe the folder the user already staged: keep it as it was.
-        picked_value = staged
-
-    if picked_value == FOLDER_PICKER_BROWSE:
-        _open_folder_dialog(slug, lang, staged)
-    else:
-        _set_ss(slug, "folder_choice", picked_value)
-
-    # Always show the working folder of THIS dialog. The thread binding is
-    # authoritative: the live config may belong to a neighbouring dialog or
-    # hold a temporary detour the agent made; a just-picked folder wins
-    # until it is applied on the next send.
-    active = staged or _thread_folder(slug)
-    if active:
-        st.caption(t("orch_folder_active", lang=lang, path=active))
-
-
-def _folder_picker_options(slug: str) -> list:
-    """Return the selector options: Авто, recent folders and the dialog entry."""
-    options: list = [""]
-    try:
-        options.extend(get_recent_workspaces(slug, limit=FOLDER_PICKER_LIMIT))
-    except Exception:
-        pass
-
-    staged = str(_ss(slug, "folder_choice") or "")
-    if staged and staged not in options:
-        options.append(staged)
-
-    # The dialog entry is offered only when a native picker actually exists;
-    # without a GUI the selector keeps the manual-path workflow intact.
-    try:
-        dialog_available = bool(folder_dialog.native_dialog_available())
-    except Exception:
-        dialog_available = False
-    if dialog_available:
-        options.append(FOLDER_PICKER_BROWSE)
-    return options
-
-
-def _open_folder_dialog(slug: str, lang: str, staged: str) -> None:
-    """Run the native folder dialog and record the outcome."""
-    chosen = folder_dialog.pick_folder(
-        initial_dir=staged or None,
-        title=t("orch_folder_dialog_title", lang=lang),
-    )
-    if chosen:
-        add_recent_workspace(chosen, slug=slug)
-        _set_ss(slug, "folder_choice", chosen)
-    # A fresh widget key drops the action entry whether a folder was
-    # chosen or the dialog was cancelled.
-    _set_ss(slug, "folder_picker_counter",
-            int(_ss(slug, "folder_picker_counter") or 0) + 1)
-    st.rerun()
-
-
-# ─── Adapters & dispatcher ────────────────────────────────────────────────────
-
-def _assistant_dicts(slug: str):
-    """Build the assistant dicts with THIS dialog's workspace.
-
-    The workspace is needed to expand a project-relative MEMORY_DIR override
-    for the working-memory block. Older builds (and tests that stub the
-    builder) accept the slug alone, so the call degrades gracefully instead
-    of breaking the turn.
-    """
-    workspace = _thread_folder(slug) or ""
-    try:
-        return build_assistant_dicts(slug, workspace)
-    except TypeError:
-        return build_assistant_dicts(slug)
-
-
-def _make_send_adapter(lang: str, slug: str) -> Callable:
-    """Return a send_request wrapper using the orchestrator's main model."""
-    # The workspace of THIS dialog is passed along: the working-memory block
-    # reports a project-relative MEMORY_DIR override, and a neighbouring
-    # dialog's folder must never leak into this prompt.
-    strong_assistant, _ = _assistant_dicts(slug)
-    if not strong_assistant.get("service") or not strong_assistant.get("model"):
-        orch = get_orchestrator(slug)
-        cfg = orch.get("config", {}) if orch else {}
-        strong_assistant = {
-            "text": orch.get("prompt_text", "") if orch else "",
-            "service": cfg.get("strong_service", "DeepSeek"),
-            "model": cfg.get("strong_model", "deepseek-flash"),
-            "temperature": float(cfg.get("strong_temperature", 0.2) or 0.2),
-        }
-
-    def _adapter(user_message: str, system: str = "", history: List[Dict[str, Any]] = None) -> str:
-        assistant = dict(strong_assistant)
-        if system:
-            assistant["text"] = system
-        safety_mode = _ss(slug, "safety_mode")
-        if safety_mode is None:
-            safety_mode = True
-        return send_request(
-            user_message=user_message,
-            assistant=assistant,
-            file_context="",
-            history=history or [],
-            lang=lang,
-            enable_injection_protection=bool(safety_mode),
-        )
-
-    return _adapter
-
-
-def _make_dispatcher(slug: str) -> UniversalDevAgent:
-    """Return or create the UniversalDevAgent for this orchestrator."""
-    dk = _sk(slug, "dispatcher")
-    dispatcher = st.session_state.get(dk)
-    if dispatcher is None:
-        dispatcher = UniversalDevAgent(workspace=None, target_file=None)
-        st.session_state[dk] = dispatcher
-    # Keep the dispatcher bound to the active dialog thread. The guard
-    # avoids re-registering on every render: re-registration would snapshot
-    # the live config, which may belong to a parallel dialog.
-    tid = _ss(slug, "thread_id") or None
-    if getattr(dispatcher, "thread_id", None) != tid:
-        dispatcher.set_thread_id(tid)
-    dispatcher.core._web_search_enabled = _ss(slug, "web_search") or False
-    dispatcher.core._web_search_config = get_web_search_config(slug)
-    dispatcher.core._url_fetch_config = get_fetch_config(slug)
-    safety_mode = _ss(slug, "safety_mode")
-    if safety_mode is None:
-        safety_mode = True
-    dispatcher.core._safety_enabled = bool(safety_mode)
-    # Load custom orchestrator functions into the dispatcher so the LLM can
-    # call them by name as if they were built-in tools.
-    dispatcher.attach_orchestrator(slug)
-    return dispatcher
-
-
-def _assistant_has_api_key(svc_name: str) -> bool:
-    if not svc_name:
-        return False
-    services = get_services()
-    svc = services.get(svc_name)
-    if not svc:
-        return False
-    cfg = load_config()
-    key_field = svc.get("config_key", "")
-    key_val = cfg.get(key_field, "")
-    if isinstance(key_val, str):
-        key_val = key_val.strip()
-    return bool(key_val)
-
-
-
-
-
-
-
-
-
-
-
-
-# ─── Event rendering ──────────────────────────────────────────────────────────
-
-# Phases the feed reports. A phase outside this set is not announced at all;
-# the subset with a dedicated label is listed in _render_phase_event.
-_VISIBLE_PHASES = ("task_classification", "creating_skill", "calling_llm",
-                   "parsing", "executing")
-
-_HIDDEN_EVENT_TYPES = {}
-
-
-
-
-
-
-
-
-
-
-def _render_generated_image(result_data: dict, path: str, lang: str) -> None:
-    """Show a generated image with a download button in a tool result.
-
-    Called for successful ``generate_image`` results that carry a saved
-    file path. A missing or unreadable file renders an actionable caption
-    instead of breaking the whole feed render.
-    """
-    if not os.path.isfile(path):
-        st.caption(t("event_tool_result_image_missing", lang=lang, path=path))
-        return
-    st.caption(t("event_tool_result_image", lang=lang))
-    st.image(path)
-    try:
-        with open(path, "rb") as f:
-            image_bytes = f.read()
-    except OSError:
-        st.caption(t("event_tool_result_image_missing", lang=lang, path=path))
-        return
-    st.download_button(
-        t("event_tool_result_image_download", lang=lang),
-        data=image_bytes,
-        file_name=os.path.basename(path),
-        mime=str(result_data.get("mime") or "image/jpeg"),
-        key=f"orch_dl_img_{os.path.basename(path)}",
-        use_container_width=True,
-    )
-
-
-def _render_parked_question(question: dict, lang: str) -> None:
-    """Show a subagent's question, its options and what it is blocked on.
-
-    The question is the only part of a parked result the reader has to act on,
-    so it is rendered above the raw result body instead of being buried in a
-    JSON dump. Everything the child wrote is data: the text is rendered as
-    plain markdown, never interpreted as instructions.
-    """
-    text = " ".join(str(question.get("text") or "").split())
-    if text:
-        st.markdown(text)
-    options = question.get("options")
-    if isinstance(options, (list, tuple)) and options:
-        for option in list(options)[:8]:
-            st.markdown("- " + str(option))
-    done = " ".join(str(question.get("done") or "").split())
-    if done:
-        st.caption(done)
-    blocked = " ".join(str(question.get("blocked") or "").split())
-    if blocked:
-        st.caption(blocked)
-
-
-def _tool_result_summary(result_data: dict, lang: str, parked_question: dict) -> str:
-    """Return the outcome summary line shown after the title.
-
-    The parked-question label replaces the generic "ok": the result of
-    ``ask_parent`` is a question to a human, not a completed operation.
-    """
-    error = result_data.get("error", "")
-    if result_data.get("ok") is False:
-        if error:
-            return f"⚠️ {error[:100]}"
-        return t("event_tool_result_failed", lang=lang)
-    total_lines = result_data.get("total_lines")
-    bytes_val = result_data.get("bytes", 0)
-    note = result_data.get("note", "")
-    applied = result_data.get("applied")
-    backup_ver = result_data.get("backup_version")
-    parts = []
-    if parked_question:
-        parts.append(t("orch_subagent_question", lang=lang))
-    if total_lines:
-        parts.append(t("event_tool_result_lines", lang=lang, lines=total_lines))
-    elif bytes_val:
-        parts.append(t("event_tool_result_bytes", lang=lang, bytes=bytes_val))
-    if applied:
-        parts.append(t("event_tool_result_applied", lang=lang))
-    if backup_ver:
-        parts.append(f"v{backup_ver}")
-    if note:
-        parts.append(t("event_tool_result_note", lang=lang, note=note))
-    return " | ".join(parts) if parts else t("event_tool_result_ok", lang=lang)
-
-
-def _tool_result_header(ev: dict, lang: str, result_data: dict, tool: str,
-                        parked_question: dict) -> str:
-    """Return the expander header: title, optional assistant card, summary."""
-    ok_val = result_data.get("ok")
-    path = result_data.get("path", "")
-    header_lines = [_tool_result_title(tool, ok_val, path)]
-
-    # An invoke_assistant result carries the assistant card: the feed names
-    # WHO answered instead of showing an eight-character id, which is the
-    # only way a reader can tell two one-shot calls apart.
-    inner_result = result_data.get("result")
-    if isinstance(inner_result, dict) and isinstance(inner_result.get("assistant"), dict):
-        assistant_meta = inner_result["assistant"]
-        name = str(assistant_meta.get("name") or "").strip()
-        aid = str(assistant_meta.get("id") or "").strip()
-        header_lines.append(t("event_tool_result_assistant", lang=lang,
-                              name=name or aid or "?", id=aid or "?"))
-
-    header_lines.append(_tool_result_summary(result_data, lang, parked_question))
-    return "\n".join(header_lines)
-
-
-def _render_tool_call_args(ev: dict, lang: str, call_ev: Optional[dict]) -> None:
-    """Render the call arguments of a tool result inside its expander."""
-    call_args = None
-    if call_ev is not None:
-        call_args = call_ev.get("args", {})
-    elif ev.get("args"):
-        call_args = ev.get("args", {})
-    if call_args is None:
-        return
-    st.markdown(f"**{t('event_tool_call_title', lang=lang)}**")
-    st.code(_format_call_args_preview(call_args), language="json")
-    if any(isinstance(v, str) and len(v) > 300 for v in call_args.values()):
-        full_args_json = json.dumps(call_args, ensure_ascii=False, indent=2)
-        with st.expander(t("event_tool_result_show_more", lang=lang), expanded=False):
-            st.code(full_args_json, language="json")
-
-
-def _render_result_payload(result_data: dict, lang: str) -> None:
-    """Render the result body: full JSON, or two lines plus a full view."""
-    st.markdown(f"**{t('event_tool_result_title', lang=lang)}**")
-    body, is_json_body, full_json = _extract_result_body(result_data)
-    if is_json_body:
-        st.code(full_json, language="json")
-        return
-    preview, full = _first_two_lines(body)
-    if preview:
-        st.code(preview, language="")
-    else:
-        st.caption(t("event_tool_result_empty", lang=lang))
-    if full != preview:
-        with st.expander(t("event_tool_result_show_more", lang=lang), expanded=False):
-            st.code(full, language="")
-
-
-def _render_tool_result(ev: dict, lang: str, call_ev: Optional[dict] = None) -> None:
-    """Render one tool_result event inside an expander.
-
-    The expander header keeps the existing compact format (e.g.
-    ``✅ tool_result: read_file → path 322 строки``). Inside, the call
-    arguments and the first two lines of the result are shown; when the
-    result is longer, the full content is available in a nested expander.
-    A successful ``generate_image`` result additionally renders its image
-    block in the feed itself, outside the collapsed expander, so the picture
-    and its download button are visible without an extra click.
-    """
-    result_data = ev.get("result", {})
-    tool = ev.get("tool", "?")
-
-    # A parked child reports its question through the tool result: the block is
-    # labelled as a subagent question, so a reader does not have to decode a
-    # run id from a raw result dump to learn that a child waits for them.
-    parked_question = {}
-    if tool == "ask_parent" and isinstance(result_data.get("question"), dict):
-        parked_question = result_data["question"]
-
-    header = _tool_result_header(ev, lang, result_data, tool, parked_question)
-    with st.expander(header, expanded=bool(parked_question)):
-        _render_tool_call_args(ev, lang, call_ev)
-        if parked_question:
-            _render_parked_question(parked_question, lang)
-        _render_result_payload(result_data, lang)
-
-    # A generated image is shown in the feed itself, outside the collapsed
-    # tool-result expander: the picture must be visible without an extra click.
-    if tool == "generate_image" and result_data.get("ok") and result_data.get("path"):
-        _render_generated_image(result_data, result_data.get("path", ""), lang)
-
-
-def _render_event_group(events: list, lang: str) -> None:
-    """Render the events of ONE run, pairing tool_call with tool_result.
-
-    A tool_call that has no following tool_result (e.g. interrupted loop)
-    is rendered standalone by ``_render_event``.
-    """
-    pending_call = None
-    for ev in events:
-        etype = ev.get("type")
-        if etype == "tool_call":
-            pending_call = ev
-        elif etype == "tool_result":
-            _render_tool_result(ev, lang, call_ev=pending_call)
-            pending_call = None
-        else:
-            _render_event(ev, lang)
-    if pending_call is not None:
-        _render_event(pending_call, lang)
-
-
-
-
-def _render_events(events: list, lang: str) -> None:
-    """Render the step feed, one block per run.
-
-    Events of a single run (the normal case) are rendered inline exactly as
-    before. When a step fanned out, the dialog's own events stay inline and
-    every child run is folded into its own expander: the parent must not
-    lose its place in the feed, and a running child must stay collapsible
-    rather than pushing the dialog's own output off screen.
-    """
-    groups = _split_events_by_run(events)
-    if len(groups) <= 1:
-        _render_event_group(events, lang)
-        return
-    min_depth = min(depth for _rid, depth, _slug, _chunk in groups)
-    for rid, depth, agent_slug, chunk in groups:
-        if depth == min_depth:
-            _render_event_group(chunk, lang)
-            continue
-        label = t("orch_child_run_header", lang=lang,
-                  agent=agent_slug or "?", run=rid[:8], depth=depth)
-        with st.expander(label, expanded=False):
-            _render_event_group(chunk, lang)
-
-
-def _render_tool_call_event(ev: dict, lang: str) -> None:
-    """Render a tool_call event as one compact info line."""
-    tool = ev.get("tool", "?")
-    display_args = dict(ev.get("args", {}))
-    for key in list(display_args.keys()):
-        val = display_args[key]
-        if isinstance(val, str) and len(val) > 200:
-            display_args[key] = val[:200] + "…"
-    st.info(f"🔧 **{tool}** `{display_args}`")
-
-
-def _render_applied_event(ev: dict, lang: str) -> None:
-    """Render an applied event: a file was written to disk."""
-    st.success(t("devagent_applied", lang=lang, path=ev.get("path", "?")))
-
-
-def _render_skill_event(ev: dict, lang: str) -> None:
-    """Render an assistant_created event with its optional evaluation note."""
-    skill_name = ev.get("skill_name", "?")
-    eval_text = ev.get("evaluation", "")
-    st.success(t("event_skill_created", lang=lang, skill=skill_name))
-    if eval_text:
-        st.caption(eval_text[:200])
-
-
-def _render_phase_event(ev: dict, lang: str) -> None:
-    """Render a phase event; unknown phases are reported by name."""
-    phase = ev.get("phase", "")
-    if phase not in _VISIBLE_PHASES:
-        return
-    labels = {
-        "calling_llm": t("event_phase_calling_llm", lang=lang),
-        "parsing": t("event_phase_parsing", lang=lang),
-        "executing": t("event_phase_executing", lang=lang),
-    }
-    st.caption(labels.get(phase, t("event_phase_unknown", lang=lang, phase=phase)))
-
-
-def _render_retry_event(ev: dict, lang: str) -> None:
-    """Render an LLM retry notice; whole-number delays lose the decimal."""
-    attempt = ev.get("attempt", "?")
-    attempts = ev.get("attempts", "?")
-    delay = ev.get("delay", 0)
-    if isinstance(delay, float) and delay.is_integer():
-        delay = int(delay)
-    st.warning(t("orch_retry_llm", lang=lang,
-                 attempt=attempt, attempts=attempts, delay=delay))
-
-
-def _render_incomplete_retry_event(ev: dict, lang: str) -> None:
-    """Render a truncated-answer retry notice."""
-    reason = ev.get("reason", "") or "max_output_tokens"
-    st.warning(t("orch_incomplete_retry", lang=lang, reason=reason))
-
-
-def _render_sanitized_event(ev: dict, lang: str) -> None:
-    """Render one warning per payload withheld by the injection guard."""
-    for info in ev.get("events", []):
-        reason = info.get("reason", "")
-        tool_name = info.get("tool", "")
-        file_path = info.get("path", "")
-        if file_path:
-            st.warning(f"🛡️ **Prompt-injection protection**: `{file_path}`\n\n{reason}")
-        elif tool_name:
-            st.warning(f"🛡️ **Prompt-injection protection**: tool `{tool_name}`\n\n{reason}")
-        else:
-            st.warning(f"🛡️ **Prompt-injection protection**: {reason}")
-
-
-def _render_error_event(ev: dict, lang: str) -> None:
-    """Render a loop error event."""
-    st.error(ev.get("error", t("orch_unknown_error", lang=lang)))
-
-
-# Types the feed renders itself; every other type is silently skipped.
-_EVENT_RENDERERS = {
-    "applied": _render_applied_event,
-    "assistant_created": _render_skill_event,
-    "error": _render_error_event,
-    "incomplete_retry": _render_incomplete_retry_event,
-    "phase": _render_phase_event,
-    "retrying_llm": _render_retry_event,
-    "sanitized_detected": _render_sanitized_event,
-}
-
-
-def _render_event(ev: dict, lang: str) -> None:
-    """Render one feed event; unknown event types render nothing.
-
-    ``tool_call`` and ``tool_result`` are handled here because the pair is
-    what the feed is built around: a call line and the expander with its
-    result. Every other type maps to one renderer in ``_EVENT_RENDERERS``.
-    """
-    etype = ev.get("type")
-    if etype in _HIDDEN_EVENT_TYPES:
-        return
-    if etype == "tool_call":
-        _render_tool_call_event(ev, lang)
-        return
-    if etype == "tool_result":
-        _render_tool_result(ev, lang)
-        return
-    renderer = _EVENT_RENDERERS.get(etype)
-    if renderer is not None:
-        renderer(ev, lang)
-
-
-# ─── Agent step ───────────────────────────────────────────────────────────────
-
-
-
-def _dialog_tree_root(slug: str) -> str:
-    """Return the tree root of this dialog, recovering it after a reload.
-
-    A browser session forgets the root when the page reloads, while the run
-    records stay durable and a dialog root is registered under its thread id.
-    Without the recovery a child that waits for an answer stays invisible
-    until the next step - exactly the hidden stop the waiting line exists to
-    prevent.
-    """
-    root = str(_ss(slug, "active_root_run_id") or "").strip()
-    if root:
-        return root
-    thread_id = str(_ss(slug, "thread_id") or "").strip()
-    if not thread_id:
-        return ""
-    try:
-        from core.orchestration.service import get_service
-        finder = getattr(get_service(), "roots_for_thread", None)
-        roots = finder(thread_id) if callable(finder) else []
-    except Exception:
-        return ""
-    if not roots:
-        return ""
-    root = str(roots[0] or "").strip()
-    if root:
-        _set_ss(slug, "active_root_run_id", root)
-    return root
-
-
-def _live_subagent_runs(slug: str) -> list:
-    """Return the runs of this dialog's tree that are still running.
-
-    The list is read from the durable registry, so a child started in a
-    previous script run is still visible. An empty list means the dialog has
-    nothing to poll and the auto-refresh fragment is not rendered at all -
-    an idle dialog must not hold a background timer.
-
-    A stored ``running`` claim is not taken at face value: the registry demotes
-    a record this process cannot verify to ``failed``, so a child whose thread
-    died cannot keep the status line up. The root record of the dialog is never
-    a child of itself.
-    """
-    try:
-        from core.orchestration.service import get_service
-        root = _dialog_tree_root(slug)
-        if not root:
-            return []
-        runs = get_service().list_runs(root) or []
-    except Exception:
-        return []
-    return _select_live_runs(runs, root)
-
-
-def _waiting_subagent_runs(slug: str) -> list:
-    """Return the child runs of this dialog that wait for an ANSWER.
-
-    A parked run is not working: it holds no pool slot and its thread is gone,
-    so the running line would never report it and the user would see an idle
-    dialog while a child stands still. Only a question is reported here - a
-    run that merely ran out of continuations waits for a RESUME, not for an
-    answer, and telling the user to answer it would be wrong.
-    """
-    try:
-        from core.orchestration.service import get_service
-        root = _dialog_tree_root(slug)
-        if not root:
-            return []
-        runs = get_service().list_runs(root) or []
-    except Exception:
-        return []
-    return _select_waiting_runs(runs, root)
-
-
-def _render_subagent_status(slug: str, lang: str) -> None:
-    """Render the live-subagent line and keep the dialog refreshed.
-
-    Three rules shape this function. A child that waits for an ANSWER gets its
-    own line naming the question - otherwise a parked run looks like an idle
-    dialog. The poll fragment exists only while a child is running or waiting:
-    rendering it unconditionally would leave every idle dialog polling the
-    registry forever.
-    """
-    waiting = _waiting_subagent_runs(slug)
-    if waiting:
-        QUESTION_PREVIEW = 160
-        for rec in waiting[:3]:
-            question = rec.get("question") if isinstance(rec.get("question"), dict) else {}
-            text = " ".join(str(question.get("text") or "").split())
-            if len(text) > QUESTION_PREVIEW:
-                text = text[:QUESTION_PREVIEW - 3] + "..."
-            st.caption(t("orch_subagent_waiting", lang=lang,
-                         agent=str(rec.get("agent_slug") or "?"),
-                         run=str(rec.get("run_id") or "")[:8],
-                         question=text or "?"))
-        if len(waiting) > 3:
-            st.caption(t("orch_subagents_waiting", lang=lang, count=len(waiting)))
-    alive = _live_subagent_runs(slug)
-    if alive:
-        names = ", ".join(sorted({str(r.get("agent_slug") or "?") for r in alive}))
-        st.caption(t("orch_subagents_running", lang=lang, count=len(alive), agents=names))
-    if not alive and not waiting:
-        return
-
-    @st.fragment(run_every=3)
-    def _poll_children() -> None:
-        """Re-render while children run or wait; stop when both are over."""
-        if _live_subagent_runs(slug) or _waiting_subagent_runs(slug):
-            return
-        # Nothing is running or waiting any more: the notices are already in
-        # the mailbox or in the history. Continue the dialog so the parent
-        # reads them.
-        st.rerun()
-
-    _poll_children()
-
-
-
-# ─── One agent step, phase by phase ───────────────────────────────────────────
-# A step is a fixed sequence of phases over session state: read the flags,
-# build or resume the loop state, register the dialog as the root run of the
-# step, run the loop, then persist the history, the thread and the loop state.
-# The phases are separate functions so each one states its own contract; the
-# order below is the contract of the step and must not change.
-
-def _read_step_flags(slug: str) -> tuple:
-    """Return ``(economy_mode, web_search_enabled, safety_mode)`` of this step."""
-    economy_mode = ECONOMY_MODE_ALWAYS_ON
-    web_search_ss = _ss(slug, "web_search")
-    web_search_enabled = web_search_ss if web_search_ss is not None else False
-    safety_mode = _ss(slug, "safety_mode")
-    if safety_mode is None:
-        safety_mode = True
-    return economy_mode, web_search_enabled, safety_mode
-
-
-def _new_loop_state(slug: str, prev_state, user_message: str, *,
-                    economy_mode: bool, web_search_enabled: bool,
-                    safety_mode: bool):
-    """Build a fresh loop state for a newly submitted user message.
-
-    The economy window anchor must survive loop-state clearing: ``carry_over``
-    handles the case when the previous loop state was kept (e.g. awaiting_user)
-    and ``_load_economy_cache`` restores the persisted parameters when it was
-    cleared by a terminal status.
-    """
-    strong_assistant, weak_assistant = _assistant_dicts(slug)
-    orch = get_orchestrator(slug)
-    economy_config = get_economy_config(slug)
-    state = AgentLoopState(
-        task=user_message,
-        max_steps=orch.get("max_steps", DEFAULT_MAX_STEPS) if orch else DEFAULT_MAX_STEPS,
-        auto_apply=True,
-        strong_assistant=strong_assistant,
-        weak_assistant=weak_assistant,
-        history=_ss(slug, "history") or [],
-        file_context=_pop_ss(slug, "file_ctx") or "",
-        file_name=_pop_ss(slug, "file_name") or "",
-        thread_id=_ss(slug, "thread_id") or "",
-        economy_mode=economy_mode,
-        web_search_enabled=web_search_enabled,
-        economy_cache_enabled=bool(economy_config.get("cache_enabled", False)),
-        economy_cache_multiplier=int(economy_config.get("cache_multiplier", 1)),
-        economy_tail_messages=int(economy_config.get("tail_messages", 0)) or None,
-        enable_injection_protection=bool(safety_mode),
-        # The mailbox of the tree is keyed by its ROOT run, and the
-        # registration below uses the same id: the drain in the loop and
-        # the notice publisher in the worker meet in one place.
-        root_run_id=(getattr(prev_state, "run_id", "") or _ss(slug, "thread_id") or "").strip(),
-    )
-    carry_over_economy_cache(prev_state, state)
-    if prev_state is None:
-        _load_economy_cache(slug, state)
-    _reindex_history(state.history)
-    return state
-
-
-def _ensure_loop_state(slug: str, state, user_message, *, economy_mode: bool,
-                       web_search_enabled: bool, safety_mode: bool) -> tuple:
-    """Return ``(state, should_return)`` for the step about to run.
-
-    A brand-new loop starts either when there is no loop yet, or when the
-    previous loop has finished and the user has submitted a new message; an
-    empty message ends the step instead of starting one.
-    """
-    if state is not None and not (user_message and state.phase in ("done", "error")):
-        return state, False
-    if not user_message or not user_message.strip():
-        return state, True
-    state = _new_loop_state(slug, state, user_message,
-                            economy_mode=economy_mode,
-                            web_search_enabled=web_search_enabled,
-                            safety_mode=safety_mode)
-    _set_ss(slug, "loop_state", state)
-    _set_ss(slug, "stop_requested", False)
-    return state, False
-
-
-def _register_root_run(slug: str, state, events: list) -> tuple:
-    """Register the dialog as the ROOT run of this step and subscribe to it.
-
-    The record gives a spawned child its parent (depth and tree limits), and
-    the subscription is what carries child events into this step's feed:
-    ``service.publish`` delivers descendants' events to the subscribers of
-    their ancestors. A failure leaves the step running without a tree.
-    """
-    orchestration = None
-    unsubscribe = None
-    root_run_id = (getattr(state, "run_id", "") or _ss(slug, "thread_id") or "").strip()
-    if not root_run_id:
-        return orchestration, unsubscribe, root_run_id
-    try:
-        from core.orchestration.service import get_service
-        _orch_now = get_orchestrator(slug)
-        orchestration = get_service()
-        orchestration.ensure_run(
-            root_run_id,
-            thread_id=str(_ss(slug, "thread_id") or ""),
-            agent_slug=slug,
-            config=(_orch_now.get("config") or {}) if _orch_now else None,
-        )
-        # Remember the tree for the live status line: the dialog itself no
-        # longer holds the run record between script runs, and the mailbox is
-        # addressed by this id.
-        _set_ss(slug, "active_root_run_id", root_run_id)
-        state.root_run_id = root_run_id
-
-        def _forward_child_event(ev: dict) -> None:
-            """Collect a published event into the step feed."""
-            if isinstance(ev, dict):
-                events.append(ev)
-
-        unsubscribe = orchestration.subscribe(root_run_id, _forward_child_event)
-    except Exception:
-        orchestration = None
-        unsubscribe = None
-    return orchestration, unsubscribe, root_run_id
-
-
-def _handle_stop_requested(slug: str, state, lang: str, orchestration,
-                           unsubscribe, root_run_id: str) -> bool:
-    """Apply a pending stop request; return True when the step must end.
-
-    The step returns before the normal cleanup, so the listener and the tree
-    are released here: a stale subscriber would keep the finished step's event
-    list alive and the tree would leak a pool.
-    """
-    if not _ss(slug, "stop_requested"):
-        return False
-    state.phase = "done"
-    state.final_status = "stopped_by_user"
-    state.final_text = t("devagent_stopped_by_user", lang=lang)
-    _save_economy_cache(slug, state)
-    _release_step_resources(orchestration, unsubscribe, root_run_id, release_tree=True)
-    _set_ss(slug, "loop_state", None)
-    _set_ss(slug, "stop_requested", False)
-    return True
-
-
-def _run_agent_step(state, dispatcher, lang: str, on_event):
-    """Run one agent loop step, turning a crash into an error state.
-
-    A failure keeps the SAME state object: it is already referenced by the
-    subscriber and by the caller, so the error must land on it in place.
-    """
-    try:
-        return step_agent_loop(state, dispatcher=dispatcher, lang=lang, on_event=on_event)
-    except Exception as exc:
-        state.phase = "error"
-        state.error_message = str(exc)
-        on_event({"type": "error", "error": str(exc)})
-        return state
-
-
-def _persist_step_to_thread(slug: str, state) -> None:
-    """Append the messages produced by this step to the dialog thread."""
-    tid = _ss(slug, "thread_id")
-    if not tid or not state.history:
-        return
-    hist = list(state.history)
-    saved_count = _ss(slug, "saved_msg_count") or 0
-    for msg in hist[saved_count:]:
-        append_thread_message(
-            tid, msg.get("role", "user"), msg.get("content", ""),
-            file_name=msg.get("file_name", ""), file_chars=msg.get("file_chars", 0),
-            events=msg.get("_events"), tokens=msg.get("_tokens"),
-            hidden=bool(msg.get("hidden")),
-        )
-    _set_ss(slug, "saved_msg_count", len(hist))
-
-    # Persist the LAST active workspace / target_file so reopening the thread
-    # from history restores the correct project folder.
-    _persist_thread_workspace_meta(tid)
-
-
-def _commit_loop_state(slug: str, state) -> None:
-    """Keep or clear the loop state according to the step's phase.
-
-    The loop state is kept while the agent waits for the user to act (plan
-    approval, dangerous-operation confirmation, sanitation approval) and is
-    cleared for every other terminal status.
-    """
-    if state.phase not in ("done", "error"):
-        _set_ss(slug, "loop_state", state)
-        return
-    # Persist the economy window BEFORE the loop state may be cleared:
-    # terminal statuses clear loop_state, but the anchor must survive.
-    _save_economy_cache(slug, state)
-    if getattr(state, "final_status", "") in ("awaiting_user", "awaiting_approval",
-                                               "awaiting_confirmation", "sanitized_required"):
-        _set_ss(slug, "loop_state", state)
-    else:
-        _set_ss(slug, "loop_state", None)
-
-def _do_step(slug: str, lang: str) -> None:
-    """Run one agent loop step and update session state.
-
-    If a completed loop is waiting for user input (awaiting_user,
-    awaiting_approval, awaiting_confirmation, sanitized_required) and a new
-    user message has arrived, a fresh AgentLoopState is created so the new
-    message is processed instead of being swallowed by the finished loop.
-    """
-    dispatcher = _make_dispatcher(slug)
-    dispatcher.core.set_send_request(_make_send_adapter(lang, slug))
-
-    events: list = []
-    def on_event(ev: dict) -> None:
-        events.append(ev)
-
-    state = _ss(slug, "loop_state")
-    user_message = _pop_ss(slug, "user_message")
-    economy_mode, web_search_enabled, safety_mode = _read_step_flags(slug)
-
-    state, should_return = _ensure_loop_state(
-        slug, state, user_message,
-        economy_mode=economy_mode,
-        web_search_enabled=web_search_enabled,
-        safety_mode=safety_mode,
-    )
-    if should_return:
-        return
-
-    dispatcher.core.set_history(state.history)
-
-    orchestration, unsubscribe, root_run_id = _register_root_run(slug, state, events)
-    if _handle_stop_requested(slug, state, lang, orchestration, unsubscribe, root_run_id):
-        return
-
-    _sync_safety_mode(dispatcher, state, safety_mode)
-    state = _run_agent_step(state, dispatcher, lang, on_event)
-
-    _set_ss(slug, "history", state.history)
-
-    # Attach the step events to the message that renders them. A step that
-    # failed before producing an assistant reply (e.g. the very first LLM
-    # call) attaches its error to the user request instead, so the failure
-    # stays visible in the chat feed even without an active thread.
-    _attach_events(state.history, events)
-
-    _release_step_resources(orchestration, unsubscribe, root_run_id,
-                            release_tree=state.phase in ("done", "error"))
-    _persist_step_to_thread(slug, state)
-    _commit_loop_state(slug, state)
-
-
-# ─── Reset helpers ────────────────────────────────────────────────────────────
-
-def _reset_dialog(slug: str) -> None:
-    """Reset dialog state for an orchestrator."""
-    _set_ss(slug, "history", [])
-    _set_ss(slug, "loop_state", None)
-    _set_ss(slug, "economy_cache", None)
-    _set_ss(slug, "token_line_cache", None)
-    _set_ss(slug, "thread_id", None)
-    _set_ss(slug, "stop_requested", False)
-    _set_ss(slug, "saved_msg_count", 0)
-    _set_ss(slug, "chat_show_count", CHAT_PAGE_SIZE)
-    _set_ss(slug, "scroll_bottom", False)
-    _set_ss(slug, "folder_choice", "")
-    _set_ss(slug, "folder_picker_counter",
-            int(_ss(slug, "folder_picker_counter") or 0) + 1)
-    if _sk(slug, "dispatcher") in st.session_state:
-        del st.session_state[_sk(slug, "dispatcher")]
-    # A fresh dialog starts in the EMPTY workspace state: repoint the live
-    # config at the neutral root so the new dialog never inherits the folder
-    # of a parallel dialog. Threads with a chosen folder re-apply their own
-    # state per dispatch (workspace_binding.thread_context).
-    try:
-        dagent_config.apply_paths(dagent_config.NEUTRAL_ROOT,
-                                  create_dirs=False, selected=False)
-    except Exception:
-        pass
-
-
-def _load_thread(slug: str, tid: str) -> None:
-    """Load a thread into the current session and restore its workspace."""
-    _reset_dialog(slug)
-
-    # Restore the LAST workspace recorded for this thread so DevAgent works
-    # on the same project folder as before.
-    meta = load_thread_meta(tid)
-    workspace = meta.get("workspace") or ""
-    target_file = meta.get("target_file") or ""
-
-    restored = False
-    try:
-        if target_file and os.path.isfile(target_file):
-            wt.set_target_file(target_file, slug=slug)
-            restored = True
-        elif workspace and os.path.isdir(workspace):
-            wt.set_workspace(workspace, slug=slug)
-            restored = True
-    except Exception:
-        restored = False
-
-    # A thread without a saved folder - or whose folder no longer exists -
-    # opens in the EMPTY state applied by _reset_dialog; it must never
-    # inherit the folder of a neighbouring dialog.
-
-    msgs = load_thread_messages(tid)
-    _set_ss(slug, "history", msgs)
-    _set_ss(slug, "thread_id", tid)
-    _set_ss(slug, "saved_msg_count", len(msgs))
-    # Mirror the ACTUAL restored state into the thread binding: a
-    # folder-less thread is bound as workspace-less so its dispatches keep
-    # running in the empty state.
-    try:
-        if restored:
-            wb.sync_registry_from_config(tid)
-        else:
-            wb.register_thread(tid, workspace=None, target_file=None)
-    except Exception:
-        pass
-
-
-# ─── Chat toolbar (single, sticky top) ────────────────────────────────────────
-
-
-def _sync_chat_pref_checkbox(slug: str, pref: str, value: bool) -> None:
-    """Write one chat preference into the canonical slot.
-
-    The toolbar renders a single checkbox widget whose key IS the canonical
-    session slot; this helper persists the changed preference into the
-    orchestrator config via ``_save_chat_pref`` and, for safety_mode,
-    updates the live dispatcher immediately.
-    """
-    _set_ss(slug, pref, value)
-    _save_chat_pref(slug, pref, value)
-    if pref == "safety_mode":
-        try:
-            dispatcher = _make_dispatcher(slug)
-            dispatcher.core._safety_enabled = bool(value)
-        except Exception:
-            pass
-
-
-def _chat_toolbar_pref_changed(slug: str, pref: str) -> None:
-    """Persist a chat preference after the user toggles its checkbox.
-
-    Streamlit calls this callback AFTER updating the canonical
-    ``orch_<slug>_<pref>`` session-state slot, so the current value is
-    read from that slot instead of comparing a pre-render snapshot.
-    """
-    _sync_chat_pref_checkbox(slug, pref, bool(_ss(slug, pref)))
-
-
-def _render_chat_toolbar(slug: str, lang: str) -> None:
-    """Render the single chat toolbar (web search / economy / safety /
-    settings / new dialog / copy URL).
-
-    The toolbar is rendered ONCE at the top of the chat and stays on screen
-    while the history scrolls (the host container is sticky - see
-    ``_render_chat_tab``).  Checkbox widget keys are the same canonical
-    session slots used by the agent loop, so there is a single source of
-    truth for each preference.
-    """
-    cols = st.columns([1, 1, 1, 1, 0.8])
-    pref_specs = (
-        ("web_search", t("orch_web_search_label", lang=lang),
-         t("orch_web_search_help", lang=lang)),
-        ("safety_mode", t("orch_safety_label", lang=lang),
-         t("orch_safety_help", lang=lang)),
-    )
-    for col, (pref, label, help_text) in zip(cols[:2], pref_specs):
-        with col:
-            widget_key = _chat_toolbar_widget_key(slug, pref)
-            st.checkbox(
-                label,
-                key=widget_key,
-                help=help_text,
-                on_change=_chat_toolbar_pref_changed,
-                args=(slug, pref),
-            )
-
-    with cols[2]:
-        if st.button("⚙️ " + t("nav_settings", lang=lang),
-                     key=f"orch_settings_{slug}",
-                     use_container_width=True, type="secondary"):
-            st.session_state["current_page"] = f"orchestrator_settings:{slug}"
-            st.rerun()
-    with cols[3]:
-        if st.button(t("orch_new_dialog", lang=lang),
-                     key=f"orch_reset_{slug}",
-                     use_container_width=True, type="secondary"):
-            _reset_dialog(slug)
-            st.rerun()
-    with cols[4]:
-        url_params = {"orchestrator": slug}
-        tid = _ss(slug, "thread_id")
-        if tid:
-            url_params["thread"] = str(tid)
-        clipboard_button(
-            text="", key=f"orch_cp_url_{slug}",
-            label=t("orch_copy_url", lang=lang),
-            copy_url_params=url_params,
-        )
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  TAB: CHAT
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _token_line_cache_key(slug: str, history: list, economy_enabled: bool,
-                          loop_state, prompt_text: str, file_text: str,
-                          strong: dict, services_names: tuple) -> str:
-    """Build a stable cache key capturing every input of the token line.
-
-    The rendered indicator depends on the full history (economy window, per-
-    thread token sums, message classification), the system prompt, the
-    attached-file texts, the strong service/model, the economy config, the
-    live loop state and the UI language. Hashing a canonical repr of all of
-    them is far cheaper
-    than recomputing context/token estimates on every rerun, and still
-    recomputes whenever any real input changes.
-    """
-    import hashlib
-
-    econ = ()
-    if economy_enabled:
-        cfg = get_economy_config(slug) or {}
-        econ = (
-            bool(cfg.get("cache_enabled", False)),
-            int(cfg.get("cache_multiplier", 1) or 1),
-            int(cfg.get("tail_messages", 0) or 0),
-        )
-    state = ()
-    if loop_state is not None:
-        state = (
-            getattr(loop_state, "phase", None),
-            getattr(loop_state, "economy_anchor", None),
-            getattr(loop_state, "economy_tail_messages", None),
-        )
-    eco_cache = _ss(slug, "economy_cache")
-    if isinstance(eco_cache, dict):
-        state += (
-            eco_cache.get("economy_anchor"),
-            eco_cache.get("economy_tail_messages"),
-        )
-    msg_parts = [
-        (m.get("role"), m.get("content", ""), m.get("ts", ""),
-         bool(m.get("hidden")))
-        for m in history
-    ]
-    # The rendered labels and the economy suffix depend on the UI language.
-    lang = st.session_state.get("ui_lang")
-    payload = repr((
-        _ss(slug, "thread_id"), economy_enabled, econ, state,
-        prompt_text, file_text, strong, services_names, msg_parts, lang,
-    ))
-    return hashlib.md5(payload.encode("utf-8")).hexdigest()
-
-
-def _render_token_line(slug: str, history: list, economy_enabled: bool,
-                       loop_state, lang: str = None) -> None:
-    """Render the single-line token/economy indicator, cached per state.
-
-    Recomputing the context estimate and the economy window on every rerun is
-    the main cost of the chat page on long dialogs. The finished HTML is
-    stored in session_state as ``orch_<slug>_token_line_cache`` (dict with
-    ``key`` + ``html``) and reused until one of the inputs changes; when the
-    history/economy config/loop phase/prompt/attachments/service changes, the
-    line is recomputed and the cache refreshed.
-    """
-    _orch = get_orchestrator(slug)
-    _full_sys = _orch.get("prompt_text", "") if _orch else ""
-    # Attachments now travel with the chat input submission and are persisted
-    # immediately, so there is no pending attachment text between renders.
-    _file_text = ""
-    _strong_assistant, _ = build_assistant_dicts(slug)
-    _services_names = tuple(sorted(get_services().keys()))
-
-    cache_key = _token_line_cache_key(
-        slug, history, economy_enabled, loop_state,
-        _full_sys, _file_text, _strong_assistant, _services_names,
-    )
-    _cached = _ss(slug, "token_line_cache")
-    if (isinstance(_cached, dict) and _cached.get("key") == cache_key
-            and _cached.get("html")):
-        st.markdown(_cached["html"], unsafe_allow_html=True)
-        return
-
-    _effective_history, _economy_meta = _economy_window_info(
-        slug, history, economy_enabled, loop_state, lang,
-    )
-
-    _effective_text = " ".join(
-        m.get("content", "") for m in _effective_history if not m.get("hidden")
-    )
-    _ctx = check_context(
-        _full_sys, "", combine_nonempty([_effective_text, _file_text]),
-        _strong_assistant, get_services(),
-    )
-    _current_tokens = _ctx["total_tokens"]
-    _tok_in, _tok_out, _tok_cache = sum_thread_tokens(history)
-    _html = (
-        f'<div style="font-size:0.75rem;color:#555;margin-top:6px">'
-        f'{format_token_line(_current_tokens, _tok_in, _tok_out, _economy_meta, tokens_cache=_tok_cache, lang=lang)}</div>'
-    )
-    _set_ss(slug, "token_line_cache", {"key": cache_key, "html": _html})
-    st.markdown(_html, unsafe_allow_html=True)
-
-
-def _economy_window_info(slug: str, history: list, economy_enabled: bool,
-                         loop_state, lang: str = None) -> tuple:
-    """Return (history actually sent, economy badge text) for the token line.
-
-    When economy mode is off or the dialog is empty the history is returned
-    untouched and the badge is empty.  Otherwise the same window that the next
-    request will carry is rebuilt - reusing the live loop-state anchor when one
-    exists, so the indicator shows the gradual growth of the cache-friendly
-    window instead of always the bare tail.
-    """
-    if not (economy_enabled and history):
-        return history, ""
-
-    _economy_config = get_economy_config(slug)
-    _temp_state = AgentLoopState(
-        task="",
-        history=list(history),
-        economy_mode=True,
-        thread_id=_ss(slug, "thread_id") or "",
-        economy_cache_enabled=bool(_economy_config.get("cache_enabled", False)),
-        economy_cache_multiplier=int(_economy_config.get("cache_multiplier", 1)),
-    )
-    if loop_state is not None:
-        _temp_state.workspace_info = getattr(loop_state, "workspace_info", "")
-        _temp_state.economy_anchor = getattr(loop_state, "economy_anchor", None)
-        _temp_state.economy_meta_key = getattr(loop_state, "economy_meta_key", "")
-        _temp_state.economy_tail_messages = getattr(loop_state, "economy_tail_messages", None)
-        _temp_state.web_search_enabled = bool(getattr(loop_state, "web_search_enabled", False))
-    else:
-        _ec = _ss(slug, "economy_cache")
-        if isinstance(_ec, dict):
-            apply_economy_cache(_ec, _temp_state)
-    from dev_agent.agent_loop import _classify_message, _index_message
-    for i, _msg in enumerate(history):
-        if "_index" not in _msg:
-            _cat = _classify_message(_msg)
-            _index_message(_msg, i, _cat)
-    _effective_history = build_economy_context(_temp_state)
-    _raw_total = len(history)
-    # build_economy_context() prepends one hidden meta message; the remaining
-    # entries are the exact history messages actually sent to the model.
-    _sent_total = max(0, len(_effective_history) - 1)
-    _econ_word = t("token_line_economy", lang=lang)
-    _msgs_word = t("token_line_msgs", lang=lang)
-    _economy_meta = f" 💡 {_econ_word} ({_sent_total}/{_raw_total} {_msgs_word})"
-    return _effective_history, _economy_meta
-
-
-def _render_chat_tab(slug: str, lang: str) -> None:
-    """Render the chat tab: feed, confirmations, input and live status.
-
-    The function is a plain sequence of steps; each step lives in its own
-    helper below. Every helper stays in THIS module on purpose: the tests and
-    the page itself resolve ``st`` and ``t`` through the module globals, so a
-    helper moved elsewhere would read its own namespace and stop seeing a
-    patch installed here.
-    """
-    orch = get_orchestrator(slug)
-    orch_name = orch.get("name", slug) if orch else slug
-
-    _render_chat_styles()
-
-    economy_enabled = ECONOMY_MODE_ALWAYS_ON
-
-    if not _render_chat_header(orch, orch_name, lang):
-        return
-
-    _pending_task = _pop_ss(slug, "pending_task")
-    if _pending_task and _ss(slug, "loop_state") is None:
-        _set_ss(slug, "user_message", _pending_task)
-        _do_step(slug=slug, lang=lang)
-        st.rerun()
-
-    history = _ss(slug, "history") or []
-
-    if not history:
-        _render_chat_welcome(slug, orch_name, lang)
-
-    # Read the loop status before rendering messages so we know whether the
-    # agent is still active and which assistant message is the final one.
-    loop_state = _ss(slug, "loop_state")
-    agent_is_active = _is_agent_active(loop_state)
-
-    _apply_autoscroll(slug, agent_is_active)
-
-    last_assistant_idx = _last_assistant_index(history)
-
-    show_count = _chat_show_count(slug, history)
-    _render_show_earlier(slug, lang, history, show_count)
-    _render_chat_feed(slug, lang, history, show_count, last_assistant_idx, agent_is_active)
-
-    _render_loop_status(slug, lang, loop_state)
-
-    _render_subagent_status(slug, lang)
-
-    if not agent_is_active:
-        _handle_chat_submission(slug, lang, orch)
-
-    # Token usage indicator (single line, after Upload). The heavy
-    # context/economy computation is cached in _render_token_line and only
-    # rerun when one of its inputs (history, economy config, loop state,
-    # prompt, attachments, services) actually changes.
-    _render_token_line(slug, history, economy_enabled, loop_state, lang)
-
-    if agent_is_active:
-        _render_active_controls(slug, lang, loop_state)
-
-
-def _render_chat_header(orch, orch_name: str, lang: str) -> bool:
-    """Render the page caption and check that the strong model has a key.
-
-    The caption is neutral on purpose: this page hosts ANY employee, so it
-    shows the employee's own description and falls back to the display name
-    rather than the legacy "developer assistant" wording.  Returns False when
-    the strong service has no API key - the caller stops rendering, the same
-    way the page always did.
-    """
-    _desc = (orch.get("description") or "").strip() if orch else ""
-    st.caption(_desc if _desc else orch_name)
-    st.markdown("---")
-
-    orch_cfg = orch.get("config", {}) if orch else {}
-    if not isinstance(orch_cfg, dict):
-        orch_cfg = {}
-    strong_svc = orch_cfg.get("strong_service", "")
-    if not strong_svc or not _assistant_has_api_key(strong_svc):
-        st.warning(t("orch_no_api_key", lang=lang))
-        return False
-    return True
-
-
-def _render_chat_styles() -> None:
-    """Install the page-level CSS: hidden uploader list and coloured buttons."""
-    st.markdown(
-        "<style>\n"
-        "[data-testid=\"stFileUploader\"] [data-testid=\"stFileUploaderFile\"] { display: none !important; }\n"
-        "button[key^=\"orch_reset_\"] { background-color: #28a745 !important; color: white !important; border-color: #28a745 !important; }\n"
-        "button[key^=\"orch_reset_\"]:hover { background-color: #218838 !important; border-color: #1e7e34 !important; }\n"
-        "button[key^=\"orch_stop_\"] { background-color: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }\n"
-        "button[key^=\"orch_stop_\"]:hover { background-color: #c82333 !important; border-color: #bd2130 !important; }\n"
-        "</style>",
-        unsafe_allow_html=True,
-    )
-
-
-def _render_chat_welcome(slug: str, orch_name: str, lang: str) -> None:
-    """Show the opening greeting of an empty dialog."""
-    with st.chat_message("assistant"):
-        if slug == DEVAGENT_SLUG:
-            _welcome = t("orch_welcome_msg_devagent", lang=lang)
-        else:
-            _welcome = t("orch_welcome_msg", lang=lang, name=orch_name)
-        st.markdown(_welcome)
-
-
-def _apply_autoscroll(slug: str, agent_is_active: bool) -> None:
-    """Follow the newest output while the agent works.
-
-    A just-sent user message sets scroll_bottom, which forces one scroll
-    regardless of a manual pause; the task feed then follows the output until
-    the user scrolls up (see core.feed_autoscroll).
-    """
-    _force_scroll = bool(_ss(slug, "scroll_bottom"))
-    if _force_scroll:
-        _set_ss(slug, "scroll_bottom", False)
-    if _force_scroll or agent_is_active:
-        render_autoscroll(force=_force_scroll)
-
-
-def _chat_show_count(slug: str, history: list) -> int:
-    """Return how many trailing messages the feed renders right now."""
-    show_count = int(_ss(slug, "chat_show_count") or CHAT_PAGE_SIZE)
-    return max(CHAT_PAGE_SIZE, min(show_count, len(history) or 1))
-
-
-def _render_show_earlier(slug: str, lang: str, history: list, show_count: int) -> None:
-    """Render the "show earlier" button above a paginated feed."""
-    if len(history) <= show_count:
-        return
-    _remaining = len(history) - show_count
-    if st.button(
-        t("orch_show_earlier", lang=lang, count=_remaining),
-        key=f"orch_show_earlier_{slug}",
-        use_container_width=True,
-    ):
-        _set_ss(slug, "chat_show_count",
-                min(show_count + CHAT_PAGE_SIZE, len(history)))
-        st.rerun()
-
-
-def _render_chat_feed(slug: str, lang: str, history: list, show_count: int,
-                      last_assistant_idx, agent_is_active: bool) -> None:
-    """Render the trailing window of the dialog feed."""
-    _offset = max(0, len(history) - show_count)
-    for idx, msg in enumerate(history[_offset:], start=_offset):
-        _render_history_message(slug, lang, idx, msg, last_assistant_idx, agent_is_active)
-
-
-def _render_history_message(slug: str, lang: str, idx: int, msg: dict,
-                            last_assistant_idx, agent_is_active: bool) -> None:
-    """Render one stored message: a notice banner, a user line or an answer."""
-    if msg.get("_notice"):
-        # A finished child reports back as a hidden system message: the
-        # model reads it silently, the user sees a compact banner.
-        st.info("📬 " + str(msg.get("content") or ""))
-        return
-    if msg.get("hidden"):
-        return
-    role = msg.get("role")
-    content = msg.get("content", "")
-    fname = msg.get("file_name", "")
-
-    # Time display (HH:MM DD.MM.YYYY, same format as the assistant chat)
-    ts_display = format_ts_label(msg.get("ts", ""))
-
-    if role == "user":
-        _render_user_message(msg, content, fname, ts_display, lang)
-    elif role == "assistant":
-        _render_assistant_message(slug, lang, idx, msg, content, ts_display,
-                                  last_assistant_idx, agent_is_active)
-
-
-def _render_user_message(msg: dict, content: str, fname: str, ts_display: str, lang: str) -> None:
-    """Render a user message with its attachment name and step events."""
-    user_events = msg.get("_events", [])
-    with st.chat_message("user"):
-        if fname:
-            st.caption(f"📎 {fname}")
-        st.markdown(content)
-        if user_events:
-            _render_events(user_events, lang)
-        if ts_display:
-            st.caption(f"🕐 {ts_display}")
-
-
-def _render_assistant_message(slug: str, lang: str, idx: int, msg: dict, content: str,
-                              ts_display: str, last_assistant_idx, agent_is_active: bool) -> None:
-    """Render an assistant answer, its step events and its copy controls."""
-    if not content:
-        return
-    display, has_tool_calls = _strip_tool_calls_for_message(content)
-    stored_events = msg.get("_events", [])
-    with st.chat_message("assistant"):
-        if display:
-            st.markdown(display)
-        elif not stored_events:
-            st.caption(t("devagent_agent_step_compact", lang=lang))
-        if stored_events:
-            _render_events(stored_events, lang)
-        # Download/copy controls appear on every plain-prose LLM
-        # answer that carries no tool calls; the live step keeps
-        # them hidden until the agent loop finishes.
-        show_controls = bool(display) and not has_tool_calls
-        if show_controls and idx == last_assistant_idx and agent_is_active:
-            show_controls = False
-        if show_controls:
-            _render_message_controls(slug, idx, display, lang)
-        if ts_display:
-            st.caption(f"🕐 {ts_display}")
-
-
-def _render_message_controls(slug: str, idx: int, display: str, lang: str) -> None:
-    """Render the four download/copy buttons of one answer."""
-    dl_fname = f"orchestrator_message_{slug}_{idx}"
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.download_button(
-            t("chat_dl_md", lang=lang), data=display.encode("utf-8"),
-            file_name=f"{dl_fname}.md", mime="text/markdown",
-            key=f"orch_dl_md_{slug}_{idx}", use_container_width=True,
-        )
-    with col2:
-        st.download_button(
-            t("chat_dl_txt", lang=lang), data=_md_to_txt(display).encode("utf-8"),
-            file_name=f"{dl_fname}.txt", mime="text/plain",
-            key=f"orch_dl_txt_{slug}_{idx}", use_container_width=True,
-        )
-    with col3:
-        clipboard_button(display, key=f"orch_cp_md_{slug}_{idx}", label=t("chat_cp_md", lang=lang))
-    with col4:
-        clipboard_button(_md_to_txt(display), key=f"orch_cp_txt_{slug}_{idx}", label=t("chat_cp_txt", lang=lang))
-
-
-def _render_loop_status(slug: str, lang: str, loop_state) -> None:
-    """Render the status bar and the parked confirmation dialogs."""
-    if loop_state is None:
-        return
-    if loop_state.phase == "error":
-        st.error(loop_state.error_message or t("orch_unknown_error", lang=lang))
-        return
-    if loop_state.phase != "done":
-        return
-    status = loop_state.final_status
-    if status == "stopped_by_user":
-        st.warning(t("orch_stopped_by_user", lang=lang))
-    elif status == "stopped_max_steps":
-        st.warning(t("orch_stopped_max_steps", lang=lang))
-    elif status == "awaiting_user":
-        st.info(t("orch_awaiting_user", lang=lang))
-    elif status == "awaiting_approval":
-        st.info(t("orch_awaiting_approval", lang=lang))
-    elif status == "awaiting_confirmation":
-        _render_danger_confirmation(slug, lang, loop_state)
-    elif status == "sanitized_required":
-        _render_sanitized_confirmation(slug, lang, loop_state)
-
-
-def _resume_after_confirmation(slug: str, lang: str, new_state, events: list) -> None:
-    """Store the resumed loop state, attach its events and continue the loop."""
-    # Attach events to the last assistant message for history.
-    if new_state.history and events:
-        for i in range(len(new_state.history) - 1, -1, -1):
-            if new_state.history[i].get("role") == "assistant":
-                new_state.history[i]["_events"] = events
-                break
-    _set_ss(slug, "loop_state", new_state)
-    _set_ss(slug, "history", new_state.history)
-    _do_step(slug=slug, lang=lang)
-    st.rerun()
-
-
-def _render_danger_confirmation(slug: str, lang: str, loop_state) -> None:
-    """Render the dangerous-operation confirmation dialog."""
-    tool = getattr(loop_state, "pending_confirmation_tool", None)
-    reasons = getattr(loop_state, "pending_confirmation_reasons", [])
-    code_snippet = getattr(loop_state, "pending_confirmation_code", "")
-    if not tool:
-        return
-    st.warning(
-        t("orch_confirm_title", lang=lang) + "\n\n"
-        + t("orch_confirm_desc", lang=lang) + "\n\n"
-        + t("orch_confirm_tool", lang=lang, tool=tool)
-    )
-    if code_snippet:
-        st.code(code_snippet, language="python", line_numbers=True)
-    if reasons:
-        st.markdown(t("orch_confirm_reasons_title", lang=lang))
-        for r in reasons:
-            st.markdown(f"- {r}")
-    st.markdown("---")
-    _render_confirmation_buttons(
-        slug, lang, loop_state,
-        approve_fn=approve_pending_confirmation,
-        deny_fn=deny_pending_confirmation,
-        approve_key=f"orch_allow_danger_{slug}",
-        deny_key=f"orch_deny_danger_{slug}",
-        approve_label_key="orch_allow_execute",
-        deny_label_key="orch_deny_execute",
-    )
-
-
-def _render_sanitized_confirmation(slug: str, lang: str, loop_state) -> None:
-    """Render the withheld-content confirmation dialog."""
-    sanitized_events = getattr(loop_state, "sanitized_events", [])
-    if not sanitized_events:
-        return
-    st.warning(
-        t("orch_sanitized_title", lang=lang) + "\n\n"
-        + t("orch_sanitized_desc", lang=lang)
-    )
-    for info in sanitized_events:
-        reason = info.get("reason", "")
-        tool_name = info.get("tool", "")
-        file_path = info.get("path", "")
-        detail_parts = [reason]
-        if file_path:
-            detail_parts.insert(0, t("orch_sanitized_file_line", lang=lang).format(file_path=file_path))
-        if tool_name:
-            detail_parts.insert(0, t("orch_sanitized_tool_line", lang=lang).format(tool_name=tool_name))
-        st.code("\n".join(detail_parts), language="")
-    st.markdown("---")
-    _render_confirmation_buttons(
-        slug, lang, loop_state,
-        approve_fn=approve_sanitized_content,
-        deny_fn=deny_sanitized_content,
-        approve_key=f"orch_allow_sanitized_{slug}",
-        deny_key=f"orch_deny_sanitized_{slug}",
-        approve_label_key="orch_allow_view",
-        deny_label_key="orch_deny_view",
-    )
-
-
-def _render_confirmation_buttons(slug: str, lang: str, loop_state, *,
-                                 approve_fn, deny_fn, approve_key: str, deny_key: str,
-                                 approve_label_key: str, deny_label_key: str) -> None:
-    """Render the allow/deny pair shared by both confirmation dialogs.
-
-    Allowing resumes the parked call with a live dispatcher, so the loop can
-    execute the operation it was waiting on; denying resumes it without one.
-    """
-    col_allow, col_deny = st.columns(2)
-    with col_allow:
-        if st.button(
-            t(approve_label_key, lang=lang),
-            key=approve_key,
-            type="primary",
-            use_container_width=True,
-        ):
-            dispatcher = _make_dispatcher(slug)
-            dispatcher.core.set_send_request(_make_send_adapter(lang, slug))
-            events: list = []
-
-            def on_event(ev):
-                events.append(ev)
-
-            new_state = approve_fn(loop_state, dispatcher, lang=lang, on_event=on_event)
-            _resume_after_confirmation(slug, lang, new_state, events)
-    with col_deny:
-        if st.button(
-            t(deny_label_key, lang=lang),
-            key=deny_key,
-            type="secondary",
-            use_container_width=True,
-        ):
-            events: list = []
-
-            def on_event(ev):
-                events.append(ev)
-
-            new_state = deny_fn(loop_state, lang=lang, on_event=on_event)
-            _resume_after_confirmation(slug, lang, new_state, events)
-
-
-def _handle_chat_submission(slug: str, lang: str, orch) -> None:
-    """Render the input row and process a submitted message."""
-    with st.bottom:
-        _render_folder_picker(slug, lang)
-        _chat_prompt = st.chat_input(
-            t("orch_input_placeholder", lang=lang),
-            accept_file="multiple",
-        )
-        _render_chat_toolbar(slug, lang)
-
-    _prompt_text, _prompt_files = _split_chat_prompt(_chat_prompt)
-
-    if not (_prompt_text.strip() or _prompt_files):
-        return
-
-    # Files arrive together with the text from the single chat input
-    # (accept_file="multiple"); raw bytes are persisted UNCHANGED and
-    # the agent decides later how to extract them.
-    _msg_text = _build_submission_text(_prompt_text, _prompt_files, lang)
-    # A folder picked in "Выбор папки" is applied HERE, before the
-    # model is called: the workspace switch happens automatically
-    # (set_workspace + thread binding), so the agent never spends a
-    # step doing it itself. No-op once the selector snapped to "Авто".
-    _apply_folder_choice(slug)
-    _ensure_thread(slug, orch, _msg_text)
-    ctx_text, name = _collect_attachment_context(slug, _prompt_files, lang)
-    _set_ss(slug, "file_ctx", ctx_text)
-    _set_ss(slug, "file_name", name)
-    _set_ss(slug, "user_message", _msg_text)
-    _set_ss(slug, "scroll_bottom", True)
-    _do_step(slug=slug, lang=lang)
-    st.rerun()
-
-
-def _build_submission_text(prompt_text: str, prompt_files: list, lang: str) -> str:
-    """Return the task line of a submission.
-
-    A files-only submission still needs one: the agent loop ignores an empty
-    user_message, so the names of the attached files become the task line.
-    """
-    msg_text = prompt_text.strip()
-    if not msg_text and prompt_files:
-        names = ", ".join(
-            getattr(f, "name", "") for f in prompt_files
-            if getattr(f, "name", "")
-        )
-        msg_text = t("orch_attach_only_message", lang=lang, names=names).strip()
-    return msg_text
-
-
-def _ensure_thread(slug: str, orch, msg_text: str) -> None:
-    """Create and bind the dialog thread of the first message."""
-    if _ss(slug, "thread_id"):
-        return
-    orch_obj = orch or {}
-    ws_info = wt.current_workspace()
-    # The empty state ("no folder selected") is persisted as NO
-    # folder: the neutral root must never be recorded as if the
-    # user had chosen it.
-    ws_selected = bool(ws_info.get("workspace_selected", True))
-    tid = create_devagent_thread(
-        title=msg_text,
-        orchestrator_slug=slug,
-        orchestrator_name=orch_obj.get("name", slug),
-        workspace=(ws_info.get("root", "") or None) if ws_selected else None,
-        target_file=((ws_info.get("target_file", "") or None)
-                     if (ws_selected and ws_info.get("single_file_mode")) else None),
-    )
-    _set_ss(slug, "thread_id", tid)
-    _set_ss(slug, "saved_msg_count", 0)
-    # Bind the brand-new thread to the folder chosen for THIS
-    # dialog, so the thread binding is authoritative from the very
-    # first message instead of waiting for the next render to
-    # lazily snapshot the live config.
-    if ws_selected and ws_info.get("root"):
-        try:
-            wb.register_thread(
-                tid,
-                workspace=ws_info.get("root", ""),
-                target_file=((ws_info.get("target_file") or None)
-                             if ws_info.get("single_file_mode") else None),
-            )
-        except Exception:
-            pass
-
-
-def _collect_attachment_context(slug: str, prompt_files: list, lang: str) -> tuple:
-    """Persist the submitted attachments and build the notice for the agent.
-
-    Every file is stored as raw bytes under history/<tid>/files - the agent
-    decides later how to extract it. The returned text carries the notice of
-    this upload plus the registry of the dialog's earlier workspace files, so
-    the agent still knows them when economy mode dropped the first turns.
-    """
-    ctx_text, name = "", ""
-    tid = _ss(slug, "thread_id")
-    if not tid:
-        return ctx_text, name
-    ws_root = wt.current_workspace().get("root", "")
-    saved_names = []
-    for uf in prompt_files:
-        try:
-            data = uf.read()
-        except Exception:
-            continue
-        if len(data) > MAX_THREAD_FILE_BYTES:
-            st.error(t("orch_file_too_large_bytes", lang=lang,
-                       max_bytes=MAX_THREAD_FILE_BYTES))
-            continue
-        try:
-            save_thread_file_data(tid, getattr(uf, "name", ""), bytes(data))
-            saved_names.append(getattr(uf, "name", ""))
-        except Exception:
-            continue
-    if saved_names:
-        # Tell the agent exactly which files belong to this dialog.
-        # The notice lists names, absolute paths, sizes and the
-        # text/binary classification - without extracting content.
-        ctx_text = build_thread_files_notice(list_thread_files(tid))
-        name = ", ".join(n for n in saved_names if n)
-    # Re-announce ALL legacy workspace attachments on every message
-    # so the agent still knows them when economy mode has dropped
-    # the beginning of the conversation.
-    registry = build_saved_files_registry(_load_attachments_manifest(ws_root, tid))
-    if registry:
-        ctx_text = f"{ctx_text}\n\n{registry}" if ctx_text else registry
-    return ctx_text, name
-
-
-def _cancel_dialog_tree(slug: str, loop_state) -> None:
-    """Cancel the whole run tree of this dialog.
-
-    Child runs never see the dialog's stop flag, so without this cascade they
-    would keep working after the user pressed Stop and burn provider tokens.
-    """
-    try:
-        from core.orchestration.service import get_service
-        _root = (getattr(loop_state, "run_id", "") or _ss(slug, "thread_id") or "").strip()
-        if _root:
-            get_service().cancel(_root, cascade=True)
-    except Exception:
-        pass
-
-
-def _render_active_controls(slug: str, lang: str, loop_state) -> None:
-    """Render the Stop button and drive the next loop step while active."""
-    if st.button(t("orch_stop_btn", lang=lang), key=f"orch_stop_{slug}",
-                 type="secondary", use_container_width=True):
-        _cancel_dialog_tree(slug, loop_state)
-        _set_ss(slug, "stop_requested", True)
-        st.rerun()
-    with st.spinner(t("orch_thinking", lang=lang)):
-        _do_step(slug=slug, lang=lang)
-    st.rerun()
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  TAB: SETTINGS
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _services_with_web_search() -> dict:
-    all_svc = get_services()
-    result = {}
-    for name, svc in all_svc.items():
-        tools = svc.get("tools_options", [])
-        for tool in tools:
-            if tool.get("key") == "web_search":
-                result[name] = svc
-                break
-    return result
-
-
-def _temp_slider(svc_def: dict, lang: str, label: str, default_val: float, widget_key: str) -> float:
-    t_min = float(svc_def.get("temp_min", 0.0))
-    t_max = float(svc_def.get("temp_max", 1.0))
-    t_step = float(svc_def.get("temp_step", 0.05))
-    clamped = max(t_min, min(t_max, default_val))
-    return st.slider(label, min_value=t_min, max_value=t_max, value=clamped, step=t_step,
-                     key=widget_key, help=t("orch_temperature_label_help", lang=lang))
-
-
-def _render_optional_model_section(slug: str, lang: str, cfg: dict, service_names: list,
-                                   services: dict, catalog_fn, section_key: str,
-                                   no_services_key: str, config_prefix: str,
-                                   help_key: str = "") -> tuple:
-    """Render one optional model block (image recognition or image generation).
-
-    The service selectbox carries the "not selected" option that switches the
-    optional capability off; the model selectbox appears only after a service
-    is picked and lists the catalog models declared by that service.
-
-    ``catalog_fn`` is get_vision_models / get_image_models, ``config_prefix``
-    is "vision" or "image" (<prefix>_service / <prefix>_model). Returns the
-    selected pair; ("", "") means "not assigned".
-    """
-    st.markdown(t(section_key, lang=lang))
-    if help_key:
-        st.caption(t(help_key, lang=lang))
-    catalog_services = {name: svc for name, svc in services.items() if catalog_fn(svc)}
-    if not catalog_services:
-        st.caption(t(no_services_key, lang=lang))
-        return "", ""
-    unset_label = t("orch_model_unset_option", lang=lang)
-    cur_svc, cur_mdl = _current_optional_pair(slug, lang, cfg, config_prefix,
-                                              catalog_fn, catalog_services)
-    svc_options = [unset_label] + [n for n in service_names if n in catalog_services]
-    col_a, col_b = st.columns(2)
-    with col_a:
-        picked = st.selectbox(t("orch_service_label", lang=lang), options=svc_options,
-                              index=svc_options.index(cur_svc) if cur_svc in svc_options else 0,
-                              key=f"orch_set_{config_prefix}_svc_{slug}",
-                              help=t("orch_service_label_help", lang=lang))
-    sel_svc = "" if picked == unset_label else picked
-    sel_mdl = ""
-    if sel_svc:
-        model_ids = [m["id"] if isinstance(m, dict) else m
-                     for m in catalog_fn(catalog_services[sel_svc])]
-        with col_b:
-            sel_mdl = st.selectbox(t("orch_model_label", lang=lang), options=model_ids,
-                                   index=model_ids.index(cur_mdl) if cur_mdl in model_ids else 0,
-                                   key=f"orch_set_{config_prefix}_mdl_{slug}",
-                                   help=t("orch_model_label_help", lang=lang))
-    return sel_svc, sel_mdl
-
-
-def _current_optional_pair(slug: str, lang: str, cfg: dict, config_prefix: str,
-                           catalog_fn, catalog_services: dict) -> tuple:
-    """Return the stored (service, model) pair, warning about stale entries.
-
-    A stored service that the catalog no longer offers, or a stored model that
-    the service no longer declares, is reported and cleared so the selectboxes
-    fall back to their first option instead of silently keeping a dead pair.
-    """
-    cur_svc = str(cfg.get(config_prefix + "_service", "") or "")
-    cur_mdl = str(cfg.get(config_prefix + "_model", "") or "")
-    if cur_svc and cur_svc not in catalog_services:
-        st.warning(t("orch_service_unavailable", lang=lang, service=cur_svc))
-        return "", ""
-    if cur_svc:
-        cur_ids = [m["id"] if isinstance(m, dict) else m
-                   for m in catalog_fn(catalog_services[cur_svc])]
-        if cur_mdl and cur_mdl not in cur_ids:
-            st.warning(t("orch_model_unavailable", lang=lang,
-                         model=cur_mdl, service=cur_svc))
-            cur_mdl = ""
-    return cur_svc, cur_mdl
-
-
-# ─── Settings sections (shared with ui.pages.orchestrator_settings) ────────────
-
-#: Stable identifiers of the settings sections, in tab order. Tab labels are
-#: translated, so a requested section is tracked by its id and mapped to a
-#: label only at render time.
-SETTINGS_SECTIONS = (
-    "models", "prompt", "economy", "functions", "instructions",
-    "skills", "rag_bases", "connections", "memory", "delegation", "other",
-)
-
-
-def pin_settings_section(slug: str, section: str) -> None:
-    """Ask the settings page to reopen *section* on the next render pass.
-
-    A save handler calls this before ``st.rerun()``: the page reads the
-    request before it creates the tabs and activates the matching one, so a
-    save keeps the user in the section they were editing instead of dropping
-    them on the first tab.
-    """
-    if section in SETTINGS_SECTIONS:
-        st.session_state[settings_section_key(slug)] = section
-
-
-def settings_save_failed(slug: str, section: str, message_key: str,
-                         lang: str) -> None:
-    """Report a failed settings save and keep the user in *section*.
-
-    The message is queued and the page is rerun: the next pass paints it
-    below the page content, so the error is visible together with the very
-    section whose save failed.
-    """
-    pin_settings_section(slug, section)
-    flash_error(t(message_key, lang=lang))
-    st.rerun()
-
-
-def _render_models_settings(slug: str, lang: str) -> None:
-    """Render the model-assignment settings of one orchestrator.
-
-    One main model serves every task; the optional capabilities (vision,
-    image generation, page fetch) are separate assignments that stay off
-    while unset. The web-search model is a separate provider pair because
-    only services with a search catalog can answer a search request.
-    """
-    orch = get_orchestrator(slug)
-    if orch is None:
-        st.error(t("orch_not_found", lang=lang))
-        return
-    cfg = orch.get("config", {})
-    services = get_services()
-    service_names = list(services.keys())
-    if not service_names:
-        st.info(t("orch_no_services", lang=lang))
-        return
-
-    strong = _render_strong_model_section(slug, lang, cfg, service_names, services)
-    optional = _render_optional_capability_sections(slug, lang, cfg, service_names, services)
-    search = _render_search_model_section(slug, lang, cfg)
-
-    # Save models
-    if st.button(t("orch_save_models_btn", lang=lang), key=f"orch_save_models_{slug}", type="primary"):
-        _save_models_settings(slug, lang, cfg, strong, optional, search)
-
-
-def _warn_unavailable_pair(lang: str, cfg: dict, svc_key: str, mdl_key: str,
-                           service_names: list, services: dict) -> None:
-    """Warn when the stored pair names a service or model that is gone.
-
-    A silently missing entry would look like an empty selection while the
-    stored value keeps its old pair, so the user never learns that the
-    assignment is dead.
-    """
-    saved_svc = cfg.get(svc_key, "")
-    saved_mdl = cfg.get(mdl_key, "")
-    if saved_svc and saved_svc not in service_names:
-        st.warning(t("orch_service_unavailable", lang=lang, service=saved_svc))
-    elif saved_svc in service_names:
-        if saved_mdl and saved_mdl not in _model_ids(services.get(saved_svc, {})):
-            st.warning(t("orch_model_unavailable", lang=lang,
-                         model=saved_mdl, service=saved_svc))
-
-
-def _render_reasoning_effort(slug: str, lang: str, svc_def: dict, model: str,
-                             current: str, key_suffix: str, strong: bool) -> str:
-    """Render the reasoning-effort selector when the service supports it."""
-    if not service_supports_reasoning_effort(svc_def):
-        return ""
-    effort = str(current or "").strip()
-    options = get_model_reasoning_effort_options(svc_def, model)
-    if not effort or effort not in options:
-        effort = default_reasoning_effort(svc_def, strong=strong, model=model) or (options[0] if options else "")
-    if not options:
-        return ""
-    return st.selectbox(
-        t("orch_reasoning_effort_label", lang=lang),
-        options=options,
-        index=options.index(effort) if effort in options else 0,
-        key=f"orch_set_{key_suffix}_{slug}",
-        help=t("orch_reasoning_effort_label_help", lang=lang),
-    )
-
-
-def _render_strong_model_section(slug: str, lang: str, cfg: dict,
-                                 service_names: list, services: dict) -> dict:
-    """Render the main model pair, its temperature and its token limit."""
-    # Main model (single model for all tasks)
-    st.markdown(t("orch_strong_model_section", lang=lang))
-    cur_strong_svc = cfg.get("strong_service", "") or service_names[0]
-    if cur_strong_svc not in service_names:
-        cur_strong_svc = service_names[0]
-    cur_strong_mdl = cfg.get("strong_model", "")
-    cur_strong_temp = float(cfg.get("strong_temperature", 0.4) or 0.4)
-
-    _warn_unavailable_pair(lang, cfg, "strong_service", "strong_model",
-                           service_names, services)
-
-    col_s1, col_s2 = st.columns(2)
-    with col_s1:
-        sel_strong_svc = st.selectbox(t("orch_service_label", lang=lang), options=service_names,
-                                       index=service_names.index(cur_strong_svc),
-                                       key=f"orch_set_strong_svc_{slug}",
-                                       help=t("orch_service_label_help", lang=lang))
-    with col_s2:
-        model_ids = _model_ids(services.get(sel_strong_svc, {}))
-        if cur_strong_mdl not in model_ids and model_ids:
-            cur_strong_mdl = model_ids[0]
-        mdl_idx = model_ids.index(cur_strong_mdl) if cur_strong_mdl in model_ids else 0
-        sel_strong_mdl = st.selectbox(t("orch_model_label", lang=lang), options=model_ids if model_ids else [cur_strong_mdl],
-                                       index=mdl_idx, key=f"orch_set_strong_mdl_{slug}",
-                                       help=t("orch_model_label_help", lang=lang))
-
-    strong_svc_def = services.get(sel_strong_svc, {})
-    sel_strong_temp = _temp_slider(strong_svc_def, lang, t("orch_temperature_label", lang=lang), cur_strong_temp,
-                                     f"orch_set_strong_temp_{slug}")
-
-    sel_strong_re = _render_reasoning_effort(
-        slug, lang, strong_svc_def, sel_strong_mdl,
-        cfg.get("strong_reasoning_effort", ""), "strong_re", strong=True)
-
-    cur_strong_max_tokens = int(cfg.get("strong_max_tokens", 0) or 0)
-    strong_limit = _get_max_tokens_limit(strong_svc_def, sel_strong_mdl)
-    if cur_strong_max_tokens > strong_limit:
-        cur_strong_max_tokens = strong_limit
-    sel_strong_max_tokens = st.number_input(t("orch_max_tokens", lang=lang), min_value=0, max_value=strong_limit,
-                                             value=cur_strong_max_tokens, step=256,
-                                             help=t("orch_max_tokens_help", lang=lang),
-                                             key=f"orch_set_strong_max_tokens_{slug}")
-    st.caption(t("orch_max_tokens_hint", lang=lang, max=f"{strong_limit:,}"))
-    return {"service": sel_strong_svc, "model": sel_strong_mdl,
-            "temperature": sel_strong_temp, "max_tokens": sel_strong_max_tokens,
-            "reasoning_effort": sel_strong_re}
-
-
-def _render_optional_capability_sections(slug: str, lang: str, cfg: dict,
-                                         service_names: list, services: dict) -> dict:
-    """Render the vision, image-generation and page-fetch assignments.
-
-    Optional image-model sections carry ("", "") while the capability stays
-    switched off. Selenium is an alternative transport: while it is on, the
-    page-fetch selectors are hidden because the main model converts the page,
-    but the stored pair is kept and comes back when the checkbox is cleared.
-    """
-    vision_svc, vision_mdl = _render_optional_model_section(
-        slug, lang, cfg, service_names, services, get_vision_models,
-        "orch_vision_model_section", "orch_no_vision_services", "vision",
-        help_key="orch_vision_model_help")
-    image_svc, image_mdl = _render_optional_model_section(
-        slug, lang, cfg, service_names, services, get_image_models,
-        "orch_image_model_section", "orch_no_image_services", "image",
-        help_key="orch_image_model_help")
-    sel_fetch_selenium = st.checkbox(
-        t("orch_fetch_selenium_label", lang=lang),
-        value=bool(cfg.get("fetch_selenium")),
-        key=f"orch_set_fetch_selenium_{slug}",
-        help=t("orch_fetch_selenium_help", lang=lang),
-    )
-
-    # Page fetch is a per-provider Search/Fetch API: only services that
-    # declare a fetch catalog are offered. An unassigned pair keeps the
-    # url_fetch tool absent from the orchestrator's tool set.
-    if sel_fetch_selenium:
-        st.caption(t("orch_fetch_selenium_main_model", lang=lang))
-        fetch_svc = str(cfg.get("fetch_service", "") or "")
-        fetch_mdl = str(cfg.get("fetch_model", "") or "")
-    else:
-        fetch_svc, fetch_mdl = _render_optional_model_section(
-            slug, lang, cfg, service_names, services, get_fetch_models,
-            "orch_fetch_model_section", "orch_no_fetch_services", "fetch",
-            help_key="orch_fetch_model_help")
-    return {"vision_service": vision_svc, "vision_model": vision_mdl,
-            "image_service": image_svc, "image_model": image_mdl,
-            "fetch_service": fetch_svc, "fetch_model": fetch_mdl,
-            "fetch_selenium": sel_fetch_selenium}
-
-
-def _render_search_model_section(slug: str, lang: str, cfg: dict) -> dict:
-    """Render the web-search provider pair, its limits and its prompt."""
-    st.markdown(t("orch_search_model_section", lang=lang))
-    search_services = _services_with_web_search()
-    search_svc_names = list(search_services.keys())
-    cur_search_mdl = cfg.get("search_model", "")
-    cur_search_temp = float(cfg.get("search_temperature", 0.3) or 0.3)
-    cur_search_mtc = int(cfg.get("search_max_tool_calls", 3) or 3)
-
-    if not search_svc_names:
-        st.warning(t("orch_no_search_services", lang=lang))
-        search = {"service": "", "model": "", "temperature": 0.3,
-                  "max_tool_calls": 3, "reasoning_effort": ""}
-    else:
-        search = _render_search_pair(slug, lang, cfg, search_services, search_svc_names,
-                                     cur_search_mdl, cur_search_temp, cur_search_mtc)
-
-    search["prompt"] = _render_search_prompt(slug, lang, cfg)
-    return search
-
-
-def _render_search_pair(slug: str, lang: str, cfg: dict, search_services: dict,
-                        search_svc_names: list, cur_search_mdl: str,
-                        cur_search_temp: float, cur_search_mtc: int) -> dict:
-    """Render the search service/model pair with its limits."""
-    cur_search_svc = cfg.get("search_service", "")
-    if cur_search_svc not in search_svc_names:
-        cur_search_svc = search_svc_names[0] if search_svc_names else ""
-
-    _warn_unavailable_pair(lang, cfg, "search_service", "search_model",
-                           search_svc_names, search_services)
-
-    col_wb1, col_wb2 = st.columns(2)
-    with col_wb1:
-        sel_search_svc = st.selectbox(t("orch_service_label", lang=lang), options=search_svc_names,
-                                       index=search_svc_names.index(cur_search_svc) if cur_search_svc in search_svc_names else 0,
-                                       key=f"orch_set_search_svc_{slug}",
-                                       help=t("orch_service_label_help", lang=lang))
-    with col_wb2:
-        model_ids_search = _model_ids(search_services.get(sel_search_svc, {}))
-        if not model_ids_search:
-            model_ids_search = [cur_search_mdl] if cur_search_mdl else []
-        if cur_search_mdl not in model_ids_search and model_ids_search:
-            cur_search_mdl = model_ids_search[0]
-        mdl_idx_s = model_ids_search.index(cur_search_mdl) if cur_search_mdl in model_ids_search else 0
-        sel_search_mdl = st.selectbox(t("orch_model_label", lang=lang), options=model_ids_search,
-                                       index=mdl_idx_s, key=f"orch_set_search_mdl_{slug}",
-                                       help=t("orch_model_label_help", lang=lang))
-
-    search_svc_def = search_services.get(sel_search_svc, {})
-    sel_search_temp = _temp_slider(search_svc_def, lang, t("orch_temperature_label", lang=lang), cur_search_temp,
-                                    f"orch_set_search_temp_{slug}")
-    sel_search_mtc = st.slider(t("orch_max_tool_calls", lang=lang), min_value=1, max_value=7,
-                                value=cur_search_mtc, step=1, key=f"orch_set_search_mtc_{slug}",
-                                help=t("orch_max_tool_calls_help", lang=lang))
-    sel_search_re = _render_reasoning_effort(
-        slug, lang, search_svc_def, sel_search_mdl,
-        cfg.get("search_reasoning_effort", ""), "search_re", strong=False)
-    return {"service": sel_search_svc, "model": sel_search_mdl,
-            "temperature": sel_search_temp, "max_tool_calls": sel_search_mtc,
-            "reasoning_effort": sel_search_re}
-
-
-def _render_search_prompt(slug: str, lang: str, cfg: dict) -> str:
-    """Render the web-search system prompt, falling back to the global one."""
-    cur_search_prompt = str(cfg.get("web_search_prompt", "") or "").strip()
-    if not cur_search_prompt:
-        cur_search_prompt = get_web_search_config(slug).get("prompt", "")
-    return st.text_area(
-        t("orch_search_prompt_label", lang=lang),
-        value=cur_search_prompt,
-        height=120,
-        key=f"orch_set_search_prompt_{slug}",
-        help=t("orch_search_prompt_help", lang=lang),
-    )
-
-
-def _save_models_settings(slug: str, lang: str, cfg: dict, strong: dict,
-                          optional: dict, search: dict) -> None:
-    """Persist the model block and report the outcome."""
-    new_cfg = dict(cfg)
-    new_cfg["strong_service"] = strong["service"]
-    new_cfg["strong_model"] = strong["model"]
-    new_cfg["strong_temperature"] = strong["temperature"]
-    new_cfg["strong_max_tokens"] = strong["max_tokens"]
-    new_cfg["strong_reasoning_effort"] = strong["reasoning_effort"]
-    new_cfg.update(optional)
-    # Single-model mode: drop legacy weak_* leftovers on save.
-    for _legacy_key in ("weak_service", "weak_model", "weak_temperature",
-                        "weak_max_tokens", "weak_reasoning_effort"):
-        new_cfg.pop(_legacy_key, None)
-    new_cfg["search_service"] = search["service"]
-    new_cfg["search_model"] = search["model"]
-    new_cfg["search_temperature"] = search["temperature"]
-    new_cfg["search_max_tool_calls"] = search["max_tool_calls"]
-    new_cfg["search_reasoning_effort"] = search["reasoning_effort"]
-    new_cfg["web_search_prompt"] = search["prompt"]
-    if save_orchestrator(slug, config=new_cfg):
-        pin_settings_section(slug, "models")
-        flash_success(t("orch_save_models_ok", lang=lang))
-        st.rerun()
-    else:
-        settings_save_failed(slug, "models", "orch_save_models_error", lang)
-
-
-def _render_prompt_settings(slug: str, lang: str) -> None:
-    orch = get_orchestrator(slug)
-    if orch is None:
-        st.error(t("orch_not_found", lang=lang))
-        return
-    prompt_text = orch.get("prompt_text", "")
-
-    st.markdown(t("orch_prompt_section", lang=lang))
-    st.caption(t("orch_prompt_label_help", lang=lang))
-    is_builtin = bool(orch.get("is_builtin"))
-    cfg = orch.get("config", {}) or {}
-    prompt_edited = is_builtin and cfg.get("prompt_user_edited") is True
-    if prompt_edited:
-        st.info(t("orch_prompt_edited_notice", lang=lang))
-    new_prompt = st.text_area(
-        label=t("orch_prompt_label", lang=lang),
-        value=prompt_text,
-        height=400,
-        key=f"orch_prompt_{slug}",
-        label_visibility="collapsed",
-    )
-    if st.button(t("orch_save_prompt_btn", lang=lang), key=f"orch_save_prompt_{slug}", type="primary"):
-        if save_orchestrator(slug, prompt_text=new_prompt):
-            # Drop the widget state so the field re-reads the stored prompt,
-            # then ask the page to reopen this section after the rerun.
-            st.session_state.pop(f"orch_prompt_{slug}", None)
-            pin_settings_section(slug, "prompt")
-            flash_success(t("orch_save_prompt_ok", lang=lang))
-            st.rerun()
-        else:
-            settings_save_failed(slug, "prompt", "orch_save_prompt_error", lang)
-    if prompt_edited:
-        if st.button(t("orch_prompt_reset_btn", lang=lang), key=f"orch_reset_prompt_{slug}"):
-            if reset_builtin_prompt(slug):
-                st.session_state.pop(f"orch_prompt_{slug}", None)
-                pin_settings_section(slug, "prompt")
-                flash_success(t("orch_prompt_reset_ok", lang=lang))
-                st.rerun()
-            else:
-                settings_save_failed(slug, "prompt", "orch_prompt_reset_error", lang)
-
-
-def _render_economy_settings(slug: str, lang: str) -> None:
-    orch = get_orchestrator(slug)
-    if orch is None:
-        st.error(t("orch_not_found", lang=lang))
-        return
-    economy_config = get_economy_config(slug)
-    cur_tail = min(100, max(4, int(economy_config.get("tail_messages", get_economy_tail_messages(slug)))))
-    cur_cache_enabled = bool(economy_config.get("cache_enabled", False))
-    cur_multiplier = int(economy_config.get("cache_multiplier", 2))
-
-    st.markdown(t("orch_economy_section", lang=lang))
-    st.markdown(t("orch_economy_desc", lang=lang))
-
-    col_t1, col_t2 = st.columns([2, 1])
-    with col_t1:
-        sel_tail = st.slider(
-            t("orch_economy_tail_label", lang=lang),
-            min_value=4, max_value=100, value=cur_tail, step=2,
-            key=f"orch_economy_tail_{slug}",
-            help=t("orch_economy_tail_help", lang=lang),
-        )
-    with col_t2:
-        st.metric("L", sel_tail)
-
-    sel_cache_enabled = st.checkbox(
-        t("orch_economy_cache_label", lang=lang),
-        value=cur_cache_enabled,
-        key=f"orch_economy_cache_{slug}",
-        help=t("orch_economy_cache_help", lang=lang),
-    )
-
-    multiplier_options = [1, 2, 3, 4, 5]
-    if cur_multiplier not in multiplier_options:
-        cur_multiplier = 2
-    sel_multiplier = st.selectbox(
-        t("orch_economy_multiplier_label", lang=lang),
-        options=multiplier_options,
-        index=multiplier_options.index(cur_multiplier),
-        format_func=lambda x: f"x{x}",
-        key=f"orch_economy_multiplier_{slug}",
-        help=t("orch_economy_multiplier_help", lang=lang),
-    )
-
-    if st.button(t("orch_save_btn", lang=lang), key=f"orch_save_economy_{slug}", type="primary"):
-        cfg = orch.get("config", {})
-        new_cfg = dict(cfg)
-        new_cfg["economy_tail_messages"] = sel_tail
-        new_cfg["economy_cache_enabled"] = bool(sel_cache_enabled)
-        new_cfg["economy_cache_multiplier"] = int(sel_multiplier)
-        if save_orchestrator(slug, config=new_cfg):
-            pin_settings_section(slug, "economy")
-            flash_success(t("orch_economy_saved", lang=lang, tail=sel_tail))
-            st.rerun()
-        else:
-            settings_save_failed(slug, "economy", "orch_economy_save_error", lang)
-
-
-def _render_orch_system_tools(slug: str, lang: str) -> None:
-    """Manage enabled/disabled system tools (blacklist via disabled_tools)."""
-    st.markdown(t("orch_sysfunc_section_title", lang=lang))
-    st.markdown(t("orch_sysfunc_section_desc", lang=lang))
-
-    try:
-        system_tools = list_system_tools(slug)
-    except Exception:
-        system_tools = []
-
-    if not system_tools:
-        st.info(t("orch_sysfunc_empty", lang=lang))
-        return
-
-    disabled = set(get_disabled_tools(slug))
-    disabled_selected = []
-    for tool in system_tools:
-        name = str(tool.get("name") or "").strip()
-        if not name:
-            continue
-        desc = str(tool.get("desc") or "").strip()
-        checked = st.checkbox(
-            f"**{name}**",
-            value=(name not in disabled),
-            key=f"orch_sysfunc_{slug}_{name}",
-        )
-        if desc:
-            st.caption(f"\U0001f4dd {desc}")
-        if not checked:
-            disabled_selected.append(name)
-
-    st.markdown("---")
-    if st.button(t("orch_sysfunc_save_btn", lang=lang), key=f"orch_save_sysfunc_{slug}",
-                 type="primary"):
-        if set_disabled_tools(slug, disabled_selected):
-            pin_settings_section(slug, "functions")
-            flash_success(t("orch_sysfunc_saved", lang=lang))
-            st.rerun()
-        else:
-            settings_save_failed(slug, "functions", "orch_sysfunc_save_error", lang)
-
-
-def _render_orchestrator_functions_settings(slug: str, lang: str) -> None:
-    """Manage custom Python functions of this orchestrator (stored in folder)."""
-    st.markdown(t("orch_func_section_title", lang=lang))
-    st.markdown(t("orch_func_section_desc", lang=lang))
-
-    _render_orch_system_tools(slug, lang)
-
-    show_form = _ss(slug, "show_func_form") or False
-    edit_name = _ss(slug, "edit_func") or None
-
-    if show_form:
-        _render_function_form(slug, lang, edit_name)
-        return
-
-    if st.button(t("orch_func_create_btn", lang=lang), key=f"orch_func_create_{slug}", type="primary"):
-        _set_ss(slug, "show_func_form", True)
-        _set_ss(slug, "edit_func", None)
-        st.rerun()
-
-    _render_function_cards(slug, lang)
-
-
-def _render_function_cards(slug: str, lang: str) -> None:
-    """List the saved custom functions with edit and delete controls."""
-    functions = orch_list_functions(slug)
-    if not functions:
-        st.info(t("orch_func_empty", lang=lang))
-        return
-
-    for fn in functions:
-        with st.container(border=True):
-            c_info, c_edit, c_del = st.columns([7, 1, 1])
-            with c_info:
-                st.markdown(f"**{fn.get('name', '?')}**")
-                st.caption(f"📄 {fn.get('path', '')} · {fn.get('size_bytes', 0)} B")
-            with c_edit:
-                if st.button("✏️", key=f"orch_func_edit_{slug}_{fn['name']}"):
-                    _set_ss(slug, "show_func_form", True)
-                    _set_ss(slug, "edit_func", fn["name"])
-                    st.rerun()
-            with c_del:
-                if st.button("🗑", key=f"orch_func_del_{slug}_{fn['name']}"):
-                    orch_delete_function(slug, fn["name"])
-                    pin_settings_section(slug, "functions")
-                    flash_success(t("orch_func_deleted", lang=lang))
-                    st.rerun()
-
-
-def _render_function_form(slug: str, lang: str, edit_name) -> None:
-    """Render the create/edit form of one custom function."""
-    edit_data = orch_get_function(slug, edit_name) if edit_name else None
-    with st.container(border=True):
-        st.subheader(t("orch_func_edit_title", lang=lang) if edit_data else t("orch_func_create_title", lang=lang))
-        name = st.text_input(
-            t("orch_func_name_label", lang=lang),
-            value=edit_data.get("name", "") if edit_data else "",
-            disabled=bool(edit_data),
-            key=f"orch_func_name_{slug}",
-            help=t("orch_func_name_help", lang=lang),
-        )
-        code = st.text_area(
-            t("orch_func_code_label", lang=lang),
-            value=edit_data.get("code", "") if edit_data else "",
-            height=250,
-            key=f"orch_func_code_{slug}",
-            help=t("orch_func_code_help", lang=lang),
-        )
-        st.caption(t("orch_func_code_hint", lang=lang))
-        c1, c2 = st.columns([1, 4])
-        with c1:
-            if st.button(t("orch_instr_save_btn", lang=lang), type="primary",
-                         key=f"orch_func_save_{slug}"):
-                if not name.strip() or not code.strip():
-                    st.error(t("orch_func_required", lang=lang))
-                else:
-                    ok = orch_save_function(slug, name.strip(), code)
-                    if ok:
-                        _set_ss(slug, "show_func_form", False)
-                        _set_ss(slug, "edit_func", None)
-                        pin_settings_section(slug, "functions")
-                        flash_success(t("orch_func_saved", lang=lang))
-                        st.rerun()
-                    else:
-                        settings_save_failed(slug, "functions", "orch_func_save_error", lang)
-        with c2:
-            if st.button(t("orch_instr_cancel_btn", lang=lang), key=f"orch_func_cancel_{slug}"):
-                _set_ss(slug, "show_func_form", False)
-                _set_ss(slug, "edit_func", None)
-                st.rerun()
-
-
-def _render_orchestrator_instructions_settings(slug: str, lang: str) -> None:
-    """Manage orchestrator-specific instructions (stored in folder)."""
-    st.markdown(t("orch_oinstr_section_title", lang=lang))
-    st.markdown(t("orch_oinstr_section_desc", lang=lang))
-
-    show_form = _ss(slug, "show_oinstr_form") or False
-    edit_id = _ss(slug, "edit_oinstr") or None
-
-    if show_form:
-        _render_instruction_form(slug, lang, edit_id)
-        return
-
-    if st.button(t("orch_instr_create_btn", lang=lang), key=f"orch_oinstr_create_{slug}", type="primary"):
-        _set_ss(slug, "show_oinstr_form", True)
-        _set_ss(slug, "edit_oinstr", None)
-        st.rerun()
-
-    _render_instruction_cards(slug, lang)
-
-
-def _render_instruction_cards(slug: str, lang: str) -> None:
-    """List the saved instructions with edit and delete controls."""
-    instructions = orch_list_instructions(slug)
-    if not instructions:
-        st.info(t("orch_oinstr_empty", lang=lang))
-        return
-
-    for inst in instructions:
-        with st.container(border=True):
-            c_info, c_edit, c_del = st.columns([7, 1, 1])
-            with c_info:
-                st.markdown(f"**{inst.get('name', '?')}**")
-                if inst.get("description"):
-                    st.caption(f"📝 {inst['description']}")
-            with c_edit:
-                if st.button("✏️", key=f"orch_oinstr_edit_{slug}_{inst['id']}"):
-                    _set_ss(slug, "show_oinstr_form", True)
-                    _set_ss(slug, "edit_oinstr", inst["id"])
-                    st.rerun()
-            with c_del:
-                if st.button("🗑", key=f"orch_oinstr_del_{slug}_{inst['id']}"):
-                    orch_delete_instruction(slug, inst["id"])
-                    pin_settings_section(slug, "instructions")
-                    flash_success(t("orch_instr_deleted", lang=lang))
-                    st.rerun()
-
-
-def _render_instruction_form(slug: str, lang: str, edit_id) -> None:
-    """Render the create/edit form of one instruction."""
-    edit_data = orch_get_instruction(slug, edit_id) if edit_id else None
-    with st.container(border=True):
-        st.subheader(t("orch_edit_instr_title", lang=lang) if edit_data else t("orch_create_instr_title", lang=lang))
-        name = st.text_input(t("orch_instr_name_label", lang=lang), value=edit_data.get("name", "") if edit_data else "",
-                             key=f"orch_oinstr_name_{slug}",
-                             help=t("orch_instr_name_help", lang=lang))
-        description = st.text_input(t("orch_instr_desc_label", lang=lang), value=edit_data.get("description", "") if edit_data else "",
-                                    max_chars=200, key=f"orch_oinstr_desc_{slug}",
-                                    help=t("orch_instr_desc_help", lang=lang))
-        prompt_text = st.text_area(t("orch_instr_prompt_label", lang=lang),
-                                   value=edit_data.get("text", "") if edit_data else "",
-                                   height=250, key=f"orch_oinstr_prompt_{slug}",
-                                   help=t("orch_instr_prompt_help", lang=lang))
-        c1, c2 = st.columns([1, 4])
-        with c1:
-            if st.button(t("orch_instr_save_btn", lang=lang), type="primary", key=f"orch_oinstr_save_{slug}"):
-                if not name.strip() or not prompt_text.strip():
-                    st.error(t("orch_instr_required", lang=lang))
-                else:
-                    ok = orch_save_instruction(
-                        slug, instruction_id=edit_id or "", name=name.strip(),
-                        description=description.strip(), prompt_text=prompt_text,
-                    )
-                    if ok:
-                        _set_ss(slug, "show_oinstr_form", False)
-                        _set_ss(slug, "edit_oinstr", None)
-                        pin_settings_section(slug, "instructions")
-                        flash_success(t("orch_instr_saved", lang=lang))
-                        st.rerun()
-                    else:
-                        settings_save_failed(slug, "instructions", "orch_instr_save_error", lang)
-        with c2:
-            if st.button(t("orch_instr_cancel_btn", lang=lang), key=f"orch_oinstr_cancel_{slug}"):
-                _set_ss(slug, "show_oinstr_form", False)
-                _set_ss(slug, "edit_oinstr", None)
-                st.rerun()
-
-
-def _render_orch_skills_settings(slug: str, lang: str) -> None:
-    """Manage enabled standardized skills (Skills library) for this orchestrator."""
-    st.markdown(t("orch_skills_section_title", lang=lang))
-    st.markdown(t("orch_skills_section_desc", lang=lang))
-
-    try:
-        # Only skills adapted for SagaAI can be assigned to an orchestrator;
-        # non-adapted third-party skills remain visible in the Skills library
-        # page where they can be adapted.
-        all_skills = list_library_skills(adapted_only=True)
-    except Exception:
-        all_skills = []
-
-    if not all_skills:
-        st.info(t("orch_skills_empty", lang=lang))
-        st.markdown(t("orch_skills_empty_hint", lang=lang))
-        return
-
-    enabled = set(get_enabled_skills(slug))
-    selected = []
-    for skill_item in all_skills:
-        skill_id = skill_item["id"]
-        checked = st.checkbox(
-            f"**{skill_item['name']}** `{skill_id}`",
-            value=(skill_id in enabled),
-            key=f"orch_skill_{slug}_{skill_id}",
-        )
-        if skill_item.get("description"):
-            st.caption(f"📝 {skill_item['description']}")
-        st.caption(f"📁 {skill_item.get('folder', '')}")
-        if checked:
-            selected.append(skill_id)
-
-    st.markdown("---")
-    if st.button(t("orch_skills_save_btn", lang=lang), key=f"orch_save_skills_{slug}",
-                 type="primary"):
-        if set_enabled_skills(slug, selected):
-            pin_settings_section(slug, "skills")
-            flash_success(t("orch_skills_saved", lang=lang))
-            st.rerun()
-        else:
-            settings_save_failed(slug, "skills", "orch_skills_save_error", lang)
-
-
-def _render_orch_rag_bases(slug: str, lang: str) -> None:
-    """Assign RAG knowledge bases this orchestrator may use via rag_search."""
-    st.markdown(t("orch_rag_bases_section_title", lang=lang))
-    st.markdown(t("orch_rag_bases_section_desc", lang=lang))
-
-    try:
-        bases = list_bases_with_activity(with_stats=False)
-    except Exception:
-        bases = []
-
-    if not bases:
-        st.info(t("orch_rag_bases_empty", lang=lang))
-        return
-
-    if slug == DEVAGENT_SLUG:
-        st.info(t("orch_rag_bases_all_hint", lang=lang))
-        for b in bases:
-            bslug = str(b.get("slug") or "")
-            if not bslug:
-                continue
-            st.markdown(f"**{b.get('name') or bslug}** `{bslug}` "
-                        f"({str(b.get('status') or 'draft')})")
-            if not bool(b.get("active", True)):
-                st.caption("⚠ " + t("orch_rag_bases_inactive_hint", lang=lang))
-        return
-
-    assigned = set(get_orchestrator_rag_bases(slug))
-    if not assigned:
-        st.info(t("orch_rag_bases_none_allowed", lang=lang))
-    selected = []
-    for b in bases:
-        bslug = str(b.get("slug") or "")
-        if not bslug:
-            continue
-        checked = st.checkbox(
-            f"**{b.get('name') or bslug}** `{bslug}`",
-            value=(bslug in assigned),
-            key=f"orch_rag_base_{slug}_{bslug}",
-        )
-        if not bool(b.get("active", True)):
-            st.caption("⚠ " + t("orch_rag_bases_inactive_hint", lang=lang))
-        if checked:
-            selected.append(bslug)
-
-    st.markdown("---")
-    if st.button(t("orch_rag_bases_save_btn", lang=lang), key=f"orch_save_rag_bases_{slug}",
-                 type="primary"):
-        if set_orchestrator_rag_bases(slug, selected):
-            pin_settings_section(slug, "rag_bases")
-            flash_success(t("orch_rag_bases_saved", lang=lang))
-            st.rerun()
-        else:
-            settings_save_failed(slug, "rag_bases", "orch_rag_bases_save_error", lang)
-
-
-def _render_orch_connections(slug: str, lang: str) -> None:
-    """Manage enabled external-service connections for this orchestrator."""
-    st.markdown(t("orch_connections_section_title", lang=lang))
-    st.markdown(t("orch_connections_section_desc", lang=lang))
-
-    try:
-        all_conns = list_connections()
-    except Exception:
-        all_conns = []
-
-    if not all_conns:
-        st.info(t("orch_connections_empty", lang=lang))
-        return
-
-    enabled = set(get_enabled_connections(slug))
-    selected = []
-    for conn in all_conns:
-        conn_id = str(conn.get("id") or "")
-        if not conn_id:
-            continue
-        name = str(conn.get("name") or conn_id)
-        svc = str(conn.get("service") or "?")
-        account = str(conn.get("account") or "")
-        label = f"**{name}** `{conn_id}` ({svc})"
-        if account:
-            label += f" · {account}"
-        checked = st.checkbox(
-            label,
-            value=(conn_id in enabled),
-            key=f"orch_conn_{slug}_{conn_id}",
-        )
-        if checked:
-            selected.append(conn_id)
-
-    st.markdown("---")
-    if st.button(t("orch_connections_save_btn", lang=lang),
-                 key=f"orch_save_connections_{slug}",
-                 type="primary"):
-        if set_enabled_connections(slug, selected):
-            pin_settings_section(slug, "connections")
-            flash_success(t("orch_connections_saved", lang=lang))
-            st.rerun()
-        else:
-            settings_save_failed(slug, "connections", "orch_connections_save_error", lang)
-
-
-def _render_orch_memory(slug: str, lang: str) -> None:
-    """Manage the employee's working folder and its personal memory.
-
-    The working folder holds the role's domain material inside the project;
-    the personal memory is a note to self that lives in the installation.
-    """
-    from core import personal_memory as pm
-    from core.orchestrator_folders import default_data_dir_name, resolve_data_dir
-
-    st.markdown(t("orch_memory_section_title", lang=lang))
-    st.markdown(t("orch_memory_section_desc", lang=lang))
-
-    orch = get_orchestrator(slug)
-    if orch is None:
-        st.error(t("orch_not_found", lang=lang))
-        return
-    cfg = orch.get("config")
-    if not isinstance(cfg, dict):
-        cfg = {}
-    default_name = default_data_dir_name(slug)
-
-    # The workspace of THIS dialog, when it has one: the resolver needs it to
-    # turn a relative folder into an absolute path and to spot conflicts.
-    try:
-        workspace = _thread_folder(slug)
-    except Exception:
-        workspace = ""
-    resolved = resolve_data_dir(
-        slug, workspace,
-        prompt_text=str(orch.get("prompt_text") or ""),
-        config=cfg,
-    )
-
-    _render_memory_dir_section(slug, lang, cfg, resolved, default_name)
-
-    st.markdown("---")
-    scope = pm.format_scope(pm.SCOPE_ORCHESTRATOR, slug)
-    _render_memory_editor(slug, lang, pm, scope)
-
-
-def _render_memory_dir_section(slug: str, lang: str, cfg: dict, resolved: dict,
-                               default_name: str) -> None:
-    """Render the working-folder field, its resolution caption and the save button."""
-    new_dir = st.text_input(
-        t("orch_memory_dir_label", lang=lang),
-        value=str(cfg.get("memory_dir") or ""),
-        key=f"orch_memory_dir_{slug}",
-        help=t("orch_memory_dir_help", lang=lang, default=default_name),
-    )
-    if resolved.get("path"):
-        st.caption(f"`{resolved['path']}` · {resolved.get('source') or 'default'}")
-    else:
-        st.caption(t("orch_memory_dir_help", lang=lang, default=default_name))
-    for conflict in resolved.get("conflicts") or []:
-        st.warning(t("orch_memory_conflict", lang=lang,
-                     path=str(conflict.get("path") or ""),
-                     files=int(conflict.get("files") or 0)))
-
-    if st.button(t("orch_memory_dir_save_btn", lang=lang),
-                 key=f"orch_save_memory_dir_{slug}", type="primary"):
-        if save_orchestrator(slug, memory_dir=new_dir):
-            pin_settings_section(slug, "memory")
-            shown = new_dir.strip() or default_name
-            flash_success(t("orch_memory_dir_saved", lang=lang, path=shown))
-            st.rerun()
-        else:
-            settings_save_failed(slug, "memory", "orch_memory_dir_save_error", lang)
-
-
-def _render_memory_editor(slug: str, lang: str, pm, scope: str) -> None:
-    """Render the personal-memory body editor and its save button."""
-    try:
-        data = pm.read_memory(scope)
-    except Exception as exc:
-        st.error(t("orch_memory_save_error", lang=lang, error=str(exc)))
-        return
-
-    st.markdown(f"**{t('orch_memory_editor_label', lang=lang)}**")
-    st.caption(t("orch_memory_editor_help", lang=lang))
-    st.caption(t("orch_memory_size", lang=lang, bytes=data.get("bytes", 0),
-                 max=data.get("max_bytes", 0), revision=data.get("revision", 0)))
-    if not data.get("exists"):
-        st.caption(t("orch_memory_empty", lang=lang))
-
-    text = st.text_area(
-        t("orch_memory_editor_label", lang=lang),
-        value=str(data.get("body") or ""),
-        height=260,
-        key=f"orch_memory_text_{slug}",
-        label_visibility="collapsed",
-    )
-    if st.button(t("orch_memory_save_btn", lang=lang),
-                 key=f"orch_save_memory_{slug}", type="primary"):
-        try:
-            pm.write_memory(scope, text, updated_by="ui")
-        except Exception as exc:
-            pin_settings_section(slug, "memory")
-            flash_error(t("orch_memory_save_error", lang=lang, error=str(exc)))
-            st.rerun()
-        else:
-            pin_settings_section(slug, "memory")
-            flash_success(t("orch_memory_saved", lang=lang))
-            st.rerun()
-
-
-def _render_delegation_settings(slug: str, lang: str) -> None:
-    """Manage the delegation allowlists and the six runtime limits.
-
-    The agent list is built from LIVE orchestrators and the assistant list
-    from LIVE cards, so a deleted entity never lingers as a stale checkbox
-    value; ids that are already stored but no longer resolve are shown with
-    an explicit warning instead of disappearing silently, because the agent
-    would otherwise keep a config entry it can never satisfy at call time.
-    """
-    from core.assistants import load_assistants_index
-
-    orch = get_orchestrator(slug)
-    if orch is None:
-        st.error(t("orch_not_found", lang=lang))
-        return
-
-    st.markdown(t("orch_delegation_section", lang=lang))
-    st.markdown(t("orch_delegation_section_desc", lang=lang))
-
-    live_orch = _live_orchestrator_entries()
-    agents = _render_allowed_agents(slug, lang, live_orch)
-    assistants = _render_allowed_assistants(slug, lang, load_assistants_index)
-    verifier = _render_verifier_section(slug, lang, live_orch)
-    limits_sel = _render_delegation_limits(slug, lang)
-    dialog_sel = _render_dialog_limits(slug, lang)
-
-    st.markdown("---")
-    if st.button(t("orch_delegation_save_btn", lang=lang),
-                 key=f"orch_save_delegation_{slug}", type="primary"):
-        _save_delegation_settings(slug, lang, agents, assistants, verifier,
-                                  limits_sel, dialog_sel)
-
-
-def _live_orchestrator_entries() -> list:
-    """Return the live orchestrator cards, or an empty list on failure."""
-    try:
-        return list_orchestrators()
-    except Exception:
-        return []
-
-
-def _render_allowed_agents(slug: str, lang: str, live_orch: list) -> dict:
-    """Render the spawnable-orchestrator allowlist.
-
-    Returns ``{agents, universal, current_universal}``: the checked slugs, the
-    desired Universal-Agent state and the stored one, so the save step can
-    tell a real decision from an untouched checkbox.
-    """
-    st.markdown(t("orch_delegation_agents", lang=lang))
-    # The bundled Universal-Agent is a DEFAULT right, not a list entry: it
-    # gets its own checkbox so the decision is a visible on/off state instead
-    # of an entry a settings save could drop. It is excluded from the loop
-    # below - without that, a user who also added it by hand would see two
-    # checkboxes for one agent.
-    allowed_agents = set(get_allowed_agents(slug))
-    universal_present = any(str(e.get("slug") or "") == UNIVERSAL_AGENT_SLUG
-                            for e in live_orch)
-    current_universal = get_universal_agent_enabled(slug)
-    sel_universal = current_universal
-    if universal_present and slug != UNIVERSAL_AGENT_SLUG:
-        sel_universal = st.checkbox(
-            t("orch_delegation_universal_agent", lang=lang),
-            value=bool(sel_universal),
-            key=f"orch_allowed_universal_{slug}",
-            help=t("orch_delegation_universal_agent_help", lang=lang))
-        st.caption(t("orch_delegation_universal_agent_hint", lang=lang))
-    live_agent_slugs = set()
-    selected_agents: List[str] = []
-    for entry in live_orch:
-        other = str(entry.get("slug") or "")
-        if not other or other == slug or other == UNIVERSAL_AGENT_SLUG:
-            continue
-        live_agent_slugs.add(other)
-        name = str(entry.get("name") or other)
-        checked = st.checkbox(f"**{name}** `{other}`", value=(other in allowed_agents),
-                              key=f"orch_allowed_agent_{slug}_{other}")
-        if checked:
-            selected_agents.append(other)
-    for stale in sorted(allowed_agents - live_agent_slugs):
-        st.warning(t("orch_delegation_stale_agent", lang=lang, slug=stale))
-        if st.checkbox(f"**{stale}**", value=True,
-                       key=f"orch_allowed_agent_stale_{slug}_{stale}"):
-            selected_agents.append(stale)
-    st.caption(t("orch_delegation_self_hint", lang=lang))
-    return {"agents": selected_agents, "universal": sel_universal,
-            "current_universal": current_universal}
-
-
-def _render_allowed_assistants(slug: str, lang: str, load_index) -> List[str]:
-    """Render the callable-assistant allowlist and return the checked ids."""
-    st.markdown(t("orch_delegation_assistants", lang=lang))
-    allowed_assistants = set(get_allowed_assistants(slug))
-    try:
-        live_assistants = load_index() or []
-    except Exception:
-        live_assistants = []
-    live_assistant_ids = set()
-    selected_assistants: List[str] = []
-    if not live_assistants:
-        st.info(t("orch_delegation_no_assistants", lang=lang))
-    for card in live_assistants:
-        aid = str(card.get("id") or "")
-        if not aid:
-            continue
-        live_assistant_ids.add(aid)
-        name = str(card.get("name") or aid)
-        checked = st.checkbox(f"**{name}** `{aid}`", value=(aid in allowed_assistants),
-                              key=f"orch_allowed_assistant_{slug}_{aid}")
-        if checked:
-            selected_assistants.append(aid)
-    for stale in sorted(allowed_assistants - live_assistant_ids):
-        st.warning(t("orch_delegation_stale_assistant", lang=lang, ident=stale))
-    st.caption(t("orch_delegation_assistants_hint", lang=lang))
-    return selected_assistants
-
-
-def _render_verifier_section(slug: str, lang: str, live_orch: list) -> dict:
-    """Render the result-verifier picker.
-
-    Returns ``{current, selected}`` so the save step writes the appointment
-    only when the choice actually changed.
-    """
-    # The verifier is a SEPARATE right: it is not required in the spawn
-    # allowlist above, and its only purpose is checking a finished result.
-    # "Not appointed" is the first entry, so an empty appointment is a
-    # deliberate choice rather than a missing selection.
-    st.markdown(t("orch_delegation_verifier", lang=lang))
-    current_verifier = get_verifier_agent(slug)
-    verifier_options: List[str] = [""]
-    verifier_labels: Dict[str, str] = {"": t("orch_delegation_verifier_none", lang=lang)}
-    for entry in live_orch:
-        other = str(entry.get("slug") or "")
-        if not other:
-            continue
-        verifier_options.append(other)
-        verifier_labels[other] = "%s `%s`" % (str(entry.get("name") or other), other)
-    if current_verifier and current_verifier not in verifier_options:
-        # A deleted employee must not vanish silently: it stays listed so the
-        # user sees what the stored configuration still names.
-        st.warning(t("orch_delegation_stale_verifier", lang=lang, slug=current_verifier))
-        verifier_options.append(current_verifier)
-        verifier_labels[current_verifier] = current_verifier
-    sel_verifier = st.selectbox(
-        t("orch_delegation_verifier_label", lang=lang),
-        options=verifier_options,
-        index=verifier_options.index(current_verifier) if current_verifier in verifier_options else 0,
-        format_func=lambda value: verifier_labels.get(value, value),
-        key=f"orch_delegation_verifier_{slug}",
-        help=t("orch_delegation_verifier_help", lang=lang),
-    )
-    st.caption(t("orch_delegation_verifier_hint", lang=lang))
-    return {"current": current_verifier, "selected": sel_verifier}
-
-
-def _number_input_setting(slug: str, lang: str, label_key: str, help_key: str,
-                          key_suffix: str, value: int, min_value: int, max_value: int,
-                          step: int):
-    """Render one labelled numeric setting of the delegation block."""
-    return st.number_input(
-        t(label_key, lang=lang),
-        min_value=min_value, max_value=max_value, value=int(value), step=step,
-        key=f"orch_{key_suffix}_{slug}",
-        help=t(help_key, lang=lang))
-
-
-def _render_delegation_limits(slug: str, lang: str) -> dict:
-    """Render the six runtime limits and return their new values."""
-    st.markdown(t("orch_delegation_limits", lang=lang))
-    limits = get_delegation_limits(slug)
-    col_a, col_b = st.columns(2)
-    with col_a:
-        sel_depth = _number_input_setting(slug, lang, "orch_delegation_max_depth",
-                                          "orch_delegation_max_depth_help",
-                                          "delegation_max_depth", limits["max_depth"], 0, 10, 1)
-        sel_pool = _number_input_setting(slug, lang, "orch_delegation_max_active",
-                                         "orch_delegation_max_active_help",
-                                         "delegation_max_active", limits["max_active_subagents"], 1, 64, 1)
-        sel_steps = _number_input_setting(slug, lang, "orch_delegation_max_steps",
-                                          "orch_delegation_max_steps_help",
-                                          "delegation_max_steps", limits["subagent_max_steps"], 1, 1000, 1)
-    with col_b:
-        sel_total = _number_input_setting(slug, lang, "orch_delegation_total_runs",
-                                          "orch_delegation_total_runs_help",
-                                          "delegation_total_runs", limits["total_subagent_runs"], 1, 1000, 1)
-        sel_timeout = _number_input_setting(slug, lang, "orch_delegation_timeout",
-                                            "orch_delegation_timeout_help",
-                                            "delegation_timeout", limits["subagent_timeout_seconds"], 1, 3600, 30)
-        sel_budget = _number_input_setting(slug, lang, "orch_delegation_budget",
-                                           "orch_delegation_budget_help",
-                                           "delegation_budget", limits["subagent_budget_tokens"], 0, 10000000, 1000)
-    return {"max_depth": sel_depth, "max_active_subagents": sel_pool,
-            "subagent_max_steps": sel_steps, "total_subagent_runs": sel_total,
-            "subagent_timeout_seconds": sel_timeout,
-            "subagent_budget_tokens": sel_budget}
-
-
-def _render_dialog_limits(slug: str, lang: str) -> dict:
-    """Render the agent-dialog limits and return their new values."""
-    # The dialog lives in the SAME block as the other delegation limits: a
-    # separate section would let the two sets of numbers drift apart, and a
-    # user looking for "how long a child may wait" would not know where to
-    # look. Each value is clamped by the resolver, so a typed 0 becomes the
-    # documented default instead of removing the limit.
-    st.markdown(t("orch_dialog_section", lang=lang))
-    st.caption(t("orch_dialog_section_desc", lang=lang))
-    limits = get_delegation_limits(slug)
-    col_c, col_d = st.columns(2)
-    with col_c:
-        sel_rounds = _number_input_setting(slug, lang, "orch_dialog_rounds",
-                                           "orch_dialog_rounds_help", "dialog_rounds",
-                                           _dialog_limit(limits, "dialog_rounds", DEFAULT_DIALOG_ROUNDS),
-                                           1, 20, 1)
-        sel_question_chars = _number_input_setting(slug, lang, "orch_dialog_question_chars",
-                                                   "orch_dialog_question_chars_help",
-                                                   "dialog_question_chars",
-                                                   _dialog_limit(limits, "question_max_chars", DEFAULT_QUESTION_MAX_CHARS),
-                                                   100, 20000, 100)
-        sel_parked = _number_input_setting(slug, lang, "orch_dialog_max_parked",
-                                           "orch_dialog_max_parked_help", "dialog_max_parked",
-                                           _dialog_limit(limits, "max_parked_runs", DEFAULT_MAX_PARKED_RUNS),
-                                           1, 64, 1)
-    with col_d:
-        sel_answer_chars = _number_input_setting(slug, lang, "orch_dialog_answer_chars",
-                                                 "orch_dialog_answer_chars_help",
-                                                 "dialog_answer_chars",
-                                                 _dialog_limit(limits, "answer_max_chars", DEFAULT_ANSWER_MAX_CHARS),
-                                                 100, 20000, 100)
-        sel_wait = _number_input_setting(slug, lang, "orch_dialog_wait",
-                                         "orch_dialog_wait_help", "dialog_wait",
-                                         _dialog_limit(limits, "answer_wait_seconds", DEFAULT_ANSWER_WAIT_SECONDS),
-                                         1, 3600, 60)
-    return {"dialog_rounds": sel_rounds, "question_max_chars": sel_question_chars,
-            "answer_max_chars": sel_answer_chars, "answer_wait_seconds": sel_wait,
-            "max_parked_runs": sel_parked}
-
-
-def _save_delegation_settings(slug: str, lang: str, agents: dict, assistants: list,
-                              verifier: dict, limits_sel: dict, dialog_sel: dict) -> None:
-    """Persist the delegation block and report the outcome."""
-    ok_agents = set_allowed_agents(slug, agents["agents"])
-    ok_assistants = set_allowed_assistants(slug, assistants)
-    # Written only when the checkbox actually changed its state: a save of
-    # the other settings must not record a decision the user never made.
-    ok_universal = True
-    if bool(agents["universal"]) != bool(agents["current_universal"]):
-        ok_universal = set_universal_agent_enabled(slug, bool(agents["universal"]))
-    # Written only when the choice actually changed: a save of the other
-    # settings must not touch the verifier appointment, and a no-op write
-    # would still sync the orchestrator folder.
-    selected_verifier = str(verifier["selected"] or "")
-    ok_verifier = True
-    if selected_verifier != verifier["current"]:
-        ok_verifier = set_verifier_agent(slug, selected_verifier)
-    merged = dict(limits_sel)
-    merged.update(dialog_sel)
-    ok_limits = set_delegation_limits(slug, {key: int(value) for key, value in merged.items()})
-    if ok_agents and ok_assistants and ok_limits and ok_verifier and ok_universal:
-        pin_settings_section(slug, "delegation")
-        flash_success(t("orch_delegation_saved", lang=lang))
-        st.rerun()
-    else:
-        settings_save_failed(slug, "delegation", "orch_delegation_save_error", lang)
-
-
-def _render_other_settings(slug: str, lang: str) -> None:
-    """Manage miscellaneous orchestrator settings (autonomous-loop step limit)."""
-    orch = get_orchestrator(slug)
-    if orch is None:
-        st.error(t("orch_not_found", lang=lang))
-        return
-
-    st.markdown(t("orch_other_section", lang=lang))
-    st.markdown(t("orch_other_section_desc", lang=lang))
-
-    cur_max_steps = int(orch.get("max_steps", DEFAULT_MAX_STEPS) or DEFAULT_MAX_STEPS)
-    sel_max_steps = st.number_input(
-        t("orch_max_steps_label", lang=lang),
-        min_value=1, max_value=10000,
-        value=cur_max_steps, step=50,
-        key=f"orch_max_steps_{slug}",
-        help=t("orch_max_steps_help", lang=lang),
-    )
-    st.caption(t("orch_max_steps_hint", lang=lang, default=DEFAULT_MAX_STEPS))
-
-    st.markdown("---")
-    if st.button(t("orch_save_btn", lang=lang), key=f"orch_save_other_{slug}", type="primary"):
-        try:
-            new_max_steps = int(sel_max_steps)
-        except (TypeError, ValueError):
-            new_max_steps = cur_max_steps
-        new_max_steps = max(1, min(10000, new_max_steps))
-        if save_orchestrator(slug, max_steps=new_max_steps):
-            pin_settings_section(slug, "other")
-            flash_success(t("orch_max_steps_saved", lang=lang, value=new_max_steps))
-            st.rerun()
-        else:
-            settings_save_failed(slug, "other", "orch_other_save_error", lang)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  MAIN PAGE
-# ═══════════════════════════════════════════════════════════════════════════════
 
 def page_orchestrator(slug: str) -> None:
     _init_orch_state(slug)
@@ -3355,10 +652,17 @@ def page_orchestrator(slug: str) -> None:
     _render_chat_tab(slug, lang)
 
 
-# ─── Backward-compat entry for DevAgent ───────────────────────────────────────
-
 def page_devagent() -> None:
     """DevAgent page - delegates to the generic orchestrator page."""
     page_orchestrator(DEVAGENT_SLUG)
+
+
+# The page modules resolve their late references through this object: bind it
+# last, when every name the two page entries need is defined.
+import sys as _sys  # noqa: E402
+
+from ui.pages.orchestrator_shared import bind_facade as _bind_facade  # noqa: E402
+
+_bind_facade(_sys.modules[__name__])
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

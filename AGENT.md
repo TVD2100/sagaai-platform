@@ -387,12 +387,50 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   поэтому `monkeypatch.setattr(agent_loop, 'send_request', ...)` действует и
   на код шагов. При переносе кода в `loop/` не разрывать это свойство: шаги
   берут runtime параметром, а не импортируют фасад (иначе циклический импорт).
+- **Фасад `ui/pages/orchestrator.py` сохраняет имена, реализация - в `orchestrator_*`.**
+  Страница разложена по темам: фасад держит импорт-блок (реэкспорты
+  `orchestrator_text` для страницы и тестов), тонкие обёртки и две точки
+  входа `page_orchestrator`/`page_devagent`, а тела - в `orchestrator_state`,
+  `orchestrator_folder`, `orchestrator_loop`, `orchestrator_feed`,
+  `orchestrator_chat`, `orchestrator_chat_input` и трёх
+  `orchestrator_settings_*`. Подменяемое имя модуль объявляет один раз через
+  `late("имя")` или `st_proxy()` из `ui/pages/orchestrator_shared.py` и
+  разрешает на фасаде в момент вызова, поэтому
+  `monkeypatch.setattr(orch_mod, "t", ...)` действует и на вынесенный код;
+  `bind_facade` привязывает слой к объекту фасада, иначе вторая живая копия
+  пакета (тесты, чистящие `sys.modules`) перехватывала бы подмену. При переносе
+  кода не импортировать фасад из спутников - только `late`/`st_proxy` (иначе
+  циклический импорт).
 
+- **Фасад `core/orchestrators.py` сохраняет имена, реализация - в `orchestrator_*`.**
+  API разложен по темам: фасад держит импорт-блок, реэкспорты и тонкие
+  обёртки, а тела - в `orchestrator_defaults`, `orchestrator_store`,
+  `orchestrator_links`, `orchestrator_prompt`, `orchestrator_models`,
+  `orchestrator_transfer`, `orchestrator_instr` и `orchestrator_builtin`.
+  Подменяемое имя, ЗАИМСТВОВАННОЕ из другого модуля, спутник объявляет через
+  `late("имя")` из `core/orchestrator_shared.py` и разрешает на фасаде в
+  момент вызова, поэтому `monkeypatch.setattr(orch_mod, "get_orchestrator",
+  ...)` и `patch("core.orchestrators._get_services")` действуют и на
+  вынесенный код; `bind_facade` привязывает слой к объекту фасада, иначе
+  вторая живая копия пакета (тесты, чистящие `sys.modules`) перехватывала бы
+  подмену. Имя, которое спутник определяет сам, в late не нуждается: фасад
+  оборачивает его в `<имя>_impl` тонкой функцией, и подмена на фасаде
+  заменяет именно обёртку. При переносе кода не импортировать фасад из
+  спутников - только `late` (иначе циклический импорт); `repo_*` и
+  `_get_services` остаются атрибутами фасада и объявлены late в спутниках.
+
+
+- **`core/chat_turn.py`** - один ход чата с помощником: история в форме API,
+  вызов провайдера, сбор расхода и запись пары «вопрос → ответ» с вложением.
+- **`core/orchestrator_step.py`** - запись шага агента в тред: отсечение уже
+  сохранённого по курсору, карта полей истории в поля хранилища и
+  возврат нового курсора, поэтому повторный вызов ничего не дублирует.
 
 ### FR7 - DevAgent (встроенный разработчик)
 - DevAgent - встроенный оркестратор с slug `dev_agent`, работает как
   универсальный разработчик.
-- Страница DevAgent - это `ui/pages/orchestrator.py` с вкладками
+- Страница DevAgent - это `ui/pages/orchestrator.py` (фасад) и модули
+  `ui/pages/orchestrator_*` с вкладками
   Чат / История / Навыки и отдельной страницей Настройки
   (`ui/pages/orchestrator_settings.py`).
 - Настройки моделей и промпта доступны на странице DevAgent → Настройки.
@@ -1694,6 +1732,18 @@ Ed25519), а проверка подписи на стороне клиента 
 - Регрессия прогоняется пакетами параллельно (файлы `tests/test_*.py`,
   `tests/scenarios/`, `tests/smoke/` - батчами по 12 в 4 потока): полный
   последовательный прогон на этой базе занимает слишком много времени.
+- **Глобальное состояние процесса изолируется явно.** `dev_agent.config`
+  хранит активную рабочую папку и признак `WORKSPACE_SELECTED`; отрисовка
+  страницы оркестратора, сброс диалога и переход в пустое состояние его
+  переключают. Утёкший `WORKSPACE_SELECTED=False` блокирует файловые
+  инструменты во всех последующих тестах прогона, поэтому фикстура
+  `_restore_dev_agent_state` из `tests/conftest.py` **не** объявлена
+  autouse: её просит по имени тот модуль, который переключает состояние,
+  либо он снимает и возвращает состояние сам. Папка `tests/scenarios/`
+  владеет своим autouse-хуком - там переключение состояния и есть
+  проверяемое поведение. `tests/test_test_state_isolation.py` разбирает
+  тестовые модули через AST и падает с именем нарушителя, не давая утечке
+  проявиться чужими падениями.
 - **Поведение цикла агента зафиксировано golden-снимками.**
   `tests/test_loop_golden_payloads.py` проигрывает восемь сценариев цикла и
   сравнивает с `tests/fixtures/loop_golden/*.json` то, что уходит модели
@@ -1783,10 +1833,10 @@ Ed25519), а проверка подписи на стороне клиента 
     # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
     # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
-- Список базовых файлов (276):
+- Список базовых файлов (297):
   - Корень (2): __init__.py, app.py
-  - UI (27): ui/__init__.py, ui/app.py, ui/app_restore.py, ui/components/__init__.py, ui/components/flash.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/access.py, ui/pages/assistants.py, ui/pages/assistants_helpers.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/marketplace.py, ui/pages/orchestrator.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrator_text.py, ui/pages/orchestrators.py, ui/pages/schedules.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/updates.py, ui/pages/updates_marketplace.py, ui/pages/welcome.py
-  - Core (81): core/__init__.py, core/api_bearer.py, core/api_deepseek.py, core/api_errors.py, core/api_gigachat.py, core/api_history_guard.py, core/api_http.py, core/api_layer.py, core/api_payload.py, core/api_responses.py, core/api_token_store.py, core/api_yandex.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/chat_db_archive.py, core/config.py, core/connector_presets.py, core/connectors.py, core/context_guard.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/dependency_check.py, core/devagent_db_archive.py, core/document_images.py, core/document_text.py, core/entity_sync.py, core/env_loader.py, core/feed_autoscroll.py, core/files.py, core/folder_dialog.py, core/fs.py, core/gateway_launcher.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/mcp_client.py, core/mcp_tools.py, core/memory_migration.py, core/multimodal.py, core/ooxml.py, core/orchestrator_folders.py, core/orchestrator_nav.py, core/orchestrator_tools.py, core/orchestrators.py, core/paths.py, core/personal_memory.py, core/prompt_blocks.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/thread_mirror.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py, core/updater.py, core/updater_apply.py, core/url_fetch.py, core/version.py
+  - UI (37): ui/__init__.py, ui/app.py, ui/app_restore.py, ui/components/__init__.py, ui/components/flash.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/access.py, ui/pages/assistants.py, ui/pages/assistants_helpers.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/marketplace.py, ui/pages/orchestrator.py, ui/pages/orchestrator_chat.py, ui/pages/orchestrator_chat_input.py, ui/pages/orchestrator_feed.py, ui/pages/orchestrator_folder.py, ui/pages/orchestrator_loop.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrator_settings_delegation.py, ui/pages/orchestrator_settings_models.py, ui/pages/orchestrator_settings_orch.py, ui/pages/orchestrator_shared.py, ui/pages/orchestrator_state.py, ui/pages/orchestrator_text.py, ui/pages/orchestrators.py, ui/pages/schedules.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/updates.py, ui/pages/updates_marketplace.py, ui/pages/welcome.py
+  - Core (92): core/__init__.py, core/api_bearer.py, core/api_deepseek.py, core/api_errors.py, core/api_gigachat.py, core/api_history_guard.py, core/api_http.py, core/api_layer.py, core/api_payload.py, core/api_responses.py, core/api_token_store.py, core/api_yandex.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/chat_db_archive.py, core/chat_turn.py, core/config.py, core/connector_presets.py, core/connectors.py, core/context_guard.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/dependency_check.py, core/devagent_db_archive.py, core/document_images.py, core/document_text.py, core/entity_sync.py, core/env_loader.py, core/feed_autoscroll.py, core/files.py, core/folder_dialog.py, core/fs.py, core/gateway_launcher.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/mcp_client.py, core/mcp_tools.py, core/memory_migration.py, core/multimodal.py, core/ooxml.py, core/orchestrator_builtin.py, core/orchestrator_defaults.py, core/orchestrator_folders.py, core/orchestrator_instr.py, core/orchestrator_links.py, core/orchestrator_models.py, core/orchestrator_nav.py, core/orchestrator_prompt.py, core/orchestrator_shared.py, core/orchestrator_step.py, core/orchestrator_store.py, core/orchestrator_tools.py, core/orchestrator_transfer.py, core/orchestrators.py, core/paths.py, core/personal_memory.py, core/prompt_blocks.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_workspaces.py, core/render.py, core/services.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/thread_mirror.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py, core/updater.py, core/updater_apply.py, core/url_fetch.py, core/version.py
   - Marketplace (28): core/marketplace/__init__.py, core/marketplace/agent_areas.py, core/marketplace/agent_assistant.py, core/marketplace/agent_installer.py, core/marketplace/agent_orchestrator.py, core/marketplace/agent_package.py, core/marketplace/agent_preflight.py, core/marketplace/agent_run.py, core/marketplace/bootstrap.py, core/marketplace/bundles.py, core/marketplace/catalog.py, core/marketplace/config.py, core/marketplace/conflict_fork.py, core/marketplace/conflict_state.py, core/marketplace/conflicts.py, core/marketplace/installer.py, core/marketplace/mcp_installer.py, core/marketplace/migration.py, core/marketplace/publish.py, core/marketplace/rag_area.py, core/marketplace/rag_installer.py, core/marketplace/registry.py, core/marketplace/rollback.py, core/marketplace/semver.py, core/marketplace/source.py, core/marketplace/store.py, core/marketplace/updates.py, core/marketplace/verify.py
   - Orchestration (26): core/orchestration/__init__.py, core/orchestration/child_runner.py, core/orchestration/child_text.py, core/orchestration/contracts.py, core/orchestration/dialog_runner.py, core/orchestration/invoke.py, core/orchestration/resume.py, core/orchestration/runs.py, core/orchestration/service.py, core/orchestration/tool_classes.py, core/orchestration/tools.py, core/orchestration/tools_catalog.py, core/orchestration/tools_clock.py, core/orchestration/tools_constants.py, core/orchestration/tools_control.py, core/orchestration/tools_dialog.py, core/orchestration/tools_journal.py, core/orchestration/tools_notes.py, core/orchestration/tools_records.py, core/orchestration/tools_rights.py, core/orchestration/tools_spawn.py, core/orchestration/tools_status.py, core/orchestration/tools_wait.py, core/orchestration/transcript_reader.py, core/orchestration/transcript_sink.py, core/orchestration/verify.py
   - Schedules (7): core/schedules/__init__.py, core/schedules/calc.py, core/schedules/daemon.py, core/schedules/form.py, core/schedules/model.py, core/schedules/runner.py, core/schedules/store.py

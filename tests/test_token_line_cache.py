@@ -15,6 +15,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
+#: Resetting a dialog switches the process-global workspace state; the fixture
+#: hands the caller's state back after each test.
+pytestmark = pytest.mark.usefixtures("_restore_dev_agent_state")
+
 
 @pytest.fixture()
 def ui_env(monkeypatch, tmp_path):

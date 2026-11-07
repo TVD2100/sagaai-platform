@@ -24,6 +24,10 @@ from unittest.mock import patch
 
 import pytest
 
+#: The deeplink handler opens a fresh dialog, which switches the process-global
+#: workspace state; the fixture hands the caller's state back after each test.
+pytestmark = pytest.mark.usefixtures("_restore_dev_agent_state")
+
 
 def _drop_ui_modules():
     for name in list(sys.modules):

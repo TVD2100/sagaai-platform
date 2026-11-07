@@ -2,13 +2,13 @@
 import streamlit as st
 
 from core.api_errors import APIError, api_error_message
-from core.api_layer import send_request
 from core.assistants import (
     get_assistant_by_id,
     list_assistant_files,
     load_assistant_files_context,
     load_assistants_index,
 )
+from core.chat_turn import collect_tokens, persist_chat_turn, run_chat_turn, turn_history
 from core.files import (
     MAX_UPLOAD_TOKENS,
     check_context,
@@ -22,12 +22,8 @@ from core.recent_assistants import record_assistant_use
 from core.render import _md_to_txt, clipboard_button, format_token_line, format_ts_label
 from core.services import get_services
 from core.threads import (
-    append_thread_message,
-    create_thread,
     load_thread_messages,
     load_thread_meta,
-    messages_to_api_history,
-    save_thread_file,
     sum_thread_tokens,
 )
 
@@ -381,37 +377,27 @@ def _handle_send(lang: str, assistant: dict, sel_id: str, sel_name: str,
     if not _context_is_acceptable(lang, assistant, sel_id, active_tid, user_input, file_context):
         return
 
-    history_msgs = messages_to_api_history(load_thread_messages(active_tid) if active_tid else [])
-    last_tokens = None
-
-    def _on_tokens(tokens):
-        nonlocal last_tokens
-        last_tokens = {"in": tokens["in"], "out": tokens["out"],
-                       "cache": tokens.get("cache", 0) or 0}
+    history_msgs = turn_history(active_tid)
+    on_tokens, read_tokens = collect_tokens()
 
     # Assistants with a native rag_search function tool run the function-calling
     # loop inside api_layer/assistant_tools; this page only shows the spinner.
     with st.spinner(t("processing", lang=lang)):
         try:
-            result = send_request(
+            result = run_chat_turn(
                 user_input, assistant, file_context,
                 history=history_msgs, lang=lang,
-                usage_callback=_on_tokens,
+                usage_callback=on_tokens,
             )
         except APIError as e:
             st.error(api_error_message(e, lang=lang))
             st.stop()
 
-    if not active_tid:
-        active_tid = create_thread(sel_id, sel_name)
-        st.session_state.active_thread_id = active_tid
-
-    if file_context and file_name:
-        save_thread_file(active_tid, file_name, file_context)
-
-    append_thread_message(active_tid, "user", user_input,
-                          file_name=file_name, file_chars=len(file_context))
-    append_thread_message(active_tid, "assistant", result, tokens=last_tokens)
+    active_tid = persist_chat_turn(
+        active_tid, sel_id, sel_name, user_input, result,
+        file_name=file_name, file_context=file_context, tokens=read_tokens(),
+    )
+    st.session_state.active_thread_id = active_tid
     st.session_state["attached_file_context"] = ""
     st.session_state["attached_file_name"] = ""
     st.session_state.input_key += 1

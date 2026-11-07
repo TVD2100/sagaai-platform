@@ -45,8 +45,14 @@ DONE_ANSWER = '{"loop_status": "done"} The report is ready.'
 
 
 @pytest.fixture
-def env(tmp_path, monkeypatch):
-    """Fresh databases, history folder, scheduler loop and a Streamlit mock."""
+def env(tmp_path, monkeypatch, _restore_dev_agent_state):
+    """Fresh databases, history folder, scheduler loop and a Streamlit mock.
+
+    The scenarios drive a real agent loop, which switches the process-global
+    workspace state of ``dev_agent.config`` for the folder it works in; the
+    ``_restore_dev_agent_state`` fixture puts that state back afterwards so a
+    later test never inherits the temporary workspace of a scheduled run.
+    """
     import core.paths as paths
     import storage.db as db
     from core.orchestration import runs as run_store

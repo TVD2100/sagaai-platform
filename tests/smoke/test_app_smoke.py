@@ -19,6 +19,10 @@ if PKG_ROOT not in sys.path:
 
 from tests._st_mock import StopRerun, install_streamlit_mock  # noqa: E402
 
+#: Every test here renders real pages, and a render switches the process-global
+#: workspace state; the fixture hands the state back after each test.
+pytestmark = pytest.mark.usefixtures("_restore_dev_agent_state")
+
 
 @pytest.fixture()
 def isolated_data(monkeypatch, isolated_app_modules):

@@ -4,16 +4,20 @@ conftest.py - shared test fixtures and hooks.
 import pytest
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def _restore_dev_agent_state():
-    """Restore the process-global DevAgent workspace state after EVERY test.
+    """Restore the process-global DevAgent workspace state after a test.
 
     Rendering orchestrator pages, resetting dialogs and switching workspaces
     mutate the module-level state of ``dev_agent.config`` (PROJECT_ROOT,
     WORKSPACE_SELECTED, runtime dirs, ...) and the workspace-binding registry.
-    A leaked ``WORKSPACE_SELECTED=False`` used to block file tools (the
-    empty-state guard) in unrelated files later in the same pytest run, so
-    the state is snapshotted before each test and restored afterwards.
+    A leaked ``WORKSPACE_SELECTED=False`` blocks file tools (the empty-state
+    guard) in unrelated files later in the same pytest run.
+
+    The fixture is requested EXPLICITLY by the tests that mutate that state:
+    an autouse hook hid which tests depend on it and made every test in the
+    suite pay for a snapshot it never needed. A test that touches the global
+    state asks for this fixture by name; a test that does not, does not.
     """
     from dev_agent import config
     from dev_agent import workspace_binding as wb

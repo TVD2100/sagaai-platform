@@ -358,11 +358,11 @@
       "most_complex": "sleep_tool"
     },
     "core/orchestrators.py": {
-      "file_lines": 2681,
-      "function_lines": 117,
-      "max_cc": 15,
-      "longest_function": "import_orchestrator",
-      "most_complex": "_extend_prompt_with_connections"
+      "file_lines": 398,
+      "function_lines": 3,
+      "max_cc": 0,
+      "longest_function": "_extend_prompt_with_connections",
+      "most_complex": ""
     },
     "dev_agent/agent_loop.py": {
       "file_lines": 396,
@@ -575,11 +575,158 @@
       "most_complex": "_render_delete_all_controls"
     },
     "ui/pages/orchestrator.py": {
-      "file_lines": 3364,
+      "file_lines": 668,
+      "function_lines": 11,
+      "max_cc": 0,
+      "longest_function": "page_orchestrator",
+      "most_complex": ""
+    },
+    "ui/pages/orchestrator_chat.py": {
+      "file_lines": 439,
       "function_lines": 58,
-      "max_cc": 14,
+      "max_cc": 10,
       "longest_function": "_render_chat_tab",
+      "most_complex": "_render_loop_status"
+    },
+    "ui/pages/orchestrator_chat_input.py": {
+      "file_lines": 411,
+      "function_lines": 50,
+      "max_cc": 8,
+      "longest_function": "_render_chat_toolbar",
+      "most_complex": "_collect_attachment_context"
+    },
+    "ui/pages/orchestrator_feed.py": {
+      "file_lines": 357,
+      "function_lines": 32,
+      "max_cc": 9,
+      "longest_function": "_render_tool_result_impl",
+      "most_complex": "_tool_result_summary"
+    },
+    "ui/pages/orchestrator_folder.py": {
+      "file_lines": 210,
+      "function_lines": 50,
+      "max_cc": 7,
+      "longest_function": "_render_folder_picker",
+      "most_complex": "_apply_folder_choice"
+    },
+    "ui/pages/orchestrator_loop.py": {
+      "file_lines": 629,
+      "function_lines": 49,
+      "max_cc": 9,
+      "longest_function": "_do_step_impl",
+      "most_complex": "_render_subagent_status"
+    },
+    "ui/pages/orchestrator_settings_delegation.py": {
+      "file_lines": 343,
+      "function_lines": 45,
+      "max_cc": 7,
+      "longest_function": "_render_allowed_agents",
+      "most_complex": "_render_allowed_agents"
+    },
+    "ui/pages/orchestrator_settings_models.py": {
+      "file_lines": 471,
+      "function_lines": 55,
+      "max_cc": 8,
+      "longest_function": "_render_economy_settings",
+      "most_complex": "_render_prompt_settings"
+    },
+    "ui/pages/orchestrator_settings_orch.py": {
+      "file_lines": 517,
+      "function_lines": 53,
+      "max_cc": 14,
+      "longest_function": "_render_orch_rag_bases",
       "most_complex": "_render_orch_rag_bases"
+    },
+    "ui/pages/orchestrator_shared.py": {
+      "file_lines": 153,
+      "function_lines": 18,
+      "max_cc": 2,
+      "longest_function": "late",
+      "most_complex": "facade"
+    },
+    "ui/pages/orchestrator_state.py": {
+      "file_lines": 109,
+      "function_lines": 17,
+      "max_cc": 4,
+      "longest_function": "_save_economy_cache",
+      "most_complex": "_save_chat_pref"
+    },
+    "core/orchestrator_shared.py": {
+      "file_lines": 81,
+      "function_lines": 18,
+      "max_cc": 2,
+      "longest_function": "late",
+      "most_complex": "facade"
+    },
+    "core/orchestrator_defaults.py": {
+      "file_lines": 191,
+      "function_lines": 80,
+      "max_cc": 14,
+      "longest_function": "_devagent_default_config",
+      "most_complex": "_devagent_default_config"
+    },
+    "core/orchestrator_store.py": {
+      "file_lines": 380,
+      "function_lines": 62,
+      "max_cc": 9,
+      "longest_function": "reload_orchestrator_from_folder",
+      "most_complex": "reload_orchestrator_from_folder"
+    },
+    "core/orchestrator_links.py": {
+      "file_lines": 473,
+      "function_lines": 30,
+      "max_cc": 7,
+      "longest_function": "get_effective_agents_impl",
+      "most_complex": "set_allowed_agents"
+    },
+    "core/orchestrator_prompt.py": {
+      "file_lines": 795,
+      "function_lines": 89,
+      "max_cc": 15,
+      "longest_function": "build_assistant_dicts_impl",
+      "most_complex": "_extend_prompt_with_connections_impl"
+    },
+    "core/orchestrator_models.py": {
+      "file_lines": 197,
+      "function_lines": 55,
+      "max_cc": 5,
+      "longest_function": "get_fetch_config",
+      "most_complex": "get_fetch_config"
+    },
+    "core/orchestrator_transfer.py": {
+      "file_lines": 274,
+      "function_lines": 117,
+      "max_cc": 11,
+      "longest_function": "import_orchestrator",
+      "most_complex": "import_orchestrator"
+    },
+    "core/orchestrator_instr.py": {
+      "file_lines": 70,
+      "function_lines": 9,
+      "max_cc": 0,
+      "longest_function": "orch_save_instruction",
+      "most_complex": ""
+    },
+    "core/orchestrator_builtin.py": {
+      "file_lines": 417,
+      "function_lines": 80,
+      "max_cc": 13,
+      "longest_function": "_backfill_builtin_config",
+      "most_complex": "save_devagent_config"
+    },
+    "core/chat_turn.py": {
+      "file_lines": 109,
+      "function_lines": 22,
+      "max_cc": 3,
+      "longest_function": "collect_tokens",
+      "most_complex": "collect_tokens"
+    },
+    "core/orchestrator_step.py": {
+      "file_lines": 71,
+      "function_lines": 16,
+      "max_cc": 4,
+      "longest_function": "message_row",
+      "most_complex": "messages_to_persist"
     }
   },
   "global": {

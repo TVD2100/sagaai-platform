@@ -149,6 +149,7 @@ roles = {
     "scripts/refactor_budget.py": "Structural ratchet for the god files: measures file length, longest function and the highest cyclomatic complexity with ruff C901, compares them against refactor_budget.json and reports ok/fail/env; the mccabe probe runs from a temporary config so the repository's ruff.toml is never touched",
     "refactor_budget.json": "The committed structural budget: per file the maximum length, longest function and cyclomatic complexity; the gate fails on growth, never on a fall",
     "tests/test_refactor_budget.py": "Unit tests of the structural ratchet: measuring (lines, nested functions, ruff complexity), the comparison rules, the three-status contract and the exit code, plus the check that the committed budget is green",
+    "tests/test_test_state_isolation.py": "Guards how the suite isolates process-global state: the base conftest ships _restore_dev_agent_state without autouse, the scenario folder owns its own restore hook, and an AST scan fails with the offender's file name when a module calls apply_paths or _reset_dialog without restoring the state",
     "scripts/capture_loop_golden.py": "Re-records the agent-loop golden snapshots (UPDATE_GOLDEN=1) and immediately re-runs the suite without the flag, so a snapshot that cannot be reproduced fails the same command",
     "tests/test_loop_golden_payloads.py": "Golden tests of the agent loop's observable behaviour on eight scenarios: the payload sent to the model, the dispatcher calls in order and the whole sequence of on_event publications",
     "tests/fixtures/loop_golden/read_tool.json": "Golden snapshot: one read_file call, its result and the resulting answer",
@@ -917,6 +918,37 @@ roles.update({
     "core/orchestration/tools_wait.py": "Waiting for children: sleep_tool returns on the first finished child or on the timeout without cancelling anything, plus the terminal and active run helpers",
     "core/orchestration/tools_catalog.py": "Catalog entries of the delegation tools: the name, description and argument spec the model sees, kept as data without logic",
     "tests/test_orchestration_tools_facade.py": "Boundary tests of the split: every public name is reachable at the old path, the facade holds no function of its own and stays small, a replaced tools.time and tools.spawn_agent stay in charge, and no implementation module imports the facade at module level",
+})
+roles.update({
+    "ui/pages/orchestrator.py": "Facade of the orchestrator page: holds the import block (including the re-exports of orchestrator_text that the page and the tests resolve), thin wrappers over the late-bound names and the two entry points page_orchestrator/page_devagent; every body lives in the orchestrator_* modules below",
+    "ui/pages/orchestrator_shared.py": "Late-binding layer of the orchestrator page: late(name) resolves a patchable global on the facade at call time, st_proxy() does the same for Streamlit, and bind_facade pins the layer to the facade object so a second live copy of the package cannot swallow a monkeypatch",
+    "ui/pages/orchestrator_state.py": "Session state of the chat page: the initial state, the chat preference and economy cache, thread loading and the state keys built from the page settings",
+    "ui/pages/orchestrator_folder.py": "Workspace folder picker of the chat page: the auto/recent/native menu, the manual path entry and applying a choice to the thread",
+    "ui/pages/orchestrator_loop.py": "Agent step and run tree of the chat page: _do_step split into phases, run registration and stop requests, the subagent status and loop status panels",
+    "ui/pages/orchestrator_feed.py": "Event feed of the chat page: the _EVENT_RENDERERS table, tool call and tool result rendering, the run grouping and the per-message controls",
+    "ui/pages/orchestrator_chat.py": "Chat tab of the orchestrator page: the reading sequence over the section helpers, the confirmation dialogs and the message controls",
+    "ui/pages/orchestrator_chat_input.py": "Chat input area: the toolbar, attachment collection and the token/economy line under the prompt",
+    "ui/pages/orchestrator_settings_models.py": "Model settings tab: strong model, economy tail, prompt settings and the service list",
+    "ui/pages/orchestrator_settings_orch.py": "Orchestrator settings tab: the tool set, system functions, RAG bases, instructions and the allowed connections",
+    "ui/pages/orchestrator_settings_delegation.py": "Delegation settings tab: the allowed agents and assistants, the delegation limits and the stale-id display",
+})
+roles.update({
+    "core/orchestrators.py": "Facade of the orchestrator API: holds the import block (including the re-exports the production modules and 71 test files import by the old path), thin <name>_impl wrappers, the aliases and the public __all__",
+    "core/orchestrator_shared.py": "Late-binding layer of the orchestrator API: late(name) resolves a patchable global on the facade at call time, and bind_facade binds the layer to the facade object so a second live copy of the package does not intercept the patch",
+    "core/orchestrator_defaults.py": "Constants and shipped defaults of the orchestrator API: the dev_agent and universal_agent slugs, the default web-search prompt, the DevAgent config fallback and the lazy tool-name cache",
+    "core/orchestrator_store.py": "Reading and writing an orchestrator: CRUD over the database, the folder mirror of orchestrator.json with its prompt file, and the folder sync that keeps the two sides equal",
+    "core/orchestrator_links.py": "Links of an orchestrator to other entities: the enabled skills, instructions, connections, RAG bases and the delegation rights with their limits and the available-agents resolution",
+    "core/orchestrator_prompt.py": "System prompt assembly: build_assistant_dicts and the _extend_prompt_with_* blocks for skills, instructions, the owner card, memory, connections, RAG bases, delegation and the tool catalog",
+    "core/orchestrator_models.py": "Model selection of an orchestrator: the strong model and the economy tail, the web-search and fetch configs with their fallbacks, and the model list offered to the settings page",
+    "core/orchestrator_transfer.py": "Export and import of an orchestrator: the bundle layout with the prompt and instructions, the folder reader and writer, and the validation of an imported bundle",
+    "core/orchestrator_instr.py": "Instructions and custom functions of an orchestrator: the listing, reading, saving and deleting that the settings tabs and the prompt block both use",
+    "core/orchestrator_builtin.py": "Built-in orchestrators and the DevAgent config bridge: seeding the shipped employees, the prompt-user-edited marker and reset_builtin_prompt, plus load_devagent_config and save_devagent_config",
+    "tests/test_orchestrator_api_facade.py": "Boundary tests of the API split: every declared name stays reachable at the old path, the facade holds only wrappers, a replaced reader or _get_services reaches the satellites, borrowed patchable names are declared late, and no satellite imports the facade at module level",
+})
+roles.update({
+    "core/chat_turn.py": "One chat turn decided outside the page: turn_history in API form, run_chat_turn over the provider with the usage callback, collect_tokens for the figures of one turn (no report stays None), and persist_chat_turn writing the question before the answer with the file attached only when both its name and its text exist",
+    "core/orchestrator_step.py": "Writing one agent step into its thread: messages_to_persist cutting the history by the saved cursor (a cursor past the end yields nothing), message_row as the single mapping of history keys to store fields, and persist_step_messages returning the new cursor so a rerun duplicates nothing",
+    "tests/test_chat_turn_and_step.py": "Unit tests for the two turn layers: history conversion, provider options and usage figures, thread reuse and creation order, the file needing both a name and text, and the saved cursor cutting, clamping and staying idempotent",
 })
 
 if __name__ == "__main__":

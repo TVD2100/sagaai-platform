@@ -641,7 +641,7 @@
 # received an error instead of the release. The manifest builder now skips
 # repository automation explicitly, and a test pins that behaviour.
 
-__version__ = "2.38.1"
+__version__ = "2.39.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

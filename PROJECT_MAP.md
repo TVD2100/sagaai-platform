@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-06T22:58:39+00:00`
-- Файлов: **728**
+- Обновлено: `2026-11-07T06:21:59+00:00`
+- Файлов: **753**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **10087**
-- Отпечаток содержимого: `sha256:45396481ae8eb47ed876f5333664d00aaa66de465e20492313a2ead608c39794` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 2, JSON: 36, Markdown: 40, PEM certificate: 1, Python: 649, TOML: 2, Text: 2
+- Python-символов: **10217**
+- Отпечаток содержимого: `sha256:daac6b82f24822aedd43b43b61d5b8cd75170ab10eeee2246b2f8ae43b46f4d7` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 2, JSON: 36, Markdown: 40, PEM certificate: 1, Python: 674, TOML: 2, Text: 2
 
 ## Файлы и назначение
 
@@ -37,8 +37,18 @@
 | `ui/pages/connectors.py` | Python | Connectors page: service and preset tiles opening a full-page form, the saved-connections tab, credentials status, test/edit/delete; the connection card carries the agent memory block for that connection | ui |
 | `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | ui |
 | `ui/pages/marketplace.py` | Python | Marketplace page: showcase with search, the entity card (licence, required tools, platform range), install, the three conflict resolutions, reset to catalog and uninstall with an inline confirmation | ui |
-| `ui/pages/orchestrator.py` | Python | Orchestrator page: chat feed, history and settings sections; the chat tab is one reading sequence over section helpers (styles, welcome, feed pagination, one message, message controls, loop status with both confirmation dialogs, submission handling, active controls) and the settings tabs split the same way, every helper staying in this module because the page and the tests resolve st and t through the module globals; the agent step is a skeleton over its phases (step flags, state assembly, root-run registration, the stop request, the step itself, persisting the step to the thread and committing the state) so the order of session-state operations stays one readable sequence, and the event feed dispatches through the _EVENT_RENDERERS table with one renderer per event type while tool_call and tool_result are handled before the table because that pair is what the feed is built around; the Delegation tab carries the allowlists, the six delegation limits and the dialog fields (rounds, question and answer length, answer wait, simultaneous waits), each read through a default-tolerant helper so a partial limits mapping cannot break the tab; the waiting line shows the agent, the run id and the question, and the step feed renders a parked question as an expandable block; the Universal-Agent right is a separate checkbox above the agent list (hidden for the executor itself and while the employee is not installed), saved only when it changed and never folded into the allowlist | storage, ui |
+| `ui/pages/orchestrator.py` | Python | Facade of the orchestrator page: holds the import block (including the re-exports of orchestrator_text that the page and the tests resolve), thin wrappers over the late-bound names and the two entry points page_orchestrator/page_devagent; every body lives in the orchestrator_* modules below | storage, ui |
+| `ui/pages/orchestrator_chat.py` | Python | Chat tab of the orchestrator page: the reading sequence over the section helpers, the confirmation dialogs and the message controls | ui |
+| `ui/pages/orchestrator_chat_input.py` | Python | Chat input area: the toolbar, attachment collection and the token/economy line under the prompt | ui |
+| `ui/pages/orchestrator_feed.py` | Python | Event feed of the chat page: the _EVENT_RENDERERS table, tool call and tool result rendering, the run grouping and the per-message controls | ui |
+| `ui/pages/orchestrator_folder.py` | Python | Workspace folder picker of the chat page: the auto/recent/native menu, the manual path entry and applying a choice to the thread | ui |
+| `ui/pages/orchestrator_loop.py` | Python | Agent step and run tree of the chat page: _do_step split into phases, run registration and stop requests, the subagent status and loop status panels | storage, ui |
 | `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings page: tabbed sections (eleven tabs including Memory), the active tab is kept across reruns and pinned after a save | ui |
+| `ui/pages/orchestrator_settings_delegation.py` | Python | Delegation settings tab: the allowed agents and assistants, the delegation limits and the stale-id display | storage, ui |
+| `ui/pages/orchestrator_settings_models.py` | Python | Model settings tab: strong model, economy tail, prompt settings and the service list | ui |
+| `ui/pages/orchestrator_settings_orch.py` | Python | Orchestrator settings tab: the tool set, system functions, RAG bases, instructions and the allowed connections | ui |
+| `ui/pages/orchestrator_shared.py` | Python | Late-binding layer of the orchestrator page: late(name) resolves a patchable global on the facade at call time, st_proxy() does the same for Streamlit, and bind_facade pins the layer to the facade object so a second live copy of the package cannot swallow a monkeypatch | ui |
+| `ui/pages/orchestrator_state.py` | Python | Session state of the chat page: the initial state, the chat preference and economy cache, thread loading and the state keys built from the page settings | ui |
 | `ui/pages/orchestrator_text.py` | Python | Pure text and event helpers of the orchestrator page, kept free of Streamlit and of translated strings so they can be reasoned about on their own: model-output cleanup (HTML details wrappers, empty fenced blocks, JSON/XML/DSML tool-call residue) and the has_tool_calls flag that drives the per-message copy controls, the two-line preview and argument formatting used by the step feed, the result-body extraction for a tool result, the per-run event grouping, and build_state_keys - the session-state key map of one chat, which takes the persisted checkbox defaults and the page-level constants as arguments so no page configuration leaks in; the page module re-exports every name so the chat feed, the tests and the tool-result renderer resolve them through ui.pages.orchestrator | - |
 | `ui/pages/orchestrators.py` | Python | Employees (orchestrators) management page (create/open/settings/delete; export/import deferred) | ui |
 | `ui/pages/schedules.py` | Python | The 'Run on a schedule' settings page: the rule list with its status, next point and counters, the create/edit form (employee, task, brief, zone, first moment, interval, blocked days, quiet window, advanced fields), a delete confirmation, the run history with its errors, the manual 'run now' action and the preview of the next points | ui |
@@ -79,6 +89,7 @@
 | `core/auth.py` | Python | Optional password authentication gate | - |
 | `core/bootstrap.py` | Python | First-run provisioning: Assistant/Employee Creator instructions, DevAgent settings, legacy skill_creator migration | - |
 | `core/chat_db_archive.py` | Python | One-time switch of the assistant dialogues inside sagaai.db to the transcript file store: stamps the layout in PRAGMA user_version, detects table-backed dialogues, archives the whole database into a verified zip beside itself (the file is never replaced, so assistants and settings survive), writes every dialogue to its transcript while holding one write lock, fills the index columns, and only then drops the moved message rows - a failed archive, lock or transcript write leaves every row in place; an existing byte-identical archive is reused and a one-shot notice names the archive and the counts | - |
+| `core/chat_turn.py` | Python | One chat turn decided outside the page: turn_history in API form, run_chat_turn over the provider with the usage callback, collect_tokens for the figures of one turn (no report stays None), and persist_chat_turn writing the question before the answer with the file attached only when both its name and its text exist | - |
 | `core/config.py` | Python | Configuration load/save with secret encryption and env overlay | storage |
 | `core/connector_presets.py` | Python | MCP connection presets: list_presets/resolve_preset/instantiate_preset over secret-free templates from defaults/connectors/mcp/*.json plus the per-user preset dir; the required icon renders on the MCP-tab tiles and sort_order orders them (vkusvill shipped, github_mcp kept with hidden=true); the optional hidden flag drops a preset from the catalogue while list_presets(include_hidden=True) and resolve_preset still find it by id (invalid values mean visible), so connections created from a hidden preset keep their preset fields and the tile returns once the flag is cleared; instantiate_preset takes account/secrets/pending - the default pending=True snaps the preset config into a credential-less draft and seeds the connection memory from memory_seed, while the Connectors page passes pending=False with the typed credentials so a user-created connection is active at once | - |
 | `core/connectors.py` | Python | Connector storage & CRUD: encrypted credential manifest per connection (DATA_DIR/connectors/<id>/manifest.json), pending drafts without credentials (credentials_status), per-field SSH secrets, mcp service (transport stdio/http, command whitelist, args, url scheme check, auth_header, preset, secret_env_fields; env_json secret plus env_pairs merge), per-connection memory file (64 KiB cap), services registry | - |
@@ -107,10 +118,20 @@
 | `core/memory_migration.py` | Python | Migration of a legacy <project>/<slug>_data folder into the central agents_data root: a read-only plan with per-file actions, a copy verified by size and sha256 before any success is reported, conflicts reported instead of merged, the source folder never deleted and a dry-run by default | - |
 | `core/multimodal.py` | Python | Vision/image model resolution + analyze_image/generate_image wrappers (core.multimodal); the analysis reply is fenced as DATA_FROM_IMAGE and reported as untrusted data | - |
 | `core/ooxml.py` | Python | DOCX, PPTX and XLSX text extraction on the standard library alone (zipfile plus xml.etree.ElementTree): extract_docx_text keeps paragraphs in order and appends every table as CSV, extract_pptx_text marks each slide and drops table paragraphs from the free text, extract_xlsx_text follows the sheet order of workbook.xml.rels and resolves sharedStrings, inline strings, booleans and the column gaps of A1 references; table_to_csv provides the shared RFC 4180 rendering, and a broken package or an oversized container comes back as a warning instead of an exception | - |
+| `core/orchestrator_builtin.py` | Python | Built-in orchestrators and the DevAgent config bridge: seeding the shipped employees, the prompt-user-edited marker and reset_builtin_prompt, plus load_devagent_config and save_devagent_config | storage |
+| `core/orchestrator_defaults.py` | Python | Constants and shipped defaults of the orchestrator API: the dev_agent and universal_agent slugs, the default web-search prompt, the DevAgent config fallback and the lazy tool-name cache | - |
 | `core/orchestrator_folders.py` | Python | Per-orchestrator folders: bundles, functions, instructions; resolve_data_dir picks the role's working-data folder by the first match (MEMORY_DIR marker, config.memory_dir, the central DATA_DIR/agents_data/<slug> default) and resolves explicit scopes (workspace:<subpath>, central:<subpath>, '.', absolute, a plain relative path from the project); it reports the source, the scope, an outside-workspace path, the legacy <project>/<slug>_data folder and folders left over after a relocation; agents_data_root and agent_data_dir expose the central root | storage |
+| `core/orchestrator_instr.py` | Python | Instructions and custom functions of an orchestrator: the listing, reading, saving and deleting that the settings tabs and the prompt block both use | - |
+| `core/orchestrator_links.py` | Python | Links of an orchestrator to other entities: the enabled skills, instructions, connections, RAG bases and the delegation rights with their limits and the available-agents resolution | - |
+| `core/orchestrator_models.py` | Python | Model selection of an orchestrator: the strong model and the economy tail, the web-search and fetch configs with their fallbacks, and the model list offered to the settings page | - |
 | `core/orchestrator_nav.py` | Python | _(описание не задано)_ | - |
+| `core/orchestrator_prompt.py` | Python | System prompt assembly: build_assistant_dicts and the _extend_prompt_with_* blocks for skills, instructions, the owner card, memory, connections, RAG bases, delegation and the tool catalog | - |
+| `core/orchestrator_shared.py` | Python | Late-binding layer of the orchestrator API: late(name) resolves a patchable global on the facade at call time, and bind_facade binds the layer to the facade object so a second live copy of the package does not intercept the patch | - |
+| `core/orchestrator_step.py` | Python | Writing one agent step into its thread: messages_to_persist cutting the history by the saved cursor (a cursor past the end yields nothing), message_row as the single mapping of history keys to store fields, and persist_step_messages returning the new cursor so a rerun duplicates nothing | - |
+| `core/orchestrator_store.py` | Python | Reading and writing an orchestrator: CRUD over the database, the folder mirror of orchestrator.json with its prompt file, and the folder sync that keeps the two sides equal | storage |
 | `core/orchestrator_tools.py` | Python | Tool catalog for orchestrators: core + workspace + delegation + connection + custom functions, the English '## Available tools' prompt block and the system-functions list; spawn_agent and answer_child are offered to the parent, ask_parent only in the child catalog, invoke_assistant only with a non-empty assistant allowlist, and disabled_tools stays a plain blacklist | - |
-| `core/orchestrators.py` | Python | Orchestrator CRUD and assistant assembly: build_assistant_dicts appends skills, instructions, the owner profile card, the working-memory block, connections, RAG bases, delegation and the tool catalog; get_delegation_limits/set_delegation_limits cover six delegation limits plus the five dialog limits (rounds, question and answer length, answer wait, parked runs) and clamp every unknown or invalid value to its documented default on write; the bundled executor's right lives in config.universal_agent_enabled (an absent key reads as enabled, so a new employee is granted it without a migration), get_universal_agent_enabled/set_universal_agent_enabled never rewrite allowed_agents, and get_effective_agents is the one list the runtime enforces and the prompt advertises, skipping a duplicate manual entry, the employee itself and a deleted executor | storage |
+| `core/orchestrator_transfer.py` | Python | Export and import of an orchestrator: the bundle layout with the prompt and instructions, the folder reader and writer, and the validation of an imported bundle | storage |
+| `core/orchestrators.py` | Python | Facade of the orchestrator API: holds the import block (including the re-exports the production modules and 71 test files import by the old path), thin <name>_impl wrappers, the aliases and the public __all__ | storage |
 | `core/paths.py` | Python | Central path registry: DATA_DIR, DB_PATH, personal memory folder, AGENTS_DATA_DIR (the central root of the orchestrators' working folders) and ensure_data_dirs for the runtime layout | - |
 | `core/personal_memory.py` | Python | Personal memory layer: scopes user / orchestrator:<slug> / project:<hash12> / connector:<id> (adapter), 64 KiB per-scope limit, atomic write with updated_at/updated_by/revision header, ten recoverable versions under personal/.backups, credential screening, caller-based write rights, archive on employee deletion, owner-card rendering | - |
 | `core/prompt_blocks.py` | Python | _(описание не задано)_ | - |
@@ -252,6 +273,7 @@
 | `tests/test_backup_and_safewriter.py` | Python | Backup/safe-writer tests | - |
 | `tests/test_chat_db_archive.py` | Python | Unit tests for the switch of the assistant dialogues: legacy detection, the layout stamp, the verified archive including messages that live only in the write-ahead log, the exact moment rows may leave the table, reuse of an identical archive and refusal of a stale one, reuse of the plain name only once, the notice read exactly once, and the failure modes (unverifiable archive, failed transcript write, unreadable database, a lock held by another connection) | storage |
 | `tests/test_chat_pagination.py` | Python | _(описание не задано)_ | ui |
+| `tests/test_chat_turn_and_step.py` | Python | Unit tests for the two turn layers: history conversion, provider options and usage figures, thread reuse and creation order, the file needing both a name and text, and the saved cursor cutting, clamping and staying idempotent | - |
 | `tests/test_child_thread_binding_index.py` | Python | Unit tests for the child thread index row and the transcript read path: binding creates the row with parent, kind, title and a history-relative path, a second bind keeps one row, an empty id is a no-op, a failing store never breaks the binding, a child never appears in the dialog list, a bound child reads as an empty conversation until its first message, the tool answers ok/empty/resume_unavailable, and a legacy dialog still falls back to the messages table | storage |
 | `tests/test_ci_check.py` | Python | Unit tests of the gate runner: requirements and lock parsing, version-range comparison, lock agreement of both constraint files, the type budget, the structural budget, the pass/fail outcome of every check and the exit code the caller acts on | - |
 | `tests/test_cli_commands.py` | Python | Command contract tests: doctor creates no database, tokens are verified by the API store, restore refuses without --yes in a non-interactive shell, migrate prepares a clean machine, and the running-platform guard answers with the documented code | - |
@@ -349,6 +371,7 @@
 | `tests/test_orchestration_tools.py` | Python | Unit tests for the spawn_agent/invoke_assistant wrappers: rights checks, unknown targets, argument validation and catalog entries | - |
 | `tests/test_orchestration_tools_facade.py` | Python | Boundary tests of the split: every public name is reachable at the old path, the facade holds no function of its own and stays small, a replaced tools.time and tools.spawn_agent stay in charge, and no implementation module imports the facade at module level | - |
 | `tests/test_orchestration_verify.py` | Python | Unit tests for verify_result: contract refusals, the three verdicts, conservative parsing, the visibility boundary, own thread and journal, tree limits, catalog and prompt gating, fan-out acceptance | storage |
+| `tests/test_orchestrator_api_facade.py` | Python | Boundary tests of the API split: every declared name stays reachable at the old path, the facade holds only wrappers, a replaced reader or _get_services reaches the satellites, borrowed patchable names are declared late, and no satellite imports the facade at module level | - |
 | `tests/test_orchestrator_chat_prefs.py` | Python | _(описание не задано)_ | ui |
 | `tests/test_orchestrator_connections.py` | Python | Unit tests for the connection prompt extension: enabled binding, per-service tool catalogs, credentials-pending marker, memory quick notes | storage |
 | `tests/test_orchestrator_delegation_prompt.py` | Python | Tests for the delegation blocks of the system prompt: available agents (self plus allowlist) and available assistants with ids, omitted when the assistant allowlist is empty | storage |
@@ -363,6 +386,7 @@
 | `tests/test_orchestrator_models_settings.py` | Python | Orchestrator settings UI tests (main model + optional vision/image selectors) | ui |
 | `tests/test_orchestrator_nav.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_other_settings.py` | Python | _(описание не задано)_ | ui |
+| `tests/test_orchestrator_page_facade.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_prompt_settings.py` | Python | UI tests: prompt settings tab - save, reset button and edited-prompt notice for the built-in orchestrator | ui |
 | `tests/test_orchestrator_settings_tabs.py` | Python | Tests for the settings tab pinning: eleven sections map to their own tab and a stale label from another language is dropped | ui |
 | `tests/test_orchestrator_subagent_ui.py` | Python | UI tests for the background subagent parts of the chat page: the running-runs status line, the _notice badge and the st.fragment refresh | ui |
@@ -426,6 +450,7 @@
 | `tests/test_task_scout_default.py` | Python | Unit tests for the bundled Task Scout: folder completeness, conservative defaults, prompt contract, default import, catalog adoptability, and the delegation boundary of both read-only helpers | storage |
 | `tests/test_task_state.py` | Python | Task-state journal tests (dialog-folder fallback in the empty state) | - |
 | `tests/test_task_state_prune.py` | Python | Unit tests for journal retention: only empty journals past the age threshold are removed, journals with an active task or history survive, the live dialog and fresh files survive, a non-journal file is left alone, an orphaned child journal goes only when its run reported a terminal outcome, and the sweep does not cascade onto children in the same pass | - |
+| `tests/test_test_state_isolation.py` | Python | Guards how the suite isolates process-global state: the base conftest ships _restore_dev_agent_state without autouse, the scenario folder owns its own restore hook, and an AST scan fails with the offender's file name when a module calls apply_paths or _reset_dialog without restoring the state | - |
 | `tests/test_theme_restore.py` | Python | _(описание не задано)_ | - |
 | `tests/test_thread_deeplink.py` | Python | _(описание не задано)_ | - |
 | `tests/test_thread_file_save.py` | Python | _(описание не задано)_ | storage |
@@ -842,28 +867,27 @@
 - `_finalize_tools` (func, строка 79)
 
 ### `ui/pages/chat.py`
-- `_get_preselected` (func, строка 35)
-- `_uploader_counter` (func, строка 41)
-- `_uploader_key` (func, строка 46)
-- `_detach_file` (func, строка 51)
-- `page_run_query` (func, строка 58)
-- `_resolve_assistant` (func, строка 95)
-- `_warn_saved_model` (func, строка 128)
-- `_render_header` (func, строка 145)
-- `_render_quick_actions` (func, строка 165)
-- `_render_assistant_info` (func, строка 189)
-- `_render_history` (func, строка 206)
-- `_render_message_actions` (func, строка 225)
-- `_file_badge_html` (func, строка 250)
-- `_render_attached_badge` (func, строка 259)
-- `_render_uploader_styles` (func, строка 272)
-- `_render_send_form` (func, строка 287)
-- `_accept_uploaded_file` (func, строка 315)
-- `_render_form_file_badge` (func, строка 336)
-- `_render_token_indicator` (func, строка 354)
-- `_handle_send` (func, строка 371)
-- `_handle_send._on_tokens` (func, строка 387)
-- `_context_is_acceptable` (func, строка 421)
+- `_get_preselected` (func, строка 31)
+- `_uploader_counter` (func, строка 37)
+- `_uploader_key` (func, строка 42)
+- `_detach_file` (func, строка 47)
+- `page_run_query` (func, строка 54)
+- `_resolve_assistant` (func, строка 91)
+- `_warn_saved_model` (func, строка 124)
+- `_render_header` (func, строка 141)
+- `_render_quick_actions` (func, строка 161)
+- `_render_assistant_info` (func, строка 185)
+- `_render_history` (func, строка 202)
+- `_render_message_actions` (func, строка 221)
+- `_file_badge_html` (func, строка 246)
+- `_render_attached_badge` (func, строка 255)
+- `_render_uploader_styles` (func, строка 268)
+- `_render_send_form` (func, строка 283)
+- `_accept_uploaded_file` (func, строка 311)
+- `_render_form_file_badge` (func, строка 332)
+- `_render_token_indicator` (func, строка 350)
+- `_handle_send` (func, строка 367)
+- `_context_is_acceptable` (func, строка 407)
 
 ### `ui/pages/connectors.py`
 - `_conn_tab_labels` (func, строка 80)
@@ -957,140 +981,183 @@
 - `_human_size` (func, строка 886)
 
 ### `ui/pages/orchestrator.py`
-- `_chat_prefs` (func, строка 173)
-- `_save_chat_pref` (func, строка 181)
-- `_make_state_keys` (func, строка 197)
-- `_init_orch_state` (func, строка 202)
-- `_ss` (func, строка 209)
-- `_set_ss` (func, строка 214)
-- `_pop_ss` (func, строка 218)
-- `_save_economy_cache` (func, строка 222)
-- `_load_economy_cache` (func, строка 241)
-- `_folder_picker_key` (func, строка 256)
-- `_reset_folder_choice` (func, строка 267)
-- `_thread_folder` (func, строка 274)
-- `_apply_folder_choice` (func, строка 299)
-- `_render_folder_picker` (func, строка 339)
-- `_render_folder_picker._label` (func, строка 353)
-- `_folder_picker_options` (func, строка 391)
-- `_open_folder_dialog` (func, строка 414)
-- `_assistant_dicts` (func, строка 432)
-- `_make_send_adapter` (func, строка 447)
-- `_make_send_adapter._adapter` (func, строка 463)
-- `_make_dispatcher` (func, строка 482)
-- `_assistant_has_api_key` (func, строка 508)
-- `_render_generated_image` (func, строка 551)
-- `_render_parked_question` (func, строка 579)
-- `_tool_result_summary` (func, строка 602)
-- `_tool_result_header` (func, строка 634)
-- `_render_tool_call_args` (func, строка 656)
-- `_render_result_payload` (func, строка 673)
-- `_render_tool_result` (func, строка 690)
-- `_render_event_group` (func, строка 724)
-- `_render_events` (func, строка 746)
-- `_render_tool_call_event` (func, строка 770)
-- `_render_applied_event` (func, строка 781)
-- `_render_skill_event` (func, строка 786)
-- `_render_phase_event` (func, строка 795)
-- `_render_retry_event` (func, строка 808)
-- `_render_incomplete_retry_event` (func, строка 819)
-- `_render_sanitized_event` (func, строка 825)
-- `_render_error_event` (func, строка 839)
-- `_render_event` (func, строка 856)
-- `_dialog_tree_root` (func, строка 881)
-- `_live_subagent_runs` (func, строка 910)
-- `_waiting_subagent_runs` (func, строка 934)
-- `_render_subagent_status` (func, строка 954)
-- `_render_subagent_status._poll_children` (func, строка 985)
-- `_read_step_flags` (func, строка 1005)
-- `_new_loop_state` (func, строка 1016)
-- `_ensure_loop_state` (func, строка 1057)
-- `_register_root_run` (func, строка 1078)
-- `_register_root_run._forward_child_event` (func, строка 1107)
-- `_handle_stop_requested` (func, строка 1119)
-- `_run_agent_step` (func, строка 1139)
-- `_persist_step_to_thread` (func, строка 1154)
-- `_commit_loop_state` (func, строка 1175)
-- `_do_step` (func, строка 1194)
-- `_do_step.on_event` (func, строка 1206)
-- `_reset_dialog` (func, строка 1247)
-- `_load_thread` (func, строка 1274)
-- `_sync_chat_pref_checkbox` (func, строка 1318)
-- `_chat_toolbar_pref_changed` (func, строка 1336)
-- `_render_chat_toolbar` (func, строка 1346)
-- `_token_line_cache_key` (func, строка 1402)
-- `_render_token_line` (func, строка 1452)
-- `_economy_window_info` (func, строка 1502)
-- `_render_chat_tab` (func, строка 1550)
-- `_render_chat_header` (func, строка 1610)
-- `_render_chat_styles` (func, строка 1633)
-- `_render_chat_welcome` (func, строка 1647)
-- `_apply_autoscroll` (func, строка 1657)
-- `_chat_show_count` (func, строка 1671)
-- `_render_show_earlier` (func, строка 1677)
-- `_render_chat_feed` (func, строка 1692)
-- `_render_history_message` (func, строка 1700)
-- `_render_user_message` (func, строка 1724)
-- `_render_assistant_message` (func, строка 1737)
-- `_render_message_controls` (func, строка 1763)
-- `_render_loop_status` (func, строка 1785)
-- `_resume_after_confirmation` (func, строка 1809)
-- `_render_danger_confirmation` (func, строка 1823)
-- `_render_sanitized_confirmation` (func, строка 1853)
-- `_render_confirmation_buttons` (func, строка 1884)
-- `_render_confirmation_buttons.on_event` (func, строка 1904)
-- `_render_confirmation_buttons.on_event` (func, строка 1918)
-- `_handle_chat_submission` (func, строка 1925)
-- `_build_submission_text` (func, строка 1959)
-- `_ensure_thread` (func, строка 1975)
-- `_collect_attachment_context` (func, строка 2011)
-- `_cancel_dialog_tree` (func, строка 2054)
-- `_render_active_controls` (func, строка 2069)
-- `_services_with_web_search` (func, строка 2085)
-- `_temp_slider` (func, строка 2097)
-- `_render_optional_model_section` (func, строка 2106)
-- `_current_optional_pair` (func, строка 2150)
-- `pin_settings_section` (func, строка 2184)
-- `settings_save_failed` (func, строка 2196)
-- `_render_models_settings` (func, строка 2209)
-- `_warn_unavailable_pair` (func, строка 2237)
-- `_render_reasoning_effort` (func, строка 2255)
-- `_render_strong_model_section` (func, строка 2275)
-- `_render_optional_capability_sections` (func, строка 2326)
-- `_render_search_model_section` (func, строка 2368)
-- `_render_search_pair` (func, строка 2389)
-- `_render_search_prompt` (func, строка 2431)
-- `_save_models_settings` (func, строка 2445)
-- `_render_prompt_settings` (func, строка 2473)
-- `_render_economy_settings` (func, строка 2515)
-- `_render_orch_system_tools` (func, строка 2572)
-- `_render_orchestrator_functions_settings` (func, строка 2614)
-- `_render_function_cards` (func, строка 2636)
-- `_render_function_form` (func, строка 2662)
-- `_render_orchestrator_instructions_settings` (func, строка 2705)
-- `_render_instruction_cards` (func, строка 2725)
-- `_render_instruction_form` (func, строка 2752)
-- `_render_orch_skills_settings` (func, строка 2792)
-- `_render_orch_rag_bases` (func, строка 2836)
-- `_render_orch_connections` (func, строка 2891)
-- `_render_orch_memory` (func, строка 2937)
-- `_render_memory_dir_section` (func, строка 2977)
-- `_render_memory_editor` (func, строка 3006)
-- `_render_delegation_settings` (func, строка 3042)
-- `_live_orchestrator_entries` (func, строка 3075)
-- `_render_allowed_agents` (func, строка 3083)
-- `_render_allowed_assistants` (func, строка 3130)
-- `_render_verifier_section` (func, строка 3158)
-- `_number_input_setting` (func, строка 3196)
-- `_render_delegation_limits` (func, строка 3207)
-- `_render_dialog_limits` (func, строка 3238)
-- `_save_delegation_settings` (func, строка 3278)
-- `_render_other_settings` (func, строка 3306)
-- `page_orchestrator` (func, строка 3345)
-- `page_devagent` (func, строка 3360)
+- `_assistant_has_api_key` (func, строка 567)
+- `_do_step` (func, строка 572)
+- `_init_orch_state` (func, строка 577)
+- `_load_thread` (func, строка 582)
+- `_make_dispatcher` (func, строка 587)
+- `_make_send_adapter` (func, строка 592)
+- `_render_event` (func, строка 597)
+- `_render_token_line` (func, строка 602)
+- `_render_tool_result` (func, строка 607)
+- `_reset_dialog` (func, строка 612)
+- `_set_ss` (func, строка 617)
+- `_ss` (func, строка 622)
+- `_thread_folder` (func, строка 627)
+- `pin_settings_section` (func, строка 632)
+- `settings_save_failed` (func, строка 637)
+- `page_orchestrator` (func, строка 642)
+- `page_devagent` (func, строка 655)
+
+### `ui/pages/orchestrator_chat.py`
+- `_render_chat_tab` (func, строка 53)
+- `_render_chat_header` (func, строка 113)
+- `_render_chat_styles` (func, строка 136)
+- `_render_chat_welcome` (func, строка 150)
+- `_apply_autoscroll` (func, строка 160)
+- `_chat_show_count` (func, строка 174)
+- `_render_show_earlier` (func, строка 180)
+- `_render_chat_feed` (func, строка 195)
+- `_render_history_message` (func, строка 203)
+- `_render_user_message` (func, строка 227)
+- `_render_assistant_message` (func, строка 240)
+- `_render_message_controls` (func, строка 266)
+- `_render_loop_status` (func, строка 288)
+- `_resume_after_confirmation` (func, строка 312)
+- `_render_danger_confirmation` (func, строка 326)
+- `_render_sanitized_confirmation` (func, строка 356)
+- `_render_confirmation_buttons` (func, строка 387)
+- `_render_confirmation_buttons.on_event` (func, строка 407)
+- `_render_confirmation_buttons.on_event` (func, строка 421)
+- `_render_active_controls` (func, строка 428)
+
+### `ui/pages/orchestrator_chat_input.py`
+- `_render_chat_toolbar` (func, строка 62)
+- `_token_line_cache_key` (func, строка 114)
+- `_render_token_line_impl` (func, строка 164)
+- `_economy_window_info` (func, строка 214)
+- `_handle_chat_submission` (func, строка 262)
+- `_build_submission_text` (func, строка 296)
+- `_ensure_thread` (func, строка 312)
+- `_collect_attachment_context` (func, строка 348)
+- `_services_with_web_search` (func, строка 391)
+- `_temp_slider` (func, строка 403)
+
+### `ui/pages/orchestrator_feed.py`
+- `_render_generated_image` (func, строка 35)
+- `_render_parked_question` (func, строка 63)
+- `_tool_result_summary` (func, строка 86)
+- `_tool_result_header` (func, строка 118)
+- `_render_tool_call_args` (func, строка 140)
+- `_render_result_payload` (func, строка 157)
+- `_render_tool_result_impl` (func, строка 174)
+- `_render_event_group` (func, строка 208)
+- `_render_events` (func, строка 228)
+- `_render_tool_call_event` (func, строка 252)
+- `_render_applied_event` (func, строка 263)
+- `_render_skill_event` (func, строка 268)
+- `_render_phase_event` (func, строка 277)
+- `_render_retry_event` (func, строка 290)
+- `_render_incomplete_retry_event` (func, строка 301)
+- `_render_sanitized_event` (func, строка 307)
+- `_render_error_event` (func, строка 321)
+- `_render_event_impl` (func, строка 337)
+
+### `ui/pages/orchestrator_folder.py`
+- `_folder_picker_key` (func, строка 37)
+- `_reset_folder_choice` (func, строка 48)
+- `_thread_folder_impl` (func, строка 55)
+- `_apply_folder_choice` (func, строка 80)
+- `_render_folder_picker` (func, строка 120)
+- `_render_folder_picker._label` (func, строка 134)
+- `_folder_picker_options` (func, строка 172)
+- `_open_folder_dialog` (func, строка 195)
+
+### `ui/pages/orchestrator_loop.py`
+- `_assistant_dicts` (func, строка 71)
+- `_make_send_adapter_impl` (func, строка 86)
+- `_make_send_adapter_impl._adapter` (func, строка 102)
+- `_make_dispatcher_impl` (func, строка 121)
+- `_assistant_has_api_key_impl` (func, строка 147)
+- `_dialog_tree_root` (func, строка 162)
+- `_live_subagent_runs` (func, строка 191)
+- `_waiting_subagent_runs` (func, строка 215)
+- `_render_subagent_status` (func, строка 235)
+- `_render_subagent_status._poll_children` (func, строка 266)
+- `_read_step_flags` (func, строка 278)
+- `_new_loop_state` (func, строка 289)
+- `_ensure_loop_state` (func, строка 330)
+- `_register_root_run` (func, строка 351)
+- `_register_root_run._forward_child_event` (func, строка 380)
+- `_handle_stop_requested` (func, строка 392)
+- `_run_agent_step` (func, строка 412)
+- `_persist_step_to_thread` (func, строка 427)
+- `_commit_loop_state` (func, строка 441)
+- `_do_step_impl` (func, строка 461)
+- `_do_step_impl.on_event` (func, строка 473)
+- `_reset_dialog_impl` (func, строка 512)
+- `_load_thread_impl` (func, строка 539)
+- `_sync_chat_pref_checkbox` (func, строка 580)
+- `_chat_toolbar_pref_changed` (func, строка 598)
+- `_cancel_dialog_tree` (func, строка 608)
 
 ### `ui/pages/orchestrator_settings.py`
 - `page_orchestrator_settings` (func, строка 37)
+
+### `ui/pages/orchestrator_settings_delegation.py`
+- `_render_delegation_settings` (func, строка 45)
+- `_live_orchestrator_entries` (func, строка 78)
+- `_render_allowed_agents` (func, строка 86)
+- `_render_allowed_assistants` (func, строка 133)
+- `_render_verifier_section` (func, строка 161)
+- `_number_input_setting` (func, строка 199)
+- `_render_delegation_limits` (func, строка 210)
+- `_render_dialog_limits` (func, строка 241)
+- `_save_delegation_settings` (func, строка 281)
+- `_render_other_settings` (func, строка 309)
+
+### `ui/pages/orchestrator_settings_models.py`
+- `_render_optional_model_section` (func, строка 42)
+- `_current_optional_pair` (func, строка 86)
+- `_render_models_settings` (func, строка 109)
+- `_warn_unavailable_pair` (func, строка 137)
+- `_render_reasoning_effort` (func, строка 155)
+- `_render_strong_model_section` (func, строка 175)
+- `_render_optional_capability_sections` (func, строка 226)
+- `_render_search_model_section` (func, строка 268)
+- `_render_search_pair` (func, строка 289)
+- `_render_search_prompt` (func, строка 331)
+- `_save_models_settings` (func, строка 345)
+- `_render_prompt_settings` (func, строка 373)
+- `_render_economy_settings` (func, строка 415)
+
+### `ui/pages/orchestrator_settings_orch.py`
+- `_render_orch_system_tools` (func, строка 48)
+- `_render_orchestrator_functions_settings` (func, строка 90)
+- `_render_function_cards` (func, строка 112)
+- `_render_function_form` (func, строка 138)
+- `_render_orchestrator_instructions_settings` (func, строка 181)
+- `_render_instruction_cards` (func, строка 201)
+- `_render_instruction_form` (func, строка 228)
+- `_render_orch_skills_settings` (func, строка 268)
+- `_render_orch_rag_bases` (func, строка 312)
+- `_render_orch_connections` (func, строка 367)
+- `_render_orch_memory` (func, строка 413)
+- `_render_memory_dir_section` (func, строка 453)
+- `_render_memory_editor` (func, строка 482)
+
+### `ui/pages/orchestrator_shared.py`
+- `bind_facade` (func, строка 43)
+- `facade` (func, строка 49)
+- `late` (func, строка 64)
+- `late._call` (func, строка 73)
+- `_StProxyType` (class, строка 84)
+- `_StProxyType.__getattr__` (func, строка 92)
+- `_StProxyType.__repr__` (func, строка 95)
+- `st_proxy` (func, строка 102)
+- `pin_settings_section_impl` (func, строка 128)
+- `settings_save_failed_impl` (func, строка 141)
+
+### `ui/pages/orchestrator_state.py`
+- `_chat_prefs` (func, строка 35)
+- `_save_chat_pref` (func, строка 43)
+- `_make_state_keys` (func, строка 59)
+- `_init_orch_state_impl` (func, строка 64)
+- `_ss_impl` (func, строка 71)
+- `_set_ss_impl` (func, строка 76)
+- `_pop_ss` (func, строка 80)
+- `_save_economy_cache` (func, строка 84)
+- `_load_economy_cache` (func, строка 103)
 
 ### `ui/pages/orchestrator_text.py`
 - `_strip_html_details_tags` (func, строка 25)
@@ -1508,6 +1575,14 @@
 - `_apply_index` (func, строка 569)
 - `_stamp` (func, строка 597)
 - `ensure_database_format` (func, строка 609)
+
+### `core/chat_turn.py`
+- `turn_history` (func, строка 27)
+- `run_chat_turn` (func, строка 38)
+- `collect_tokens` (func, строка 58)
+- `collect_tokens._callback` (func, строка 68)
+- `collect_tokens._read` (func, строка 76)
+- `persist_chat_turn` (func, строка 85)
 
 ### `core/config.py`
 - `_secret_keys` (func, строка 35)
@@ -2051,6 +2126,31 @@
 - `_workbook_sheets` (func, строка 368)
 - `extract_xlsx_text` (func, строка 415)
 
+### `core/orchestrator_builtin.py`
+- `_ensure_default_orchestrators` (func, строка 40)
+- `_refresh_marketplace_registry_cache` (func, строка 59)
+- `_load_bundled_prompt_text` (func, строка 75)
+- `_first_boot_config` (func, строка 89)
+- `_builtin_tool_names` (func, строка 119)
+- `_create_builtin_orchestrator` (func, строка 129)
+- `_backfill_builtin_config` (func, строка 160)
+- `_migrate_builtin_max_steps` (func, строка 242)
+- `ensure_builtin_orchestrators` (func, строка 250)
+- `load_devagent_config` (func, строка 301)
+- `save_devagent_config` (func, строка 340)
+
+### `core/orchestrator_defaults.py`
+- `_devagent_default_config` (func, строка 38)
+- `_devagent_default_config._str1` (func, строка 49)
+- `_devagent_default_config._num` (func, строка 55)
+- `_devagent_default_config._truthy` (func, строка 61)
+- `_devagent_default_config._lst` (func, строка 72)
+- `_default_economy_tail_messages` (func, строка 123)
+- `_default_economy_cache_enabled` (func, строка 130)
+- `_default_economy_cache_multiplier` (func, строка 135)
+- `_get_known_tool_names` (func, строка 143)
+- `_invalidate_known_tool_names` (func, строка 182)
+
 ### `core/orchestrator_folders.py`
 - `get_orchestrators_root` (func, строка 46)
 - `safe_orchestrator_slug` (func, строка 51)
@@ -2092,10 +2192,97 @@
 - `export_orchestrator_folder` (func, строка 838)
 - `import_orchestrator_folder` (func, строка 861)
 
+### `core/orchestrator_instr.py`
+- `orch_list_instructions` (func, строка 24)
+- `orch_get_instruction_impl` (func, строка 29)
+- `orch_save_instruction` (func, строка 34)
+- `orch_delete_instruction` (func, строка 45)
+- `orch_list_functions` (func, строка 50)
+- `orch_get_function` (func, строка 55)
+- `orch_save_function` (func, строка 60)
+- `orch_delete_function` (func, строка 65)
+
+### `core/orchestrator_links.py`
+- `get_enabled_skills` (func, строка 26)
+- `set_enabled_skills` (func, строка 40)
+- `get_enabled_connections_impl` (func, строка 63)
+- `set_enabled_connections` (func, строка 77)
+- `get_allowed_agents_impl` (func, строка 100)
+- `set_allowed_agents` (func, строка 120)
+- `get_universal_agent_enabled` (func, строка 149)
+- `set_universal_agent_enabled` (func, строка 170)
+- `get_effective_agents_impl` (func, строка 191)
+- `get_allowed_assistants_impl` (func, строка 223)
+- `set_allowed_assistants` (func, строка 242)
+- `get_verifier_agent_impl` (func, строка 274)
+- `set_verifier_agent` (func, строка 294)
+- `get_delegation_limits` (func, строка 337)
+- `set_delegation_limits` (func, строка 358)
+- `get_disabled_tools_impl` (func, строка 386)
+- `set_disabled_tools` (func, строка 406)
+- `get_orchestrator_rag_bases` (func, строка 430)
+- `set_orchestrator_rag_bases` (func, строка 447)
+
+### `core/orchestrator_models.py`
+- `get_web_search_prompt_impl` (func, строка 33)
+- `get_web_search_config` (func, строка 48)
+- `get_fetch_config` (func, строка 76)
+- `get_fetch_config._result` (func, строка 109)
+- `get_economy_tail_messages` (func, строка 133)
+- `get_economy_cache_enabled` (func, строка 151)
+- `get_economy_cache_multiplier` (func, строка 169)
+- `get_economy_config` (func, строка 188)
+
 ### `core/orchestrator_nav.py`
 - `last_used_at` (func, строка 31)
 - `sort_orchestrators` (func, строка 42)
 - `sort_orchestrators.key` (func, строка 51)
+
+### `core/orchestrator_prompt.py`
+- `_extend_prompt_with_personal_card_impl` (func, строка 56)
+- `_extend_prompt_with_memory_impl` (func, строка 95)
+- `_extend_prompt_with_working_memory_impl` (func, строка 163)
+- `_extend_prompt_with_connections_impl` (func, строка 232)
+- `_extend_prompt_with_tools_impl` (func, строка 317)
+- `_extend_prompt_with_rag_bases_impl` (func, строка 338)
+- `_delegation_availability` (func, строка 389)
+- `_agent_delegation_lines` (func, строка 410)
+- `_assistant_delegation_lines` (func, строка 440)
+- `_verify_delegation_lines` (func, строка 456)
+- `_extend_prompt_with_delegation_impl` (func, строка 461)
+- `_extend_prompt_with_skills_impl` (func, строка 506)
+- `_extend_prompt_with_instructions_impl` (func, строка 527)
+- `_format_utc_offset` (func, строка 601)
+- `_current_date_line` (func, строка 606)
+- `_extend_prompt_with_current_date` (func, строка 615)
+- `_extend_prompt_with_dialog` (func, строка 682)
+- `build_assistant_dicts_impl` (func, строка 704)
+- `build_assistant_dicts_impl._resolve_effort` (func, строка 769)
+
+### `core/orchestrator_shared.py`
+- `bind_facade` (func, строка 39)
+- `facade` (func, строка 45)
+- `late` (func, строка 60)
+- `late._call` (func, строка 69)
+
+### `core/orchestrator_step.py`
+- `messages_to_persist` (func, строка 18)
+- `message_row` (func, строка 35)
+- `persist_step_messages` (func, строка 53)
+
+### `core/orchestrator_store.py`
+- `list_orchestrators_impl` (func, строка 48)
+- `get_orchestrator_impl` (func, строка 53)
+- `get_orchestrator_by_slug` (func, строка 58)
+- `create_orchestrator` (func, строка 63)
+- `_mark_prompt_edited` (func, строка 101)
+- `reset_builtin_prompt_impl` (func, строка 129)
+- `save_orchestrator` (func, строка 162)
+- `delete_orchestrator_impl` (func, строка 206)
+- `_mark_marketplace_removed` (func, строка 237)
+- `_sync_orchestrator_folder_impl` (func, строка 270)
+- `reload_orchestrator_from_folder` (func, строка 301)
+- `sync_all_orchestrator_folders` (func, строка 365)
 
 ### `core/orchestrator_tools.py`
 - `_legacy_aliases` (func, строка 28)
@@ -2114,99 +2301,37 @@
 - `list_system_tools` (func, строка 330)
 - `render_available_tools_block` (func, строка 354)
 
+### `core/orchestrator_transfer.py`
+- `export_orchestrator` (func, строка 42)
+- `_validate_imported_tools` (func, строка 88)
+- `import_orchestrator` (func, строка 114)
+- `_import_instructions` (func, строка 233)
+- `_import_functions` (func, строка 260)
+
 ### `core/orchestrators.py`
-- `_ensure_default_orchestrators` (func, строка 120)
-- `_refresh_marketplace_registry_cache` (func, строка 139)
-- `_devagent_default_config` (func, строка 161)
-- `_devagent_default_config._str1` (func, строка 172)
-- `_devagent_default_config._num` (func, строка 178)
-- `_devagent_default_config._truthy` (func, строка 184)
-- `_devagent_default_config._lst` (func, строка 195)
-- `_default_economy_tail_messages` (func, строка 247)
-- `_default_economy_cache_enabled` (func, строка 254)
-- `_default_economy_cache_multiplier` (func, строка 259)
-- `_get_known_tool_names` (func, строка 273)
-- `_invalidate_known_tool_names` (func, строка 312)
-- `list_orchestrators` (func, строка 326)
-- `get_orchestrator` (func, строка 331)
-- `get_orchestrator_by_slug` (func, строка 336)
-- `create_orchestrator` (func, строка 344)
-- `_mark_prompt_edited` (func, строка 382)
-- `reset_builtin_prompt` (func, строка 410)
-- `save_orchestrator` (func, строка 443)
-- `delete_orchestrator` (func, строка 487)
-- `_mark_marketplace_removed` (func, строка 518)
-- `_sync_orchestrator_folder` (func, строка 551)
-- `reload_orchestrator_from_folder` (func, строка 582)
-- `sync_all_orchestrator_folders` (func, строка 646)
-- `get_enabled_skills` (func, строка 664)
-- `set_enabled_skills` (func, строка 678)
-- `get_enabled_connections` (func, строка 704)
-- `set_enabled_connections` (func, строка 718)
-- `_extend_prompt_with_personal_card` (func, строка 744)
-- `_extend_prompt_with_memory` (func, строка 783)
-- `_extend_prompt_with_working_memory` (func, строка 851)
-- `_extend_prompt_with_connections` (func, строка 920)
-- `get_allowed_agents` (func, строка 1007)
-- `set_allowed_agents` (func, строка 1027)
-- `get_universal_agent_enabled` (func, строка 1056)
-- `set_universal_agent_enabled` (func, строка 1077)
-- `get_effective_agents` (func, строка 1098)
-- `get_allowed_assistants` (func, строка 1130)
-- `set_allowed_assistants` (func, строка 1149)
-- `get_verifier_agent` (func, строка 1181)
-- `set_verifier_agent` (func, строка 1201)
-- `get_delegation_limits` (func, строка 1246)
-- `set_delegation_limits` (func, строка 1267)
-- `get_disabled_tools` (func, строка 1298)
-- `set_disabled_tools` (func, строка 1318)
-- `_extend_prompt_with_tools` (func, строка 1342)
-- `get_orchestrator_rag_bases` (func, строка 1366)
-- `set_orchestrator_rag_bases` (func, строка 1383)
-- `_extend_prompt_with_rag_bases` (func, строка 1409)
-- `_delegation_availability` (func, строка 1460)
-- `_agent_delegation_lines` (func, строка 1481)
-- `_assistant_delegation_lines` (func, строка 1511)
-- `_verify_delegation_lines` (func, строка 1527)
-- `_extend_prompt_with_delegation` (func, строка 1532)
-- `_extend_prompt_with_skills` (func, строка 1577)
-- `_extend_prompt_with_instructions` (func, строка 1599)
-- `_format_utc_offset` (func, строка 1675)
-- `_current_date_line` (func, строка 1680)
-- `_extend_prompt_with_current_date` (func, строка 1689)
-- `_extend_prompt_with_dialog` (func, строка 1761)
-- `build_assistant_dicts` (func, строка 1783)
-- `build_assistant_dicts._resolve_effort` (func, строка 1848)
-- `get_web_search_prompt` (func, строка 1874)
-- `get_web_search_config` (func, строка 1889)
-- `get_fetch_config` (func, строка 1917)
-- `get_fetch_config._result` (func, строка 1950)
-- `get_economy_tail_messages` (func, строка 1974)
-- `get_economy_cache_enabled` (func, строка 1992)
-- `get_economy_cache_multiplier` (func, строка 2010)
-- `get_economy_config` (func, строка 2029)
-- `export_orchestrator` (func, строка 2043)
-- `_validate_imported_tools` (func, строка 2089)
-- `import_orchestrator` (func, строка 2115)
-- `_import_instructions` (func, строка 2234)
-- `_import_functions` (func, строка 2261)
-- `orch_list_instructions` (func, строка 2279)
-- `orch_get_instruction` (func, строка 2284)
-- `orch_save_instruction` (func, строка 2289)
-- `orch_delete_instruction` (func, строка 2300)
-- `orch_list_functions` (func, строка 2307)
-- `orch_get_function` (func, строка 2312)
-- `orch_save_function` (func, строка 2317)
-- `orch_delete_function` (func, строка 2322)
-- `_load_bundled_prompt_text` (func, строка 2331)
-- `_first_boot_config` (func, строка 2345)
-- `_builtin_tool_names` (func, строка 2375)
-- `_create_builtin_orchestrator` (func, строка 2385)
-- `_backfill_builtin_config` (func, строка 2416)
-- `_migrate_builtin_max_steps` (func, строка 2498)
-- `ensure_builtin_orchestrators` (func, строка 2506)
-- `load_devagent_config` (func, строка 2561)
-- `save_devagent_config` (func, строка 2600)
+- `_extend_prompt_with_connections` (func, строка 275)
+- `_extend_prompt_with_delegation` (func, строка 280)
+- `_extend_prompt_with_instructions` (func, строка 285)
+- `_extend_prompt_with_memory` (func, строка 290)
+- `_extend_prompt_with_personal_card` (func, строка 295)
+- `_extend_prompt_with_rag_bases` (func, строка 300)
+- `_extend_prompt_with_skills` (func, строка 305)
+- `_extend_prompt_with_tools` (func, строка 310)
+- `_extend_prompt_with_working_memory` (func, строка 315)
+- `_sync_orchestrator_folder` (func, строка 320)
+- `build_assistant_dicts` (func, строка 325)
+- `delete_orchestrator` (func, строка 330)
+- `get_allowed_agents` (func, строка 335)
+- `get_allowed_assistants` (func, строка 340)
+- `get_disabled_tools` (func, строка 345)
+- `get_effective_agents` (func, строка 350)
+- `get_enabled_connections` (func, строка 355)
+- `get_orchestrator` (func, строка 360)
+- `get_verifier_agent` (func, строка 365)
+- `get_web_search_prompt` (func, строка 370)
+- `list_orchestrators` (func, строка 375)
+- `orch_get_instruction` (func, строка 380)
+- `reset_builtin_prompt` (func, строка 385)
 
 ### `core/paths.py`
 - `ensure_data_dirs` (func, строка 44)
@@ -3787,7 +3912,7 @@
 
 ### `tests/conftest.py`
 - `_restore_dev_agent_state` (func, строка 8)
-- `isolated_app_modules` (func, строка 34)
+- `isolated_app_modules` (func, строка 38)
 
 ### `tests/marketplace_fixtures.py`
 - `marketplace_data_dir` (func, строка 37)
@@ -4538,6 +4663,32 @@
 - `test_show_earlier_clicks_widen_the_window` (func, строка 124)
 - `test_short_history_renders_without_pagination` (func, строка 149)
 - `test_show_earlier_key_in_all_langs` (func, строка 161)
+
+### `tests/test_chat_turn_and_step.py`
+- `test_a_new_dialog_sends_no_history` (func, строка 22)
+- `test_the_history_of_a_thread_reaches_the_model_in_api_form` (func, строка 28)
+- `test_the_turn_passes_every_option_to_the_provider` (func, строка 39)
+- `test_the_turn_without_history_sends_an_empty_list` (func, строка 56)
+- `test_a_provider_failure_is_raised_to_the_caller` (func, строка 63)
+- `test_no_reported_usage_stays_none` (func, строка 73)
+- `test_the_reported_usage_is_normalised` (func, строка 79)
+- `test_a_second_report_replaces_the_first` (func, строка 86)
+- `test_the_reader_returns_a_copy` (func, строка 94)
+- `test_an_existing_thread_is_reused` (func, строка 106)
+- `test_a_new_thread_is_created_before_anything_is_written` (func, строка 117)
+- `test_the_user_message_is_written_before_the_answer` (func, строка 130)
+- `test_a_file_without_text_is_not_stored` (func, строка 145)
+- `test_a_file_without_a_name_is_not_stored` (func, строка 153)
+- `test_only_the_unsaved_messages_are_taken` (func, строка 164)
+- `test_an_empty_history_yields_nothing` (func, строка 170)
+- `test_a_negative_cursor_starts_from_the_beginning` (func, строка 175)
+- `test_a_cursor_past_the_end_writes_nothing` (func, строка 181)
+- `test_every_stored_attribute_is_mapped` (func, строка 190)
+- `test_a_plain_message_gets_the_store_defaults` (func, строка 200)
+- `test_the_write_appends_each_unsaved_message_once` (func, строка 210)
+- `test_a_dialog_without_a_thread_writes_to_no_thread` (func, строка 222)
+- `test_the_cursor_does_not_move_backwards_on_an_empty_history` (func, строка 231)
+- `test_a_second_write_of_the_same_step_is_a_no_op` (func, строка 237)
 
 ### `tests/test_child_thread_binding_index.py`
 - `isolated_data` (func, строка 25)
@@ -6965,6 +7116,27 @@
 - `test_a_fan_out_is_verified_without_disturbing_its_order` (func, строка 543)
 - `test_a_fan_out_is_verified_without_disturbing_its_order._runner` (func, строка 565)
 
+### `tests/test_orchestrator_api_facade.py`
+- `_parse` (func, строка 66)
+- `_satellite_path` (func, строка 71)
+- `_api` (func, строка 75)
+- `_shared` (func, строка 80)
+- `_satellite` (func, строка 85)
+- `_facade_functions` (func, строка 90)
+- `_consistent_import_tree` (func, строка 96)
+- `test_every_declared_name_is_reachable` (func, строка 110)
+- `test_the_public_names_stay_importable` (func, строка 119)
+- `test_the_facade_holds_only_wrappers` (func, строка 133)
+- `test_every_wrapper_delegates_to_its_impl` (func, строка 146)
+- `test_the_facade_stays_small` (func, строка 158)
+- `test_a_replaced_reader_reaches_the_satellites` (func, строка 167)
+- `test_a_replaced_services_reader_reaches_the_satellites` (func, строка 180)
+- `test_the_shared_layer_resolves_the_current_api` (func, строка 193)
+- `test_every_borrowed_patchable_name_is_declared_late` (func, строка 205)
+- `test_the_known_tool_cache_has_one_owner` (func, строка 242)
+- `test_no_satellite_imports_the_facade_at_module_level` (func, строка 257)
+- `test_every_satellite_exists_and_imports` (func, строка 271)
+
 ### `tests/test_orchestrator_chat_prefs.py`
 - `ui_env` (func, строка 24)
 - `_rerender` (func, строка 36)
@@ -7235,6 +7407,28 @@
 - `test_other_tab_save_clamps_lower_bound` (func, строка 107)
 - `test_other_tab_invalid_input_falls_back_to_current` (func, строка 114)
 - `test_other_tab_save_failure_shows_error` (func, строка 121)
+
+### `tests/test_orchestrator_page_facade.py`
+- `_parse` (func, строка 50)
+- `_satellite_path` (func, строка 55)
+- `_page` (func, строка 59)
+- `_shared` (func, строка 64)
+- `_satellite` (func, строка 69)
+- `_facade_functions` (func, строка 74)
+- `_consistent_import_tree` (func, строка 80)
+- `test_every_declared_name_is_reachable` (func, строка 94)
+- `test_the_page_entry_points_are_callable` (func, строка 103)
+- `test_the_facade_holds_only_wrappers_and_the_entry_points` (func, строка 113)
+- `test_every_wrapper_delegates_to_its_impl` (func, строка 128)
+- `test_the_facade_stays_small` (func, строка 142)
+- `test_a_replaced_translation_reaches_the_satellites` (func, строка 151)
+- `test_a_replaced_page_helper_reaches_the_satellites` (func, строка 164)
+- `test_the_streamlit_proxy_reads_the_facade` (func, строка 177)
+- `test_the_streamlit_proxy_reads_the_facade.Double` (class, строка 182)
+- `test_the_shared_layer_resolves_the_current_page` (func, строка 193)
+- `test_every_satellite_resolves_streamlit_through_the_proxy` (func, строка 205)
+- `test_no_satellite_imports_the_facade_at_module_level` (func, строка 219)
+- `test_every_satellite_exists_and_imports` (func, строка 234)
 
 ### `tests/test_orchestrator_prompt_settings.py`
 - `_render_prompt` (func, строка 33)
@@ -8408,21 +8602,21 @@
 - `test_existing_slug_requires_replace` (func, строка 190)
 
 ### `tests/test_skills_adaptation.py`
-- `isolated_data_dir` (func, строка 39)
-- `TestAdaptationRegistry` (class, строка 65)
-- `TestAdaptationRegistry._import_ext` (func, строка 66)
-- `TestAdaptationRegistry.test_external_import_defaults_to_not_adapted` (func, строка 76)
-- `TestAdaptationRegistry.test_explicit_platform_import_is_adapted` (func, строка 88)
-- `TestAdaptationRegistry.test_set_skill_adapted_marks_it` (func, строка 105)
-- `TestAdaptationRegistry.test_set_skill_adapted_rejects_unknown_and_invalid` (func, строка 117)
-- `TestAdaptationRegistry.test_list_skills_adapted_only` (func, строка 123)
-- `TestAdaptationRegistry.test_legacy_records_are_backfilled` (func, строка 140)
-- `TestDevAgentMarkSkillAdapted` (class, строка 172)
-- `TestDevAgentMarkSkillAdapted.test_mark_skill_adapted_tool` (func, строка 173)
-- `ui_env` (func, строка 207)
-- `_rerender` (func, строка 218)
-- `_button_keys` (func, строка 225)
-- `test_adapt_button_requests_adaptation` (func, строка 229)
+- `isolated_data_dir` (func, строка 43)
+- `TestAdaptationRegistry` (class, строка 69)
+- `TestAdaptationRegistry._import_ext` (func, строка 70)
+- `TestAdaptationRegistry.test_external_import_defaults_to_not_adapted` (func, строка 80)
+- `TestAdaptationRegistry.test_explicit_platform_import_is_adapted` (func, строка 92)
+- `TestAdaptationRegistry.test_set_skill_adapted_marks_it` (func, строка 109)
+- `TestAdaptationRegistry.test_set_skill_adapted_rejects_unknown_and_invalid` (func, строка 121)
+- `TestAdaptationRegistry.test_list_skills_adapted_only` (func, строка 127)
+- `TestAdaptationRegistry.test_legacy_records_are_backfilled` (func, строка 144)
+- `TestDevAgentMarkSkillAdapted` (class, строка 176)
+- `TestDevAgentMarkSkillAdapted.test_mark_skill_adapted_tool` (func, строка 177)
+- `ui_env` (func, строка 211)
+- `_rerender` (func, строка 222)
+- `_button_keys` (func, строка 229)
+- `test_adapt_button_requests_adaptation` (func, строка 233)
 
 ### `tests/test_skills_library.py`
 - `isolated_data_dir` (func, строка 30)
@@ -8763,6 +8957,17 @@
 - `test_a_journal_written_during_the_scan_is_kept` (func, строка 250)
 - `test_a_journal_written_during_the_scan_is_kept.touch_then_report` (func, строка 262)
 
+### `tests/test_test_state_isolation.py`
+- `_read` (func, строка 36)
+- `_fixture_defs` (func, строка 41)
+- `_calls_mutating_state` (func, строка 59)
+- `_restores_itself` (func, строка 71)
+- `_requests_fixture` (func, строка 86)
+- `_iter_test_modules` (func, строка 98)
+- `test_base_conftest_does_not_autouse_the_restore_fixture` (func, строка 106)
+- `test_scenario_folder_owns_its_restore` (func, строка 118)
+- `test_every_module_that_mutates_global_state_restores_it` (func, строка 132)
+
 ### `tests/test_theme_restore.py`
 - `_drop_ui_modules` (func, строка 23)
 - `app_under_mock` (func, строка 30)
@@ -8778,13 +8983,13 @@
 - `test_restore_orchestrator_reloads_thread` (func, строка 186)
 
 ### `tests/test_thread_deeplink.py`
-- `_drop_ui_modules` (func, строка 28)
-- `deeplink_context` (func, строка 35)
-- `test_deeplink_navigates_and_loads_thread` (func, строка 51)
-- `test_deeplink_without_thread_starts_fresh_dialog` (func, строка 73)
-- `test_deeplink_unknown_thread_falls_back_to_fresh_dialog` (func, строка 86)
-- `test_deeplink_without_params_is_a_noop` (func, строка 104)
-- `test_deeplink_runs_only_once_per_session` (func, строка 112)
+- `_drop_ui_modules` (func, строка 32)
+- `deeplink_context` (func, строка 39)
+- `test_deeplink_navigates_and_loads_thread` (func, строка 55)
+- `test_deeplink_without_thread_starts_fresh_dialog` (func, строка 77)
+- `test_deeplink_unknown_thread_falls_back_to_fresh_dialog` (func, строка 90)
+- `test_deeplink_without_params_is_a_noop` (func, строка 108)
+- `test_deeplink_runs_only_once_per_session` (func, строка 116)
 
 ### `tests/test_thread_file_save.py`
 - `isolated_data` (func, строка 18)
@@ -8859,19 +9064,19 @@
 - `test_read_thread_access_and_errors` (func, строка 381)
 
 ### `tests/test_token_line_cache.py`
-- `ui_env` (func, строка 20)
-- `ui_env._no_input` (func, строка 31)
-- `_rerender` (func, строка 38)
-- `_mk` (func, строка 45)
-- `_token_markdowns` (func, строка 53)
-- `_setup_page` (func, строка 59)
-- `_setup_page.fake_check_context` (func, строка 81)
-- `_setup_page.fake_sum_thread_tokens` (func, строка 85)
-- `_render_chat` (func, строка 94)
-- `test_token_line_cached_across_rerenders` (func, строка 106)
-- `test_token_line_recomputed_when_history_changes` (func, строка 128)
-- `test_reset_dialog_clears_token_line_cache` (func, строка 146)
-- `test_token_line_localized_and_recomputed_on_lang_switch` (func, строка 161)
+- `ui_env` (func, строка 24)
+- `ui_env._no_input` (func, строка 35)
+- `_rerender` (func, строка 42)
+- `_mk` (func, строка 49)
+- `_token_markdowns` (func, строка 57)
+- `_setup_page` (func, строка 63)
+- `_setup_page.fake_check_context` (func, строка 85)
+- `_setup_page.fake_sum_thread_tokens` (func, строка 89)
+- `_render_chat` (func, строка 98)
+- `test_token_line_cached_across_rerenders` (func, строка 110)
+- `test_token_line_recomputed_when_history_changes` (func, строка 132)
+- `test_reset_dialog_clears_token_line_cache` (func, строка 150)
+- `test_token_line_localized_and_recomputed_on_lang_switch` (func, строка 165)
 
 ### `tests/test_tool_classes.py`
 - `test_a_read_tool_is_not_mutating` (func, строка 23)
@@ -9709,20 +9914,20 @@
 - `test_yandex_reasoning_effort_restricted_by_model_options` (func, строка 669)
 
 ### `tests/smoke/test_app_smoke.py`
-- `isolated_data` (func, строка 24)
-- `_fresh_ui` (func, строка 33)
-- `test_main_renders_without_error` (func, строка 41)
-- `test_every_page_renders` (func, строка 55)
-- `test_create_skill_button_fires` (func, строка 89)
-- `test_new_query_button_resets_thread` (func, строка 112)
-- `test_nav_button_changes_page` (func, строка 133)
-- `test_no_duplicate_widget_keys` (func, строка 153)
-- `test_no_duplicate_widget_keys.collect_calls` (func, строка 166)
-- `test_no_duplicate_widget_keys._record_pass` (func, строка 213)
-- `test_nav_order_settings_primary_before_the_more_block` (func, строка 302)
-- `test_nav_order_settings_primary_before_the_more_block._index` (func, строка 322)
-- `test_nav_order_stats_before_about_and_lang_theme_after` (func, строка 352)
-- `test_nav_order_stats_before_about_and_lang_theme_after._index` (func, строка 367)
+- `isolated_data` (func, строка 28)
+- `_fresh_ui` (func, строка 37)
+- `test_main_renders_without_error` (func, строка 45)
+- `test_every_page_renders` (func, строка 59)
+- `test_create_skill_button_fires` (func, строка 93)
+- `test_new_query_button_resets_thread` (func, строка 116)
+- `test_nav_button_changes_page` (func, строка 137)
+- `test_no_duplicate_widget_keys` (func, строка 157)
+- `test_no_duplicate_widget_keys.collect_calls` (func, строка 170)
+- `test_no_duplicate_widget_keys._record_pass` (func, строка 217)
+- `test_nav_order_settings_primary_before_the_more_block` (func, строка 306)
+- `test_nav_order_settings_primary_before_the_more_block._index` (func, строка 326)
+- `test_nav_order_stats_before_about_and_lang_theme_after` (func, строка 356)
+- `test_nav_order_stats_before_about_and_lang_theme_after._index` (func, строка 371)
 
 ### `tests/scenarios/test_access_scenarios.py`
 - `_FakeLoopState` (class, строка 28)
@@ -10548,16 +10753,16 @@
 
 ### `tests/scenarios/test_schedules_scenario.py`
 - `env` (func, строка 48)
-- `offline_model` (func, строка 84)
-- `offline_model._answer` (func, строка 93)
-- `_rule` (func, строка 100)
-- `_wait_for_runs` (func, строка 114)
-- `test_scenario_a_scheduled_run_becomes_a_dialog_in_history` (func, строка 129)
-- `test_scenario_a_restart_does_not_repeat_the_point` (func, строка 172)
-- `test_scenario_a_backlog_is_recorded_as_a_miss` (func, строка 193)
-- `test_scenario_a_blocked_weekday_is_skipped_in_the_preview` (func, строка 219)
-- `test_scenario_three_failures_hold_the_rule` (func, строка 238)
-- `test_scenario_three_failures_hold_the_rule._boom` (func, строка 251)
+- `offline_model` (func, строка 90)
+- `offline_model._answer` (func, строка 99)
+- `_rule` (func, строка 106)
+- `_wait_for_runs` (func, строка 120)
+- `test_scenario_a_scheduled_run_becomes_a_dialog_in_history` (func, строка 135)
+- `test_scenario_a_restart_does_not_repeat_the_point` (func, строка 178)
+- `test_scenario_a_backlog_is_recorded_as_a_miss` (func, строка 199)
+- `test_scenario_a_blocked_weekday_is_skipped_in_the_preview` (func, строка 225)
+- `test_scenario_three_failures_hold_the_rule` (func, строка 244)
+- `test_scenario_three_failures_hold_the_rule._boom` (func, строка 257)
 
 ### `tests/scenarios/test_search_in_files_scenarios.py`
 - `project` (func, строка 23)

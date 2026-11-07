@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "2.38.1",
+  "app_version": "2.39.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Границы платформы стали типизированными: публичные ответы gateway описываются моделями вместо голых словарей, HTTP-схемы и интерфейс используют те же модели, сериализация идёт одним слоем. Golden-тесты фиксируют публичный JSON двадцати операций и падают при любом его изменении. В конвейер добавлен pyright с бюджетом ошибок: их число может падать, но новый не пройдёт сборку незамеченным.",
-    "en": "The platform boundaries are typed now: public gateway answers are models rather than bare dictionaries, the HTTP schemas and the interface use the same models, and one layer does the serialisation. Golden tests record the public JSON of twenty operations and fail on any change to it. The pipeline runs pyright against a budget of findings: the count may fall, while a new one no longer slips into the build unseen."
+    "ru": "Два самых больших модуля платформы разложены по темам: страница оркестратора и его API разделены на модули с фасадом, который сохраняет прежние пути импорта. Бизнес-логика хода чата и шага цикла переехала из интерфейса в ядро, поэтому страницы больше не пишут в тред сами. Тестовый набор сам отвечает за глобальное состояние, которое меняет: фикстура восстановления запрашивается явно, а новый страж падает с именем файла-нарушителя вместо череды чужих падений.",
+    "en": "The two largest modules of the platform are split by topic: the orchestrator page and its API are now packages of modules behind a facade that keeps every import path intact. The business logic of a chat turn and of a loop step moved from the interface into the core, so the pages no longer write to a thread themselves. The test suite owns the global state it mutates: the restore fixture is requested explicitly, and a new guard fails with the name of the offending file instead of a chain of unrelated failures."
   },
-  "updated": "2026-11-06T12:52:00Z",
+  "updated": "2026-11-07T06:30:55Z",
   "units": {
     "core": {
-      "version": "1.78.0",
+      "version": "1.82.0",
       "note": {
-        "ru": "Пакет: типизированные контракты на границах - модели публичных ответов gateway, схемы server на этих моделях, единый слой сериализации, golden-тесты публичного JSON и pyright с бюджетом ошибок в конвейере. Маркетплейс разложен по модулям: установка агента и матрица конфликтов разделены на пакет, база и навык - на область и фасад.",
-        "en": "Package: typed contracts at the boundaries - models for the public gateway answers, the server schemas built on them, one serialisation layer, golden tests of the public JSON, and an error budget in the pipeline. The marketplace is split into modules: agent installation and the conflict matrix are now packages, while the knowledge base and the skill are split into an area and a facade."
+        "ru": "Пакет: страница оркестратора и его API разложены по темам за фасадом с прежними путями импорта; бизнес-логика чата и шага цикла вынесена из интерфейса в ядро (core/chat_turn, core/orchestrator_step); структурный ратчет расширен глобальными потолками; тестовый набор изолирует глобальное состояние явно.",
+        "en": "Package: the orchestrator page and its API are split by topic behind a facade that keeps every import path; the chat-turn and loop-step business logic moved out of the interface into the core (core/chat_turn, core/orchestrator_step); the structural ratchet gained global ceilings; the test suite isolates global state explicitly."
       },
       "files": {
         "__init__.py": {
@@ -172,11 +172,11 @@
           }
         },
         "core/orchestrators.py": {
-          "version": "1.21.2",
-          "sha256": "96ca403a580725d54b298a7859b61721084c93ed8b3e468f6a7da527695bfcd6",
+          "version": "1.22.0",
+          "sha256": "f6a18996673f349fca417a298e76c34d418c18888da8d783a6340e8e0ced1c67",
           "note": {
-            "ru": "Фасад оркестраторов: сборка промпта декомпозирована, чистые блоки текста и календарные помощники вынесены в core/prompt_blocks.py.",
-            "en": "Orchestrator facade: prompt assembly decomposed; pure text blocks and calendar helpers moved to core/prompt_blocks.py."
+            "ru": "Публичная поверхность API: реализация разложена по темам на восемь модулей orchestrator_*, фасад держит реэкспорты и тонкие обёртки.",
+            "en": "Public API surface: the implementation is split by topic into eight orchestrator_* modules, the facade keeps the re-exports and thin wrappers."
           }
         },
         "core/paths.py": {
@@ -276,8 +276,8 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.72.2",
-          "sha256": "b865c5f4ae5af40bc6afcdf3e531e4bea0a070d7bb37eaa79c0dd0318b40a083",
+          "version": "1.72.3",
+          "sha256": "82537c5dd9a1a49f0132f6e9d2b30c3d86d6a410436c053fa642a6f918751f05",
           "note": {
             "ru": "Релиз 2.34.0: расписания запуска задач агентами.",
             "en": "Release 2.34.0: scheduled agent runs."
@@ -368,11 +368,11 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.8.2",
-          "sha256": "f3c06dee9afd9f6c647f126d1b71e8110c79ca90eef60630122eb1807eefd1b4",
+          "version": "1.11.0",
+          "sha256": "60f441846d6fdafe3d85e871a9e975fafb8e9e41167c76cf08e06b4fde22622a",
           "note": {
-            "ru": "Описания девяти модулей core/marketplace, появившихся при разделении установки агента и матрицы конфликтов.",
-            "en": "Descriptions of the nine core/marketplace modules created by splitting the agent installation and the conflict matrix."
+            "ru": "Описания новых модулей страницы оркестратора.",
+            "en": "Descriptions of the new orchestrator page modules."
           }
         },
         "scripts/verify_manifest.py": {
@@ -416,8 +416,8 @@
           "sha256": "4963934c13063d8345492fa9cedb2b56cdd7f2cf3517303c60a19be138341279"
         },
         "tests/conftest.py": {
-          "version": "1.1.0",
-          "sha256": "9434ffd54c0e9b032d1d68e17e9722c5627a170a5bc8dd8176f223c04f9156b6"
+          "version": "1.2.0",
+          "sha256": "81bd8164c52f8166305b6da76c770dba82b32a90a8bfd0b64c36fc75ae9675d5"
         },
         "tests/fixtures/rag_eval/corpus.json": {
           "version": "1.0.0",
@@ -668,8 +668,8 @@
           "sha256": "9524ee400e65072d45471725294323fec747612236b311023767ab7136007768"
         },
         "tests/smoke/test_app_smoke.py": {
-          "version": "1.0.3",
-          "sha256": "ff36ea873dfc034ed965a17037785854191e22129bb040f8ded122470c64d045"
+          "version": "1.0.4",
+          "sha256": "7e76e9c7f4199b02351825101447c652577c3ce9d8c26b847968421e272f69d8"
         },
         "tests/test_agent_loop_connection_retry.py": {
           "version": "1.0.1",
@@ -1044,8 +1044,8 @@
           "sha256": "e5a390b305a749f6c606bea2b0001a0783471e4d13599c16f6c2df60714ccb87"
         },
         "tests/test_skills_adaptation.py": {
-          "version": "1.0.2",
-          "sha256": "307b9e876d6df6255b9dae690ce6bf718a1bc459954add7e6d18dc774ba1eb3f"
+          "version": "1.0.3",
+          "sha256": "ca9dbf59c1a3da27257029b8986e1ccb25f4ead0e14f94211a5b904e1e44ab28"
         },
         "tests/test_skills_library.py": {
           "version": "1.2.1",
@@ -1088,8 +1088,8 @@
           "sha256": "1449e99873b52dee77a782a3a38a7fd742789cc3739c86d238f2ebd96b1bbc90"
         },
         "tests/test_thread_deeplink.py": {
-          "version": "1.0.1",
-          "sha256": "fe4588e28d15687f5dca111c05c19d7e99a6b50c7ae97e8a23438e889ebdb820"
+          "version": "1.0.2",
+          "sha256": "c043921b544c92024fab4db20eaa344508a02e6f5ba976051b79660a907768c7"
         },
         "tests/test_thread_file_save.py": {
           "version": "1.0.1",
@@ -1104,8 +1104,8 @@
           "sha256": "b9adcfe55e64843e9ab5caaa07859d8f4e078dbd2de4d2ce969554897e628dfb"
         },
         "tests/test_token_line_cache.py": {
-          "version": "1.1.1",
-          "sha256": "5cb1411802dd901ed0dd38686a6557e8d8100ee9d87b7bf88181463be32e92fe"
+          "version": "1.1.2",
+          "sha256": "c3784e53de17a822e808836c146c0a1ab451edbdc2b1187ee2eb376ea1d0d1ef"
         },
         "tests/test_tool_executor_env.py": {
           "version": "1.0.0",
@@ -1224,8 +1224,12 @@
           "sha256": "37a2a2b0fb0915da9a394e90e56fe4147a20db74688c72acbfab0bd7591e73a1"
         },
         "ui/pages/chat.py": {
-          "version": "1.0.5",
-          "sha256": "081323bbbbcd3ee469d83480b562e4fb002fc3f4de734dd45dbbee184c583f1f"
+          "version": "1.0.6",
+          "sha256": "2f9fa7b015fdadafd6c8f3b75f09fb10a4f3c917f4734800de8c1a6cc6df9039",
+          "note": {
+            "ru": "Ход чата вынесен в core/chat_turn: страница только показывает экран.",
+            "en": "The chat turn moved to core/chat_turn: the page only renders the screen."
+          }
         },
         "ui/pages/connectors.py": {
           "version": "1.10.1",
@@ -1237,11 +1241,11 @@
           "sha256": "990f5aebd0cbe7f921f2278a53d014dedb9c4764b36f2ff4def58ef96a235afa"
         },
         "ui/pages/orchestrator.py": {
-          "version": "1.27.0",
-          "sha256": "c64efd39125959b2a6dec31e61c227768725da0dfcc70d6112a84eb8176c8a84",
+          "version": "1.28.0",
+          "sha256": "a07223dccc94167da15ab1345ed325d94a41d5ee7c0e8bb3b337aa97a44cdb14",
           "note": {
-            "ru": "Декомпозиция страницы: шаг агента разложен на фазы, лента событий - таблица _EVENT_RENDERERS, карта ключей сессии вынесена в чистый модуль; функция 206->49 строк, CC 29->14.",
-            "en": "Page decomposition: the agent step split into phases, the event feed dispatched through the _EVENT_RENDERERS table, the session-key map moved to the pure module; longest function 206->49 lines, CC 29->14."
+            "ru": "Страница разложена на фасад и девять модулей orchestrator_*; подменяемые имена разрешаются поздно через orchestrator_shared.",
+            "en": "The page split into a facade and nine orchestrator_* modules; patchable names resolve late through orchestrator_shared."
           }
         },
         "ui/pages/orchestrator_settings.py": {
@@ -2250,8 +2254,8 @@
           "sha256": "531f81492f6e282c5eb6335705d8d08b691b33bb70a9d132ac027fe323df7716"
         },
         "tests/scenarios/test_schedules_scenario.py": {
-          "version": "1.0.2",
-          "sha256": "96943a12c613dc0f7c76588d0989d3ac63be9c9f53b864007e4c8a3f0f57f5bc"
+          "version": "1.0.3",
+          "sha256": "9b813db87ea73a9e36b11938db81d4367c1157ab6c621214170792fcb6a46373"
         },
         "core/api_token_store.py": {
           "version": "1.1.0",
@@ -2550,11 +2554,11 @@
           "sha256": "59963f7094f2283ac8f00f35e85aa1432acb0a94954dc666d24ad9dd0803ca05"
         },
         "refactor_budget.json": {
-          "version": "1.4.0",
-          "sha256": "36945d5a3f26c2bf7ebab3f0e7af60044eed739dfb55f98b98c4b5d11573d27d",
+          "version": "1.7.0",
+          "sha256": "c82dd0dbac36dac24971661301c9264f54432429a796a611441e1680e1275872",
           "note": {
-            "ru": "Срез 13: в ратчет внесены ui/pages/history.py, dev_agent/workspace_tools.py и scripts/verify_manifest.py.",
-            "en": "Slice 13: ui/pages/history.py, dev_agent/workspace_tools.py and scripts/verify_manifest.py added to the ratchet."
+            "ru": "Запись ui/pages/orchestrator.py понижена 3364->668 строк, добавлены десять модулей сплита.",
+            "en": "The ui/pages/orchestrator.py entry lowered 3364->668 lines, ten split modules added."
           }
         },
         "tests/test_refactor_budget.py": {
@@ -2952,17 +2956,125 @@
         "tests/test_orchestration_tools_facade.py": {
           "version": "1.0.0",
           "sha256": "f39fc1d763a2374de3a6502e109f6c81471c0a3d5fd8c5f913bf5f1aa90a456d"
+        },
+        "ui/pages/orchestrator_shared.py": {
+          "version": "1.0.0",
+          "sha256": "d414a29de716c71d3dc2bee9f9fe29eeb516b2789ba22433631300bbf362fa22"
+        },
+        "ui/pages/orchestrator_state.py": {
+          "version": "1.0.0",
+          "sha256": "4fa2cad6e062a9167d7ba6199840f8a2f684bfa741ed1278f1ae2766cdd094bf"
+        },
+        "ui/pages/orchestrator_folder.py": {
+          "version": "1.0.0",
+          "sha256": "82be8cf3549d1874466d0f42b012bdc6ffeee64580f429dd4f46054cc80d2ad1"
+        },
+        "ui/pages/orchestrator_loop.py": {
+          "version": "1.0.1",
+          "sha256": "767a7f615c85c26b463dc4bf4822cacfd3663906e1938c811a258d6c6745da3b",
+          "note": {
+            "ru": "Запись шага в тред вынесена в core/orchestrator_step.",
+            "en": "The step write into the thread moved to core/orchestrator_step."
+          }
+        },
+        "ui/pages/orchestrator_feed.py": {
+          "version": "1.0.0",
+          "sha256": "1ebf360acdbf73a2ae16a7ca57bdd1daaf0cb37ccb50e98742786627eb05ea5c"
+        },
+        "ui/pages/orchestrator_chat.py": {
+          "version": "1.0.0",
+          "sha256": "ec532e5b1734ba7a03ea0183f5507808c489bb75854095d9f4b5b51fb40adcde"
+        },
+        "ui/pages/orchestrator_chat_input.py": {
+          "version": "1.0.0",
+          "sha256": "b6fdbab2e21505c15e35a83cf6ae5bbe71e69aa31c7f53c5e6e485247385f4d6"
+        },
+        "ui/pages/orchestrator_settings_models.py": {
+          "version": "1.0.0",
+          "sha256": "c469290aa38a41843ea264ca6a5f3df8cbed56360ba4fdfb9775b32bfd432ab5"
+        },
+        "ui/pages/orchestrator_settings_orch.py": {
+          "version": "1.0.0",
+          "sha256": "8994219973df2ebaf7f3ab9b6f9e1eb761d933eca6d2efb13da5d3df8d8bc137"
+        },
+        "ui/pages/orchestrator_settings_delegation.py": {
+          "version": "1.0.0",
+          "sha256": "2d73fa3a80b4dd264b0c316623934620479e1d4d55e99fd37349a5553e43e3c2"
+        },
+        "tests/test_orchestrator_page_facade.py": {
+          "version": "1.0.0",
+          "sha256": "f3a7d47653b582ce4cdb20f09181d99161f838270d8674d62e1c57a7243fbc83"
+        },
+        "core/orchestrator_shared.py": {
+          "version": "1.0.0",
+          "sha256": "04e37bce282547658f7af015a1f9fd71cd1db797d666abbc3ee23db932cf39f3"
+        },
+        "core/orchestrator_defaults.py": {
+          "version": "1.0.0",
+          "sha256": "6c0c540034ec27d2a2f7d5de3705ca8e5b0cabfd09fa055cb24523360b68431e"
+        },
+        "core/orchestrator_store.py": {
+          "version": "1.0.0",
+          "sha256": "7166b6a480191d4b267c398f4c03044447fa031d49300c85846c195d0ade6eb3"
+        },
+        "core/orchestrator_links.py": {
+          "version": "1.0.0",
+          "sha256": "ee572df28cdaa9f8e0c06a791c0644fda94d02cefad5928e6ca091c9c2bcd06e"
+        },
+        "core/orchestrator_prompt.py": {
+          "version": "1.0.0",
+          "sha256": "6c82204ffd07e30ffab295f37c99bdd8085586790cb3322fc66eaa716ba16b0b"
+        },
+        "core/orchestrator_models.py": {
+          "version": "1.0.0",
+          "sha256": "d4e22e3917cd978d7177379b4c239d79c91d16fa1a0d77e197dde230c934c872"
+        },
+        "core/orchestrator_transfer.py": {
+          "version": "1.0.0",
+          "sha256": "c492fea18f96b27e028fd1cceb8308e0edca82c3cb7aa922a0cd0607a71a8183"
+        },
+        "core/orchestrator_instr.py": {
+          "version": "1.0.0",
+          "sha256": "634735806bcbb7b6f0f28afbd224957a532676fcc51463e43d99f5834b364d47"
+        },
+        "core/orchestrator_builtin.py": {
+          "version": "1.0.0",
+          "sha256": "85b88bdc84e4af81447bfbaaeafedb0ab9c47e3c8da306fe306e83fb99409e9e"
+        },
+        "tests/test_orchestrator_api_facade.py": {
+          "version": "1.0.0",
+          "sha256": "be58efbf555b750d0e4e97afc2e50f2d463474c9f3553a482a2913c261e312fe"
+        },
+        "core/chat_turn.py": {
+          "version": "1.0.0",
+          "sha256": "39a2933ea2b88b11c2aef7c390ad956d9d2d6b491f37acefe4bdc19db5b9377f"
+        },
+        "core/orchestrator_step.py": {
+          "version": "1.0.0",
+          "sha256": "530a6fab74c522ea865b1afce22bae8068b00e73c91af17985568e64b269b5d8"
+        },
+        "tests/test_chat_turn_and_step.py": {
+          "version": "1.0.0",
+          "sha256": "0fbc24654a8a5e0c402e0b31e59f87f469b2b1d3a75456de31c66c0623904425"
+        },
+        "tests/test_test_state_isolation.py": {
+          "version": "1.0.0",
+          "sha256": "3746fe8e0d419581c0f013d52566695a1ed68bd29606c0328f30708df420edbb"
+        },
+        "tests/scenarios/conftest.py": {
+          "version": "1.0.0",
+          "sha256": "65ce2bf95f4ee618fd44982ec4f57d03a2d2cdd7d9bb93bf6e33853613b67066"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.71.7",
-      "sha256": "a1db22b36f1609b3a9a19a304ecc0a4a084cce05e98af0e65ec9fac3fc746a0e",
+      "version": "1.74.1",
+      "sha256": "95e10f0932c800462d3d5a8b75b54ce48fabb25ab16148223749cb2db73fad2c",
       "note": {
-        "ru": "Архитектура: промпт DevAgent v3.30 - спека изменения в скретче, а не проектная спецификация.",
-        "en": "Architecture: DevAgent prompt v3.30 - the spec describes the change in the scratch area, not the project."
+        "ru": "Слой бизнес-логики страниц: core/chat_turn и core/orchestrator_step.",
+        "en": "The page business-logic layer: core/chat_turn and core/orchestrator_step."
       }
     },
     "LICENSE": {
@@ -2974,16 +3086,16 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.74.10",
-      "sha256": "20c3b9c3e68517390608f4eee4198a608c39fd78e0c968c25493db168f4929d5",
+      "version": "1.75.1",
+      "sha256": "6d210ab1dd5a27043283bd65947ac799258faff1161de6c8d5016a4882c16ece",
       "note": {
-        "ru": "Карта перегенерирована после среза 13: фазовое разложение крупных функций и три новых файла в ратчете.",
-        "en": "The map is regenerated after slice 13: phased decomposition of the large functions and three new files in the ratchet."
+        "ru": "Регенерация: одиннадцать файлов страницы оркестратора с описаниями.",
+        "en": "Regenerated: eleven orchestrator page files with descriptions."
       }
     },
     "README.md": {
-      "version": "1.59.2",
-      "sha256": "901da8ec2aff96a4377fff002ddd7b61f73074acc44d75adcbf3fd3d6c331d88",
+      "version": "1.59.3",
+      "sha256": "471f1d04fabae6e236df673f30b13889c1ea309591b62555c58c3b2e7c671fd8",
       "note": {
         "ru": "В описании конвейера упомянут структурный бюджет крупных файлов.",
         "en": "The pipeline description mentions the structural budget of the god files."
@@ -3398,11 +3510,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.47.6",
-      "sha256": "a8b659631c0a429d41ab2ed71d6f66e4de553b731c1feb5de2aa63a8451312c0",
+      "version": "1.50.1",
+      "sha256": "bb20c389f5a685ab13482e4ce6ea84314609d1dac2f9ae02c1d36397552ee14c",
       "note": {
-        "ru": "Срез 12: инвентарь базовых файлов пополнен модулем обхода дерева dev_agent/tools/file_tree.py (264 файла).",
-        "en": "Slice 12: the inventory of base files gained the directory-walk module dev_agent/tools/file_tree.py (264 files)."
+        "ru": "Правило: ход чата и запись шага живут в core, а не в рендере.",
+        "en": "Rule: the chat turn and the step write live in core, not in the renderer."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/connector_creator.md": {
