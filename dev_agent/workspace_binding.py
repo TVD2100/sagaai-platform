@@ -31,6 +31,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import threading
 from pathlib import Path
@@ -45,6 +46,10 @@ _BINDING_LOCK: threading.RLock = threading.RLock()
 
 # thread_id -> {"workspace": str|None, "target_file": str|None}
 _REGISTRY: Dict[str, Dict[str, Optional[str]]] = {}
+
+# The context engaged on this Python thread, so a long external wait can
+# release the process-wide lock without the caller passing the context down.
+_CURRENT = threading.local()
 
 
 def _norm_tid(thread_id: str) -> str:
@@ -329,6 +334,12 @@ class thread_context:
     dispatches of different dialogs so a call can never observe another
     thread's paths.
 
+    A dispatch that then waits on an external process can hand the lock back
+    for the duration of the wait (:meth:`suspend`): the paths it needed were
+    resolved before the spawn, so nothing in the waiting part reads the
+    swapped globals, and every other dialog gets its turn instead of queueing
+    behind a child that may run for minutes.
+
     Usage::
 
         with thread_context(thread_id) as engaged:
@@ -337,12 +348,15 @@ class thread_context:
             return fallback_dispatch(...)
     """
 
-    __slots__ = ("thread_id", "_snapshot", "engaged")
+    __slots__ = ("thread_id", "_snapshot", "engaged", "_suspended", "_previous")
 
     def __init__(self, thread_id: str):
         self.thread_id = _norm_tid(thread_id)
         self._snapshot: Optional[Dict[str, Any]] = None
         self.engaged = False
+        # True while the lock is NOT held by this context (a suspended wait).
+        self._suspended = False
+        self._previous: Any = None
 
     def __enter__(self) -> "thread_context":
         _BINDING_LOCK.acquire()
@@ -355,6 +369,8 @@ class thread_context:
             self._snapshot = config.snapshot_state()
             _apply_state_unlocked(self.thread_id, state)
             self.engaged = True
+            self._previous = getattr(_CURRENT, "ctx", None)
+            _CURRENT.ctx = self
             return self
         except Exception:
             # Never let a swap failure deadlock the dispatcher.
@@ -363,7 +379,15 @@ class thread_context:
             self.engaged = False
             raise
 
-    def __exit__(self, exc_type, exc, tb) -> None:
+    def suspend(self) -> bool:
+        """Release the lock and restore the pre-dispatch state.
+
+        Returns True when the lock was actually released, so the caller
+        knows whether it has to resume. Calling suspend twice is a no-op:
+        the second call must not release a lock this context does not hold.
+        """
+        if not self.engaged or self._suspended:
+            return False
         try:
             if self._snapshot is not None:
                 try:
@@ -372,7 +396,67 @@ class thread_context:
                     pass
         finally:
             self._snapshot = None
-            self.engaged = False
+            self._suspended = True
             _BINDING_LOCK.release()
+        return True
+
+    def resume(self) -> bool:
+        """Take the lock back and re-apply this thread's state.
+
+        The snapshot taken here is what ``__exit__`` restores: the state that
+        was live when this thread came back, not the one from before it went
+        away - another dialog owned the globals in between.
+        """
+        if not self._suspended:
+            return False
+        _BINDING_LOCK.acquire()
+        self._suspended = False
+        try:
+            self._snapshot = config.snapshot_state()
+            state = _REGISTRY.get(self.thread_id)
+            if state is None:
+                # The binding was cleared while the wait ran (a reset or a
+                # deleted dialog): keep the lock so ``__exit__`` still has a
+                # balanced release, but change nothing else.
+                return False
+            _apply_state_unlocked(self.thread_id, state)
+            return True
+        except Exception:
+            return False
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        try:
+            if getattr(_CURRENT, "ctx", None) is self:
+                _CURRENT.ctx = self._previous
+            self._previous = None
+            if self._snapshot is not None:
+                try:
+                    config.restore_state(self._snapshot)
+                except Exception:
+                    pass
+        finally:
+            self._snapshot = None
+            self.engaged = False
+            if not self._suspended:
+                _BINDING_LOCK.release()
+            self._suspended = False
+
+
+@contextlib.contextmanager
+def without_binding_lock():
+    """Run a long external wait without holding the process-wide lock.
+
+    The block must not read the swapped config globals: it is meant for
+    waiting on a child process whose argv, cwd and environment were already
+    resolved. Nested use is a no-op, and a block that is not inside a bound
+    dispatch simply runs without touching the lock.
+    """
+    ctx = getattr(_CURRENT, "ctx", None)
+    suspended = bool(ctx is not None and ctx.suspend())
+    try:
+        yield suspended
+    finally:
+        if suspended:
+            ctx.resume()
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

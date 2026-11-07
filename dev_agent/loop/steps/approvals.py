@@ -5,7 +5,7 @@ What happens after the loop stopped for a human decision.
 Three dialogs park a run and wait for a click:
 
 * a dangerous operation (``awaiting_confirmation``) - Allow re-dispatches the
-  tool with ``confirmed_by_user``, Deny tells the model to find another way;
+  tool under a context approval flag, Deny tells the model to find another way;
 * a sanitized payload (``sanitized_required``) - Allow runs one step with
   prompt-injection protection off and remembers the approved paths, Deny
   continues with protection on;
@@ -27,6 +27,7 @@ from typing import Any, Callable, Optional
 from dev_agent.loop.context import _CATEGORY_USER_TASK, _index_message
 from dev_agent.loop.state import AgentLoopState
 from dev_agent.loop.steps.prepare import now_ts
+from dev_agent.sandbox_approval import approval_context
 
 
 def _emit(on_event: Optional[Callable[[dict], None]], event: dict) -> None:
@@ -55,7 +56,7 @@ def _clear_confirmation(state: AgentLoopState) -> None:
 def approve_pending_confirmation(state: AgentLoopState, dispatcher: Any,
                                  lang: Optional[str] = None,
                                  on_event: Optional[Callable[[dict], None]] = None) -> AgentLoopState:
-    """Re-dispatch a pending dangerous operation with ``confirmed_by_user``.
+    """Re-dispatch a pending dangerous operation under a user approval.
 
     Called by the UI when the user clicks Allow. The tool runs, its result goes
     back to the model and the loop continues; a failure ends the run with an
@@ -68,11 +69,13 @@ def approve_pending_confirmation(state: AgentLoopState, dispatcher: Any,
         state.error_message = "No pending confirmation to approve."
         return state
 
-    args["confirmed_by_user"] = True
     _record_decision(state, f"User approved dangerous operation: {tool}")
     _emit(on_event, {"type": "confirmation_approved", "tool": tool, "step": state.steps})
 
-    result = dispatcher.dispatch(tool, args)
+    # The approval is a context flag for exactly this dispatch: nothing the
+    # model can emit may switch the gate off.
+    with approval_context():
+        result = dispatcher.dispatch(tool, args)
     if not result.get("ok"):
         _emit(on_event, {"type": "tool_result", "tool": tool, "result": result,
                          "step": state.steps})
@@ -84,7 +87,12 @@ def approve_pending_confirmation(state: AgentLoopState, dispatcher: Any,
         return state
 
     _emit(on_event, {"type": "tool_result", "tool": tool, "result": result, "step": state.steps})
-    state.user_message = json.dumps({"tool_result": result}, ensure_ascii=False)
+    # Results accumulated before the run was parked and the note about the
+    # suspended calls must reach the model together with this decision;
+    # replacing them would hide what did run.
+    pending = json.dumps({"tool_result": result}, ensure_ascii=False)
+    prior = (state.user_message or "").strip()
+    state.user_message = f"{prior}\n{pending}" if prior else pending
     _clear_confirmation(state)
     state.phase = "calling_llm"
     return state
@@ -112,7 +120,9 @@ def deny_pending_confirmation(state: AgentLoopState,
     _emit(on_event, {"type": "tool_result", "tool": tool, "result": denied_result,
                      "step": state.steps})
 
-    state.user_message = json.dumps({"tool_result": denied_result}, ensure_ascii=False)
+    pending = json.dumps({"tool_result": denied_result}, ensure_ascii=False)
+    prior = (state.user_message or "").strip()
+    state.user_message = f"{prior}\n{pending}" if prior else pending
     _clear_confirmation(state)
     state.phase = "calling_llm"
     return state

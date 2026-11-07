@@ -1,10 +1,7 @@
 # ruff: noqa: F401
-# The import block below is a deliberate re-export surface. Tool handlers read
-# these names through ``tools.deps.build_deps`` (which looks them up on this
-# module on every call), and the test suite replaces several of them here with
-# ``patch('dev_agent.tool_executor.<name>')``. Removing an import would break
-# that lookup, so they are declared even though no code in this file reads them
-# directly.
+# The import block is a deliberate re-export surface: tool handlers read these
+# names through ``tools.deps.build_deps`` and the test suite patches several of
+# them on this module, so an import stays even when nothing here reads it.
 # -*- coding: utf-8 -*-
 # DevAgent tool set -- the bridge between the LLM and the project filesystem.
 #
@@ -114,6 +111,10 @@ class ToolExecutor(FilesTools, EditingTools, PatchTools, ExecTools, WebSearchToo
         # Safety-mode gate set by the UI. When False, run_code/run_test execute
         # without the usual dangerous-pattern confirmation check.
         self._safety_enabled = True
+        # Sandbox profile generated code executes under (set by the UI from
+        # the orchestrator config). Empty means the legacy default; an
+        # unknown name is refused by the policy, never silently replaced.
+        self._sandbox_profile: str = ""
         # History cache for economy mode (get_history_index / get_history_messages).
         self._history: List[Dict[str, Any]] = []
 
@@ -141,14 +142,11 @@ class ToolExecutor(FilesTools, EditingTools, PatchTools, ExecTools, WebSearchToo
     def dispatch(self, tool_name: str, args: Any) -> Dict[str, Any]:
         """Route a tool call to the corresponding method.
 
-        Accepts a flat dict of arguments (as received from the LLM) and
-        passes them to the matching method by keyword. Unknown argument
-        names are rejected with a structured error (``unknown_args`` +
-        ``suggestion``) BEFORE the call so the agent can fix the call
-        instead of guessing from a generic TypeError. Missing required
-        arguments produce the same structured form; any other unhandled
-        exception is caught and returned as an error dict so the agent
-        loop never crashes.
+        Passes a flat argument dict to the matching method by keyword.
+        Unknown names and missing required arguments are rejected with a
+        structured error (``unknown_args`` / ``suggestion``) BEFORE the call,
+        so the agent fixes the call instead of guessing from a TypeError;
+        any other exception becomes an error dict and never crashes the loop.
         """
         if not isinstance(args, dict):
             return {"ok": False, "error": f"args must be a dict, got {type(args).__name__}"}

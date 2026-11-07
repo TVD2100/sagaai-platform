@@ -121,6 +121,7 @@ class TestAgentInventory:
         groups["Marketplace"] = [p for p in core if p.startswith("core/marketplace/")]
         groups["Orchestration"] = [p for p in core if p.startswith("core/orchestration/")]
         groups["Schedules"] = [p for p in core if p.startswith("core/schedules/")]
+        groups["Sandbox"] = [p for p in core if p.startswith("core/sandbox/")]
         groups["Gateway"] = [p for p in core if p.startswith("core/gateway/")]
         groups["Server"] = _walk_python("server")
         groups["Console"] = _walk_python("sagaai")

@@ -641,7 +641,21 @@
 # received an error instead of the release. The manifest builder now skips
 # repository automation explicitly, and a test pins that behaviour.
 
-__version__ = "2.39.0"
+# 2.40.0 makes code execution sandboxed. run_code and run_test no longer
+# start a child straight from the tool: a request names a profile, the policy
+# picks the strongest isolation the machine can actually honour and refuses
+# the run when that isolation is unreachable. Providers cover a child process
+# with an allowlisted environment and hard limits, sandbox-exec on macOS,
+# bubblewrap on Linux, Docker containers and the WSL2 distribution on Windows;
+# a container gets the translated argv and a read-only root with only the
+# workspace writable. Limits are applied by a launcher before the program
+# starts, the process tree is killed on timeout and on cancellation, and a
+# run parked for confirmation waits for a server-side ticket bound to the run,
+# the operation hash and a time to live - a model cannot present one itself.
+# Every run, refusals included, lands in the sandbox journal the settings
+# panel reads.
+
+__version__ = "2.40.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -32,6 +32,7 @@ from ui.pages.orchestrator import (
     settings_section_key,
     settings_tabs_key,
 )
+from ui.pages.orchestrator_sandbox import render_sandbox_settings
 
 
 def page_orchestrator_settings(slug: str) -> None:
@@ -113,6 +114,10 @@ def page_orchestrator_settings(slug: str) -> None:
     with sub_tabs[9]:
         _render_delegation_settings(slug, lang)
     with sub_tabs[10]:
+        # The sandbox panel comes first in this tab: it answers how generated
+        # code is isolated on this machine, which a user looks for before the
+        # miscellaneous settings.
+        render_sandbox_settings(slug, lang)
         _render_other_settings(slug, lang)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -42,6 +42,7 @@ from dev_agent.loop.parse import (
 from dev_agent.loop.signals import normalize_hyphens
 from dev_agent.loop.state import AgentLoopState
 from dev_agent.loop.steps.runtime import LoopRuntime
+from dev_agent.sandbox_approval import approval_scope
 
 #: Tools only the user may invoke, and only outside automatic mode.
 _USER_GATED = {"apply_edit", "discard_edit"}
@@ -301,7 +302,14 @@ def _refuse_dangerous(batch: _Batch, tool: str, call: Dict[str, Any],
 
 def _park_for_confirmation(batch: _Batch, tool: str, call: Dict[str, Any],
                            result: Dict[str, Any]) -> None:
-    """Stop the run and let the user allow or deny a dangerous operation."""
+    """Stop the run and let the user allow or deny a dangerous operation.
+
+    The batch stops here, so the calls that follow the parked one are never
+    executed. Their results would otherwise vanish, and the model would see
+    only the approved call. The accumulated results are therefore stored on
+    the state together with an explicit note about the calls that were not
+    run, and ``approve_pending_confirmation`` appends the decision to them.
+    """
     state = batch.state
     assessment = result.get("danger_assessment") or {}
     reasons = assessment.get("reasons", [])
@@ -323,11 +331,49 @@ def _park_for_confirmation(batch: _Batch, tool: str, call: Dict[str, Any],
     state.pending_confirmation_code = code_snippet
     state.pending_confirmation_result = result
 
+    parts = list(batch.parts)
+    remaining = _remaining_calls(state, call)
+    if remaining:
+        parts.append(json.dumps({
+            "tool_result": {
+                "ok": False,
+                "error": (
+                    f"This call was not executed: the run stopped to ask the "
+                    f"user about '{tool}', and {remaining} call(s) after it in "
+                    f"the same batch were suspended. Re-issue them once the "
+                    f"decision is known."
+                ),
+                "suspended_by_confirmation": True,
+            }
+        }, ensure_ascii=False))
+    state.user_message = "\n".join(parts)
+
+
+def _remaining_calls(state: AgentLoopState, current: Dict[str, Any]) -> int:
+    """Return how many calls of the current batch follow *current*.
+
+    The parked call is identified by identity: the batch is executed in
+    call order, so everything after it in ``parsed_calls`` was suspended.
+    """
+    calls = list(getattr(state, "parsed_calls", []) or [])
+    for position, candidate in enumerate(calls):
+        if candidate is current:
+            return max(0, len(calls) - position - 1)
+    return 0
+
 
 def _dispatch_result(batch: _Batch, tool: str, call: Dict[str, Any]) -> Dict[str, Any]:
-    """Call the tool, turning a raised exception into a structured failure."""
+    """Call the tool, turning a raised exception into a structured failure.
+
+    The dispatch runs inside the approval scope of its run, so a transport
+    ticket issued for this run is found by the tool layer. The scope comes
+    from the loop state, never from the call: a model cannot name another
+    run and reuse an answer given to it.
+    """
+    scope = str(getattr(batch.state, "run_id", "") or "")
     try:
-        return batch.runtime.dispatcher.dispatch_json(call)
+        with approval_scope(scope):
+            return batch.runtime.dispatcher.dispatch_json(call)
     except TypeError as exc:
         return {
             "ok": False,

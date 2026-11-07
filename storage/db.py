@@ -484,6 +484,84 @@ def _ensure_schedules_tables(engine) -> None:
         pass
 
 
+def _ensure_sandbox_tables(engine) -> None:
+    """Create the sandbox run journal table on any database.
+
+    Same contract as ``_ensure_schedules_tables``: raw SQL, idempotent, and
+    wrapped so a failure here can never stop the application from starting.
+    The journal stores what was planned for a run and what came out of it;
+    a refused run is a row too, because "no record" would otherwise mean
+    both "never attempted" and "attempted and blocked".
+    """
+    statements = (
+        """
+        CREATE TABLE IF NOT EXISTS sandbox_runs (
+            id                  TEXT PRIMARY KEY,
+            tool                TEXT NOT NULL DEFAULT '',
+            profile             TEXT NOT NULL DEFAULT '',
+            isolation           TEXT NOT NULL DEFAULT 'none',
+            provider            TEXT NOT NULL DEFAULT '',
+            request_fingerprint TEXT NOT NULL DEFAULT '',
+            thread_id           TEXT NOT NULL DEFAULT '',
+            workspace           TEXT NOT NULL DEFAULT '',
+            limits_json         TEXT NOT NULL DEFAULT '{}',
+            denied              INTEGER NOT NULL DEFAULT 0,
+            ok                  INTEGER NOT NULL DEFAULT 0,
+            returncode          INTEGER,
+            duration_ms         INTEGER NOT NULL DEFAULT 0,
+            timed_out           INTEGER NOT NULL DEFAULT 0,
+            cancelled           INTEGER NOT NULL DEFAULT 0,
+            error               TEXT NOT NULL DEFAULT '',
+            log_path            TEXT NOT NULL DEFAULT '',
+            stdout_tail         TEXT NOT NULL DEFAULT '',
+            stderr_tail         TEXT NOT NULL DEFAULT '',
+            started_at          INTEGER NOT NULL DEFAULT 0
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_sandbox_runs_started "
+        "ON sandbox_runs (started_at DESC)",
+        "CREATE INDEX IF NOT EXISTS ix_sandbox_runs_thread "
+        "ON sandbox_runs (thread_id, started_at DESC)",
+        "CREATE INDEX IF NOT EXISTS ix_sandbox_runs_tool "
+        "ON sandbox_runs (tool, started_at DESC)",
+    )
+    try:
+        with _begin(engine) as conn:
+            for statement in statements:
+                conn.execute(text(statement))
+            # A journal created by an earlier release lacks the columns added
+            # later; CREATE TABLE IF NOT EXISTS would leave it without them.
+            columns = _sandbox_columns(conn)
+            for name, ddl in (("cancelled",
+                               "ALTER TABLE sandbox_runs ADD COLUMN "
+                               "cancelled INTEGER NOT NULL DEFAULT 0"),):
+                if name not in columns:
+                    conn.execute(text(ddl))
+    except Exception:  # pragma: no cover - the journal is an optional feature
+        pass
+
+
+def _sandbox_table_exists(connection) -> bool:
+    """Return True when the journal table exists on *connection*."""
+    from sqlalchemy import text
+
+    row = connection.execute(
+        text("SELECT name FROM sqlite_master WHERE type='table' AND name='sandbox_runs'")
+    ).first()
+    return row is not None
+
+
+def _sandbox_columns(connection) -> set:
+    """Return the column names the journal table currently has."""
+    from sqlalchemy import text
+
+    try:
+        rows = connection.execute(text("PRAGMA table_info(sandbox_runs)")).all()
+    except Exception:  # pragma: no cover - a non-SQLite bind has no PRAGMA
+        return set()
+    return {str(row[1]) for row in rows}
+
+
 def get_engine():
     """Return (and lazily create) the shared SQLAlchemy engine for the main DB.
 
@@ -504,7 +582,25 @@ def get_engine():
         )
         event.listen(_engine, "connect", _configure_sqlite_connection)
         _enable_wal(_engine, DB_PATH)
+        _ensure_sandbox_tables(_engine)
+        _prune_sandbox_journal(_engine)
     return _engine
+
+
+def _prune_sandbox_journal(engine) -> None:
+    """Drop journal rows nobody will read again (best effort, once per start).
+
+    The journal records every run, including the repeated ones a debugging
+    session produces, so an unbounded table would grow with the work it is
+    meant to describe. The newest rows survive regardless of age, and a
+    failure here is ignored: retention is housekeeping, not a gate.
+    """
+    try:
+        from storage import sandbox_journal
+
+        sandbox_journal.purge_old(engine)
+    except Exception:  # pragma: no cover - housekeeping must never block a start
+        pass
 
 
 def _migrate_main_database(db_path: str) -> None:

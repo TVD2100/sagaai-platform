@@ -484,6 +484,16 @@ def _unparsed_block_signature(diagnostics: List[Dict[str, str]]) -> str:
     return h.hexdigest()[:40]
 
 
+#: Arguments that belong to the platform, not to the model.
+#:
+#: The set is EMPTY on purpose. A model-supplied consent flag used to be
+#: dropped here, before dispatch; the silent drop made a refused call look
+#: like a successful one, and the model never learned why it could not
+#: confirm its own operation. The flag now travels to the dispatcher, which
+#: rejects it with a structured error (``unknown_args``) the model can act on.
+_INTERNAL_ONLY_ARGS: Dict[str, set] = {}
+
+
 def _normalize_call(obj: Any) -> Optional[Dict[str, Any]]:
     if not isinstance(obj, dict):
         return None
@@ -501,6 +511,14 @@ def _normalize_call(obj: Any) -> Optional[Dict[str, Any]]:
         args = {k: v for k, v in obj.items() if k not in reserved}
     if not isinstance(args, dict):
         args = {}
+    # Consent is never part of a tool call. The model can emit this argument
+    # (it is in the schema of some tools as an internal one); it is dropped
+    # here so no parsing path - fenced JSON, repaired JSON or DSML - can turn
+    # a model-generated field into a user approval.
+    if name in _INTERNAL_ONLY_ARGS:
+        args = dict(args)
+        for internal in _INTERNAL_ONLY_ARGS[name]:
+            args.pop(internal, None)
     return {"tool": name, "args": args}
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.

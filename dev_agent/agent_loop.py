@@ -52,8 +52,8 @@ Dangerous-operation confirmation:
   with a human-readable reason.  step_agent_loop() then stops and sets
   final_status="awaiting_confirmation", storing the pending call.
   The UI renders Allow/Deny buttons; on Allow it calls
-  approve_confirmation(), which re-dispatches the tool with
-  confirmed_by_user=True.
+  approve_confirmation(), which re-dispatches the tool inside
+  ``approval_context``: the approval is a scoped variable, not a tool argument.
 
 Sanitization confirmation:
   When prompt-injection protection replaces a tool-result payload with

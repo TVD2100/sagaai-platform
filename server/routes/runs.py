@@ -26,6 +26,8 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
 
+from core.gateway import approvals as gateway_approvals
+from core.gateway import dialog as gateway_dialog
 from core.gateway import errors as gateway_errors
 from core.gateway import runs as gateway_runs
 from core.gateway.dto import CancelOutcome
@@ -139,6 +141,66 @@ def _cancel_out(outcome, run: str) -> schemas.CancelOut:
         reason=outcome.reason or "requested",
         children=[str(item) for item in outcome.children],
         marker_written=bool(outcome.marker_written),
+    )
+
+
+@router.post("/runs/{run_id}/confirm", status_code=202,
+             response_model=schemas.ConfirmOut,
+             responses=error_responses(),
+             summary="Allow or deny a parked dangerous operation")
+def confirm_run(run_id: str, body: schemas.ConfirmIn,
+                scope: List[str] = Depends(deps.caller_scope)
+                ) -> schemas.ConfirmOut:
+    """Record a human decision on the operation a run is parked on.
+
+    The decision is applied to the operation the SERVER knows about, not to
+    one named by the caller: the parked call is read from the run state, so
+    a body cannot substitute a different command for the one the human was
+    shown. The ticket it leaves behind is bound to that call by a hash and
+    consumed by the next dispatch of it.
+
+    ``202`` because the run is resumed in the background: the decision is
+    recorded here, the work continues elsewhere.
+    """
+    run = deps.run_id_path(run_id)
+    decision = str(body.decision or "").strip().lower()
+    if decision not in ("allow", "deny"):
+        raise gateway_errors.invalid_request("decision must be 'allow' or 'deny'",
+                                            field="decision")
+    snapshot = gateway_runs.get_run(run)
+    pending = snapshot.pending_input
+    if pending is None or pending.kind != "confirmation":
+        raise gateway_errors.GatewayError(
+            "nothing_to_confirm",
+            "The run is not waiting for a confirmation",
+            details={"run_id": run, "status": snapshot.status})
+    tool = str(pending.tool or "")
+    ticket = gateway_approvals.issue(run, tool, pending.args, decision=decision,
+                                    ttl_seconds=int(body.ttl_seconds or 0))
+    if not ticket.get("ok"):
+        raise gateway_errors.GatewayError(
+            "internal_error", str(ticket.get("error") or "ticket not stored"),
+            details={"run_id": run})
+    resumed = False
+    expires_at = float(ticket.get("expires_at") or 0.0)
+    try:
+        gateway_dialog.decide_pending(run, allow=(decision == "allow"))
+        resumed = True
+        # The resumed step re-dispatches under the loop's own approval
+        # context, which already authorises it. Keeping the ticket would
+        # leave a standing answer on disk that a LATER identical call could
+        # consume without anybody deciding again.
+        gateway_approvals.cancel(run)
+        expires_at = 0.0
+    except gateway_errors.GatewayError as exc:
+        if exc.code != "run_not_found":
+            raise
+        # A run this process does not own keeps the ticket: the worker that
+        # owns it reads the decision when it re-dispatches the operation.
+        log.info("confirmation for a foreign run %s: ticket only", run)
+    return schemas.ConfirmOut(
+        run_id=run, decision=decision, tool=tool, resumed=resumed,
+        expires_at=expires_at,
     )
 
 

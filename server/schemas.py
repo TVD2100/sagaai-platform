@@ -253,6 +253,30 @@ class RunListOut(BaseModel):
     total: int = 0
 
 
+class ConfirmIn(BaseModel):
+    """Body of a decision on a parked dangerous operation.
+
+    ``decision`` is ``allow`` or ``deny``. Anything else is refused: the
+    default is not "allow", because a typo must never approve a run.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    decision: str = Field(description="'allow' or 'deny'.")
+    ttl_seconds: int = Field(default=0, ge=0, le=3600,
+                             description="Lifetime of the issued ticket.")
+
+
+class ConfirmOut(BaseModel):
+    """What the gateway did with a decision."""
+
+    run_id: str
+    decision: str = ""
+    tool: str = ""
+    resumed: bool = False
+    expires_at: float = 0.0
+
+
 class CancelIn(BaseModel):
     """Body of a cancel request."""
 

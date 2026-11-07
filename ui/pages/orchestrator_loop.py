@@ -32,6 +32,7 @@ from dev_agent.agent_loop import (
 )
 from dev_agent.universal_agent import UniversalDevAgent
 from storage.models import DEFAULT_MAX_STEPS
+from ui.pages.orchestrator_flags import read_protection_flags, sandbox_profile
 from ui.pages.orchestrator_shared import late, st_proxy
 from ui.pages.orchestrator_state import (
     CHAT_PAGE_SIZE,
@@ -103,16 +104,16 @@ def _make_send_adapter_impl(lang: str, slug: str) -> Callable:
         assistant = dict(strong_assistant)
         if system:
             assistant["text"] = system
-        safety_mode = _ss(slug, "safety_mode")
-        if safety_mode is None:
-            safety_mode = True
+        injection_protection = _ss(slug, "injection_protection")
+        if injection_protection is None:
+            injection_protection = True
         return send_request(
             user_message=user_message,
             assistant=assistant,
             file_context="",
             history=history or [],
             lang=lang,
-            enable_injection_protection=bool(safety_mode),
+            enable_injection_protection=bool(injection_protection),
         )
 
     return _adapter
@@ -125,9 +126,8 @@ def _make_dispatcher_impl(slug: str) -> UniversalDevAgent:
     if dispatcher is None:
         dispatcher = UniversalDevAgent(workspace=None, target_file=None)
         st.session_state[dk] = dispatcher
-    # Keep the dispatcher bound to the active dialog thread. The guard
-    # avoids re-registering on every render: re-registration would snapshot
-    # the live config, which may belong to a parallel dialog.
+    # Re-registering on every render would snapshot the live config of a
+    # parallel dialog, so the binding is refreshed only when it changed.
     tid = _ss(slug, "thread_id") or None
     if getattr(dispatcher, "thread_id", None) != tid:
         dispatcher.set_thread_id(tid)
@@ -135,9 +135,9 @@ def _make_dispatcher_impl(slug: str) -> UniversalDevAgent:
     dispatcher.core._web_search_config = get_web_search_config(slug)
     dispatcher.core._url_fetch_config = get_fetch_config(slug)
     safety_mode = _ss(slug, "safety_mode")
-    if safety_mode is None:
-        safety_mode = True
-    dispatcher.core._safety_enabled = bool(safety_mode)
+    dispatcher.core._safety_enabled = True if safety_mode is None else bool(safety_mode)
+    # Read every render: a cached value would outlive a settings change.
+    dispatcher.core._sandbox_profile = sandbox_profile(get_orchestrator, slug)
     # Load custom orchestrator functions into the dispatcher so the LLM can
     # call them by name as if they were built-in tools.
     dispatcher.attach_orchestrator(slug)
@@ -276,19 +276,19 @@ def _render_subagent_status(slug: str, lang: str) -> None:
 
 
 def _read_step_flags(slug: str) -> tuple:
-    """Return ``(economy_mode, web_search_enabled, safety_mode)`` of this step."""
-    economy_mode = ECONOMY_MODE_ALWAYS_ON
-    web_search_ss = _ss(slug, "web_search")
-    web_search_enabled = web_search_ss if web_search_ss is not None else False
-    safety_mode = _ss(slug, "safety_mode")
-    if safety_mode is None:
-        safety_mode = True
-    return economy_mode, web_search_enabled, safety_mode
+    """Return ``(economy_mode, web_search, safety_mode, injection_protection)``.
+
+    Each protection owns its slot, so toggling one never changes the other.
+    """
+    ws = _ss(slug, "web_search")
+    safety_mode, injection_protection = read_protection_flags(lambda n: _ss(slug, n))
+    return (ECONOMY_MODE_ALWAYS_ON, ws if ws is not None else False,
+            safety_mode, injection_protection)
 
 
 def _new_loop_state(slug: str, prev_state, user_message: str, *,
                     economy_mode: bool, web_search_enabled: bool,
-                    safety_mode: bool):
+                    safety_mode: bool, injection_protection: bool = True):
     """Build a fresh loop state for a newly submitted user message.
 
     The economy window anchor must survive loop-state clearing: ``carry_over``
@@ -314,7 +314,7 @@ def _new_loop_state(slug: str, prev_state, user_message: str, *,
         economy_cache_enabled=bool(economy_config.get("cache_enabled", False)),
         economy_cache_multiplier=int(economy_config.get("cache_multiplier", 1)),
         economy_tail_messages=int(economy_config.get("tail_messages", 0)) or None,
-        enable_injection_protection=bool(safety_mode),
+        enable_injection_protection=bool(injection_protection),
         # The mailbox of the tree is keyed by its ROOT run, and the
         # registration below uses the same id: the drain in the loop and
         # the notice publisher in the worker meet in one place.
@@ -328,7 +328,8 @@ def _new_loop_state(slug: str, prev_state, user_message: str, *,
 
 
 def _ensure_loop_state(slug: str, state, user_message, *, economy_mode: bool,
-                       web_search_enabled: bool, safety_mode: bool) -> tuple:
+                       web_search_enabled: bool, safety_mode: bool,
+                       injection_protection: bool = True) -> tuple:
     """Return ``(state, should_return)`` for the step about to run.
 
     A brand-new loop starts either when there is no loop yet, or when the
@@ -342,7 +343,8 @@ def _ensure_loop_state(slug: str, state, user_message, *, economy_mode: bool,
     state = _new_loop_state(slug, state, user_message,
                             economy_mode=economy_mode,
                             web_search_enabled=web_search_enabled,
-                            safety_mode=safety_mode)
+                            safety_mode=safety_mode,
+                            injection_protection=injection_protection)
     _set_ss(slug, "loop_state", state)
     _set_ss(slug, "stop_requested", False)
     return state, False
@@ -474,14 +476,11 @@ def _do_step_impl(slug: str, lang: str) -> None:
         events.append(ev)
 
     state = _ss(slug, "loop_state")
-    user_message = _pop_ss(slug, "user_message")
-    economy_mode, web_search_enabled, safety_mode = _read_step_flags(slug)
-
+    flags = _read_step_flags(slug)
     state, should_return = _ensure_loop_state(
-        slug, state, user_message,
-        economy_mode=economy_mode,
-        web_search_enabled=web_search_enabled,
-        safety_mode=safety_mode,
+        slug, state, _pop_ss(slug, "user_message"),
+        economy_mode=flags[0], web_search_enabled=flags[1],
+        safety_mode=flags[2], injection_protection=flags[3],
     )
     if should_return:
         return
@@ -492,7 +491,7 @@ def _do_step_impl(slug: str, lang: str) -> None:
     if _handle_stop_requested(slug, state, lang, orchestration, unsubscribe, root_run_id):
         return
 
-    _sync_safety_mode(dispatcher, state, safety_mode)
+    _sync_safety_mode(dispatcher, state, flags[2], flags[3])
     state = _run_agent_step(state, dispatcher, lang, on_event)
 
     _set_ss(slug, "history", state.history)
@@ -611,6 +610,14 @@ def _cancel_dialog_tree(slug: str, loop_state) -> None:
     Child runs never see the dialog's stop flag, so without this cascade they
     would keep working after the user pressed Stop and burn provider tokens.
     """
+    try:
+        from core.sandbox import active as sandbox_active
+
+        # A child process has its own registry, so Stop must reach it too,
+        # or a snippet started a second ago keeps writing after the click.
+        sandbox_active.cancel_thread(str(_ss(slug, "thread_id") or ""))
+    except Exception:
+        pass
     try:
         from core.orchestration.service import get_service
         _root = (getattr(loop_state, "run_id", "") or _ss(slug, "thread_id") or "").strip()

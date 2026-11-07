@@ -516,6 +516,24 @@ def _close(run_id: str, live: _LiveDialog, result: DialogStepResult) -> None:
         runs.get_service().save_record(run_id)
     except Exception as exc:  # pragma: no cover - defensive
         log.warning("record save failed for %s: %s", run_id, exc)
+
+    pending = result.pending_input
+    if pending is not None and pending.kind == "confirmation":
+        # A pause a transport caller can decide keeps its live state: the
+        # loop already holds the parked operation and the history behind it,
+        # and rebuilding that from disk would discard what the model did.
+        # The tree is kept for the same reason - the resumed step is part of
+        # the same run. The record still says ``awaiting_input``, so nobody
+        # reads the pause as a finished run.
+        #
+        # Only ``confirmation`` qualifies: it has a route that resumes the
+        # run (``POST /runs/{id}/confirm``). A ``sanitized`` pause has no
+        # such route - the one-step viewing permission belongs to the UI
+        # session that showed the dialog - so holding its live state and its
+        # admission slot would leak both until the process restarts.
+        _notify_closed(run_id, status)
+        return
+
     try:
         runner.release_root(runs.get_service(), run_id)
     except Exception as exc:  # pragma: no cover - defensive
@@ -576,38 +594,7 @@ def _drive(handle: DialogHandle, req: DialogRequest,
         _remember(run_id, prepared)
         live = prepared
 
-        limits = _limits_for(req)
-        deadline = time.monotonic() + max(1, int(limits["deadline"]))
-
-        def _cancelled() -> bool:
-            try:
-                if runs.get_service().is_cancelled(run_id):
-                    return True
-            except Exception:  # pragma: no cover - defensive
-                pass
-            return runs.cancel_requested(run_id)
-
-        def _persist(state: Any) -> None:
-            live.cursor = runner.persist_step(
-                live.thread_id, list(getattr(state, "history", []) or []),
-                live.cursor)
-
-        state = runner.run_loop(
-            live.state, live.dispatcher,
-            deadline=deadline,
-            budget=int(limits["budget"]),
-            cancelled=_cancelled,
-            on_event=on_event,
-            on_step=_persist,
-            lang=lang,
-            max_steps=int(limits["max_steps"]),
-        )
-        live.state = state
-        live.cursor = runner.persist_step(
-            live.thread_id, list(getattr(state, "history", []) or []),
-            live.cursor)
-        result = _result_of(state, run_id, live.thread_id, live)
-        _close(run_id, live, result)
+        _drive_state(run_id, live, req, on_event, lang)
     except Exception as exc:  # pragma: no cover - a driver never raises out
         log.warning("dialog driver failed for %s: %s", run_id, exc)
         try:
@@ -622,6 +609,93 @@ def _drive(handle: DialogHandle, req: DialogRequest,
         # listener is the only place that returns one, and a crash is exactly
         # when nobody polls the run any more.
         _notify_closed(run_id, "failed")
+
+
+def _drive_state(run_id: str, live: _LiveDialog, req: DialogRequest,
+                 on_event: Optional[Callable], lang: Optional[str]) -> None:
+    """Run the loop of a prepared dialog until it ends or pauses.
+
+    Separated from the launch path so a resume can reuse it: after a human
+    answers a parked operation the loop continues from the state it parked
+    on, and rebuilding that state would discard what the model already did.
+    """
+    limits = _limits_for(req)
+    deadline = time.monotonic() + max(1, int(limits["deadline"]))
+
+    def _cancelled() -> bool:
+        try:
+            if runs.get_service().is_cancelled(run_id):
+                return True
+        except Exception:  # pragma: no cover - defensive
+            pass
+        return runs.cancel_requested(run_id)
+
+    def _persist(state: Any) -> None:
+        live.cursor = runner.persist_step(
+            live.thread_id, list(getattr(state, "history", []) or []),
+            live.cursor)
+
+    state = runner.run_loop(
+        live.state, live.dispatcher,
+        deadline=deadline,
+        budget=int(limits["budget"]),
+        cancelled=_cancelled,
+        on_event=on_event,
+        on_step=_persist,
+        lang=lang,
+        max_steps=int(limits["max_steps"]),
+    )
+    live.state = state
+    live.cursor = runner.persist_step(
+        live.thread_id, list(getattr(state, "history", []) or []),
+        live.cursor)
+    result = _result_of(state, run_id, live.thread_id, live)
+    _close(run_id, live, result)
+
+
+def decide_pending(run_id: str, allow: bool, *,
+                   on_event: Optional[Callable] = None,
+                   lang: Optional[str] = None) -> None:
+    """Apply a human decision to a parked dangerous operation.
+
+    The decision is dispatched through the SAME handlers the page's buttons
+    call, so an API client and a browser cannot drift apart: one place
+    re-dispatches the operation under the approval context, the other denies
+    it and tells the model to find another way.
+
+    The run continues in a background thread, because a step is a provider
+    call plus its tools and the caller is an HTTP request that must return.
+    """
+    from dev_agent.loop.steps.approvals import (
+        approve_pending_confirmation,
+        deny_pending_confirmation,
+    )
+
+    rid = str(run_id or "").strip()
+    live = _live_state(rid)
+    if live is None or live.state is None:
+        raise errors.GatewayError(
+            "run_not_found",
+            "The dialog is not active in this process",
+            details={"run_id": rid},
+        )
+    handler = approve_pending_confirmation if allow else deny_pending_confirmation
+    with live.lock:
+        live.state = handler(live.state, live.dispatcher, lang=lang,
+                             on_event=on_event)
+        request = live.request
+        if request is None:
+            raise errors.run_not_found(rid)
+
+        def _resume() -> None:
+            with live.lock:
+                try:
+                    _drive_state(rid, live, request, on_event, lang)
+                except Exception as exc:  # pragma: no cover - defensive
+                    log.warning("resume failed for %s: %s", rid, exc)
+
+        threading.Thread(target=_resume, name="dialog-" + rid,
+                         daemon=True).start()
 
 
 # ─── Continuation ───────────────────────────────────────────────────────────

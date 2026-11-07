@@ -27,8 +27,8 @@ _ARGS_ALLOWED_NAMES = {
     "rag_get_chunks": {"slug", "chunk_ids", "source", "chunk_indices"},
     "web_search": {"query", "instructions", "allowed_domains", "search_context_size"},
     "url_fetch": {"url"},
-    "run_test": {"code", "path", "confirmed_by_user"},
-    "run_code": {"code", "path", "confirmed_by_user"},
+    "run_test": {"code", "path"},
+    "run_code": {"code", "path"},
 }
 
 

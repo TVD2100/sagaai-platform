@@ -33,6 +33,7 @@ from dev_agent.agent_loop import (
     apply_economy_cache,
     build_economy_context,
 )
+from ui.pages.orchestrator_flags import toolbar_specs
 from ui.pages.orchestrator_folder import (
     _apply_folder_choice,
     _render_folder_picker,
@@ -69,37 +70,26 @@ def _render_chat_toolbar(slug: str, lang: str) -> None:
     session slots used by the agent loop, so there is a single source of
     truth for each preference.
     """
-    cols = st.columns([1, 1, 1, 1, 0.8])
-    pref_specs = (
-        ("web_search", t("orch_web_search_label", lang=lang),
-         t("orch_web_search_help", lang=lang)),
-        ("safety_mode", t("orch_safety_label", lang=lang),
-         t("orch_safety_help", lang=lang)),
-    )
-    for col, (pref, label, help_text) in zip(cols[:2], pref_specs):
+    cols = st.columns([1, 1, 1, 1, 1, 0.8])
+    for col, (pref, label, help_text) in zip(cols[:3], toolbar_specs(t, lang)):
         with col:
-            widget_key = _chat_toolbar_widget_key(slug, pref)
-            st.checkbox(
-                label,
-                key=widget_key,
-                help=help_text,
-                on_change=_chat_toolbar_pref_changed,
-                args=(slug, pref),
-            )
+            st.checkbox(label, key=_chat_toolbar_widget_key(slug, pref),
+                        help=help_text, on_change=_chat_toolbar_pref_changed,
+                        args=(slug, pref))
 
-    with cols[2]:
+    with cols[3]:
         if st.button("⚙️ " + t("nav_settings", lang=lang),
                      key=f"orch_settings_{slug}",
                      use_container_width=True, type="secondary"):
             st.session_state["current_page"] = f"orchestrator_settings:{slug}"
             st.rerun()
-    with cols[3]:
+    with cols[4]:
         if st.button(t("orch_new_dialog", lang=lang),
                      key=f"orch_reset_{slug}",
                      use_container_width=True, type="secondary"):
             _reset_dialog(slug)
             st.rerun()
-    with cols[4]:
+    with cols[5]:
         url_params = {"orchestrator": slug}
         tid = _ss(slug, "thread_id")
         if tid:

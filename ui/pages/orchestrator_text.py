@@ -324,8 +324,13 @@ def _chat_pref_config_keys() -> Dict[str, tuple]:
     ``chat_economy_mode`` config key stays readable but is no longer
     consulted, so an install with the old value saved simply ignores it.
     """
+    # Three INDEPENDENT preferences. "safety_mode" governs execution
+    # confirmations only; "injection_protection" governs the sanitisation of
+    # external content. Tying them to one checkbox meant that a user asking
+    # for fewer confirmations silently lost injection protection as well.
     return {"web_search": ("chat_web_search", False),
-            "safety_mode": ("chat_safety_mode", True)}
+            "safety_mode": ("chat_safety_mode", True),
+            "injection_protection": ("chat_injection_protection", True)}
 
 
 def _attachments_manifest_path(ws_root: str, tid: str) -> str:
@@ -459,14 +464,18 @@ def _release_step_resources(orchestration, unsubscribe, root_run_id: str, *,
         except Exception:
             pass
 
-def _sync_safety_mode(dispatcher, state, safety_mode: bool) -> None:
-    """Keep the running loop in sync with the Safe mode checkbox.
+def _sync_safety_mode(dispatcher, state, safety_mode: bool,
+                      injection_protection: bool = True) -> None:
+    """Keep the running loop in sync with the two independent protections.
 
-    The user may toggle it mid-dialog; the one-step sanitization bypass
-    created by ``approve_sanitized_content`` is never overridden.
+    ``safety_mode`` decides whether a dangerous execution needs a confirmation
+    from the user; ``injection_protection`` decides whether external content is
+    sanitised. They are separate switches: turning one off must not weaken the
+    other. The one-step sanitization bypass created by
+    ``approve_sanitized_content`` is never overridden.
     """
     if not getattr(state, "injection_protection_bypassed", False):
-        state.enable_injection_protection = bool(safety_mode)
+        state.enable_injection_protection = bool(injection_protection)
     dispatcher.core._safety_enabled = bool(safety_mode)
 
 def _persist_thread_workspace_meta(tid: str) -> None:
@@ -585,6 +594,7 @@ def build_state_keys(slug: str, prefs: dict, economy_mode: bool,
         f"orch_{slug}_show_oinstr_form": False,
         f"orch_{slug}_edit_oinstr": None,
         f"orch_{slug}_safety_mode": prefs["safety_mode"],
+        f"orch_{slug}_injection_protection": prefs["injection_protection"],
         # Folder staged in the "folder picker" block ("" = Авто / no explicit
         # choice) plus a widget-key counter used to reset the selector after
         # a send without touching an already-instantiated widget's state.

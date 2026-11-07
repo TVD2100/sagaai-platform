@@ -379,6 +379,7 @@ COVERAGE = {
     "runs.list": ("/v1/runs", "get"),
     "runs.cancel": ("/v1/runs/{run_id}/cancel", "post"),
     "runs.answer": ("/v1/runs/{run_id}/answer", "post"),
+    "runs.confirm": ("/v1/runs/{run_id}/confirm", "post"),
     "threads.list": ("/v1/threads", "get"),
     "threads.read": ("/v1/threads/{thread_id}", "get"),
     "search": ("/v1/search", "get"),

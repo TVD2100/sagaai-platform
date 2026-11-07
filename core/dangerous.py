@@ -126,16 +126,15 @@ _SHELL_RULES: List[DangerRule] = [
 # ─── Python code rules ───────────────────────────────────────────────────────
 
 # Known safe commands that are harmless when run via subprocess
+# Commands that only INSPECT their environment. Anything that can execute
+# other code (interpreters, test runners, package managers, build tools,
+# container and deploy CLI) and anything that can print the process
+# environment is deliberately absent: a whitelist of "safe" binaries is not
+# a security boundary, and a binary that runs arbitrary code is precisely
+# the case this module exists to catch.
 _SAFE_SUBPROCESS_COMMANDS: Set[str] = {
-    "python", "python3", "node", "npm", "npx", "pytest",
-    "echo", "cat", "ls", "dir", "pwd", "touch", "mkdir",
-    "git", "make", "cmake", "cargo", "go", "rustc",
-    "pip", "pip3", "poetry", "conda", "virtualenv", "venv",
-    "black", "ruff", "mypy", "flake8", "pylint",
-    "docker", "kubectl", "helm", "terraform",
-    "java", "javac", "mvn", "gradle",
-    "docker-compose", "env", "printenv", "which", "where",
-    "type", "test", "true", "false", "uname", "hostname",
+    "echo", "ls", "dir", "pwd", "which", "where",
+    "uname", "hostname", "true", "false",
 }
 
 # Commands that are NEVER safe, even in list form
@@ -195,6 +194,35 @@ _PYTHON_RULES: List[DangerRule] = [
         r"\b(?:glob|os\.walk)\s*\s+",
         "Обход файловой системы с потенциальным удалением/изменением найденных файлов. Проверьте, что именно будет затронуто.",
     ),
+    # Network access. The child process has no boundary of its own, so any
+    # outbound call is a potential exfiltration path for secrets it can read.
+    DangerRule(
+        r"\b(?:socket\.(?:socket|create_connection)|urllib\.request|requests\."
+        r"(?:get|post|put|patch|delete|head|request|Session)|httpx\.|aiohttp\.)",
+        "Сетевой запрос из выполняемого кода. Позволяет отправить наружу всё, что доступно процессу: переменные окружения, файлы проекта, ключи.",
+    ),
+    # Direct imports of the process-spawning API: the call site then has no
+    # ``subprocess.`` prefix for the rule above to anchor on.
+    DangerRule(
+        r"\bfrom\s+(?:subprocess|os|asyncio|multiprocessing)\s+import\s+"
+        r"(?:run|call|check_call|check_output|Popen|popen|system|spawn\w*|fork|exec\w*)",
+        "Прямой импорт функций запуска процессов. Даёт те же возможности, что и обращение через модуль, но без префикса, по которому проверяется код.",
+    ),
+    # Alternative process-spawning APIs that the subprocess rule does not cover.
+    DangerRule(
+        r"\b(?:os\.popen|asyncio\.create_subprocess_(?:exec|shell)|os\.posix_spawn|pty\.spawn)\s*\(",
+        "Запуск внешней программы через альтернативный API. Даёт те же возможности, что и subprocess, и не ограничен проверкой команд.",
+    ),
+    # Native code and dynamic import: an escape from every static check.
+    DangerRule(
+        r"\b(?:ctypes\.(?:CDLL|cdll|PyDLL|windll)|importlib\.import_module\s*\(|__import__\s*\()",
+        "Загрузка нативного кода или динамический импорт по строке. Обходит статический анализ: что именно выполнится, заранее неизвестно.",
+    ),
+    # File writes through pathlib, which the open(...) rule does not see.
+    DangerRule(
+        r"\.(?:write_text|write_bytes|unlink|rmdir|rename|replace)\s*\(",
+        "Запись или удаление файла через pathlib. Может перезаписать существующий файл или безвозвратно удалить данные.",
+    ),
 ]
 
 
@@ -244,47 +272,61 @@ class DangerAssessment:
         }
 
 
-def _is_subprocess_command_safe(code: str) -> bool:
-    """Check whether a subprocess call uses a safe command in list form.
+_SUBPROCESS_CALL_RE = re.compile(
+    r"(?:subprocess|Popen)\s*\.\s*(?:run|call|check_call|check_output|Popen|popen)\s*\(",
+    re.IGNORECASE,
+)
+_LIST_COMMAND_RE = re.compile(r"\s*\[\s*['\"]([^'\"]+)['\"]")
 
-    Returns True if the command is safe (list argument + safe command name),
-    False if the command is dangerous or unknown.
+
+def _iter_subprocess_calls(code: str) -> List[bool]:
+    """Return one flag per subprocess call: True when that call is safe.
+
+    Every call site is judged on its own. A whitelisted binary earlier in the
+    snippet no longer vouches for a dangerous binary later in the same
+    snippet: the caller treats the snippet as dangerous when at least one
+    call is unsafe, and the reasons list names that call.
     """
-    # Try to extract the command list from subprocess.run(['cmd', ...], ...)
-    m = re.search(
-        r"(?:subprocess|Popen)\s*\.\s*(?:run|call|check_call|check_output)\s*\("
-        r"\s*\[\s*['\"]([^'\"]+)['\"]",
-        code, re.IGNORECASE,
-    )
-    if not m:
-        return False
-    cmd_name = m.group(1)
-    # Get the base command name (last part of path)
-    base = cmd_name.rsplit("/", 1)[-1] if "/" in cmd_name else cmd_name
-    # Dangerous commands are never safe, regardless of arguments
-    if base in _ALWAYS_DANGEROUS_COMMANDS:
-        return False
-    # Check if it's in the known-safe set
-    if base in _SAFE_SUBPROCESS_COMMANDS:
-        return True
-    return False
+    results: List[bool] = []
+    for match in _SUBPROCESS_CALL_RE.finditer(code):
+        args_match = _LIST_COMMAND_RE.match(code, match.end())
+        if args_match is None:
+            results.append(False)   # string form or unknown shape
+            continue
+        cmd_name = args_match.group(1)
+        base = cmd_name.rsplit("/", 1)[-1] if "/" in cmd_name else cmd_name
+        if base in _ALWAYS_DANGEROUS_COMMANDS:
+            results.append(False)
+            continue
+        results.append(base in _SAFE_SUBPROCESS_COMMANDS)
+    return results
 
 
 def _check_python_rules(code: str) -> List[str]:
-    """Return the list of human-readable reasons for matched Python rules,
-    respecting safe_pattern exceptions.
+    """Return the reasons for matched Python rules.
+
+    A safe-pattern match excuses only the call it was written for. The rule is
+    reported when at least one occurrence is NOT excused, so a harmless call
+    cannot vouch for a dangerous one elsewhere in the same snippet.
     """
     reasons: List[str] = []
     for pattern_compiled, safe_compiled, rule in _PYTHON_SAFE:
-        if not pattern_compiled.search(code):
+        matches = list(pattern_compiled.finditer(code))
+        if not matches:
             continue
-        # If a safe_pattern exists and matches, suppress this rule.
-        if safe_compiled is not None and safe_compiled.search(code):
-            # Additional check for subprocess: verify the command is actually safe.
-            if "subprocess" in rule.pattern.lower():
-                if _is_subprocess_command_safe(code):
-                    continue
-            # For os.system and open, safe_pattern match alone is sufficient.
+        if safe_compiled is None:
+            reasons.append(rule.reason)
+            continue
+        if "subprocess" in rule.pattern.lower():
+            calls = _iter_subprocess_calls(code)
+            if calls and all(calls):
+                continue
+            reasons.append(rule.reason)
+            continue
+        # os.system()/open(): every occurrence must be excused by its own
+        # safe shape, otherwise the rule stays.
+        excused = sum(1 for _ in safe_compiled.finditer(code))
+        if excused >= len(matches):
             continue
         reasons.append(rule.reason)
     return reasons
@@ -299,22 +341,44 @@ def _check_shell_rules(code: str) -> List[str]:
     return reasons
 
 
+#: Upper bound on the code text handed to the rules. It exists so a
+#: pathological payload cannot stall the loop, and it is far above any
+#: realistic snippet: padding the head of a script must never hide the rest.
+ANALYSIS_LIMIT_CHARS = 1_000_000
+
+#: Upper bound on the code text echoed back for display. Analysis always sees
+#: the full text; only the preview is bounded.
+DISPLAY_SNIPPET_CHARS = 20_000
+
+
 def assess_code(code: str, tool: str = "") -> DangerAssessment:
     """Assess whether a code snippet is potentially dangerous.
+
+    The rules run over the WHOLE text: a long prologue must not push a
+    dangerous tail out of view. Only the preview carried back to the UI is
+    bounded, and it is explicitly marked when shortened, so the user is never
+    shown a shortened snippet as if it were the code being executed.
 
     Returns a DangerAssessment with:
       - dangerous: True if any rule matched
       - reasons:   human-readable explanations (maybe several)
       - tool:      which tool was called (run_code / run_test)
-      - code_snippet: the original code (truncated to 2000 chars for display)
+      - code_snippet: the analysed code, bounded for display
     """
-    snippet = str(code or "")[:2000]
-    reasons = _check_shell_rules(snippet)
+    full = str(code or "")
+    analysed = full[:ANALYSIS_LIMIT_CHARS]
+    reasons = _check_shell_rules(analysed)
     # Additive: Python rules also apply (the code may be Python that spawns shells)
-    reasons.extend(_check_python_rules(snippet))
+    reasons.extend(_check_python_rules(analysed))
     # Deduplicate while preserving order
     seen: set = set()
     unique_reasons = [r for r in reasons if not (r in seen or seen.add(r))]
+    snippet = full[:DISPLAY_SNIPPET_CHARS]
+    if len(full) > DISPLAY_SNIPPET_CHARS:
+        snippet += (
+            f"\n\n... [показаны первые {DISPLAY_SNIPPET_CHARS} из {len(full)} символов; "
+            "анализ выполнен по всему тексту]"
+        )
     return DangerAssessment(
         dangerous=bool(unique_reasons),
         reasons=unique_reasons,
@@ -334,7 +398,8 @@ def tool_needs_confirmation(tool: str, code: str) -> DangerAssessment:
       - Other tools: never dangerous by this module.
     """
     if tool not in ("run_code", "run_test"):
-        return DangerAssessment(dangerous=False, reasons=[], tool=tool, code_snippet=str(code or "")[:2000])
+        return DangerAssessment(dangerous=False, reasons=[], tool=tool,
+                                code_snippet=str(code or "")[:DISPLAY_SNIPPET_CHARS])
     return assess_code(str(code or ""), tool=tool)
 
 
