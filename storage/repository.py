@@ -57,8 +57,14 @@ def repo_create_assistant(assistant_id: str, name: str, service: str, model: str
                           description: str = "", tools: list = None,
                           max_tool_calls: int = None, max_tokens: int = None,
                           reasoning_effort: str = None,
-                          slug: str = None) -> bool:
-    """Insert a new Assistant row. Returns True on success."""
+                          slug: str = None,
+                          name_en: str = None, name_ru: str = None,
+                          name_zh: str = None) -> bool:
+    """Insert a new Assistant row. Returns True on success.
+
+    ``name`` is the user-defined name; ``name_en``/``name_ru``/``name_zh``
+    are the optional translations (see ``core.naming``).
+    """
     if tools is None:
         tools = []
     try:
@@ -70,6 +76,7 @@ def repo_create_assistant(assistant_id: str, name: str, service: str, model: str
                 prompt_text=prompt_text, tools=json.dumps(tools, ensure_ascii=False),
                 max_tool_calls=max_tool_calls, max_tokens=max_tokens,
                 reasoning_effort=reasoning_effort,
+                name_en=name_en, name_ru=name_ru, name_zh=name_zh,
                 created_at=now, updated_at=now,
             )
             s.add(a)
@@ -84,8 +91,15 @@ def repo_update_assistant(assistant_id: str, name: str, service: str, model: str
                           description: str = "", tools: list = None,
                           max_tool_calls: int = None, max_tokens: int = None,
                           reasoning_effort: str = None,
-                          slug: str = None) -> bool:
-    """Update an existing Assistant. Returns True on success."""
+                          slug: str = None,
+                          name_en: str = None, name_ru: str = None,
+                          name_zh: str = None) -> bool:
+    """Update an existing Assistant. Returns True on success.
+
+    The three translation arguments are optional; ``None`` keeps the stored
+    value, an empty string clears it. Those are different intentions, so
+    the caller decides per slot.
+    """
     if tools is None:
         tools = []
     try:
@@ -103,9 +117,40 @@ def repo_update_assistant(assistant_id: str, name: str, service: str, model: str
             a.max_tool_calls = max_tool_calls
             a.max_tokens     = max_tokens
             a.reasoning_effort = reasoning_effort
+            for slot, value in (("name_en", name_en), ("name_ru", name_ru),
+                                ("name_zh", name_zh)):
+                if value is not None:
+                    setattr(a, slot, str(value))
             if slug:
                 a.slug = slug
             a.updated_at     = datetime.now().isoformat()
+            s.commit()
+        return True
+    except Exception:
+        return False
+
+
+def repo_update_assistant_names(assistant_id: str, name: str,
+                                 name_en: str = None, name_ru: str = None,
+                                 name_zh: str = None) -> bool:
+    """Rewrite only the name slots of an existing Assistant.
+
+    The full update needs every field of the row, which forces a caller that
+    touches a name to carry the whole record along. This one writes the four
+    slots and leaves everything else as it is. ``None`` keeps a stored
+    translation, an empty string clears it.
+    """
+    try:
+        with get_session() as s:
+            a = s.get(Assistant, assistant_id)
+            if a is None:
+                return False
+            a.name = name
+            for slot, value in (("name_en", name_en), ("name_ru", name_ru),
+                                ("name_zh", name_zh)):
+                if value is not None:
+                    setattr(a, slot, str(value))
+            a.updated_at = datetime.now().isoformat()
             s.commit()
         return True
     except Exception:
@@ -615,8 +660,14 @@ def repo_create_orchestrator(orchestrator_id: str, slug: str, name: str,
                               description: str, prompt_text: str,
                               config: dict = None, tools: list = None,
                               max_steps: int = DEFAULT_MAX_STEPS, auto_apply: bool = True,
-                              is_builtin: bool = False, sort_order: int = 100) -> bool:
-    """Insert a new Orchestrator row. Returns True on success."""
+                              is_builtin: bool = False, sort_order: int = 100,
+                              name_en: str = None, name_ru: str = None,
+                              name_zh: str = None) -> bool:
+    """Insert a new Orchestrator row. Returns True on success.
+
+    ``name`` is the user-defined name; ``name_en``/``name_ru``/``name_zh``
+    are the optional translations (see ``core.naming``).
+    """
     if config is None:
         config = {}
     if tools is None:
@@ -632,6 +683,7 @@ def repo_create_orchestrator(orchestrator_id: str, slug: str, name: str,
                 tools=json.dumps(tools, ensure_ascii=False),
                 max_steps=max_steps, auto_apply=auto_apply,
                 is_builtin=is_builtin, sort_order=sort_order,
+                name_en=name_en, name_ru=name_ru, name_zh=name_zh,
                 created_at=now, updated_at=now,
             )
             s.add(orch)
@@ -645,7 +697,10 @@ def repo_update_orchestrator(orchestrator_id: str, **kwargs) -> bool:
     """Update an existing Orchestrator. Only provided kwargs are changed.
 
     Supported kwargs: slug, name, description, prompt_text, config (dict),
-    tools (list), max_steps, auto_apply, is_builtin, sort_order.
+    tools (list), max_steps, auto_apply, is_builtin, sort_order, name_en,
+    name_ru, name_zh. A translation key that is absent is left untouched, so
+    a caller that renames an entity never clears its translations by
+    accident.
     Returns True on success.
     """
     try:
@@ -673,6 +728,9 @@ def repo_update_orchestrator(orchestrator_id: str, **kwargs) -> bool:
                 orch.is_builtin = kwargs["is_builtin"]
             if "sort_order" in kwargs:
                 orch.sort_order = kwargs["sort_order"]
+            for slot in ("name_en", "name_ru", "name_zh"):
+                if slot in kwargs:
+                    setattr(orch, slot, kwargs[slot])
             orch.updated_at = datetime.now().isoformat()
             s.commit()
         return True

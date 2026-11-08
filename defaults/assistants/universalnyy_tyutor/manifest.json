@@ -1,5 +1,9 @@
 {
-  "name": "Универсальный тьютор",
+  "name": {
+    "en": "Universal Tutor",
+    "ru": "Универсальный тьютор",
+    "zh-CN": "通用导师"
+  },
   "description": "",
   "service": "YandexAI",
   "model": "aliceai-llm",

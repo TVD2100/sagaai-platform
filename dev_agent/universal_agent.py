@@ -22,14 +22,13 @@ from __future__ import annotations
 import importlib
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from storage.models import DEFAULT_MAX_STEPS
-
 from . import config
 from . import document_tools as docs
 from . import thread_scope as threads_scope
 from . import tool_registry as registry
 from . import workspace_binding as wb
 from . import workspace_tools as wt
+from .orchestrator_tools import OrchestratorToolsMixin
 from .tool_catalog_data import (  # noqa: F401  (public re-export)
     WORKSPACE_TOOL_ARGS,
     WORKSPACE_TOOL_CATALOG,
@@ -110,7 +109,7 @@ def build_assistant_dict_from_config() -> Tuple[dict, dict]:
 build_skill_dict_from_config = build_assistant_dict_from_config
 
 
-class UniversalDevAgent:
+class UniversalDevAgent(OrchestratorToolsMixin):
     """Universal-developer dispatch surface = core tools + workspace tools."""
 
     def __init__(self, workspace: Optional[str] = None, target_file: Optional[str] = None,
@@ -893,155 +892,6 @@ class UniversalDevAgent:
         if isinstance(res, dict) and res.get("ok"):
             res["active_thread_id"] = active_tid or ""
         return res
-
-    # ─── orchestrator tool wrappers ────────────────────────────────────────
-
-    def _list_orchestrators(self, **kwargs) -> Dict[str, Any]:
-        from core.orchestrators import list_orchestrators
-        orch_list = list_orchestrators()
-        return {"ok": True, "count": len(orch_list), "orchestrators": orch_list}
-
-    def _get_orchestrator(self, slug: str = "", **kwargs) -> Dict[str, Any]:
-        from core.orchestrators import get_orchestrator
-        if not slug:
-            return {"ok": False, "error": "Missing required argument 'slug'."}
-        orch = get_orchestrator(slug)
-        if orch is None:
-            return {"ok": False, "error": f"Orchestrator not found: {slug}"}
-        return {"ok": True, "orchestrator": orch}
-
-    def _create_orchestrator(self, slug: str = "", name: str = "", description: str = "",
-                             prompt_text: str = "", config: Optional[dict] = None,
-                             tools: Optional[list] = None, max_steps: int = DEFAULT_MAX_STEPS,
-                             auto_apply: bool = True, memory_dir: str = "",
-                             **kwargs) -> Dict[str, Any]:
-        from core.orchestrator_folders import safe_orchestrator_slug
-        from core.orchestrators import create_orchestrator
-        effective_slug = safe_orchestrator_slug(slug)
-        if not effective_slug or not name.strip():
-            return {"ok": False, "error": "Both 'slug' and 'name' are required."}
-        # The working-data folder is stored inside config (the same key the
-        # prompt assembly reads), so a bare top-level argument can never be
-        # silently dropped and cannot overwrite the other config keys.
-        cfg = dict(config or {})
-        folder = str(memory_dir or "").strip()
-        if folder:
-            cfg["memory_dir"] = folder
-        orch_id = create_orchestrator(
-            slug=slug.strip(),
-            name=name.strip(),
-            description=description or "",
-            prompt_text=prompt_text or "",
-            config=cfg,
-            tools=tools or [],
-            max_steps=int(max_steps or DEFAULT_MAX_STEPS),
-            auto_apply=bool(auto_apply),
-        )
-        if orch_id is None:
-            return {"ok": False, "error": f"Failed to create orchestrator (slug may already exist): {slug}"}
-        return {"ok": True, "orchestrator_id": orch_id, "slug": effective_slug, "name": name.strip()}
-
-    def _update_orchestrator(self, slug: str = "", **kwargs) -> Dict[str, Any]:
-        from core.orchestrators import save_orchestrator
-        if not slug:
-            return {"ok": False, "error": "Missing required argument 'slug'."}
-        allowed = {"name", "description", "prompt_text", "config", "tools",
-                   "max_steps", "auto_apply", "sort_order", "memory_dir"}
-        update_kwargs = {k: v for k, v in kwargs.items() if k in allowed and v is not None}
-        ok = save_orchestrator(slug, **update_kwargs)
-        if not ok:
-            return {"ok": False, "error": f"Failed to update orchestrator: {slug}"}
-        return {"ok": True, "slug": slug, "updated": True, "fields": list(update_kwargs.keys())}
-
-    def _delete_orchestrator(self, slug: str = "", **kwargs) -> Dict[str, Any]:
-        from core.orchestrators import delete_orchestrator
-        if not slug:
-            return {"ok": False, "error": "Missing required argument 'slug'."}
-        ok = delete_orchestrator(slug)
-        if not ok:
-            return {"ok": False, "error": f"Failed to delete orchestrator (may be built-in or not found): {slug}"}
-        return {"ok": True, "slug": slug, "deleted": True}
-
-    def _reload_orchestrator(self, slug: str = "", **kwargs) -> Dict[str, Any]:
-        from core.orchestrators import reload_orchestrator_from_folder
-        if not slug:
-            return {"ok": False, "error": "Missing required argument 'slug'."}
-        res = reload_orchestrator_from_folder(slug)
-        if not res.get("ok"):
-            return {"ok": False, "error": f"Failed to reload orchestrator: {slug} ({res.get('error', 'unknown')})"}
-        return {"ok": True, "slug": slug, "action": res.get("action"), "reloaded": True}
-
-    def _list_orchestrator_functions(self, slug: str = "", **kwargs) -> Dict[str, Any]:
-        from core.orchestrators import orch_list_functions
-        if not slug:
-            return {"ok": False, "error": "Missing required argument 'slug'."}
-        functions = orch_list_functions(slug)
-        return {"ok": True, "slug": slug, "count": len(functions), "functions": functions}
-
-    def _get_orchestrator_function(self, slug: str = "", name: str = "", **kwargs) -> Dict[str, Any]:
-        from core.orchestrators import orch_get_function
-        if not slug or not name:
-            return {"ok": False, "error": "Both 'slug' and 'name' are required."}
-        fn = orch_get_function(slug, name)
-        if fn is None:
-            return {"ok": False, "error": f"Function not found: {slug}/{name}"}
-        return {"ok": True, "function": fn}
-
-    def _save_orchestrator_function(self, slug: str = "", name: str = "", code: str = "", **kwargs) -> Dict[str, Any]:
-        from core.orchestrators import orch_save_function
-        if not slug or not name or not code:
-            return {"ok": False, "error": "Arguments 'slug', 'name' and 'code' are required."}
-        ok = orch_save_function(slug, name, code)
-        if not ok:
-            return {"ok": False, "error": f"Failed to save function (name must be a valid Python identifier): {slug}/{name}"}
-        return {"ok": True, "slug": slug, "name": name, "saved": True}
-
-    def _delete_orchestrator_function(self, slug: str = "", name: str = "", **kwargs) -> Dict[str, Any]:
-        from core.orchestrators import orch_delete_function
-        if not slug or not name:
-            return {"ok": False, "error": "Both 'slug' and 'name' are required."}
-        ok = orch_delete_function(slug, name)
-        if not ok:
-            return {"ok": False, "error": f"Failed to delete function: {slug}/{name}"}
-        return {"ok": True, "slug": slug, "name": name, "deleted": True}
-
-    def _list_orchestrator_instructions(self, slug: str = "", **kwargs) -> Dict[str, Any]:
-        from core.orchestrators import orch_list_instructions
-        if not slug:
-            return {"ok": False, "error": "Missing required argument 'slug'."}
-        instructions = orch_list_instructions(slug)
-        return {"ok": True, "slug": slug, "count": len(instructions), "instructions": instructions}
-
-    def _get_orchestrator_instruction(self, slug: str = "", instruction_id: str = "", **kwargs) -> Dict[str, Any]:
-        from core.orchestrators import orch_get_instruction
-        if not slug or not instruction_id:
-            return {"ok": False, "error": "Both 'slug' and 'instruction_id' are required."}
-        inst = orch_get_instruction(slug, instruction_id)
-        if inst is None:
-            return {"ok": False, "error": f"Instruction not found: {slug}/{instruction_id}"}
-        return {"ok": True, "instruction": inst}
-
-    def _save_orchestrator_instruction(self, slug: str = "", instruction_id: str = "", name: str = "",
-                                      description: str = "", prompt_text: str = "", **kwargs) -> Dict[str, Any]:
-        from core.orchestrators import orch_save_instruction
-        if not slug or not name:
-            return {"ok": False, "error": "Arguments 'slug' and 'name' are required."}
-        new_id = orch_save_instruction(
-            slug, instruction_id=instruction_id, name=name,
-            description=description or "", prompt_text=prompt_text or "",
-        )
-        if not new_id:
-            return {"ok": False, "error": f"Failed to save instruction: {slug}"}
-        return {"ok": True, "slug": slug, "instruction_id": new_id, "saved": True}
-
-    def _delete_orchestrator_instruction(self, slug: str = "", instruction_id: str = "", **kwargs) -> Dict[str, Any]:
-        from core.orchestrators import orch_delete_instruction
-        if not slug or not instruction_id:
-            return {"ok": False, "error": "Both 'slug' and 'instruction_id' are required."}
-        ok = orch_delete_instruction(slug, instruction_id)
-        if not ok:
-            return {"ok": False, "error": f"Failed to delete instruction: {slug}/{instruction_id}"}
-        return {"ok": True, "slug": slug, "instruction_id": instruction_id, "deleted": True}
 
     # ─── connector tool wrappers ───────────────────────────────────────────
 

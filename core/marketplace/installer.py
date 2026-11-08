@@ -665,20 +665,20 @@ def _fail_run(
     store.clear_state()
 
 
-def _display_name(entity: dict) -> str:
-    """Return the human name of an entity for the registry record."""
-    name = entity.get("name")
-    if isinstance(name, dict):
-        for lang in ("en", "ru", "zh-CN", "zh_CN"):
-            value = str(name.get(lang) or "").strip()
-            if value:
-                return value
-        for value in name.values():
-            if str(value).strip():
-                return str(value).strip()
-    if isinstance(name, str) and name.strip():
-        return name.strip()
-    return str(entity.get("id") or "skill")
+def _display_name(entity: dict, lang: Optional[str] = None) -> str:
+    """Return the name of an entity for the registry record.
+
+    The interface language decides unless the caller passes one: a
+    user-defined name wins, then the translation of that language, then
+    English (see :mod:`core.marketplace.names`).
+    """
+    from core.marketplace.names import entity_name
+
+    if lang is None:
+        from core.naming_runtime import current_lang
+
+        lang = current_lang()
+    return entity_name(entity, lang)
 
 
 def _display_description(entity: dict) -> str:

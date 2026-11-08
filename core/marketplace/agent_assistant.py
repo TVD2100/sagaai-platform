@@ -18,11 +18,11 @@ from typing import Dict, List, Optional
 
 from core.marketplace import store, verify
 from core.marketplace.agent_areas import _assistant_area_files
-from core.marketplace.agent_package import (
-    _assistant_bundle_from_folder,
+from core.marketplace.agent_merge import (
     _merge_assistant_payload,
     _previous_package_meta,
 )
+from core.marketplace.agent_package import _assistant_bundle_from_folder
 from core.marketplace.agent_preflight import _resolve_slug
 from core.marketplace.agent_run import (
     commit_agent_run,

@@ -72,7 +72,9 @@ def test_a_fresh_install_offers_task_scout_with_nobody_delegated(fresh_install):
 
     record = get_orchestrator(SLUG)
     assert record is not None, "the platform must ship Task Scout by default"
-    assert record["name"] == "Task Scout"
+    assert record["name_user"] == ""
+    assert record["name_en"] == "Task Scout"
+    assert record["name_ru"] == "Разведчик задач"
     assert get_allowed_agents(SLUG) == []
 
 

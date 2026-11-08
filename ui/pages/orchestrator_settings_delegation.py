@@ -19,7 +19,9 @@ from core.orchestrators import (
     UNIVERSAL_AGENT_SLUG,
     get_verifier_agent,
 )
-from storage.models import DEFAULT_MAX_STEPS
+from ui.pages.orchestrator_settings_other import (  # noqa: F401  re-exported
+    _render_other_settings,
+)
 from ui.pages.orchestrator_shared import late, st_proxy
 from ui.pages.orchestrator_text import _dialog_limit
 
@@ -306,38 +308,7 @@ def _save_delegation_settings(slug: str, lang: str, agents: dict, assistants: li
         settings_save_failed(slug, "delegation", "orch_delegation_save_error", lang)
 
 
-def _render_other_settings(slug: str, lang: str) -> None:
-    """Manage miscellaneous orchestrator settings (autonomous-loop step limit)."""
-    orch = get_orchestrator(slug)
-    if orch is None:
-        st.error(t("orch_not_found", lang=lang))
-        return
-
-    st.markdown(t("orch_other_section", lang=lang))
-    st.markdown(t("orch_other_section_desc", lang=lang))
-
-    cur_max_steps = int(orch.get("max_steps", DEFAULT_MAX_STEPS) or DEFAULT_MAX_STEPS)
-    sel_max_steps = st.number_input(
-        t("orch_max_steps_label", lang=lang),
-        min_value=1, max_value=10000,
-        value=cur_max_steps, step=50,
-        key=f"orch_max_steps_{slug}",
-        help=t("orch_max_steps_help", lang=lang),
-    )
-    st.caption(t("orch_max_steps_hint", lang=lang, default=DEFAULT_MAX_STEPS))
-
-    st.markdown("---")
-    if st.button(t("orch_save_btn", lang=lang), key=f"orch_save_other_{slug}", type="primary"):
-        try:
-            new_max_steps = int(sel_max_steps)
-        except (TypeError, ValueError):
-            new_max_steps = cur_max_steps
-        new_max_steps = max(1, min(10000, new_max_steps))
-        if save_orchestrator(slug, max_steps=new_max_steps):
-            pin_settings_section(slug, "other")
-            flash_success(t("orch_max_steps_saved", lang=lang, value=new_max_steps))
-            st.rerun()
-        else:
-            settings_save_failed(slug, "other", "orch_other_save_error", lang)
+# The Other settings section lives in its own module; it is imported above
+# and re-exported through this one, so callers keep resolving it here.
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

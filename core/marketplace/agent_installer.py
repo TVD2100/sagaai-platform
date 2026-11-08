@@ -50,11 +50,6 @@ from core.marketplace.agent_package import (  # noqa: F401
     _apply_config_defaults,
     _assistant_bundle_from_folder,
     _bundle_from_folder,
-    _merge_assistant_payload,
-    _merge_untouched,
-    _merge_update_config,
-    _previous_package_meta,
-    _previous_package_text,
     _read_json,
     _read_text,
 )

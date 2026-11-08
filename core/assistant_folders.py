@@ -262,11 +262,18 @@ def import_assistant_folder(slug: str, data: Dict[str, Any]) -> bool:
 # ─── Sync to/from the DB ──────────────────────────────────────────────────────
 
 def build_manifest_from_assistant(assistant: Dict[str, Any]) -> Dict[str, Any]:
-    """Build a manifest dict from a DB assistant dict (without prompt text)."""
-    return {
+    """Build a manifest dict from a DB assistant dict (without prompt text).
+
+    The four name slots are separate keys: ``name`` is the user-defined name
+    (what a locally created assistant has) and ``name_en``/``name_ru``/
+    ``name_zh`` are the translations (what a marketplace assistant has).
+    Keeping them flat rather than as one nested mapping means an older
+    reader that expects a plain string ``name`` still works.
+    """
+    manifest = {
         "id": assistant.get("id", ""),
         "slug": assistant.get("slug") or normalize_slug(assistant.get("name", "")),
-        "name": assistant.get("name", ""),
+        "name": assistant.get("name", "") or "",
         "service": assistant.get("service", ""),
         "model": assistant.get("model", ""),
         "temperature": assistant.get("temperature", 0.3),
@@ -276,6 +283,9 @@ def build_manifest_from_assistant(assistant: Dict[str, Any]) -> Dict[str, Any]:
         "max_tokens": assistant.get("max_tokens"),
         "reasoning_effort": assistant.get("reasoning_effort"),
     }
+    for field in ("name_en", "name_ru", "name_zh"):
+        manifest[field] = assistant.get(field, "") or ""
+    return manifest
 
 
 def sync_assistant_to_folder(assistant: Dict[str, Any]) -> bool:
@@ -297,6 +307,13 @@ def sync_assistant_to_folder(assistant: Dict[str, Any]) -> bool:
     bundle = build_manifest_from_assistant(assistant)
     prev = load_assistant_bundle(slug)
     if isinstance(prev, dict):
+        # A translation the DB does not carry yet may still be recorded in
+        # the manifest (an imported or marketplace-authored file). Keeping it
+        # here is what makes the folder the durable holder of the three
+        # translation slots, like orchestrator.json is for employees.
+        for field in ("name_en", "name_ru", "name_zh"):
+            if not bundle.get(field) and prev.get(field):
+                bundle[field] = str(prev[field])
         if prev.get("rag_bases"):
             bundle["rag_bases"] = list(prev["rag_bases"])
         # Preserve per-assistant web-search overrides across DB re-syncs.

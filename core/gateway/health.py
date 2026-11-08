@@ -43,7 +43,10 @@ THREAD_COLUMNS = (
 )
 
 #: Columns ``_ensure_assistant_columns`` adds to ``assistants``.
-ASSISTANT_COLUMNS = ("slug", "reasoning_effort")
+ASSISTANT_COLUMNS = ("slug", "reasoning_effort", "name_en", "name_ru", "name_zh")
+
+#: Columns ``_ensure_orchestrator_columns`` adds to ``orchestrators``.
+ORCHESTRATOR_COLUMNS = ("name_en", "name_ru", "name_zh")
 
 #: Tables the schedule and marketplace features create with raw SQL. Their
 #: absence means a migration step did not run.
@@ -177,6 +180,11 @@ def probe_schema(main_db: str = "", devagent_db: str = "") -> List[str]:
             for name in ASSISTANT_COLUMNS:
                 if name not in columns:
                     missing.append("assistants." + name)
+        if _table_exists(conn, "orchestrators"):
+            columns = set(_table_columns(conn, "orchestrators"))
+            for name in ORCHESTRATOR_COLUMNS:
+                if name not in columns:
+                    missing.append("orchestrators." + name)
         if not _index_exists(conn, "ix_messages_thread_id_id"):
             missing.append("index:ix_messages_thread_id_id")
     finally:

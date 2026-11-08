@@ -11,19 +11,21 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+from core.naming import bundle_name_fields, names_from_bundle
 from core.orchestrator_defaults import (
     _MAX_PROMPT_TEXT_LENGTH,
     _get_known_tool_names,
 )
 from core.orchestrator_folders import (
-    ensure_orchestrator_dir,
     get_orchestrator_function,
     get_orchestrator_instruction,
     list_orchestrator_functions,
     list_orchestrator_instructions,
     safe_orchestrator_slug,
-    save_orchestrator_function,
-    save_orchestrator_instruction,
+)
+from core.orchestrator_import_files import (  # noqa: F401  re-exported
+    _import_functions,
+    _import_instructions,
 )
 from core.orchestrator_shared import late
 from storage.models import DEFAULT_MAX_STEPS
@@ -72,7 +74,9 @@ def export_orchestrator(slug: str) -> Optional[Dict[str, Any]]:
     return {
         "format": _EXPORT_FORMAT,
         "slug": orch.get("slug", ""),
-        "name": orch.get("name", ""),
+        # The file keeps the four name slots apart: the user-defined name
+        # goes to ``name`` and the translations to their own keys.
+        **bundle_name_fields(orch),
         "description": orch.get("description", ""),
         "prompt_text": orch.get("prompt_text", ""),
         "config": orch.get("config", {}),
@@ -111,6 +115,24 @@ def _validate_imported_tools(tools: list) -> Tuple[list, List[str]]:
     return filtered, rejected
 
 
+def _validated_bundle_slug(data: Any) -> Tuple[str, Optional[Dict[str, Any]]]:
+    """Return the slug of an import bundle, or the refusal to hand back.
+
+    A slug that differs from its normalized form is refused: a path-traversal
+    attempt like ``../evil`` normalizes to something else and must not be
+    silently imported under a different name.
+    """
+    if not isinstance(data, dict):
+        return "", {"ok": False, "error": "Invalid export data: not a dict.", "slug": ""}
+    if data.get("format") != _EXPORT_FORMAT:
+        return "", {"ok": False, "error": f"Unknown format: {data.get('format', 'none')}", "slug": ""}
+    raw = str(data.get("slug") or "").strip()
+    slug = safe_orchestrator_slug(raw)
+    if not slug or slug != raw.lower():
+        return "", {"ok": False, "error": "Missing or invalid slug in export data.", "slug": ""}
+    return slug, None
+
+
 def import_orchestrator(data: Dict[str, Any], overwrite: bool = False) -> Dict[str, Any]:
     """Import an orchestrator from an export dict.
 
@@ -127,21 +149,12 @@ def import_orchestrator(data: Dict[str, Any], overwrite: bool = False) -> Dict[s
         NEVER overwritten - it always comes from the bundled
         system_prompt.md file.
     """
-    # Validate format.
-    if not isinstance(data, dict):
-        return {"ok": False, "error": "Invalid export data: not a dict.", "slug": ""}
-    if data.get("format") != _EXPORT_FORMAT:
-        return {"ok": False, "error": f"Unknown format: {data.get('format', 'none')}", "slug": ""}
+    slug, error = _validated_bundle_slug(data)
+    if error:
+        return error
 
-    raw = str(data.get("slug") or "").strip()
-    slug = safe_orchestrator_slug(raw)
-    # Reject slugs that contain anything beyond [a-z0-9_] (a path-traversal
-    # attempt like '../evil' normalizes to something else and must not be
-    # silently accepted as a different slug).
-    if not slug or slug != raw.lower():
-        return {"ok": False, "error": "Missing or invalid slug in export data.", "slug": ""}
-
-    name = data.get("name", "").strip() or slug
+    name_fields = names_from_bundle(data)
+    name = name_fields["name"]
     description = data.get("description", "")
     prompt_text = data.get("prompt_text", "")
     config = data.get("config", {}) or {}
@@ -180,6 +193,7 @@ def import_orchestrator(data: Dict[str, Any], overwrite: bool = False) -> Dict[s
                 tools=tools,
                 max_steps=max_steps,
                 auto_apply=auto_apply,
+                **{key: value for key, value in name_fields.items() if key != "name"},
             )
             if not existing.get("is_builtin"):
                 update_kwargs["prompt_text"] = prompt_text
@@ -212,6 +226,7 @@ def import_orchestrator(data: Dict[str, Any], overwrite: bool = False) -> Dict[s
         auto_apply=auto_apply,
         is_builtin=False,
         sort_order=100,
+        **{key: value for key, value in name_fields.items() if key != "name"},
     )
     if not ok:
         return {"ok": False, "error": "Failed to create orchestrator in DB.", "slug": ""}
@@ -229,46 +244,6 @@ def import_orchestrator(data: Dict[str, Any], overwrite: bool = False) -> Dict[s
         "tools_rejected": tools_rejected,
     }
 
-
-def _import_instructions(slug: str, instructions: list) -> int:
-    """Import instruction dicts into the orchestrator folder. Returns count.
-
-    Instructions are saved as orchestrator-specific instructions of *slug*
-    (same location export_orchestrator reads them from). Existing ids are
-    overwritten with the imported content. The global instructions table is
-    never touched by imports.
-    """
-    imported = 0
-    for inst in (instructions or []):
-        if not isinstance(inst, dict):
-            continue
-        iid = str(inst.get("id", "") or "").strip()
-        if not iid:
-            continue
-        ok = save_orchestrator_instruction(
-            slug,
-            iid,
-            name=str(inst.get("name", "") or iid),
-            description=str(inst.get("description", "") or ""),
-            prompt_text=str(inst.get("prompt_text", "") or ""),
-        )
-        if ok:
-            imported += 1
-    return imported
-
-
-def _import_functions(slug: str, functions: dict) -> int:
-    """Import custom functions into the orchestrator folder. Returns count."""
-    imported = 0
-    if not isinstance(functions, dict):
-        return imported
-    ensure_orchestrator_dir(slug)
-    for fname, code in functions.items():
-        if not isinstance(fname, str) or not isinstance(code, str):
-            continue
-        if save_orchestrator_function(slug, fname, code):
-            imported += 1
-    return imported
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -1,102 +1,21 @@
 """Assistant profiles, detection and creation."""
 from __future__ import annotations
 
-import json
-import re
 from typing import Any, Dict, List, Optional
 
 from core.assistants import update_assistant
+from core.naming import merge_slots, slots_error
 
 from ..assistant_detector import ASSISTANT_CREATOR_INSTRUCTION_ID
+from .assistant_drafts import (
+    assistant_create_kwargs,
+    assistant_creation_schema,
+    assistant_update_kwargs,
+    build_creation_evaluation,
+    parse_assistant_draft,
+    strip_prompt_fence,
+)
 from .deps import ToolMixin
-
-
-def _assistant_creation_schema() -> Dict[str, Any]:
-    """Return the structured-output schema the Assistant Creator answers with.
-
-    A fresh dict every call: the schema is handed to the model layer, which is
-    free to normalise or mutate it.
-    """
-    return {
-        "type": "object",
-        "properties": {
-            "name": {"type": "string"},
-            "description": {"type": "string"},
-            "prompt": {"type": "string"},
-        },
-        "required": ["name", "description", "prompt"],
-        "additionalProperties": False,
-    }
-
-
-def _looks_like_draft(data: Any) -> bool:
-    """Tell whether a decoded value carries the two mandatory draft fields."""
-    return isinstance(data, dict) and "name" in data and "prompt" in data
-
-
-def _parse_assistant_draft(text: str):
-    """Extract the assistant draft from the Assistant Creator answer.
-
-    Fallback levels, tried in order: a fenced code block, the raw answer as
-    JSON, and the first {...} object found anywhere in the text. Parsers stay
-    as a safety net for schema-less retries.
-
-    Returns ``(draft, None)`` or ``(None, error_message)``.
-    """
-    fenced = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
-    if fenced:
-        try:
-            data = json.loads(fenced.group(1).strip())
-            if _looks_like_draft(data):
-                return data, None
-        except (json.JSONDecodeError, TypeError):
-            pass
-    try:
-        data = json.loads(text)
-        if _looks_like_draft(data):
-            return data, None
-    except (json.JSONDecodeError, TypeError):
-        pass
-    obj_match = re.search(r"\{.*?\}", text, re.DOTALL)
-    if obj_match:
-        try:
-            data = json.loads(obj_match.group(0))
-            if _looks_like_draft(data):
-                return data, None
-        except (json.JSONDecodeError, TypeError):
-            pass
-    return None, "Could not parse Assistant Creator response as JSON."
-
-
-def _strip_prompt_fence(prompt_text: str) -> str:
-    """Unwrap a markdown fence around the generated prompt, when present."""
-    fence = re.search(r"```(?:markdown)?\s*([\s\S]*?)```", prompt_text)
-    if fence:
-        return fence.group(1).strip()
-    return prompt_text
-
-
-def _build_creation_evaluation(assistant_name: str, assistant_desc: str,
-                               complexity_str: str, service: str, model: str,
-                               tools: List[str], log_msg: str,
-                               needs_web_search: bool,
-                               web_search_supported: bool) -> str:
-    """Compose the human-readable report shown to the caller after creation."""
-    service_info = f" | Service: {service} > {model}" if service and model else ""
-    web_search_str = " + web_search" if ("web_search" in tools) else ""
-    parts = [
-        f"Created assistant '{assistant_name}' ({complexity_str}{web_search_str}).{service_info}",
-    ]
-    if assistant_desc:
-        parts.append(f"Description: {assistant_desc}")
-    parts.append(log_msg)
-    if needs_web_search and not web_search_supported:
-        parts.append(
-            "Warning: web_search was requested but the selected provider "
-            "does not support it. Enable a web-search-capable provider "
-            "(e.g. YandexAI) in Settings to use search in this assistant."
-        )
-    return "\n".join(parts)
 
 
 class AssistantTools(ToolMixin):
@@ -128,7 +47,10 @@ class AssistantTools(ToolMixin):
                            tools: Optional[List[str]] = None,
                            max_tool_calls: Optional[int] = None,
                            max_tokens: Optional[int] = None,
-                           reasoning_effort: Optional[str] = None) -> Dict[str, Any]:
+                           reasoning_effort: Optional[str] = None,
+                           name_en: Optional[str] = None,
+                           name_ru: Optional[str] = None,
+                           name_zh: Optional[str] = None) -> Dict[str, Any]:
         """Update an existing assistant by its id.
 
         Only the provided fields will be changed; omitted fields keep their
@@ -136,34 +58,30 @@ class AssistantTools(ToolMixin):
         Before editing, ALWAYS load the Assistant Creator instruction and
         show its name/description to the user, get confirmation, then call
         this tool with the desired changes.
+
+        Name handling: ``name`` is the user-defined slot and
+        ``name_en``/``name_ru``/``name_zh`` are its translations. A translation
+        left out of the call keeps its stored value; an explicitly passed empty
+        string clears that slot. The saved record must keep at least one
+        non-empty name, otherwise the interface would show a bare slug instead
+        of a label - such a call is refused.
         """
         current = self.deps().get_assistant_by_id(assistant_id)
         if current is None:
             return {"ok": False, "error": f"Assistant not found: {assistant_id}"}
 
-        merged_name = name if name is not None else current.get("name", "")
-        merged_desc = description if description is not None else current.get("description", "")
-        merged_text = prompt_text if prompt_text is not None else current.get("text", "")
-        merged_service = service if service is not None else current.get("service", "")
-        merged_model = model if model is not None else current.get("model", "")
-        merged_temp = temperature if temperature is not None else current.get("temperature", 0.7)
-        merged_tools = tools if tools is not None else current.get("tools", [])
-        merged_max_calls = max_tool_calls if max_tool_calls is not None else current.get("max_tool_calls")
-        merged_max_tokens = max_tokens if max_tokens is not None else current.get("max_tokens")
-        merged_effort = reasoning_effort if reasoning_effort is not None else current.get("reasoning_effort")
-
+        slots = merge_slots(current, name, name_en, name_ru, name_zh)
+        problem = slots_error(slots, "assistant")
+        if problem:
+            return {"ok": False, "error": problem}
+        overrides = {
+            "description": description, "prompt_text": prompt_text,
+            "service": service, "model": model, "temperature": temperature,
+            "tools": tools, "max_tool_calls": max_tool_calls,
+            "max_tokens": max_tokens, "reasoning_effort": reasoning_effort,
+        }
         ok = update_assistant(
-            pid=assistant_id,
-            name=merged_name,
-            service=merged_service,
-            model=merged_model,
-            temperature=float(merged_temp),
-            text=merged_text,
-            description=merged_desc,
-            tools=merged_tools,
-            max_tool_calls=merged_max_calls,
-            max_tokens=merged_max_tokens,
-            reasoning_effort=merged_effort,
+            pid=assistant_id, **assistant_update_kwargs(current, overrides, slots)
         )
         if not ok:
             return {"ok": False, "error": "Failed to update assistant in database."}
@@ -172,7 +90,7 @@ class AssistantTools(ToolMixin):
         return {
             "ok": True,
             "assistant_id": assistant_id,
-            "assistant_name": merged_name,
+            "assistant_name": (updated or {}).get("name") or slots["name"],
             "updated": True,
             "assistant": updated,
         }
@@ -249,11 +167,13 @@ class AssistantTools(ToolMixin):
                 send_request_fn,
                 user_message=(
                     f"Generate a new assistant for the following request:\n\n{task}\n\n"
-                    "Return ONLY a valid JSON object with 'name', 'description', and 'prompt'."
+                    "Return ONLY a valid JSON object with 'name' (user-defined "
+                    "name slot), the optional translations 'name_en', 'name_ru', "
+                    "'name_zh', 'description' and 'prompt'."
                 ),
                 system=creator_prompt,
                 history=[],
-                json_schema=_assistant_creation_schema(),
+                json_schema=assistant_creation_schema(),
                 json_schema_name="assistant_creation",
             )
         except Exception:
@@ -261,7 +181,9 @@ class AssistantTools(ToolMixin):
         return response, None
 
     def _finish_assistant_creation(self, task: str, send_request_fn, name: str,
-                                   description: str, prompt_text: str) -> Dict[str, Any]:
+                                   description: str, prompt_text: str,
+                                   name_en: str = "", name_ru: str = "",
+                                   name_zh: str = "") -> Dict[str, Any]:
         """Classify the task, resolve the profile, save the assistant and report."""
         classification = self.deps().classify_assistant_requirements(task, send_request_fn)
         complexity = classification["complexity"]
@@ -277,17 +199,11 @@ class AssistantTools(ToolMixin):
             max_tool_calls,
         ) = self.deps().resolve_service_model_for_assistant(task, complexity, needs_web_search)
 
-        new_id = self.deps().create_assistant(
-            name=name,
-            service=service,
-            model=model,
-            temperature=0.7,
-            text=prompt_text,
-            description=description,
-            tools=tools,
-            max_tool_calls=max_tool_calls,
-            reasoning_effort=reasoning_effort,
-        )
+        new_id = self.deps().create_assistant(**assistant_create_kwargs(
+            name, description, prompt_text,
+            (service, model, tools, reasoning_effort, max_tool_calls),
+            {"name_en": name_en, "name_ru": name_ru, "name_zh": name_zh},
+        ))
         if new_id is None:
             return {"ok": False, "error": "Failed to save new assistant to database."}
 
@@ -297,7 +213,7 @@ class AssistantTools(ToolMixin):
 
         assistant_name = new_assistant.get("name", "Auto-generated")
         assistant_desc = new_assistant.get("description", "")
-        evaluation = _build_creation_evaluation(
+        evaluation = build_creation_evaluation(
             assistant_name=assistant_name,
             assistant_desc=assistant_desc,
             complexity_str=classification.get("complexity", "?"),
@@ -337,21 +253,28 @@ class AssistantTools(ToolMixin):
         if error is not None:
             return error
 
-        parsed, parse_error = _parse_assistant_draft(response.strip())
+        parsed, parse_error = parse_assistant_draft(response.strip())
         if parsed is None:
             return {"ok": False, "error": parse_error}
 
         name = parsed.get("name", "").strip()
         description = parsed.get("description", "").strip()
         prompt_text = parsed.get("prompt", "").strip()
-        if not name or not prompt_text:
-            return {"ok": False, "error": "Assistant Creator returned empty name or prompt."}
+        translations = {
+            slot: str(parsed.get(slot) or "").strip()
+            for slot in ("name_en", "name_ru", "name_zh")
+        }
+        if not name and not any(translations.values()):
+            return {"ok": False, "error": "Assistant Creator returned no name at all."}
+        if not prompt_text:
+            return {"ok": False, "error": "Assistant Creator returned an empty prompt."}
         if len(prompt_text) < 50:
             return {"ok": False, "error": "Generated prompt too short (< 50 chars)."}
 
-        prompt_text = _strip_prompt_fence(prompt_text)
+        prompt_text = strip_prompt_fence(prompt_text)
         return self._finish_assistant_creation(
-            task, self._send_request_fn, name, description, prompt_text)
+            task, self._send_request_fn, name, description, prompt_text,
+            **translations)
 
     def create_assistant_for_task(self, task: str) -> Dict[str, Any]:
         """Explicitly create a new assistant for the given task.

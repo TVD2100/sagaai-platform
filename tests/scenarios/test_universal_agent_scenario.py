@@ -52,7 +52,10 @@ def test_fresh_install_seeds_the_executor(platform):
     assert status.get(UNIVERSAL_AGENT_SLUG) == "created"
     seeded = get_orchestrator(UNIVERSAL_AGENT_SLUG)
     assert seeded is not None
-    assert seeded["name"] == "Universal-Agent"
+    assert seeded["name_user"] == ""
+    assert seeded["name_en"] == "Universal Agent"
+    assert seeded["name_ru"] == "Универсальный агент"
+    assert seeded["name_zh"] == "通用智能体"
 
 
 def test_seeded_executor_carries_its_prompt_and_tools(platform):

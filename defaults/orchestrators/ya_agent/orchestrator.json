@@ -1,5 +1,9 @@
 {
-  "name": "YaAgent",
+  "name": {
+    "en": "YaAgent",
+    "ru": "YaAgent",
+    "zh-CN": "YaAgent"
+  },
   "description": "Агент по разработке и тестированию агентов и мультиагентных систем на базе Yandex AI Studio. Ищет официальную документацию и использует локальный каталог документации.",
   "config": {
     "strong_service": "YandexAI",

@@ -709,7 +709,18 @@
 # ``sign_release.py keyring`` accepts the folder positionally again, the form
 # every document about it shows.
 
-__version__ = "2.43.0"
+# 2.44.0 gives agents and assistants multilingual names. An entity carries four
+# name slots - the user-defined name plus en, ru and zh-CN translations - and
+# one resolver picks the label to show: the user slot first, then the interface
+# language, then English, then any non-empty slot, so a record never degrades to
+# a bare slug. The slots live in the ``orchestrators`` and ``assistants``
+# tables (migration 0011), mirror into ``orchestrator.json`` and
+# ``manifest.json``, travel through the marketplace catalog, and a catalog
+# update merges package translations without overwriting a name the user chose.
+# Shipped employees and assistants carry translations, and already-installed
+# ones are backfilled by slug.
+
+__version__ = "2.44.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

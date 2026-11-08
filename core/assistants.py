@@ -42,6 +42,8 @@ from core.assistant_folders import (
     save_assistant_file as folder_save_file,
 )
 from core.config import load_config
+from core.naming import name_fields_from, with_display_name
+from core.naming_runtime import current_lang
 from storage.repository import (
     repo_create_assistant,
     repo_delete_assistant,
@@ -97,8 +99,13 @@ def _unique_slug(name: str) -> str:
 # ─── CRUD helpers ─────────────────────────────────────────────────────────
 
 def load_assistants_index() -> list:
-    """Return all assistants (without prompt_text) from the DB."""
-    return repo_load_assistants()
+    """Return all assistants (without prompt_text) from the DB.
+
+    ``name`` is resolved for the interface language; the raw slots travel
+    next to it as ``name_user`` and ``name_en``/``name_ru``/``name_zh``.
+    """
+    lang = current_lang()
+    return [with_display_name(row, lang) for row in (repo_load_assistants() or [])]
 
 
 def load_assistant_prompt_text(assistant_id: str) -> str:
@@ -127,8 +134,17 @@ def get_assistant_by_id(assistant_id: str) -> dict | None:
     """
     Return an assistant dict with an extra 'text' key containing the prompt text.
     Returns None if not found.
+
+    ``name`` is resolved for the interface language and the raw slots travel
+    next to it, so an edit form can prefill the four name fields. Code that
+    persists a name must read ``name_user`` (or the repository directly) -
+    writing the resolved value back would replace a translation with a copy
+    of itself.
     """
-    return repo_get_assistant_with_text(assistant_id)
+    row = repo_get_assistant_with_text(assistant_id)
+    if row is None:
+        return None
+    return with_display_name(row, current_lang())
 
 
 def get_assistant_by_slug(slug: str) -> dict | None:
@@ -142,23 +158,31 @@ def create_assistant(name: str, service: str, model: str,
                      temperature, text: str, description: str = "",
                      tools: list = None, max_tool_calls: int = None,
                      max_tokens: int = None,
-                     reasoning_effort: str = None) -> str | None:
+                     reasoning_effort: str = None,
+                     name_en: str = None, name_ru: str = None,
+                     name_zh: str = None, slug_hint: str = None) -> str | None:
     """
     Create a new assistant. Returns the 8-char assistant ID on success, None on failure.
 
     The assistant gets a unique slug and its own folder
     (DATA_DIR/assistants/<slug>/) with manifest.json + prompt.md. Attachment
     files from the legacy layout are migrated into the folder.
+
+    ``name`` is the user-defined name and may be empty when the entity is
+    described by translations only (a preset or a marketplace install);
+    ``slug_hint`` then names the folder, keeping it readable and stable
+    instead of deriving it from an empty string.
     """
     if tools is None:
         tools = []
-    slug = _unique_slug(name)
+    slug = _unique_slug(slug_hint or name)
     pid = str(uuid.uuid4())[:8]
     ok = repo_create_assistant(
         assistant_id=pid, slug=slug, name=name, service=service, model=model,
         temperature=float(temperature), prompt_text=text, description=description,
         tools=tools, max_tool_calls=max_tool_calls, max_tokens=max_tokens,
         reasoning_effort=reasoning_effort,
+        name_en=name_en, name_ru=name_ru, name_zh=name_zh,
     )
     if ok:
         full = repo_get_assistant_with_text(pid)
@@ -171,7 +195,9 @@ def update_assistant(pid: str, name: str, service: str, model: str,
                      temperature, text: str, description: str = "",
                      tools: list = None, max_tool_calls: int = None,
                      max_tokens: int = None,
-                     reasoning_effort: str = None) -> bool:
+                     reasoning_effort: str = None,
+                     name_en: str = None, name_ru: str = None,
+                     name_zh: str = None) -> bool:
     """Update an existing assistant. Returns True on success.
 
     The assistant's folder is resynced from the new DB state.
@@ -183,6 +209,7 @@ def update_assistant(pid: str, name: str, service: str, model: str,
         temperature=float(temperature), prompt_text=text, description=description,
         tools=tools, max_tool_calls=max_tool_calls, max_tokens=max_tokens,
         reasoning_effort=reasoning_effort,
+        name_en=name_en, name_ru=name_ru, name_zh=name_zh,
     )
     if ok:
         full = repo_get_assistant_with_text(pid)
@@ -295,16 +322,21 @@ def load_assistant_files_context(pid: str) -> str:
 # ─── Folder import / export / reload ──────────────────────────────────────
 
 def export_assistant(assistant_id: str) -> dict | None:
-    """Export an assistant as a JSON-serializable dict (folder export)."""
+    """Export an assistant as a JSON-serializable dict (folder export).
+
+    The four name slots travel as separate keys, so an export made by this
+    version can be imported by an older one (which reads ``name``) and by a
+    marketplace-aware one (which reads the translations).
+    """
     full = repo_get_assistant_with_text(assistant_id)
     if full is None:
         return None
     slug = full.get("slug") or normalize_slug(full.get("name", ""))
     folder_data = export_assistant_folder(slug) if assistant_folder_exists(slug) else None
-    return {
+    data = {
         "format": "sagaai_assistant/v1",
         "slug": slug,
-        "name": full.get("name", ""),
+        "name": full.get("name", "") or "",
         "service": full.get("service", ""),
         "model": full.get("model", ""),
         "temperature": full.get("temperature", 0.3),
@@ -317,6 +349,9 @@ def export_assistant(assistant_id: str) -> dict | None:
         "files": (folder_data or {}).get("files", {}),
         "exported_at": datetime.now().isoformat(),
     }
+    for field in ("name_en", "name_ru", "name_zh"):
+        data[field] = full.get(field, "") or ""
+    return data
 
 
 def import_assistant(data: dict, overwrite: bool = False) -> dict:
@@ -330,10 +365,14 @@ def import_assistant(data: dict, overwrite: bool = False) -> dict:
     if data.get("format") != "sagaai_assistant/v1":
         return {"ok": False, "error": "Unknown format.", "slug": ""}
 
-    name = str(data.get("name") or "").strip()
-    if not name:
+    name_fields = name_fields_from(data)
+    name = name_fields.get("name_user") or ""
+    translations = [name_fields[k] for k in ("name_en", "name_ru", "name_zh")]
+    if not name and not any(translations):
         return {"ok": False, "error": "Missing name.", "slug": ""}
-    slug = normalize_slug(data.get("slug") or name)
+    # The user-defined slot stays empty for a marketplace entity: it shows the
+    # translation of the interface language, not a name nobody typed.
+    slug = normalize_slug(data.get("slug") or name or next(t for t in translations if t))
     existing = repo_get_assistant_by_slug(slug)
 
     prompt_text = str(data.get("prompt_text") or "")
@@ -353,6 +392,9 @@ def import_assistant(data: dict, overwrite: bool = False) -> dict:
                 max_tool_calls=data.get("max_tool_calls"),
                 max_tokens=data.get("max_tokens"),
                 reasoning_effort=data.get("reasoning_effort"),
+                name_en=name_fields["name_en"],
+                name_ru=name_fields["name_ru"],
+                name_zh=name_fields["name_zh"],
             )
             if not ok:
                 return {"ok": False, "error": "DB update failed.", "slug": slug}
@@ -372,6 +414,9 @@ def import_assistant(data: dict, overwrite: bool = False) -> dict:
             max_tool_calls=data.get("max_tool_calls"),
             max_tokens=data.get("max_tokens"),
             reasoning_effort=data.get("reasoning_effort"),
+            name_en=name_fields["name_en"],
+            name_ru=name_fields["name_ru"],
+            name_zh=name_fields["name_zh"],
         )
         if not ok:
             return {"ok": False, "error": "DB create failed.", "slug": slug}
@@ -407,7 +452,13 @@ def reload_assistant_from_folder(slug: str) -> dict:
     if not prompt.strip():
         return {"ok": False, "error": "Empty prompt.md", "slug": slug}
 
-    name = str(bundle.get("name") or "").strip() or slug
+    # A manifest written by an import or by the marketplace may carry the
+    # translations as ``name_en`` family keys or as one name mapping; the
+    # resolver accepts both shapes.
+    name_fields = name_fields_from(bundle)
+    name = name_fields["name_user"] or (
+        "" if any(name_fields[f] for f in ("name_en", "name_ru", "name_zh")) else slug
+    )
     existing = repo_get_assistant_by_slug(slug)
 
     def _apply(pid: str | None) -> dict:
@@ -423,6 +474,9 @@ def reload_assistant_from_folder(slug: str) -> dict:
                 max_tool_calls=bundle.get("max_tool_calls"),
                 max_tokens=bundle.get("max_tokens"),
                 reasoning_effort=bundle.get("reasoning_effort"),
+                name_en=name_fields["name_en"],
+                name_ru=name_fields["name_ru"],
+                name_zh=name_fields["name_zh"],
             )
             if not ok:
                 return {"ok": False, "error": "DB update failed.", "slug": slug}
@@ -439,6 +493,9 @@ def reload_assistant_from_folder(slug: str) -> dict:
             max_tool_calls=bundle.get("max_tool_calls"),
             max_tokens=bundle.get("max_tokens"),
             reasoning_effort=bundle.get("reasoning_effort"),
+            name_en=name_fields["name_en"],
+            name_ru=name_fields["name_ru"],
+            name_zh=name_fields["name_zh"],
         )
         if not ok:
             return {"ok": False, "error": "DB create failed.", "slug": slug}

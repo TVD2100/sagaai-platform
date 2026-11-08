@@ -12,8 +12,11 @@ When DevAgent needs to create, update, or verify an assistant, follow these rule
 
 ## Output format
 
-Output ONLY a valid JSON object with exactly four fields:
-- **name** -- short, descriptive assistant name (in the user's language).
+Output ONLY a valid JSON object with exactly these fields:
+- **name** -- short, descriptive assistant name in the user's language (the user-defined name slot).
+- **name_en** -- optional English translation of the name.
+- **name_ru** -- optional Russian translation of the name.
+- **name_zh** -- optional Simplified Chinese translation of the name.
 - **description** -- one-sentence description of what the assistant does.
 - **prompt** -- the complete system prompt for the assistant (Markdown, 300--1200 words).
 - **language** -- ISO 639-1 code of the prompt language (e.g. "ru", "en", "zh").
@@ -22,7 +25,21 @@ Do NOT wrap in markdown fences. The output MUST be parseable by json.loads().
 The platform requests this answer via native JSON Schema (structured output) when the provider supports it; in any case, output ONLY the bare JSON object - never prose, explanations, or markdown wrappers around it.
 
 Example:
-{"name": "Проверка орфографии", "description": "Проверяет тексты на орфографические и грамматические ошибки.", "prompt": "## Роль\n\nВы - **Проверка орфографии**...", "language": "ru"}
+{"name": "Проверка орфографии", "name_en": "Spell Check", "name_ru": "Проверка орфографии", "name_zh": "拼写检查", "description": "Проверяет тексты на орфографические и грамматические ошибки.", "prompt": "## Роль\n\nВы - **Проверка орфографии**...", "language": "ru"}
+
+### The four name slots
+
+An assistant carries four name slots: the user-defined `name` and the
+`name_en` / `name_ru` / `name_zh` translations. The interface shows the
+user-defined name in every language and falls back to the translation of the
+interface language (then English) only when the user slot is empty. So:
+
+- a profile the user will own gets a filled `name` and, when the meaning
+  survives translation, the three translations next to it;
+- a reusable profile meant to be language-neutral may leave `name` empty and
+  fill at least one translation;
+- never invent a translation that changes the meaning; leave the slot out
+  instead of guessing.
 
 ---
 
@@ -84,7 +101,17 @@ When the user asks to modify an existing assistant:
 4. Call `update_assistant_by_id` with ONLY the fields being changed; omitted fields keep their current values.
 5. Verify the saved profile by reading it back with `get_assistant_by_id` and report the result.
 
-Available editable fields: `name`, `description`, `prompt_text`, `service`, `model`, `temperature`, `tools`, `max_tool_calls`, `max_tokens`, `reasoning_effort`.
+Available editable fields: `name`, `name_en`, `name_ru`, `name_zh`, `description`, `prompt_text`, `service`, `model`, `temperature`, `tools`, `max_tool_calls`, `max_tokens`, `reasoning_effort`.
+
+Name rules when editing:
+
+- pass only the slots you are changing; an omitted slot keeps its stored value;
+- an explicitly passed empty string clears that slot;
+- the record must keep at least one non-empty name - the tool refuses a call
+  that would leave the assistant with no label at all;
+- when the user asks for a name in one language only e.g. "добавь китайское
+  название", pass just that slot (`name_zh`) and leave the others untouched.
+  Do not move the current display name into another slot to "fill" it.
 
 ---
 

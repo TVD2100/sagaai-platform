@@ -155,7 +155,9 @@ def test_ensure_devagent_settings_seeds_builtin_orchestrator(isolated_data_dir):
 
     orch = get_orchestrator_by_slug(DEVAGENT_SLUG)
     assert orch is not None
-    assert orch["name"] == "DevAgent"
+    assert orch["name"] == ""
+    assert (orch["name_en"], orch["name_ru"], orch["name_zh"]) == (
+        "Developer", "Разработчик", "开发者")
     assert orch["is_builtin"] is True
 
 

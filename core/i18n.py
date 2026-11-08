@@ -119,6 +119,25 @@ def t(key: str, lang: str = None, **kwargs) -> str:
     return key.format(**kwargs) if kwargs else key
 
 
+def lang_code(lang: str = None) -> str:
+    """Return the translation code (en / ru / zh) of an interface language.
+
+    *lang* is a display name such as "Русский" (the value stored in
+    ``st.session_state.ui_lang``). The code comes from the ``lang_code``
+    field of that language file, with the display name as a fallback, so an
+    interface language added later needs no code change here. Returns an
+    empty string when the language is unknown; callers then fall back to
+    English themselves.
+    """
+    langs = get_langs()
+    if lang and lang in langs:
+        code = str(load_lang_data(langs[lang]).get("lang_code") or "").strip()
+        if code:
+            return code.lower()
+    from core.naming import normalize_lang
+    return normalize_lang(lang)
+
+
 def dumps_lang(data: dict, sort_keys: bool = False) -> str:
     """Serialize a language dict to stable JSON text.
 

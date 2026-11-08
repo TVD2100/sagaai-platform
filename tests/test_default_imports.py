@@ -128,7 +128,9 @@ class TestDefaultsLoaders:
         assert "ya_agent" in d.list_default_orchestrator_slugs()
         data = d.load_default_orchestrator("ya_agent")
         assert data is not None
-        assert data["name"] == "YaAgent"
+        assert data["name"] == ""
+        assert data["name_en"] == "YaAgent"
+        assert data["display_name"] == "YaAgent"
         assert data["prompt_text"].strip()
 
     def test_dev_agent_instructions_loaded(self):

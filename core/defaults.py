@@ -43,6 +43,7 @@ import os
 from typing import Any, Dict, List, Optional, Tuple
 
 import core.paths
+from core.naming import name_fields_from
 from storage.models import DEFAULT_MAX_STEPS
 
 # ─── Directory helpers ────────────────────────────────────────────────────────
@@ -280,10 +281,21 @@ def _load_orchestrator_new_format(folder: str) -> Optional[Dict[str, Any]]:
             except OSError:
                 continue
 
+    names = name_fields_from(settings)
+    # A bundled preset has no user-defined name: the owner never typed one.
+    # ``name`` therefore stays empty and the translations carry the entity;
+    # ``display_name`` is the language-independent label for logs and tests.
+    display = (names["name_en"] or names["name_ru"]
+               or names["name_zh"] or names["name_user"] or slug)
     return {
         "format": "sagaai_orchestrator/v1",
         "slug": slug,
-        "name": str(settings.get("name") or slug),
+        "name": names["name_user"],
+        "display_name": display,
+        "name_user": names["name_user"],
+        "name_en": names["name_en"],
+        "name_ru": names["name_ru"],
+        "name_zh": names["name_zh"],
         "description": str(settings.get("description") or ""),
         "prompt_text": prompt_text,
         "config": config,
@@ -372,6 +384,18 @@ def _load_orchestrator_old_format(folder: str) -> Optional[Dict[str, Any]]:
     data.setdefault("auto_apply", True)
     data.setdefault("is_builtin", False)
     data.setdefault("sort_order", 0)
+    # A legacy export may carry the name as a string, as a mapping or as
+    # explicit translation keys. A mapping or explicit keys describe a preset,
+    # so the user-defined slot stays empty; a bare string is a user's own name
+    # and keeps occupying it.
+    names = name_fields_from(data)
+    data.update(names)
+    if isinstance(bundle.get("name"), dict) or any(names.get(f) for f in ("name_en", "name_ru", "name_zh")):
+        data["name"] = names["name_user"]
+    elif not str(data.get("name") or "").strip():
+        data["name"] = names["name_user"]
+    data.setdefault("display_name", names["name_en"] or names["name_ru"]
+                    or names["name_zh"] or names["name_user"] or str(data.get("name") or slug))
     return data
 
 
@@ -474,9 +498,19 @@ def load_default_assistant(folder_name: str) -> Optional[Dict[str, Any]]:
             except (OSError, UnicodeDecodeError):
                 continue
 
-    name = str(settings.get("name") or folder_name).strip()
+    names = name_fields_from(settings)
+    # A preset assistant has no user-defined name: its name is a translation.
+    # The slug still derives from the owner-visible name, with the English
+    # translation as the fallback, so the folder reads like the entity.
+    display = (names["name_en"] or names["name_ru"]
+               or names["name_zh"] or names["name_user"] or folder_name).strip()
     return {
-        "name": name,
+        "name": names["name_user"],
+        "display_name": display,
+        "name_user": names["name_user"],
+        "name_en": names["name_en"],
+        "name_ru": names["name_ru"],
+        "name_zh": names["name_zh"],
         "description": str(settings.get("description") or ""),
         "service": str(settings.get("service") or ""),
         "model": str(settings.get("model") or ""),

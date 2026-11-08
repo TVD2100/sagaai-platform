@@ -11,25 +11,24 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from core.naming import bundle_name_fields, with_display_name
+from core.naming_runtime import current_lang
 from core.orchestrator_defaults import (
     DEVAGENT_SLUG,
     PROMPT_USER_EDITED_KEY,
 )
 from core.orchestrator_folders import (
-    list_orchestrator_folder_slugs,
-    load_orchestrator_bundle,
-    load_orchestrator_prompt_file,
-    orchestrator_folder_exists,
     remove_orchestrator_dir,
     safe_orchestrator_slug,
     save_orchestrator_bundle,
     sync_orchestrator_instructions,
 )
-from core.orchestrator_shared import late
-from core.orchestrator_transfer import (
-    _EXPORT_FORMAT,
-    _validate_imported_tools,
+from core.orchestrator_reload import (  # noqa: F401  re-exported through the package
+    reload_orchestrator_from_folder,
+    sync_all_orchestrator_folders,
 )
+from core.orchestrator_shared import late
+from core.orchestrator_transfer import _EXPORT_FORMAT
 from storage.models import DEFAULT_MAX_STEPS
 from storage.repository import (
     repo_create_orchestrator,
@@ -46,13 +45,27 @@ repo_update_orchestrator = late("repo_update_orchestrator")
 
 
 def list_orchestrators_impl() -> List[Dict[str, Any]]:
-    """Return all orchestrators (without prompt_text), for navigation."""
-    return repo_list_orchestrators()
+    """Return all orchestrators (without prompt_text), for navigation.
+
+    ``name`` is resolved for the interface language; the raw slots travel
+    next to it as ``name_user`` and ``name_en``/``name_ru``/``name_zh``, so a
+    form can prefill the four fields without a second read.
+    """
+    lang = current_lang()
+    return [with_display_name(row, lang) for row in (repo_list_orchestrators() or [])]
 
 
 def get_orchestrator_impl(slug: str) -> Optional[Dict[str, Any]]:
-    """Return a full orchestrator dict including prompt_text and config."""
-    return repo_get_orchestrator_with_text(slug)
+    """Return a full orchestrator dict including prompt_text and config.
+
+    ``name`` is resolved for the interface language; the raw slots travel
+    next to it (see ``list_orchestrators_impl``). Persistence reads the
+    repository directly, never this resolved view.
+    """
+    row = repo_get_orchestrator_with_text(slug)
+    if row is None:
+        return None
+    return with_display_name(row, current_lang())
 
 
 def get_orchestrator_by_slug(slug: str) -> Optional[Dict[str, Any]]:
@@ -63,8 +76,13 @@ def get_orchestrator_by_slug(slug: str) -> Optional[Dict[str, Any]]:
 def create_orchestrator(slug: str, name: str, description: str = "",
                         prompt_text: str = "", config: dict = None,
                         tools: list = None, max_steps: int = DEFAULT_MAX_STEPS,
-                        auto_apply: bool = True) -> Optional[str]:
+                        auto_apply: bool = True, name_en: str = None,
+                        name_ru: str = None, name_zh: str = None) -> Optional[str]:
     """Create a new orchestrator. Returns the id on success, None on failure.
+
+    ``name`` is the user-defined name slot; ``name_en``/``name_ru``/``name_zh``
+    are the optional translations (see ``core.naming``). An entity described by
+    translations only passes an empty user slot.
 
     Also creates the orchestrator's personal folder on disk and writes an
     initial bundle (orchestrator.json).
@@ -92,6 +110,9 @@ def create_orchestrator(slug: str, name: str, description: str = "",
         auto_apply=auto_apply,
         is_builtin=False,
         sort_order=100,  # user-created orchestrators go before DevAgent
+        name_en=name_en,
+        name_ru=name_ru,
+        name_zh=name_zh,
     )
     if ok:
         _sync_orchestrator_folder(slug)
@@ -162,8 +183,11 @@ def reset_builtin_prompt_impl(slug: str = DEVAGENT_SLUG) -> bool:
 def save_orchestrator(slug: str, **kwargs) -> bool:
     """Update an existing orchestrator by slug.
 
-    Supported kwargs: name, description, prompt_text, config, tools,
-    max_steps, auto_apply, sort_order, memory_dir.
+    Supported kwargs: name, name_en, name_ru, name_zh, description,
+    prompt_text, config, tools, max_steps, auto_apply, sort_order, memory_dir.
+
+    ``name`` is the user-defined slot and the three ``name_*`` keys are its
+    translations; a slot left out of the call keeps its stored value.
 
     ``memory_dir`` is a convenience key: it is written into ``config`` (the
     stored location of the setting) instead of becoming a column, so the
@@ -278,10 +302,14 @@ def _sync_orchestrator_folder_impl(slug: str) -> None:
     orch = repo_get_orchestrator_with_text(slug)
     if orch is None:
         return
+    names = bundle_name_fields(orch)
     bundle = {
         "format": _EXPORT_FORMAT,
         "slug": orch.get("slug", slug),
-        "name": orch.get("name", ""),
+        "name": names["name"],
+        "name_en": names["name_en"],
+        "name_ru": names["name_ru"],
+        "name_zh": names["name_zh"],
         "description": orch.get("description", ""),
         "prompt_text": orch.get("prompt_text", ""),
         "config": orch.get("config", {}),
@@ -297,84 +325,6 @@ def _sync_orchestrator_folder_impl(slug: str) -> None:
     except Exception:
         pass
 
-
-def reload_orchestrator_from_folder(slug: str) -> Dict[str, Any]:
-    """Reload an orchestrator from its folder into the DB.
-
-    Reads orchestrator.json (and system_prompt.md when present) and updates
-    the DB record. This is the "folders first" direction used at startup and
-    by the settings Sync button. Instructions are rebuilt into the cache.
-
-    Returns a status dict: {ok, slug, action, error}.
-    """
-    if not orchestrator_folder_exists(slug):
-        return {"ok": False, "slug": slug, "action": "skip", "error": "folder missing"}
-    bundle = load_orchestrator_bundle(slug)
-    if bundle is None:
-        return {"ok": False, "slug": slug, "action": "skip", "error": "unreadable orchestrator.json"}
-
-    prompt_text = str(bundle.get("prompt_text") or "")
-    prompt_file_text = load_orchestrator_prompt_file(slug)
-    if prompt_file_text.strip():
-        prompt_text = prompt_file_text
-
-    config = bundle.get("config")
-    if not isinstance(config, dict):
-        config = {}
-    raw_tools = bundle.get("tools")
-    if not isinstance(raw_tools, list):
-        raw_tools = []
-    tools, _rejected = _validate_imported_tools(raw_tools)
-
-    existing = repo_get_orchestrator_with_text(slug)
-    if existing is not None:
-        update_kwargs: Dict[str, Any] = dict(
-            name=str(bundle.get("name") or slug),
-            description=str(bundle.get("description") or ""),
-            config=config,
-            tools=tools,
-            max_steps=int(bundle.get("max_steps", existing.get("max_steps", DEFAULT_MAX_STEPS)) or DEFAULT_MAX_STEPS),
-            auto_apply=bool(bundle.get("auto_apply", existing.get("auto_apply", True))),
-        )
-        if not existing.get("is_builtin"):
-            update_kwargs["prompt_text"] = prompt_text
-        repo_update_orchestrator(existing["id"], **update_kwargs)
-        sync_orchestrator_instructions(slug)
-        return {"ok": True, "slug": slug, "action": "updated"}
-
-    orch_id = uuid.uuid4().hex[:8]
-    ok = repo_create_orchestrator(
-        orchestrator_id=orch_id,
-        slug=slug,
-        name=str(bundle.get("name") or slug),
-        description=str(bundle.get("description") or ""),
-        prompt_text=prompt_text,
-        config=config,
-        tools=tools,
-        max_steps=int(bundle.get("max_steps", DEFAULT_MAX_STEPS) or DEFAULT_MAX_STEPS),
-        auto_apply=bool(bundle.get("auto_apply", True)),
-        is_builtin=False,
-        sort_order=int(bundle.get("sort_order", 100) or 100),
-    )
-    if ok:
-        sync_orchestrator_instructions(slug)
-        return {"ok": True, "slug": slug, "action": "created"}
-    return {"ok": False, "slug": slug, "action": "skip", "error": "db create failed"}
-
-
-def sync_all_orchestrator_folders() -> Dict[str, Any]:
-    """Reload every existing orchestrator folder into the DB.
-
-    Called at startup and by the settings Sync button. Returns per-slug status.
-    """
-    results: Dict[str, Any] = {}
-    for slug in list_orchestrator_folder_slugs():
-        try:
-            res = reload_orchestrator_from_folder(slug)
-            results[slug] = res.get("action", "error") + ("" if res.get("ok") else ": " + str(res.get("error", "")))
-        except Exception as exc:
-            results[slug] = "error: " + str(exc)
-    return results
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -1,5 +1,9 @@
 {
-  "name": "Task Scout",
+  "name": {
+    "en": "Task Scout",
+    "ru": "Разведчик задач",
+    "zh-CN": "任务侦察员"
+  },
   "description": "Proactive task-discovery agent: polls the delegated employees in a swarm, asks each for its open and planned work, fills the gaps from their memory folders and dialogs, adds evidence-based forecasts, and returns a list of conceptual task briefs the user can copy to the right employee.",
   "config": {
     "strong_service": "DeepSeek",

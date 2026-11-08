@@ -34,20 +34,13 @@ ENTITY_TYPES = ("agent", "skill", "rag", "mcp")
 def localized(value, lang: str = "en") -> str:
     """Return the best text for *lang* from a string or an i18n mapping.
 
-    Falls back to ``en``, then to any non-empty translation, then to an
-    empty string. A manifest that ships a bare string is accepted as-is:
-    the index summary of an older entity may predate the i18n requirement.
+    The rules are those of :mod:`core.naming`: a user-defined name wins, then
+    the translation for *lang*, then English, then any other translation. A
+    manifest that ships a bare string is accepted as-is.
     """
-    if isinstance(value, dict):
-        for candidate in (lang, "en"):
-            text = str(value.get(candidate) or "").strip()
-            if text:
-                return text
-        for text in value.values():
-            if str(text).strip():
-                return str(text).strip()
-        return ""
-    return str(value or "").strip()
+    from core.naming import localized_text
+
+    return localized_text(value, lang)
 
 
 def _index_entries(source, force: bool) -> dict:

@@ -22,12 +22,10 @@ from core.marketplace.agent_areas import (
     _orchestrator_area_files,
     _remove_stale_area_files,
 )
+from core.marketplace.agent_merge import _merge_orchestrator_update
 from core.marketplace.agent_package import (
     _apply_config_defaults,
     _bundle_from_folder,
-    _merge_untouched,
-    _merge_update_config,
-    _previous_package_meta,
 )
 from core.marketplace.agent_preflight import _resolve_slug
 from core.marketplace.agent_run import (
@@ -104,41 +102,6 @@ def _backup_orchestrator_area(
         )
     added_files = sorted(set(declared) - set(replaced_files)) if folder_exists else []
     return folder_exists, replaced_files, added_files
-
-
-def _merge_orchestrator_update(bundle: dict, existing: Optional[dict], slug: str) -> dict:
-    """Keep the values the user changed, move the ones they never touched.
-
-    An update refreshes the entity, not the user's choices: a value the user
-    changed stays, a value they never touched follows the package.
-    """
-    from core.orchestrators import get_orchestrator
-
-    previous = _previous_package_meta(existing)
-    installed_row = get_orchestrator(slug) or {}
-    bundle["config"] = _merge_update_config(
-        installed_row.get("config") or {},
-        bundle.get("config") or {},
-        previous.get("config") or {},
-    )
-    bundle["tools"] = _merge_untouched(
-        list(installed_row.get("tools") or []),
-        list(bundle.get("tools") or []),
-        list(previous.get("tools") or []),
-    )
-    if "max_steps" in previous:
-        bundle["max_steps"] = _merge_untouched(
-            installed_row.get("max_steps"),
-            bundle.get("max_steps"),
-            previous["max_steps"],
-        )
-    if "auto_apply" in previous:
-        bundle["auto_apply"] = _merge_untouched(
-            installed_row.get("auto_apply"),
-            bundle.get("auto_apply"),
-            previous["auto_apply"],
-        )
-    return bundle
 
 
 def _import_orchestrator_bundle(bundle: dict, slug: str, entity_id: str) -> dict:

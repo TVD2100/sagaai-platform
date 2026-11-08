@@ -32,6 +32,12 @@ class Assistant(Base):
     max_tool_calls = Column(Integer,     nullable=True)
     max_tokens     = Column(Integer,     nullable=True)
     reasoning_effort = Column(String(32), nullable=True, default=None)
+    # Localized names (see core.naming). `name` above is the user-defined
+    # name - the only slot a locally created assistant fills; an assistant
+    # installed from the marketplace fills the three translations instead.
+    name_en        = Column(String(256), nullable=True, default=None)
+    name_ru        = Column(String(256), nullable=True, default=None)
+    name_zh        = Column(String(256), nullable=True, default=None)
     created_at     = Column(String(32),  nullable=False, default="")
     updated_at     = Column(String(32),  nullable=False, default="")
 
@@ -58,6 +64,9 @@ class Assistant(Base):
             "max_tool_calls": self.max_tool_calls,
             "max_tokens":     self.max_tokens,
             "reasoning_effort": self.reasoning_effort,
+            "name_en":        self.name_en or "",
+            "name_ru":        self.name_ru or "",
+            "name_zh":        self.name_zh or "",
             "created_at":     self.created_at,
             "updated_at":     self.updated_at,
         }
@@ -233,6 +242,10 @@ class Orchestrator(Base):
     auto_apply  = Column(Boolean,     nullable=False, default=True)
     is_builtin  = Column(Boolean,     nullable=False, default=False)
     sort_order  = Column(Integer,     nullable=False, default=100)
+    # Localized names (see core.naming); `name` is the user-defined slot.
+    name_en     = Column(String(256), nullable=True, default=None)
+    name_ru     = Column(String(256), nullable=True, default=None)
+    name_zh     = Column(String(256), nullable=True, default=None)
     created_at  = Column(String(32),  nullable=False, default="")
     updated_at  = Column(String(32),  nullable=False, default="")
 
@@ -257,6 +270,9 @@ class Orchestrator(Base):
             "auto_apply":  self.auto_apply,
             "is_builtin":  self.is_builtin,
             "sort_order":  self.sort_order,
+            "name_en":     self.name_en or "",
+            "name_ru":     self.name_ru or "",
+            "name_zh":     self.name_zh or "",
             "created_at":  self.created_at,
             "updated_at":  self.updated_at,
         }

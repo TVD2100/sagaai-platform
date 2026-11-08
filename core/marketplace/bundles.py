@@ -26,6 +26,11 @@ from typing import Dict, List, Optional, Sequence
 from core.marketplace import installer as installer_mod
 from core.marketplace import registry, rollback, store
 from core.marketplace import source as source_mod
+from core.marketplace.bundle_catalog import (  # noqa: F401  re-exported
+    catalog_bundles,
+    load_bundle,
+    plan_bundle,
+)
 
 
 class BundleError(store.MarketplaceError):
@@ -104,13 +109,18 @@ def _member_entry(member: dict) -> dict:
     }
 
 
-def _member_state(member: dict, transport: source_mod.MarketplaceSource) -> dict:
+def _member_state(
+    member: dict,
+    transport: source_mod.MarketplaceSource,
+    lang: str = "",
+) -> dict:
     """Return what installing *member* would do, reading its manifest.
 
     A member without a declared type is probed across the known types, so a
     hand-written ``recommends: ["rag_base_creator"]`` still resolves. Any
     transport failure stays inside the entry: one missing member must not
-    blank the whole package preview.
+    blank the whole package preview. The name is resolved for *lang*, the
+    language the plan is read in, rather than for the process default.
     """
     entry = _member_entry(member)
     candidates = [member["type"]] if member["type"] else list(_PROBE_TYPES)
@@ -125,7 +135,7 @@ def _member_state(member: dict, transport: source_mod.MarketplaceSource) -> dict
             continue
 
         entry["type"] = candidate
-        entry["name"] = installer_mod._display_name(entity) or member["id"]
+        entry["name"] = installer_mod._display_name(entity, lang) or member["id"]
         entry["version"] = str(entity.get("version") or member["version"])
         package = entity.get("package") if isinstance(entity.get("package"), dict) else {}
         entry["size_bytes"] = int(package.get("size") or 0)
@@ -159,16 +169,18 @@ def _member_state(member: dict, transport: source_mod.MarketplaceSource) -> dict
 def plan(
     entity: dict,
     source: Optional[source_mod.MarketplaceSource] = None,
+    lang: str = "",
 ) -> dict:
     """Return the recommended-package plan of one manifest.
 
     The plan is read-only: every member's manifest is fetched (lazily, the
     transport caches them) and compared with the registry. The result
     carries ``items`` (one entry per member) plus the counters the page
-    needs to decide whether to enable the install button.
+    needs to decide whether to enable the install button. Member names are
+    resolved for *lang* - the language the card is shown in.
     """
     transport = source or source_mod.default_source()
-    items = [_member_state(member, transport) for member in members_of(entity)]
+    items = [_member_state(member, transport, lang) for member in members_of(entity)]
     actionable = ("install", "update")
     return {
         "ok": True,
@@ -410,76 +422,5 @@ def rollback_group(group_id: str, *, reason: str = "user") -> dict:
     }
 
 
-def catalog_bundles(
-    source: Optional[source_mod.MarketplaceSource] = None,
-    force: bool = False,
-) -> List[dict]:
-    """Return the bundles listed by the catalog index.
-
-    The index carries only ``{id, name, path}`` per bundle; the items are
-    read when the user actually opens one, so a page render never downloads
-    every bundle record.
-    """
-    transport = source or source_mod.default_source()
-    try:
-        index = transport.fetch_index(force=force)
-    except Exception:
-        return []
-    bundles = index.get("bundles") if isinstance(index, dict) else None
-    if not isinstance(bundles, (list, tuple)):
-        return []
-    result: List[dict] = []
-    for raw in bundles:
-        if isinstance(raw, str) and raw.strip():
-            result.append({"id": raw.strip(), "name": raw.strip(), "path": ""})
-        elif isinstance(raw, dict) and str(raw.get("id") or "").strip():
-            result.append({
-                "id": str(raw["id"]).strip(),
-                "name": str(raw.get("name") or raw["id"]).strip(),
-                "path": str(raw.get("path") or "").strip(),
-            })
-    return result
-
-
-def load_bundle(
-    bundle_id: str,
-    source: Optional[source_mod.MarketplaceSource] = None,
-) -> dict:
-    """Fetch one catalog bundle record and validate its member list."""
-    transport = source or source_mod.default_source()
-    record = transport.fetch_bundle(bundle_id)
-    items = []
-    for raw in record.get("items") or []:
-        member = _clean_member(raw)
-        if member is not None:
-            items.append(member)
-    if not items:
-        raise BundleError(
-            "empty_bundle",
-            f"Bundle '{bundle_id}' declares no usable items",
-            {"id": bundle_id},
-        )
-    return {
-        "id": str(record.get("id") or bundle_id),
-        "name": str(record.get("name") or bundle_id),
-        "version": str(record.get("version") or ""),
-        "items": items,
-    }
-
-
-def plan_bundle(
-    bundle_id: str,
-    source: Optional[source_mod.MarketplaceSource] = None,
-) -> dict:
-    """Return the plan of a catalog-level bundle.
-
-    The bundle record is turned into the same ``recommends`` shape a card
-    uses, so one planner serves both entry points.
-    """
-    record = load_bundle(bundle_id, source)
-    carrier = {"id": record["id"], "bundle": record["items"]}
-    plan_data = plan(carrier, source)
-    plan_data["bundle"] = {"id": record["id"], "name": record["name"], "version": record["version"]}
-    return plan_data
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -98,9 +98,17 @@ After the interview, perform the following steps in order:
     text is never parsed - do not rely on a sentence like "all data lives in
     X" as a machine signal. State the marker once; a second occurrence is a
     conflict, only the first one counts.
-2. Call `create_orchestrator(slug, name, description, prompt_text, config, tools, max_steps, auto_apply)`.
+2. Call `create_orchestrator(slug, name, description, prompt_text, config, tools, max_steps, auto_apply, name_en, name_ru, name_zh)`.
    The response contains `slug` - the ACTUAL (normalized) slug. Always use
    that value for all later calls; never reuse your original string.
+
+   Names: `name` is the user-defined slot and `name_en`/`name_ru`/`name_zh`
+   are its translations. At least one of the four must be non-empty - the tool
+   refuses a call that would leave the employee with no label at all. A
+   personal employee gets a filled `name` in the user's language; a reusable
+   role meant to be language-neutral may leave `name` empty and fill the
+   translations instead. Never invent a translation that changes the meaning:
+   leave the slot out rather than guessing.
 3. If custom Python functions are needed, create them under the employee
    folder via `save_orchestrator_function(slug, name, code)`. Each function
    file must define a callable named `invoke(**kwargs) -> dict`.
@@ -113,7 +121,12 @@ After the interview, perform the following steps in order:
 5. Set the full system prompt via `update_orchestrator(slug, prompt_text=...)`
    after creation (the prompt written by `create_orchestrator` may be
    incomplete). `update_orchestrator` also accepts `tools`, `config`,
-   `max_steps`, `auto_apply`, `sort_order` - only the passed fields change.
+   `max_steps`, `auto_apply`, `sort_order` and the name slots `name`,
+   `name_en`, `name_ru`, `name_zh` - only the passed fields change. A name
+   slot passed as `None` or omitted keeps its stored value; an explicitly
+   passed empty string clears that translation. A request like "add a Chinese
+   name" touches only `name_zh` - never copy the current display name into
+   another slot to "fill" it.
    The prompt MUST contain the `## MEMORY AND CONTINUITY` block (see §4) with
    the `MEMORY_DIR:` line for non-ENGINEERING roles. After the call, read the
    record back with `get_orchestrator(slug)` and confirm the marker is present
@@ -351,7 +364,8 @@ Name each function with a short, descriptive, valid Python identifier
 ## 6. Output / confirmation to the user
 
 After creation, report:
-- employee name and slug,
+- employee name and slug (the four name slots: user-defined plus en/ru/zh
+  translations, and which of them are filled),
 - which system tools are enabled,
 - which custom functions were created,
 - which instructions were added,

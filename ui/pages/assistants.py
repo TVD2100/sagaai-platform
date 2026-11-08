@@ -45,6 +45,7 @@ from core.tools_utils import (
     service_supported_tools,
 )
 from ui.components.flash import flash_error, flash_success
+from ui.components.name_fields import render_name_fields
 from ui.pages.assistants_helpers import (  # noqa: F401  re-exported for callers
     _clamp_temperature,
     _finalize_tools,
@@ -53,6 +54,7 @@ from ui.pages.assistants_helpers import (  # noqa: F401  re-exported for callers
     _model_choice_lists,
     _temperature_bounds,
 )
+from ui.pages.assistants_nav import _render_back_to_chat  # noqa: F401  re-exported
 
 # built-in assistant IDs that should never be editable
 _BUILTIN_ASSISTANT_IDS = {"dev_agent", "skill_creator", "assistant_creator"}
@@ -107,34 +109,6 @@ def page_assistants() -> None:
     _render_assistant_list(lang, available_services)
 
 
-def _render_back_to_chat(lang: str) -> None:
-    """Render the "back to chat" button, remembering the active assistant.
-
-    Returning keeps the assistant that was being worked on, so the chat opens
-    on the same card instead of a blank selection.
-    """
-    _, right_col = st.columns([4, 1])
-    with right_col:
-        if st.button("← " + t("orch_tab_chat", lang=lang),
-                     key="assistant_back_chat",
-                     use_container_width=True,
-                     type="secondary"):
-            aid = (
-                st.session_state.get("edit_assistant_id")
-                or st.session_state.get("edit_skill_id")
-                or st.session_state.get("last_active_entity_id")
-                or st.session_state.get("selected_assistant_id")
-                or st.session_state.get("selected_skill_id")
-            )
-            if aid:
-                st.session_state["last_active_entity_type"] = "assistant"
-                st.session_state["last_active_entity_id"] = aid
-                st.session_state["selected_assistant_id"] = aid
-                st.session_state["selected_skill_id"] = aid
-            st.session_state["current_page"] = "run"
-            st.rerun()
-
-
 def _prepare_prompt_revision(edit_id) -> tuple:
     """Return (revision, widget key), dropping drafts of other targets.
 
@@ -160,7 +134,8 @@ def _form_defaults(lang: str, edit_id, editing: bool, service_names: list) -> tu
     if not editing:
         st.subheader(t("skills_form_title_create", lang=lang))
         return {
-            "name": "", "service": service_names[0] if service_names else "",
+            "name": "", "name_en": "", "name_ru": "", "name_zh": "",
+            "service": service_names[0] if service_names else "",
             "model": "", "temp": None, "desc": "", "text": "", "tools": [],
             "max_calls": None, "max_tokens": None, "reasoning": None,
             "ws_settings": {},
@@ -181,7 +156,12 @@ def _form_defaults(lang: str, edit_id, editing: bool, service_names: list) -> tu
     except Exception:
         ws_settings = {}
     return {
-        "name": existing.get("name", ""),
+        # The user-defined slot is what an edit form writes back; the resolved
+        # ``name`` is only a display value and must not become a stored name.
+        "name": existing.get("name_user") or existing.get("name", ""),
+        "name_en": existing.get("name_en", ""),
+        "name_ru": existing.get("name_ru", ""),
+        "name_zh": existing.get("name_zh", ""),
         "service": existing.get("service", ""),
         "model": existing.get("model", ""),
         "temp": existing.get("temperature", 0.7),
@@ -207,9 +187,8 @@ def _render_assistant_form(lang: str, available_services: dict,
         st.error(t("no_services", lang=lang))
         return
 
-    name = st.text_input(
-        t("skills_form_name", lang=lang), value=defaults["name"], key="assistant_name_input",
-        help=t("skills_form_name_help", lang=lang))
+    name_fields = render_name_fields(lang, edit_id or "new", defaults,
+                                    st=st, user_key="assistant_name_input")
     desc = st.text_area(
         t("skills_form_desc", lang=lang), value=defaults["desc"], key="assistant_desc",
         help=t("skills_form_desc_help", lang=lang))
@@ -232,7 +211,9 @@ def _render_assistant_form(lang: str, available_services: dict,
     form = dict(model_state)
     form.update({
         "edit_id": edit_id, "editing": editing, "existing": existing,
-        "name": name, "desc": desc, "prompt_text": prompt_text,
+        "name": name_fields["name"], "desc": desc, "prompt_text": prompt_text,
+        "name_en": name_fields["name_en"], "name_ru": name_fields["name_ru"],
+        "name_zh": name_fields["name_zh"],
         "base_options": bases["base_options"], "bases_selected": bases["bases_selected"],
         "web_context": web["context"], "web_domains": web["domains"],
     })
@@ -461,7 +442,13 @@ def _save_uploaded_files(lang: str, edit_id, uploaded_files) -> None:
 
 def _submit_assistant_form(lang: str, form: dict) -> None:
     """Validate the form, persist the assistant and leave the form."""
-    if not form["name"].strip():
+    # An entity installed from the marketplace carries no user-defined name:
+    # it shows the translation of the interface language, so an empty name
+    # field is valid as long as at least one translation exists.
+    if not form["name"].strip() and not any(
+        str(form.get(field) or "").strip()
+        for field in ("name_en", "name_ru", "name_zh")
+    ):
         st.error(t("err_name_required", lang=lang))
         return
     if not form["prompt_text"].strip():
@@ -474,7 +461,10 @@ def _submit_assistant_form(lang: str, form: dict) -> None:
                                   build_rag_search_tool, build_rag_chunks_tool)
     kwargs = {"tools": final_tools, "max_tool_calls": form["max_tool_calls"],
               "max_tokens": form["max_tokens"] if form["max_tokens"] else None,
-              "reasoning_effort": effort_value}
+              "reasoning_effort": effort_value,
+              "name_en": form.get("name_en") or None,
+              "name_ru": form.get("name_ru") or None,
+              "name_zh": form.get("name_zh") or None}
     if form["editing"]:
         update_assistant(form["edit_id"], form["name"], form["service"], form["model"],
                          form["temperature"], form["prompt_text"], form["desc"], **kwargs)

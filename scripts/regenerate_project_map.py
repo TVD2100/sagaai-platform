@@ -994,5 +994,31 @@ roles.update({
     "tests/test_chat_turn_and_step.py": "Unit tests for the two turn layers: history conversion, provider options and usage figures, thread reuse and creation order, the file needing both a name and text, and the saved cursor cutting, clamping and staying idempotent",
 })
 
+roles.update({
+    "core/naming.py": "One resolver for entity names: the four slots (user-defined, en, ru, zh-CN), the interface-language order with its fallbacks, split_name_slots and merge_slots for partial updates, and name_fields_from for folders and packages",
+    "core/naming_backfill.py": "Filling empty name slots on already-installed entities: orchestrators and assistants get the translations their shipped preset carries, and a preset is recognised by slug so a rename never creates a copy",
+    "core/naming_runtime.py": "The interface language an entity name is resolved against, cached for the duration of one request so a data-layer read does not reload the settings per row",
+    "core/builtin_config_defaults.py": "Config defaults shipped next to an agent package: merged into the bundle config before the importer writes it, so a catalog default fills a gap without overwriting a setting the package declares",
+    "core/marketplace/agent_merge.py": "Which installed values an update may move: the untouched/edited comparison against the manifest of the installed package, the merge of an orchestrator update and of an assistant payload, and the baseline readers over the cached package",
+    "core/marketplace/bundle_catalog.py": "The bundle view of the catalog: the recommended package of an entity read from the catalog lists, its members resolved to installable entries and the states a card shows",
+    "core/marketplace/names.py": "Display names of catalog entities: the localized name mapping of entity.json resolved through the shared name resolver, so a card shows the interface language and falls back to English",
+    "core/orchestrator_import_files.py": "Folder files of an orchestrator import: reading instructions and functions from a bundle, validating their names and writing them into the target folder before the database row is created",
+    "core/orchestrator_reload.py": "Reloading an orchestrator from its personal folder: hand-made edits of orchestrator.json, the prompt and instructions become visible to a running employee",
+    "dev_agent/orchestrator_tools.py": "Employee management tools of DevAgent: create/update/delete/reload of an orchestrator with the four name slots, its config, tools, step budget and working-data folder",
+    "dev_agent/tools/assistant_drafts.py": "Drafting helpers of the assistant tools: the name slots of a generated profile, the validation before a profile is stored and the payload shared by creation and update",
+    "migrations/versions/0011_localized_names.py": "Schema migration: adds name_en, name_ru and name_zh to orchestrators and assistants, leaving the user-defined name untouched",
+    "ui/components/name_fields.py": "The Names block of the entity forms: four fields (user-defined, en, ru, zh-CN), their widget keys and the validation that at least one slot is filled",
+    "ui/pages/assistants_nav.py": "Sidebar navigation of assistants: the visible entries and the All (N) expansion, in the resolved interface language",
+    "ui/pages/orchestrator_settings_other.py": "Other settings tab of an employee: the name block, description and the fields that belong to neither models nor tools",
+    "tests/test_naming.py": "Unit tests of the name resolver: slot order, interface-language fallback, empty slots and the label a record without any name gets",
+    "tests/test_naming_resolve.py": "Resolution tests across the data layer: list and get calls return the resolved name next to the raw slots",
+    "tests/test_naming_storage.py": "Storage tests of the name columns: saving, partial updates, clearing a slot and refusing a record with no name at all",
+    "tests/test_naming_roundtrip.py": "Round-trip tests of the name slots through orchestrator.json, manifest.json and an export/import cycle",
+    "tests/test_naming_backfill.py": "Backfill tests: installed entities receive the translations of their shipped preset, a renamed one is recognised by slug and no duplicate appears",
+    "tests/test_name_fields_ui.py": "UI tests of the Names block: the four fields, their defaults, the validation message and the payload the form submits",
+    "tests/test_name_slots_tools.py": "Tool tests of the name slots: create and update take the four slots, an omitted slot keeps its value, an empty string clears it and a record with no label is refused",
+    "tests/test_marketplace_names.py": "Marketplace tests of localized names: the catalog resolves the entity name by interface language, an install writes all four slots and an update keeps the user-defined name"
+})
+
 if __name__ == "__main__":
     main()

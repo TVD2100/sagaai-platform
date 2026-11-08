@@ -67,7 +67,11 @@ def test_bundled_folder_is_readable():
 
     data = load_default_orchestrator("universal_agent")
     assert data is not None
-    assert data["name"] == "Universal-Agent"
+    # The shipped bundle carries translations only: the user-defined slot is
+    # empty and the label comes from the English translation.
+    assert data["name_en"] == "Universal Agent"
+    assert data["name_ru"] and data["name_zh"]
+    assert data["display_name"]
     assert data["prompt_text"].strip()
     assert data["tools"], "an executor without tools cannot execute anything"
 

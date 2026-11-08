@@ -179,6 +179,24 @@ def ensure_default_orchestrators() -> Dict[str, str]:
         # bundled bases checked, while user settings stay untouched.
         preset_rag_bases = cfg.get("rag_bases") or []
         if current:
+            # Localized names: a record installed before translations existed
+            # holds the shipped string in the user-defined slot, which would
+            # freeze one name for every language. The backfill moves it into a
+            # translation; a name the owner typed is left alone.
+            try:
+                from core.naming_backfill import (
+                    default_name_backfill,
+                    shipped_names_for,
+                )
+
+                name_fields = default_name_backfill(
+                    current, data,
+                    shipped_names_for(slug, data),
+                )
+                if name_fields:
+                    save_orchestrator(slug, **name_fields)
+            except Exception:
+                pass
             # One-time migration of the legacy 100-step default: existing
             # default orchestrators created with the old default are upgraded
             # to the current default once, guarded by a config marker so a
@@ -325,6 +343,51 @@ def _merge_preset_rag_bases(current: list, preset: list) -> list:
     return out
 
 
+def _backfill_assistant_names(folder: str, data: Dict, row: Dict) -> bool:
+    """Move a shipped preset name out of the user-defined slot.
+
+    An assistant installed before localized names existed holds the shipped
+    string in its user-defined slot, so it would show one frozen name in
+    every language. The backfill writes the preset translations back; a name
+    the owner typed is not a shipped one and the record is left untouched.
+
+    *row* is the stored assistant the preset resolved to. Returns True when
+    the record was updated.
+    """
+    try:
+        from core.naming_backfill import default_name_backfill, shipped_names_for
+        from storage.repository import repo_get_assistant_with_text, repo_update_assistant_names
+    except Exception:
+        return False
+    if not row or not row.get("id"):
+        return False
+
+    full = repo_get_assistant_with_text(row["id"]) or row
+    name_fields = default_name_backfill(
+        full, data, shipped_names_for(folder, data),
+    )
+    if not name_fields:
+        return False
+    # Only the name slots are written: the rest of the record (prompt, model,
+    # tool limits) is not part of this migration and must survive untouched.
+    ok = repo_update_assistant_names(
+        full["id"],
+        name_fields["name"],
+        name_en=name_fields["name_en"],
+        name_ru=name_fields["name_ru"],
+        name_zh=name_fields["name_zh"],
+    )
+    if ok:
+        try:
+            from core.assistant_folders import sync_assistant_to_folder
+            refreshed = repo_get_assistant_with_text(full["id"])
+            if refreshed:
+                sync_assistant_to_folder(refreshed)
+        except Exception:
+            pass
+    return ok
+
+
 def ensure_default_assistants() -> Dict[str, str]:
     """Import default assistants from defaults/assistants/*.
 
@@ -335,6 +398,7 @@ def ensure_default_assistants() -> Dict[str, str]:
 
     Returns a status dict: {name: "created"|"exists"|"error: ..."}.
     """
+    from core.assistant_folders import normalize_slug
     from core.assistants import (
         create_assistant,
         load_assistants_index,
@@ -346,19 +410,51 @@ def ensure_default_assistants() -> Dict[str, str]:
     if not folders:
         return results
 
-    existing = {a.get("name", ""): a for a in load_assistants_index()}
+    # A preset is identified by its folder slug first: renaming an assistant
+    # does not change its slug, so a renamed preset is still recognised
+    # instead of being installed a second time. The name slots are the
+    # fallback for a record created before slugs were stable; the resolved
+    # display name alone would re-create a preset when the language changes.
+    installed = load_assistants_index()
+    by_slug: Dict[str, Dict] = {}
+    by_slot: Dict[str, Dict] = {}
+    for row in installed:
+        slug_key = str(row.get("slug") or "").strip()
+        if slug_key:
+            by_slug.setdefault(slug_key, row)
+        for key in ("name_user", "name_en", "name_ru", "name_zh", "name"):
+            text = str(row.get(key) or "").strip()
+            if text:
+                by_slot.setdefault(text, row)
     for folder in folders:
         data = defaults_mod.load_default_assistant(folder)
         if data is None:
             results[folder] = "error: unreadable"
             continue
-        name = data.get("name") or folder
-        if name in existing:
+        name = (data.get("display_name") or data.get("name") or folder)
+        slot_values = {str(data.get(k) or "").strip() for k in
+                       ("name_user", "name_en", "name_ru", "name_zh")}
+        row = by_slug.get(normalize_slug(name))
+        if row is None:
+            for candidate in [name] + sorted(v for v in slot_values if v):
+                row = by_slot.get(candidate)
+                if row is not None:
+                    break
+        if row is not None:
+            # An already installed preset keeps its record, but a copy made
+            # before translations existed still holds the shipped string in
+            # the user-defined slot. Migrate that one name; a name the owner
+            # typed is recognised as not shipped and stays as it is.
+            _backfill_assistant_names(folder, data, row)
             results[name] = "exists"
             continue
+        # The preset name is a translation, not a user-defined name: the four
+        # slots are created empty and filled from the manifest, so the
+        # interface shows the language it asks for instead of one frozen
+        # string. The folder keeps the readable slug of the preset name.
         try:
             pid = create_assistant(
-                name=name,
+                name=data.get("name_user", "") or "",
                 service=data.get("service", "") or "",
                 model=data.get("model", "") or "",
                 temperature=data.get("temperature", 0.3) or 0.3,
@@ -368,7 +464,27 @@ def ensure_default_assistants() -> Dict[str, str]:
                 max_tool_calls=data.get("max_tool_calls"),
                 max_tokens=data.get("max_tokens"),
                 reasoning_effort=data.get("reasoning_effort"),
+                name_en=data.get("name_en") or None,
+                name_ru=data.get("name_ru") or None,
+                name_zh=data.get("name_zh") or None,
+                slug_hint=name,
             )
+            if pid:
+                # Register the new record so a later preset of this run does
+                # not read it as a second, unrelated copy.
+                created_row = {
+                    "id": pid,
+                    "slug": normalize_slug(name),
+                    "name": name,
+                    "name_user": data.get("name_user", "") or "",
+                    "name_en": data.get("name_en", "") or "",
+                    "name_ru": data.get("name_ru", "") or "",
+                    "name_zh": data.get("name_zh", "") or "",
+                }
+                by_slot.setdefault(name, created_row)
+                for value in slot_values:
+                    if value:
+                        by_slot.setdefault(value, created_row)
             if not pid:
                 results[name] = "error: create failed"
                 continue

@@ -1,5 +1,9 @@
 {
-  "name": "Корректор",
+  "name": {
+    "en": "Proofreader",
+    "ru": "Корректор",
+    "zh-CN": "校对员"
+  },
   "description": "Проверка текста на ошибки.",
   "service": "YandexAI",
   "model": "yandexgpt-5.1",

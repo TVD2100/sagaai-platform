@@ -127,7 +127,11 @@ class TestBundledFolder:
 
         record = get_orchestrator(SLUG)
         assert record is not None
-        assert record["name"] == "Task Scout"
+        assert record["name_user"] == ""
+        assert record["name_en"] == "Task Scout"
+        assert record["name_ru"] == "Разведчик задач"
+        # The interface language of a test install is Russian.
+        assert record["name"] == "Разведчик задач"
         assert record["config"]["allowed_agents"] == []
 
         names = {item["name"] for item in list_orchestrator_functions(SLUG)}

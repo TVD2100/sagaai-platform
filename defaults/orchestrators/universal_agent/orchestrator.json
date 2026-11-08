@@ -1,5 +1,9 @@
 {
-  "name": "Universal-Agent",
+  "name": {
+    "en": "Universal Agent",
+    "ru": "Универсальный агент",
+    "zh-CN": "通用智能体"
+  },
   "description": "General-purpose executor: helps the user or another agent solve whatever task it is given, taking the role from the brief instead of a fixed specialisation.",
   "config": {
     "strong_service": "DeepSeek",

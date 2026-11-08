@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-07T19:46:46+00:00`
-- Файлов: **803**
+- Обновлено: `2026-11-08T05:58:04+00:00`
+- Файлов: **826**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **10852**
-- Отпечаток содержимого: `sha256:7ffeb19eee4cff07f86c5af43617fb8253d329c5b1796cb669f52cd1629ece9c` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 2, JSON: 36, Markdown: 42, PEM certificate: 2, Python: 721, TOML: 2, Text: 2
+- Python-символов: **10987**
+- Отпечаток содержимого: `sha256:d181e53307c16916132ea802e2d4cf360b3af2693abd6b4aa8dec8f6d62d25c3` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 2, JSON: 36, Markdown: 42, PEM certificate: 2, Python: 744, TOML: 2, Text: 2
 
 ## Файлы и назначение
 
@@ -29,11 +29,13 @@
 | `ui/app_restore.py` | Python | Theme switching, UI state restore after a theme reload and employee thread deep links; re-exported through ui.app | ui |
 | `ui/components/__init__.py` | Python | Package marker | - |
 | `ui/components/flash.py` | Python | Deferred UI notifications: a page queues a message in session_state (flash/flash_success/flash_error/flash_warning/flash_info) and render_flash() paints and clears the queue on the NEXT render pass, so a confirmation shown right before st.rerun() is not discarded with the current pass | ui |
+| `ui/components/name_fields.py` | Python | The Names block of the entity forms: four fields (user-defined, en, ru, zh-CN), their widget keys and the validation that at least one slot is filled | - |
 | `ui/components/workspace_picker.py` | Python | Workspace picker component | ui |
 | `ui/pages/__init__.py` | Python | Package marker | - |
 | `ui/pages/access.py` | Python | _(описание не задано)_ | - |
 | `ui/pages/assistants.py` | Python | Assistants management page (create/edit/delete assistant profiles, files, tools) | ui |
 | `ui/pages/assistants_helpers.py` | Python | _(описание не задано)_ | - |
+| `ui/pages/assistants_nav.py` | Python | Sidebar navigation of assistants: the visible entries and the All (N) expansion, in the resolved interface language | - |
 | `ui/pages/chat.py` | Python | Chat page for AI assistants: selector, history, send form | - |
 | `ui/pages/connectors.py` | Python | Connectors page: service and preset tiles opening a full-page form, the saved-connections tab, credentials status, test/edit/delete; the connection card carries the agent memory block for that connection | ui |
 | `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | ui |
@@ -47,9 +49,10 @@
 | `ui/pages/orchestrator_loop.py` | Python | Agent step and run tree of the chat page: _do_step split into phases, run registration and stop requests, the subagent status and loop status panels | storage, ui |
 | `ui/pages/orchestrator_sandbox.py` | Python | Settings panel: available providers and which profiles this machine can honour (the profile ceiling included), the profile selector and the live run journal | storage, ui |
 | `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings page: tabbed sections (eleven tabs including Memory), the active tab is kept across reruns and pinned after a save | ui |
-| `ui/pages/orchestrator_settings_delegation.py` | Python | Delegation settings tab: the allowed agents and assistants, the delegation limits and the stale-id display | storage, ui |
+| `ui/pages/orchestrator_settings_delegation.py` | Python | Delegation settings tab: the allowed agents and assistants, the delegation limits and the stale-id display | ui |
 | `ui/pages/orchestrator_settings_models.py` | Python | Model settings tab: strong model, economy tail, prompt settings and the service list | ui |
 | `ui/pages/orchestrator_settings_orch.py` | Python | Orchestrator settings tab: the tool set, system functions, RAG bases, instructions and the allowed connections | ui |
+| `ui/pages/orchestrator_settings_other.py` | Python | Other settings tab of an employee: the name block, description and the fields that belong to neither models nor tools | storage, ui |
 | `ui/pages/orchestrator_shared.py` | Python | Late-binding layer of the orchestrator page: late(name) resolves a patchable global on the facade at call time, st_proxy() does the same for Streamlit, and bind_facade pins the layer to the facade object so a second live copy of the package cannot swallow a monkeypatch | ui |
 | `ui/pages/orchestrator_state.py` | Python | Session state of the chat page: the initial state, the chat preference and economy cache, thread loading and the state keys built from the page settings | ui |
 | `ui/pages/orchestrator_text.py` | Python | Pure text and event helpers of the orchestrator page, kept free of Streamlit and of translated strings so they can be reasoned about on their own: model-output cleanup (HTML details wrappers, empty fenced blocks, JSON/XML/DSML tool-call residue) and the has_tool_calls flag that drives the per-message copy controls, the two-line preview and argument formatting used by the step feed, the result-body extraction for a tool result, the per-run event grouping, and build_state_keys - the session-state key map of one chat, which takes the persisted checkbox defaults and the page-level constants as arguments so no page configuration leaks in; the page module re-exports every name so the chat feed, the tests and the tool-result renderer resolve them through ui.pages.orchestrator | - |
@@ -74,6 +77,7 @@
 | `migrations/versions/0008_transcript_layout.py` | Python | Revision: message layout marker after the transcript archivers ran | - |
 | `migrations/versions/0009_sandbox_tables.py` | Python | Revision: sandbox run journal (sagaai.db only) | storage |
 | `migrations/versions/0010_sandbox_cancelled.py` | Python | Schema: the cancelled marker of a sandbox run | storage |
+| `migrations/versions/0011_localized_names.py` | Python | Schema migration: adds name_en, name_ru and name_zh to orchestrators and assistants, leaving the user-defined name untouched | storage |
 | `core/__init__.py` | Python | Package marker | - |
 | `core/api_bearer.py` | Python | OpenAI-compatible chat/completions transport: messages as-is, native functions, response_format and the usage callback | - |
 | `core/api_deepseek.py` | Python | DeepSeek Responses transport and server-side web search via the Anthropic-compatible tool: reasoning effort, request assembly, text extraction and the search-use counter | - |
@@ -93,6 +97,7 @@
 | `core/assistants.py` | Python | CRUD for AI assistant profiles and their attachment files | storage |
 | `core/auth.py` | Python | Optional password authentication gate | - |
 | `core/bootstrap.py` | Python | First-run provisioning: Assistant/Employee Creator instructions, DevAgent settings, legacy skill_creator migration | - |
+| `core/builtin_config_defaults.py` | Python | Config defaults shipped next to an agent package: merged into the bundle config before the importer writes it, so a catalog default fills a gap without overwriting a setting the package declares | - |
 | `core/chat_db_archive.py` | Python | One-time switch of the assistant dialogues inside sagaai.db to the transcript file store: stamps the layout in PRAGMA user_version, detects table-backed dialogues, archives the whole database into a verified zip beside itself (the file is never replaced, so assistants and settings survive), writes every dialogue to its transcript while holding one write lock, fills the index columns, and only then drops the moved message rows - a failed archive, lock or transcript write leaves every row in place; an existing byte-identical archive is reused and a one-shot notice names the archive and the counts | - |
 | `core/chat_turn.py` | Python | One chat turn decided outside the page: turn_history in API form, run_chat_turn over the provider with the usage callback, collect_tokens for the figures of one turn (no report stays None), and persist_chat_turn writing the question before the answer with the file attached only when both its name and its text exist | - |
 | `core/config.py` | Python | Configuration load/save with secret encryption and env overlay | storage |
@@ -122,15 +127,20 @@
 | `core/mcp_tools.py` | Python | MCP tools for orchestrators: static mcp_list_tools/mcp_call_tool and dynamic mcp__<conn>__<tool> tools with a reverse registry and a 60s discovery cache; env_json decrypted only for the server process; http transport branches; untrusted server data sanitized | - |
 | `core/memory_migration.py` | Python | Migration of a legacy <project>/<slug>_data folder into the central agents_data root: a read-only plan with per-file actions, a copy verified by size and sha256 before any success is reported, conflicts reported instead of merged, the source folder never deleted and a dry-run by default | - |
 | `core/multimodal.py` | Python | Vision/image model resolution + analyze_image/generate_image wrappers (core.multimodal); the analysis reply is fenced as DATA_FROM_IMAGE and reported as untrusted data | - |
+| `core/naming.py` | Python | One resolver for entity names: the four slots (user-defined, en, ru, zh-CN), the interface-language order with its fallbacks, split_name_slots and merge_slots for partial updates, and name_fields_from for folders and packages | - |
+| `core/naming_backfill.py` | Python | Filling empty name slots on already-installed entities: orchestrators and assistants get the translations their shipped preset carries, and a preset is recognised by slug so a rename never creates a copy | - |
+| `core/naming_runtime.py` | Python | The interface language an entity name is resolved against, cached for the duration of one request so a data-layer read does not reload the settings per row | - |
 | `core/ooxml.py` | Python | DOCX, PPTX and XLSX text extraction on the standard library alone (zipfile plus xml.etree.ElementTree): extract_docx_text keeps paragraphs in order and appends every table as CSV, extract_pptx_text marks each slide and drops table paragraphs from the free text, extract_xlsx_text follows the sheet order of workbook.xml.rels and resolves sharedStrings, inline strings, booleans and the column gaps of A1 references; table_to_csv provides the shared RFC 4180 rendering, and a broken package or an oversized container comes back as a warning instead of an exception | - |
 | `core/orchestrator_builtin.py` | Python | Built-in orchestrators and the DevAgent config bridge: seeding the shipped employees, the prompt-user-edited marker and reset_builtin_prompt, plus load_devagent_config and save_devagent_config | storage |
 | `core/orchestrator_defaults.py` | Python | Constants and shipped defaults of the orchestrator API: the dev_agent and universal_agent slugs, the default web-search prompt, the DevAgent config fallback and the lazy tool-name cache | - |
 | `core/orchestrator_folders.py` | Python | Per-orchestrator folders: bundles, functions, instructions; resolve_data_dir picks the role's working-data folder by the first match (MEMORY_DIR marker, config.memory_dir, the central DATA_DIR/agents_data/<slug> default) and resolves explicit scopes (workspace:<subpath>, central:<subpath>, '.', absolute, a plain relative path from the project); it reports the source, the scope, an outside-workspace path, the legacy <project>/<slug>_data folder and folders left over after a relocation; agents_data_root and agent_data_dir expose the central root | storage |
+| `core/orchestrator_import_files.py` | Python | Folder files of an orchestrator import: reading instructions and functions from a bundle, validating their names and writing them into the target folder before the database row is created | - |
 | `core/orchestrator_instr.py` | Python | Instructions and custom functions of an orchestrator: the listing, reading, saving and deleting that the settings tabs and the prompt block both use | - |
 | `core/orchestrator_links.py` | Python | Links of an orchestrator to other entities: the enabled skills, instructions, connections, RAG bases and the delegation rights with their limits and the available-agents resolution | - |
 | `core/orchestrator_models.py` | Python | Model selection of an orchestrator: the strong model and the economy tail, the web-search and fetch configs with their fallbacks, and the model list offered to the settings page | - |
 | `core/orchestrator_nav.py` | Python | _(описание не задано)_ | - |
 | `core/orchestrator_prompt.py` | Python | System prompt assembly: build_assistant_dicts and the _extend_prompt_with_* blocks for skills, instructions, the owner card, memory, connections, RAG bases, delegation and the tool catalog | - |
+| `core/orchestrator_reload.py` | Python | Reloading an orchestrator from its personal folder: hand-made edits of orchestrator.json, the prompt and instructions become visible to a running employee | storage |
 | `core/orchestrator_shared.py` | Python | Late-binding layer of the orchestrator API: late(name) resolves a patchable global on the facade at call time, and bind_facade binds the layer to the facade object so a second live copy of the package does not intercept the patch | - |
 | `core/orchestrator_step.py` | Python | Writing one agent step into its thread: messages_to_persist cutting the history by the saved cursor (a cursor past the end yields nothing), message_row as the single mapping of history keys to store fields, and persist_step_messages returning the new cursor so a rerun duplicates nothing | - |
 | `core/orchestrator_store.py` | Python | Reading and writing an orchestrator: CRUD over the database, the folder mirror of orchestrator.json with its prompt file, and the folder sync that keeps the two sides equal | storage |
@@ -171,12 +181,14 @@
 | `core/marketplace/agent_areas.py` | Python | Write side of an agent folder: staged files moved into place and stale files of the previous version removed, so an update never leaves a file the new package does not declare | - |
 | `core/marketplace/agent_assistant.py` | Python | Installing the assistant kind of an agent: folder with manifest.json, prompt.md and text attachments plus a row in the assistants table; a user-added attachment survives an update and an edited prompt is never overwritten by the catalog | - |
 | `core/marketplace/agent_installer.py` | Python | Facade of an agent install: the package is downloaded, hash-verified and unpacked into staging, the pre-flight checks run, the orchestrator or assistant area is written, the DB row is created and a failure rolls the run back; the areas themselves live in agent_orchestrator.py and agent_assistant.py, the checks in agent_preflight.py | - |
+| `core/marketplace/agent_merge.py` | Python | Which installed values an update may move: the untouched/edited comparison against the manifest of the installed package, the merge of an orchestrator update and of an assistant payload, and the baseline readers over the cached package | - |
 | `core/marketplace/agent_orchestrator.py` | Python | Installing the orchestrator kind of an agent: config_defaults merged into the bundle config before the import, instruction files and custom functions written, then the folder imported as an employee | - |
 | `core/marketplace/agent_package.py` | Python | Kind of an agent package and its parsing: orchestrator or assistant plus the files each kind installs, read before anything is written so a package declaring another kind than the installed one is refused instead of half-applied | - |
 | `core/marketplace/agent_preflight.py` | Python | Pre-flight checks of an agent install: the kind, the platform range, the licence and the executable-code gate, all decided before the first file changes | - |
 | `core/marketplace/agent_run.py` | Python | Run bookkeeping of an agent install: the journal entry written before any change, the registry row and the journal marked done or failed, so an interrupted run can be rolled back on the next cold start | - |
 | `core/marketplace/attest.py` | Python | Signature policy of the marketplace: trust anchors read from the installation (marketplace.signature_keyring, SAGAII_SIGNATURE_KEYRING), verify_signature over the bytes a manifest arrived as, check_manifest for the transport and install_gate that refuses an unsigned entity before its package is downloaded | - |
 | `core/marketplace/bootstrap.py` | Python | Marketplace cold start: recover undoes a run interrupted by a crash and the one-time seeding of registry rows for skills installed before the marketplace existed; never touches the network | - |
+| `core/marketplace/bundle_catalog.py` | Python | The bundle view of the catalog: the recommended package of an entity read from the catalog lists, its members resolved to installable entries and the states a card shows | - |
 | `core/marketplace/bundles.py` | Python | Curated entity sets installed as one run: the recommended package of an agent card (recommends/bundle lists shown as checkboxes) and a catalog-level bundles/<id>.json pinning exact versions; both become one plan that states what each member would do and never touches the disk | - |
 | `core/marketplace/catalog.py` | Python | Catalog view for the showcase: index entries, entity cards with licence, required tools and platform range, plus the installed-version lookup | - |
 | `core/marketplace/config.py` | Python | Marketplace settings: the enabled switch, the catalog base URL, allow_code, require_signature, the channel and the history limits | - |
@@ -186,6 +198,7 @@
 | `core/marketplace/installer.py` | Python | Skill installer: run journal written before any file changes, the signature gate before the package download, package copied to a temporary folder and verified by sha256, atomic move into place and the single transaction over marketplace_installed and skills.json | - |
 | `core/marketplace/mcp_installer.py` | Python | Installation of an MCP entity: an MCP entity ships no files, it is a connector preset (transport config, credential fields, memory seed), so the installer creates a connection from that preset; identity is (service, preset_id) rather than a folder name | - |
 | `core/marketplace/migration.py` | Python | Adoption of entities installed before the catalog: LEGACY_DEFAULTS maps a bundled orchestrator, a prebuilt knowledge base, a preset skill and a connector preset to a synthetic bundled version, so the registry reports them as installed instead of offering a second copy; the bundled Universal-Agent is adopted the same way - the executor ships with the platform and with the catalog, so the preinstalled folder gets a registry row instead of a second install under a suffix | - |
+| `core/marketplace/names.py` | Python | Display names of catalog entities: the localized name mapping of entity.json resolved through the shared name resolver, so a card shows the interface language and falls back to English | - |
 | `core/marketplace/publish.py` | Python | Catalog publisher tooling: builds the files the catalog repository layout expects (entity manifest, index entry, hashes, signature) so an author never hand-edits a manifest or a hash, using only the standard library and cryptography | - |
 | `core/marketplace/rag_area.py` | Python | Folder side of a knowledge-base install: distribution checks before writing, the atomic replacement of the base folder and the index verification | - |
 | `core/marketplace/rag_installer.py` | Python | Installation of a rag entity: manifest.json, files/ sources and index.db with three distribution modes (prebuilt index, sources only, both), the index verified by index_sha256/index_schema and the base folder replaced atomically; the distribution checks and the folder replacement live in rag_area.py | - |
@@ -364,6 +377,7 @@
 | `tests/test_marketplace_local_mods.py` | Python | Unit tests for local-edit detection: content-hash comparison against the recorded manifest, touched files that are not edits and the user_modified flag | - |
 | `tests/test_marketplace_mcp_installer.py` | Python | Unit tests for installing an MCP entity: the connection is created from its preset as a credential-less draft, identity is (service, preset_id) and re-installing does not duplicate the connection | - |
 | `tests/test_marketplace_migration.py` | Python | Unit tests for adopting entities that predate the catalog: a present entity is registered under its catalog id with the synthetic bundled version, a missing one is not, and the removal marker still wins | - |
+| `tests/test_marketplace_names.py` | Python | Marketplace tests of localized names: the catalog resolves the entity name by interface language, an install writes all four slots and an update keeps the user-defined name | - |
 | `tests/test_marketplace_no_network.py` | Python | Tests that start-up stays offline: an AST check refuses catalog calls in the boot path and a socket ban renders the boot sequence and the Updates page | ui |
 | `tests/test_marketplace_publish.py` | Python | Unit tests for the catalog publisher: the built entity manifest, the index entry, the hashes and the signature, and the refusals for a malformed manifest or an unknown agent kind | - |
 | `tests/test_marketplace_rag_installer.py` | Python | Unit tests for installing a rag entity: the three distribution modes, index_sha256/index_schema verification, the atomic folder replace and a refusal that leaves the previous base intact | - |
@@ -383,6 +397,13 @@
 | `tests/test_multimodal.py` | Python | Unit tests for core.multimodal and the image request transports | - |
 | `tests/test_multimodal_instruction.py` | Python | Tests for the multimodal_mode instruction seeding and content, incl. the picture-extraction contract | - |
 | `tests/test_multimodal_tools.py` | Python | Unit tests for the analyze_image/generate_image tools | - |
+| `tests/test_name_fields_ui.py` | Python | UI tests of the Names block: the four fields, their defaults, the validation message and the payload the form submits | ui |
+| `tests/test_name_slots_tools.py` | Python | Tool tests of the name slots: create and update take the four slots, an omitted slot keeps its value, an empty string clears it and a record with no label is refused | storage |
+| `tests/test_naming.py` | Python | Unit tests of the name resolver: slot order, interface-language fallback, empty slots and the label a record without any name gets | - |
+| `tests/test_naming_backfill.py` | Python | Backfill tests: installed entities receive the translations of their shipped preset, a renamed one is recognised by slug and no duplicate appears | storage |
+| `tests/test_naming_resolve.py` | Python | Resolution tests across the data layer: list and get calls return the resolved name next to the raw slots | storage |
+| `tests/test_naming_roundtrip.py` | Python | Round-trip tests of the name slots through orchestrator.json, manifest.json and an export/import cycle | storage |
+| `tests/test_naming_storage.py` | Python | Storage tests of the name columns: saving, partial updates, clearing a slot and refusing a record with no name at all | storage |
 | `tests/test_numeric_arg_coercion.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestration_background.py` | Python | Unit tests for background children: the launch returns before the child finishes, the durable record is written and healed, notices land in the tree mailbox and are published once, and a cancelled child reports cancelled rather than its own done | - |
 | `tests/test_orchestration_child_workspace.py` | Python | _(описание не задано)_ | - |
@@ -759,6 +780,7 @@
 | `dev_agent/config.py` | Python | DevAgent runtime config and protected path policy; empty-state neutral root (NEUTRAL_ROOT / WORKSPACE_SELECTED / ensure_neutral_root, apply_paths selected flag); MEMORY_ROOT and the memory: prefix make the role's working folder a second root of the file tools (to_project_relative / resolve_in_project), so memory stays reachable before a project is picked and a path outside both roots is still refused | - |
 | `dev_agent/document_tools.py` | Python | Pure helpers behind the extract_document_images tool: source selection, option parsing, the render decision, folding page renders into embedded pictures, dropping tiny images, answer assembly and the output folder | - |
 | `dev_agent/llm_utils.py` | Python | Unified LLM-call helper (assistant dict contract, legacy skill alias) | - |
+| `dev_agent/orchestrator_tools.py` | Python | Employee management tools of DevAgent: create/update/delete/reload of an orchestrator with the four name slots, its config, tools, step budget and working-data folder | storage |
 | `dev_agent/safe_writer.py` | Python | Safe full-file rewrite with diff/verification | backup_manager |
 | `dev_agent/sandbox_approval.py` | Python | Per-run approval scope the executor reads: a transport ticket is consulted only inside the run that issued it | - |
 | `dev_agent/sandbox_env.py` | Python | Allowlisted child environment shared by every provider: no SAGAAI_DATA_DIR, no provider keys | - |
@@ -771,12 +793,13 @@
 | `dev_agent/tool_registry.py` | Python | Pure helpers of the connection-tool registry and memory writes: overwrite-flag normalisation, append concatenation, the enabled service set, family registration and removal | - |
 | `dev_agent/tool_validation.py` | Python | Pre-execution validation of a tool call: disabled tools, argument names and delegation rights; free of dispatcher state, so the agent loop imports it directly instead of reaching through the facade | tool_catalog_data, tools |
 | `dev_agent/transcript.py` | Python | Append-only file store of delegated conversations, kept out of devagent.db: one JSONL segment per child under <history>/<parent>/subagents/<child>/ with rotation and a gzip-compressed cold segment, a single-line append under a per-path lock so a crash truncates at most the last line, event-prefix stripping, checkpoint records for resume, and retention (compress cold segments, drop whole segments of quiet threads, report - never silently delete - a folder whose index row is gone) | storage |
-| `dev_agent/universal_agent.py` | Python | Tool dispatcher for orchestrators: the workspace tool methods, the orchestrator, connection and memory administration surface and the deliberate re-export of the names the handlers and the test suite look up; the catalog data, the call validation, the document-image helpers, the dialog-search targeting rules and the connection-tool registry live in separate modules of the package, so the facade keeps only dispatch and state; get/set/list_personal_memory read and write the personal memory layer, and the file tools reach the working folder through the memory: prefix even with no project selected | storage, tool_catalog_data, tool_executor, tool_validation |
+| `dev_agent/universal_agent.py` | Python | Tool dispatcher for orchestrators: the workspace tool methods, the orchestrator, connection and memory administration surface and the deliberate re-export of the names the handlers and the test suite look up; the catalog data, the call validation, the document-image helpers, the dialog-search targeting rules and the connection-tool registry live in separate modules of the package, so the facade keeps only dispatch and state; get/set/list_personal_memory read and write the personal memory layer, and the file tools reach the working folder through the memory: prefix even with no project selected | orchestrator_tools, tool_catalog_data, tool_executor, tool_validation |
 | `dev_agent/workspace_binding.py` | Python | Per-thread workspace binding registry under an RLock; thread_context applies and restores a thread's state, bind_child_thread gives a child run the parent's workspace with its own derived thread ({parent}__s{run_id[:8]}, no target_file), writes the child's thread index row (kind=subagent, parent_thread_id, a history-relative transcript_path, the workspace) idempotently and without letting a store failure break the run, and unbind_thread releases it when the run ends | storage |
 | `dev_agent/workspace_tools.py` | Python | Workspace layer: folders, project map (AST symbols, content fingerprint, GitHub-published scope filter), docs, snapshots; workspace_selected reporting and per-orchestrator recent workspaces (top 10) | backup_manager |
 | `dev_agent/tools/__init__.py` | Python | Package of the DevAgent tool handlers, grouped by subject: files, editing, patch, exec, workspace, assistants, library, catalog, args, text_utils, rag, history, web_search, url_fetch, images, clock and task_state | - |
 | `dev_agent/tools/args.py` | Python | Argument coercion for tool calls: numeric and boolean parameters arriving as strings are converted to the declared type, with per-tool rules for offset, limit, max_depth, top_k and the other numeric arguments | - |
-| `dev_agent/tools/assistants.py` | Python | Assistant tools: list_assistants, get_assistant_by_id, update_assistant_by_id, detect_and_select_assistant and create_assistant_for_task; the creation flow is split into _request_assistant_draft (the Assistant Creator call), _parse_assistant_draft with its three fallback levels, and _finish_assistant_creation (classification, profile resolution, save, evaluation) | assistant_detector, deps |
+| `dev_agent/tools/assistant_drafts.py` | Python | Drafting helpers of the assistant tools: the name slots of a generated profile, the validation before a profile is stored and the payload shared by creation and update | - |
+| `dev_agent/tools/assistants.py` | Python | Assistant tools: list_assistants, get_assistant_by_id, update_assistant_by_id, detect_and_select_assistant and create_assistant_for_task; the creation flow is split into _request_assistant_draft (the Assistant Creator call), _parse_assistant_draft with its three fallback levels, and _finish_assistant_creation (classification, profile resolution, save, evaluation) | assistant_detector, assistant_drafts, deps |
 | `dev_agent/tools/catalog.py` | Python | The tool catalog: tool names, schemas and descriptions in the order the prompt presents them, plus the workspace-required set the dispatcher guards on | - |
 | `dev_agent/tools/clock.py` | Python | current_datetime: time of day, weekday in English and Russian, ISO and DD.MM.YYYY forms, timezone offset and epoch; the date line comes from the same helper the prompt block uses, so the two sources cannot drift apart | deps |
 | `dev_agent/tools/deps.py` | Python | Dependency injection for the tool mixins: the ToolDeps dataclass, build_deps that reads the facade module on every call (so a patched or test-replaced function is picked up instead of a stale binding) and ToolMixin.deps(), the accessor every handler uses | - |
@@ -876,6 +899,13 @@
 - `flash_info` (func, строка 80)
 - `render_flash` (func, строка 85)
 
+### `ui/components/name_fields.py`
+- `name_widget_key` (func, строка 33)
+- `stored_name_slots` (func, строка 38)
+- `form_name_error` (func, строка 51)
+- `form_name_kwargs` (func, строка 58)
+- `render_name_fields` (func, строка 67)
+
 ### `ui/components/workspace_picker.py`
 - `_picker_state_keys` (func, строка 27)
 - `_init_picker_state` (func, строка 37)
@@ -886,27 +916,26 @@
 - `page_access` (func, строка 28)
 
 ### `ui/pages/assistants.py`
-- `_get_show_form` (func, строка 62)
-- `_set_show_form` (func, строка 70)
-- `_get_edit_id` (func, строка 76)
-- `_set_edit_id` (func, строка 81)
-- `page_assistants` (func, строка 87)
-- `_render_back_to_chat` (func, строка 110)
-- `_prepare_prompt_revision` (func, строка 138)
-- `_form_defaults` (func, строка 154)
-- `_render_assistant_form` (func, строка 198)
-- `_improve_prompt` (func, строка 250)
-- `_warn_saved_model` (func, строка 272)
-- `_render_model_fields` (func, строка 287)
-- `_render_rag_bases_section` (func, строка 359)
-- `_render_web_search_section` (func, строка 387)
-- `_render_files_section` (func, строка 412)
-- `_save_uploaded_files` (func, строка 437)
-- `_submit_assistant_form` (func, строка 462)
-- `_render_assistant_list` (func, строка 498)
-- `_render_assistant_card` (func, строка 517)
-- `_render_assistant_card_info` (func, строка 535)
-- `_render_delete_confirmation` (func, строка 558)
+- `_get_show_form` (func, строка 64)
+- `_set_show_form` (func, строка 72)
+- `_get_edit_id` (func, строка 78)
+- `_set_edit_id` (func, строка 83)
+- `page_assistants` (func, строка 89)
+- `_prepare_prompt_revision` (func, строка 112)
+- `_form_defaults` (func, строка 128)
+- `_render_assistant_form` (func, строка 178)
+- `_improve_prompt` (func, строка 231)
+- `_warn_saved_model` (func, строка 253)
+- `_render_model_fields` (func, строка 268)
+- `_render_rag_bases_section` (func, строка 340)
+- `_render_web_search_section` (func, строка 368)
+- `_render_files_section` (func, строка 393)
+- `_save_uploaded_files` (func, строка 418)
+- `_submit_assistant_form` (func, строка 443)
+- `_render_assistant_list` (func, строка 488)
+- `_render_assistant_card` (func, строка 507)
+- `_render_assistant_card_info` (func, строка 525)
+- `_render_delete_confirmation` (func, строка 548)
 
 ### `ui/pages/assistants_helpers.py`
 - `_format_tools_badge` (func, строка 10)
@@ -915,6 +944,9 @@
 - `_clamp_temperature` (func, строка 61)
 - `_model_choice_lists` (func, строка 67)
 - `_finalize_tools` (func, строка 79)
+
+### `ui/pages/assistants_nav.py`
+- `_render_back_to_chat` (func, строка 15)
 
 ### `ui/pages/chat.py`
 - `_get_preselected` (func, строка 31)
@@ -1014,21 +1046,21 @@
 - `_bundle_cache_key` (func, строка 448)
 - `_clear_bundle_cache` (func, строка 453)
 - `_bundle_plan` (func, строка 459)
-- `_bundle_label` (func, строка 482)
-- `_render_bundle` (func, строка 501)
-- `_flash_pending_credentials` (func, строка 557)
-- `_install_button` (func, строка 575)
-- `_install_bundle` (func, строка 603)
-- `_install_together` (func, строка 639)
-- `_entity_type` (func, строка 710)
-- `_plan_for` (func, строка 715)
-- `_install` (func, строка 733)
-- `_resolve_choice` (func, строка 742)
-- `_reset` (func, строка 787)
-- `_adopt` (func, строка 816)
-- `_render_uninstall` (func, строка 841)
-- `_uninstall` (func, строка 862)
-- `_human_size` (func, строка 886)
+- `_bundle_label` (func, строка 484)
+- `_render_bundle` (func, строка 503)
+- `_flash_pending_credentials` (func, строка 559)
+- `_install_button` (func, строка 577)
+- `_install_bundle` (func, строка 605)
+- `_install_together` (func, строка 641)
+- `_entity_type` (func, строка 712)
+- `_plan_for` (func, строка 717)
+- `_install` (func, строка 735)
+- `_resolve_choice` (func, строка 744)
+- `_reset` (func, строка 789)
+- `_adopt` (func, строка 818)
+- `_render_uninstall` (func, строка 843)
+- `_uninstall` (func, строка 864)
+- `_human_size` (func, строка 888)
 
 ### `ui/pages/orchestrator.py`
 - `_assistant_has_api_key` (func, строка 567)
@@ -1167,16 +1199,15 @@
 - `page_orchestrator_settings` (func, строка 38)
 
 ### `ui/pages/orchestrator_settings_delegation.py`
-- `_render_delegation_settings` (func, строка 45)
-- `_live_orchestrator_entries` (func, строка 78)
-- `_render_allowed_agents` (func, строка 86)
-- `_render_allowed_assistants` (func, строка 133)
-- `_render_verifier_section` (func, строка 161)
-- `_number_input_setting` (func, строка 199)
-- `_render_delegation_limits` (func, строка 210)
-- `_render_dialog_limits` (func, строка 241)
-- `_save_delegation_settings` (func, строка 281)
-- `_render_other_settings` (func, строка 309)
+- `_render_delegation_settings` (func, строка 47)
+- `_live_orchestrator_entries` (func, строка 80)
+- `_render_allowed_agents` (func, строка 88)
+- `_render_allowed_assistants` (func, строка 135)
+- `_render_verifier_section` (func, строка 163)
+- `_number_input_setting` (func, строка 201)
+- `_render_delegation_limits` (func, строка 212)
+- `_render_dialog_limits` (func, строка 243)
+- `_save_delegation_settings` (func, строка 283)
 
 ### `ui/pages/orchestrator_settings_models.py`
 - `_render_optional_model_section` (func, строка 42)
@@ -1207,6 +1238,11 @@
 - `_render_orch_memory` (func, строка 413)
 - `_render_memory_dir_section` (func, строка 453)
 - `_render_memory_editor` (func, строка 482)
+
+### `ui/pages/orchestrator_settings_other.py`
+- `_render_names_block` (func, строка 27)
+- `_render_max_steps_block` (func, строка 44)
+- `_render_other_settings` (func, строка 75)
 
 ### `ui/pages/orchestrator_shared.py`
 - `bind_facade` (func, строка 43)
@@ -1395,6 +1431,10 @@
 - `upgrade` (func, строка 23)
 - `downgrade` (func, строка 37)
 
+### `migrations/versions/0011_localized_names.py`
+- `upgrade` (func, строка 31)
+- `downgrade` (func, строка 42)
+
 ### `core/api_bearer.py`
 - `bearer_request_impl` (func, строка 27)
 
@@ -1553,12 +1593,12 @@
 - `export_assistant_folder` (func, строка 217)
 - `import_assistant_folder` (func, строка 233)
 - `build_manifest_from_assistant` (func, строка 264)
-- `sync_assistant_to_folder` (func, строка 281)
-- `set_assistant_rag_bases` (func, строка 318)
-- `_normalize_domain_list` (func, строка 338)
-- `set_assistant_web_search_settings` (func, строка 356)
-- `get_assistant_web_search_settings` (func, строка 382)
-- `_copy_legacy_files_if_needed` (func, строка 401)
+- `sync_assistant_to_folder` (func, строка 291)
+- `set_assistant_rag_bases` (func, строка 335)
+- `_normalize_domain_list` (func, строка 355)
+- `set_assistant_web_search_settings` (func, строка 373)
+- `get_assistant_web_search_settings` (func, строка 399)
+- `_copy_legacy_files_if_needed` (func, строка 418)
 
 ### `core/assistant_nav.py`
 - `_parse_ts` (func, строка 27)
@@ -1585,28 +1625,28 @@
 - `run_yandex_responses_tool_loop` (func, строка 402)
 
 ### `core/assistants.py`
-- `_get_user_data_dir` (func, строка 57)
-- `ensure_dir` (func, строка 62)
-- `_unique_slug` (func, строка 80)
-- `load_assistants_index` (func, строка 99)
-- `load_assistant_prompt_text` (func, строка 104)
-- `save_assistant_prompt_text` (func, строка 110)
-- `get_assistant_by_id` (func, строка 126)
-- `get_assistant_by_slug` (func, строка 134)
-- `create_assistant` (func, строка 141)
-- `update_assistant` (func, строка 170)
-- `delete_assistant` (func, строка 194)
-- `get_legacy_assistant_files_dir` (func, строка 210)
-- `get_assistant_files_dir` (func, строка 215)
-- `list_assistant_files` (func, строка 228)
-- `save_assistant_file` (func, строка 239)
-- `delete_assistant_file` (func, строка 257)
-- `load_assistant_files_context` (func, строка 271)
-- `export_assistant` (func, строка 297)
-- `import_assistant` (func, строка 322)
-- `import_assistant._apply` (func, строка 343)
-- `reload_assistant_from_folder` (func, строка 396)
-- `reload_assistant_from_folder._apply` (func, строка 413)
+- `_get_user_data_dir` (func, строка 59)
+- `ensure_dir` (func, строка 64)
+- `_unique_slug` (func, строка 82)
+- `load_assistants_index` (func, строка 101)
+- `load_assistant_prompt_text` (func, строка 111)
+- `save_assistant_prompt_text` (func, строка 117)
+- `get_assistant_by_id` (func, строка 133)
+- `get_assistant_by_slug` (func, строка 150)
+- `create_assistant` (func, строка 157)
+- `update_assistant` (func, строка 194)
+- `delete_assistant` (func, строка 221)
+- `get_legacy_assistant_files_dir` (func, строка 237)
+- `get_assistant_files_dir` (func, строка 242)
+- `list_assistant_files` (func, строка 255)
+- `save_assistant_file` (func, строка 266)
+- `delete_assistant_file` (func, строка 284)
+- `load_assistant_files_context` (func, строка 298)
+- `export_assistant` (func, строка 324)
+- `import_assistant` (func, строка 357)
+- `import_assistant._apply` (func, строка 382)
+- `reload_assistant_from_folder` (func, строка 441)
+- `reload_assistant_from_folder._apply` (func, строка 464)
 
 ### `core/auth.py`
 - `_coerce_bool` (func, строка 58)
@@ -1626,6 +1666,9 @@
 - `ensure_default_skills` (func, строка 58)
 - `ensure_instructions` (func, строка 63)
 - `ensure_devagent_settings` (func, строка 161)
+
+### `core/builtin_config_defaults.py`
+- `builtin_config_defaults` (func, строка 12)
 
 ### `core/chat_db_archive.py`
 - `LockBusy` (class, строка 66)
@@ -1786,36 +1829,37 @@
 - `_marketplace_active` (func, строка 83)
 - `_marketplace_removed_slugs` (func, строка 98)
 - `ensure_default_orchestrators` (func, строка 125)
-- `ensure_default_rag_bases` (func, строка 227)
-- `_stamp_manifest_source` (func, строка 289)
-- `_merge_preset_rag_bases` (func, строка 317)
-- `ensure_default_assistants` (func, строка 328)
-- `ensure_default_instructions` (func, строка 406)
-- `ensure_default_skills` (func, строка 470)
-- `ensure_all_defaults` (func, строка 606)
+- `ensure_default_rag_bases` (func, строка 245)
+- `_stamp_manifest_source` (func, строка 307)
+- `_merge_preset_rag_bases` (func, строка 335)
+- `_backfill_assistant_names` (func, строка 346)
+- `ensure_default_assistants` (func, строка 391)
+- `ensure_default_instructions` (func, строка 522)
+- `ensure_default_skills` (func, строка 586)
+- `ensure_all_defaults` (func, строка 722)
 
 ### `core/defaults.py`
-- `defaults_root` (func, строка 50)
-- `settings_dir` (func, строка 55)
-- `orchestrators_dir` (func, строка 60)
-- `assistants_dir` (func, строка 65)
-- `services_dir` (func, строка 70)
-- `langs_dir` (func, строка 75)
-- `skills_dir` (func, строка 80)
-- `rag_bases_dir` (func, строка 85)
-- `connector_presets_dir` (func, строка 90)
-- `list_default_rag_base_slugs` (func, строка 95)
-- `exists` (func, строка 115)
-- `read_json` (func, строка 122)
-- `parse_front_matter` (func, строка 136)
-- `list_default_orchestrator_slugs` (func, строка 183)
-- `_load_orchestrator_new_format` (func, строка 206)
-- `_load_orchestrator_old_format` (func, строка 300)
-- `load_default_orchestrator` (func, строка 378)
-- `list_default_assistant_folders` (func, строка 399)
-- `load_default_rag_base` (func, строка 419)
-- `load_default_assistant` (func, строка 430)
-- `load_global_settings` (func, строка 498)
+- `defaults_root` (func, строка 51)
+- `settings_dir` (func, строка 56)
+- `orchestrators_dir` (func, строка 61)
+- `assistants_dir` (func, строка 66)
+- `services_dir` (func, строка 71)
+- `langs_dir` (func, строка 76)
+- `skills_dir` (func, строка 81)
+- `rag_bases_dir` (func, строка 86)
+- `connector_presets_dir` (func, строка 91)
+- `list_default_rag_base_slugs` (func, строка 96)
+- `exists` (func, строка 116)
+- `read_json` (func, строка 123)
+- `parse_front_matter` (func, строка 137)
+- `list_default_orchestrator_slugs` (func, строка 184)
+- `_load_orchestrator_new_format` (func, строка 207)
+- `_load_orchestrator_old_format` (func, строка 312)
+- `load_default_orchestrator` (func, строка 402)
+- `list_default_assistant_folders` (func, строка 423)
+- `load_default_rag_base` (func, строка 443)
+- `load_default_assistant` (func, строка 454)
+- `load_global_settings` (func, строка 532)
 
 ### `core/dependency_check.py`
 - `parse_version` (func, строка 59)
@@ -2065,8 +2109,9 @@
 - `_cached_langs` (func, строка 79)
 - `load_lang_data` (func, строка 84)
 - `t` (func, строка 93)
-- `dumps_lang` (func, строка 122)
-- `dump_lang_file` (func, строка 132)
+- `lang_code` (func, строка 122)
+- `dumps_lang` (func, строка 141)
+- `dump_lang_file` (func, строка 151)
 
 ### `core/instructions.py`
 - `_root` (func, строка 28)
@@ -2184,6 +2229,36 @@
 - `generate_image` (func, строка 193)
 - `format_api_error` (func, строка 211)
 
+### `core/naming.py`
+- `normalize_lang` (func, строка 60)
+- `parse_name` (func, строка 77)
+- `record_names` (func, строка 107)
+- `resolve_display_name` (func, строка 132)
+- `display_name` (func, строка 153)
+- `with_display_name` (func, строка 164)
+- `name_fields_from` (func, строка 185)
+- `localized_text` (func, строка 225)
+- `split_name_slots` (func, строка 244)
+- `merge_untouched` (func, строка 256)
+- `merge_name_slots` (func, строка 268)
+- `bundle_name_fields` (func, строка 296)
+- `names_from_bundle` (func, строка 305)
+- `merge_slots` (func, строка 319)
+- `slots_error` (func, строка 342)
+- `name_update_error` (func, строка 350)
+- `apply_meta_names` (func, строка 362)
+
+### `core/naming_backfill.py`
+- `shipped_names_for` (func, строка 41)
+- `default_name_backfill` (func, строка 58)
+- `builtin_name_backfill` (func, строка 108)
+
+### `core/naming_runtime.py`
+- `current_lang` (func, строка 21)
+- `current_lang_code` (func, строка 42)
+- `_session_lang` (func, строка 59)
+- `_stored_lang` (func, строка 73)
+
 ### `core/ooxml.py`
 - `_local` (func, строка 45)
 - `table_to_csv` (func, строка 52)
@@ -2207,17 +2282,17 @@
 - `extract_xlsx_text` (func, строка 415)
 
 ### `core/orchestrator_builtin.py`
-- `_ensure_default_orchestrators` (func, строка 40)
-- `_refresh_marketplace_registry_cache` (func, строка 59)
-- `_load_bundled_prompt_text` (func, строка 75)
-- `_first_boot_config` (func, строка 89)
-- `_builtin_tool_names` (func, строка 119)
-- `_create_builtin_orchestrator` (func, строка 129)
-- `_backfill_builtin_config` (func, строка 160)
-- `_migrate_builtin_max_steps` (func, строка 242)
-- `ensure_builtin_orchestrators` (func, строка 250)
-- `load_devagent_config` (func, строка 301)
-- `save_devagent_config` (func, строка 340)
+- `_ensure_default_orchestrators` (func, строка 41)
+- `_refresh_marketplace_registry_cache` (func, строка 60)
+- `_load_bundled_prompt_text` (func, строка 76)
+- `_first_boot_config` (func, строка 90)
+- `_builtin_tool_names` (func, строка 120)
+- `_create_builtin_orchestrator` (func, строка 130)
+- `_backfill_builtin_config` (func, строка 162)
+- `_migrate_builtin_max_steps` (func, строка 224)
+- `ensure_builtin_orchestrators` (func, строка 232)
+- `load_devagent_config` (func, строка 294)
+- `save_devagent_config` (func, строка 333)
 
 ### `core/orchestrator_defaults.py`
 - `_devagent_default_config` (func, строка 38)
@@ -2271,6 +2346,10 @@
 - `resolve_data_dir` (func, строка 683)
 - `export_orchestrator_folder` (func, строка 838)
 - `import_orchestrator_folder` (func, строка 861)
+
+### `core/orchestrator_import_files.py`
+- `_import_instructions` (func, строка 17)
+- `_import_functions` (func, строка 44)
 
 ### `core/orchestrator_instr.py`
 - `orch_list_instructions` (func, строка 24)
@@ -2340,6 +2419,11 @@
 - `build_assistant_dicts_impl` (func, строка 703)
 - `build_assistant_dicts_impl._resolve_effort` (func, строка 768)
 
+### `core/orchestrator_reload.py`
+- `_name_kwargs` (func, строка 37)
+- `reload_orchestrator_from_folder` (func, строка 49)
+- `sync_all_orchestrator_folders` (func, строка 113)
+
 ### `core/orchestrator_shared.py`
 - `bind_facade` (func, строка 39)
 - `facade` (func, строка 45)
@@ -2352,18 +2436,16 @@
 - `persist_step_messages` (func, строка 53)
 
 ### `core/orchestrator_store.py`
-- `list_orchestrators_impl` (func, строка 48)
-- `get_orchestrator_impl` (func, строка 53)
-- `get_orchestrator_by_slug` (func, строка 58)
-- `create_orchestrator` (func, строка 63)
-- `_mark_prompt_edited` (func, строка 101)
-- `reset_builtin_prompt_impl` (func, строка 129)
-- `save_orchestrator` (func, строка 162)
-- `delete_orchestrator_impl` (func, строка 206)
-- `_mark_marketplace_removed` (func, строка 237)
-- `_sync_orchestrator_folder_impl` (func, строка 270)
-- `reload_orchestrator_from_folder` (func, строка 301)
-- `sync_all_orchestrator_folders` (func, строка 365)
+- `list_orchestrators_impl` (func, строка 47)
+- `get_orchestrator_impl` (func, строка 58)
+- `get_orchestrator_by_slug` (func, строка 71)
+- `create_orchestrator` (func, строка 76)
+- `_mark_prompt_edited` (func, строка 122)
+- `reset_builtin_prompt_impl` (func, строка 150)
+- `save_orchestrator` (func, строка 183)
+- `delete_orchestrator_impl` (func, строка 230)
+- `_mark_marketplace_removed` (func, строка 261)
+- `_sync_orchestrator_folder_impl` (func, строка 294)
 
 ### `core/orchestrator_tools.py`
 - `_legacy_aliases` (func, строка 28)
@@ -2383,11 +2465,10 @@
 - `render_available_tools_block` (func, строка 354)
 
 ### `core/orchestrator_transfer.py`
-- `export_orchestrator` (func, строка 42)
-- `_validate_imported_tools` (func, строка 88)
-- `import_orchestrator` (func, строка 114)
-- `_import_instructions` (func, строка 233)
-- `_import_functions` (func, строка 260)
+- `export_orchestrator` (func, строка 44)
+- `_validate_imported_tools` (func, строка 92)
+- `_validated_bundle_slug` (func, строка 118)
+- `import_orchestrator` (func, строка 136)
 
 ### `core/orchestrators.py`
 - `_extend_prompt_with_connections` (func, строка 275)
@@ -2947,27 +3028,30 @@
 - `_install_assistant` (func, строка 250)
 
 ### `core/marketplace/agent_installer.py`
-- `install_agent` (func, строка 73)
+- `install_agent` (func, строка 68)
+
+### `core/marketplace/agent_merge.py`
+- `_merge_untouched` (func, строка 22)
+- `_merge_update_config` (func, строка 34)
+- `_previous_package_meta` (func, строка 52)
+- `_previous_package_text` (func, строка 89)
+- `_merge_assistant_payload` (func, строка 121)
+- `_merge_orchestrator_update` (func, строка 153)
 
 ### `core/marketplace/agent_orchestrator.py`
-- `_stage_orchestrator_package` (func, строка 43)
-- `_backup_orchestrator_area` (func, строка 84)
-- `_merge_orchestrator_update` (func, строка 109)
-- `_import_orchestrator_bundle` (func, строка 144)
-- `_verify_orchestrator_area` (func, строка 170)
-- `_install_orchestrator` (func, строка 205)
+- `_stage_orchestrator_package` (func, строка 41)
+- `_backup_orchestrator_area` (func, строка 82)
+- `_import_orchestrator_bundle` (func, строка 107)
+- `_verify_orchestrator_area` (func, строка 133)
+- `_install_orchestrator` (func, строка 168)
 
 ### `core/marketplace/agent_package.py`
-- `_read_json` (func, строка 26)
-- `_read_text` (func, строка 38)
-- `_bundle_from_folder` (func, строка 47)
-- `_assistant_bundle_from_folder` (func, строка 123)
-- `_apply_config_defaults` (func, строка 173)
-- `_previous_package_meta` (func, строка 203)
-- `_previous_package_text` (func, строка 245)
-- `_merge_untouched` (func, строка 277)
-- `_merge_update_config` (func, строка 289)
-- `_merge_assistant_payload` (func, строка 312)
+- `_read_json` (func, строка 27)
+- `_read_text` (func, строка 39)
+- `_read_instructions` (func, строка 48)
+- `_bundle_from_folder` (func, строка 78)
+- `_assistant_bundle_from_folder` (func, строка 138)
+- `_apply_config_defaults` (func, строка 192)
 
 ### `core/marketplace/agent_preflight.py`
 - `_slug_taken` (func, строка 39)
@@ -2997,33 +3081,36 @@
 - `recover` (func, строка 27)
 - `bootstrap` (func, строка 57)
 
+### `core/marketplace/bundle_catalog.py`
+- `_localized_name` (func, строка 18)
+- `catalog_bundles` (func, строка 25)
+- `load_bundle` (func, строка 57)
+- `plan_bundle` (func, строка 85)
+
 ### `core/marketplace/bundles.py`
-- `BundleError` (class, строка 31)
-- `_clean_member` (func, строка 42)
-- `members_of` (func, строка 59)
-- `_member_entry` (func, строка 91)
-- `_member_state` (func, строка 107)
-- `plan` (func, строка 159)
-- `_chosen` (func, строка 192)
-- `install` (func, строка 218)
-- `_rollback_members` (func, строка 344)
-- `rollback_group` (func, строка 375)
-- `catalog_bundles` (func, строка 413)
-- `load_bundle` (func, строка 444)
-- `plan_bundle` (func, строка 470)
+- `BundleError` (class, строка 36)
+- `_clean_member` (func, строка 47)
+- `members_of` (func, строка 64)
+- `_member_entry` (func, строка 96)
+- `_member_state` (func, строка 112)
+- `plan` (func, строка 169)
+- `_chosen` (func, строка 204)
+- `install` (func, строка 230)
+- `_rollback_members` (func, строка 356)
+- `rollback_group` (func, строка 387)
 
 ### `core/marketplace/catalog.py`
 - `localized` (func, строка 34)
-- `_index_entries` (func, строка 53)
-- `_installed_map` (func, строка 65)
-- `_entry_type` (func, строка 83)
-- `list_entities` (func, строка 88)
-- `list_skills` (func, строка 169)
-- `card` (func, строка 182)
-- `_required_secrets` (func, строка 243)
-- `_recommends` (func, строка 270)
-- `_bundle` (func, строка 289)
-- `fetch_card` (func, строка 307)
+- `_index_entries` (func, строка 46)
+- `_installed_map` (func, строка 58)
+- `_entry_type` (func, строка 76)
+- `list_entities` (func, строка 81)
+- `list_skills` (func, строка 162)
+- `card` (func, строка 175)
+- `_required_secrets` (func, строка 236)
+- `_recommends` (func, строка 263)
+- `_bundle` (func, строка 282)
+- `fetch_card` (func, строка 300)
 
 ### `core/marketplace/config.py`
 - `_as_bool` (func, строка 37)
@@ -3121,6 +3208,9 @@
 - `migrate` (func, строка 379)
 - `is_legacy_entity` (func, строка 401)
 - `legacy_ids_of` (func, строка 406)
+
+### `core/marketplace/names.py`
+- `entity_name` (func, строка 13)
 
 ### `core/marketplace/publish.py`
 - `PublishError` (class, строка 75)
@@ -4115,18 +4205,18 @@
 - `not_implemented` (func, строка 252)
 
 ### `core/gateway/health.py`
-- `boot_time` (func, строка 62)
-- `uptime_seconds` (func, строка 67)
-- `version` (func, строка 72)
-- `health` (func, строка 89)
-- `_readonly_connect` (func, строка 101)
-- `_table_columns` (func, строка 116)
-- `_table_exists` (func, строка 125)
-- `_index_exists` (func, строка 136)
-- `probe_schema` (func, строка 147)
-- `ready` (func, строка 217)
-- `_not_ready_report` (func, строка 243)
-- `reset_cache` (func, строка 255)
+- `boot_time` (func, строка 65)
+- `uptime_seconds` (func, строка 70)
+- `version` (func, строка 75)
+- `health` (func, строка 92)
+- `_readonly_connect` (func, строка 104)
+- `_table_columns` (func, строка 119)
+- `_table_exists` (func, строка 128)
+- `_index_exists` (func, строка 139)
+- `probe_schema` (func, строка 150)
+- `ready` (func, строка 225)
+- `_not_ready_report` (func, строка 251)
+- `reset_cache` (func, строка 263)
 
 ### `core/gateway/runs.py`
 - `get_service` (func, строка 43)
@@ -5431,28 +5521,28 @@
 - `TestDefaultsLoaders.test_list_default_orchestrators` (func, строка 108)
 - `TestDefaultsLoaders.test_load_dev_agent_returns_none` (func, строка 113)
 - `TestDefaultsLoaders.test_a_catalog_folder_is_still_readable` (func, строка 120)
-- `TestDefaultsLoaders.test_dev_agent_instructions_loaded` (func, строка 134)
-- `TestDefaultsLoaders.test_global_settings` (func, строка 150)
-- `TestDefaultsLoaders.test_front_matter_parser` (func, строка 155)
-- `TestBootstrapDefaults` (class, строка 164)
-- `TestBootstrapDefaults.test_dev_agent_and_bundled_defaults_created` (func, строка 165)
-- `TestBootstrapDefaults.test_catalog_agent_is_not_seeded_from_the_bundle` (func, строка 184)
-- `TestBootstrapDefaults.test_bundled_default_gets_full_toolset` (func, строка 193)
-- `TestBootstrapDefaults.test_bundled_default_keeps_its_config` (func, строка 208)
-- `TestBootstrapDefaults.test_assistant_web_search_settings_persist_in_manifest` (func, строка 224)
-- `TestBootstrapDefaults.test_default_instructions_seeded` (func, строка 254)
-- `TestBootstrapDefaults.test_legacy_orchestrator_creator_migrates_to_employee_creator` (func, строка 264)
-- `TestBootstrapDefaults.test_idempotent` (func, строка 297)
-- `TestBootstrapDefaults.test_removing_default_folder_excludes_it` (func, строка 309)
-- `TestBuiltinPromptPersistence` (class, строка 325)
-- `TestBuiltinPromptPersistence.test_user_edited_prompt_survives_bootstrap` (func, строка 329)
-- `TestBuiltinPromptPersistence.test_edited_prompt_survives_all_defaults` (func, строка 345)
-- `TestBuiltinPromptPersistence.test_unedited_prompt_refreshes_from_md` (func, строка 355)
-- `TestBuiltinPromptPersistence.test_reset_restores_shipped_prompt` (func, строка 363)
-- `TestBuiltinPromptPersistence.test_custom_orchestrator_edit_is_not_marked` (func, строка 381)
-- `TestLegacyFallbacks` (class, строка 397)
-- `TestLegacyFallbacks.test_orphan_orchestrator_json_format` (func, строка 398)
-- `TestLegacyFallbacks.test_no_defaults_means_no_orchestrator_import` (func, строка 436)
+- `TestDefaultsLoaders.test_dev_agent_instructions_loaded` (func, строка 136)
+- `TestDefaultsLoaders.test_global_settings` (func, строка 152)
+- `TestDefaultsLoaders.test_front_matter_parser` (func, строка 157)
+- `TestBootstrapDefaults` (class, строка 166)
+- `TestBootstrapDefaults.test_dev_agent_and_bundled_defaults_created` (func, строка 167)
+- `TestBootstrapDefaults.test_catalog_agent_is_not_seeded_from_the_bundle` (func, строка 186)
+- `TestBootstrapDefaults.test_bundled_default_gets_full_toolset` (func, строка 195)
+- `TestBootstrapDefaults.test_bundled_default_keeps_its_config` (func, строка 210)
+- `TestBootstrapDefaults.test_assistant_web_search_settings_persist_in_manifest` (func, строка 226)
+- `TestBootstrapDefaults.test_default_instructions_seeded` (func, строка 256)
+- `TestBootstrapDefaults.test_legacy_orchestrator_creator_migrates_to_employee_creator` (func, строка 266)
+- `TestBootstrapDefaults.test_idempotent` (func, строка 299)
+- `TestBootstrapDefaults.test_removing_default_folder_excludes_it` (func, строка 311)
+- `TestBuiltinPromptPersistence` (class, строка 327)
+- `TestBuiltinPromptPersistence.test_user_edited_prompt_survives_bootstrap` (func, строка 331)
+- `TestBuiltinPromptPersistence.test_edited_prompt_survives_all_defaults` (func, строка 347)
+- `TestBuiltinPromptPersistence.test_unedited_prompt_refreshes_from_md` (func, строка 357)
+- `TestBuiltinPromptPersistence.test_reset_restores_shipped_prompt` (func, строка 365)
+- `TestBuiltinPromptPersistence.test_custom_orchestrator_edit_is_not_marked` (func, строка 383)
+- `TestLegacyFallbacks` (class, строка 399)
+- `TestLegacyFallbacks.test_orphan_orchestrator_json_format` (func, строка 400)
+- `TestLegacyFallbacks.test_no_defaults_means_no_orchestrator_import` (func, строка 438)
 
 ### `tests/test_default_rag_bases.py`
 - `_bundled_base_folder` (func, строка 37)
@@ -6531,6 +6621,22 @@
 - `TestBundledExecutorIsOneInstallation.test_a_never_touched_copy_is_recognised_as_adoptable` (func, строка 484)
 - `TestBundledExecutorIsOneInstallation.test_installing_from_the_catalog_updates_the_same_folder` (func, строка 501)
 
+### `tests/test_marketplace_names.py`
+- `_write` (func, строка 26)
+- `test_orchestrator_package_with_name_mapping_fills_translations` (func, строка 34)
+- `test_orchestrator_package_with_explicit_translation_keys` (func, строка 52)
+- `test_assistant_package_fills_the_four_name_slots` (func, строка 70)
+- `test_catalog_name_follows_the_interface_language` (func, строка 88)
+- `test_catalog_name_prefers_the_user_defined_slot` (func, строка 101)
+- `test_display_name_resolves_for_the_requested_language` (func, строка 110)
+- `test_display_name_keeps_a_plain_string_as_is` (func, строка 126)
+- `test_assistant_update_keeps_the_user_name_and_takes_a_new_translation` (func, строка 132)
+- `test_assistant_update_fills_an_empty_translation_slot` (func, строка 162)
+- `test_orchestrator_update_keeps_the_user_name` (func, строка 179)
+- `test_catalog_bundles_resolve_an_i18n_name` (func, строка 198)
+- `test_catalog_bundles_resolve_an_i18n_name._FakeSource` (class, строка 201)
+- `test_catalog_bundles_resolve_an_i18n_name._FakeSource.fetch_index` (func, строка 202)
+
 ### `tests/test_marketplace_no_network.py`
 - `_called_names` (func, строка 44)
 - `test_start_up_code_contains_no_catalog_calls` (func, строка 68)
@@ -7016,6 +7122,94 @@
 - `TestGenerateImageTool.test_output_path_inside_project` (func, строка 193)
 - `TestGenerateImageTool.test_output_path_escape_rejected` (func, строка 209)
 - `TestGenerateImageTool.test_not_assigned` (func, строка 221)
+
+### `tests/test_name_fields_ui.py`
+- `test_four_inputs_with_tooltips_and_keys` (func, строка 25)
+- `test_existing_slots_prefill_and_are_returned` (func, строка 42)
+- `test_a_historical_user_key_is_honoured` (func, строка 57)
+- `_render_assistant_form` (func, строка 66)
+- `test_assistant_form_saves_all_four_slots` (func, строка 93)
+- `test_assistant_form_accepts_a_user_name_without_translations` (func, строка 109)
+- `test_orchestrator_names_section_saves_all_slots` (func, строка 122)
+
+### `tests/test_name_slots_tools.py`
+- `isolated_data_dir` (func, строка 25)
+- `_assistant_tools` (func, строка 60)
+- `_assistant_tools._Tools` (class, строка 64)
+- `_make_assistant` (func, строка 70)
+- `_stored` (func, строка 80)
+- `test_update_adds_a_translation_without_touching_the_user_slot` (func, строка 89)
+- `test_update_clears_one_translation_and_keeps_the_others` (func, строка 100)
+- `test_update_keeps_the_stored_user_slot_when_the_view_resolved_it` (func, строка 111)
+- `test_update_refuses_to_strip_every_name` (func, строка 122)
+- `test_update_reports_the_resolved_name` (func, строка 133)
+- `test_merged_slots_fall_back_to_the_plain_name_of_a_legacy_record` (func, строка 140)
+- `test_update_orchestrator_accepts_a_translation_only_change` (func, строка 148)
+- `test_update_orchestrator_refuses_to_strip_every_name` (func, строка 167)
+- `test_create_requires_at_least_one_name` (func, строка 181)
+
+### `tests/test_naming.py`
+- `test_normalize_lang_accepts_codes_and_display_names` (func, строка 14)
+- `test_parse_name_plain_string_is_user_name` (func, строка 27)
+- `test_parse_name_mapping_fills_translations` (func, строка 31)
+- `test_parse_name_mapping_with_explicit_user_slot` (func, строка 36)
+- `test_parse_name_ignores_empty_and_unknown_keys` (func, строка 42)
+- `test_record_names_treats_legacy_string_name_as_user_name` (func, строка 49)
+- `test_record_names_reads_the_name_column_as_the_user_slot` (func, строка 55)
+- `test_resolve_user_defined_name_wins_every_language` (func, строка 72)
+- `test_resolve_uses_interface_language_then_english` (func, строка 78)
+- `test_resolve_falls_back_to_any_translation_when_english_missing` (func, строка 88)
+- `test_resolve_returns_fallback_when_every_slot_is_empty` (func, строка 93)
+- `test_display_name_ends_with_slug` (func, строка 99)
+- `test_with_display_name_keeps_raw_slots_and_resolves_name` (func, строка 104)
+- `test_with_display_name_does_not_mutate_input` (func, строка 115)
+- `test_name_fields_from_accepts_string_and_mapping` (func, строка 122)
+- `test_name_fields_from_explicit_fields_win_over_mapping` (func, строка 134)
+- `test_spaces_are_trimmed_everywhere` (func, строка 139)
+
+### `tests/test_naming_backfill.py`
+- `platform` (func, строка 51)
+- `test_a_shipped_name_moves_into_the_translations` (func, строка 74)
+- `test_a_renamed_entity_keeps_its_name` (func, строка 84)
+- `test_an_entity_with_a_translation_is_left_alone` (func, строка 92)
+- `test_an_empty_record_receives_the_preset_slots` (func, строка 100)
+- `test_a_preset_without_any_name_changes_nothing` (func, строка 108)
+- `test_an_old_translation_counts_as_shipped_too` (func, строка 114)
+- `test_shipped_names_cover_every_bundled_entity` (func, строка 124)
+- `test_a_devagent_row_seeded_with_the_old_name_is_migrated` (func, строка 134)
+- `test_a_renamed_devagent_survives_the_boot` (func, строка 158)
+- `test_a_seeded_default_orchestrator_carries_three_translations` (func, строка 175)
+- `test_an_old_task_scout_row_is_migrated_on_the_next_boot` (func, строка 187)
+- `test_the_display_name_does_not_depend_on_the_language` (func, строка 205)
+- `test_a_seeded_assistant_carries_three_translations` (func, строка 218)
+- `test_an_old_assistant_row_is_migrated_on_the_next_boot` (func, строка 230)
+- `test_a_renamed_assistant_is_neither_recreated_nor_renamed_back` (func, строка 249)
+- `test_the_backfill_writes_only_the_name_slots` (func, строка 269)
+
+### `tests/test_naming_resolve.py`
+- `isolated_data_dir` (func, строка 24)
+- `_set_lang` (func, строка 59)
+- `_make_employee` (func, строка 68)
+- `test_translations_follow_the_interface_language` (func, строка 76)
+- `test_an_unknown_language_falls_back_to_english` (func, строка 87)
+- `test_a_user_defined_name_wins_in_every_language` (func, строка 95)
+- `test_a_record_with_no_name_at_all_shows_its_slug` (func, строка 107)
+- `test_reading_never_moves_a_translation_into_the_user_slot` (func, строка 115)
+- `test_assistants_resolve_the_same_way` (func, строка 131)
+
+### `tests/test_naming_roundtrip.py`
+- `isolated_data_dir` (func, строка 21)
+- `test_orchestrator_slots_survive_a_folder_round_trip` (func, строка 63)
+- `test_orchestrator_import_accepts_a_name_mapping` (func, строка 91)
+- `test_assistant_slots_survive_a_folder_round_trip` (func, строка 116)
+- `test_assistant_import_accepts_a_name_mapping` (func, строка 150)
+
+### `tests/test_naming_storage.py`
+- `main_db` (func, строка 11)
+- `_columns` (func, строка 19)
+- `test_both_entity_tables_receive_the_three_slots` (func, строка 27)
+- `test_the_column_helpers_are_idempotent` (func, строка 32)
+- `test_rows_written_before_the_migration_survive` (func, строка 48)
 
 ### `tests/test_numeric_arg_coercion.py`
 - `sandbox` (func, строка 18)
@@ -8192,15 +8386,15 @@
 - `test_ensure_instructions_returns_expected_keys` (func, строка 120)
 - `test_ensure_instructions_is_idempotent` (func, строка 134)
 - `test_ensure_devagent_settings_seeds_builtin_orchestrator` (func, строка 149)
-- `test_ensure_devagent_settings_sets_prompt_from_system_prompt_md` (func, строка 162)
-- `test_ensure_devagent_settings_seeds_config_and_tools` (func, строка 173)
-- `test_ensure_devagent_settings_seeds_economy_defaults` (func, строка 196)
-- `test_ensure_devagent_settings_seeds_max_tokens_in_bundle` (func, строка 219)
-- `test_ensure_devagent_settings_is_idempotent` (func, строка 232)
-- `test_ensure_devagent_settings_preserves_user_config` (func, строка 241)
-- `test_ensure_devagent_settings_backfills_missing_config_fields` (func, строка 282)
-- `test_ensure_devagent_settings_backfills_zero_max_tokens` (func, строка 331)
-- `test_ensure_devagent_settings_keeps_user_economy_tail` (func, строка 356)
+- `test_ensure_devagent_settings_sets_prompt_from_system_prompt_md` (func, строка 164)
+- `test_ensure_devagent_settings_seeds_config_and_tools` (func, строка 175)
+- `test_ensure_devagent_settings_seeds_economy_defaults` (func, строка 198)
+- `test_ensure_devagent_settings_seeds_max_tokens_in_bundle` (func, строка 221)
+- `test_ensure_devagent_settings_is_idempotent` (func, строка 234)
+- `test_ensure_devagent_settings_preserves_user_config` (func, строка 243)
+- `test_ensure_devagent_settings_backfills_missing_config_fields` (func, строка 284)
+- `test_ensure_devagent_settings_backfills_zero_max_tokens` (func, строка 333)
+- `test_ensure_devagent_settings_keeps_user_economy_tail` (func, строка 358)
 
 ### `tests/test_platform_scenarios.py`
 - `isolated_data` (func, строка 43)
@@ -9458,19 +9652,19 @@
 - `test_search_mode_apply_updates_manifest` (func, строка 162)
 
 ### `tests/test_structured_output_consumers.py`
-- `test_classify_passes_json_schema_and_name` (func, строка 37)
-- `test_classify_passes_json_schema_and_name.fake_call_llm` (func, строка 42)
-- `test_classify_fenced_json_still_parsed` (func, строка 57)
-- `test_classify_fenced_json_still_parsed.fake_call_llm` (func, строка 60)
-- `test_classify_exception_falls_back_to_defaults` (func, строка 68)
-- `test_classify_exception_falls_back_to_defaults.boom` (func, строка 71)
-- `test_classify_keyword_hints_when_json_invalid` (func, строка 79)
-- `sandbox` (func, строка 97)
-- `test_assistant_creator_passes_json_schema_and_creates` (func, строка 109)
-- `test_assistant_creator_passes_json_schema_and_creates.fake_prompt` (func, строка 115)
-- `test_assistant_creator_passes_json_schema_and_creates.fake_call_llm` (func, строка 118)
-- `test_assistant_creator_passes_json_schema_and_creates.fake_create_assistant` (func, строка 126)
-- `test_assistant_creator_parse_failure_returns_error` (func, строка 169)
+- `test_classify_passes_json_schema_and_name` (func, строка 40)
+- `test_classify_passes_json_schema_and_name.fake_call_llm` (func, строка 45)
+- `test_classify_fenced_json_still_parsed` (func, строка 60)
+- `test_classify_fenced_json_still_parsed.fake_call_llm` (func, строка 63)
+- `test_classify_exception_falls_back_to_defaults` (func, строка 71)
+- `test_classify_exception_falls_back_to_defaults.boom` (func, строка 74)
+- `test_classify_keyword_hints_when_json_invalid` (func, строка 82)
+- `sandbox` (func, строка 100)
+- `test_assistant_creator_passes_json_schema_and_creates` (func, строка 112)
+- `test_assistant_creator_passes_json_schema_and_creates.fake_prompt` (func, строка 118)
+- `test_assistant_creator_passes_json_schema_and_creates.fake_call_llm` (func, строка 121)
+- `test_assistant_creator_passes_json_schema_and_creates.fake_create_assistant` (func, строка 129)
+- `test_assistant_creator_parse_failure_returns_error` (func, строка 172)
 
 ### `tests/test_subagent_transcript_modes.py`
 - `FakeService` (class, строка 30)
@@ -9521,24 +9715,24 @@
 - `TestBundledFolder.test_the_configuration_is_conservative_by_default` (func, строка 87)
 - `TestBundledFolder.test_the_prompt_keeps_the_role_contract` (func, строка 99)
 - `TestBundledFolder.test_the_default_import_creates_the_agent_and_its_functions` (func, строка 119)
-- `TestBundledFolder.test_the_bundled_copy_is_adoptable_by_the_catalog` (func, строка 136)
-- `TestMemoryReader` (class, строка 158)
-- `TestMemoryReader._invoke` (func, строка 159)
-- `TestMemoryReader.test_an_empty_roster_refuses_the_read` (func, строка 165)
-- `TestMemoryReader.test_an_employee_outside_the_roster_is_refused` (func, строка 170)
-- `TestMemoryReader.test_an_empty_folder_is_reported_not_failed` (func, строка 175)
-- `TestMemoryReader.test_list_and_read_work_inside_the_folder` (func, строка 180)
-- `TestMemoryReader.test_path_traversal_is_refused` (func, строка 195)
-- `TestMemoryReader.test_a_binary_file_is_not_opened` (func, строка 205)
-- `TestThreadReader` (class, строка 215)
-- `TestThreadReader._invoke` (func, строка 216)
-- `TestThreadReader._thread` (func, строка 222)
-- `TestThreadReader.test_an_empty_roster_refuses_the_read` (func, строка 231)
-- `TestThreadReader.test_dialogs_of_a_delegated_employee_are_listed` (func, строка 236)
-- `TestThreadReader.test_search_finds_the_open_phrase` (func, строка 244)
-- `TestThreadReader.test_a_dialog_of_another_employee_is_refused` (func, строка 252)
-- `TestThreadReader.test_read_returns_the_window_of_the_owner` (func, строка 259)
-- `TestThreadReader.test_an_unknown_dialog_is_not_found` (func, строка 268)
+- `TestBundledFolder.test_the_bundled_copy_is_adoptable_by_the_catalog` (func, строка 140)
+- `TestMemoryReader` (class, строка 162)
+- `TestMemoryReader._invoke` (func, строка 163)
+- `TestMemoryReader.test_an_empty_roster_refuses_the_read` (func, строка 169)
+- `TestMemoryReader.test_an_employee_outside_the_roster_is_refused` (func, строка 174)
+- `TestMemoryReader.test_an_empty_folder_is_reported_not_failed` (func, строка 179)
+- `TestMemoryReader.test_list_and_read_work_inside_the_folder` (func, строка 184)
+- `TestMemoryReader.test_path_traversal_is_refused` (func, строка 199)
+- `TestMemoryReader.test_a_binary_file_is_not_opened` (func, строка 209)
+- `TestThreadReader` (class, строка 219)
+- `TestThreadReader._invoke` (func, строка 220)
+- `TestThreadReader._thread` (func, строка 226)
+- `TestThreadReader.test_an_empty_roster_refuses_the_read` (func, строка 235)
+- `TestThreadReader.test_dialogs_of_a_delegated_employee_are_listed` (func, строка 240)
+- `TestThreadReader.test_search_finds_the_open_phrase` (func, строка 248)
+- `TestThreadReader.test_a_dialog_of_another_employee_is_refused` (func, строка 256)
+- `TestThreadReader.test_read_returns_the_window_of_the_owner` (func, строка 263)
+- `TestThreadReader.test_an_unknown_dialog_is_not_found` (func, строка 272)
 
 ### `tests/test_task_state.py`
 - `sandbox` (func, строка 22)
@@ -10143,20 +10337,20 @@
 - `platform` (func, строка 28)
 - `employee` (func, строка 48)
 - `test_bundled_folder_is_readable` (func, строка 64)
-- `test_bundled_prompt_is_english` (func, строка 75)
-- `test_bundled_toolset_stays_narrower_than_a_specialist` (func, строка 83)
-- `test_absent_key_means_enabled` (func, строка 96)
-- `test_switching_off_is_stored_and_read_back` (func, строка 105)
-- `test_switching_back_on_restores_the_right` (func, строка 117)
-- `test_flag_does_not_touch_the_allowlist` (func, строка 125)
-- `test_setter_refuses_an_unknown_orchestrator` (func, строка 139)
-- `test_effective_list_adds_the_executor_by_default` (func, строка 148)
-- `test_effective_list_drops_it_after_switching_off` (func, строка 154)
-- `test_effective_list_keeps_configured_agents_first` (func, строка 165)
-- `test_effective_list_never_duplicates_a_manual_entry` (func, строка 176)
-- `test_effective_list_skips_itself` (func, строка 188)
-- `test_effective_list_hides_a_deleted_executor` (func, строка 195)
-- `test_effective_list_keeps_a_manual_entry_after_deletion` (func, строка 207)
+- `test_bundled_prompt_is_english` (func, строка 79)
+- `test_bundled_toolset_stays_narrower_than_a_specialist` (func, строка 87)
+- `test_absent_key_means_enabled` (func, строка 100)
+- `test_switching_off_is_stored_and_read_back` (func, строка 109)
+- `test_switching_back_on_restores_the_right` (func, строка 121)
+- `test_flag_does_not_touch_the_allowlist` (func, строка 129)
+- `test_setter_refuses_an_unknown_orchestrator` (func, строка 143)
+- `test_effective_list_adds_the_executor_by_default` (func, строка 152)
+- `test_effective_list_drops_it_after_switching_off` (func, строка 158)
+- `test_effective_list_keeps_configured_agents_first` (func, строка 169)
+- `test_effective_list_never_duplicates_a_manual_entry` (func, строка 180)
+- `test_effective_list_skips_itself` (func, строка 192)
+- `test_effective_list_hides_a_deleted_executor` (func, строка 199)
+- `test_effective_list_keeps_a_manual_entry_after_deletion` (func, строка 211)
 
 ### `tests/test_universal_agent_delegation.py`
 - `platform` (func, строка 25)
@@ -11585,12 +11779,12 @@
 - `_tools` (func, строка 55)
 - `_add_employee` (func, строка 61)
 - `test_a_fresh_install_offers_task_scout_with_nobody_delegated` (func, строка 69)
-- `test_with_nobody_delegated_the_helpers_refuse` (func, строка 79)
-- `test_the_prompt_carries_the_notice_the_user_will_see` (func, строка 93)
-- `test_ticking_employees_opens_exactly_those_two` (func, строка 105)
-- `test_the_runtime_agrees_with_the_helpers` (func, строка 124)
-- `test_a_left_open_promise_is_found_in_the_dialog` (func, строка 142)
-- `test_another_employee_cannot_be_reached_by_a_guessed_dialog` (func, строка 176)
+- `test_with_nobody_delegated_the_helpers_refuse` (func, строка 81)
+- `test_the_prompt_carries_the_notice_the_user_will_see` (func, строка 95)
+- `test_ticking_employees_opens_exactly_those_two` (func, строка 107)
+- `test_the_runtime_agrees_with_the_helpers` (func, строка 126)
+- `test_a_left_open_promise_is_found_in_the_dialog` (func, строка 144)
+- `test_another_employee_cannot_be_reached_by_a_guessed_dialog` (func, строка 178)
 
 ### `tests/scenarios/test_task_state_mega_task.py`
 - `sandbox` (func, строка 33)
@@ -11656,13 +11850,13 @@
 ### `tests/scenarios/test_universal_agent_scenario.py`
 - `platform` (func, строка 23)
 - `test_fresh_install_seeds_the_executor` (func, строка 45)
-- `test_seeded_executor_carries_its_prompt_and_tools` (func, строка 58)
-- `test_second_boot_does_not_duplicate_it` (func, строка 70)
-- `test_new_employee_can_spawn_it_without_configuration` (func, строка 85)
-- `test_new_employee_prompt_advertises_it` (func, строка 103)
-- `test_clearing_the_box_stops_the_spawn_and_restoring_returns_it` (func, строка 121)
-- `test_the_decision_is_per_employee` (func, строка 142)
-- `test_a_deleted_executor_leaves_no_dead_entry` (func, строка 162)
+- `test_seeded_executor_carries_its_prompt_and_tools` (func, строка 61)
+- `test_second_boot_does_not_duplicate_it` (func, строка 73)
+- `test_new_employee_can_spawn_it_without_configuration` (func, строка 88)
+- `test_new_employee_prompt_advertises_it` (func, строка 106)
+- `test_clearing_the_box_stops_the_spawn_and_restoring_returns_it` (func, строка 124)
+- `test_the_decision_is_per_employee` (func, строка 145)
+- `test_a_deleted_executor_leaves_no_dead_entry` (func, строка 165)
 
 ### `tests/scenarios/test_updater_runtime_flow.py`
 - `_fresh_page` (func, строка 54)
@@ -12039,26 +12233,27 @@
 - `_ensure_message_index` (func, строка 108)
 - `_ensure_marketplace_tables` (func, строка 137)
 - `_configure_devagent_connection` (func, строка 220)
-- `_db_url` (func, строка 286)
-- `_ensure_thread_columns` (func, строка 291)
-- `_ensure_thread_indexes` (func, строка 314)
-- `_ensure_assistant_columns` (func, строка 330)
-- `_migrate_thread_skill_columns` (func, строка 351)
-- `_migrate_assistant_table` (func, строка 375)
-- `_ensure_schedules_tables` (func, строка 391)
-- `_ensure_sandbox_tables` (func, строка 487)
-- `_sandbox_table_exists` (func, строка 544)
-- `_sandbox_columns` (func, строка 554)
-- `get_engine` (func, строка 565)
-- `_prune_sandbox_journal` (func, строка 590)
-- `_migrate_main_database` (func, строка 606)
-- `get_devagent_engine` (func, строка 623)
-- `_migrate_devagent_database` (func, строка 645)
-- `_migrate_threads_table_if_needed` (func, строка 658)
-- `get_session` (func, строка 695)
-- `get_devagent_session` (func, строка 703)
-- `reset_engine` (func, строка 711)
-- `reset_devagent_engine` (func, строка 721)
+- `_db_url` (func, строка 298)
+- `_ensure_thread_columns` (func, строка 303)
+- `_ensure_thread_indexes` (func, строка 326)
+- `_ensure_assistant_columns` (func, строка 342)
+- `_ensure_orchestrator_columns` (func, строка 363)
+- `_migrate_thread_skill_columns` (func, строка 387)
+- `_migrate_assistant_table` (func, строка 411)
+- `_ensure_schedules_tables` (func, строка 427)
+- `_ensure_sandbox_tables` (func, строка 523)
+- `_sandbox_table_exists` (func, строка 580)
+- `_sandbox_columns` (func, строка 590)
+- `get_engine` (func, строка 601)
+- `_prune_sandbox_journal` (func, строка 626)
+- `_migrate_main_database` (func, строка 642)
+- `get_devagent_engine` (func, строка 659)
+- `_migrate_devagent_database` (func, строка 681)
+- `_migrate_threads_table_if_needed` (func, строка 694)
+- `get_session` (func, строка 731)
+- `get_devagent_session` (func, строка 739)
+- `reset_engine` (func, строка 747)
+- `reset_devagent_engine` (func, строка 757)
 
 ### `storage/migration_support.py`
 - `database_kind` (func, строка 28)
@@ -12081,21 +12276,21 @@
 
 ### `storage/models.py`
 - `Assistant` (class, строка 19)
-- `Assistant.to_dict` (func, строка 43)
-- `Thread` (class, строка 66)
-- `Thread.to_dict` (func, строка 116)
-- `Message` (class, строка 142)
-- `Message.to_dict` (func, строка 161)
-- `ConfigKV` (class, строка 171)
-- `ConfigKV.to_dict` (func, строка 178)
-- `Instruction` (class, строка 186)
-- `Instruction.to_dict` (func, строка 202)
-- `Orchestrator` (class, строка 212)
-- `Orchestrator.to_dict` (func, строка 239)
-- `Orchestrator.to_export_dict` (func, строка 264)
-- `OrchestratorInstruction` (class, строка 271)
-- `OrchestratorInstruction.to_dict` (func, строка 289)
-- `OrchestratorInstruction.to_full_dict` (func, строка 298)
+- `Assistant.to_dict` (func, строка 49)
+- `Thread` (class, строка 75)
+- `Thread.to_dict` (func, строка 125)
+- `Message` (class, строка 151)
+- `Message.to_dict` (func, строка 170)
+- `ConfigKV` (class, строка 180)
+- `ConfigKV.to_dict` (func, строка 187)
+- `Instruction` (class, строка 195)
+- `Instruction.to_dict` (func, строка 211)
+- `Orchestrator` (class, строка 221)
+- `Orchestrator.to_dict` (func, строка 252)
+- `Orchestrator.to_export_dict` (func, строка 280)
+- `OrchestratorInstruction` (class, строка 287)
+- `OrchestratorInstruction.to_dict` (func, строка 305)
+- `OrchestratorInstruction.to_full_dict` (func, строка 314)
 
 ### `storage/repository.py`
 - `repo_load_assistants` (func, строка 22)
@@ -12103,46 +12298,47 @@
 - `repo_get_assistant_by_slug` (func, строка 35)
 - `repo_get_assistant_with_text` (func, строка 44)
 - `repo_create_assistant` (func, строка 55)
-- `repo_update_assistant` (func, строка 82)
-- `repo_set_assistant_slug` (func, строка 115)
-- `repo_delete_assistant` (func, строка 130)
-- `repo_load_assistant_prompt_text` (func, строка 143)
-- `repo_save_assistant_prompt_text` (func, строка 150)
-- `repo_list_instructions` (func, строка 167)
-- `repo_get_instruction` (func, строка 173)
-- `repo_get_instruction_with_text` (func, строка 180)
-- `repo_create_instruction` (func, строка 191)
-- `repo_update_instruction` (func, строка 208)
-- `repo_delete_instruction` (func, строка 226)
-- `repo_get_instruction_prompt_text` (func, строка 239)
-- `repo_save_instruction_prompt_text` (func, строка 246)
-- `repo_list_orchestrator_instructions` (func, строка 263)
-- `repo_get_orchestrator_instruction` (func, строка 274)
-- `repo_save_orchestrator_instruction` (func, строка 288)
-- `repo_delete_orchestrator_instruction` (func, строка 321)
-- `repo_delete_all_orchestrator_instructions` (func, строка 341)
-- `repo_create_thread` (func, строка 356)
-- `repo_load_thread_meta` (func, строка 393)
-- `repo_save_thread_meta` (func, строка 400)
-- `repo_load_thread_messages` (func, строка 434)
-- `repo_save_thread_messages` (func, строка 446)
-- `repo_append_message` (func, строка 467)
-- `repo_list_all_threads` (func, строка 490)
-- `repo_list_threads_by_type` (func, строка 497)
-- `repo_list_chat_threads` (func, строка 509)
-- `repo_delete_thread` (func, строка 518)
-- `repo_delete_all_threads` (func, строка 531)
-- `repo_load_config` (func, строка 545)
-- `repo_save_config` (func, строка 558)
-- `repo_list_orchestrators` (func, строка 574)
-- `repo_get_orchestrator_by_slug` (func, строка 584)
-- `repo_get_orchestrator_by_id` (func, строка 591)
-- `repo_get_orchestrator_with_text` (func, строка 598)
-- `repo_create_orchestrator` (func, строка 614)
-- `repo_update_orchestrator` (func, строка 644)
-- `repo_delete_orchestrator` (func, строка 683)
-- `repo_create_skill` (func, строка 708)
-- `repo_update_skill` (func, строка 723)
+- `repo_update_assistant` (func, строка 89)
+- `repo_update_assistant_names` (func, строка 133)
+- `repo_set_assistant_slug` (func, строка 160)
+- `repo_delete_assistant` (func, строка 175)
+- `repo_load_assistant_prompt_text` (func, строка 188)
+- `repo_save_assistant_prompt_text` (func, строка 195)
+- `repo_list_instructions` (func, строка 212)
+- `repo_get_instruction` (func, строка 218)
+- `repo_get_instruction_with_text` (func, строка 225)
+- `repo_create_instruction` (func, строка 236)
+- `repo_update_instruction` (func, строка 253)
+- `repo_delete_instruction` (func, строка 271)
+- `repo_get_instruction_prompt_text` (func, строка 284)
+- `repo_save_instruction_prompt_text` (func, строка 291)
+- `repo_list_orchestrator_instructions` (func, строка 308)
+- `repo_get_orchestrator_instruction` (func, строка 319)
+- `repo_save_orchestrator_instruction` (func, строка 333)
+- `repo_delete_orchestrator_instruction` (func, строка 366)
+- `repo_delete_all_orchestrator_instructions` (func, строка 386)
+- `repo_create_thread` (func, строка 401)
+- `repo_load_thread_meta` (func, строка 438)
+- `repo_save_thread_meta` (func, строка 445)
+- `repo_load_thread_messages` (func, строка 479)
+- `repo_save_thread_messages` (func, строка 491)
+- `repo_append_message` (func, строка 512)
+- `repo_list_all_threads` (func, строка 535)
+- `repo_list_threads_by_type` (func, строка 542)
+- `repo_list_chat_threads` (func, строка 554)
+- `repo_delete_thread` (func, строка 563)
+- `repo_delete_all_threads` (func, строка 576)
+- `repo_load_config` (func, строка 590)
+- `repo_save_config` (func, строка 603)
+- `repo_list_orchestrators` (func, строка 619)
+- `repo_get_orchestrator_by_slug` (func, строка 629)
+- `repo_get_orchestrator_by_id` (func, строка 636)
+- `repo_get_orchestrator_with_text` (func, строка 643)
+- `repo_create_orchestrator` (func, строка 659)
+- `repo_update_orchestrator` (func, строка 696)
+- `repo_delete_orchestrator` (func, строка 741)
+- `repo_create_skill` (func, строка 766)
+- `repo_update_skill` (func, строка 781)
 
 ### `storage/repository_devagent.py`
 - `repo_devagent_create_thread` (func, строка 22)
@@ -12288,31 +12484,31 @@
 - `main` (func, строка 155)
 
 ### `scripts/verify_manifest.py`
-- `log` (func, строка 123)
-- `find_root` (func, строка 128)
-- `git_ls_files` (func, строка 140)
-- `sha256_file` (func, строка 156)
-- `read_app_version` (func, строка 164)
-- `header_version` (func, строка 184)
-- `classify` (func, строка 194)
-- `load_manifest` (func, строка 204)
-- `save_manifest` (func, строка 210)
-- `now_iso` (func, строка 219)
-- `build_manifest` (func, строка 223)
-- `add_file` (func, строка 270)
-- `check_note_dict` (func, строка 312)
-- `check_unit` (func, строка 324)
-- `check_file_entry` (func, строка 340)
-- `_check_schema` (func, строка 365)
-- `_check_section_entries` (func, строка 395)
-- `_iter_entries` (func, строка 413)
-- `_check_presence_and_hashes` (func, строка 423)
-- `_check_git_coverage` (func, строка 446)
-- `_check_uncovered_local` (func, строка 468)
-- `_check_app_version` (func, строка 493)
-- `_emit_report` (func, строка 502)
-- `verify` (func, строка 526)
-- `main` (func, строка 563)
+- `log` (func, строка 118)
+- `find_root` (func, строка 123)
+- `git_ls_files` (func, строка 135)
+- `sha256_file` (func, строка 151)
+- `read_app_version` (func, строка 159)
+- `header_version` (func, строка 179)
+- `classify` (func, строка 189)
+- `load_manifest` (func, строка 199)
+- `save_manifest` (func, строка 205)
+- `now_iso` (func, строка 214)
+- `build_manifest` (func, строка 218)
+- `add_file` (func, строка 265)
+- `check_note_dict` (func, строка 307)
+- `check_unit` (func, строка 319)
+- `check_file_entry` (func, строка 335)
+- `_check_schema` (func, строка 360)
+- `_check_section_entries` (func, строка 390)
+- `_iter_entries` (func, строка 408)
+- `_check_presence_and_hashes` (func, строка 418)
+- `_check_git_coverage` (func, строка 441)
+- `_check_uncovered_local` (func, строка 463)
+- `_check_app_version` (func, строка 488)
+- `_emit_report` (func, строка 497)
+- `verify` (func, строка 521)
+- `main` (func, строка 558)
 
 ### `dev_agent/agent_loop.py`
 - `_now_ts` (func, строка 221)
@@ -12398,6 +12594,23 @@
 - `_prefers_assistant_dict` (func, строка 31)
 - `_use_system_keyword` (func, строка 51)
 - `call_llm_with_system` (func, строка 60)
+
+### `dev_agent/orchestrator_tools.py`
+- `OrchestratorToolsMixin` (class, строка 21)
+- `OrchestratorToolsMixin._list_orchestrators` (func, строка 24)
+- `OrchestratorToolsMixin._get_orchestrator` (func, строка 29)
+- `OrchestratorToolsMixin._create_orchestrator` (func, строка 38)
+- `OrchestratorToolsMixin._update_orchestrator` (func, строка 85)
+- `OrchestratorToolsMixin._delete_orchestrator` (func, строка 105)
+- `OrchestratorToolsMixin._reload_orchestrator` (func, строка 114)
+- `OrchestratorToolsMixin._list_orchestrator_functions` (func, строка 123)
+- `OrchestratorToolsMixin._get_orchestrator_function` (func, строка 130)
+- `OrchestratorToolsMixin._save_orchestrator_function` (func, строка 139)
+- `OrchestratorToolsMixin._delete_orchestrator_function` (func, строка 148)
+- `OrchestratorToolsMixin._list_orchestrator_instructions` (func, строка 157)
+- `OrchestratorToolsMixin._get_orchestrator_instruction` (func, строка 164)
+- `OrchestratorToolsMixin._save_orchestrator_instruction` (func, строка 173)
+- `OrchestratorToolsMixin._delete_orchestrator_instruction` (func, строка 186)
 
 ### `dev_agent/safe_writer.py`
 - `ProtectedFileError` (class, строка 30)
@@ -12563,80 +12776,66 @@
 - `sweep` (func, строка 982)
 
 ### `dev_agent/universal_agent.py`
-- `load_system_prompt` (func, строка 44)
-- `build_assistant_dict_from_config` (func, строка 72)
-- `build_assistant_dict_from_config._make_assistant` (func, строка 84)
-- `UniversalDevAgent` (class, строка 113)
-- `UniversalDevAgent.__init__` (func, строка 116)
-- `UniversalDevAgent.system_prompt` (func, строка 194)
-- `UniversalDevAgent.tool_catalog` (func, строка 199)
-- `UniversalDevAgent.dispatch` (func, строка 205)
-- `UniversalDevAgent._current_orchestrator_slug` (func, строка 217)
-- `UniversalDevAgent._is_disabled_for_orchestrator` (func, строка 226)
-- `UniversalDevAgent._disabled_tool_error` (func, строка 242)
-- `UniversalDevAgent._dispatch_impl` (func, строка 254)
-- `UniversalDevAgent.attach_orchestrator` (func, строка 304)
-- `UniversalDevAgent._pop_mcp_tools` (func, строка 360)
-- `UniversalDevAgent._attach_connection_tools` (func, строка 371)
-- `UniversalDevAgent._attach_service_family` (func, строка 402)
-- `UniversalDevAgent.attach_orchestrator_catalog` (func, строка 421)
-- `UniversalDevAgent.dispatch_json` (func, строка 440)
-- `UniversalDevAgent._recreate_core_preserving_history` (func, строка 452)
-- `UniversalDevAgent.set_thread_id` (func, строка 477)
-- `UniversalDevAgent._persist_thread_workspace` (func, строка 499)
-- `UniversalDevAgent._sync_binding_after_switch` (func, строка 520)
-- `UniversalDevAgent._set_workspace` (func, строка 526)
-- `UniversalDevAgent._set_target_file` (func, строка 535)
-- `UniversalDevAgent._write_project_map` (func, строка 544)
-- `UniversalDevAgent._write_doc` (func, строка 547)
-- `UniversalDevAgent._read_doc` (func, строка 550)
-- `UniversalDevAgent._snapshot_all` (func, строка 553)
-- `UniversalDevAgent._restore_all` (func, строка 556)
-- `UniversalDevAgent._active_thread_id` (func, строка 562)
-- `UniversalDevAgent._list_thread_files` (func, строка 567)
-- `UniversalDevAgent._read_thread_file` (func, строка 575)
-- `UniversalDevAgent._read_document` (func, строка 591)
-- `UniversalDevAgent._extract_document_images` (func, строка 627)
-- `UniversalDevAgent._vision_available` (func, строка 717)
-- `UniversalDevAgent._document_images_dir` (func, строка 725)
-- `UniversalDevAgent._resolve_document_path` (func, строка 741)
-- `UniversalDevAgent._thread_access_slugs` (func, строка 757)
-- `UniversalDevAgent._normalize_orchestrator_arg` (func, строка 775)
-- `UniversalDevAgent._as_bool` (func, строка 793)
-- `UniversalDevAgent._search_in_threads` (func, строка 806)
-- `UniversalDevAgent._list_threads` (func, строка 853)
-- `UniversalDevAgent._read_thread` (func, строка 875)
-- `UniversalDevAgent._list_orchestrators` (func, строка 899)
-- `UniversalDevAgent._get_orchestrator` (func, строка 904)
-- `UniversalDevAgent._create_orchestrator` (func, строка 913)
-- `UniversalDevAgent._update_orchestrator` (func, строка 944)
-- `UniversalDevAgent._delete_orchestrator` (func, строка 956)
-- `UniversalDevAgent._reload_orchestrator` (func, строка 965)
-- `UniversalDevAgent._list_orchestrator_functions` (func, строка 974)
-- `UniversalDevAgent._get_orchestrator_function` (func, строка 981)
-- `UniversalDevAgent._save_orchestrator_function` (func, строка 990)
-- `UniversalDevAgent._delete_orchestrator_function` (func, строка 999)
-- `UniversalDevAgent._list_orchestrator_instructions` (func, строка 1008)
-- `UniversalDevAgent._get_orchestrator_instruction` (func, строка 1015)
-- `UniversalDevAgent._save_orchestrator_instruction` (func, строка 1024)
-- `UniversalDevAgent._delete_orchestrator_instruction` (func, строка 1037)
-- `UniversalDevAgent._list_connections` (func, строка 1048)
-- `UniversalDevAgent._get_connection` (func, строка 1053)
-- `UniversalDevAgent._list_connector_services` (func, строка 1062)
-- `UniversalDevAgent._list_connection_presets` (func, строка 1066)
-- `UniversalDevAgent._create_connection` (func, строка 1078)
-- `UniversalDevAgent._update_connection` (func, строка 1117)
-- `UniversalDevAgent._delete_connection` (func, строка 1129)
-- `UniversalDevAgent._test_connection` (func, строка 1138)
-- `UniversalDevAgent._get_enabled_connections` (func, строка 1160)
-- `UniversalDevAgent._set_enabled_connections` (func, строка 1165)
-- `UniversalDevAgent._personal_scope` (func, строка 1177)
-- `UniversalDevAgent._get_personal_memory` (func, строка 1200)
-- `UniversalDevAgent._set_personal_memory` (func, строка 1218)
-- `UniversalDevAgent._owner_profile_refusal` (func, строка 1266)
-- `UniversalDevAgent._list_personal_memory` (func, строка 1287)
-- `UniversalDevAgent._get_connection_memory` (func, строка 1296)
-- `UniversalDevAgent._set_connection_memory` (func, строка 1302)
+- `load_system_prompt` (func, строка 43)
+- `build_assistant_dict_from_config` (func, строка 71)
+- `build_assistant_dict_from_config._make_assistant` (func, строка 83)
+- `UniversalDevAgent` (class, строка 112)
+- `UniversalDevAgent.__init__` (func, строка 115)
+- `UniversalDevAgent.system_prompt` (func, строка 193)
+- `UniversalDevAgent.tool_catalog` (func, строка 198)
+- `UniversalDevAgent.dispatch` (func, строка 204)
+- `UniversalDevAgent._current_orchestrator_slug` (func, строка 216)
+- `UniversalDevAgent._is_disabled_for_orchestrator` (func, строка 225)
+- `UniversalDevAgent._disabled_tool_error` (func, строка 241)
+- `UniversalDevAgent._dispatch_impl` (func, строка 253)
+- `UniversalDevAgent.attach_orchestrator` (func, строка 303)
+- `UniversalDevAgent._pop_mcp_tools` (func, строка 359)
+- `UniversalDevAgent._attach_connection_tools` (func, строка 370)
+- `UniversalDevAgent._attach_service_family` (func, строка 401)
+- `UniversalDevAgent.attach_orchestrator_catalog` (func, строка 420)
+- `UniversalDevAgent.dispatch_json` (func, строка 439)
+- `UniversalDevAgent._recreate_core_preserving_history` (func, строка 451)
+- `UniversalDevAgent.set_thread_id` (func, строка 476)
+- `UniversalDevAgent._persist_thread_workspace` (func, строка 498)
+- `UniversalDevAgent._sync_binding_after_switch` (func, строка 519)
+- `UniversalDevAgent._set_workspace` (func, строка 525)
+- `UniversalDevAgent._set_target_file` (func, строка 534)
+- `UniversalDevAgent._write_project_map` (func, строка 543)
+- `UniversalDevAgent._write_doc` (func, строка 546)
+- `UniversalDevAgent._read_doc` (func, строка 549)
+- `UniversalDevAgent._snapshot_all` (func, строка 552)
+- `UniversalDevAgent._restore_all` (func, строка 555)
+- `UniversalDevAgent._active_thread_id` (func, строка 561)
+- `UniversalDevAgent._list_thread_files` (func, строка 566)
+- `UniversalDevAgent._read_thread_file` (func, строка 574)
+- `UniversalDevAgent._read_document` (func, строка 590)
+- `UniversalDevAgent._extract_document_images` (func, строка 626)
+- `UniversalDevAgent._vision_available` (func, строка 716)
+- `UniversalDevAgent._document_images_dir` (func, строка 724)
+- `UniversalDevAgent._resolve_document_path` (func, строка 740)
+- `UniversalDevAgent._thread_access_slugs` (func, строка 756)
+- `UniversalDevAgent._normalize_orchestrator_arg` (func, строка 774)
+- `UniversalDevAgent._as_bool` (func, строка 792)
+- `UniversalDevAgent._search_in_threads` (func, строка 805)
+- `UniversalDevAgent._list_threads` (func, строка 852)
+- `UniversalDevAgent._read_thread` (func, строка 874)
+- `UniversalDevAgent._list_connections` (func, строка 898)
+- `UniversalDevAgent._get_connection` (func, строка 903)
+- `UniversalDevAgent._list_connector_services` (func, строка 912)
+- `UniversalDevAgent._list_connection_presets` (func, строка 916)
+- `UniversalDevAgent._create_connection` (func, строка 928)
+- `UniversalDevAgent._update_connection` (func, строка 967)
+- `UniversalDevAgent._delete_connection` (func, строка 979)
+- `UniversalDevAgent._test_connection` (func, строка 988)
+- `UniversalDevAgent._get_enabled_connections` (func, строка 1010)
+- `UniversalDevAgent._set_enabled_connections` (func, строка 1015)
+- `UniversalDevAgent._personal_scope` (func, строка 1027)
+- `UniversalDevAgent._get_personal_memory` (func, строка 1050)
+- `UniversalDevAgent._set_personal_memory` (func, строка 1068)
+- `UniversalDevAgent._owner_profile_refusal` (func, строка 1116)
+- `UniversalDevAgent._list_personal_memory` (func, строка 1137)
+- `UniversalDevAgent._get_connection_memory` (func, строка 1146)
+- `UniversalDevAgent._set_connection_memory` (func, строка 1152)
 
 ### `dev_agent/workspace_binding.py`
 - `_norm_tid` (func, строка 55)
@@ -12714,22 +12913,27 @@
 - `_usage_string` (func, строка 60)
 - `_coerce_numeric_args` (func, строка 85)
 
+### `dev_agent/tools/assistant_drafts.py`
+- `assistant_creation_schema` (func, строка 15)
+- `looks_like_draft` (func, строка 41)
+- `parse_assistant_draft` (func, строка 46)
+- `strip_prompt_fence` (func, строка 80)
+- `build_creation_evaluation` (func, строка 88)
+- `assistant_create_kwargs` (func, строка 111)
+- `assistant_update_kwargs` (func, строка 138)
+- `assistant_update_kwargs.pick` (func, строка 150)
+
 ### `dev_agent/tools/assistants.py`
-- `_assistant_creation_schema` (func, строка 14)
-- `_looks_like_draft` (func, строка 32)
-- `_parse_assistant_draft` (func, строка 37)
-- `_strip_prompt_fence` (func, строка 71)
-- `_build_creation_evaluation` (func, строка 79)
-- `AssistantTools` (class, строка 102)
-- `AssistantTools.list_assistants` (func, строка 105)
-- `AssistantTools.get_assistant_by_id` (func, строка 115)
-- `AssistantTools.update_assistant_by_id` (func, строка 122)
-- `AssistantTools.detect_and_select_assistant` (func, строка 180)
-- `AssistantTools._orchestrator_instruction_text` (func, строка 213)
-- `AssistantTools._request_assistant_draft` (func, строка 229)
-- `AssistantTools._finish_assistant_creation` (func, строка 263)
-- `AssistantTools._create_assistant_with_auto_model` (func, строка 326)
-- `AssistantTools.create_assistant_for_task` (func, строка 356)
+- `AssistantTools` (class, строка 21)
+- `AssistantTools.list_assistants` (func, строка 24)
+- `AssistantTools.get_assistant_by_id` (func, строка 34)
+- `AssistantTools.update_assistant_by_id` (func, строка 41)
+- `AssistantTools.detect_and_select_assistant` (func, строка 98)
+- `AssistantTools._orchestrator_instruction_text` (func, строка 131)
+- `AssistantTools._request_assistant_draft` (func, строка 147)
+- `AssistantTools._finish_assistant_creation` (func, строка 183)
+- `AssistantTools._create_assistant_with_auto_model` (func, строка 242)
+- `AssistantTools.create_assistant_for_task` (func, строка 279)
 
 ### `dev_agent/tools/clock.py`
 - `ClockTools` (class, строка 9)

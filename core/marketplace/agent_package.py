@@ -17,10 +17,11 @@ overwriting a deliberate setting).
 from __future__ import annotations
 
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from core.marketplace import store
 from core.marketplace.installer import InstallError
+from core.naming import apply_meta_names
 
 
 def _read_json(path: str) -> dict:
@@ -44,6 +45,36 @@ def _read_text(path: str) -> str:
         return ""
 
 
+def _read_instructions(folder: str) -> List[dict]:
+    """Return the instructions a package folder carries, in file order.
+
+    Each ``instructions/*.md`` file is one instruction: the front matter gives
+    its id, name and description, the body is the prompt. A file without a
+    body is skipped - an empty instruction would show up as a blank card.
+    """
+    from core.defaults import parse_front_matter
+
+    instructions: List[dict] = []
+    instr_dir = os.path.join(folder, "instructions")
+    if not os.path.isdir(instr_dir):
+        return instructions
+    for fname in sorted(os.listdir(instr_dir)):
+        if not fname.endswith(".md"):
+            continue
+        raw = _read_text(os.path.join(instr_dir, fname))
+        if not raw.strip():
+            continue
+        meta, body = parse_front_matter(raw, default_id=fname[:-3])
+        iid = str(meta.get("id") or fname[:-3])
+        instructions.append({
+            "id": iid,
+            "name": str(meta.get("name") or iid),
+            "description": str(meta.get("description") or ""),
+            "prompt_text": body,
+        })
+    return instructions
+
+
 def _bundle_from_folder(folder: str, slug: str) -> dict:
     """Build the orchestrator import dict from an unpacked agent package.
 
@@ -56,8 +87,6 @@ def _bundle_from_folder(folder: str, slug: str) -> dict:
     Raises :class:`InstallError` when the package carries no system prompt:
     an orchestrator without a prompt would be stored as an empty employee.
     """
-    from core.defaults import parse_front_matter
-
     meta = _read_json(os.path.join(folder, "orchestrator.json"))
     if not meta:
         meta = _read_json(os.path.join(folder, "settings.json"))
@@ -72,23 +101,7 @@ def _bundle_from_folder(folder: str, slug: str) -> dict:
             {"slug": slug},
         )
 
-    instructions: List[dict] = []
-    instr_dir = os.path.join(folder, "instructions")
-    if os.path.isdir(instr_dir):
-        for fname in sorted(os.listdir(instr_dir)):
-            if not fname.endswith(".md"):
-                continue
-            raw = _read_text(os.path.join(instr_dir, fname))
-            if not raw.strip():
-                continue
-            meta_i, body = parse_front_matter(raw, default_id=fname[:-3])
-            iid = str(meta_i.get("id") or fname[:-3])
-            instructions.append({
-                "id": iid,
-                "name": str(meta_i.get("name") or iid),
-                "description": str(meta_i.get("description") or ""),
-                "prompt_text": body,
-            })
+    instructions = _read_instructions(folder)
 
     functions: Dict[str, str] = {}
     func_dir = os.path.join(folder, "functions")
@@ -103,7 +116,6 @@ def _bundle_from_folder(folder: str, slug: str) -> dict:
     bundle: dict = {
         "format": "sagaai_orchestrator/v1",
         "slug": slug,
-        "name": str(meta.get("name") or slug),
         "description": str(meta.get("description") or ""),
         "prompt_text": prompt,
         "config": dict(meta.get("config") or {}),
@@ -111,6 +123,9 @@ def _bundle_from_folder(folder: str, slug: str) -> dict:
         "instructions": instructions,
         "functions": functions,
     }
+    # The four name slots travel separately: a package may carry a bare name
+    # (a user-defined one), a name mapping, or the explicit translation keys.
+    bundle = apply_meta_names(bundle, meta)
     # Only pass the optional fields the package actually declares: omitting
     # them lets the importer apply its own defaults instead of a zero here.
     if isinstance(meta.get("max_steps"), (int, float)):
@@ -156,7 +171,7 @@ def _assistant_bundle_from_folder(folder: str, slug: str) -> dict:
                 files[fname] = content
 
     bundle = {
-        "name": str(meta.get("name") or slug),
+        "name": "",
         "description": str(meta.get("description") or ""),
         "service": str(meta.get("service") or ""),
         "model": str(meta.get("model") or ""),
@@ -167,6 +182,10 @@ def _assistant_bundle_from_folder(folder: str, slug: str) -> dict:
         "reasoning_effort": meta.get("reasoning_effort"),
         "slug": slug,
     }
+    # The manifest may carry a bare name, a name mapping or explicit
+    # translation keys; all four slots are passed on so the importer stores
+    # exactly what the package declared.
+    bundle = apply_meta_names(bundle, meta)
     return {"bundle": bundle, "prompt_text": prompt, "files": files}
 
 
@@ -198,150 +217,6 @@ def _apply_config_defaults(
     }
     bundle["config"] = config
     return bundle
-
-
-def _previous_package_meta(
-    existing: Optional[dict],
-    names: tuple = ("orchestrator.json", "settings.json"),
-) -> dict:
-    """Return the bundle metadata the installed package shipped.
-
-    An update must tell a value the user changed from a value the catalog
-    merely ships differently: without that baseline the only safe choice would
-    be to keep everything and never update a setting. The package of the
-    installed version is cached under its sha256, so the baseline is read from
-    there; an absent cache answers an empty dict, which makes the merge keep
-    the installed values.
-    """
-    package_sha = str((existing or {}).get("package_sha256") or "")
-    if not package_sha:
-        return {}
-    try:
-        package = store.get_cached_package(package_sha)
-    except Exception:
-        return {}
-    if not package:
-        return {}
-    import io
-    import json
-    import tarfile
-
-    try:
-        with tarfile.open(fileobj=io.BytesIO(package), mode="r:gz") as archive:
-            for member in archive.getmembers():
-                if member.name not in names:
-                    continue
-                handle = archive.extractfile(member)
-                if handle is None:
-                    continue
-                data = json.loads(handle.read().decode("utf-8"))
-                if isinstance(data, dict):
-                    return data
-    except Exception:
-        return {}
-    return {}
-
-
-def _previous_package_text(existing: Optional[dict], name: str) -> str:
-    """Return one text member of the installed package, or '' when absent.
-
-    The baseline for "did the user edit this" lives in the cached package of
-    the installed version; an absent cache answers an empty string, which
-    makes the caller keep the installed text.
-    """
-    package_sha = str((existing or {}).get("package_sha256") or "")
-    if not package_sha:
-        return ""
-    try:
-        package = store.get_cached_package(package_sha)
-    except Exception:
-        return ""
-    if not package:
-        return ""
-    import io
-    import tarfile
-
-    try:
-        with tarfile.open(fileobj=io.BytesIO(package), mode="r:gz") as archive:
-            for member in archive.getmembers():
-                if member.name != name:
-                    continue
-                handle = archive.extractfile(member)
-                if handle is not None:
-                    return handle.read().decode("utf-8", errors="replace")
-    except Exception:
-        return ""
-    return ""
-
-
-def _merge_untouched(installed, package, previous):
-    """Return the package value when the user never changed the installed one.
-
-    The scalar counterpart of :func:`_merge_update_config`: a value equal to
-    what the installed package shipped is a value the user left alone, so the
-    update may move it. Any other value is the user's own and stays.
-    """
-    if installed == previous:
-        return package
-    return installed
-
-
-def _merge_update_config(
-    installed: dict,
-    package: dict,
-    previous: dict,
-) -> dict:
-    """Return the config an update writes, keeping what the user changed.
-
-    A key the user never touched takes the value the new package ships; a key
-    the user did change keeps the user's value, because an update refreshes an
-    entity and never overwrites a deliberate setting.
-    """
-    result = dict(installed or {})
-    baseline = previous if isinstance(previous, dict) else {}
-    for key, value in (package or {}).items():
-        if key not in result:
-            result[key] = value
-            continue
-        if result.get(key) == baseline.get(key):
-            # Untouched since the installed version: the catalog may move it.
-            result[key] = value
-    return result
-
-
-def _merge_assistant_payload(
-    payload: dict,
-    installed_row: dict,
-    previous: dict,
-    existing: Optional[dict],
-) -> dict:
-    """Return the helper payload an update writes, keeping user choices.
-
-    A field the user never changed follows the new package, a field they did
-    change stays. The baseline is the manifest of the installed version taken
-    from the package cache; without it every installed value counts as the
-    user's own, which is the safe direction - an update then changes nothing
-    rather than overwriting a deliberate setting.
-    """
-    bundle = dict(payload.get("bundle") or {})
-    for key in (
-        "name", "description", "service", "model", "temperature",
-        "max_tool_calls", "max_tokens", "reasoning_effort",
-    ):
-        bundle[key] = _merge_untouched(
-            installed_row.get(key), bundle.get(key), previous.get(key)
-        )
-    bundle["tools"] = _merge_untouched(
-        list(installed_row.get("tools") or []),
-        list(bundle.get("tools") or []),
-        list(previous.get("tools") or []),
-    )
-    previous_prompt = _previous_package_text(existing, "prompt.md")
-    installed_prompt = str(installed_row.get("text") or "")
-    if installed_prompt.strip() and installed_prompt != previous_prompt:
-        payload["prompt_text"] = installed_prompt
-    payload["bundle"] = bundle
-    return payload
 
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.

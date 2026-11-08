@@ -31,6 +31,9 @@ ASSISTANT_SCHEMA = {
     "type": "object",
     "properties": {
         "name": {"type": "string"},
+        "name_en": {"type": "string"},
+        "name_ru": {"type": "string"},
+        "name_zh": {"type": "string"},
         "description": {"type": "string"},
         "prompt": {"type": "string"},
     },

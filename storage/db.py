@@ -268,6 +268,18 @@ _THREAD_EXTRA_INDEXES = [
 _ASSISTANT_EXTRA_COLUMNS = [
     ("slug", "VARCHAR(64)"),
     ("reasoning_effort", "VARCHAR(32)"),
+    ("name_en", "VARCHAR(256)"),
+    ("name_ru", "VARCHAR(256)"),
+    ("name_zh", "VARCHAR(256)"),
+]
+
+# Columns added to the orchestrators table in newer builds: the three
+# localized name slots. Nullable on purpose - NULL means "no translation",
+# which is how every orchestrator created before localization reads.
+_ORCHESTRATOR_EXTRA_COLUMNS = [
+    ("name_en", "VARCHAR(256)"),
+    ("name_ru", "VARCHAR(256)"),
+    ("name_zh", "VARCHAR(256)"),
 ]
 
 # Legacy thread column names (old "skill" terminology) that are renamed
@@ -346,6 +358,30 @@ def _ensure_assistant_columns(engine) -> None:
     with _begin(engine) as conn:
         for name, decl in missing:
             conn.execute(text(f"ALTER TABLE assistants ADD COLUMN {name} {decl}"))
+
+
+def _ensure_orchestrator_columns(engine) -> None:
+    """Add missing nullable ``orchestrators`` columns without dropping data.
+
+    The three localized name slots arrived after the orchestrator table
+    itself, so they are added in place. SQLite supports adding nullable
+    columns, which keeps every existing row - and every user-defined name -
+    exactly as it was.
+    """
+    insp = inspect(engine)
+    table_name = "orchestrators"
+    if table_name not in set(insp.get_table_names()):
+        return  # Table will be created by Base.metadata.create_all().
+
+    existing = {col["name"] for col in insp.get_columns(table_name)}
+    missing = [(name, decl) for name, decl in _ORCHESTRATOR_EXTRA_COLUMNS
+               if name not in existing]
+    if not missing:
+        return
+
+    with _begin(engine) as conn:
+        for name, decl in missing:
+            conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {name} {decl}"))
 
 
 def _migrate_thread_skill_columns(engine) -> None:

@@ -456,25 +456,27 @@ def _clear_bundle_cache() -> None:
         st.session_state.pop(key, None)
 
 
-def _bundle_plan(entity_id: str, entity: dict) -> dict:
+def _bundle_plan(entity_id: str, entity: dict, lang: str) -> dict:
     """Return the recommended-package plan of a card, cached per card.
 
     Building the plan reads one manifest per member, so a page re-render
     (every button click) must not repeat it. The cache lives until an
-    install or a catalog refresh invalidates it.
+    install or a catalog refresh invalidates it; the language is part of
+    the cached value, because the member names are resolved for it.
     """
     key = _bundle_cache_key(entity_id)
     cached = st.session_state.get(key)
-    if isinstance(cached, dict):
+    if isinstance(cached, dict) and cached.get("lang") == lang:
         return cached
     try:
-        plan_data = marketplace_bundles.plan(entity)
+        plan_data = marketplace_bundles.plan(entity, lang=lang)
     except Exception as exc:  # pragma: no cover - transport failure
         plan_data = {
             "ok": False,
             "items": [],
             "message": str(getattr(exc, "message", exc)),
         }
+    plan_data["lang"] = lang
     st.session_state[key] = plan_data
     return plan_data
 
@@ -515,7 +517,7 @@ def _render_bundle(view: dict, lang: str) -> list:
     empty = {"members": [], "accepted": True, "size": 0}
     if not entity_id:
         return empty
-    plan_data = _bundle_plan(entity_id, entity)
+    plan_data = _bundle_plan(entity_id, entity, lang)
     items = list(plan_data.get("items") or [])
     if not items:
         return empty

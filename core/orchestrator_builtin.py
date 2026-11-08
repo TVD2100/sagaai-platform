@@ -11,6 +11,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 from core.config import get_default_strong_max_tokens
+from core.naming import DEVAGENT_NAME_FIELDS
 from core.orchestrator_defaults import (
     DEFAULT_WEB_SEARCH_PROMPT,
     DEVAGENT_SLUG,
@@ -138,7 +139,7 @@ def _create_builtin_orchestrator(prompt_text: str) -> Dict[str, str]:
     ok = repo_create_orchestrator(
         orchestrator_id=uuid.uuid4().hex[:8],
         slug=DEVAGENT_SLUG,
-        name="DevAgent",
+        name="",
         description="Universal developer orchestrator - creates, debugs and maintains software projects.",
         prompt_text=prompt_text,
         config=config,
@@ -147,6 +148,7 @@ def _create_builtin_orchestrator(prompt_text: str) -> Dict[str, str]:
         auto_apply=True,
         is_builtin=True,
         sort_order=200,  # after user orchestrators
+        **DEVAGENT_NAME_FIELDS,
     )
     if ok:
         # Write the fresh bundle (orchestrator.json) with current defaults
@@ -164,29 +166,9 @@ def _backfill_builtin_config(config: Dict[str, Any]) -> bool:
     are never overwritten: a field is filled only while it is missing, empty,
     or holds the sentinel that means "unset" for that particular key.
     """
-    config_defaults = {
-        "strong_service": "DeepSeek",
-        "strong_model": "deepseek-flash",
-        "strong_temperature": 0.4,
-        "strong_max_tokens": get_default_strong_max_tokens(),
-        "strong_reasoning_effort": "xhigh",
-        "vision_service": "DeepSeek",
-        "vision_model": "deepseek-flash",
-        "image_service": "",
-        "image_model": "",
-        "search_service": "DeepSeek",
-        "search_model": "deepseek-flash",
-        "search_temperature": 0.4,
-        "search_max_tool_calls": 3,
-        "search_reasoning_effort": "high",
-        "web_search_prompt": DEFAULT_WEB_SEARCH_PROMPT,
-        "fetch_service": "",
-        "fetch_model": "",
-        "fetch_selenium": False,
-        "economy_tail_messages": _default_economy_tail_messages(),
-        "economy_cache_enabled": _default_economy_cache_enabled(),
-        "economy_cache_multiplier": _default_economy_cache_multiplier(),
-    }
+    from core.builtin_config_defaults import builtin_config_defaults
+
+    config_defaults = builtin_config_defaults()
 
     backfilled = False
 
@@ -278,11 +260,22 @@ def ensure_builtin_orchestrators() -> Dict[str, str]:
     if migrate_max_steps:
         backfilled = True
 
+    # Localized names: a record created before translations existed carries the
+    # shipped name in the user-defined slot. That string was never the owner's
+    # choice, so it moves into a translation and the user-defined slot is
+    # cleared - the interface then follows its language. A renamed DevAgent is
+    # recognised as not shipped and keeps its name.
+    from core.naming_backfill import builtin_name_backfill
+
+    name_fields = builtin_name_backfill(existing, DEVAGENT_SLUG)
+
     update_kwargs: Dict[str, Any] = {}
     if backfilled:
         update_kwargs["config"] = config
     if migrate_max_steps:
         update_kwargs["max_steps"] = DEFAULT_MAX_STEPS
+    if name_fields:
+        update_kwargs.update(name_fields)
     # Honour a user-edited system prompt: while the prompt_user_edited marker is
     # set, keep the stored text instead of overwriting it with the bundled
     # dev_agent/system_prompt.md. The shipped prompt is re-applied (and the
