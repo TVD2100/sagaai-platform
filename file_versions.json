@@ -1,15 +1,15 @@
 {
   "schema": 1,
-  "app_version": "2.44.0",
+  "app_version": "2.44.1",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Многоязычные названия агентов и помощников: у каждой сущности четыре слота имени - пользовательское и переводы en/ru/zh-CN. Интерфейс показывает пользовательское имя в любом языке, а при пустом слоте подставляет перевод по языку интерфейса, затем английский. Слоты хранятся в БД (миграция 0011), в orchestrator.json и manifest.json, переносятся через каталог маркетплейса и учитываются при установке, обновлении и удалении. Дефолтные сотрудники и помощники получили переводы, уже установленные - заполняются автоматически. Обновление из каталога больше не перезаписывает пользовательское имя.Формы создания и правки получили блок «Названия» из четырёх полей, а инструкции Employee Creator и Assistant Creator объясняют правила выбора слотов.",
-    "en": "Multilingual names for agents and assistants: every entity carries four name slots - the user-defined name plus en/ru/zh-CN translations. The interface shows the user name in any language and, when that slot is empty, falls back to the interface language and then to English. The slots live in the database (migration 0011), in orchestrator.json and manifest.json, travel through the marketplace catalog and are honoured on install, update and removal. Built-in agents and assistants ship translations, and already-installed ones are backfilled. A catalog update no longer overwrites the user-defined name. The creation and edit forms gained a four-field Names block, and the Employee Creator and Assistant Creator instructions explain how to choose the slots."
+    "ru": "Установка агента из каталога: сотрудник без модельных ключей запускается на платформенной модели вместо блокировки на странице чата, переводы имени из карточки доезжают до слотов, а пакет установленной версии закрепляется в кэше, чтобы обновление через месяц не оказалось пустым.",
+    "en": "Catalog agent install: an employee without model keys runs on the platform model instead of being blocked on the chat page, catalog name translations reach the slots, and the installed package stays pinned in the cache so an update months later is not empty."
   },
   "updated": "2026-11-08",
   "units": {
     "core": {
-      "version": "1.86.0",
+      "version": "1.87.0",
       "note": {
         "ru": "Пакет: единый резолвер названий (core/naming.py) с четырьмя слотами имени, хранение name_en/name_ru/name_zh и миграция 0011, зеркала в orchestrator.json/manifest.json, каталог маркетплейса и установка агентов через модуль слияния agent_merge, блок «Названия» в формах и заполнение пустых слотов у установленных сущностей.",
         "en": "Package: one name resolver (core/naming.py) over four name slots, name_en/name_ru/name_zh storage with migration 0011, mirrors in orchestrator.json/manifest.json, the marketplace catalog and agent installation through the agent_merge module, the Names block in the forms and the backfill of empty slots on installed entities."
@@ -276,11 +276,11 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.76.0",
-          "sha256": "0e293a324803051219ebed4c66d455a65683ad2c2e956c4ed019b61118a371b5",
+          "version": "1.77.0",
+          "sha256": "4598d4b00857fcab7c5951ab4834f39c65c92749d1383c26bcbc9351cffaffa1",
           "note": {
-            "ru": "Релиз 2.41.0: подпись Ed25519 для обновлений и маркетплейса.",
-            "en": "Release 2.41.0: Ed25519 signatures for updates and the marketplace."
+            "ru": "Релиз 2.44.1: установка агента получает модельный базис, переводы имён из карточки и закреплённый кэш пакета.",
+            "en": "Release 2.44.1: an installed agent gets the model basis, catalog name translations and a pinned package cache."
           }
         },
         "dev_agent/__init__.py": {
@@ -368,11 +368,11 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.12.3",
-          "sha256": "f5f3d8b79ab2763b9bba208be92013aa7bc1faf1667fab0227290b220703a6a5",
+          "version": "1.12.5",
+          "sha256": "64637d0dd034eba5f665ad6133c0e41745e4c1fb9cc2fe557f68029fe4c8689a",
           "note": {
-            "ru": "Описания модулей подписи Ed25519 и конвейера обновлений в карте проекта.",
-            "en": "Descriptions of the Ed25519 signing modules and the update pipeline in the project map."
+            "ru": "Описания установки агента из каталога, резолвера основной модели и закрепления кэша пакета.",
+            "en": "Descriptions of the catalog agent install, the strong-model resolver and the package-cache pin."
           }
         },
         "scripts/verify_manifest.py": {
@@ -1730,8 +1730,8 @@
           }
         },
         "core/marketplace/store.py": {
-          "version": "1.0.1",
-          "sha256": "77504416b1c43fc10831e8b6be7474ebf0e25235798c7f7553cfbd46f8e0b5d6",
+          "version": "1.1.0",
+          "sha256": "f6863d3d5a936406148952de3c02cbf6175dac0b6d7ca2d8f49d1f6495ddeb2e",
           "note": {
             "ru": "Хранилище маркетплейса: каталог данных, бэкапы, журнал и кэш пакета.",
             "en": "Marketplace storage: data directory, backups, journal and package cache."
@@ -2878,8 +2878,8 @@
           "sha256": "9b2a31edbb3a03a93095933acb949a0f9a5e519b30814383a4ba45433f615b78"
         },
         "core/marketplace/agent_orchestrator.py": {
-          "version": "1.1.0",
-          "sha256": "925a5f7a1e94fb620cf3410726a3143b8e737055b0db6dd86e787576af2c419f"
+          "version": "1.2.0",
+          "sha256": "48ca374c601b6bd8b01f9e336737be0705a23e9fe3a6b77ee306b62c9b848161"
         },
         "core/marketplace/agent_package.py": {
           "version": "1.1.0",
@@ -2890,8 +2890,8 @@
           "sha256": "c18e4c02c380dc3c6a349be3ddeaa386fc4720774c3afcc4fb056af7e18ebe97"
         },
         "core/marketplace/agent_run.py": {
-          "version": "1.0.0",
-          "sha256": "b4902ff656bc2fc58ac2e564b30a2c895f2e8e1bd8562eea1552e372fa7465ba"
+          "version": "1.1.0",
+          "sha256": "68524a1e442e770a994794ca38d66e1c6033dfbf4db460650a31e1cb813dc7fc"
         },
         "core/marketplace/conflict_fork.py": {
           "version": "1.0.0",
@@ -2986,8 +2986,8 @@
           "sha256": "1ebf360acdbf73a2ae16a7ca57bdd1daaf0cb37ccb50e98742786627eb05ea5c"
         },
         "ui/pages/orchestrator_chat.py": {
-          "version": "1.0.0",
-          "sha256": "ec532e5b1734ba7a03ea0183f5507808c489bb75854095d9f4b5b51fb40adcde"
+          "version": "1.0.1",
+          "sha256": "ea6c536e0040958f852a1396cc6114201d0438685360eabb9c651cd7013c67b0"
         },
         "ui/pages/orchestrator_chat_input.py": {
           "version": "1.1.0",
@@ -3026,8 +3026,8 @@
           "sha256": "ee572df28cdaa9f8e0c06a791c0644fda94d02cefad5928e6ca091c9c2bcd06e"
         },
         "core/orchestrator_prompt.py": {
-          "version": "1.1.0",
-          "sha256": "bcb2f5aef6d64f3295b31946685f3ee4b3ed2bdbb6f0a7ba57b3dac852f081cc"
+          "version": "1.1.1",
+          "sha256": "0f3325a3e99ffa9e981f9e727751bc359e6cb4c08d429241799a0d6a39b56fe6"
         },
         "core/orchestrator_models.py": {
           "version": "1.0.0",
@@ -3356,17 +3356,49 @@
         "ui/pages/orchestrator_settings_other.py": {
           "version": "1.0.0",
           "sha256": "c50cfeb1043d08e93e959c2ce50a2400e1bd27dba6e7b3a6bc49d04447256e90"
+        },
+        "core/marketplace/install_seed.py": {
+          "version": "1.0.0",
+          "sha256": "380a6c40618cc6a0ef140a397099c64e1f4a7c005c7b99510d2ccb8a5078eb26"
+        },
+        "core/marketplace/package_pin.py": {
+          "version": "1.0.0",
+          "sha256": "77079cbd9015cceeb6e47bfa233c281a1a19e5d89c45895ae3e9fb8e3c92b73a"
+        },
+        "core/orchestrator_strong.py": {
+          "version": "1.0.0",
+          "sha256": "3a7454b8353f0196d3eae71a60211b448aecdee8136466bf3f10685685a5c0b4"
+        },
+        "tests/scenarios/test_marketplace_agent_install_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "0304eacb959d108691d3be4265ad4d5e392305b72707cd88f6074bd6d9760c04"
+        },
+        "tests/test_chat_key_gate_resolution.py": {
+          "version": "1.0.0",
+          "sha256": "b14cc72c9a3014a69daab7c4002b8439631dba544f64cdef2f2a0629c7709fb7"
+        },
+        "tests/test_marketplace_agent_seed.py": {
+          "version": "1.0.0",
+          "sha256": "a37f2b723f24d715d1fb0037415b2a409470ceb6ecfd5a881ce0564e104a88ba"
+        },
+        "tests/test_marketplace_package_pin.py": {
+          "version": "1.0.0",
+          "sha256": "d4efd465ae77a643f03eb67ce8ec1fecee2c86ff52685ff63534915d0ec80f81"
+        },
+        "tests/test_orchestrator_strong_model.py": {
+          "version": "1.0.0",
+          "sha256": "aa154d57133b941ba33ca39ed7a5fa47043f977004d87cabdc1063ba4fd1b4c9"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.77.1",
-      "sha256": "52f54d8711df2a94ddc7350d0e4f5d56f2e05e1c9f62b8a98728b1e6d6907f33",
+      "version": "1.77.3",
+      "sha256": "f6b867a12c47eff54dc314e33b316d357a7a713c4dd65c80e01082a5578db172",
       "note": {
-        "ru": "Карта компонентов: модули резолва названий.",
-        "en": "Component map: the name resolver modules."
+        "ru": "Карта компонентов: модельный базис установки агента и кэш пакета как база обновления.",
+        "en": "Component map: the install-time model basis and the package cache as the update baseline."
       }
     },
     "LICENSE": {
@@ -3378,19 +3410,19 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.78.1",
-      "sha256": "f4ee1f88d8130e9edb46b5738669af590e8fd4be091ca018939f925d60d7160c",
+      "version": "1.78.2",
+      "sha256": "839d77bf98cb995d88ca1e75060135a56f024f903bc3c822b68fbc030b86a4f9",
       "note": {
-        "ru": "Регенерация: SECURITY.md и публичный ключ доверия в карте проекта.",
-        "en": "Regenerated: SECURITY.md and the public trust anchor in the project map."
+        "ru": "Регенерация: модельный базис установки агента, переводы имён из карточки и закрепление кэша пакета.",
+        "en": "Regenerated: the install-time model basis, catalog name translations and the pinned package cache."
       }
     },
     "README.md": {
-      "version": "1.62.1",
-      "sha256": "f75e0d827b451cedd3e9eaa408012f502f384d0cd12b8564f0bbe5588914c3d8",
+      "version": "1.62.2",
+      "sha256": "581c93e9c2e2d31c4b27a01a372278c3a3a674dd6767b5c8df43ce0683a71b5f",
       "note": {
-        "ru": "Строка статуса версии обновлена до 2.42.1.",
-        "en": "The version status line is updated to 2.42.1."
+        "ru": "Строка статуса версии обновлена до 2.44.1.",
+        "en": "The version status line is updated to 2.44.1."
       }
     },
     "defaults/README.md": {
@@ -3802,11 +3834,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.53.1",
-      "sha256": "47ef2ed10985643214895cad57c4da7cfa5f2d7a39a1fa387b498779729a0f30",
+      "version": "1.53.2",
+      "sha256": "41a2ca6e0254861f5a9af9b63a6f3fa9577823b58119e8dcc88c08925847fbe2",
       "note": {
-        "ru": "Требования: четыре слота названия сущности и правила их резолва.",
-        "en": "Requirements: four entity name slots and their resolution rules."
+        "ru": "Требования: модельный базис установки агента, единый резолвер основной модели и переводы имён из карточки.",
+        "en": "Requirements: the install-time model basis, one strong-model resolver and catalog name translations."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/connector_creator.md": {

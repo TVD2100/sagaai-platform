@@ -17,6 +17,7 @@ from core.orchestrator_defaults import (
 )
 from core.orchestrator_links import get_orchestrator_rag_bases
 from core.orchestrator_shared import late
+from core.orchestrator_strong import strong_pair
 from core.prompt_blocks import (
     DIALOG_RULES_CHILD,
     DIALOG_RULES_PARENT,
@@ -757,8 +758,7 @@ def build_assistant_dicts_impl(orchestrator_slug: str = DEVAGENT_SLUG,
     # until the date rolls over.
     prompt = _extend_prompt_with_current_date(prompt, orchestrator_slug)
 
-    strong_svc = cfg.get("strong_service", "") or cfg.get("service", "DeepSeek")
-    strong_mdl = cfg.get("strong_model", "") or cfg.get("model", "deepseek-flash")
+    strong_svc, strong_mdl = strong_pair(cfg)
     strong_temp = float(cfg.get("strong_temperature", 0.2) or 0.2)
     strong_max_tokens = int(cfg.get("strong_max_tokens", 0) or 0)
 

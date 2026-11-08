@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional
 
 from core.marketplace import registry, rollback, store
-from core.marketplace.installer import InstallError
+from core.marketplace.package_pin import previous_package_sha, refresh_package_pin
 
 
 def open_agent_run(
@@ -81,21 +81,10 @@ def write_agent_run_meta(
     store.write_run_meta(install_id, meta)
 
 
-def register_agent(
-    *,
-    entity: dict,
-    entity_id: str,
-    slug: str,
-    version: str,
-    channel: str,
-    package_sha: str,
-    files_now: Dict[str, str],
-    skipped_code: List[str],
-    install_id: str,
-    license_at: Optional[str],
-    agent_kind: str,
-    runtime_db_id: Optional[str],
-) -> str:
+def register_agent(*, entity: dict, entity_id: str, slug: str, version: str, channel: str,
+                   package_sha: str, files_now: Dict[str, str], skipped_code: List[str],
+                   install_id: str, license_at: Optional[str], agent_kind: str,
+                   runtime_db_id: Optional[str]) -> str:
     """Write the registry row of an agent and return its tree hash.
 
     This call is the commit marker of the run: everything before it can be
@@ -105,6 +94,7 @@ def register_agent(
     """
     tree = registry.manifest_sha256(files_now)
     now = store.isoformat_utc()
+    previous_sha = previous_package_sha(entity_id)
     registry.upsert_installed(
         {
             "type": "agent",
@@ -133,6 +123,7 @@ def register_agent(
             "agent_kind": agent_kind,
         }
     )
+    refresh_package_pin(package_sha, previous_sha)
     return tree
 
 
@@ -164,19 +155,6 @@ def commit_agent_run(
     except Exception:
         pass
     registry.export_registry_cache()
-
-
-def report_agent_import_failure(imported: dict, entity_id: str) -> str:
-    """Raise the importer refusal as an install error and return nothing.
-
-    Split out so both installers name the same code and message; the
-    orchestrator and the helper differ only in the fallback text.
-    """
-    raise InstallError(
-        "import_failed",
-        str(imported.get("error") or "The importer refused the bundle"),
-        {"id": entity_id},
-    )
 
 
 def fail_agent_run(install_id: str, slug: str, exc: Exception, agent_kind: str = "") -> None:

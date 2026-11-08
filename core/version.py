@@ -720,7 +720,17 @@
 # Shipped employees and assistants carry translations, and already-installed
 # ones are backfilled by slug.
 
-__version__ = "2.44.0"
+# 2.44.1 fixes how agents arrive from the catalog. A package that names no
+# model now gets the platform basis at install time - the same provider the
+# runtime already falls back to - so the chat page opens the agent instead of
+# blocking it on a key nobody was asked for; one resolver answers "which
+# provider does this agent run on" for both the page and the runtime. Name
+# translations from the catalog card reach the installed slots while an
+# author's own name is kept as given. The package of the installed version
+# stays cached as the update baseline, so an update months later still knows
+# what the user changed.
+
+__version__ = "2.44.1"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

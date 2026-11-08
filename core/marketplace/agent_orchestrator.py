@@ -23,10 +23,7 @@ from core.marketplace.agent_areas import (
     _remove_stale_area_files,
 )
 from core.marketplace.agent_merge import _merge_orchestrator_update
-from core.marketplace.agent_package import (
-    _apply_config_defaults,
-    _bundle_from_folder,
-)
+from core.marketplace.agent_package import _bundle_from_folder
 from core.marketplace.agent_preflight import _resolve_slug
 from core.marketplace.agent_run import (
     commit_agent_run,
@@ -35,6 +32,7 @@ from core.marketplace.agent_run import (
     register_agent,
     write_agent_run_meta,
 )
+from core.marketplace.install_seed import prepare_install_bundle
 from core.marketplace.installer import InstallError
 
 
@@ -220,7 +218,7 @@ def _install_orchestrator(
             bundle = _bundle_from_folder(unpack_dir, slug)
             if existing is not None and folder_exists:
                 bundle = _merge_orchestrator_update(bundle, existing, slug)
-            bundle = _apply_config_defaults(bundle, entity, entity_id, version, channel)
+            bundle = prepare_install_bundle(bundle, entity, entity_id, version, channel)
 
             imported = _import_orchestrator_bundle(bundle, slug, entity_id)
             from core.orchestrators import get_orchestrator

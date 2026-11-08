@@ -7,7 +7,7 @@ facade (``ui.pages.orchestrator``) is resolved late, at call time, so a
 patch installed on the facade reaches the implementation here.
 """
 
-from core.orchestrators import DEVAGENT_SLUG
+from core.orchestrator_strong import DEVAGENT_SLUG, resolve_strong_service
 from core.render import (
     _md_to_txt,
     clipboard_button,
@@ -126,7 +126,7 @@ def _render_chat_header(orch, orch_name: str, lang: str) -> bool:
     orch_cfg = orch.get("config", {}) if orch else {}
     if not isinstance(orch_cfg, dict):
         orch_cfg = {}
-    strong_svc = orch_cfg.get("strong_service", "")
+    strong_svc = resolve_strong_service(orch_cfg)
     if not strong_svc or not _assistant_has_api_key(strong_svc):
         st.warning(t("orch_no_api_key", lang=lang))
         return False

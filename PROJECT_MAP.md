@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-08T05:58:04+00:00`
-- Файлов: **826**
+- Обновлено: `2026-11-08T11:10:15+00:00`
+- Файлов: **834**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **10987**
-- Отпечаток содержимого: `sha256:d181e53307c16916132ea802e2d4cf360b3af2693abd6b4aa8dec8f6d62d25c3` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 2, JSON: 36, Markdown: 42, PEM certificate: 2, Python: 744, TOML: 2, Text: 2
+- Python-символов: **11058**
+- Отпечаток содержимого: `sha256:b3ba9a62a6d2226fe811345f5ad8ea161a8baf5dca47ab9d3a338115b54204c7` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 2, JSON: 36, Markdown: 42, PEM certificate: 2, Python: 752, TOML: 2, Text: 2
 
 ## Файлы и назначение
 
@@ -41,7 +41,7 @@
 | `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | ui |
 | `ui/pages/marketplace.py` | Python | Marketplace page: showcase with search, the entity card (licence, required tools, platform range), install, the three conflict resolutions, reset to catalog and uninstall with an inline confirmation | ui |
 | `ui/pages/orchestrator.py` | Python | Facade of the orchestrator page: holds the import block (including the re-exports of orchestrator_text that the page and the tests resolve), thin wrappers over the late-bound names and the two entry points page_orchestrator/page_devagent; every body lives in the orchestrator_* modules below | storage, ui |
-| `ui/pages/orchestrator_chat.py` | Python | Chat tab of the orchestrator page: the reading sequence over the section helpers, the confirmation dialogs and the message controls | ui |
+| `ui/pages/orchestrator_chat.py` | Python | Chat tab of the orchestrator page: the reading sequence over the section helpers, the confirmation dialogs and the message controls; the header gate asks resolve_strong_model which provider the employee actually runs on instead of reading the raw config | ui |
 | `ui/pages/orchestrator_chat_input.py` | Python | Chat input area: the toolbar, attachment collection and the token/economy line under the prompt | ui |
 | `ui/pages/orchestrator_feed.py` | Python | Event feed of the chat page: the _EVENT_RENDERERS table, tool call and tool result rendering, the run grouping and the per-message controls | ui |
 | `ui/pages/orchestrator_flags.py` | Python | Settings flags of the orchestrator: safety mode, injection protection, the sandbox switch and the profile a run executes under (off when the switch is cleared) | - |
@@ -137,15 +137,16 @@
 | `core/orchestrator_import_files.py` | Python | Folder files of an orchestrator import: reading instructions and functions from a bundle, validating their names and writing them into the target folder before the database row is created | - |
 | `core/orchestrator_instr.py` | Python | Instructions and custom functions of an orchestrator: the listing, reading, saving and deleting that the settings tabs and the prompt block both use | - |
 | `core/orchestrator_links.py` | Python | Links of an orchestrator to other entities: the enabled skills, instructions, connections, RAG bases and the delegation rights with their limits and the available-agents resolution | - |
-| `core/orchestrator_models.py` | Python | Model selection of an orchestrator: the strong model and the economy tail, the web-search and fetch configs with their fallbacks, and the model list offered to the settings page | - |
+| `core/orchestrator_models.py` | Python | Model selection of an orchestrator: get_strong_model reads the configured pair, the economy tail, the web-search and fetch configs with their fallbacks, and the model list offered to the settings page; which provider and model an employee actually runs on is answered by resolve_strong_model in orchestrator_strong | - |
 | `core/orchestrator_nav.py` | Python | _(описание не задано)_ | - |
-| `core/orchestrator_prompt.py` | Python | System prompt assembly: build_assistant_dicts and the _extend_prompt_with_* blocks for skills, instructions, the owner card, memory, connections, RAG bases, delegation and the tool catalog | - |
+| `core/orchestrator_prompt.py` | Python | System prompt assembly: build_assistant_dicts and the _extend_prompt_with_* blocks for skills, instructions, the owner card, memory, connections, RAG bases, delegation and the tool catalog; the model the assistant runs on comes from resolve_strong_model | - |
 | `core/orchestrator_reload.py` | Python | Reloading an orchestrator from its personal folder: hand-made edits of orchestrator.json, the prompt and instructions become visible to a running employee | storage |
 | `core/orchestrator_shared.py` | Python | Late-binding layer of the orchestrator API: late(name) resolves a patchable global on the facade at call time, and bind_facade binds the layer to the facade object so a second live copy of the package does not intercept the patch | - |
 | `core/orchestrator_step.py` | Python | Writing one agent step into its thread: messages_to_persist cutting the history by the saved cursor (a cursor past the end yields nothing), message_row as the single mapping of history keys to store fields, and persist_step_messages returning the new cursor so a rerun duplicates nothing | - |
 | `core/orchestrator_store.py` | Python | Reading and writing an orchestrator: CRUD over the database, the folder mirror of orchestrator.json with its prompt file, and the folder sync that keeps the two sides equal | storage |
+| `core/orchestrator_strong.py` | Python | Which provider and model an employee runs on: resolve_strong_model answers with the configured strong pair, then the legacy service/model keys, then the platform default held by DEFAULT_STRONG_SERVICE/DEFAULT_STRONG_MODEL; the answer is never empty, so an employee shipped without model settings starts on the platform default instead of being blocked, and the chat page gate and the prompt assembly both ask this resolver rather than the raw config | - |
 | `core/orchestrator_tools.py` | Python | Tool catalog for orchestrators: core + workspace + delegation + connection + custom functions, the English '## Available tools' prompt block and the system-functions list; spawn_agent and answer_child are offered to the parent, ask_parent only in the child catalog, invoke_assistant only with a non-empty assistant allowlist, and disabled_tools stays a plain blacklist | - |
-| `core/orchestrator_transfer.py` | Python | Export and import of an orchestrator: the bundle layout with the prompt and instructions, the folder reader and writer, and the validation of an imported bundle | storage |
+| `core/orchestrator_transfer.py` | Python | _(описание не задано)_ | storage |
 | `core/orchestrators.py` | Python | Facade of the orchestrator API: holds the import block (including the re-exports the production modules and 71 test files import by the old path), thin <name>_impl wrappers, the aliases and the public __all__ | storage |
 | `core/paths.py` | Python | Central path registry: DATA_DIR, DB_PATH, personal memory folder, AGENTS_DATA_DIR (the central root of the orchestrators' working folders) and ensure_data_dirs for the runtime layout | - |
 | `core/personal_memory.py` | Python | Personal memory layer: scopes user / orchestrator:<slug> / project:<hash12> / connector:<id> (adapter), 64 KiB per-scope limit, atomic write with updated_at/updated_by/revision header, ten recoverable versions under personal/.backups, credential screening, caller-based write rights, archive on employee deletion, owner-card rendering | - |
@@ -182,10 +183,10 @@
 | `core/marketplace/agent_assistant.py` | Python | Installing the assistant kind of an agent: folder with manifest.json, prompt.md and text attachments plus a row in the assistants table; a user-added attachment survives an update and an edited prompt is never overwritten by the catalog | - |
 | `core/marketplace/agent_installer.py` | Python | Facade of an agent install: the package is downloaded, hash-verified and unpacked into staging, the pre-flight checks run, the orchestrator or assistant area is written, the DB row is created and a failure rolls the run back; the areas themselves live in agent_orchestrator.py and agent_assistant.py, the checks in agent_preflight.py | - |
 | `core/marketplace/agent_merge.py` | Python | Which installed values an update may move: the untouched/edited comparison against the manifest of the installed package, the merge of an orchestrator update and of an assistant payload, and the baseline readers over the cached package | - |
-| `core/marketplace/agent_orchestrator.py` | Python | Installing the orchestrator kind of an agent: config_defaults merged into the bundle config before the import, instruction files and custom functions written, then the folder imported as an employee | - |
-| `core/marketplace/agent_package.py` | Python | Kind of an agent package and its parsing: orchestrator or assistant plus the files each kind installs, read before anything is written so a package declaring another kind than the installed one is refused instead of half-applied | - |
+| `core/marketplace/agent_orchestrator.py` | Python | Installing the orchestrator kind of an agent: config_defaults merged into the bundle config, the platform model basis and the catalog name translations applied, then instruction files and custom functions written and the folder imported as an employee | - |
+| `core/marketplace/agent_package.py` | Python | Kind of an agent package and its parsing: orchestrator or assistant plus the files each kind installs, read before anything is written so a package declaring another kind than the installed one is refused instead of half-applied; _apply_config_defaults merges the catalog defaults into the bundle config | - |
 | `core/marketplace/agent_preflight.py` | Python | Pre-flight checks of an agent install: the kind, the platform range, the licence and the executable-code gate, all decided before the first file changes | - |
-| `core/marketplace/agent_run.py` | Python | Run bookkeeping of an agent install: the journal entry written before any change, the registry row and the journal marked done or failed, so an interrupted run can be rolled back on the next cold start | - |
+| `core/marketplace/agent_run.py` | Python | Run bookkeeping of an agent install: the journal entry written before any change, the registry row and the journal marked done or failed, so an interrupted run can be rolled back on the next cold start; the commit refreshes the package pin through package_pin | - |
 | `core/marketplace/attest.py` | Python | Signature policy of the marketplace: trust anchors read from the installation (marketplace.signature_keyring, SAGAII_SIGNATURE_KEYRING), verify_signature over the bytes a manifest arrived as, check_manifest for the transport and install_gate that refuses an unsigned entity before its package is downloaded | - |
 | `core/marketplace/bootstrap.py` | Python | Marketplace cold start: recover undoes a run interrupted by a crash and the one-time seeding of registry rows for skills installed before the marketplace existed; never touches the network | - |
 | `core/marketplace/bundle_catalog.py` | Python | The bundle view of the catalog: the recommended package of an entity read from the catalog lists, its members resolved to installable entries and the states a card shows | - |
@@ -195,10 +196,12 @@
 | `core/marketplace/conflict_fork.py` | Python | The fork resolution and its reverse action: the edited folder is copied to a new id and folder name while the original is brought to the catalog, and restore_user_version puts the backed-up files of a take_catalog run back in place | - |
 | `core/marketplace/conflict_state.py` | Python | What an installation looks like right now: the registry row of a catalog id, the folder it occupies, whether another entity took the folder and which declared files the user edited; comparison goes by content hash, never by modification time | - |
 | `core/marketplace/conflicts.py` | Python | Conflict matrix: resolve_plan answers what to do with an installed entity and the three resolutions (keep_mine, take_catalog with a backup of every replaced file, fork) sit next to adopt, reset_to_catalog and uninstall; the state it reads lives in conflict_state.py and the fork path in conflict_fork.py | - |
+| `core/marketplace/install_seed.py` | Python | What an installed agent starts with: the platform model basis filling only the keys a package left out, so an employee shipped without model settings runs like a bundled one, and the catalog card translations reaching the name slots of a package that merely repeats the card's English name; an author's own wording is never replaced | - |
 | `core/marketplace/installer.py` | Python | Skill installer: run journal written before any file changes, the signature gate before the package download, package copied to a temporary folder and verified by sha256, atomic move into place and the single transaction over marketplace_installed and skills.json | - |
 | `core/marketplace/mcp_installer.py` | Python | Installation of an MCP entity: an MCP entity ships no files, it is a connector preset (transport config, credential fields, memory seed), so the installer creates a connection from that preset; identity is (service, preset_id) rather than a folder name | - |
 | `core/marketplace/migration.py` | Python | Adoption of entities installed before the catalog: LEGACY_DEFAULTS maps a bundled orchestrator, a prebuilt knowledge base, a preset skill and a connector preset to a synthetic bundled version, so the registry reports them as installed instead of offering a second copy; the bundled Universal-Agent is adopted the same way - the executor ships with the platform and with the catalog, so the preinstalled folder gets a registry row instead of a second install under a suffix | - |
 | `core/marketplace/names.py` | Python | Display names of catalog entities: the localized name mapping of entity.json resolved through the shared name resolver, so a card shows the interface language and falls back to English | - |
+| `core/marketplace/package_pin.py` | Python | Update baseline of an installation: the package of the installed version is pinned so the cache sweep keeps it and an update months later still knows which values the user changed, while the version the agent moved away from is released once no installation refers to it | - |
 | `core/marketplace/publish.py` | Python | Catalog publisher tooling: builds the files the catalog repository layout expects (entity manifest, index entry, hashes, signature) so an author never hand-edits a manifest or a hash, using only the standard library and cryptography | - |
 | `core/marketplace/rag_area.py` | Python | Folder side of a knowledge-base install: distribution checks before writing, the atomic replacement of the base folder and the index verification | - |
 | `core/marketplace/rag_installer.py` | Python | Installation of a rag entity: manifest.json, files/ sources and index.db with three distribution modes (prebuilt index, sources only, both), the index verified by index_sha256/index_schema and the base folder replaced atomically; the distribution checks and the folder replacement live in rag_area.py | - |
@@ -206,7 +209,7 @@
 | `core/marketplace/rollback.py` | Python | Run rollback: restores the files, the registry row and skills.json byte for byte, and marks the journal entry as rolled back with its reason | - |
 | `core/marketplace/semver.py` | Python | Version parsing and comparison: semver ordering and the platform range check used by the catalog and the update path | - |
 | `core/marketplace/source.py` | Python | Catalog transport: reads the index, one entity and its package over HTTP with timeouts and a typed error for every failure, and records the signature report of every manifest it downloads so the installer-side gate needs no second request; the channel decides whether an unsigned manifest is refused or only reported | - |
-| `core/marketplace/store.py` | Python | Marketplace storage: data directory, per-run backups and package cache, the bounded run journal and the atomic replace helper | - |
+| `core/marketplace/store.py` | Python | Marketplace storage: data directory, per-run backups, the package cache with its pin (the package of an installed version is kept as the update baseline until no installation refers to it) and the unpin that releases it, the bounded run journal and the atomic replace helper | - |
 | `core/marketplace/updates.py` | Python | Updates: check_entity_updates compares installed versions with the catalog and reports per-entity refusals, apply_entity_updates runs the update with the conflict policy | - |
 | `core/marketplace/verify.py` | Python | Package verification: the sha256 manifest check, verify_package for a downloaded package and verify_installed against the recorded file hashes; verify_signature and install_gate delegate to core.marketplace.attest so the signature policy lives in one module | - |
 | `core/schedules/__init__.py` | Python | Package marker of the schedule subsystem (no logic): the import surface for model, calc, store, runner, daemon and form | - |
@@ -310,6 +313,7 @@
 | `tests/test_auth_access.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_backup_and_safewriter.py` | Python | Backup/safe-writer tests | - |
 | `tests/test_chat_db_archive.py` | Python | Unit tests for the switch of the assistant dialogues: legacy detection, the layout stamp, the verified archive including messages that live only in the write-ahead log, the exact moment rows may leave the table, reuse of an identical archive and refusal of a stale one, reuse of the plain name only once, the notice read exactly once, and the failure modes (unverifiable archive, failed transcript write, unreadable database, a lock held by another connection) | storage |
+| `tests/test_chat_key_gate_resolution.py` | Python | Chat page gate tests: the key is checked for the provider the employee resolves to, so an agent without model keys opens on the platform default | ui |
 | `tests/test_chat_pagination.py` | Python | _(описание не задано)_ | ui |
 | `tests/test_chat_turn_and_step.py` | Python | Unit tests for the two turn layers: history conversion, provider options and usage figures, thread reuse and creation order, the file needing both a name and text, and the saved cursor cutting, clamping and staying idempotent | - |
 | `tests/test_child_thread_binding_index.py` | Python | Unit tests for the child thread index row and the transcript read path: binding creates the row with parent, kind, title and a history-relative path, a second bind keeps one row, an empty id is a no-op, a failing store never breaks the binding, a child never appears in the dialog list, a bound child reads as an empty conversation until its first message, the tool answers ok/empty/resume_unavailable, and a legacy dialog still falls back to the messages table | storage |
@@ -364,6 +368,7 @@
 | `tests/test_llm_utils_json_schema.py` | Python | _(описание не задано)_ | - |
 | `tests/test_loop_golden_payloads.py` | Python | Golden tests of the agent loop's observable behaviour on eight scenarios: the payload sent to the model, the dispatcher calls in order and the whole sequence of on_event publications | - |
 | `tests/test_marketplace_agent_installer.py` | Python | Unit tests for installing an agent entity: the config merge happens before the import, the importer writes the folder and the row, an unknown or switching kind is refused and a failed step leaves no half-installed orchestrator | - |
+| `tests/test_marketplace_agent_seed.py` | Python | Installer tests of the platform model basis and the catalog name translations: a package without models, an author own name, a translation that overrides the package name | - |
 | `tests/test_marketplace_assistant_installer.py` | Python | Unit tests for installing a helper agent: the assistant profile folder and the assistants row, text-only attachments, the kind recorded in the registry and the update path that keeps user attachments and an edited prompt | - |
 | `tests/test_marketplace_attest.py` | Python | Marketplace signature policy: trust anchors are local files, an edited manifest fails verification, the transport refuses an unsigned index before parsing it on an enforcing channel, and the install gate refuses before a package request | - |
 | `tests/test_marketplace_bundles.py` | Python | Unit tests for bundled entity sets: the recommended package preview with its per-member states, the catalog bundle record with pinned versions and the rollback of the already-installed members when a later one fails | - |
@@ -379,6 +384,7 @@
 | `tests/test_marketplace_migration.py` | Python | Unit tests for adopting entities that predate the catalog: a present entity is registered under its catalog id with the synthetic bundled version, a missing one is not, and the removal marker still wins | - |
 | `tests/test_marketplace_names.py` | Python | Marketplace tests of localized names: the catalog resolves the entity name by interface language, an install writes all four slots and an update keeps the user-defined name | - |
 | `tests/test_marketplace_no_network.py` | Python | Tests that start-up stays offline: an AST check refuses catalog calls in the boot path and a socket ban renders the boot sequence and the Updates page | ui |
+| `tests/test_marketplace_package_pin.py` | Python | Cache pin tests: a fresh install pins its package, an update releases the old one unless another agent still uses it, and a pinned entry survives the cache lifetime | - |
 | `tests/test_marketplace_publish.py` | Python | Unit tests for the catalog publisher: the built entity manifest, the index entry, the hashes and the signature, and the refusals for a malformed manifest or an unknown agent kind | - |
 | `tests/test_marketplace_rag_installer.py` | Python | Unit tests for installing a rag entity: the three distribution modes, index_sha256/index_schema verification, the atomic folder replace and a refusal that leaves the previous base intact | - |
 | `tests/test_marketplace_registry.py` | Python | Unit tests for the installed registry: catalog-id rows, runtime-slug uniqueness, removal markers, the exported cache and the seeding pass | storage |
@@ -437,6 +443,7 @@
 | `tests/test_orchestrator_page_facade.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_prompt_settings.py` | Python | UI tests: prompt settings tab - save, reset button and edited-prompt notice for the built-in orchestrator | ui |
 | `tests/test_orchestrator_settings_tabs.py` | Python | Tests for the settings tab pinning: eleven sections map to their own tab and a stale label from another language is dropped | ui |
+| `tests/test_orchestrator_strong_model.py` | Python | Unit tests of the strong-model resolver: the configured pair, the crew fallback, the platform default and the never-empty answer | - |
 | `tests/test_orchestrator_subagent_ui.py` | Python | UI tests for the background subagent parts of the chat page: the running-runs status line, the _notice badge and the st.fragment refresh | ui |
 | `tests/test_orchestrator_system_tools_ui.py` | Python | _(описание не задано)_ | ui |
 | `tests/test_orchestrator_tools.py` | Python | _(описание не задано)_ | storage |
@@ -598,6 +605,7 @@
 | `tests/scenarios/test_json_repair_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_license_consistency_scenario.py` | Python | Scenario: license migration to PolyForm Noncommercial 1.0.0 - canonical LICENSE text, no MIT SPDX identifier among published files, README/UI/AGENT.md agreement, 2.x version and manifest consistency, documented licensing history | - |
 | `tests/scenarios/test_loop_stuck_protection_scenarios.py` | Python | Loop-stuck protection scenarios: per-tool failure counter hints, duplicate-call flood compaction, prose loop_status continue | - |
+| `tests/scenarios/test_marketplace_agent_install_scenario.py` | Python | Installation scenario: an agent from the catalog opens its chat page, shows the name in the interface language, keeps an author own name and leaves the agent unchanged when the page is opened twice | ui |
 | `tests/scenarios/test_marketplace_conflict_scenario.py` | Python | Scenario tests for the conflict paths: a locally edited skill offers the three resolutions, keep_mine keeps the edit, take_catalog backs up and replaces, fork creates a new entity | ui |
 | `tests/scenarios/test_marketplace_signing_scenario.py` | Python | Signed marketplace scenario: a release published with the release key is read by the catalog transport and installed, while an edited manifest, a catalog without an index signature, a foreign keyring and a rotated key each end in the documented outcome | - |
 | `tests/scenarios/test_marketplace_skill_scenario.py` | Python | Scenario tests for installing a skill from the showcase: the card renders, install writes the files and the registry row, a refusal is shown instead of a broken install | - |
@@ -2398,25 +2406,25 @@
 - `sort_orchestrators.key` (func, строка 51)
 
 ### `core/orchestrator_prompt.py`
-- `_extend_prompt_with_personal_card_impl` (func, строка 56)
-- `_extend_prompt_with_memory_impl` (func, строка 95)
-- `_extend_prompt_with_working_memory_impl` (func, строка 163)
-- `_extend_prompt_with_connections_impl` (func, строка 232)
-- `_extend_prompt_with_tools_impl` (func, строка 317)
-- `_extend_prompt_with_rag_bases_impl` (func, строка 338)
-- `_delegation_availability` (func, строка 389)
-- `_agent_delegation_lines` (func, строка 410)
-- `_assistant_delegation_lines` (func, строка 440)
-- `_verify_delegation_lines` (func, строка 456)
-- `_extend_prompt_with_delegation_impl` (func, строка 461)
-- `_extend_prompt_with_skills_impl` (func, строка 506)
-- `_extend_prompt_with_instructions_impl` (func, строка 527)
-- `_format_utc_offset` (func, строка 597)
-- `_current_date_line` (func, строка 602)
-- `_extend_prompt_with_current_date` (func, строка 607)
-- `_extend_prompt_with_sandbox` (func, строка 662)
-- `_extend_prompt_with_dialog` (func, строка 681)
-- `build_assistant_dicts_impl` (func, строка 703)
+- `_extend_prompt_with_personal_card_impl` (func, строка 57)
+- `_extend_prompt_with_memory_impl` (func, строка 96)
+- `_extend_prompt_with_working_memory_impl` (func, строка 164)
+- `_extend_prompt_with_connections_impl` (func, строка 233)
+- `_extend_prompt_with_tools_impl` (func, строка 318)
+- `_extend_prompt_with_rag_bases_impl` (func, строка 339)
+- `_delegation_availability` (func, строка 390)
+- `_agent_delegation_lines` (func, строка 411)
+- `_assistant_delegation_lines` (func, строка 441)
+- `_verify_delegation_lines` (func, строка 457)
+- `_extend_prompt_with_delegation_impl` (func, строка 462)
+- `_extend_prompt_with_skills_impl` (func, строка 507)
+- `_extend_prompt_with_instructions_impl` (func, строка 528)
+- `_format_utc_offset` (func, строка 598)
+- `_current_date_line` (func, строка 603)
+- `_extend_prompt_with_current_date` (func, строка 608)
+- `_extend_prompt_with_sandbox` (func, строка 663)
+- `_extend_prompt_with_dialog` (func, строка 682)
+- `build_assistant_dicts_impl` (func, строка 704)
 - `build_assistant_dicts_impl._resolve_effort` (func, строка 768)
 
 ### `core/orchestrator_reload.py`
@@ -2446,6 +2454,13 @@
 - `delete_orchestrator_impl` (func, строка 230)
 - `_mark_marketplace_removed` (func, строка 261)
 - `_sync_orchestrator_folder_impl` (func, строка 294)
+
+### `core/orchestrator_strong.py`
+- `_pick` (func, строка 40)
+- `resolve_strong_model` (func, строка 49)
+- `strong_pair` (func, строка 72)
+- `resolve_strong_service` (func, строка 78)
+- `get_strong_model` (func, строка 83)
 
 ### `core/orchestrator_tools.py`
 - `_legacy_aliases` (func, строка 28)
@@ -3039,11 +3054,11 @@
 - `_merge_orchestrator_update` (func, строка 153)
 
 ### `core/marketplace/agent_orchestrator.py`
-- `_stage_orchestrator_package` (func, строка 41)
-- `_backup_orchestrator_area` (func, строка 82)
-- `_import_orchestrator_bundle` (func, строка 107)
-- `_verify_orchestrator_area` (func, строка 133)
-- `_install_orchestrator` (func, строка 168)
+- `_stage_orchestrator_package` (func, строка 39)
+- `_backup_orchestrator_area` (func, строка 80)
+- `_import_orchestrator_bundle` (func, строка 105)
+- `_verify_orchestrator_area` (func, строка 131)
+- `_install_orchestrator` (func, строка 166)
 
 ### `core/marketplace/agent_package.py`
 - `_read_json` (func, строка 27)
@@ -3064,9 +3079,8 @@
 - `open_agent_run` (func, строка 20)
 - `write_agent_run_meta` (func, строка 48)
 - `register_agent` (func, строка 84)
-- `commit_agent_run` (func, строка 139)
-- `report_agent_import_failure` (func, строка 169)
-- `fail_agent_run` (func, строка 182)
+- `commit_agent_run` (func, строка 130)
+- `fail_agent_run` (func, строка 160)
 
 ### `core/marketplace/attest.py`
 - `_settings` (func, строка 34)
@@ -3147,6 +3161,12 @@
 - `uninstall` (func, строка 692)
 - `_remove_connection` (func, строка 763)
 
+### `core/marketplace/install_seed.py`
+- `_truthy` (func, строка 28)
+- `_seed_platform_config` (func, строка 35)
+- `_apply_entity_names` (func, строка 63)
+- `prepare_install_bundle` (func, строка 98)
+
 ### `core/marketplace/installer.py`
 - `InstallError` (class, строка 36)
 - `_current_version` (func, строка 48)
@@ -3211,6 +3231,10 @@
 
 ### `core/marketplace/names.py`
 - `entity_name` (func, строка 13)
+
+### `core/marketplace/package_pin.py`
+- `previous_package_sha` (func, строка 22)
+- `refresh_package_pin` (func, строка 38)
 
 ### `core/marketplace/publish.py`
 - `PublishError` (class, строка 75)
@@ -5047,6 +5071,20 @@
 - `test_an_unreadable_database_is_left_alone` (func, строка 485)
 - `test_a_lock_held_by_another_connection_aborts_the_switch` (func, строка 498)
 
+### `tests/test_chat_key_gate_resolution.py`
+- `_header` (func, строка 14)
+- `_header._Stub` (class, строка 24)
+- `_header._Stub.caption` (func, строка 26)
+- `_header._Stub.markdown` (func, строка 30)
+- `_header._Stub.warning` (func, строка 34)
+- `test_a_config_without_model_keys_still_opens_the_page` (func, строка 45)
+- `test_a_config_without_model_keys_still_opens_the_page._has_key` (func, строка 49)
+- `test_a_legacy_config_is_checked_against_its_own_provider` (func, строка 63)
+- `test_a_legacy_config_is_checked_against_its_own_provider._has_key` (func, строка 66)
+- `test_a_missing_key_still_blocks_the_page` (func, строка 79)
+- `test_an_employee_with_no_config_at_all_is_checked_once` (func, строка 88)
+- `test_an_employee_with_no_config_at_all_is_checked_once._has_key` (func, строка 92)
+
 ### `tests/test_chat_pagination.py`
 - `ui_env` (func, строка 39)
 - `ui_env._no_input` (func, строка 50)
@@ -6269,6 +6307,20 @@
 - `TestDispatcher.test_dispatch_installs_an_agent` (func, строка 434)
 - `TestDispatcher.test_dispatch_refuses_unhandled_types` (func, строка 446)
 
+### `tests/test_marketplace_agent_seed.py`
+- `_seed_platform_config` (func, строка 18)
+- `_apply_entity_names` (func, строка 25)
+- `test_a_package_without_model_keys_gets_the_platform_basis` (func, строка 32)
+- `test_the_package_always_wins_over_the_platform_basis` (func, строка 45)
+- `test_search_settings_follow_the_agents_own_switch` (func, строка 58)
+- `test_the_seeded_keys_are_the_ones_a_bundled_agent_receives` (func, строка 69)
+- `test_a_bundle_without_config_gains_one` (func, строка 77)
+- `test_the_catalog_translations_reach_the_name_slots` (func, строка 81)
+- `test_the_match_ignores_case_and_surrounding_space` (func, строка 94)
+- `test_an_authors_own_name_is_never_replaced` (func, строка 103)
+- `test_a_card_without_an_english_name_leaves_the_package_name` (func, строка 114)
+- `test_a_bundle_that_already_has_translations_is_left_alone` (func, строка 122)
+
 ### `tests/test_marketplace_assistant_installer.py`
 - `_assistant_files` (func, строка 30)
 - `_assistant_entity` (func, строка 48)
@@ -6651,6 +6703,25 @@
 - `test_the_updates_page_renders_without_a_socket` (func, строка 153)
 - `test_the_marketplace_sections_show_a_prompt_instead_of_fetching` (func, строка 176)
 - `test_the_showcase_card_is_the_only_place_that_may_fetch` (func, строка 194)
+
+### `tests/test_marketplace_package_pin.py`
+- `_modules` (func, строка 22)
+- `_patch_store` (func, строка 29)
+- `_patch_store._pin` (func, строка 38)
+- `test_a_fresh_install_pins_its_package` (func, строка 47)
+- `test_an_update_pins_the_new_package_and_releases_the_old` (func, строка 56)
+- `test_the_old_package_stays_pinned_while_another_agent_uses_it` (func, строка 66)
+- `test_a_reinstall_of_the_same_package_pins_once_and_releases_nothing` (func, строка 78)
+- `test_a_registry_failure_does_not_break_the_install` (func, строка 87)
+- `test_a_registry_failure_does_not_break_the_install._boom` (func, строка 91)
+- `test_the_previous_sha_is_read_before_the_row_is_rewritten` (func, строка 101)
+- `test_the_previous_sha_is_read_before_the_row_is_rewritten._row` (func, строка 106)
+- `test_an_unreadable_registry_answers_an_empty_previous_sha` (func, строка 116)
+- `test_an_unreadable_registry_answers_an_empty_previous_sha._boom` (func, строка 119)
+- `_isolated_cache` (func, строка 127)
+- `test_the_pin_survives_the_cache_lifetime` (func, строка 143)
+- `test_releasing_the_pin_lets_the_entry_expire` (func, строка 161)
+- `test_a_pin_of_an_absent_package_is_not_an_error` (func, строка 177)
 
 ### `tests/test_marketplace_publish.py`
 - `_write_folder` (func, строка 39)
@@ -8028,6 +8099,16 @@
 - `test_stale_tab_label_after_language_switch_is_dropped` (func, строка 196)
 - `test_current_language_selection_is_kept` (func, строка 206)
 - `test_every_section_save_pins_its_own_tab` (func, строка 217)
+
+### `tests/test_orchestrator_strong_model.py`
+- `test_empty_config_resolves_to_the_platform_defaults` (func, строка 24)
+- `test_explicit_strong_pair_wins_over_every_other_key` (func, строка 35)
+- `test_legacy_single_model_keys_are_honoured` (func, строка 49)
+- `test_the_pair_resolves_independently` (func, строка 56)
+- `test_blank_values_fall_through_to_the_next_rung` (func, строка 69)
+- `test_a_non_mapping_config_is_treated_as_empty` (func, строка 79)
+- `test_an_unknown_slug_has_no_model_at_all` (func, строка 87)
+- `test_a_stored_employee_resolves_through_its_own_config` (func, строка 96)
 
 ### `tests/test_orchestrator_subagent_ui.py`
 - `_FakeService` (class, строка 20)
@@ -11369,6 +11450,20 @@
 - `test_scenario_duplicate_call_flood_yields_one_compact_error` (func, строка 114)
 - `test_scenario_prose_with_continue_keeps_loop_alive` (func, строка 150)
 
+### `tests/scenarios/test_marketplace_agent_install_scenario.py`
+- `_agent_files` (func, строка 28)
+- `_install` (func, строка 49)
+- `_gate_opens` (func, строка 77)
+- `_gate_opens._Stub` (class, строка 90)
+- `_gate_opens._Stub.caption` (func, строка 92)
+- `_gate_opens._Stub.markdown` (func, строка 96)
+- `_gate_opens._Stub.warning` (func, строка 100)
+- `test_an_installed_agent_opens_its_chat_page` (func, строка 119)
+- `test_the_interface_shows_the_name_in_its_own_language` (func, строка 139)
+- `test_an_author_own_name_is_kept_as_given` (func, строка 154)
+- `test_the_catalog_defaults_still_fill_gaps_after_the_platform_basis` (func, строка 176)
+- `test_opening_the_page_twice_does_not_change_the_agent` (func, строка 194)
+
 ### `tests/scenarios/test_marketplace_conflict_scenario.py`
 - `_install` (func, строка 27)
 - `_render` (func, строка 34)
@@ -11705,18 +11800,18 @@
 - `test_stats_page_empty_database_renders_info_without_metrics` (func, строка 198)
 
 ### `tests/scenarios/test_structured_output_scenarios.py`
-- `sandbox` (func, строка 43)
-- `_wire_flow` (func, строка 55)
-- `_wire_flow._record_and_create` (func, строка 72)
-- `test_structured_output_full_creation_flow` (func, строка 95)
-- `test_structured_output_full_creation_flow.fake_llm` (func, строка 102)
-- `test_structured_output_full_creation_flow.fake_create` (func, строка 112)
-- `test_fenced_json_fallback_still_creates_assistant` (func, строка 136)
-- `test_fenced_json_fallback_still_creates_assistant.fake_llm` (func, строка 142)
-- `test_fenced_json_fallback_still_creates_assistant.fake_create` (func, строка 152)
-- `test_prose_creator_response_reports_parse_error` (func, строка 167)
-- `test_prose_creator_response_reports_parse_error.fake_llm` (func, строка 172)
-- `test_prose_creator_response_reports_parse_error.fake_create` (func, строка 177)
+- `sandbox` (func, строка 46)
+- `_wire_flow` (func, строка 58)
+- `_wire_flow._record_and_create` (func, строка 75)
+- `test_structured_output_full_creation_flow` (func, строка 98)
+- `test_structured_output_full_creation_flow.fake_llm` (func, строка 105)
+- `test_structured_output_full_creation_flow.fake_create` (func, строка 115)
+- `test_fenced_json_fallback_still_creates_assistant` (func, строка 139)
+- `test_fenced_json_fallback_still_creates_assistant.fake_llm` (func, строка 145)
+- `test_fenced_json_fallback_still_creates_assistant.fake_create` (func, строка 155)
+- `test_prose_creator_response_reports_parse_error` (func, строка 170)
+- `test_prose_creator_response_reports_parse_error.fake_llm` (func, строка 175)
+- `test_prose_creator_response_reports_parse_error.fake_create` (func, строка 180)
 
 ### `tests/scenarios/test_subagent_control_scenario.py`
 - `svc` (func, строка 42)

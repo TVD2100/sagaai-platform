@@ -401,13 +401,13 @@ def get_cached_package(sha256: str) -> Optional[bytes]:
         return None
 
 
-def pin_package(sha256: str) -> None:
-    """Mark a cached package as pinned so the LRU sweep keeps it."""
+def pin_package(sha256: str, pinned: bool = True) -> None:
+    """Set or clear the pin flag of a cached package; an absent entry is not an error."""
     entries = _load_cache_index()
     entry = entries.get(sha256)
     if entry is None:
         return
-    entry["pinned"] = True
+    entry["pinned"] = bool(pinned)
     entries[sha256] = entry
     _save_cache_index(entries)
 
