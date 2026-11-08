@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "2.43.0",
+  "app_version": "2.44.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Релизный ключ и политика безопасности. Публичная половина подписи Ed25519 теперь лежит в keys/ed25519-public.pem как якорь доверия - до этого механизм был готов, но проверять было нечем, и канал stable отказывал в каждом обновлении. file_versions.json подписан отделённой подписью (.sig рядом с манифестом); сама подпись не входит в список файлов манифеста, который подписывает. Добавлен SECURITY.md: как сообщить об уязвимости, какие версии поддерживаются, что гарантирует песочница исполнения кода и что именно нужно беречь в установке. sign_release.py keyring снова принимает папку позиционным аргументом, как и показано во всех документах.",
-    "en": "Release key and a security policy. The public half of the Ed25519 signature now lives in keys/ed25519-public.pem as the trust anchor - the mechanism existed before, but nothing could be checked against it and the stable channel refused every update. file_versions.json carries a detached signature (a .sig sidecar); the signature itself is not an entry of the manifest it signs. SECURITY.md is added: how to report a vulnerability, which versions are supported, what the execution sandbox guarantees and what an installation must keep safe. sign_release.py keyring accepts the folder positionally again, the form every document shows."
+    "ru": "Многоязычные названия агентов и помощников: у каждой сущности четыре слота имени - пользовательское и переводы en/ru/zh-CN. Интерфейс показывает пользовательское имя в любом языке, а при пустом слоте подставляет перевод по языку интерфейса, затем английский. Слоты хранятся в БД (миграция 0011), в orchestrator.json и manifest.json, переносятся через каталог маркетплейса и учитываются при установке, обновлении и удалении. Дефолтные сотрудники и помощники получили переводы, уже установленные - заполняются автоматически. Обновление из каталога больше не перезаписывает пользовательское имя.Формы создания и правки получили блок «Названия» из четырёх полей, а инструкции Employee Creator и Assistant Creator объясняют правила выбора слотов.",
+    "en": "Multilingual names for agents and assistants: every entity carries four name slots - the user-defined name plus en/ru/zh-CN translations. The interface shows the user name in any language and, when that slot is empty, falls back to the interface language and then to English. The slots live in the database (migration 0011), in orchestrator.json and manifest.json, travel through the marketplace catalog and are honoured on install, update and removal. Built-in agents and assistants ship translations, and already-installed ones are backfilled. A catalog update no longer overwrites the user-defined name. The creation and edit forms gained a four-field Names block, and the Employee Creator and Assistant Creator instructions explain how to choose the slots."
   },
-  "updated": "2026-11-07T19:20:00Z",
+  "updated": "2026-11-08",
   "units": {
     "core": {
-      "version": "1.85.0",
+      "version": "1.86.0",
       "note": {
-        "ru": "Пакет: исправления песочницы - один временный HOME на установку с уборкой старых, настоящий общий /tmp, узкий список запрещённого чтения, папка диалога и рабочий каталог как разрешённые корни (dev_agent/tools/path_scope.py), наследование уже действующей песочницы, запись в .git без hooks и config, блок ## Code execution sandbox в системном промпте, уточнённое описание set_workspace.",
-        "en": "Package: sandbox fixes - one temporary HOME per installation with stale sweep, a real shared /tmp, a narrow read-deny list, the dialog folder and the working memory as addressable roots (dev_agent/tools/path_scope.py), inheritance of an enclosing sandbox, .git writes without hooks and config, the ## Code execution sandbox prompt block and a clearer set_workspace description."
+        "ru": "Пакет: единый резолвер названий (core/naming.py) с четырьмя слотами имени, хранение name_en/name_ru/name_zh и миграция 0011, зеркала в orchestrator.json/manifest.json, каталог маркетплейса и установка агентов через модуль слияния agent_merge, блок «Названия» в формах и заполнение пустых слотов у установленных сущностей.",
+        "en": "Package: one name resolver (core/naming.py) over four name slots, name_en/name_ru/name_zh storage with migration 0011, mirrors in orchestrator.json/manifest.json, the marketplace catalog and agent installation through the agent_merge module, the Names block in the forms and the backfill of empty slots on installed entities."
       },
       "files": {
         "__init__.py": {
@@ -48,8 +48,8 @@
           "sha256": "c13b5174eab7767885167ce0c81fdb78c2f042c9c304810d3c748b48b1dcad0e"
         },
         "core/assistant_folders.py": {
-          "version": "1.0.2",
-          "sha256": "7570854cb3111e5d1b1ee3b58b72651223f94ae8f862f5daff6c65e554a1e26c"
+          "version": "1.1.0",
+          "sha256": "60043cdad9964db976f76d73d62a3a86918f3d256fda36742fb8c83bcd42b87b"
         },
         "core/assistant_nav.py": {
           "version": "1.0.1",
@@ -60,8 +60,8 @@
           "sha256": "be1401f0cac6c87582e6f3e48994c975bdf289df62756de3775a72561779422c"
         },
         "core/assistants.py": {
-          "version": "1.0.2",
-          "sha256": "331da2aa57dcb78ecba187b34b83106fdd5caf57be5f4535f61982d3f98def7e"
+          "version": "1.1.0",
+          "sha256": "4d88f7a0fe8d77f0b08d9de98acacd36fb3ccd2e9f6f02b939dee3bdac9f0587"
         },
         "core/auth.py": {
           "version": "1.1.2",
@@ -96,16 +96,16 @@
           "sha256": "a20f47b93ce4838780a8887e937fc04717a72c3d5620de4e27d71e38015e5e44"
         },
         "core/default_imports.py": {
-          "version": "1.3.1",
-          "sha256": "8dca9ba4c864750bb2140f84c361167d7c9b0f51a81567d63275a4d4111fdc83",
+          "version": "1.4.0",
+          "sha256": "d0f957cbb6d50f3c5e9c669f57713ecada0900b59ced19ad597f219e5ebc9566",
           "note": {
             "ru": "Встроенный навык Rag Base Creator сеется в папку со своим именем и потому усыновляется каталогом; сидинг пропускается, если каталог уже поставил навык (маркер source=marketplace/<id> или занятая папка).",
             "en": "The bundled Rag Base Creator is seeded into the folder named after its preset, so the catalog adopts it; the seed is skipped when the catalog already installed the skill (a marketplace/<id> source marker or a taken folder)."
           }
         },
         "core/defaults.py": {
-          "version": "1.2.1",
-          "sha256": "37c1e40690ebc0fad135606e213eee68ec36a81597a6afe1146b8d22db663f61"
+          "version": "1.3.0",
+          "sha256": "883e9fdfb406e3beb6133b8ad9f56eb6dc0d9cb762cc21f7bbed43eb52ea3ae2"
         },
         "core/dependency_check.py": {
           "version": "1.0.7",
@@ -144,8 +144,8 @@
           "sha256": "0860742a786662ee203905ac41ffbd6910b49d509c449047f137406efaf62362"
         },
         "core/i18n.py": {
-          "version": "1.0.2",
-          "sha256": "cbd5ec11e776fc5b7edd4328a7aa20f5d8bddb7cc3fdbefdb35305f1d2ecf33f"
+          "version": "1.1.0",
+          "sha256": "d4d5de7697df093b9a60632ec5faeee479f1027a8cd5df23204e271c51a4247c"
         },
         "core/instructions.py": {
           "version": "1.1.2",
@@ -276,8 +276,8 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.75.0",
-          "sha256": "24e8b78e513ba9625cddd86a423265ab8b14807ecff73984c0196bc820f674b1",
+          "version": "1.76.0",
+          "sha256": "0e293a324803051219ebed4c66d455a65683ad2c2e956c4ed019b61118a371b5",
           "note": {
             "ru": "Релиз 2.41.0: подпись Ed25519 для обновлений и маркетплейса.",
             "en": "Release 2.41.0: Ed25519 signatures for updates and the marketplace."
@@ -336,8 +336,8 @@
           }
         },
         "dev_agent/universal_agent.py": {
-          "version": "1.26.0",
-          "sha256": "98a9c6c0e39dff1de0811a7c79e853c1b1c953481dd48359c1251d3e50a5cc8a",
+          "version": "1.27.0",
+          "sha256": "71283166bb80ba2c196e5077f714eb9543ddd48d94ea94b24212fbf00c33a493",
           "note": {
             "ru": "Фасад рабочего слоя DevAgent: диспетчер workspace-инструментов, управление оркестраторами, соединениями и памятью. Данные каталога, валидация вызовов, помощники документов, правила поиска по диалогам и реестр connection-инструментов живут в отдельных модулях пакета.",
             "en": "Facade of the DevAgent workspace layer: the workspace tool dispatcher, orchestrator, connection and memory management. Catalog data, call validation, document helpers, dialog-search rules and the connection-tool registry live in separate modules of the package."
@@ -368,8 +368,8 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.12.2",
-          "sha256": "b1517ddcae70f4431a79333fe2f6b52239e582313150371658032cb572a1eb68",
+          "version": "1.12.3",
+          "sha256": "f5f3d8b79ab2763b9bba208be92013aa7bc1faf1667fab0227290b220703a6a5",
           "note": {
             "ru": "Описания модулей подписи Ed25519 и конвейера обновлений в карте проекта.",
             "en": "Descriptions of the Ed25519 signing modules and the update pipeline in the project map."
@@ -388,16 +388,16 @@
           "sha256": "46c652f62e73918dd32517ed1018e4bea6d0fa9c4e8536bfa38b00c25467b5e7"
         },
         "storage/db.py": {
-          "version": "1.2.4",
-          "sha256": "66d1e91a7df8ae92c94e14682a6d466b394e22389ceb9a889713bf82b57d98f7"
+          "version": "1.3.0",
+          "sha256": "1c3d3b0c5bfd63be015cef41e4f1b19f3badb9bcb650627cf7eb52f2d74392f1"
         },
         "storage/models.py": {
-          "version": "1.3.1",
-          "sha256": "2d60684cca1bc98fbe3f37cb9eac7cc4c48cbc1f72ecf5192d5026a3a28e4820"
+          "version": "1.4.0",
+          "sha256": "2d1516188c429af8989fde58445b79bd1237cedc555936b0c5d8285075fd7707"
         },
         "storage/repository.py": {
-          "version": "1.2.1",
-          "sha256": "d163967ef9045561c16b43892b01e05bf2ddb839fb3eae0cb81619d33ac08278"
+          "version": "1.3.0",
+          "sha256": "5a047355fa313f29f570459f843afdf58f2eb9f2de3f646afffb319fa00284df"
         },
         "storage/repository_devagent.py": {
           "version": "1.3.1",
@@ -620,8 +620,8 @@
           "sha256": "dc481b2a8e39d922a2233094d5153228f49aa5e6ee5acacc8041513c07669924"
         },
         "tests/scenarios/test_structured_output_scenarios.py": {
-          "version": "1.0.1",
-          "sha256": "e0cf2dffb5d06aa9c2bbf5f34739c1afb074dc2bfb5539e04bf1126ed7ea82c8"
+          "version": "1.0.2",
+          "sha256": "e5ff9774ebc58a26494cb11da1127ff9be57cf17e5e0cdf8ed64e96c759ed344"
         },
         "tests/scenarios/test_task_state_mega_task.py": {
           "version": "1.0.0",
@@ -784,8 +784,8 @@
           "sha256": "11aaea1526a3e9109fb748248b49a38d975370f95328f64711f6a982f6f13b05"
         },
         "tests/test_default_imports.py": {
-          "version": "1.0.4",
-          "sha256": "15d424f27c4b2a0ee4d0930be6aab18d845419ddef757a972fac2a3ff8599376"
+          "version": "1.0.5",
+          "sha256": "73bee36a1455d131e9e84886670b3d47e17e93ea45e317c0c3be69c9c25d6c14"
         },
         "tests/test_default_rag_bases.py": {
           "version": "1.0.2",
@@ -940,8 +940,8 @@
           "sha256": "2ddad53c63a8fc4d808dfd1c89f7fb154828fc1b1d11b8fddad17e618075cb59"
         },
         "tests/test_platform_bootstrap.py": {
-          "version": "1.2.3",
-          "sha256": "20c69b0a6111da4ed537f748a409afe850dda83d61bef3552124e6e8f968b6cf"
+          "version": "1.2.4",
+          "sha256": "96f92258a023d59eee3baaa5f33da5fee36f7c1b56514e3671b88950f1d93c59"
         },
         "tests/test_platform_scenarios.py": {
           "version": "1.1.3",
@@ -1076,8 +1076,8 @@
           "sha256": "82c11d5d18b9cd18158d76d3723cb8facfefec9d464c759617443829fdf5967a"
         },
         "tests/test_structured_output_consumers.py": {
-          "version": "1.0.1",
-          "sha256": "07b86fc4c19556e7b79190801f22790656896aab92719932c818b02502db75f2"
+          "version": "1.0.2",
+          "sha256": "ce4e2859447dbc6fee2a90b1d0668ad56ec7a1475977ea09c47391ad0e458f78"
         },
         "tests/test_task_state.py": {
           "version": "1.3.1",
@@ -1220,8 +1220,8 @@
           "sha256": "fe5378469f8d14923e1093c42286f6443d114c791e1792546692b847bf41fbd2"
         },
         "ui/pages/assistants.py": {
-          "version": "1.3.5",
-          "sha256": "37a2a2b0fb0915da9a394e90e56fe4147a20db74688c72acbfab0bd7591e73a1"
+          "version": "1.4.0",
+          "sha256": "3d003658c265cd26bd2d4df50f59aa2be3418d50872778370cfeb79de0639151"
         },
         "ui/pages/chat.py": {
           "version": "1.0.6",
@@ -1666,8 +1666,8 @@
           }
         },
         "core/marketplace/catalog.py": {
-          "version": "1.1.1",
-          "sha256": "b84d8b2b76b656af330c2903924e9afca0528cd3907531bc1d7a1e295fd7b2df",
+          "version": "1.2.0",
+          "sha256": "a9baf92cc06491ecf0359abcbdf59b92aee8199e2db7fe98b2cb23ac843519fc",
           "note": {
             "ru": "Каталог: индекс, карточки сущностей и вид для витрины.",
             "en": "Catalog: index, entity cards and the showcase view."
@@ -1690,8 +1690,8 @@
           }
         },
         "core/marketplace/installer.py": {
-          "version": "1.1.0",
-          "sha256": "436f3f5b78a1ea2d3507a67447a6787243157f5eb2caddd3f7b28bb7cce3fcd6",
+          "version": "1.2.0",
+          "sha256": "7ae0481531a0e1414d619f53e708acbc8025020f697ca45e0db82e8960d1e21a",
           "note": {
             "ru": "Установщик навыка: журнал прогона, атомарная запись и откат.",
             "en": "Skill installer: run journal, atomic write and rollback."
@@ -1754,8 +1754,8 @@
           }
         },
         "ui/pages/marketplace.py": {
-          "version": "1.3.2",
-          "sha256": "1f5f3cd393912cb12fd61d614c45b492d8eb61a1e38ec62a6dc7c46d16da63ef",
+          "version": "1.4.0",
+          "sha256": "0b356ccae5e6541caa6d1c80f26bba16275f989f6b49e443aea95504db4a0d55",
           "note": {
             "ru": "Страница «Маркетплейс»: витрина, карточка, установка, удаление.",
             "en": "Marketplace page: showcase, card, install and uninstall."
@@ -1890,12 +1890,12 @@
           "sha256": "a000a71adda074d95436461fae06fde4c6dcf82f55e674ee1e3d9374565f6586"
         },
         "core/marketplace/agent_installer.py": {
-          "version": "1.1.2",
-          "sha256": "eb4cb5ae4e449bfb740555f83b0479d1cb5a60ef10b83262e336e1d7ccbbb04d"
+          "version": "1.2.0",
+          "sha256": "6a0651f4fad8155ea7ca75968e665134bf69e76df84a8233ba52099c199b992d"
         },
         "core/marketplace/bundles.py": {
-          "version": "1.1.2",
-          "sha256": "dde3921cb471d0a4405f379f462870e2194b99ed610d0962e567b16ab1e2e0f8"
+          "version": "1.2.0",
+          "sha256": "c713961f73d900e5bfdd6e049ed0f9415787a0cb915e2b06cb71b6a46650ad1d"
         },
         "core/marketplace/mcp_installer.py": {
           "version": "1.0.2",
@@ -2162,8 +2162,8 @@
           "sha256": "db32533b879888123a250ecf588c51512ba316769c9b6cb59af2b00718120d07"
         },
         "tests/test_universal_agent.py": {
-          "version": "1.0.0",
-          "sha256": "216b5f0715d7fee99bb4a358ade8a5d657086c93ca601ae96c5b81c63e053882"
+          "version": "1.0.1",
+          "sha256": "92fce795c084a9e36d8ba6ed20654f7726965df952c9f81c1f955efaef1a83c5"
         },
         "tests/test_universal_agent_delegation.py": {
           "version": "1.0.0",
@@ -2174,8 +2174,8 @@
           "sha256": "b4e9e7f79589c8cf1960ecc261d2d21ceb35062d0705684532508c4dffbf7a25"
         },
         "tests/scenarios/test_universal_agent_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "751ba5c1ed695a3570a058aecb9ede51d2e06ba1b109e68a659da3a74bae1c97"
+          "version": "1.0.1",
+          "sha256": "958aa351626535556468714c925efa30a3a659100193303d2dd233205c7a0cc6"
         },
         "core/ooxml.py": {
           "version": "1.0.1",
@@ -2186,12 +2186,12 @@
           }
         },
         "tests/test_task_scout_default.py": {
-          "version": "1.0.0",
-          "sha256": "053d0be58aae263009803b1872d9b5d99a321e0cd0d157f0cd9080f256071a3c"
+          "version": "1.0.1",
+          "sha256": "2fd7a868b44ffb313dd171cb0ff025ff47c5886a2230d07db45145364a10963b"
         },
         "tests/scenarios/test_task_scout_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "ac6ba733d3d21fe1afe50d3ef3b20f14c081cc3d283140372cdf1a559ae69e60"
+          "version": "1.0.1",
+          "sha256": "ae9d662268a62795aee4fcb6d43dd3b0e2c84b0e6d6b4b3a405e6ae596d0800a"
         },
         "tests/test_child_thread_binding_index.py": {
           "version": "1.0.0",
@@ -2286,8 +2286,8 @@
           "sha256": "4b8ce4e44089e4890e5bedf7b849a1f2354160124790f3faf89a50689147b1e2"
         },
         "core/gateway/health.py": {
-          "version": "1.0.0",
-          "sha256": "f8878242197788a6927a303a0647630e2d1dae1effd1f432fab9409d449c0209"
+          "version": "1.1.0",
+          "sha256": "f0992c40b3cfe142316aafa88c82c38bc512bebf31ac1fdd8f2d4c84b5c09b86"
         },
         "core/gateway/runs.py": {
           "version": "1.1.0",
@@ -2690,12 +2690,12 @@
           "sha256": "97c72f57f82b388cadda79a6f4dc4b6434945b7fc4255312f5f30834c8f3f398"
         },
         "dev_agent/tools/assistants.py": {
-          "version": "1.0.1",
-          "sha256": "d9757e33cc42671cabf3b185debc700fef3deac4a9b50a93c291b668aea39e5b"
+          "version": "1.1.0",
+          "sha256": "df96b81dd7488d0c977d3680a3efc99b3a6480a8586b9aa8265d3c08ba220e91"
         },
         "dev_agent/tools/catalog.py": {
-          "version": "1.0.1",
-          "sha256": "daac99969fc091735214784205196d95cd0275174058731cf6a2ca47e8897ab4"
+          "version": "1.1.0",
+          "sha256": "df79c9f3506a470f5ce73b76de7325e2101e47742f7c43fd12b398c00f376d41"
         },
         "dev_agent/tools/clock.py": {
           "version": "1.0.0",
@@ -2798,8 +2798,8 @@
           }
         },
         "dev_agent/tool_catalog_data.py": {
-          "version": "1.0.1",
-          "sha256": "c8af658308b6c8da91aef2b759c98f0700097cf9534f7130c8fbf09788b5c420",
+          "version": "1.1.0",
+          "sha256": "17010975a6d56c5034da10a267c80c0cf9a674c2ff6a4ed8c48956954f2408c4",
           "note": {
             "ru": "Каталог workspace-инструментов и белые списки имён аргументов, вынесенные из фасада universal_agent как данные без логики.",
             "en": "The workspace tool catalog and the argument-name allow-lists, moved out of the universal_agent facade as data without logic."
@@ -2874,16 +2874,16 @@
           "sha256": "58b755ec9c3b2adf623844c558bc57f29420edda51ef4c1810f8334f8a38fa30"
         },
         "core/marketplace/agent_assistant.py": {
-          "version": "1.0.0",
-          "sha256": "66cd768a3b4741431431f35eaaf6e8096c8fe0dec2115a1e41a8eadab89bead0"
+          "version": "1.1.0",
+          "sha256": "9b2a31edbb3a03a93095933acb949a0f9a5e519b30814383a4ba45433f615b78"
         },
         "core/marketplace/agent_orchestrator.py": {
-          "version": "1.0.0",
-          "sha256": "11b7b022fd95bb8ba176fc23bc04ba713c79b8f1c0181d744f6fa212abce6fe0"
+          "version": "1.1.0",
+          "sha256": "925a5f7a1e94fb620cf3410726a3143b8e737055b0db6dd86e787576af2c419f"
         },
         "core/marketplace/agent_package.py": {
-          "version": "1.0.0",
-          "sha256": "d2fb54aca7b74410fac5e969668ec90f428e626d2441e1cae0fdc87675622933"
+          "version": "1.1.0",
+          "sha256": "b789b80d1826ae6960f828fe3a82595bd0d6f0a478523ae07bf3bba9d5e89c0c"
         },
         "core/marketplace/agent_preflight.py": {
           "version": "1.0.0",
@@ -3002,8 +3002,8 @@
           "sha256": "8994219973df2ebaf7f3ab9b6f9e1eb761d933eca6d2efb13da5d3df8d8bc137"
         },
         "ui/pages/orchestrator_settings_delegation.py": {
-          "version": "1.0.0",
-          "sha256": "2d73fa3a80b4dd264b0c316623934620479e1d4d55e99fd37349a5553e43e3c2"
+          "version": "1.1.0",
+          "sha256": "6529bdfa66e771d6245c4dd9ca1fdddae55f44db562846905b21d4f250cc1182"
         },
         "tests/test_orchestrator_page_facade.py": {
           "version": "1.0.0",
@@ -3018,8 +3018,8 @@
           "sha256": "6c0c540034ec27d2a2f7d5de3705ca8e5b0cabfd09fa055cb24523360b68431e"
         },
         "core/orchestrator_store.py": {
-          "version": "1.0.0",
-          "sha256": "7166b6a480191d4b267c398f4c03044447fa031d49300c85846c195d0ade6eb3"
+          "version": "1.1.0",
+          "sha256": "af2ee31fc2bcff7424a1d937dd7ff512ca007e45d634af3f5a599d7ddd7fdc2a"
         },
         "core/orchestrator_links.py": {
           "version": "1.0.0",
@@ -3034,16 +3034,16 @@
           "sha256": "d4e22e3917cd978d7177379b4c239d79c91d16fa1a0d77e197dde230c934c872"
         },
         "core/orchestrator_transfer.py": {
-          "version": "1.0.0",
-          "sha256": "c492fea18f96b27e028fd1cceb8308e0edca82c3cb7aa922a0cd0607a71a8183"
+          "version": "1.1.0",
+          "sha256": "ff47669f3fe4bd8a13b2a12dfc4a6d6a04753bb5fa8be06e0d3fd1d19d2b0339"
         },
         "core/orchestrator_instr.py": {
           "version": "1.0.0",
           "sha256": "634735806bcbb7b6f0f28afbd224957a532676fcc51463e43d99f5834b364d47"
         },
         "core/orchestrator_builtin.py": {
-          "version": "1.0.0",
-          "sha256": "85b88bdc84e4af81447bfbaaeafedb0ab9c47e3c8da306fe306e83fb99409e9e"
+          "version": "1.1.0",
+          "sha256": "a2574b56210260833e94815e4b8f92b0542c29fdf9193fdf10368677871d87c0"
         },
         "tests/test_orchestrator_api_facade.py": {
           "version": "1.0.0",
@@ -3264,17 +3264,109 @@
         "tests/test_sandbox_status.py": {
           "version": "1.0.0",
           "sha256": "7145bd44cf31d666d2ae42a35a20a9d8c8b95747a7e18cd91cfa81c3409597b5"
+        },
+        "core/builtin_config_defaults.py": {
+          "version": "1.0.0",
+          "sha256": "e50be253fa70c400657b4a53a92800d7fc6f2a73ae68b8e272f8ccd13e89f57c"
+        },
+        "core/marketplace/agent_merge.py": {
+          "version": "1.0.0",
+          "sha256": "9f5022874dca6bc77ca9e50e30d02e61340e2be34c8d6029e561d63391bbf51e"
+        },
+        "core/marketplace/bundle_catalog.py": {
+          "version": "1.0.0",
+          "sha256": "34b3880561db67b549963a3cdeb8f19706492cb4b1bc20bf13a6c916d614393b"
+        },
+        "core/marketplace/names.py": {
+          "version": "1.0.0",
+          "sha256": "355cf47c43b359e3feebe8d15058521f390a850cdb85c09dc857e8f37db0fc05"
+        },
+        "core/naming.py": {
+          "version": "1.0.0",
+          "sha256": "a211b40a80453ce8b550d1b8a09ec38e7392c7e95f876bb40fbfd176864ff43f"
+        },
+        "core/naming_backfill.py": {
+          "version": "1.0.0",
+          "sha256": "af18a04065ffe187c9aaa1d0649c2ca3828540057a0a56f96e7964d8ee29f858"
+        },
+        "core/naming_runtime.py": {
+          "version": "1.0.0",
+          "sha256": "53f7d0c3e1bc03bd9d94abaa26a65e54dfc1e40bf6a4d9a1dccc94705f4fa32b"
+        },
+        "core/orchestrator_import_files.py": {
+          "version": "1.0.0",
+          "sha256": "7f09e22ef87140a161b6ae6bf8f3ffb936e48098271b4d3a2a4bb03e1a2c2edf"
+        },
+        "core/orchestrator_reload.py": {
+          "version": "1.0.0",
+          "sha256": "699a77a4344249cf5dacc5bac3dcc809590b55f437f9adc07895042f180de794"
+        },
+        "dev_agent/orchestrator_tools.py": {
+          "version": "1.0.0",
+          "sha256": "b9395f86acdc796301d3eea263086ab0c2410de3eeb7d1964d52bdadd57c7c44"
+        },
+        "dev_agent/tools/assistant_drafts.py": {
+          "version": "1.0.0",
+          "sha256": "3e444f46414519bb6b4467a3b0eea01e2da0a6d08abc1419635344dc92ac8901"
+        },
+        "migrations/versions/0011_localized_names.py": {
+          "version": "1.0.0",
+          "sha256": "3f4654e12961c68b72f0a58371875f99be154960f01ce99a5634d82d41924eda"
+        },
+        "tests/test_marketplace_names.py": {
+          "version": "1.0.0",
+          "sha256": "2e2834fab9fbcec8849866c5dbe8f572959932bb0fad55af7355b29edea22a0d"
+        },
+        "tests/test_name_fields_ui.py": {
+          "version": "1.0.0",
+          "sha256": "89cd309b7a933898dd9423b8a3bd870ac7a6b3e1a8399f4b8cc3ee14b61b04a8"
+        },
+        "tests/test_name_slots_tools.py": {
+          "version": "1.0.0",
+          "sha256": "6b7f3749dc106bca05ba9d5724d28b08bc2fea6de707db905f53788c99cbaeac"
+        },
+        "tests/test_naming.py": {
+          "version": "1.0.0",
+          "sha256": "1bd5481272ba2d7008f9f386a116cd6de209f3d26c95d53609d4bd7e4d93cca4"
+        },
+        "tests/test_naming_backfill.py": {
+          "version": "1.0.0",
+          "sha256": "815c3085cc9c0a97ff8909294b1b4bab03939a39b3b9814179371bf9ad99897d"
+        },
+        "tests/test_naming_resolve.py": {
+          "version": "1.0.0",
+          "sha256": "dd709cfd06afe002a64bc5e264fd349458833ca0025105e41f9c74bbc4642999"
+        },
+        "tests/test_naming_roundtrip.py": {
+          "version": "1.0.0",
+          "sha256": "9b7bb9afefe303a9f594ff764b0e22db34841cdbe04f2dc5a2802da247406d38"
+        },
+        "tests/test_naming_storage.py": {
+          "version": "1.0.0",
+          "sha256": "48f85179418466dad3b1e554ae96b7da15f8930488fe6a2a6cbb4d76fc1df621"
+        },
+        "ui/components/name_fields.py": {
+          "version": "1.0.0",
+          "sha256": "508019230eb11e6996c447cc72b46ff4fcb84c9ea1a8664731055acaff5160fd"
+        },
+        "ui/pages/assistants_nav.py": {
+          "version": "1.0.0",
+          "sha256": "e0f679190be1ace11f7491d72c2bd617183cf2251a154d5b6ed826f7bca781e5"
+        },
+        "ui/pages/orchestrator_settings_other.py": {
+          "version": "1.0.0",
+          "sha256": "c50cfeb1043d08e93e959c2ce50a2400e1bd27dba6e7b3a6bc49d04447256e90"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.77.0",
-      "sha256": "3d4facb0fc46a366bc6c02327b73e4b3e5e9a5c236297800bc17c502a244049e",
+      "version": "1.77.1",
+      "sha256": "52f54d8711df2a94ddc7350d0e4f5d56f2e05e1c9f62b8a98728b1e6d6907f33",
       "note": {
-        "ru": "Песочница исполнения: панель настройки профиля, активные запуски и журнал отказов.",
-        "en": "Execution sandbox: the profile settings panel, live runs and the refusal journal."
+        "ru": "Карта компонентов: модули резолва названий.",
+        "en": "Component map: the name resolver modules."
       }
     },
     "LICENSE": {
@@ -3286,16 +3378,16 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.78.0",
-      "sha256": "dfff61ced035859fb7d40645d579ae35fb38159024787c8740192a1d6794068a",
+      "version": "1.78.1",
+      "sha256": "f4ee1f88d8130e9edb46b5738669af590e8fd4be091ca018939f925d60d7160c",
       "note": {
         "ru": "Регенерация: SECURITY.md и публичный ключ доверия в карте проекта.",
         "en": "Regenerated: SECURITY.md and the public trust anchor in the project map."
       }
     },
     "README.md": {
-      "version": "1.62.0",
-      "sha256": "32031824a043ae36df487668aded4d90a6680e31bbe16843d49ad5089c49ad33",
+      "version": "1.62.1",
+      "sha256": "f75e0d827b451cedd3e9eaa408012f502f384d0cd12b8564f0bbe5588914c3d8",
       "note": {
         "ru": "Строка статуса версии обновлена до 2.42.1.",
         "en": "The version status line is updated to 2.42.1."
@@ -3318,11 +3410,11 @@
       }
     },
     "defaults/assistants/korrektor/manifest.json": {
-      "version": "1.0.0",
-      "sha256": "40a351545f2da2d127c5009158f1704d870091b3ad7b43b56e5a1091168b259f",
+      "version": "1.1.0",
+      "sha256": "abcb15aa99dd0d6cba766acfc1dbc238b426ce2cc8c1f473c07744ed1b11bfa3",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Пресет помощника: названия в трёх переводах.",
+        "en": "Assistant preset: names in three translations."
       }
     },
     "defaults/assistants/korrektor/prompt.md": {
@@ -3334,11 +3426,11 @@
       }
     },
     "defaults/assistants/universalnyy_tyutor/manifest.json": {
-      "version": "1.0.0",
-      "sha256": "0fe56588f81f0d592de1ae6f7117899eaac5866503139742439cfc8da9576e6f",
+      "version": "1.1.0",
+      "sha256": "b068efd5f49b98b49ebadb6c2e49dbe8adf2badbc6cb91e6ce30ec2ab1149882",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Пресет помощника: названия в трёх переводах.",
+        "en": "Assistant preset: names in three translations."
       }
     },
     "defaults/assistants/universalnyy_tyutor/prompt.md": {
@@ -3374,11 +3466,11 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.29.0",
-      "sha256": "58e3cba30f2e2c4caffb4ac02bb6bd99f91ef0c3e0944996a0befe437b5936aa",
+      "version": "1.30.0",
+      "sha256": "bb633d808a618ec136bc1b973722ff2dd1e5f4b2c87745be9d3fe5c4e0c03086",
       "note": {
-        "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
-        "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
+        "ru": "Канонические строки блока «Названия».",
+        "en": "Canonical strings of the Names block."
       }
     },
     "defaults/langs/en_guide.md": {
@@ -3390,11 +3482,11 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.29.0",
-      "sha256": "902be907ae6726e30058cff03585cdf63d3eaa5c4d0148cf38e83c56991a3575",
+      "version": "1.30.0",
+      "sha256": "446b87958a0b7ff25098c1c4b8283519d5cbcdbf52b4f536269a99238e09a561",
       "note": {
-        "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
-        "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
+        "ru": "Строки блока «Названия».",
+        "en": "Strings of the Names block."
       }
     },
     "defaults/langs/ru_guide.md": {
@@ -3406,11 +3498,11 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.29.0",
-      "sha256": "1fe182d50af3bbc2b1546bc5feef394783a555a6983d773a393a25a2d18bfd17",
+      "version": "1.30.0",
+      "sha256": "766834414f8c12007d16ee1a9de11b83c30908d4243fd8c84f3df0c6ee8f3b5f",
       "note": {
-        "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
-        "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
+        "ru": "Строки блока «Названия».",
+        "en": "Strings of the Names block."
       }
     },
     "defaults/langs/zh_CN_guide.md": {
@@ -3422,19 +3514,19 @@
       }
     },
     "defaults/orchestrators/dev_agent/instructions/assistant_creator.md": {
-      "version": "1.0.1",
-      "sha256": "0e2ee3fcc27693aeb9bf9b306e036ca54bfdd9a5801bd6929cbb0f5b02faa76c",
+      "version": "1.1.0",
+      "sha256": "63dd260ceb79968dadd84fccae0f7e649ff4194bc879ebe82a9816a6b1701abc",
       "note": {
-        "ru": "Формулировки про модели: одна основная модель на все шаги.",
-        "en": "Model wording: one main model for every step."
+        "ru": "Инструкция: четыре слота названия помощника и правила правки.",
+        "en": "Instruction: the four assistant name slots and the editing rules."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/employee_creator.md": {
-      "version": "1.4.0",
-      "sha256": "4391dd179c2d713362e9129d5b8c51fa4fa83c52e7b86bac2ce693b3e245bc34",
+      "version": "1.5.0",
+      "sha256": "d7668773dfde622145ee77855102a061be1c21ad5d2377c79703214781fa2dae",
       "note": {
-        "ru": "Память сотрудника: определение типа данных (ENGINEERING/PORTFOLIO/STREAM/COURSE/PERSONAL/RESEARCH), шаг 1b с маркером MEMORY_DIR, блок MEMORY AND CONTINUITY в шаблоне промпта и поля отчёта о рабочей папке.",
-        "en": "Employee memory: data-type detection (ENGINEERING/PORTFOLIO/STREAM/COURSE/PERSONAL/RESEARCH), step 1b with the MEMORY_DIR marker, the MEMORY AND CONTINUITY block in the prompt template and the working-folder report fields."
+        "ru": "Инструкция: четыре слота названия сотрудника и правила правки.",
+        "en": "Instruction: the four employee name slots and the editing rules."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/github_connector.md": {
@@ -3542,11 +3634,11 @@
       }
     },
     "defaults/orchestrators/ya_agent/orchestrator.json": {
-      "version": "1.3.0",
-      "sha256": "5f45564bb19e94441b7e01c98a0cbc6454adcb0765813995efa4978e0a9cf67a",
+      "version": "1.4.0",
+      "sha256": "ed1fd4746804628519936b83292389dc2a6dc377228c2b5d95394dcf8e622d5c",
       "note": {
-        "ru": "Конфиг YaAgent: weak_* заменены пустыми vision/image (единая модель).",
-        "en": "YaAgent config: weak_* replaced with empty vision/image keys (single main model)."
+        "ru": "Пресет: названия в трёх переводах.",
+        "en": "Preset: names in three translations."
       }
     },
     "defaults/orchestrators/ya_agent/system_prompt.md": {
@@ -3638,11 +3730,11 @@
       }
     },
     "langs/en.json": {
-      "version": "1.29.0",
-      "sha256": "5107f19a85d7a4e531c60c404d5823c47588ef6b9869a51d197a246a8f060029",
+      "version": "1.30.0",
+      "sha256": "e1019e9ccf98fc944d1960212ce48dc8b17c422b62c159c1197bd8d84bedf7d9",
       "note": {
-        "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
-        "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
+        "ru": "Строки блока «Названия» и языковых подписей.",
+        "en": "Strings of the Names block and language labels."
       }
     },
     "langs/en_guide.md": {
@@ -3654,11 +3746,11 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.29.0",
-      "sha256": "de561482d79e7a7a1b174ad5f2b6ced547cb3cbc9fe25cac9679930081ea829f",
+      "version": "1.30.0",
+      "sha256": "cba9364f8ab7da41d3051bb274932752469f6c9619cbb5aab1edde0570e5bf4b",
       "note": {
-        "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
-        "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
+        "ru": "Строки блока «Названия» и языковых подписей.",
+        "en": "Strings of the Names block and language labels."
       }
     },
     "langs/ru_guide.md": {
@@ -3670,11 +3762,11 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.29.0",
-      "sha256": "1fe182d50af3bbc2b1546bc5feef394783a555a6983d773a393a25a2d18bfd17",
+      "version": "1.30.0",
+      "sha256": "608f5a452820061182002ece6fb0f2c93bb3518b65f7f58deaab17435a289780",
       "note": {
-        "ru": "Ключи раздела «Запуск по расписанию»: карточки, форма, статусы, политики и сообщения об ошибках.",
-        "en": "The \"Run on a schedule\" section keys: cards, form, statuses, policies and error messages."
+        "ru": "Строки блока «Названия» и языковых подписей.",
+        "en": "Strings of the Names block and language labels."
       }
     },
     "langs/zh_CN_guide.md": {
@@ -3710,11 +3802,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.53.0",
-      "sha256": "f6ee767b882b217e1b78896fa01055fee17acac7e3f419e1f67201b05c1a95ad",
+      "version": "1.53.1",
+      "sha256": "47ef2ed10985643214895cad57c4da7cfa5f2d7a39a1fa387b498779729a0f30",
       "note": {
-        "ru": "Инвентарь базовых файлов: core/signing.py и core/marketplace/attest.py.",
-        "en": "Base-file inventory: core/signing.py and core/marketplace/attest.py."
+        "ru": "Требования: четыре слота названия сущности и правила их резолва.",
+        "en": "Requirements: four entity name slots and their resolution rules."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/connector_creator.md": {
@@ -3750,11 +3842,11 @@
       }
     },
     "defaults/orchestrators/universal_agent/orchestrator.json": {
-      "version": "1.0.0",
-      "sha256": "dc5a547736fb7414b23a379e6fbc5543a1a1ab6527796439318b45affc3f4330",
+      "version": "1.1.0",
+      "sha256": "e6f72e13a48f8bf6332c634f80f60f529235061a741449b1ca95d9d23de94941",
       "note": {
-        "ru": "Встроенный сотрудник Universal-Agent: модель, 42 инструмента без управления сотрудниками, 300 шагов; сеется идемпотентным стартовым импортом.",
-        "en": "The bundled Universal-Agent employee: model, 42 tools without agent management, 300 steps; seeded by the idempotent start-up import."
+        "ru": "Пресет: названия в трёх переводах.",
+        "en": "Preset: names in three translations."
       }
     },
     "defaults/orchestrators/universal_agent/system_prompt.md": {
@@ -3766,11 +3858,11 @@
       }
     },
     "defaults/orchestrators/task_scout/orchestrator.json": {
-      "version": "1.0.0",
-      "sha256": "2e790b14f1800595514159b7b332bc489878f4fc00ff3ec80aed9f1d7b16a89c",
+      "version": "1.1.0",
+      "sha256": "7b7085dbbb47c831a0bfaef5a4624d4dcf325921cd5837d7e3b39ccf3991615e",
       "note": {
-        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
-        "en": "Optional content file (non-code). Can be updated individually."
+        "ru": "Пресет: названия в трёх переводах.",
+        "en": "Preset: names in three translations."
       }
     },
     "defaults/orchestrators/task_scout/system_prompt.md": {
