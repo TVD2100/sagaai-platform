@@ -6,7 +6,7 @@
     "ru": "Установка агента из каталога: сотрудник без модельных ключей запускается на платформенной модели вместо блокировки на странице чата, переводы имени из карточки доезжают до слотов, а пакет установленной версии закрепляется в кэше, чтобы обновление через месяц не оказалось пустым.",
     "en": "Catalog agent install: an employee without model keys runs on the platform model instead of being blocked on the chat page, catalog name translations reach the slots, and the installed package stays pinned in the cache so an update months later is not empty."
   },
-  "updated": "2026-11-08",
+  "updated": "2026-11-09",
   "units": {
     "core": {
       "version": "1.87.0",
@@ -368,8 +368,8 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.12.5",
-          "sha256": "64637d0dd034eba5f665ad6133c0e41745e4c1fb9cc2fe557f68029fe4c8689a",
+          "version": "1.12.6",
+          "sha256": "5631b71a5a426d7688cea6282dd55aa542cf2f5f0dad946d83c4b5b4cfd8e4f6",
           "note": {
             "ru": "Описания установки агента из каталога, резолвера основной модели и закрепления кэша пакета.",
             "en": "Descriptions of the catalog agent install, the strong-model resolver and the package-cache pin."
@@ -3290,8 +3290,8 @@
           "sha256": "af18a04065ffe187c9aaa1d0649c2ca3828540057a0a56f96e7964d8ee29f858"
         },
         "core/naming_runtime.py": {
-          "version": "1.0.0",
-          "sha256": "53f7d0c3e1bc03bd9d94abaa26a65e54dfc1e40bf6a4d9a1dccc94705f4fa32b"
+          "version": "1.0.1",
+          "sha256": "ad0f0a0e85fa73fdccbae9aca07cce690b26d818820129899f2421fc305b657b"
         },
         "core/orchestrator_import_files.py": {
           "version": "1.0.0",
@@ -3388,14 +3388,18 @@
         "tests/test_orchestrator_strong_model.py": {
           "version": "1.0.0",
           "sha256": "aa154d57133b941ba33ca39ed7a5fa47043f977004d87cabdc1063ba4fd1b4c9"
+        },
+        "tests/test_naming_runtime_threads.py": {
+          "version": "1.0.0",
+          "sha256": "899c50450800f6e2e43be01c1ecf2b21bab5d30c69085638ac126b361a257e25"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.77.3",
-      "sha256": "f6b867a12c47eff54dc314e33b316d357a7a713c4dd65c80e01082a5578db172",
+      "version": "1.77.4",
+      "sha256": "7b2cc6b9e550f7670e5b95f7aba7473a303d4a79a98258ecfbdda5355a1fc029",
       "note": {
         "ru": "Карта компонентов: модельный базис установки агента и кэш пакета как база обновления.",
         "en": "Component map: the install-time model basis and the package cache as the update baseline."
@@ -3410,11 +3414,11 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.78.2",
-      "sha256": "839d77bf98cb995d88ca1e75060135a56f024f903bc3c822b68fbc030b86a4f9",
+      "version": "1.78.3",
+      "sha256": "9c8ff3a34c76c0a837b899ecf50c3d16d9808dfb05f271e62b593cd59f885107",
       "note": {
-        "ru": "Регенерация: модельный базис установки агента, переводы имён из карточки и закрепление кэша пакета.",
-        "en": "Regenerated: the install-time model basis, catalog name translations and the pinned package cache."
+        "ru": "Регенерация: описание core/naming_runtime.py приведено к фактическому поведению - язык берётся из сессии только при живом прогоне скрипта, фоновый поток читает сохранённую настройку.",
+        "en": "Regenerated: the core/naming_runtime.py description now matches the implementation - the session language is read only inside a live script run, a background worker reads the stored setting."
       }
     },
     "README.md": {

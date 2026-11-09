@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-08T11:10:15+00:00`
-- Файлов: **834**
+- Обновлено: `2026-11-09T07:04:56+00:00`
+- Файлов: **835**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **11058**
-- Отпечаток содержимого: `sha256:b3ba9a62a6d2226fe811345f5ad8ea161a8baf5dca47ab9d3a338115b54204c7` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 2, JSON: 36, Markdown: 42, PEM certificate: 2, Python: 752, TOML: 2, Text: 2
+- Python-символов: **11076**
+- Отпечаток содержимого: `sha256:cc5536df9704c5a0147087a8cb768403ccdcdf2ba452b8cb0a1d6b1d51112f0b` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 2, JSON: 36, Markdown: 42, PEM certificate: 2, Python: 753, TOML: 2, Text: 2
 
 ## Файлы и назначение
 
@@ -129,7 +129,7 @@
 | `core/multimodal.py` | Python | Vision/image model resolution + analyze_image/generate_image wrappers (core.multimodal); the analysis reply is fenced as DATA_FROM_IMAGE and reported as untrusted data | - |
 | `core/naming.py` | Python | One resolver for entity names: the four slots (user-defined, en, ru, zh-CN), the interface-language order with its fallbacks, split_name_slots and merge_slots for partial updates, and name_fields_from for folders and packages | - |
 | `core/naming_backfill.py` | Python | Filling empty name slots on already-installed entities: orchestrators and assistants get the translations their shipped preset carries, and a preset is recognised by slug so a rename never creates a copy | - |
-| `core/naming_runtime.py` | Python | The interface language an entity name is resolved against, cached for the duration of one request so a data-layer read does not reload the settings per row | - |
+| `core/naming_runtime.py` | Python | The interface language an entity name is resolved against: the running session when the calling thread owns a Streamlit script run, otherwise the stored ui_lang setting, so a background worker resolves names without touching the session | - |
 | `core/ooxml.py` | Python | DOCX, PPTX and XLSX text extraction on the standard library alone (zipfile plus xml.etree.ElementTree): extract_docx_text keeps paragraphs in order and appends every table as CSV, extract_pptx_text marks each slide and drops table paragraphs from the free text, extract_xlsx_text follows the sheet order of workbook.xml.rels and resolves sharedStrings, inline strings, booleans and the column gaps of A1 references; table_to_csv provides the shared RFC 4180 rendering, and a broken package or an oversized container comes back as a warning instead of an exception | - |
 | `core/orchestrator_builtin.py` | Python | Built-in orchestrators and the DevAgent config bridge: seeding the shipped employees, the prompt-user-edited marker and reset_builtin_prompt, plus load_devagent_config and save_devagent_config | storage |
 | `core/orchestrator_defaults.py` | Python | Constants and shipped defaults of the orchestrator API: the dev_agent and universal_agent slugs, the default web-search prompt, the DevAgent config fallback and the lazy tool-name cache | - |
@@ -409,6 +409,7 @@
 | `tests/test_naming_backfill.py` | Python | Backfill tests: installed entities receive the translations of their shipped preset, a renamed one is recognised by slug and no duplicate appears | storage |
 | `tests/test_naming_resolve.py` | Python | Resolution tests across the data layer: list and get calls return the resolved name next to the raw slots | storage |
 | `tests/test_naming_roundtrip.py` | Python | Round-trip tests of the name slots through orchestrator.json, manifest.json and an export/import cycle | storage |
+| `tests/test_naming_runtime_threads.py` | Python | _(описание не задано)_ | - |
 | `tests/test_naming_storage.py` | Python | Storage tests of the name columns: saving, partial updates, clearing a slot and refusing a record with no name at all | storage |
 | `tests/test_numeric_arg_coercion.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestration_background.py` | Python | Unit tests for background children: the launch returns before the child finishes, the durable record is written and healed, notices land in the tree mailbox and are published once, and a cancelled child reports cancelled rather than its own done | - |
@@ -2264,8 +2265,9 @@
 ### `core/naming_runtime.py`
 - `current_lang` (func, строка 21)
 - `current_lang_code` (func, строка 42)
-- `_session_lang` (func, строка 59)
-- `_stored_lang` (func, строка 73)
+- `_running_script_context` (func, строка 59)
+- `_session_lang` (func, строка 95)
+- `_stored_lang` (func, строка 114)
 
 ### `core/ooxml.py`
 - `_local` (func, строка 45)
@@ -7274,6 +7276,25 @@
 - `test_orchestrator_import_accepts_a_name_mapping` (func, строка 91)
 - `test_assistant_slots_survive_a_folder_round_trip` (func, строка 116)
 - `test_assistant_import_accepts_a_name_mapping` (func, строка 150)
+
+### `tests/test_naming_runtime_threads.py`
+- `_Collector` (class, строка 18)
+- `_Collector.__init__` (func, строка 21)
+- `_Collector.emit` (func, строка 25)
+- `streamlit_log` (func, строка 30)
+- `_run_in_worker` (func, строка 50)
+- `_run_in_worker.target` (func, строка 54)
+- `test_worker_thread_does_not_touch_session_state` (func, строка 63)
+- `test_worker_thread_does_not_touch_session_state.spy` (func, строка 70)
+- `test_worker_thread_reads_no_session_when_context_missing` (func, строка 82)
+- `test_worker_thread_reads_no_session_when_context_missing._State` (class, строка 90)
+- `test_worker_thread_reads_no_session_when_context_missing._State.get` (func, строка 91)
+- `test_session_language_wins_inside_a_script_run` (func, строка 102)
+- `test_session_language_wins_inside_a_script_run._State` (class, строка 109)
+- `test_session_language_wins_inside_a_script_run._State.get` (func, строка 110)
+- `test_missing_streamlit_falls_back_to_stored_language` (func, строка 118)
+- `test_shipped_default_is_the_last_resort` (func, строка 125)
+- `test_running_script_context_never_warns` (func, строка 133)
 
 ### `tests/test_naming_storage.py`
 - `main_db` (func, строка 11)

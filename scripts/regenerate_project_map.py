@@ -999,7 +999,7 @@ roles.update({
 roles.update({
     "core/naming.py": "One resolver for entity names: the four slots (user-defined, en, ru, zh-CN), the interface-language order with its fallbacks, split_name_slots and merge_slots for partial updates, and name_fields_from for folders and packages",
     "core/naming_backfill.py": "Filling empty name slots on already-installed entities: orchestrators and assistants get the translations their shipped preset carries, and a preset is recognised by slug so a rename never creates a copy",
-    "core/naming_runtime.py": "The interface language an entity name is resolved against, cached for the duration of one request so a data-layer read does not reload the settings per row",
+    "core/naming_runtime.py": "The interface language an entity name is resolved against: the running session when the calling thread owns a Streamlit script run, otherwise the stored ui_lang setting, so a background worker resolves names without touching the session",
     "core/builtin_config_defaults.py": "Config defaults shipped next to an agent package: merged into the bundle config before the importer writes it, so a catalog default fills a gap without overwriting a setting the package declares",
     "core/marketplace/agent_merge.py": "Which installed values an update may move: the untouched/edited comparison against the manifest of the installed package, the merge of an orchestrator update and of an assistant payload, and the baseline readers over the cached package",
     "core/marketplace/bundle_catalog.py": "The bundle view of the catalog: the recommended package of an entity read from the catalog lists, its members resolved to installable entries and the states a card shows",

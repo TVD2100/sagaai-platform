@@ -15,7 +15,7 @@ is attempted inside the function and any failure falls through to the setting.
 """
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 
 def current_lang() -> str:
@@ -56,12 +56,53 @@ def current_lang_code() -> str:
         return normalize_lang(lang)
 
 
-def _session_lang() -> Optional[str]:
-    """Read ``st.session_state.ui_lang`` when a session is actually running.
+def _running_script_context() -> Optional[Any]:
+    """Return the Streamlit script context of THIS thread, or None.
 
-    Outside a Streamlit script run the session object raises, and a background
-    worker must not fail because of that - hence the broad guard.
+    A worker thread, a transport call and a test process own no script run.
+    The context is requested with the warning suppressed, so the check itself
+    stays silent: outside ``streamlit run`` there is nothing to report, and the
+    caller must decide from the None instead of letting Streamlit log it. The
+    import is attempted inside the function, and both the current and the
+    legacy module paths are tried, because the location of this helper moved
+    between Streamlit releases.
     """
+    getter = None
+    for module_name in ("streamlit.runtime.scriptrunner_utils.script_run_context",
+                        "streamlit.runtime.scriptrunner"):
+        try:
+            module = __import__(module_name, fromlist=["get_script_run_ctx"])
+            getter = getattr(module, "get_script_run_ctx", None)
+        except Exception:
+            getter = None
+        if callable(getter):
+            break
+    if not callable(getter):
+        return None
+    try:
+        return getter(suppress_warning=True)
+    except TypeError:
+        # Releases without the parameter cannot stay silent; they return the
+        # context all the same, which is what the caller needs.
+        try:
+            return getter()
+        except Exception:
+            return None
+    except Exception:
+        return None
+
+
+def _session_lang() -> Optional[str]:
+    """Read ``st.session_state.ui_lang`` when a script run is actually present.
+
+    The context is checked BEFORE the session object is touched. In a
+    background worker ``st.session_state`` resolves to an empty placeholder and
+    every access makes Streamlit log a missing-context warning, while the value
+    it could hold belongs to no user anyway. An absent context therefore falls
+    straight through to the stored setting, which is the answer a worker needs.
+    """
+    if _running_script_context() is None:
+        return ""
     try:
         import streamlit as st
         value = st.session_state.get("ui_lang")
