@@ -155,6 +155,16 @@ def _make_dispatcher(schedule: Schedule, thread_id: str):
     dispatcher = UniversalDevAgent(workspace=str(schedule.workspace or "") or None,
                                    thread_id=thread_id)
     dispatcher.attach_orchestrator(schedule.agent_slug)
+    # A scheduled run has no dialog to inherit from, so it reads the
+    # preferences of its employee directly. A schedule that silently ran in
+    # a stronger profile than the chat would make the same agent behave
+    # differently depending on how it was started.
+    try:
+        from core.sandbox import resolve as sandbox_resolve
+
+        sandbox_resolve.apply_to(dispatcher, schedule.agent_slug)
+    except Exception as exc:  # pragma: no cover - defaults stay in place
+        log.warning("schedule sandbox preferences not applied: %s", exc)
     try:
         from core.orchestration.service import CHILD_DISABLED_TOOLS
         dispatcher.child_disabled_tools = set(CHILD_DISABLED_TOOLS) | set(SCHEDULED_DISABLED_TOOLS)

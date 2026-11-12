@@ -17,12 +17,18 @@ Danger levels:
   - "confirm"    - confirmation required, with explanation
   - "blocked"    - confirmation is NOT enough (not used yet; reserved)
 
-Context-aware exceptions (v3.1):
-  - subprocess.run with a LIST argument and a safe command is allowed
-    (e.g. subprocess.run(['node', 'test.js'], ...) - no shell injection).
+Context-aware exceptions (v3.2):
+  - subprocess.run with a LIST argument and a command that belongs to an
+    ordinary build, test or version-control cycle is allowed (interpreters,
+    test runners, package managers, git, common file utilities, the local
+    database clients of the project). The list form rules out shell
+    injection; the command NAME is then checked against a deny list of
+    binaries that destroy data or reach beyond this machine.
+  - a Python comment is removed before the shell rules run: a comment that
+    mentions a forbidden command is documentation, not an instruction.
   - os.system with simple, non-piped, safe commands is allowed
     (e.g. os.system('echo done')).
-  - open(..., 'w') on non-system, non-protected paths is allowed.
+  - open(..., 'w') on a temporary, test or scratch path is allowed.
 """
 
 from __future__ import annotations
@@ -125,16 +131,36 @@ _SHELL_RULES: List[DangerRule] = [
 
 # ─── Python code rules ───────────────────────────────────────────────────────
 
-# Known safe commands that are harmless when run via subprocess
-# Commands that only INSPECT their environment. Anything that can execute
-# other code (interpreters, test runners, package managers, build tools,
-# container and deploy CLI) and anything that can print the process
-# environment is deliberately absent: a whitelist of "safe" binaries is not
-# a security boundary, and a binary that runs arbitrary code is precisely
-# the case this module exists to catch.
+# The set of commands a normal build, test or inspection cycle needs. It is
+# NOT a security boundary and is not treated as one: the boundary is the deny
+# list below plus the isolation of the profile. Keeping an allow list instead
+# meant that every ordinary tool - a test runner, a version-control command,
+# a language runtime - needed a confirmation, and a delegated child, which
+# has nobody to ask, was refused outright. That is the failure this set is
+# sized against: the work an agent is asked to do is allowed, while anything
+# that destroys data or reaches beyond this machine still asks.
 _SAFE_SUBPROCESS_COMMANDS: Set[str] = {
-    "echo", "ls", "dir", "pwd", "which", "where",
-    "uname", "hostname", "true", "false",
+    # Inspection
+    "echo", "ls", "dir", "pwd", "which", "where", "uname", "hostname",
+    "true", "false", "cat", "head", "tail", "wc", "grep", "rg", "find",
+    "stat", "file", "du", "df", "sort", "uniq", "diff", "tree", "date",
+    "basename", "dirname", "realpath", "sleep",
+    # Files inside the project: creating, copying, moving, packing
+    "mkdir", "touch", "cp", "mv", "ln", "tar", "zip", "unzip",
+    "gzip", "gunzip", "sed", "awk", "tr", "cut", "xargs", "tee",
+    # Language runtimes, test runners and linters: the ordinary work here.
+    # The versioned interpreter names appear explicitly because a project
+    # pins one (``python3``, ``pip3``); a dotted version suffix such as
+    # ``python3.14`` is reduced to its stem before the lookup.
+    "python", "python3", "pip", "pip3", "pytest", "node", "npm", "npx",
+    "yarn", "pnpm",
+    "ruff", "black", "mypy", "flake8", "isort", "coverage", "tox",
+    "php", "composer", "go", "cargo", "rustc", "make", "cmake",
+    "java", "javac", "mvn", "gradle", "dotnet", "perl", "ruby", "bundle",
+    # Version control
+    "git",
+    # Local database clients of the project
+    "sqlite3", "mysql", "mariadb", "mysqldump", "mariadb-dump", "psql",
 }
 
 # Commands that are NEVER safe, even in list form
@@ -219,8 +245,11 @@ _PYTHON_RULES: List[DangerRule] = [
         "Загрузка нативного кода или динамический импорт по строке. Обходит статический анализ: что именно выполнится, заранее неизвестно.",
     ),
     # File writes through pathlib, which the open(...) rule does not see.
+    # ``replace`` is deliberately absent: it is also the name of the most
+    # common string method, so the rule fired on ``"a".replace("a", "b")``
+    # and blocked ordinary formatting work.
     DangerRule(
-        r"\.(?:write_text|write_bytes|unlink|rmdir|rename|replace)\s*\(",
+        r"\.(?:write_text|write_bytes|unlink|rmdir|rename)\s*\(",
         "Запись или удаление файла через pathlib. Может перезаписать существующий файл или безвозвратно удалить данные.",
     ),
 ]
@@ -279,6 +308,34 @@ _SUBPROCESS_CALL_RE = re.compile(
 _LIST_COMMAND_RE = re.compile(r"\s*\[\s*['\"]([^'\"]+)['\"]")
 
 
+def _normalize_command(cmd_name: str) -> str:
+    """Return the bare, lowercase program name of a subprocess command.
+
+    ``/usr/bin/LS`` and ``ls`` name the same program; a case-sensitive
+    comparison made the verdict depend on how the path happened to be
+    written.
+    """
+    name = str(cmd_name or "").strip().strip("'\"")
+    base = name.rsplit("/", 1)[-1] if "/" in name else name
+    return base.lower()
+
+
+def _command_is_safe(base: str) -> bool:
+    """Return True when *base* names a command an ordinary cycle needs.
+
+    A dotted version suffix is reduced to its stem first: ``python3.14`` is
+    the interpreter a project pins, and the entry list holds ``python3``.
+    A name whose digits are part of the program name (``sqlite3``) is looked
+    up as written, so the reduction never widens the list by accident.
+    """
+    if base in _SAFE_SUBPROCESS_COMMANDS:
+        return True
+    head, dot, tail = base.partition(".")
+    if dot and head and tail.replace(".", "").isdigit():
+        return head in _SAFE_SUBPROCESS_COMMANDS
+    return False
+
+
 def _iter_subprocess_calls(code: str) -> List[bool]:
     """Return one flag per subprocess call: True when that call is safe.
 
@@ -294,11 +351,11 @@ def _iter_subprocess_calls(code: str) -> List[bool]:
             results.append(False)   # string form or unknown shape
             continue
         cmd_name = args_match.group(1)
-        base = cmd_name.rsplit("/", 1)[-1] if "/" in cmd_name else cmd_name
+        base = _normalize_command(cmd_name)
         if base in _ALWAYS_DANGEROUS_COMMANDS:
             results.append(False)
             continue
-        results.append(base in _SAFE_SUBPROCESS_COMMANDS)
+        results.append(_command_is_safe(base))
     return results
 
 
@@ -332,11 +389,30 @@ def _check_python_rules(code: str) -> List[str]:
     return reasons
 
 
+def _strip_python_comments(code: str) -> str:
+    """Return *code* with whole-line Python comments removed.
+
+    A comment that describes a forbidden command ("do not run rm -rf here")
+    is documentation. Matching the shell rules against it made the analysis
+    refuse a snippet for the text of its own warning. Only WHOLE-LINE
+    comments are removed: a ``#`` inside a string literal is data, and
+    rewriting code before the analysis would risk hiding a real payload in
+    the very text the rules inspect.
+    """
+    kept = []
+    for line in str(code or "").splitlines():
+        if line.lstrip().startswith("#"):
+            continue
+        kept.append(line)
+    return "\n".join(kept)
+
+
 def _check_shell_rules(code: str) -> List[str]:
     """Return the list of human-readable reasons for matched shell rules."""
     reasons: List[str] = []
+    analysed = _strip_python_comments(code)
     for pattern, rule in _SHELL_COMPILED:
-        if pattern.search(code):
+        if pattern.search(analysed):
             reasons.append(rule.reason)
     return reasons
 

@@ -140,10 +140,20 @@ def build_child_dispatcher(slug: str, base_dir: Optional[str],
     refuse the call anyway.
     """
     from core.api_layer import send_request
+    from core.sandbox import resolve as sandbox_resolve
     from dev_agent.universal_agent import UniversalDevAgent
 
     dispatcher = UniversalDevAgent(workspace=base_dir, thread_id=child_thread_id)
     dispatcher.attach_orchestrator(slug)
+    # The child inherits the execution preferences of its employee, exactly
+    # like the dialog that launched it: a user who switched isolation off
+    # must not get it back because the work was delegated. Without this the
+    # child runs under the policy default with the dangerous-code gate on,
+    # which is not what the settings of the employee say.
+    try:
+        sandbox_resolve.apply_to(dispatcher, slug)
+    except Exception as exc:  # pragma: no cover - defaults stay in place
+        log.warning("child sandbox preferences not applied: %s", exc)
     try:
         disabled = set(disabled_tools)
         max_depth = int(limits.get("max_depth") or 0)

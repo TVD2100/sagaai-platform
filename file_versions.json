@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "2.45.0",
+  "app_version": "2.45.1",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "MCP-сервер из каталога ставится шаблоном (пресетом) на вкладку «MCP-серверы», а не готовым подключением: плитка появляется рядом со встроенными пресетами, и из неё можно создать столько подключений, сколько нужно, - каждое со своими учётными данными. Подключения, созданные пользователем, не удаляются вместе с сущностью. Сервер, который платформа уже поставляет, ставится без изменений.",
-    "en": "An MCP server from the catalog now installs as a preset on the MCP servers tab rather than as a ready-made connection: the tile appears next to the bundled presets, and as many connections as needed can be created from it, each with its own credentials. Connections the user created stay when the entity is removed. A server the platform already ships installs as a no-op."
+    "ru": "Переключатели «Песочница» и «Безопасный режим» теперь доходят до фактического исполнителя: решение пользователя наследуют делегированные субагенты и запуски по расписанию, а не только диалог. Обычные команды работы над проектом (интерпретаторы, тесты, линтеры, git) выполняются без запроса подтверждения; разрушительные и сетевые - по-прежнему требуют его.",
+    "en": "The sandbox and safe-mode switches now reach the actual executor: delegated subagents and scheduled runs inherit the user choice, not just the chat dialog. Ordinary project commands (interpreters, tests, linters, git) run without a confirmation prompt; destructive and network commands still require one."
   },
-  "updated": "2026-11-12",
+  "updated": "2026-11-12T17:00:00Z",
   "units": {
     "core": {
-      "version": "1.88.0",
+      "version": "1.89.0",
       "note": {
-        "ru": "Пакет кода: установка MCP-сущности как пресета, пользовательский каталог пресетов, удаление пресета при деинсталляции.",
-        "en": "Code unit: MCP entities install as presets, the per-user preset root, and preset removal on uninstall."
+        "ru": "Пакет кода: единый резолвер предпочтений исполнения для диалога, субагента и расписания; переписанный сканер опасных команд; синхронизированный системный промпт.",
+        "en": "Code unit: one execution-preferences resolver for the dialog, the child and the schedule; a rewritten dangerous-command scanner; the system prompt brought in sync."
       },
       "files": {
         "__init__.py": {
@@ -92,8 +92,8 @@
           "sha256": "a8cb424b24598c983769fa2fc3de0b74376b87f7cfe6f2c313b18169f35aaf7a"
         },
         "core/dangerous.py": {
-          "version": "1.0.2",
-          "sha256": "a20f47b93ce4838780a8887e937fc04717a72c3d5620de4e27d71e38015e5e44"
+          "version": "1.0.3",
+          "sha256": "7c6539f8290c8792a39a395d7a4d59ee270ec13b45d6af294cd12a8885260354"
         },
         "core/default_imports.py": {
           "version": "1.4.0",
@@ -276,8 +276,8 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.79.0",
-          "sha256": "dc6b07d34f9d157a1f45dc3c707a2f27105111688acd4a7fcb317d9ce789ea5b",
+          "version": "1.80.0",
+          "sha256": "ecc90df527f27c1900f214a74eac91cb2e6a3035ec57853f2e9f63276f64f657",
           "note": {
             "ru": "Релиз 2.44.3: данные тестов не попадают в установку.",
             "en": "Release 2.44.3: test data stays out of the installation."
@@ -368,8 +368,8 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.12.9",
-          "sha256": "28e7907e6ce8a748a50233ea4716bcba79103f4428a9b98d12bdc4ac69e39aea",
+          "version": "1.12.10",
+          "sha256": "833255c008d54c0d51e1f8eab955d69e81a9cb1b52f4e5f643fe89e0516bed90",
           "note": {
             "ru": "Описания тестов пресетов и изоляции состояния: изоляция DATA_DIR и второй AST-страж.",
             "en": "Descriptions of the preset tests and the state-isolation test: DATA_DIR isolation and the second AST guard."
@@ -556,8 +556,8 @@
           "sha256": "351e10538504bf824580b867882f57a33b50d7a1ccacb6170a38d0acabb61fd0"
         },
         "tests/scenarios/test_orchestrator_tool_gating.py": {
-          "version": "1.2.19",
-          "sha256": "91879b3b048af3415a81bf680efec3134357b050fc5a356c65d1e2017a7e82e3",
+          "version": "1.2.20",
+          "sha256": "9879d40e26faca4f51814650b18af856723e03c0a823f78338ccbf02c5894286",
           "note": {
             "ru": "Пин промпта DevAgent v3.30 и инвариант спеки изменения в скретче.",
             "en": "Pins the DevAgent v3.30 prompt and the change-scoped spec invariant."
@@ -1598,8 +1598,8 @@
           "sha256": "2dd42c63f77ea870e7179e23d5be4b324443f22b1d4ce08ca0ca27f49cb67064"
         },
         "tests/test_system_prompt_subagents.py": {
-          "version": "1.0.6",
-          "sha256": "47fffac9c6751d909ebe230d22b4c27b8497a255afb8332520ae68e49b496b5e"
+          "version": "1.0.7",
+          "sha256": "57169a1c9e83e860f60a23fe28d7bd46ca0bf0c962c3ef93ea04e35234cb1214"
         },
         "tests/test_delegation_injection_inheritance.py": {
           "version": "1.0.1",
@@ -2222,8 +2222,8 @@
           "sha256": "4b5c0ede9dfd5674de70ac790bb0521f363e92455ed12f999a18384926609466"
         },
         "core/schedules/runner.py": {
-          "version": "1.0.1",
-          "sha256": "f40304f66ca06935463b35c0fa6785ce0610ab89fd7711365f041531262e0d8a"
+          "version": "1.0.2",
+          "sha256": "11daff4bdfa3512d8d0683e005b4ea42db2fdd15405e13a9271d313e5ad71431"
         },
         "core/schedules/daemon.py": {
           "version": "1.0.1",
@@ -2306,8 +2306,8 @@
           "sha256": "509a0f60d80c2f4b18b933a450a4d5c70f64adf6c9dbb4846e56fa07556e75a5"
         },
         "core/orchestration/dialog_runner.py": {
-          "version": "1.0.0",
-          "sha256": "2a3bf02ac8a968e9f0dbef937dcd73a4c8812efb0e4aea27c56978fe527a5cc5"
+          "version": "1.0.1",
+          "sha256": "3d11abd1fcfe2f62f9f472f7348d611808512ef81fef7fdfd3d43308df6cb262"
         },
         "tests/scenarios/test_api_scenario.py": {
           "version": "1.1.0",
@@ -2778,8 +2778,8 @@
           "sha256": "6b5b2523aa9776ed72dda4b64b67fd7b7f899b501d80d4972cc84b9384910e7b"
         },
         "core/orchestration/child_runner.py": {
-          "version": "1.0.0",
-          "sha256": "57a8b27d5c5b67d2a9b293f0f516018b083654fc6e71c8719391342fb4f5cb3b",
+          "version": "1.0.1",
+          "sha256": "70da07a698c5acb6f64080c672c5567eb501fdf276e45dce769f0e1c5cb10707",
           "note": {
             "ru": "Дочерняя сторона запуска: диспетчер с суженным каталогом инструментов, приёмник транскрипта, область журнала, восстановление резюма, прокрутка цикла и итоговый AgentRunResult.",
             "en": "The child side of a delegated run: the dispatcher with its narrowed tool catalog, the transcript sink, the journal scope, resume restoration, the child loop and the final AgentRunResult."
@@ -3098,8 +3098,8 @@
           "sha256": "19f69257b11d973426f7d1b038c4c06a1827ede67304fdd86d5aaaf38879ad2a"
         },
         "tests/test_sandbox_phase0.py": {
-          "version": "1.0.0",
-          "sha256": "abf9ca337919aac7000abe0302f0b03bb5852d5a8cae185d12f73cb930134291"
+          "version": "1.0.1",
+          "sha256": "30c36d8bfeef0eccaf4a43ceb97da0ecd6ee3f94af662b30b595fb72f36f4174"
         },
         "core/sandbox/__init__.py": {
           "version": "1.1.0",
@@ -3412,14 +3412,26 @@
         "tests/scenarios/test_marketplace_mcp_preset_scenario.py": {
           "version": "1.0.0",
           "sha256": "082e021f742ff72c858da59177c4d08ddf6007ac100872067b4d19dc7530d3ca"
+        },
+        "core/sandbox/resolve.py": {
+          "version": "1.0.0",
+          "sha256": "6f0e3c08188372d2d3327d01424de6ce94a6dc15564ec07ffdc0cc6f91d7a1e7"
+        },
+        "tests/test_sandbox_preferences.py": {
+          "version": "1.0.1",
+          "sha256": "363d55b1403e12f0168ba5ca87ecb7b4614926a87934e9ecb45b1dab971cbcfd"
+        },
+        "tests/scenarios/test_execution_preferences_scenario.py": {
+          "version": "1.0.1",
+          "sha256": "5fec4fdbe478397587767a62eac0d6b999dfce06ed52ae15ff766eeb00f958c8"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.78.0",
-      "sha256": "5e578471d16b40c6172ce509ae20523b3525bdc8d779612ff98eaa6d880da3f1",
+      "version": "1.79.0",
+      "sha256": "fedd631d59aebc4544365806b465fae8a05dafdaff3e42b3d3d1b8a3b74115c1",
       "note": {
         "ru": "Карта компонентов: пресет yandex_mail (http, схема OAuth) в видимом каталоге пресетов.",
         "en": "Component map: the yandex_mail preset (http, OAuth scheme) in the visible preset catalogue."
@@ -3434,16 +3446,16 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.79.0",
-      "sha256": "51b74b185f65508077116f00486809c58b998656492aa6eb24669cc57c8be596",
+      "version": "1.80.0",
+      "sha256": "68b0a8b2418882361bdd2af07a9e02b1f66f05015ee80bd73479a2acd057e954",
       "note": {
         "ru": "Регенерация: обновлённые описания тестов пресетов и изоляции состояния.",
         "en": "Regenerated: updated descriptions of the preset tests and the state-isolation test."
       }
     },
     "README.md": {
-      "version": "1.62.5",
-      "sha256": "57cf50fb08bafcc8470fb600d698744ebdfbc8b4fe861b429a9aa752c6d0bebf",
+      "version": "1.62.6",
+      "sha256": "a7cec6ce496156dca98f60f038c21ca5154b141656fc81009d6b1835351812c6",
       "note": {
         "ru": "Строка статуса версии обновлена до 2.44.3.",
         "en": "The version status line is updated to 2.44.3."
@@ -3522,8 +3534,8 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.30.1",
-      "sha256": "9be84860db61de6a81d1c045fdea82a4943854090aa7787005a2d22bdbbdd28d",
+      "version": "1.30.2",
+      "sha256": "94441b3ef2ab013906f10cf58962fee791f6f0d6bf5c3ce9f38fd5d484882600",
       "note": {
         "ru": "Канонические строки блока «Названия».",
         "en": "Canonical strings of the Names block."
@@ -3538,8 +3550,8 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.30.1",
-      "sha256": "ef69e9bcf9177cf77e6fa35932e6a0c438e1ddbbf42c48385289366553cb8a8d",
+      "version": "1.30.2",
+      "sha256": "e648ae6be5b4363f730947f8a1425e213b2274fcc3db2ce28c6cf97fe1ee2e5c",
       "note": {
         "ru": "Строки блока «Названия».",
         "en": "Strings of the Names block."
@@ -3554,8 +3566,8 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.30.1",
-      "sha256": "81926218e2e0ace3e0934c6be256d9bc1512967ec2e30069f26dddcbd3da5368",
+      "version": "1.30.2",
+      "sha256": "7136081db170affdc70b9495f155d63c8537acd473973bc4d4116b11c8cfbf17",
       "note": {
         "ru": "Строки блока «Названия».",
         "en": "Strings of the Names block."
@@ -3778,16 +3790,16 @@
       }
     },
     "dev_agent/system_prompt.md": {
-      "version": "3.30",
-      "sha256": "ee0c5d5589edbca5b8e74bc7d9f11ca50fe0135d2556e2fd5ec16668a8456394",
+      "version": "3.31",
+      "sha256": "0fb857ef5df8a0dfc0aaa66f61272584168eb79a456df932a014c4989a56f992",
       "note": {
         "ru": "DevAgent v3.30: спека охватывает только изменение и живёт в .dev_agent/scratch/task_spec.md - проектная документация не переписывается, файл удаляется вместе со скретчем.",
         "en": "DevAgent v3.30: the spec covers the change only and lives in .dev_agent/scratch/task_spec.md - project documentation is never rewritten, and the file is removed with the scratch area."
       }
     },
     "langs/en.json": {
-      "version": "1.30.1",
-      "sha256": "21c7b4578d628bd431b9e751aab744414031271ff6be075d68871c85f69a6649",
+      "version": "1.30.2",
+      "sha256": "d73bc57b308e3765addbdf9eccb0b2c5e933380b2b009eb5b62ce063565d954f",
       "note": {
         "ru": "Строки блока «Названия» и языковых подписей.",
         "en": "Strings of the Names block and language labels."
@@ -3802,8 +3814,8 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.30.1",
-      "sha256": "80e873162edd630626cb3a8fef08c1ee85fa1f556d12c4cfde2ba7736bfb241e",
+      "version": "1.30.2",
+      "sha256": "5da34468c879a1c918b3b119fa3706f8fc05e070a85d78e586cad83778d20c20",
       "note": {
         "ru": "Строки блока «Названия» и языковых подписей.",
         "en": "Strings of the Names block and language labels."
@@ -3818,8 +3830,8 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.30.1",
-      "sha256": "4a067f53eefecba82091ec6dd5a1f7b7d364fe38db9ed9e651fcd054b52397ee",
+      "version": "1.30.2",
+      "sha256": "057d604aa2055a0b4a0d9881294c6f447fe47759a3dc590d96a8b874ae4ff7a9",
       "note": {
         "ru": "Строки блока «Названия» и языковых подписей.",
         "en": "Strings of the Names block and language labels."
@@ -3858,8 +3870,8 @@
       }
     },
     "AGENT.md": {
-      "version": "1.54.0",
-      "sha256": "9a010322b1098e9f01166e21f6b2a2b8e0518231cca5db983da317824b96764d",
+      "version": "1.55.0",
+      "sha256": "73d422356c3bbb5867a8711cc7de68162b2bf9dc19ba801b8cd455c14976a240",
       "note": {
         "ru": "Требование: данные записи тестов не попадают в установку, изоляция DATA_DIR и проверяющий её AST-страж.",
         "en": "Requirement: test writes stay out of the installation, with DATA_DIR isolation and the AST guard that enforces it."

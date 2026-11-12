@@ -20,7 +20,33 @@ def _text() -> str:
 
 
 def test_header_carries_the_version():
-    assert _text().startswith("# DevAgent - System Prompt (v3.30)")
+    assert _text().startswith("# DevAgent - System Prompt (v3.31)")
+
+
+def test_a_child_has_no_confirmation_button():
+    """A refused gate inside a child is a tool error, not a waiting dialog.
+
+    The child cannot reach the Allow button, so the prompt must tell it to
+    reshape the operation or report the blocker instead of retrying.
+    """
+    text = _text()
+
+    assert "A **delegated subagent has no such button**" in text
+    assert "`confirmation_required` as a normal" in text
+    assert "It must not loop on the" in text
+
+
+def test_the_prompt_matches_the_command_rules():
+    """The command policy in the prompt names what the scanner allows.
+
+    An outdated list pushed the model into creating wrapper scripts just to
+    dodge a gate that no longer existed for those commands.
+    """
+    text = _text()
+
+    assert "dangerous.py v3.2" in text
+    assert "The **list form is what makes this safe**" in text
+    assert "`shell=True` is still treated as dangerous" in text
 
 
 def test_a_subagent_does_not_ask_for_plan_approval():

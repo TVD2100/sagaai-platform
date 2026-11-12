@@ -776,7 +776,7 @@
   "orch_reasoning_effort_label": "Reasoning effort",
   "orch_reasoning_effort_label_help": "How deeply the model thinks. Only available for models that support reasoning.",
   "orch_retry_llm": "⚠️ Connection interrupted. Retry {attempt} of {attempts} (pause {delay} s)...",
-  "orch_safety_help": "Controls ONLY execution confirmation: when enabled, run_code/run_test with dangerous patterns require your confirmation. Turning it off does not affect prompt-injection protection.",
+  "orch_safety_help": "Controls ONLY execution confirmation: when enabled, run_code/run_test with dangerous patterns require your confirmation. Turning it off does not affect prompt-injection protection. Clearing the sandbox does not turn these confirmations off — the two switches are independent.",
   "orch_safety_label": "🛡️ Safety mode",
   "orch_sandbox_section": "Code sandbox",
   "orch_sandbox_section_help": "How generated code is isolated on this machine. Profiles and providers are a property of the platform, not a per-orchestrator preference.",
@@ -1323,6 +1323,6 @@
   "orch_injection_label": "🛡️ Injection protection",
   "orch_injection_help": "Controls ONLY sanitisation of external content: pages, documents and tool results are checked for injected instructions. Turning it off does not affect execution confirmation.",
   "orch_sandbox_toggle_label": "Sandbox",
-  "orch_sandbox_toggle_help": "Isolates the code being run: writes are allowed only inside the project and the network is closed. Clearing this checkbox disables isolation completely — the code runs with the platform’s own rights (time and output limits still apply). Other modes are chosen in Settings → Other → “Execution sandbox”.",
+  "orch_sandbox_toggle_help": "Isolates the code being run: writes are allowed only inside the project and the network is closed. Clearing this checkbox disables isolation completely — the code runs with the platform’s own rights (time and output limits still apply). Other modes are chosen in Settings → Other → “Execution sandbox”. Confirmation of dangerous commands is a SEPARATE switch, “Safe mode”: clearing the sandbox does not turn it off.",
   "orch_sandbox_profile_off": "sandbox disabled"
 }

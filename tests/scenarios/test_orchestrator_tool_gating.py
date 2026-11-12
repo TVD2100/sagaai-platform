@@ -292,20 +292,21 @@ def test_canonical_prompts_do_not_duplicate_the_tool_catalog():
     when  they are inspected,
     then  each prompt delegates the full tool list to the auto-added
           '## Available tools' block, keeps its tool-usage rules in-line
-          and contains no duplicated tool-catalog table; dev_agent is v3.30
+          and contains no duplicated tool-catalog table; dev_agent is v3.31
           and ya_agent is v2.11. The batch-calls rule, the verbatim
           user-supplied-plan branch, the generated-PROJECT_MAP rule, the
           Stage 0 recent-workspaces menu (v3.21), the DSML-fallback
           contract (v3.22), the subagent stop/transcript rules (v3.26),
           the result-collection rule (v3.27), the working-memory rules
-          (v3.28) and the workflow-cycle rules (v3.29) are pinned here as
+          (v3.28), the workflow-cycle rules (v3.29) and the command
+          policy that follows the scanner (v3.31) are pinned here as
           invariants.
     """
     dev = CANONICAL_PROMPT_FILES["dev_agent"].read_text(encoding="utf-8")
     ya = CANONICAL_PROMPT_FILES["ya_agent"].read_text(encoding="utf-8")
 
     # Version headers carry the bumped versions.
-    assert dev.splitlines()[0].endswith("(v3.30)"), dev.splitlines()[0]
+    assert dev.splitlines()[0].endswith("(v3.31)"), dev.splitlines()[0]
     assert ya.splitlines()[0].endswith("(v2.11)"), ya.splitlines()[0]
 
     # RAG context-restore invariant (v3.14): hits carry ids and the

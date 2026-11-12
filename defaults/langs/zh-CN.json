@@ -776,7 +776,7 @@
   "orch_reasoning_effort_label": "推理力度",
   "orch_reasoning_effort_label_help": "模型的思考深度。仅支持推理的模型可用。",
   "orch_retry_llm": "⚠️ 连接中断。正在重试 {attempt}/{attempts}（等待 {delay} 秒）...",
-  "orch_safety_help": "仅控制执行确认：启用时，带有危险模式的 run_code/run_test 需要您的确认。关闭它不会影响提示注入防护。",
+  "orch_safety_help": "仅控制执行确认：启用时，带有危险模式的 run_code/run_test 需要您的确认。关闭它不会影响提示注入防护。 取消沙箱不会关闭这些确认——两个开关相互独立。",
   "orch_safety_label": "🛡️ 安全模式",
   "orch_sandbox_section": "代码沙箱",
   "orch_sandbox_section_help": "本机上生成代码的隔离方式。配置文件和提供程序属于平台，而不是单个编排器的偏好设置。",
@@ -1323,6 +1323,6 @@
   "orch_injection_label": "🛡️ 注入防护",
   "orch_injection_help": "仅控制外部内容的净化：页面、文档和工具结果会检查是否包含注入的指令。关闭它不会影响执行确认。",
   "orch_sandbox_toggle_label": "沙箱",
-  "orch_sandbox_toggle_help": "隔离所运行的代码：只允许在项目内写入，网络已关闭。取消勾选将完全关闭隔离——代码以平台自身的权限运行（时间和输出限制仍然生效）。其他模式在 设置 → 其他 → “执行沙箱” 中选择。",
+  "orch_sandbox_toggle_help": "隔离所运行的代码：只允许在项目内写入，网络已关闭。取消勾选将完全关闭隔离——代码以平台自身的权限运行（时间和输出限制仍然生效）。其他模式在 设置 → 其他 → “执行沙箱” 中选择。 危险命令的确认由单独的“安全模式”开关控制：取消沙箱不会关闭它。",
   "orch_sandbox_profile_off": "无沙箱"
 }

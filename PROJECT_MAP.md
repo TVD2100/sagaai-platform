@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-12T09:46:13+00:00`
-- Файлов: **839**
+- Обновлено: `2026-11-12T16:58:23+00:00`
+- Файлов: **842**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **11136**
-- Отпечаток содержимого: `sha256:0f0da814e483347c49eb5bb3975610dc4226f786dcb4f1c2ad75e40b69452a95` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 2, JSON: 37, Markdown: 42, PEM certificate: 2, Python: 756, TOML: 2, Text: 2
+- Python-символов: **11199**
+- Отпечаток содержимого: `sha256:b0b2e706bf788985b7ffefc9df7ac30de27faaf7361018618c552097812caad3` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 2, JSON: 37, Markdown: 42, PEM certificate: 2, Python: 759, TOML: 2, Text: 2
 
 ## Файлы и назначение
 
@@ -227,6 +227,7 @@
 | `core/sandbox/launcher.py` | Python | Child-side launcher: applies the resource ceilings and reports them back (no preexec_fn) | - |
 | `core/sandbox/policy.py` | Python | Fail-closed provider selection: unknown profile, unreachable isolation or a provider stronger than the profile ceiling denies the run; limits only tighten | - |
 | `core/sandbox/profiles.py` | Python | Named execution profiles (read_only, workspace_write, network, legacy_process, off) | - |
+| `core/sandbox/resolve.py` | Python | The execution preferences of one employee resolved for every dispatcher: sandbox_profile turns the toolbar switch into the off profile, safety_enabled reads the confirmation gate with its documented default, and apply_to stamps both onto a freshly built dispatcher so a dialog, a delegated child and a scheduled run reach the same answer | - |
 | `core/sandbox/runner.py` | Python | Single entry point: plan, execute and journal one sandbox run | storage |
 | `core/sandbox/status.py` | Python | Sandbox status for the system prompt: describe() reads the policy decision, format_lines() states profile, provider, guarantees, write scope, network and limits | - |
 | `core/sandbox/providers/__init__.py` | Python | Isolation backend registry: the providers a build ships | - |
@@ -481,9 +482,10 @@
 | `tests/test_sandbox_env_cleanup.py` | Python | _(описание не задано)_ | - |
 | `tests/test_sandbox_inheritance.py` | Python | _(описание не задано)_ | - |
 | `tests/test_sandbox_off_profile.py` | Python | Tests: the switchable sandbox-off profile - no isolation claimed, the isolation ceiling honoured, resource limits still applied | - |
-| `tests/test_sandbox_phase0.py` | Python | Tests: approval context, child environment allowlist, process limits and kill-tree | - |
+| `tests/test_sandbox_phase0.py` | Python | Scanner tests: the list-form commands of an ordinary project cycle run without a confirmation, while the destructive deny list and the shell string form keep asking; also the approval context, the child environment allowlist, the process limits and the kill-tree | - |
 | `tests/test_sandbox_phase1.py` | Python | Tests: sandbox contracts, profiles, fail-closed policy, limit clamping and the run journal | storage |
 | `tests/test_sandbox_phase3.py` | Python | Tests: container and WSL providers, approval tickets and the HTTP confirmation route | - |
+| `tests/test_sandbox_preferences.py` | Python | Resolution tests of the employee execution preferences: the two switches stay independent, an unknown profile is never replaced and the dialog, child and schedule builders all stamp the same values | - |
 | `tests/test_sandbox_security.py` | Python | Security tests: child environment allowlist, secret redaction, escaping limits and fail-closed refusals | - |
 | `tests/test_sandbox_shared_tmp.py` | Python | _(описание не задано)_ | - |
 | `tests/test_sandbox_status.py` | Python | _(описание не задано)_ | - |
@@ -593,6 +595,7 @@
 | `tests/scenarios/test_dsml_fallback_scenarios.py` | Python | _(описание не задано)_ | ui |
 | `tests/scenarios/test_employees_sidebar_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_empty_state_artifacts_scenario.py` | Python | Scenario tests: task journal and uploads never create files in a foreign project (empty state); files arrive via st.chat_input | storage, ui |
+| `tests/scenarios/test_execution_preferences_scenario.py` | Python | User-level scenarios of the two toolbar switches: both off lets a snippet run, either switch alone keeps its own guarantee, an ordinary build command runs out of the box, and a delegated child inherits both choices of its employee | - |
 | `tests/scenarios/test_feed_autoscroll_scenario.py` | Python | Scenario tests for chat feed auto-scroll (given->when->then): forced scroll on send, follow on each agent step, pause on scroll-up / resume at bottom, idle chat untouched | ui |
 | `tests/scenarios/test_first_run_flow.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_folder_picker_scenario.py` | Python | Scenario tests for the chat folder picker (Выбор папки): applied on first send, mid-dialog switch, agent detour does not change the reported folder, native browse button records and stages the folder | storage, ui |
@@ -1838,15 +1841,18 @@
 - `is_secret_key` (func, строка 137)
 
 ### `core/dangerous.py`
-- `DangerRule` (class, строка 36)
-- `DangerAssessment` (class, строка 259)
-- `DangerAssessment.to_dict` (func, строка 266)
-- `_iter_subprocess_calls` (func, строка 282)
-- `_check_python_rules` (func, строка 305)
-- `_check_shell_rules` (func, строка 335)
-- `assess_code` (func, строка 354)
-- `tool_needs_confirmation` (func, строка 390)
-- `format_reasons_for_ui` (func, строка 406)
+- `DangerRule` (class, строка 42)
+- `DangerAssessment` (class, строка 288)
+- `DangerAssessment.to_dict` (func, строка 295)
+- `_normalize_command` (func, строка 311)
+- `_command_is_safe` (func, строка 323)
+- `_iter_subprocess_calls` (func, строка 339)
+- `_check_python_rules` (func, строка 362)
+- `_strip_python_comments` (func, строка 392)
+- `_check_shell_rules` (func, строка 410)
+- `assess_code` (func, строка 430)
+- `tool_needs_confirmation` (func, строка 466)
+- `format_reasons_for_ui` (func, строка 482)
 
 ### `core/default_imports.py`
 - `_full_devagent_toolset` (func, строка 49)
@@ -3572,12 +3578,12 @@
 - `_register_workspace` (func, строка 106)
 - `_create_dialog` (func, строка 125)
 - `_make_dispatcher` (func, строка 146)
-- `_make_dispatcher._send` (func, строка 164)
-- `_append_messages` (func, строка 177)
-- `_counters` (func, строка 207)
-- `_final_status` (func, строка 216)
-- `run_schedule` (func, строка 232)
-- `_record_result` (func, строка 330)
+- `_make_dispatcher._send` (func, строка 174)
+- `_append_messages` (func, строка 187)
+- `_counters` (func, строка 217)
+- `_final_status` (func, строка 226)
+- `run_schedule` (func, строка 242)
+- `_record_result` (func, строка 340)
 
 ### `core/schedules/store.py`
 - `_now` (func, строка 43)
@@ -3669,6 +3675,13 @@
 - `get_profile` (func, строка 99)
 - `all_profiles` (func, строка 104)
 - `profile_names` (func, строка 109)
+
+### `core/sandbox/resolve.py`
+- `_as_bool` (func, строка 36)
+- `employee_config` (func, строка 45)
+- `sandbox_profile` (func, строка 64)
+- `safety_enabled` (func, строка 77)
+- `apply_to` (func, строка 86)
 
 ### `core/sandbox/runner.py`
 - `build_request` (func, строка 20)
@@ -3767,14 +3780,14 @@
 - `child_display_name` (func, строка 99)
 - `bind_child_thread` (func, строка 106)
 - `build_child_dispatcher` (func, строка 128)
-- `build_child_dispatcher._send` (func, строка 156)
-- `open_child_sink` (func, строка 169)
-- `child_event_forwarder` (func, строка 193)
-- `child_event_forwarder._forward` (func, строка 207)
-- `apply_resume_state` (func, строка 228)
-- `step_child_loop` (func, строка 249)
-- `child_final_result` (func, строка 298)
-- `finish_child` (func, строка 327)
+- `build_child_dispatcher._send` (func, строка 166)
+- `open_child_sink` (func, строка 179)
+- `child_event_forwarder` (func, строка 203)
+- `child_event_forwarder._forward` (func, строка 217)
+- `apply_resume_state` (func, строка 238)
+- `step_child_loop` (func, строка 259)
+- `child_final_result` (func, строка 308)
+- `finish_child` (func, строка 337)
 
 ### `core/orchestration/child_text.py`
 - `derive_child_thread_id` (func, строка 19)
@@ -3815,18 +3828,18 @@
 ### `core/orchestration/dialog_runner.py`
 - `build_state` (func, строка 53)
 - `build_dispatcher` (func, строка 123)
-- `send_adapter` (func, строка 158)
-- `send_adapter._send` (func, строка 172)
-- `attach_sender` (func, строка 189)
-- `run_step` (func, строка 200)
-- `run_loop` (func, строка 211)
-- `persist_step` (func, строка 279)
-- `final_triple` (func, строка 309)
-- `final_summary` (func, строка 321)
-- `register_root` (func, строка 330)
-- `close_root` (func, строка 350)
-- `release_root` (func, строка 359)
-- `cancel_report` (func, строка 373)
+- `send_adapter` (func, строка 168)
+- `send_adapter._send` (func, строка 182)
+- `attach_sender` (func, строка 199)
+- `run_step` (func, строка 210)
+- `run_loop` (func, строка 221)
+- `persist_step` (func, строка 289)
+- `final_triple` (func, строка 319)
+- `final_summary` (func, строка 331)
+- `register_root` (func, строка 340)
+- `close_root` (func, строка 360)
+- `release_root` (func, строка 369)
+- `cancel_report` (func, строка 383)
 
 ### `core/orchestration/invoke.py`
 - `_read_document_bytes` (func, строка 53)
@@ -9036,19 +9049,26 @@
 - `test_safe_call_does_not_suppress_a_dangerous_call` (func, строка 116)
 - `test_only_safe_calls_stay_allowed` (func, строка 127)
 - `test_open_safe_name_does_not_excuse_a_second_write` (func, строка 138)
-- `test_interpreter_like_commands_are_not_whitelisted` (func, строка 154)
-- `test_environment_dump_is_dangerous` (func, строка 161)
-- `test_alternative_apis_are_detected` (func, строка 181)
-- `test_path_mode_is_analysed` (func, строка 189)
-- `test_path_mode_safe_script_runs` (func, строка 204)
-- `test_binary_script_is_refused` (func, строка 220)
-- `test_printed_secret_values_are_redacted` (func, строка 237)
-- `test_redaction_keeps_ordinary_text` (func, строка 246)
-- `test_child_env_has_no_platform_variables` (func, строка 255)
-- `test_timeout_kills_the_process_group` (func, строка 266)
-- `test_output_is_bounded_in_memory` (func, строка 287)
-- `test_stdin_is_closed` (func, строка 309)
-- `test_parked_batch_reports_suspended_calls` (func, строка 331)
+- `test_build_and_test_commands_run_without_a_confirmation` (func, строка 152)
+- `test_destructive_commands_still_ask_even_in_list_form` (func, строка 169)
+- `test_environment_dump_is_still_dangerous` (func, строка 181)
+- `test_deploy_and_environment_managers_still_ask` (func, строка 188)
+- `test_a_string_command_with_shell_is_still_dangerous` (func, строка 194)
+- `test_a_dangerous_command_is_not_excused_by_an_allowed_one` (func, строка 200)
+- `test_environment_dump_is_dangerous` (func, строка 210)
+- `test_a_comment_about_a_forbidden_command_is_not_a_command` (func, строка 216)
+- `test_a_string_replace_is_not_a_file_write` (func, строка 226)
+- `test_alternative_apis_are_detected` (func, строка 250)
+- `test_path_mode_is_analysed` (func, строка 258)
+- `test_path_mode_safe_script_runs` (func, строка 273)
+- `test_binary_script_is_refused` (func, строка 289)
+- `test_printed_secret_values_are_redacted` (func, строка 306)
+- `test_redaction_keeps_ordinary_text` (func, строка 315)
+- `test_child_env_has_no_platform_variables` (func, строка 324)
+- `test_timeout_kills_the_process_group` (func, строка 335)
+- `test_output_is_bounded_in_memory` (func, строка 356)
+- `test_stdin_is_closed` (func, строка 378)
+- `test_parked_batch_reports_suspended_calls` (func, строка 400)
 
 ### `tests/test_sandbox_phase1.py`
 - `StubProvider` (class, строка 29)
@@ -9128,6 +9148,33 @@
 - `test_only_a_confirmable_pause_keeps_its_live_state._Service` (class, строка 425)
 - `test_only_a_confirmable_pause_keeps_its_live_state._Service.save_record` (func, строка 427)
 - `test_an_unknown_decision_word_is_refused` (func, строка 454)
+
+### `tests/test_sandbox_preferences.py`
+- `employee` (func, строка 22)
+- `employee.fake_get_orchestrator` (func, строка 26)
+- `employee.set_config` (func, строка 33)
+- `FakeCore` (class, строка 39)
+- `FakeCore.__init__` (func, строка 42)
+- `FakeCore.set_send_request` (func, строка 48)
+- `FakeDispatcher` (class, строка 53)
+- `FakeDispatcher.__init__` (func, строка 56)
+- `FakeDispatcher.attach_orchestrator` (func, строка 61)
+- `fake_dispatcher` (func, строка 67)
+- `test_switched_off_sandbox_resolves_to_the_off_profile` (func, строка 78)
+- `test_switched_on_sandbox_keeps_the_configured_profile` (func, строка 84)
+- `test_a_missing_sandbox_key_means_the_switch_is_on` (func, строка 90)
+- `test_an_unset_profile_means_the_policy_default` (func, строка 96)
+- `test_an_unknown_profile_is_never_replaced` (func, строка 103)
+- `test_string_forms_of_false_clear_the_switch` (func, строка 110)
+- `test_clearing_the_sandbox_does_not_clear_the_confirmation` (func, строка 119)
+- `test_clearing_the_confirmation_does_not_clear_the_sandbox` (func, строка 126)
+- `test_a_missing_safety_key_keeps_the_gate_on` (func, строка 133)
+- `test_an_unknown_employee_falls_back_to_the_defaults` (func, строка 139)
+- `test_the_child_builder_inherits_the_employee_preferences` (func, строка 148)
+- `test_the_child_builder_keeps_the_gate_when_the_employee_asked_for_it` (func, строка 167)
+- `test_the_dialog_builder_lets_the_request_tighten_the_gate` (func, строка 181)
+- `test_the_dialog_builder_honours_a_caller_that_waives_the_gate` (func, строка 198)
+- `test_the_schedule_builder_reads_the_employee_preferences` (func, строка 210)
 
 ### `tests/test_sandbox_security.py`
 - `_providers` (func, строка 37)
@@ -9827,18 +9874,20 @@
 ### `tests/test_system_prompt_subagents.py`
 - `_text` (func, строка 17)
 - `test_header_carries_the_version` (func, строка 22)
-- `test_a_subagent_does_not_ask_for_plan_approval` (func, строка 26)
-- `test_the_exception_keeps_the_other_gates` (func, строка 35)
-- `test_a_subagent_never_waits_for_a_confirmation` (func, строка 46)
-- `test_the_tools_section_documents_background_runs` (func, строка 55)
-- `test_unfinished_states_are_named_and_resumed` (func, строка 65)
-- `test_the_resume_chain_is_capped` (func, строка 76)
-- `test_claims_about_earlier_dialogs_need_a_search` (func, строка 84)
-- `test_the_approval_gate_itself_is_unchanged_for_top_level_dialogs` (func, строка 94)
-- `test_a_nontrivial_change_starts_with_a_survey_and_a_spec` (func, строка 105)
-- `test_linters_run_before_the_test_tiers` (func, строка 120)
-- `test_an_approved_series_keeps_running` (func, строка 131)
-- `test_the_prompt_stays_one_managed_file` (func, строка 142)
+- `test_a_child_has_no_confirmation_button` (func, строка 26)
+- `test_the_prompt_matches_the_command_rules` (func, строка 39)
+- `test_a_subagent_does_not_ask_for_plan_approval` (func, строка 52)
+- `test_the_exception_keeps_the_other_gates` (func, строка 61)
+- `test_a_subagent_never_waits_for_a_confirmation` (func, строка 72)
+- `test_the_tools_section_documents_background_runs` (func, строка 81)
+- `test_unfinished_states_are_named_and_resumed` (func, строка 91)
+- `test_the_resume_chain_is_capped` (func, строка 102)
+- `test_claims_about_earlier_dialogs_need_a_search` (func, строка 110)
+- `test_the_approval_gate_itself_is_unchanged_for_top_level_dialogs` (func, строка 120)
+- `test_a_nontrivial_change_starts_with_a_survey_and_a_spec` (func, строка 131)
+- `test_linters_run_before_the_test_tiers` (func, строка 146)
+- `test_an_approved_series_keeps_running` (func, строка 157)
+- `test_the_prompt_stays_one_managed_file` (func, строка 168)
 
 ### `tests/test_task_scout_default.py`
 - `platform` (func, строка 33)
@@ -11310,6 +11359,29 @@
 - `test_scenario_empty_state_attachment_never_touches_foreign_project._Upload` (class, строка 209)
 - `test_scenario_empty_state_attachment_never_touches_foreign_project._Upload.__init__` (func, строка 210)
 - `test_scenario_empty_state_attachment_never_touches_foreign_project._Upload.read` (func, строка 214)
+
+### `tests/scenarios/test_execution_preferences_scenario.py`
+- `employee` (func, строка 41)
+- `employee.fake_get_orchestrator` (func, строка 45)
+- `employee.set_config` (func, строка 50)
+- `StubRunner` (class, строка 56)
+- `StubRunner.__init__` (func, строка 59)
+- `StubRunner.execute` (func, строка 62)
+- `runner` (func, строка 69)
+- `_executor` (func, строка 78)
+- `_executor._Dispatcher` (class, строка 82)
+- `_executor._Dispatcher.__init__` (func, строка 83)
+- `test_scenario_both_switches_off_let_the_snippet_run` (func, строка 92)
+- `test_scenario_a_cleared_sandbox_keeps_the_confirmation` (func, строка 113)
+- `test_scenario_a_cleared_confirmation_keeps_the_isolation` (func, строка 130)
+- `test_scenario_an_ordinary_build_command_runs_out_of_the_box` (func, строка 148)
+- `test_scenario_a_delegated_child_inherits_both_choices` (func, строка 165)
+- `test_scenario_a_delegated_child_inherits_both_choices.FakeCore` (class, строка 176)
+- `test_scenario_a_delegated_child_inherits_both_choices.FakeCore.__init__` (func, строка 177)
+- `test_scenario_a_delegated_child_inherits_both_choices.FakeCore.set_send_request` (func, строка 181)
+- `test_scenario_a_delegated_child_inherits_both_choices.FakeDispatcher` (class, строка 184)
+- `test_scenario_a_delegated_child_inherits_both_choices.FakeDispatcher.__init__` (func, строка 185)
+- `test_scenario_a_delegated_child_inherits_both_choices.FakeDispatcher.attach_orchestrator` (func, строка 188)
 
 ### `tests/scenarios/test_feed_autoscroll_scenario.py`
 - `ui_env` (func, строка 32)

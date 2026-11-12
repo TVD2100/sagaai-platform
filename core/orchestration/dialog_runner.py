@@ -152,6 +152,16 @@ def build_dispatcher(slug: str, thread_id: str, *, workspace: str = "",
         dispatcher.core._safety_enabled = bool(safety)
     except Exception as exc:  # pragma: no cover - defensive
         log.warning("dispatcher flags not applied: %s", exc)
+    # The execution profile is not a field of the request: it is a setting of
+    # the employee, and an HTTP dialog must obey the same setting the chat
+    # page obeys. The explicit ``safety`` argument still wins for the gate,
+    # because a caller may ask for a stricter run than the settings allow.
+    try:
+        from core.sandbox import resolve as sandbox_resolve
+
+        dispatcher.core._sandbox_profile = sandbox_resolve.sandbox_profile(slug)
+    except Exception as exc:  # pragma: no cover - the policy default stays
+        log.warning("dispatcher sandbox profile not applied: %s", exc)
     return dispatcher
 
 

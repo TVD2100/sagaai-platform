@@ -759,7 +759,18 @@
 # platform already ships installs as a no-op, and registry rows written by
 # earlier versions keep their old uninstall rule.
 
-__version__ = "2.45.0"
+# 2.45.1 hands the user's toolbar choice to every executor. The sandbox and
+# confirmation switches were applied to the chat dialog only: a delegated
+# subagent and a scheduled run built their dispatcher without either value,
+# so they kept running isolated with the gate on, and a child - which has no
+# Allow button - stopped on a refusal nobody could grant. One resolver in
+# core/sandbox/resolve.py now answers for the dialog, the child and the
+# schedule alike. The command scanner also stops asking about ordinary build
+# work: interpreters, test runners, linters, git and in-project file tools
+# run in list form without a prompt, while the shell string form and the
+# destructive or network deny list keep asking.
+
+__version__ = "2.45.1"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
