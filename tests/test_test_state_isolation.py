@@ -152,3 +152,128 @@ def test_every_module_that_mutates_global_state_restores_it():
         "request the _restore_dev_agent_state fixture or snapshot/restore it yourself:\n  "
         + "\n  ".join(offenders)
     )
+
+
+# ─── Runtime-data isolation ────────────────────────────────────────────────
+#
+# A test that creates a connection, an employee or an assistant writes through
+# ``core.paths.DATA_DIR``: ``core.connectors._connectors_root`` and its peers
+# read that attribute at call time. Without an override the write lands in the
+# real installation and the entity outlives the run, so the user sees test
+# connections on the Connectors page and test employees in the sidebar.
+#
+# The rule this guard enforces: a module that calls one of the writing APIs
+# must also isolate DATA_DIR - by touching ``DATA_DIR`` itself, by importing
+# the isolation fixture from a helper module, or by requesting a fixture whose
+# name ends with ``data_dir``.
+
+#: Calls that persist an entity under ``core.paths.DATA_DIR``.
+WRITER_CALLS = frozenset({
+    "create_connection", "update_connection", "delete_connection",
+    "set_connection_memory", "instantiate_preset",
+    "create_orchestrator", "update_orchestrator", "delete_orchestrator",
+    "save_orchestrator_function", "save_orchestrator_instruction",
+    "create_assistant", "update_assistant_by_id",
+})
+
+#: A fixture whose name ends like this points DATA_DIR at a temporary folder.
+ISOLATION_FIXTURE_SUFFIX = "data_dir"
+
+
+
+def _called_names(tree, names):
+    """Return the subset of *names* the module calls anywhere in its code."""
+    found = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            func = node.func
+            name = getattr(func, "attr", None) or getattr(func, "id", None)
+            if name in names:
+                found.add(name)
+    return found
+
+
+def _imports_isolation_fixture(tree):
+    """True when the module imports an isolation fixture from another module.
+
+    Re-exporting ``isolated_data_dir`` from a helper module is the recommended
+    way to share it, so an import counts exactly like a local definition.
+    """
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                if alias.name.endswith(ISOLATION_FIXTURE_SUFFIX):
+                    return True
+    return False
+
+
+def _requests_isolation_fixture(tree):
+    """True when any function asks for a fixture named ``*data_dir``."""
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        args = node.args
+        for arg in list(args.args) + list(args.kwonlyargs):
+            if arg.arg.endswith(ISOLATION_FIXTURE_SUFFIX):
+                return True
+    return False
+
+
+def _isolates_data_dir(source, tree):
+    """True when the module keeps its writes out of the real DATA_DIR."""
+    if "DATA_DIR" in source:
+        return True
+    return _imports_isolation_fixture(tree) or _requests_isolation_fixture(tree)
+
+
+def test_every_module_that_writes_runtime_data_isolates_data_dir():
+    """A module that persists an entity must not write it into the install."""
+    offenders = []
+    checked = 0
+    for path in _iter_test_modules():
+        source = _read(path)
+        tree = ast.parse(source)
+        calls = _called_names(tree, WRITER_CALLS)
+        if not calls:
+            continue
+        checked += 1
+        if _isolates_data_dir(source, tree):
+            continue
+        rel = os.path.relpath(path, REPO_ROOT)
+        offenders.append("%s calls %s" % (rel, ", ".join(sorted(calls))))
+    assert checked, "no module writing runtime data was found - the scan is broken"
+    assert not offenders, (
+        "these modules write runtime data through core.paths.DATA_DIR without "
+        "isolating it; request an ``*data_dir`` fixture or point DATA_DIR at "
+        "tmp_path yourself:\n  " + "\n  ".join(offenders)
+    )
+
+
+#: A module that writes a connection without isolating DATA_DIR - the shape
+#: this guard exists to catch.
+_LEAKY_SOURCE = (
+    "def test_makes_a_connection(preset_root):\n"
+    "    instantiate_preset('demo', 'mcp', preset_root=preset_root)\n"
+)
+
+#: The same write after the fix: the isolation fixture is requested by name.
+_FIXED_SOURCE = (
+    "def test_makes_a_connection(preset_root, isolated_data_dir):\n"
+    "    instantiate_preset('demo', 'mcp', preset_root=preset_root)\n"
+)
+
+
+def test_guard_flags_a_writer_without_isolation():
+    """The guard must see the leak it was written for."""
+    tree = ast.parse(_LEAKY_SOURCE)
+    assert _called_names(tree, WRITER_CALLS) == {"instantiate_preset"}
+    assert _isolates_data_dir(_LEAKY_SOURCE, tree) is False
+
+
+def test_guard_accepts_every_isolation_form():
+    """A requested, an imported and an explicit isolation all count."""
+    assert _isolates_data_dir(_FIXED_SOURCE, ast.parse(_FIXED_SOURCE)) is True
+    imported = "from tests.test_ssh_connector import isolated_data_dir\n"
+    assert _isolates_data_dir(imported, ast.parse(imported)) is True
+    explicit = "import core.paths\ncore.paths.DATA_DIR = '/tmp/x'\n"
+    assert _isolates_data_dir(explicit, ast.parse(explicit)) is True

@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "2.44.2",
+  "app_version": "2.44.3",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Пресет MCP Яндекс Почты: подключение к почтовому ящику Яндекс 360 плиткой на вкладке «MCP-серверы» - поиск и чтение писем, папки и метки, черновики, перемещение и удаление в Корзину. Авторизация схемой OAuth, отправка писем не поддерживается.",
-    "en": "Yandex 360 Mail MCP preset: connect a mailbox from a tile on the MCP tab - search and read messages, folders and labels, drafts, moving and deleting to Trash. OAuth-scheme authorization; sending mail is not supported."
+    "ru": "Данные тестов остаются вне установки: прогон набора больше не создаёт в ней тестовых подключений, и список подключений показывает только реальные. Изоляцию данных в тестах теперь проверяет автоматический страж - модуль, который пишет подключение, сотрудника или помощника без временного каталога данных, роняет прогон с указанием своего имени.",
+    "en": "Test data stays out of the installation: running the suite no longer creates test connections there, and the connection list shows only real ones. Data isolation in tests is now enforced by an automatic guard - a module that writes a connection, an employee or an assistant without a temporary data folder fails the run and is named."
   },
   "updated": "2026-11-12",
   "units": {
     "core": {
-      "version": "1.87.1",
+      "version": "1.87.2",
       "note": {
-        "ru": "Пакет: единый резолвер названий (core/naming.py) с четырьмя слотами имени, хранение name_en/name_ru/name_zh и миграция 0011, зеркала в orchestrator.json/manifest.json, каталог маркетплейса и установка агентов через модуль слияния agent_merge, блок «Названия» в формах и заполнение пустых слотов у установленных сущностей.",
-        "en": "Package: one name resolver (core/naming.py) over four name slots, name_en/name_ru/name_zh storage with migration 0011, mirrors in orchestrator.json/manifest.json, the marketplace catalog and agent installation through the agent_merge module, the Names block in the forms and the backfill of empty slots on installed entities."
+        "ru": "Пакет: данные тестов больше не попадают в установку - пишущий тест пресетов изолирует DATA_DIR, а статический AST-страж в tests/test_test_state_isolation.py не даёт модулю с пишущим вызовом обойтись без изоляции.",
+        "en": "Package: test data stays out of the installation - the writing preset test isolates DATA_DIR, and a static AST guard in tests/test_test_state_isolation.py rejects a module that calls a writing API without isolating it."
       },
       "files": {
         "__init__.py": {
@@ -276,11 +276,11 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.78.0",
-          "sha256": "c880aef47fb55e49213b3ab30a735dcf157154b44ffc73ff9eb16b3a5ad33033",
+          "version": "1.78.1",
+          "sha256": "500efa1de9a87716a4b8d09b3770ab932c451639469910d077c4dc4ce1f93260",
           "note": {
-            "ru": "Релиз 2.44.2: пресет MCP Яндекс Почты с авторизацией схемой OAuth.",
-            "en": "Release 2.44.2: the Yandex 360 Mail MCP preset with OAuth-scheme authorization."
+            "ru": "Релиз 2.44.3: данные тестов не попадают в установку.",
+            "en": "Release 2.44.3: test data stays out of the installation."
           }
         },
         "dev_agent/__init__.py": {
@@ -368,11 +368,11 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.12.7",
-          "sha256": "cd3c6e6d3823840a743d27ee14022d3c2a900830cae658d61fb4842be6e28243",
+          "version": "1.12.8",
+          "sha256": "6710ce7e91c09e797a23dd48902eba67f0a8663e0905a1aec6f5e97e15b8d28f",
           "note": {
-            "ru": "Описания пресета Яндекс Почты, его сценарного теста и обновлённых тестов пресетов и MCP-клиента.",
-            "en": "Descriptions of the Yandex Mail preset, its scenario test and the updated preset and MCP-client tests."
+            "ru": "Описания тестов пресетов и изоляции состояния: изоляция DATA_DIR и второй AST-страж.",
+            "en": "Descriptions of the preset tests and the state-isolation test: DATA_DIR isolation and the second AST guard."
           }
         },
         "scripts/verify_manifest.py": {
@@ -1382,11 +1382,11 @@
           }
         },
         "tests/test_connector_presets.py": {
-          "version": "1.0.2",
-          "sha256": "1912e7a6fff6109f786846e72014bd4b872163d1b075d51b09299fff770ca69c",
+          "version": "1.0.3",
+          "sha256": "ffbc72dbb3347df7aa794d7b04cf9aaeb017a7bc9fa8e124cca80ec8f04d6382",
           "note": {
-            "ru": "Тесты пресетов: видимый пресет yandex_mail (OAuth-схема, одно поле секрета, пометка об отсутствии отправки) рядом с vkusvill.",
-            "en": "Preset tests: the visible yandex_mail preset (OAuth scheme, one credential field, the no-sending note) next to vkusvill."
+            "ru": "Тест instantiate_preset выполняется с временным DATA_DIR: черновик подключения не остаётся в установке.",
+            "en": "The instantiate_preset test runs against a temporary DATA_DIR: the draft connection is not left in the installation."
           }
         },
         "core/url_fetch.py": {
@@ -3066,8 +3066,12 @@
           "sha256": "0fbc24654a8a5e0c402e0b31e59f87f469b2b1d3a75456de31c66c0623904425"
         },
         "tests/test_test_state_isolation.py": {
-          "version": "1.0.0",
-          "sha256": "3746fe8e0d419581c0f013d52566695a1ed68bd29606c0328f30708df420edbb"
+          "version": "1.1.0",
+          "sha256": "b27f67fbfe15c0aa3c7adfbfdf67e399297806618353f749ea80155d4b623db9",
+          "note": {
+            "ru": "Новый страж: модуль, вызывающий пишущий API (create_connection, instantiate_preset, create_orchestrator, create_assistant, ...) без изоляции core.paths.DATA_DIR, называется по имени и роняет прогон.",
+            "en": "New guard: a module that calls a writing API (create_connection, instantiate_preset, create_orchestrator, create_assistant, ...) without isolating core.paths.DATA_DIR is named and fails the run."
+          }
         },
         "tests/scenarios/conftest.py": {
           "version": "1.0.0",
@@ -3422,19 +3426,19 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.78.4",
-      "sha256": "a183b8e29086b834d1728327d59347da3bea82a8f29ae1b3c230cd26a8b7db89",
+      "version": "1.78.5",
+      "sha256": "8d02ac7248a0ba503b95e43181133dc6a4f81d75c9df5698769c147cd1a71d56",
       "note": {
-        "ru": "Регенерация: пресет Яндекс Почты, его сценарный тест и обновлённые описания тестов пресетов и MCP-клиента.",
-        "en": "Regenerated: the Yandex Mail preset, its scenario test and the updated descriptions of the preset and MCP-client tests."
+        "ru": "Регенерация: обновлённые описания тестов пресетов и изоляции состояния.",
+        "en": "Regenerated: updated descriptions of the preset tests and the state-isolation test."
       }
     },
     "README.md": {
-      "version": "1.62.3",
-      "sha256": "09c40814c4dc5375bcb370e1632620e528626bdef7ba744019ddfd58703eeee4",
+      "version": "1.62.4",
+      "sha256": "0d0ba8634fd07062b2b1fc4d51e6aae9dfa3cd13abbb15d469b2326ed4d6486e",
       "note": {
-        "ru": "Пресеты MCP: к плитке «ВкусВилл» добавлена плитка «Яндекс Почта» (OAuth-токен), строка статуса версии обновлена до 2.44.2.",
-        "en": "MCP presets: the Vkusvill tile is joined by a Yandex Mail tile (OAuth token); the version status line is updated to 2.44.2."
+        "ru": "Строка статуса версии обновлена до 2.44.3.",
+        "en": "The version status line is updated to 2.44.3."
       }
     },
     "defaults/README.md": {
@@ -3846,11 +3850,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.53.3",
-      "sha256": "fe95354ca455647568a5f74916cc40eb05619f4d8710126cd7fcede112b21072",
+      "version": "1.53.4",
+      "sha256": "5e8ec293db34ec5817633a6d223f9f8f814b047ec6f3764fc965fb0783733548",
       "note": {
-        "ru": "Требования: видимые MCP-пресеты - vkusvill и yandex_mail (http, схема OAuth).",
-        "en": "Requirements: the visible MCP presets are vkusvill and yandex_mail (http, OAuth scheme)."
+        "ru": "Требование: данные записи тестов не попадают в установку, изоляция DATA_DIR и проверяющий её AST-страж.",
+        "en": "Requirement: test writes stay out of the installation, with DATA_DIR isolation and the AST guard that enforces it."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/connector_creator.md": {

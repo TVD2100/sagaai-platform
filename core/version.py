@@ -741,7 +741,14 @@
 # supported. The catalog publishes the same preset as an ``mcp`` entity, so the
 # server is installable without upgrading the platform.
 
-__version__ = "2.44.2"
+# 2.44.3 keeps test data out of the installation. A test that created an
+# entity resolved the real ``core.paths.DATA_DIR`` instead of a temporary
+# one, so every run of the suite left a connection behind and the Connectors
+# page showed it next to the user's own. The writing test now points DATA_DIR
+# at a throwaway folder, and a second AST guard in the isolation test fails
+# on any module that calls a writing API without doing the same.
+
+__version__ = "2.44.3"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-12T08:00:32+00:00`
-- Файлов: **835**
+- Обновлено: `2026-11-12T09:03:15+00:00`
+- Файлов: **837**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **11078**
-- Отпечаток содержимого: `sha256:67b70ccc09e515ef3db53a2936916a28e4ac725f037d91a9ed9c6487b570c3b4` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 2, JSON: 36, Markdown: 42, PEM certificate: 2, Python: 753, TOML: 2, Text: 2
+- Python-символов: **11099**
+- Отпечаток содержимого: `sha256:109b08d2800f0f3728912f164cc7b33d7d71dae788061750d106dccbd005432e` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 2, JSON: 37, Markdown: 42, PEM certificate: 2, Python: 754, TOML: 2, Text: 2
 
 ## Файлы и назначение
 
@@ -322,7 +322,7 @@
 | `tests/test_cli_console.py` | Python | Unit tests of the console output layer: exactly one JSON object on stdout, the human report, the error envelope and the reserved-stream behaviour | - |
 | `tests/test_cli_imports.py` | Python | Tests that the console imports without streamlit, fastapi or pydantic, in a subprocess with the packages blocked rather than merely absent | - |
 | `tests/test_cold_start_deps.py` | Python | UI tests for the cold-start dependency warning in ui.app: missing/outdated reports render deps_missing/deps_outdated, no warning when up to date, audit runs once per session, probe errors are swallowed | ui |
-| `tests/test_connector_presets.py` | Python | Preset catalogue tests: hidden presets drop out of list_presets but stay resolvable by id (and with include_hidden=True), the hidden flag coerces booleans/strings/numbers and treats unknown values as visible, an invalid flag never breaks loading, instantiate_preset still works for a hidden preset, and the bundled catalogue ships vkusvill and yandex_mail (the mail preset pins the OAuth scheme, one credential field and the no-sending note) while github_mcp stays resolvable with hidden=true | - |
+| `tests/test_connector_presets.py` | Python | Preset catalogue tests: hidden presets drop out of list_presets but stay resolvable by id (and with include_hidden=True), the hidden flag coerces booleans/strings/numbers and treats unknown values as visible, an invalid flag never breaks loading, instantiate_preset still works for a hidden preset (under an isolated DATA_DIR so the draft never lands in the installation), and the bundled catalogue ships vkusvill and yandex_mail (the mail preset pins the OAuth scheme, one credential field and the no-sending note) while github_mcp stays resolvable with hidden=true | - |
 | `tests/test_connectors.py` | Python | Unit tests for core.connectors: CRUD, encrypted token/secrets storage, public-view leak guard, pending drafts, connection memory | - |
 | `tests/test_context_window_guard.py` | Python | Context-guard tests: output-reserve formula, 32k window, economy head protection, unified input_ceiling/input_budget/history_cap (B4) | - |
 | `tests/test_copyright_headers.py` | Python | _(описание не задано)_ | - |
@@ -517,7 +517,7 @@
 | `tests/test_task_scout_default.py` | Python | Unit tests for the bundled Task Scout: folder completeness, conservative defaults, prompt contract, default import, catalog adoptability, and the delegation boundary of both read-only helpers | storage |
 | `tests/test_task_state.py` | Python | Task-state journal tests (dialog-folder fallback in the empty state) | - |
 | `tests/test_task_state_prune.py` | Python | Unit tests for journal retention: only empty journals past the age threshold are removed, journals with an active task or history survive, the live dialog and fresh files survive, a non-journal file is left alone, an orphaned child journal goes only when its run reported a terminal outcome, and the sweep does not cascade onto children in the same pass | - |
-| `tests/test_test_state_isolation.py` | Python | Guards how the suite isolates process-global state: the base conftest ships _restore_dev_agent_state without autouse, the scenario folder owns its own restore hook, and an AST scan fails with the offender's file name when a module calls apply_paths or _reset_dialog without restoring the state | - |
+| `tests/test_test_state_isolation.py` | Python | Guards how the suite isolates process-global state and runtime data: the base conftest ships _restore_dev_agent_state without autouse, the scenario folder owns its own restore hook, an AST scan fails with the offender's file name when a module calls apply_paths or _reset_dialog without restoring the state, and a second scan fails when a module calls a writing API (create_connection, instantiate_preset, create_orchestrator, create_assistant, ...) without isolating core.paths.DATA_DIR - by touching DATA_DIR, by importing an *data_dir fixture or by requesting one | - |
 | `tests/test_theme_restore.py` | Python | _(описание не задано)_ | - |
 | `tests/test_thread_deeplink.py` | Python | _(описание не задано)_ | - |
 | `tests/test_thread_file_save.py` | Python | _(описание не задано)_ | storage |
@@ -659,6 +659,7 @@
 | `tests/scenarios/test_welcome_page_scenarios.py` | Python | Scenario tests for the first-run and settings screens: the employee settings page renders all eleven tabs without the missing-API-key warning and without errors | - |
 | `tests/scenarios/test_working_memory_scenario.py` | Python | Scenario tests for working memory (given->when->then): an employee writes and reads its memory with no project selected, list_files over memory:, the prompt path equals the tool path, scopes stay isolated, and a legacy migration runs as a dry-run first | - |
 | `tests/scenarios/test_workspace_binding_scenario.py` | Python | _(описание не задано)_ | storage |
+| `tests/scenarios/test_yandex_mail_mcp_scenario.py` | Python | Scenario: Yandex Mail MCP preset e2e - a local fake HTTP server accepts only the OAuth scheme; the tokenless draft fails tools/list with 401 and sends no Authorization header, the filled token activates the connection and a mail tool call returns its payload | storage |
 | `tests/scenarios/test_yandex_models_catalog_scenario.py` | Python | Scenario tests for the YandexAI model catalog update | - |
 | `tests/scenarios/test_yandex_responses_failures_scenario.py` | Python | Scenario: Responses API failure handling (failed-status surfacing, blank input filtering) | - |
 | `tests/fixtures/mcp_demo_server.py` | Python | Stdlib MCP demo server fixture for tests: one-line JSON-RPC 2.0 over stdio with echo/fail/sleep tools | - |
@@ -716,6 +717,7 @@
 | `defaults/README.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/connectors/mcp/github_mcp.json` | JSON | GitHub MCP preset (http, https://api.githubcopilot.com/mcp/, icon for the MCP tab tile) shipped with hidden=true: the Copilot endpoint rejects classic ghp_* PATs with 403 access denied and requires a fine-grained github_pat_* token carrying the account permission Copilot Requests, sent as Authorization Bearer; the preset is off the tile list while staying resolvable by id | - |
 | `defaults/connectors/mcp/vkusvill.json` | JSON | Vkusvill MCP preset (http, https://mcp.vkusvill.ru/mcp, icon for the MCP tab tile): catalog and recipe tools work without credentials, the optional VKUSVILL_TOKEN unlocks personal data; secret_env_fields describe the token field | - |
+| `defaults/connectors/mcp/yandex_mail.json` | JSON | Yandex 360 Mail MCP preset (http, https://mcp.360.yandex.net/v1/mail/mcp, icon for the MCP tab tile): the OAuth header scheme instead of Bearer, one credential field YANDEX_MAIL_OAUTH_TOKEN; the memory seed lists the mail.* tools, the confirmation rule for changing actions and the unsupported sending | - |
 | `defaults/instructions/github_connector.md` | Markdown | Global github_connector instruction: ghr_* REST tool usage, batch publishing, the mandatory pre-publish secret & personal-data check (STOP and ask the user on a hit), connection memory file | - |
 | `defaults/instructions/multimodal_mode.md` | Markdown | Global multimodal_mode instruction: analyze_image/generate_image/extract_document_images usage rules, document-picture extraction, unassigned-model fallbacks and image-borne prompt-injection safety | - |
 | `defaults/instructions/ssh_connector.md` | Markdown | Global ssh_connector instruction (identical to the DevAgent copy): ssh_* tools, first-connection rules, connection memory file | - |
@@ -5275,17 +5277,18 @@
 - `test_probe_error_never_blocks_start` (func, строка 132)
 
 ### `tests/test_connector_presets.py`
-- `_write_preset` (func, строка 32)
-- `preset_root` (func, строка 50)
-- `test_list_presets_hides_hidden` (func, строка 58)
-- `test_list_presets_include_hidden` (func, строка 64)
-- `test_hidden_preset_is_resolvable` (func, строка 70)
-- `test_visible_preset_reports_hidden_false` (func, строка 78)
-- `test_hidden_flag_coercion` (func, строка 96)
-- `test_invalid_hidden_does_not_break_load` (func, строка 105)
-- `test_instantiate_hidden_preset_still_works` (func, строка 115)
-- `test_bundled_github_preset_is_hidden` (func, строка 122)
-- `test_bundled_yandex_mail_preset` (func, строка 133)
+- `isolated_data_dir` (func, строка 34)
+- `_write_preset` (func, строка 46)
+- `preset_root` (func, строка 64)
+- `test_list_presets_hides_hidden` (func, строка 72)
+- `test_list_presets_include_hidden` (func, строка 78)
+- `test_hidden_preset_is_resolvable` (func, строка 84)
+- `test_visible_preset_reports_hidden_false` (func, строка 92)
+- `test_hidden_flag_coercion` (func, строка 110)
+- `test_invalid_hidden_does_not_break_load` (func, строка 119)
+- `test_instantiate_hidden_preset_still_works` (func, строка 129)
+- `test_bundled_github_preset_is_hidden` (func, строка 136)
+- `test_bundled_yandex_mail_preset` (func, строка 147)
 
 ### `tests/test_connectors.py`
 - `isolated_data_dir` (func, строка 17)
@@ -9923,6 +9926,13 @@
 - `test_base_conftest_does_not_autouse_the_restore_fixture` (func, строка 106)
 - `test_scenario_folder_owns_its_restore` (func, строка 118)
 - `test_every_module_that_mutates_global_state_restores_it` (func, строка 132)
+- `_called_names` (func, строка 184)
+- `_imports_isolation_fixture` (func, строка 196)
+- `_requests_isolation_fixture` (func, строка 210)
+- `_isolates_data_dir` (func, строка 222)
+- `test_every_module_that_writes_runtime_data_isolates_data_dir` (func, строка 229)
+- `test_guard_flags_a_writer_without_isolation` (func, строка 266)
+- `test_guard_accepts_every_isolation_form` (func, строка 273)
 
 ### `tests/test_theme_restore.py`
 - `_drop_ui_modules` (func, строка 23)
@@ -12042,6 +12052,21 @@
 - `test_scenario_parallel_dialogs_stay_isolated` (func, строка 73)
 - `test_scenario_switched_workspace_survives_restart` (func, строка 135)
 - `test_scenario_unbound_dispatcher_legacy_fallback` (func, строка 184)
+
+### `tests/scenarios/test_yandex_mail_mcp_scenario.py`
+- `_FakeYandexMailServer` (class, строка 39)
+- `_FakeYandexMailServer.__init__` (func, строка 42)
+- `_FakeYandexMailServer.__init__.Handler` (class, строка 45)
+- `_FakeYandexMailServer.__init__.Handler.log_message` (func, строка 48)
+- `_FakeYandexMailServer.__init__.Handler._authorized` (func, строка 51)
+- `_FakeYandexMailServer.__init__.Handler.do_POST` (func, строка 56)
+- `_FakeYandexMailServer.__init__.Handler._reply` (func, строка 140)
+- `_FakeYandexMailServer.__init__.Handler._reply_bytes` (func, строка 144)
+- `_FakeYandexMailServer.start` (func, строка 155)
+- `_FakeYandexMailServer.stop` (func, строка 162)
+- `isolated_data_dir` (func, строка 170)
+- `_write_mail_preset` (func, строка 221)
+- `test_yandex_mail_preset_oauth_flow_scenario` (func, строка 249)
 
 ### `tests/scenarios/test_yandex_models_catalog_scenario.py`
 - `_json` (func, строка 38)

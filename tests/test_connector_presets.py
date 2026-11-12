@@ -12,6 +12,7 @@ import os
 
 import pytest
 
+import core.paths
 from core import connector_presets
 
 _BASE_CONFIG = {
@@ -27,6 +28,19 @@ _BASE_CONFIG = {
         },
     },
 }
+
+
+@pytest.fixture()
+def isolated_data_dir(tmp_path, monkeypatch):
+    """Point DATA_DIR at a temp directory for tests that create a connection.
+
+    ``instantiate_preset`` resolves the preset catalogue through
+    ``preset_root`` but the resulting connection is written through
+    ``core.connectors`` -> ``core.paths.DATA_DIR``. Without this override a
+    test run would leave real connection folders in the installation.
+    """
+    monkeypatch.setattr(core.paths, "DATA_DIR", str(tmp_path))
+    yield tmp_path
 
 
 def _write_preset(root, preset_id, **overrides):
@@ -112,7 +126,7 @@ def test_invalid_hidden_does_not_break_load(tmp_path):
     assert ids == ["broken_flag"]
 
 
-def test_instantiate_hidden_preset_still_works(preset_root):
+def test_instantiate_hidden_preset_still_works(preset_root, isolated_data_dir):
     made = connector_presets.instantiate_preset(
         "hidden_one", "mcp", preset_root=preset_root)
     assert made["preset"] == "hidden_one"
