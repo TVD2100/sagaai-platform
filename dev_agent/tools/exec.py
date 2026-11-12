@@ -6,7 +6,8 @@ Both tools share one execution path:
   file, a ``path`` is read from the project), so BOTH modes go through the
   same danger analysis - a script in the project is code too;
 * the child gets a built environment (allowlist, no platform secrets, its
-  own HOME) instead of a copy of ``os.environ``;
+  own HOME) instead of a copy of ``os.environ`` - unless the employee was
+granted full access, which hands the child the platform environment itself;
 * the process tree is killed on timeout, output is read with a bound and the
   full log is written to disk;
 * secrets that the child printed are redacted before the result reaches the
@@ -97,6 +98,7 @@ class ExecTools(ToolMixin):
         env = build_child_env(
             project_root=(config.PROJECT_ROOT
                           if bool(getattr(config, "WORKSPACE_SELECTED", True)) else None),
+            isolate_env=bool(getattr(self, "_env_isolation", True)),
         )
         cleanup: Optional[str] = None
         try:

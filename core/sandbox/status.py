@@ -31,7 +31,7 @@ def reset_cache() -> None:
 
 
 def describe(profile_name: str = "", providers: Optional[Sequence[Any]] = None,
-             fresh: bool = False) -> Dict[str, Any]:
+             fresh: bool = False, env_isolated: bool = True) -> Dict[str, Any]:
     """Return the decision the policy makes for *profile_name*.
 
     Args:
@@ -42,6 +42,9 @@ def describe(profile_name: str = "", providers: Optional[Sequence[Any]] = None,
         fresh: ignore the cache. A provider probe spawns a process, so the
             answer is remembered per profile: availability does not change
             while the application runs, and the prompt is rebuilt often.
+        env_isolated: whether the child receives the filtered environment.
+            ``False`` is the full-access grant: the platform environment,
+            credentials included, reaches the child.
 
     Returns:
         A plain dictionary with the profile facts, the selected provider (or
@@ -52,7 +55,7 @@ def describe(profile_name: str = "", providers: Optional[Sequence[Any]] = None,
     if cacheable:
         with _lock:
             found = _cache.get(name)
-        if found is not None:
+        if found is not None and bool(found.get("env_isolated", True)) == bool(env_isolated):
             return dict(found)
 
     resolved = providers if providers is not None else _default_providers()
@@ -71,6 +74,7 @@ def describe(profile_name: str = "", providers: Optional[Sequence[Any]] = None,
         "limits": profile.limits.to_dict() if profile else {},
         "denied": denial is not None,
         "error": denial.error if denial is not None else "",
+        "env_isolated": bool(env_isolated),
     }
     if cacheable:
         with _lock:
@@ -135,7 +139,22 @@ def format_lines(facts: Dict[str, Any], workspace: str = "") -> List[str]:
     lines.append("`run_code` and `run_test` execute under the `%s` profile "
                  "(provider `%s`, isolation `%s`)." % (name, provider, isolation))
 
-    if not _is_isolated(facts):
+    if not facts.get("env_isolated", True):
+        lines.append("The child receives the platform environment unchanged, "
+                     "including the provider credentials: the full-access "
+                     "grant of this employee is in force, so no "
+                     "operating-system boundary confines it either. Only the "
+                     "resource limits apply, and values the child prints are "
+                     "redacted from the tool result before it reaches you - "
+                     "read a credential only through the platform tool that "
+                     "needs it, never by printing it."
+                     if not _is_isolated(facts) else
+                     "The child receives the platform environment unchanged, "
+                     "including the provider credentials: the full-access "
+                     "grant of this employee is in force. Values the child "
+                     "prints are redacted from the tool result before it "
+                     "reaches you.")
+    elif not _is_isolated(facts):
         lines.append("The child runs with the rights of the platform process: "
                      "the environment is filtered and the resource limits apply, "
                      "but no operating-system boundary confines it.")
@@ -168,16 +187,22 @@ def format_lines(facts: Dict[str, Any], workspace: str = "") -> List[str]:
     lines.append("Credentials are unreadable from the child, and a run that is "
                  "already inside a sandbox inherits that sandbox instead of "
                  "starting a second one. A refused run returns `denied: true` "
-                 "with the reason: report it, do not retry the same command.")
+                 "with the reason: report it, do not retry the same command."
+                 if facts.get("env_isolated", True) else
+                 "A run that is already inside a sandbox inherits that sandbox "
+                 "instead of starting a second one. A refused run returns "
+                 "`denied: true` with the reason: report it, do not retry the "
+                 "same command.")
     return lines
 
 
 def prompt_lines(cfg: dict, workspace: str = "") -> List[str]:
     """Return the status block for the config of one employee.
 
-    The profile is a setting of the employee (``sandbox_profile``) and the
-    toolbar switch may turn isolation off for the dialog (``chat_sandbox``).
-    Reading both here keeps the prompt assembly free of policy details.
+    The profile is a setting of the employee (``sandbox_profile``), the
+    toolbar switch may turn isolation off for the dialog (``chat_sandbox``)
+    and ``env_isolation`` is the full-access grant. Reading all three here
+    keeps the prompt assembly free of policy details.
 
     Args:
         cfg: the orchestrator config.
@@ -187,11 +212,18 @@ def prompt_lines(cfg: dict, workspace: str = "") -> List[str]:
         The block lines, or an empty list when the status is unavailable.
     """
     try:
+        env_isolated = cfg.get("env_isolation", True)
+        if isinstance(env_isolated, str):
+            env_isolated = env_isolated.strip().lower() not in ("0", "false", "no", "off")
         enabled = cfg.get("chat_sandbox", True)
         if isinstance(enabled, str):
             enabled = enabled.strip().lower() not in ("0", "false", "no", "off")
-        profile = OFF if enabled is False else str(cfg.get("sandbox_profile") or "")
-        text = block(profile or DEFAULT_PROFILE, workspace)
+        if env_isolated is False or enabled is False:
+            profile = OFF
+        else:
+            profile = str(cfg.get("sandbox_profile") or "")
+        text = block(profile or DEFAULT_PROFILE, workspace,
+                     env_isolated=bool(env_isolated))
     except Exception:  # pragma: no cover - metadata must never break the prompt
         return []
     return text.splitlines() if text else []
@@ -206,10 +238,12 @@ def _text(facts: Dict[str, Any], workspace: str = "") -> str:
 
 
 def block(profile_name: str = "", workspace: str = "",
-          providers: Optional[Sequence[Any]] = None) -> str:
+          providers: Optional[Sequence[Any]] = None,
+          env_isolated: bool = True) -> str:
     """Return the whole prompt block for *profile_name* as one string."""
     try:
-        return _text(describe(profile_name, providers), workspace)
+        return _text(describe(profile_name, providers, env_isolated=env_isolated),
+                     workspace)
     except Exception:  # pragma: no cover - metadata must never break the prompt
         return ""
 

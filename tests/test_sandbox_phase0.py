@@ -318,6 +318,29 @@ def test_redaction_keeps_ordinary_text():
     assert redact_secrets(text) == text
 
 
+def test_redaction_covers_environment_names():
+    """A full-access child can dump the environment; names are covered too.
+
+    The field pattern looks for the credential word right before the
+    separator, so an assignment whose word sits at the END of the name used
+    to pass through untouched - exactly the shape of the platform keys.
+    """
+    text = ("SAGAAI_YANDEXAI_KEY=secret-value\n"
+            "SAGAAI_DEEPSEEK_KEY: another-secret\n"
+            "OPENAI_API_TOKEN=tok-1234567890\n")
+    redacted = redact_secrets(text)
+    assert "secret-value" not in redacted
+    assert "another-secret" not in redacted
+    assert "tok-1234567890" not in redacted
+    assert "SAGAAI_YANDEXAI_KEY=[REDACTED]" in redacted
+
+
+def test_redaction_keeps_paths_with_credential_words():
+    """A path that merely mentions a key is not a credential."""
+    text = "reading /opt/keys/public.pem\n"
+    assert redact_secrets(text) == text
+
+
 # ── the child environment is built, not inherited ───────────────────────────
 
 

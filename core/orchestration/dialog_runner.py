@@ -160,6 +160,10 @@ def build_dispatcher(slug: str, thread_id: str, *, workspace: str = "",
         from core.sandbox import resolve as sandbox_resolve
 
         dispatcher.core._sandbox_profile = sandbox_resolve.sandbox_profile(slug)
+        # The access grant travels with the profile: a run that receives the
+        # platform environment is exactly the run whose profile was forced to
+        # ``off``, and splitting the two reads would let one of them lag.
+        dispatcher.core._env_isolation = sandbox_resolve.env_isolation(slug)
     except Exception as exc:  # pragma: no cover - the policy default stays
         log.warning("dispatcher sandbox profile not applied: %s", exc)
     return dispatcher

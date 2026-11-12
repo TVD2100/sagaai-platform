@@ -59,6 +59,14 @@ def _checkbox_label(st, key):
     return ""
 
 
+def _button_by_key(st, key):
+    """Return the recorded kwargs of a button, or None when it is absent."""
+    for name, args, kwargs in st.calls:
+        if name == "button" and kwargs.get("key") == key:
+            return {"label": str(args[0]) if args else "", **kwargs}
+    return None
+
+
 def _orch_dict(slug="custom1", config=None):
     """Build a minimal orchestrator dict; config is merged over the base."""
     cfg = {"strong_service": "DeepSeek", "strong_model": "m1"}
@@ -149,48 +157,36 @@ def test_checkbox_values_come_from_saved_config(ui_env, monkeypatch):
 
 
 def test_checkbox_defaults_without_saved_config(ui_env, monkeypatch):
-    """Without saved prefs the defaults are: web off, safety on, sandbox on."""
+    """Without saved prefs: web off, safety on, access isolated."""
     slug = "custom1"
     _render_chat(ui_env, monkeypatch, slug, _orch_dict(slug=slug))
 
     ws = _checkbox_by_key(ui_env, f"orch_{slug}_web_search")
     safety = _checkbox_by_key(ui_env, f"orch_{slug}_safety_mode")
-    sandbox = _checkbox_by_key(ui_env, f"orch_{slug}_sandbox")
     assert ws is not None and ws["value"] is False
     assert safety is not None and safety["value"] is True
-    # Isolation is ON by default: switching it off is a deliberate act.
-    assert sandbox is not None and sandbox["value"] is True
+    # No saved grant means the isolated form: handing the platform
+    # environment to a child must be an explicit act.
+    badge = _button_by_key(ui_env, f"orch_access_badge_{slug}")
+    assert badge is not None, "the toolbar shows no access badge"
+    assert "🛡️" in badge["label"]
+    # The removed switch must leave no widget behind anywhere in the chat.
+    assert _checkbox_by_key(ui_env, f"orch_{slug}_sandbox") is None
     assert _checkbox_by_key(ui_env, f"orch_{slug}_economy_mode") is None
 
 
-def test_sandbox_checkbox_carries_a_real_tooltip(ui_env, monkeypatch):
-    """The sandbox switch explains itself and where the other modes live."""
+def test_the_access_badge_explains_itself_and_stays_read_only(ui_env, monkeypatch):
+    """The badge states the mode and never flips the grant by itself."""
     slug = "custom1"
     _render_chat(ui_env, monkeypatch, slug, _orch_dict(slug=slug))
 
-    sandbox = _checkbox_by_key(ui_env, f"orch_{slug}_sandbox")
-    assert sandbox is not None
-    label = _checkbox_label(ui_env, f"orch_{slug}_sandbox")
-    assert label, "the sandbox checkbox has no label"
-    help_text = str(sandbox.get("help") or "")
-    assert help_text, "the sandbox checkbox has no tooltip"
-    # The tooltip names the settings section that holds the other modes.
+    badge = _button_by_key(ui_env, f"orch_access_badge_{slug}")
+    assert badge is not None
     from core.i18n import t
 
-    assert help_text == t("orch_sandbox_toggle_help", lang="English")
-    assert "Settings" in help_text
-
-
-def test_a_saved_sandbox_choice_is_restored(ui_env, monkeypatch):
-    """A cleared checkbox in the config must come back cleared."""
-    slug = "custom1"
-    orch = _orch_dict(slug=slug, config={"chat_sandbox": False})
-    _render_chat(ui_env, monkeypatch, slug, orch)
-
-    sandbox = _checkbox_by_key(ui_env, f"orch_{slug}_sandbox")
-
-    assert sandbox is not None and sandbox["value"] is False
-    assert ui_env.session_state[f"orch_{slug}_sandbox"] is False
+    assert badge["help"] == t("orch_access_badge_isolated_help", lang="English")
+    assert badge["label"].endswith(t("orch_access_badge_isolated", lang="English"))
+    assert _checkbox_by_key(ui_env, f"orch_{slug}_sandbox") is None
 
 
 # ─── the switch reaches the tool dispatcher ──────────────────────────────────
@@ -208,59 +204,85 @@ def _dispatcher_for(ui_env, monkeypatch, slug, orch_dict):
     return orch_page, orch_page._make_dispatcher(slug)
 
 
-def test_a_cleared_checkbox_puts_the_dispatcher_into_off_mode(ui_env, monkeypatch):
-    """Clearing the toolbar switch must actually disable the isolation.
+def test_the_grant_puts_the_dispatcher_into_full_access(ui_env, monkeypatch):
+    """The stored grant must reach the dispatcher of the running dialog.
 
-    Given an employee with a sandbox profile saved,
-    when  the toolbar switch is off in the session,
-    then  the dispatcher of the running dialog executes under ``off``,
-    and   turning the switch back on restores the saved profile.
+    Given an employee with a sandbox profile but the full-access grant,
+    when  the chat page builds its dispatcher,
+    then  the profile is ``off`` (no OS boundary) and the child is told to
+    receive the platform environment,
+    and   clearing the grant restores the saved profile on the next render.
     """
     from core.sandbox.profiles import OFF
 
     slug = "custom1"
-    orch = _orch_dict(slug=slug, config={"sandbox_profile": "read_only"})
-    ui_env.session_state[f"orch_{slug}_sandbox"] = False
+    orch = _orch_dict(slug=slug, config={"sandbox_profile": "read_only",
+                                        "env_isolation": False})
 
     orch_page, dispatcher = _dispatcher_for(ui_env, monkeypatch, slug, orch)
 
     assert dispatcher.core._sandbox_profile == OFF
+    assert dispatcher.core._env_isolation is False
 
-    # Switching isolation back on restores the employee's own profile.
-    ui_env.session_state[f"orch_{slug}_sandbox"] = True
+    # Taking the grant back restores both the profile and the environment.
+    orch["config"]["env_isolation"] = True
     orch_page._make_dispatcher(slug)
 
     assert dispatcher.core._sandbox_profile == "read_only"
+    assert dispatcher.core._env_isolation is True
 
 
-def test_the_saved_profile_is_used_while_the_switch_is_on(ui_env, monkeypatch):
-    """The checkbox never overrides a deliberate profile choice."""
+def test_the_stored_legacy_flag_still_clears_the_isolation(ui_env, monkeypatch):
+    """A record from the removed checkbox keeps its effect.
+
+    The checkbox is gone, so nothing writes that slot any more - but a user
+    who cleared it meant to open the machine and an upgrade must not quietly
+    put the boundary back. The grant stays off: the isolated environment is
+    what makes that record incomplete, not the isolation itself.
+    """
+    from core.sandbox.profiles import OFF
+
+    slug = "custom1"
+    orch = _orch_dict(slug=slug, config={"sandbox_profile": "read_only",
+                                        "chat_sandbox": False})
+
+    _, dispatcher = _dispatcher_for(ui_env, monkeypatch, slug, orch)
+
+    assert dispatcher.core._sandbox_profile == OFF
+    assert dispatcher.core._env_isolation is True
+
+
+def test_the_saved_profile_is_used_without_any_legacy_flag(ui_env, monkeypatch):
+    """A deliberate profile choice survives the removed checkbox."""
     slug = "custom1"
     orch = _orch_dict(slug=slug, config={"sandbox_profile": "network"})
 
     _, dispatcher = _dispatcher_for(ui_env, monkeypatch, slug, orch)
 
     assert dispatcher.core._sandbox_profile == "network"
+    assert dispatcher.core._env_isolation is True
 
 
-def test_the_sandbox_pref_persists_like_the_other_switches(ui_env, monkeypatch):
-    """_save_chat_pref writes chat_sandbox and keeps unrelated keys."""
-    import ui.pages.orchestrator as orch_page
+def test_the_grant_persists_like_the_other_settings(ui_env, monkeypatch):
+    """Saving the access section writes env_isolation and keeps other keys."""
+    import ui.pages.orchestrator  # noqa: F401  - the page facade late() resolves through it
+    import ui.pages.orchestrator_sandbox as sandbox_mod
 
     orch = {"slug": "custom1", "name": "Custom", "config": {
         "strong_service": "DeepSeek", "strong_model": "m1",
     }}
-    monkeypatch.setattr(orch_page, "get_orchestrator",
+    monkeypatch.setattr(sandbox_mod, "get_orchestrator",
                         lambda s: orch if s == "custom1" else None)
     saved = {}
-    monkeypatch.setattr(orch_page, "save_orchestrator",
+    monkeypatch.setattr(sandbox_mod, "save_orchestrator",
                         lambda slug, config=None, **kw: (
                             saved.update({"config": dict(config or {})}), True)[-1])
 
-    ok = orch_page._save_chat_pref("custom1", "sandbox", False)
+    with pytest.raises(StopRerun):
+        sandbox_mod._save_config_value("custom1", "env_isolation", False,
+                                       "English")
 
-    assert ok is True
-    assert saved["config"]["chat_sandbox"] is False
+    assert saved["config"]["env_isolation"] is False
     assert saved["config"]["strong_service"] == "DeepSeek"
 
 

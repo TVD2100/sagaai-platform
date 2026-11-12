@@ -33,7 +33,12 @@ from dev_agent.agent_loop import (
     apply_economy_cache,
     build_economy_context,
 )
-from ui.pages.orchestrator_flags import toolbar_specs
+from ui.pages.orchestrator_flags import (
+    ACCESS_FULL,
+    ACCESS_PARTIAL,
+    access_mode,
+    toolbar_specs,
+)
 from ui.pages.orchestrator_folder import (
     _apply_folder_choice,
     _render_folder_picker,
@@ -56,8 +61,34 @@ check_context = late("check_context")
 get_economy_config = late("get_economy_config")
 get_orchestrator = late("get_orchestrator")
 get_services = late("get_services")
+pin_settings_section = late("pin_settings_section")
 sum_thread_tokens = late("sum_thread_tokens")
 t = late("t")
+
+
+def _render_access_badge(slug: str, lang: str) -> None:
+    """Show the access state of the employee as a read-only badge.
+
+    The badge is not a switch: full access is a rare, dangerous grant and a
+    stray click in the chat must not take it away or hand it out. It opens
+    the settings section that owns the choice instead, so the user always
+    lands one click away from the place where it is changed.
+    """
+    mode = access_mode(get_orchestrator, slug)
+    if mode == ACCESS_FULL:
+        label = "🔓 " + t("orch_access_badge_full", lang=lang)
+        help_text = t("orch_access_badge_full_help", lang=lang)
+    elif mode == ACCESS_PARTIAL:
+        label = "⚠️ " + t("orch_access_badge_partial", lang=lang)
+        help_text = t("orch_access_badge_partial_help", lang=lang)
+    else:
+        label = "🛡️ " + t("orch_access_badge_isolated", lang=lang)
+        help_text = t("orch_access_badge_isolated_help", lang=lang)
+    if st.button(label, key=f"orch_access_badge_{slug}",
+                 use_container_width=True, type="secondary", help=help_text):
+        pin_settings_section(slug, "other")
+        st.session_state["current_page"] = f"orchestrator_settings:{slug}"
+        st.rerun()
 
 
 def _render_chat_toolbar(slug: str, lang: str) -> None:
@@ -71,15 +102,18 @@ def _render_chat_toolbar(slug: str, lang: str) -> None:
     truth for each preference.
     """
     specs = toolbar_specs(t, lang)
-    # One column per checkbox, then the three action buttons.
-    cols = st.columns([1] * len(specs) + [0.8, 1, 1])
+    # One column per checkbox, then the access badge, then the action buttons.
+    cols = st.columns([1] * len(specs) + [1.15, 0.8, 1, 1])
     for col, (pref, label, help_text) in zip(cols, specs):
         with col:
             st.checkbox(label, key=_chat_toolbar_widget_key(slug, pref),
                         help=help_text, on_change=_chat_toolbar_pref_changed,
                         args=(slug, pref))
 
-    settings_col, reset_col, copy_col = cols[len(specs):]
+    badge_col = cols[len(specs)]
+    settings_col, reset_col, copy_col = cols[len(specs) + 1:]
+    with badge_col:
+        _render_access_badge(slug, lang)
     with settings_col:
         if st.button("⚙️ " + t("nav_settings", lang=lang),
                      key=f"orch_settings_{slug}",

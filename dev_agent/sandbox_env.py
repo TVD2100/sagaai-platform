@@ -5,6 +5,12 @@ environment carries provider API keys, connector tokens and the runtime data
 directory, and a child started by the agent can print or forward any of it.
 The builder therefore copies a fixed allowlist and adds explicit paths.
 
+An employee the owner granted full access to is the one exception: its child
+receives the platform environment unchanged, because a task that manages the
+machine needs the credentials the platform itself uses. The grant is a single
+switch of the employee settings, off by default; the output redaction of the
+execution tools still applies, so a printed value does not reach the provider.
+
 This module is dependency-free on purpose (stdlib only) so it can be imported
 from anywhere in the tool layer without an import cycle.
 """
@@ -79,9 +85,16 @@ class _BlockedEnv(dict):
 
 
 #: Prefix of the temporary HOME this module creates for a child process.
-#: It marks the directory as ours, so an explicitly supplied home is never
-#: removed by ``discard_env_home``.
+#: The name is for the owner's eyes only - cleanup relies on the process
+#: registry below, never on the shape of the path.
 AUTO_HOME_PREFIX = "sagaai-run-"
+
+#: Homes this module created in the current process. Cleanup uses this set
+#: instead of the shape of the path: a real home directory may legitimately
+#: be called ``sagaai-run-...``, and removing it would delete the owner's
+#: files. The set lives in memory because the environment handed to a child
+#: must carry no platform variable at all.
+_CREATED_HOMES: set = set()
 
 
 def discard_env_home(env: Optional[Dict[str, str]]) -> bool:
@@ -92,16 +105,17 @@ def discard_env_home(env: Optional[Dict[str, str]]) -> bool:
     quietly fill the disk. Removal is best effort - a leftover directory
     must never turn a finished run into an error.
 
-    Only a directory this module created is removed, identified by its name
-    prefix: a caller that supplied ``sandbox_home`` explicitly owns it and
-    is left to clean it up itself.
+    Only a directory this module created is removed. The set of created
+    homes is the proof: the name prefix alone is not, because a real home
+    directory may legitimately carry it. A caller that supplied
+    ``sandbox_home`` explicitly owns it and is left to clean it up itself.
 
     Returns:
         True when a directory was removed, False when there was nothing of
         ours to remove.
     """
     home = str((env or {}).get("HOME") or "")
-    if not home:
+    if not home or home not in _CREATED_HOMES:
         return False
     path = Path(home)
     if not path.name.startswith(AUTO_HOME_PREFIX):
@@ -116,6 +130,7 @@ def discard_env_home(env: Optional[Dict[str, str]]) -> bool:
 def build_child_env(*, project_root: Optional[Path],
                     include_project: bool = True,
                     sandbox_home: Optional[Path] = None,
+                    isolate_env: bool = True,
                     extra: Optional[Dict[str, str]] = None) -> Dict[str, str]:
     """Build the environment of a child process.
 
@@ -127,37 +142,68 @@ def build_child_env(*, project_root: Optional[Path],
             project is added, never its parent directory: a sibling project
             must not become importable.
         sandbox_home: explicit home directory; a temp one is created when
-            omitted.
+            omitted and the child is isolated.
+        isolate_env: ``True`` builds the environment from the allowlist;
+            ``False`` is the full-access grant - the platform environment is
+            copied unchanged, with the project on ``PYTHONPATH`` ahead of any
+            inherited entry. The default is the isolated form: a caller that
+            says nothing grants nothing.
         extra: additional variables, filtered through the same rules.
 
     Returns:
         A new dict; the parent ``os.environ`` is never mutated.
     """
-    env: Dict[str, str] = _BlockedEnv()
-    for name in ENV_ALLOWLIST:
-        value = os.environ.get(name)
-        if value:
-            env[name] = value
+    isolated = bool(isolate_env)
+    env: Dict[str, str]
+    if isolated:
+        env = _BlockedEnv()
+        for name in ENV_ALLOWLIST:
+            value = os.environ.get(name)
+            if value:
+                env[name] = value
+    else:
+        # Full access: the platform environment is exactly what a task that
+        # manages the machine needs, so it is copied unchanged. The hard
+        # block list of the isolated path exists to keep secrets from a
+        # child that must not have them and does not apply here.
+        env = dict(os.environ)
 
-    home = Path(sandbox_home) if sandbox_home else Path(tempfile.mkdtemp(prefix="sagaai-run-"))
-    tmp_dir = home / "tmp"
-    try:
-        tmp_dir.mkdir(parents=True, exist_ok=True)
-    except OSError:
-        pass
-    env["HOME"] = str(home)
-    env["USERPROFILE"] = str(home)
-    env["TMPDIR"] = str(tmp_dir)
-    env["TEMP"] = str(tmp_dir)
-    env["TMP"] = str(tmp_dir)
-    env["PIP_CACHE_DIR"] = str(home / "pip-cache")
-    env["PYTHONIOENCODING"] = "utf-8"
-    env["PYTHONNOUSERSITE"] = "1"
-    env["PYTHONUTF8"] = "1"
+    home: Optional[Path] = Path(sandbox_home) if sandbox_home else None
+    if home is None and isolated:
+        home = Path(tempfile.mkdtemp(prefix=AUTO_HOME_PREFIX))
+        _CREATED_HOMES.add(str(home))
+    if home is not None:
+        env["HOME"] = str(home)
+        env["USERPROFILE"] = str(home)
+        if isolated:
+            tmp_dir = home / "tmp"
+            try:
+                tmp_dir.mkdir(parents=True, exist_ok=True)
+            except OSError:
+                pass
+            env["TMPDIR"] = str(tmp_dir)
+            env["TEMP"] = str(tmp_dir)
+            env["TMP"] = str(tmp_dir)
+            env["PIP_CACHE_DIR"] = str(home / "pip-cache")
+
+    if isolated:
+        env["PYTHONIOENCODING"] = "utf-8"
+        env["PYTHONNOUSERSITE"] = "1"
+        env["PYTHONUTF8"] = "1"
+    else:
+        env.setdefault("PYTHONIOENCODING", "utf-8")
+        env.setdefault("PYTHONUTF8", "1")
 
     if include_project and project_root is not None:
-        env["PYTHONPATH"] = str(Path(project_root))
-    else:
+        root = str(Path(project_root))
+        if isolated:
+            env["PYTHONPATH"] = root
+        else:
+            inherited_path = str(env.get("PYTHONPATH") or "")
+            rest = [item for item in inherited_path.split(os.pathsep)
+                    if item and item != root]
+            env["PYTHONPATH"] = os.pathsep.join([root] + rest)
+    elif isolated:
         env.pop("PYTHONPATH", None)
 
     # An enclosing sandbox is inherited, not re-created: the child must be

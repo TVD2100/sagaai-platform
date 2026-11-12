@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "2.45.1",
+  "app_version": "2.46.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Переключатели «Песочница» и «Безопасный режим» теперь доходят до фактического исполнителя: решение пользователя наследуют делегированные субагенты и запуски по расписанию, а не только диалог. Обычные команды работы над проектом (интерпретаторы, тесты, линтеры, git) выполняются без запроса подтверждения; разрушительные и сетевые - по-прежнему требуют его.",
-    "en": "The sandbox and safe-mode switches now reach the actual executor: delegated subagents and scheduled runs inherit the user choice, not just the chat dialog. Ordinary project commands (interpreters, tests, linters, git) run without a confirmation prompt; destructive and network commands still require one."
+    "ru": "Доступ агента к системе стал одним переключателем: изолированный режим или полный доступ. Полный доступ передаёт запускаемому коду окружение платформы вместе с ключами провайдеров и снимает изоляцию ОС, а напечатанные значения вырезаются из результата инструмента. В панели чата вместо флажка «Песочница» - индикатор режима со ссылкой в настройку.",
+    "en": "Agent access to the system is one setting now: isolated mode or full access. Full access hands the platform environment, provider keys included, to the code it runs and lifts the OS isolation, while printed values are redacted from the tool result. The chat toolbar shows the access mode as a badge that leads to the setting instead of the sandbox checkbox."
   },
-  "updated": "2026-11-12T17:00:00Z",
+  "updated": "2026-11-12T18:25:55Z",
   "units": {
     "core": {
-      "version": "1.89.0",
+      "version": "1.90.0",
       "note": {
-        "ru": "Пакет кода: единый резолвер предпочтений исполнения для диалога, субагента и расписания; переписанный сканер опасных команд; синхронизированный системный промпт.",
-        "en": "Code unit: one execution-preferences resolver for the dialog, the child and the schedule; a rewritten dangerous-command scanner; the system prompt brought in sync."
+        "ru": "Пакет кода: единая настройка доступа агента к системе (изолированный режим или полный доступ), правдивый блок песочницы в системном промпте, маркированный временный HOME и расширенная редакция вывода.",
+        "en": "Code unit: one agent access setting (isolated mode or full access), an honest sandbox block in the system prompt, a marked temporary HOME and extended output redaction."
       },
       "files": {
         "__init__.py": {
@@ -276,8 +276,8 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.80.0",
-          "sha256": "ecc90df527f27c1900f214a74eac91cb2e6a3035ec57853f2e9f63276f64f657",
+          "version": "1.80.1",
+          "sha256": "5d61aa72e225173d042ba87a948bbeaa9111ef6dc2912fa764376d7c0c1810ae",
           "note": {
             "ru": "Релиз 2.44.3: данные тестов не попадают в установку.",
             "en": "Release 2.44.3: test data stays out of the installation."
@@ -368,8 +368,8 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.12.10",
-          "sha256": "833255c008d54c0d51e1f8eab955d69e81a9cb1b52f4e5f643fe89e0516bed90",
+          "version": "1.12.11",
+          "sha256": "985198780873f7fb14a7e1a574dec7f6ca88b7884f14e3252c0a7fa3e8f94566",
           "note": {
             "ru": "Описания тестов пресетов и изоляции состояния: изоляция DATA_DIR и второй AST-страж.",
             "en": "Descriptions of the preset tests and the state-isolation test: DATA_DIR isolation and the second AST guard."
@@ -872,8 +872,8 @@
           "sha256": "cb508065c5803865d76a440adf6cdac7e3dbdd3ac665d45ed324ac76bbf64d0a"
         },
         "tests/test_orchestrator_chat_prefs.py": {
-          "version": "1.1.0",
-          "sha256": "2f0112b2cd9a780f9ec66dc764fb332d50ab45692d8a44742693b43e825fcb30",
+          "version": "1.1.1",
+          "sha256": "83c44eb9168911e0db35ea582d8949ea7e6515ffd931635db81a053ea1992a86",
           "note": {
             "ru": "Проверки отсутствия переключателя эконом-режима и игнорирования chat_economy_mode.",
             "en": "Checks that the economy switch is gone and chat_economy_mode is ignored."
@@ -1108,8 +1108,8 @@
           "sha256": "c3784e53de17a822e808836c146c0a1ab451edbdc2b1187ee2eb376ea1d0d1ef"
         },
         "tests/test_tool_executor_env.py": {
-          "version": "1.0.1",
-          "sha256": "55adc5c10c1576320dc3de0f6f4ff95ee5e9854813688c1e3e7414140ca562cb"
+          "version": "1.0.2",
+          "sha256": "c72728e19f3c570fbdf520350b0113616b657478742664a2a5405c27eb94c1a4"
         },
         "tests/test_tool_result_size_cap.py": {
           "version": "1.1.2",
@@ -2306,8 +2306,8 @@
           "sha256": "509a0f60d80c2f4b18b933a450a4d5c70f64adf6c9dbb4846e56fa07556e75a5"
         },
         "core/orchestration/dialog_runner.py": {
-          "version": "1.0.1",
-          "sha256": "3d11abd1fcfe2f62f9f472f7348d611808512ef81fef7fdfd3d43308df6cb262"
+          "version": "1.1.0",
+          "sha256": "45fecb3be3ca2e3ad66ba447913e68ed9ea8d1863eaa3b82787cfbee622effc5"
         },
         "tests/scenarios/test_api_scenario.py": {
           "version": "1.1.0",
@@ -2562,8 +2562,8 @@
           "sha256": "59963f7094f2283ac8f00f35e85aa1432acb0a94954dc666d24ad9dd0803ca05"
         },
         "refactor_budget.json": {
-          "version": "1.7.0",
-          "sha256": "c82dd0dbac36dac24971661301c9264f54432429a796a611441e1680e1275872",
+          "version": "1.7.1",
+          "sha256": "7ab6769323b6d03c83645000682b3ba76fa13a2b2bbb2f4dc7c567c075280fe0",
           "note": {
             "ru": "Запись ui/pages/orchestrator.py понижена 3364->668 строк, добавлены десять модулей сплита.",
             "en": "The ui/pages/orchestrator.py entry lowered 3364->668 lines, ten split modules added."
@@ -2714,8 +2714,8 @@
           "sha256": "9c9b69472b1d3649d59d68f2d35db2b5b5b31d7a3de5d330201b28e7dd5f92fc"
         },
         "dev_agent/tools/exec.py": {
-          "version": "1.0.2",
-          "sha256": "6c6b5f4b548a04868bde60a9bc7f8f4588c4c6609e90d75e8a559e896d8b545a"
+          "version": "1.1.0",
+          "sha256": "99ac864ad2a4e84fe99d7714e5499a59df5e834f9e1320228b2231ea2b99711a"
         },
         "dev_agent/tools/files.py": {
           "version": "1.0.1",
@@ -2762,8 +2762,8 @@
           "sha256": "76aff6874698d2bcc16b73b1d5c700158659f67e482710b6e0cbe399b3df0885"
         },
         "ui/pages/orchestrator_text.py": {
-          "version": "1.2.0",
-          "sha256": "07ac7d3527a90deea5613d8918d094c306457376f39765be404f4cc073e61871",
+          "version": "1.2.1",
+          "sha256": "6ed149da09fd2026fe621b2ad730bd880355b68566376f5a794b4bf1673a4743",
           "note": {
             "ru": "Добавлена build_state_keys - карта ключей session_state диалога, принимающая настройки и константы страницы аргументами.",
             "en": "Added build_state_keys - the chat session-state key map, taking the page settings and constants as arguments."
@@ -2978,8 +2978,8 @@
           "sha256": "82be8cf3549d1874466d0f42b012bdc6ffeee64580f429dd4f46054cc80d2ad1"
         },
         "ui/pages/orchestrator_loop.py": {
-          "version": "1.1.0",
-          "sha256": "dfa42d0d66c40fb502f7407d667790b79bce82ea656ca812de287f0940248f8e",
+          "version": "1.1.1",
+          "sha256": "9d8455fa71899b6f502939873d1b7e97fb379728407d2b3997c307d89929bed0",
           "note": {
             "ru": "Запись шага в тред вынесена в core/orchestrator_step.",
             "en": "The step write into the thread moved to core/orchestrator_step."
@@ -2994,8 +2994,8 @@
           "sha256": "ea6c536e0040958f852a1396cc6114201d0438685360eabb9c651cd7013c67b0"
         },
         "ui/pages/orchestrator_chat_input.py": {
-          "version": "1.1.0",
-          "sha256": "7ebd8455f8d9b0f86293cd116f8b86d90fc86e62a838594a8ba33442d6c770ab"
+          "version": "1.2.0",
+          "sha256": "2bcf89a47a019128198b967dae020c01ffbc26147b9cdc977a1e2079c4dfac1c"
         },
         "ui/pages/orchestrator_settings_models.py": {
           "version": "1.0.0",
@@ -3078,16 +3078,16 @@
           "sha256": "65ce2bf95f4ee618fd44982ec4f57d03a2d2cdd7d9bb93bf6e33853613b67066"
         },
         "ui/pages/orchestrator_flags.py": {
-          "version": "1.1.0",
-          "sha256": "3e4288a308923f8057e5be9114dabdcbe0bfec313d64c32d2688831776e7a79a"
+          "version": "1.2.0",
+          "sha256": "a6df3967807d53354f51423b6409740705360635f2dd6aa192b410ee71e28578"
         },
         "dev_agent/tools/exec_support.py": {
-          "version": "1.0.0",
-          "sha256": "9a6484008352f44afd2e8c873a51d5630e101b024eed290265cec400112a2b1e"
+          "version": "1.1.0",
+          "sha256": "bfd446d108e7854a6171d4388f00f47d1b8ee599443aae337375693f10aac830"
         },
         "dev_agent/sandbox_env.py": {
-          "version": "1.1.0",
-          "sha256": "83d0154872bf51f90e54b4fd774db58ff69a02fb6a6df7d15b95c9b70cd145c8"
+          "version": "1.2.0",
+          "sha256": "c27c33d1bd3bab335a2ab84512fae57bc1d78f06c40007409b7451bf545be072"
         },
         "dev_agent/sandbox_proc.py": {
           "version": "1.0.0",
@@ -3098,8 +3098,8 @@
           "sha256": "19f69257b11d973426f7d1b038c4c06a1827ede67304fdd86d5aaaf38879ad2a"
         },
         "tests/test_sandbox_phase0.py": {
-          "version": "1.0.1",
-          "sha256": "30c36d8bfeef0eccaf4a43ceb97da0ecd6ee3f94af662b30b595fb72f36f4174"
+          "version": "1.0.2",
+          "sha256": "2d3c2df509ecf573539310f85b22039582523d2e28f04a3e122292ccc0f75984"
         },
         "core/sandbox/__init__.py": {
           "version": "1.1.0",
@@ -3146,8 +3146,8 @@
           "sha256": "76899d9ea120bea7c231327f7966fc96068cf4146f6cc57d06d41f3f62d8ace8"
         },
         "ui/pages/orchestrator_sandbox.py": {
-          "version": "1.1.0",
-          "sha256": "3cd933cf28ad9c5d40d239ec23c0daf4efb9a254e4ae0af571c41639a86d0353",
+          "version": "1.2.0",
+          "sha256": "69362f24be433c26580749ddb2be522e6f1676cbcfa92398a80a976701b1a402",
           "note": {
             "ru": "Панель песочницы читает streamlit через прокси страницы, поэтому подмена модуля в тестах на неё действует.",
             "en": "The sandbox panel reaches streamlit through the page proxy, so a module swap in tests applies to it."
@@ -3246,8 +3246,8 @@
           "sha256": "cd8bd73c0fae3756453dda61eafb37ec6919439810ad349f968e100478849780"
         },
         "core/sandbox/status.py": {
-          "version": "1.0.0",
-          "sha256": "2e239206c83b3d2ad1b301eee48eee4aaf8aae4c8b513fd9be2810e17fb7bd70"
+          "version": "1.1.0",
+          "sha256": "1f69022a7dbed582778e4dbe9ecf799014dbd8b804e179e276d56734192f7739"
         },
         "dev_agent/tools/path_scope.py": {
           "version": "1.0.0",
@@ -3271,7 +3271,7 @@
         },
         "tests/test_sandbox_status.py": {
           "version": "1.0.0",
-          "sha256": "7145bd44cf31d666d2ae42a35a20a9d8c8b95747a7e18cd91cfa81c3409597b5"
+          "sha256": "5b2e35b586a3a479add0d2e0a3c1396f707360039604e2862c5c416831da3ca9"
         },
         "core/builtin_config_defaults.py": {
           "version": "1.0.0",
@@ -3414,24 +3414,32 @@
           "sha256": "082e021f742ff72c858da59177c4d08ddf6007ac100872067b4d19dc7530d3ca"
         },
         "core/sandbox/resolve.py": {
-          "version": "1.0.0",
-          "sha256": "6f0e3c08188372d2d3327d01424de6ce94a6dc15564ec07ffdc0cc6f91d7a1e7"
+          "version": "1.1.0",
+          "sha256": "31b470b23840a9f802b01be1d309606192c81b1230be440d7f710e6dd0c5e0ca"
         },
         "tests/test_sandbox_preferences.py": {
-          "version": "1.0.1",
-          "sha256": "363d55b1403e12f0168ba5ca87ecb7b4614926a87934e9ecb45b1dab971cbcfd"
+          "version": "1.0.2",
+          "sha256": "92d90faab553cecd2c331576428d4720a800951af857ef025d4966e9a417f609"
         },
         "tests/scenarios/test_execution_preferences_scenario.py": {
           "version": "1.0.1",
           "sha256": "5fec4fdbe478397587767a62eac0d6b999dfce06ed52ae15ff766eeb00f958c8"
+        },
+        "tests/scenarios/test_full_access_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "2c3e0dca7779576110ea76c161c462423f8bbce7092a4c61290671b10c65059e"
+        },
+        "tests/test_sandbox_full_access.py": {
+          "version": "1.0.0",
+          "sha256": "c4adc9f3aafdf1db2eb4f2332dda148d9823d3934c7dda5e278e59ce3d2c6397"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.79.0",
-      "sha256": "fedd631d59aebc4544365806b465fae8a05dafdaff3e42b3d3d1b8a3b74115c1",
+      "version": "1.79.1",
+      "sha256": "4c223050f6beeb0932f5585d05b8d05984171039d6b0b7e6d04044aa834f2c26",
       "note": {
         "ru": "Карта компонентов: пресет yandex_mail (http, схема OAuth) в видимом каталоге пресетов.",
         "en": "Component map: the yandex_mail preset (http, OAuth scheme) in the visible preset catalogue."
@@ -3446,16 +3454,16 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.80.0",
-      "sha256": "68b0a8b2418882361bdd2af07a9e02b1f66f05015ee80bd73479a2acd057e954",
+      "version": "1.80.1",
+      "sha256": "085c8513a915e7d3658fef1377668e2f175999d7c1034ffb301de1d78e20718f",
       "note": {
         "ru": "Регенерация: обновлённые описания тестов пресетов и изоляции состояния.",
         "en": "Regenerated: updated descriptions of the preset tests and the state-isolation test."
       }
     },
     "README.md": {
-      "version": "1.62.6",
-      "sha256": "a7cec6ce496156dca98f60f038c21ca5154b141656fc81009d6b1835351812c6",
+      "version": "1.62.7",
+      "sha256": "9ac85779d62c55a391ae75edfe833e6a5342ec962ec169a2d5fff02aebf2f109",
       "note": {
         "ru": "Строка статуса версии обновлена до 2.44.3.",
         "en": "The version status line is updated to 2.44.3."
@@ -3534,8 +3542,8 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.30.2",
-      "sha256": "94441b3ef2ab013906f10cf58962fee791f6f0d6bf5c3ce9f38fd5d484882600",
+      "version": "1.30.3",
+      "sha256": "558de6ed16c0ace5c25aa77a018abd7f2c0f12253c4fce988b9f5f618bf7a3c1",
       "note": {
         "ru": "Канонические строки блока «Названия».",
         "en": "Canonical strings of the Names block."
@@ -3550,8 +3558,8 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.30.2",
-      "sha256": "e648ae6be5b4363f730947f8a1425e213b2274fcc3db2ce28c6cf97fe1ee2e5c",
+      "version": "1.30.3",
+      "sha256": "1a4d63e907bb63185805b57b093593975a03b4e708b5e99cb4a8ed8dccd9612b",
       "note": {
         "ru": "Строки блока «Названия».",
         "en": "Strings of the Names block."
@@ -3566,8 +3574,8 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.30.2",
-      "sha256": "7136081db170affdc70b9495f155d63c8537acd473973bc4d4116b11c8cfbf17",
+      "version": "1.30.3",
+      "sha256": "7e4dc25b4b93e2740616cf8f3d2b66530527a2bf37a5eaf423f32f104914b306",
       "note": {
         "ru": "Строки блока «Названия».",
         "en": "Strings of the Names block."
@@ -3798,8 +3806,8 @@
       }
     },
     "langs/en.json": {
-      "version": "1.30.2",
-      "sha256": "d73bc57b308e3765addbdf9eccb0b2c5e933380b2b009eb5b62ce063565d954f",
+      "version": "1.30.3",
+      "sha256": "e5b7ce037e7c6e09815d9da50fcce35bb0a0d501600edab2ad98ed5ed574a7dd",
       "note": {
         "ru": "Строки блока «Названия» и языковых подписей.",
         "en": "Strings of the Names block and language labels."
@@ -3814,8 +3822,8 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.30.2",
-      "sha256": "5da34468c879a1c918b3b119fa3706f8fc05e070a85d78e586cad83778d20c20",
+      "version": "1.30.3",
+      "sha256": "57e6233e97ba316a32a2210aeab8a7e78f3b19febb90749ab65b0b1ce2fd8a5b",
       "note": {
         "ru": "Строки блока «Названия» и языковых подписей.",
         "en": "Strings of the Names block and language labels."
@@ -3830,8 +3838,8 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.30.2",
-      "sha256": "057d604aa2055a0b4a0d9881294c6f447fe47759a3dc590d96a8b874ae4ff7a9",
+      "version": "1.30.3",
+      "sha256": "339ccbc026ffb1ac4033f180b0ec5fbe119505c452bf16adae72c0ee3375fc32",
       "note": {
         "ru": "Строки блока «Названия» и языковых подписей.",
         "en": "Strings of the Names block and language labels."
@@ -3870,8 +3878,8 @@
       }
     },
     "AGENT.md": {
-      "version": "1.55.0",
-      "sha256": "73d422356c3bbb5867a8711cc7de68162b2bf9dc19ba801b8cd455c14976a240",
+      "version": "1.55.1",
+      "sha256": "13236f079e7215706130492a15ed0225b0e88e4468221b1a5fc51b3d85af10c8",
       "note": {
         "ru": "Требование: данные записи тестов не попадают в установку, изоляция DATA_DIR и проверяющий её AST-страж.",
         "en": "Requirement: test writes stay out of the installation, with DATA_DIR isolation and the AST guard that enforces it."

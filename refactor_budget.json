@@ -589,7 +589,7 @@
       "most_complex": "_render_loop_status"
     },
     "ui/pages/orchestrator_chat_input.py": {
-      "file_lines": 411,
+      "file_lines": 438,
       "function_lines": 50,
       "max_cc": 8,
       "longest_function": "_render_chat_toolbar",
@@ -610,7 +610,7 @@
       "most_complex": "_apply_folder_choice"
     },
     "ui/pages/orchestrator_loop.py": {
-      "file_lines": 629,
+      "file_lines": 636,
       "function_lines": 49,
       "max_cc": 9,
       "longest_function": "_do_step_impl",

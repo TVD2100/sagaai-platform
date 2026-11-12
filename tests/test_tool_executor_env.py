@@ -123,3 +123,40 @@ def test_build_child_env_blocks_extra_secrets():
     assert "SAGAAI_OPENAI_KEY" not in env
     assert env["PATH"] == "/usr/bin"
     assert env["PYTHONNOUSERSITE"] == "1"
+
+
+def test_the_tool_passes_the_isolated_default(monkeypatch):
+    """An executor that was never stamped runs the filtered child."""
+    monkeypatch.setenv("SAGAAI_YANDEXAI_KEY", "secret-value")
+    result, env = _run_with_capture("run_code", code="print('hi')")
+    assert result["ok"] is True
+    assert "SAGAAI_YANDEXAI_KEY" not in env
+
+
+def test_the_tool_honours_the_grant(monkeypatch):
+    """A stamped full-access grant reaches the child environment."""
+    monkeypatch.setenv("SAGAAI_YANDEXAI_KEY", "secret-value")
+    _CAPTURED.clear()
+    te = ToolExecutor()
+    te._env_isolation = False
+    with mock.patch("dev_agent.tool_executor.subprocess", _FakeSubprocess):
+        result = te.run_code(code="print('hi')")
+    assert result["ok"] is True
+    env = _CAPTURED[0].get("env") or {}
+    assert env["SAGAAI_YANDEXAI_KEY"] == "secret-value"
+
+
+def test_the_tool_reads_the_grant_at_call_time(monkeypatch):
+    """Flipping the grant between two calls changes the second child only."""
+    monkeypatch.setenv("SAGAAI_YANDEXAI_KEY", "secret-value")
+    _CAPTURED.clear()
+    te = ToolExecutor()
+    with mock.patch("dev_agent.tool_executor.subprocess", _FakeSubprocess):
+        te.run_code(code="print('hi')")
+        first = dict(_CAPTURED[0].get("env") or {})
+        te._env_isolation = False
+        te.run_code(code="print('hi')")
+        second = dict(_CAPTURED[1].get("env") or {})
+    assert "SAGAAI_YANDEXAI_KEY" not in first
+    assert second["SAGAAI_YANDEXAI_KEY"] == "secret-value"
+

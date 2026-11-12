@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-12T16:58:23+00:00`
-- Файлов: **842**
+- Обновлено: `2026-11-12T18:31:57+00:00`
+- Файлов: **844**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **11199**
-- Отпечаток содержимого: `sha256:b0b2e706bf788985b7ffefc9df7ac30de27faaf7361018618c552097812caad3` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 2, JSON: 37, Markdown: 42, PEM certificate: 2, Python: 759, TOML: 2, Text: 2
+- Python-символов: **11236**
+- Отпечаток содержимого: `sha256:50f7da5baee1fb57af08f831c3ba9fb2b5363877b159fbb376051cda77151f5e` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 2, JSON: 37, Markdown: 42, PEM certificate: 2, Python: 761, TOML: 2, Text: 2
 
 ## Файлы и назначение
 
@@ -42,12 +42,12 @@
 | `ui/pages/marketplace.py` | Python | Marketplace page: showcase with search, the entity card (licence, required tools, platform range), install, the three conflict resolutions, reset to catalog and uninstall with an inline confirmation; an mcp card states the credential the server needs and points to the MCP servers tab, where the installed preset becomes a tile the user makes connections from | ui |
 | `ui/pages/orchestrator.py` | Python | Facade of the orchestrator page: holds the import block (including the re-exports of orchestrator_text that the page and the tests resolve), thin wrappers over the late-bound names and the two entry points page_orchestrator/page_devagent; every body lives in the orchestrator_* modules below | storage, ui |
 | `ui/pages/orchestrator_chat.py` | Python | Chat tab of the orchestrator page: the reading sequence over the section helpers, the confirmation dialogs and the message controls; the header gate asks resolve_strong_model which provider the employee actually runs on instead of reading the raw config | ui |
-| `ui/pages/orchestrator_chat_input.py` | Python | Chat input area: the toolbar, attachment collection and the token/economy line under the prompt | ui |
+| `ui/pages/orchestrator_chat_input.py` | Python | Chat input area: the toolbar (including the read-only access badge that leads to the setting), attachment collection and the token/economy line under the prompt | ui |
 | `ui/pages/orchestrator_feed.py` | Python | Event feed of the chat page: the _EVENT_RENDERERS table, tool call and tool result rendering, the run grouping and the per-message controls | ui |
-| `ui/pages/orchestrator_flags.py` | Python | Settings flags of the orchestrator: safety mode, injection protection, the sandbox switch and the profile a run executes under (off when the switch is cleared) | - |
+| `ui/pages/orchestrator_flags.py` | Python | Settings flags of the orchestrator: safety mode, injection protection, the access mode (isolated, full access, or the legacy partial record) and the profile an isolated run executes under | - |
 | `ui/pages/orchestrator_folder.py` | Python | Workspace folder picker of the chat page: the auto/recent/native menu, the manual path entry and applying a choice to the thread | ui |
 | `ui/pages/orchestrator_loop.py` | Python | Agent step and run tree of the chat page: _do_step split into phases, run registration and stop requests, the subagent status and loop status panels | storage, ui |
-| `ui/pages/orchestrator_sandbox.py` | Python | Settings panel: available providers and which profiles this machine can honour (the profile ceiling included), the profile selector and the live run journal | storage, ui |
+| `ui/pages/orchestrator_sandbox.py` | Python | Settings panel of the agent access: the isolated or full-access choice with its warning, the legacy partial record explained by a banner, and - behind the details expander - the providers, which profiles this machine can honour (the profile ceiling included), the profile selector of the isolated mode and the live run journal | storage, ui |
 | `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings page: tabbed sections (eleven tabs including Memory), the active tab is kept across reruns and pinned after a save | ui |
 | `ui/pages/orchestrator_settings_delegation.py` | Python | Delegation settings tab: the allowed agents and assistants, the delegation limits and the stale-id display | ui |
 | `ui/pages/orchestrator_settings_models.py` | Python | Model settings tab: strong model, economy tail, prompt settings and the service list | ui |
@@ -227,9 +227,9 @@
 | `core/sandbox/launcher.py` | Python | Child-side launcher: applies the resource ceilings and reports them back (no preexec_fn) | - |
 | `core/sandbox/policy.py` | Python | Fail-closed provider selection: unknown profile, unreachable isolation or a provider stronger than the profile ceiling denies the run; limits only tighten | - |
 | `core/sandbox/profiles.py` | Python | Named execution profiles (read_only, workspace_write, network, legacy_process, off) | - |
-| `core/sandbox/resolve.py` | Python | The execution preferences of one employee resolved for every dispatcher: sandbox_profile turns the toolbar switch into the off profile, safety_enabled reads the confirmation gate with its documented default, and apply_to stamps both onto a freshly built dispatcher so a dialog, a delegated child and a scheduled run reach the same answer | - |
+| `core/sandbox/resolve.py` | Python | The execution preferences of one employee resolved for every dispatcher: sandbox_profile reads the profile of the isolated mode, env_isolation reads whether the child gets the platform environment (and forces the off profile when it does), safety_enabled reads the confirmation gate with its documented default, and apply_to stamps all three onto a freshly built dispatcher so a dialog, a delegated child and a scheduled run reach the same answer | - |
 | `core/sandbox/runner.py` | Python | Single entry point: plan, execute and journal one sandbox run | storage |
-| `core/sandbox/status.py` | Python | Sandbox status for the system prompt: describe() reads the policy decision, format_lines() states profile, provider, guarantees, write scope, network and limits | - |
+| `core/sandbox/status.py` | Python | Sandbox status for the system prompt: describe() reads the policy decision, format_lines() states profile, provider, guarantees, write scope, network, limits and whether the child receives the platform environment (the full-access wording never claims a filtered environment) | - |
 | `core/sandbox/providers/__init__.py` | Python | Isolation backend registry: the providers a build ships | - |
 | `core/sandbox/providers/_spawn.py` | Python | Shared spawn path of the OS-level providers: argv, environment, timeouts, output caps, kill-tree and cancellation | - |
 | `core/sandbox/providers/bwrap.py` | Python | T1 provider on Linux: bubblewrap namespaces, network-off and a read-only root with writable workspace | - |
@@ -480,6 +480,7 @@
 | `tests/test_resume_checkpoint.py` | Python | _(описание не задано)_ | - |
 | `tests/test_safety_mode.py` | Python | Safety-mode gate tests | - |
 | `tests/test_sandbox_env_cleanup.py` | Python | _(описание не задано)_ | - |
+| `tests/test_sandbox_full_access.py` | Python | Tests of the full-access grant inside the child environment builder: the platform environment is exposed, the real HOME is kept and never removed by cleanup, and the project stays first on PYTHONPATH | - |
 | `tests/test_sandbox_inheritance.py` | Python | _(описание не задано)_ | - |
 | `tests/test_sandbox_off_profile.py` | Python | Tests: the switchable sandbox-off profile - no isolation claimed, the isolation ceiling honoured, resource limits still applied | - |
 | `tests/test_sandbox_phase0.py` | Python | Scanner tests: the list-form commands of an ordinary project cycle run without a confirmation, while the destructive deny list and the shell string form keep asking; also the approval context, the child environment allowlist, the process limits and the kill-tree | - |
@@ -488,7 +489,7 @@
 | `tests/test_sandbox_preferences.py` | Python | Resolution tests of the employee execution preferences: the two switches stay independent, an unknown profile is never replaced and the dialog, child and schedule builders all stamp the same values | - |
 | `tests/test_sandbox_security.py` | Python | Security tests: child environment allowlist, secret redaction, escaping limits and fail-closed refusals | - |
 | `tests/test_sandbox_shared_tmp.py` | Python | _(описание не задано)_ | - |
-| `tests/test_sandbox_status.py` | Python | _(описание не задано)_ | - |
+| `tests/test_sandbox_status.py` | Python | Tests of the sandbox status block: the decision, the guarantees, the git staging wording and the access grant, including the cache that keeps the two grants apart | - |
 | `tests/test_sanitized_approval_flow.py` | Python | Sanitized-content approval flow tests (loop stops, user approves, protected payload not re-triggered) | - |
 | `tests/test_save_orchestrator_folder_sync.py` | Python | Unit tests: save_orchestrator keeps a successful database write when the folder mirror fails | - |
 | `tests/test_schedules_calc.py` | Python | Unit tests for the schedule arithmetic: interval steps in the rule's zone, the blocked-weekday mask, the quiet window, daylight-saving edges and a rule that can never fire | - |
@@ -599,6 +600,7 @@
 | `tests/scenarios/test_feed_autoscroll_scenario.py` | Python | Scenario tests for chat feed auto-scroll (given->when->then): forced scroll on send, follow on each agent step, pause on scroll-up / resume at bottom, idle chat untouched | ui |
 | `tests/scenarios/test_first_run_flow.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_folder_picker_scenario.py` | Python | Scenario tests for the chat folder picker (Выбор папки): applied on first send, mid-dialog switch, agent detour does not change the reported folder, native browse button records and stages the folder | storage, ui |
+| `tests/scenarios/test_full_access_scenario.py` | Python | Scenarios of the agent access setting on the real child process: an isolated run never sees a provider key, a full-access run reaches it, the printed value is redacted from the tool result, and turning the grant off closes the environment again on the next run | - |
 | `tests/scenarios/test_generated_image_feed_scenario.py` | Python | Scenario tests for the generated image shown immediately in the chat feed (outside the collapsed tool-result block) | ui |
 | `tests/scenarios/test_gigachat_models_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_gigachat_orchestrator_scenario.py` | Python | Scenario: orchestrator run on a GigaChat-like payload (leading-system fold, error visibility) | ui |
@@ -799,7 +801,7 @@
 | `dev_agent/orchestrator_tools.py` | Python | Employee management tools of DevAgent: create/update/delete/reload of an orchestrator with the four name slots, its config, tools, step budget and working-data folder | storage |
 | `dev_agent/safe_writer.py` | Python | Safe full-file rewrite with diff/verification | backup_manager |
 | `dev_agent/sandbox_approval.py` | Python | Per-run approval scope the executor reads: a transport ticket is consulted only inside the run that issued it | - |
-| `dev_agent/sandbox_env.py` | Python | Allowlisted child environment shared by every provider: no SAGAAI_DATA_DIR, no provider keys | - |
+| `dev_agent/sandbox_env.py` | Python | Child environment shared by every provider: the isolated default builds it from an allowlist (no SAGAAI_DATA_DIR, no provider keys), while the full-access grant copies the platform environment with the project first on PYTHONPATH and keeps the real HOME; a temporary HOME carries a marker, so cleanup removes only a directory this module created | - |
 | `dev_agent/sandbox_proc.py` | Python | Process-tree control of a sandboxed run: killpg on timeout and cancellation, output capture with caps | - |
 | `dev_agent/system_prompt.md` | Markdown | DevAgent system prompt (assistant tool names, skills vs assistants section, skills-invocation tools; v3.28 working-memory section - two stores, the path taken from the platform block, memory: addressing, the second root and the no-project case; v3.26 subagent stop and transcript rules; v3.25 inherited protection mode; v3.23 self-sufficiency rule for comments/docs/tests; v3.21 Stage 0 recent-folders menu; v3.20 AGENT.md docs-first; v3.18 generated-PROJECT_MAP rule) | - |
 | `dev_agent/task_state.py` | Python | Per-thread task journal (TASK_STATE__<thread_id>.md) with section budgets and the compact digest; the thread id is an explicit parameter (current_thread_id, ensure_task_state_file, archive_and_start_task) with config.ACTIVE_THREAD_ID as a fallback, thread_scope pins a child thread in the current Python thread so parallel children never overwrite each other's journal, and journal retention (prune_task_state_journals) drops an empty journal older than PRUNE_MIN_AGE_DAYS and a finished delegated run whose parent journal is gone, sweeping both the project folder and the empty-state dialog folders once per process | backup_manager |
@@ -821,7 +823,7 @@
 | `dev_agent/tools/deps.py` | Python | Dependency injection for the tool mixins: the ToolDeps dataclass, build_deps that reads the facade module on every call (so a patched or test-replaced function is picked up instead of a stale binding) and ToolMixin.deps(), the accessor every handler uses | - |
 | `dev_agent/tools/editing.py` | Python | Writing tools: propose_file (syntax check before a write, truncation guard, backup) and the apply_edit/discard_edit hooks the runner calls when the user clicks Apply or Discard in manual mode | deps, text_utils |
 | `dev_agent/tools/exec.py` | Python | Code execution tools: run_code and run_test, each in an isolated subprocess with a neutral cwd in the empty state, the danger gate, the timeout and output truncation | deps, exec_support, sandbox_approval, sandbox_env, workspace_binding |
-| `dev_agent/tools/exec_support.py` | Python | Execution helpers of the run_code/run_test tools: command builders, result payload, secret redaction | sandbox_proc |
+| `dev_agent/tools/exec_support.py` | Python | Execution helpers of the run_code/run_test tools: command builders, result payload, secret redaction (bare values, environment assignment lines and the ENV_NAME: value form) | sandbox_proc |
 | `dev_agent/tools/file_tree.py` | Python | The directory walk behind list_files, kept free of the facade: walk_tree returns the flat file entries and the per-directory entries down to a depth, _list_dir_entry lists one directory and decides whether to descend, visible_children and make_file_entry build the entries, safe_rel converts a path to the relative form; the relative-path and protection rules arrive as callables so the module never reads the tool dependencies | - |
 | `dev_agent/tools/files.py` | Python | Read and listing tools: read_file with its line window and the size and empty-state guards, list_files (argument validation plus the tree-walk call), verify_file and the per-file backup trio (create_backup, restore_backup, show_history); paths resolve against the project root and the working-memory root (memory:<subpath>), and a path outside both roots is refused | deps, file_tree |
 | `dev_agent/tools/history.py` | Python | Conversation history tools: get_history_index, get_history_messages and the dialog thread tools (search_in_threads, list_threads, read_thread) | deps |
@@ -1120,16 +1122,17 @@
 - `_render_active_controls` (func, строка 428)
 
 ### `ui/pages/orchestrator_chat_input.py`
-- `_render_chat_toolbar` (func, строка 63)
-- `_token_line_cache_key` (func, строка 107)
-- `_render_token_line_impl` (func, строка 157)
-- `_economy_window_info` (func, строка 207)
-- `_handle_chat_submission` (func, строка 255)
-- `_build_submission_text` (func, строка 289)
-- `_ensure_thread` (func, строка 305)
-- `_collect_attachment_context` (func, строка 341)
-- `_services_with_web_search` (func, строка 384)
-- `_temp_slider` (func, строка 396)
+- `_render_access_badge` (func, строка 69)
+- `_render_chat_toolbar` (func, строка 94)
+- `_token_line_cache_key` (func, строка 141)
+- `_render_token_line_impl` (func, строка 191)
+- `_economy_window_info` (func, строка 241)
+- `_handle_chat_submission` (func, строка 289)
+- `_build_submission_text` (func, строка 323)
+- `_ensure_thread` (func, строка 339)
+- `_collect_attachment_context` (func, строка 375)
+- `_services_with_web_search` (func, строка 418)
+- `_temp_slider` (func, строка 430)
 
 ### `ui/pages/orchestrator_feed.py`
 - `_render_generated_image` (func, строка 35)
@@ -1152,10 +1155,13 @@
 - `_render_event_impl` (func, строка 337)
 
 ### `ui/pages/orchestrator_flags.py`
-- `toolbar_specs` (func, строка 30)
-- `sandbox_profile` (func, строка 48)
-- `effective_sandbox_profile` (func, строка 58)
-- `read_protection_flags` (func, строка 77)
+- `_flag_false` (func, строка 36)
+- `access_mode` (func, строка 45)
+- `toolbar_specs` (func, строка 62)
+- `sandbox_profile` (func, строка 83)
+- `env_isolation` (func, строка 93)
+- `effective_sandbox_profile` (func, строка 108)
+- `read_protection_flags` (func, строка 141)
 
 ### `ui/pages/orchestrator_folder.py`
 - `_folder_picker_key` (func, строка 37)
@@ -1168,32 +1174,32 @@
 - `_open_folder_dialog` (func, строка 195)
 
 ### `ui/pages/orchestrator_loop.py`
-- `_assistant_dicts` (func, строка 72)
-- `_make_send_adapter_impl` (func, строка 87)
-- `_make_send_adapter_impl._adapter` (func, строка 103)
-- `_make_dispatcher_impl` (func, строка 122)
-- `_assistant_has_api_key_impl` (func, строка 148)
-- `_dialog_tree_root` (func, строка 163)
-- `_live_subagent_runs` (func, строка 192)
-- `_waiting_subagent_runs` (func, строка 216)
-- `_render_subagent_status` (func, строка 236)
-- `_render_subagent_status._poll_children` (func, строка 267)
-- `_read_step_flags` (func, строка 279)
-- `_new_loop_state` (func, строка 290)
-- `_ensure_loop_state` (func, строка 331)
-- `_register_root_run` (func, строка 354)
-- `_register_root_run._forward_child_event` (func, строка 383)
-- `_handle_stop_requested` (func, строка 395)
-- `_run_agent_step` (func, строка 415)
-- `_persist_step_to_thread` (func, строка 430)
-- `_commit_loop_state` (func, строка 444)
-- `_do_step_impl` (func, строка 464)
-- `_do_step_impl.on_event` (func, строка 476)
-- `_reset_dialog_impl` (func, строка 512)
-- `_load_thread_impl` (func, строка 539)
-- `_sync_chat_pref_checkbox` (func, строка 580)
-- `_chat_toolbar_pref_changed` (func, строка 597)
-- `_cancel_dialog_tree` (func, строка 607)
+- `_assistant_dicts` (func, строка 76)
+- `_make_send_adapter_impl` (func, строка 91)
+- `_make_send_adapter_impl._adapter` (func, строка 107)
+- `_make_dispatcher_impl` (func, строка 126)
+- `_assistant_has_api_key_impl` (func, строка 155)
+- `_dialog_tree_root` (func, строка 170)
+- `_live_subagent_runs` (func, строка 199)
+- `_waiting_subagent_runs` (func, строка 223)
+- `_render_subagent_status` (func, строка 243)
+- `_render_subagent_status._poll_children` (func, строка 274)
+- `_read_step_flags` (func, строка 286)
+- `_new_loop_state` (func, строка 297)
+- `_ensure_loop_state` (func, строка 338)
+- `_register_root_run` (func, строка 361)
+- `_register_root_run._forward_child_event` (func, строка 390)
+- `_handle_stop_requested` (func, строка 402)
+- `_run_agent_step` (func, строка 422)
+- `_persist_step_to_thread` (func, строка 437)
+- `_commit_loop_state` (func, строка 451)
+- `_do_step_impl` (func, строка 471)
+- `_do_step_impl.on_event` (func, строка 483)
+- `_reset_dialog_impl` (func, строка 519)
+- `_load_thread_impl` (func, строка 546)
+- `_sync_chat_pref_checkbox` (func, строка 587)
+- `_chat_toolbar_pref_changed` (func, строка 604)
+- `_cancel_dialog_tree` (func, строка 614)
 
 ### `ui/pages/orchestrator_sandbox.py`
 - `_provider_rows` (func, строка 40)
@@ -1203,13 +1209,14 @@
 - `_current_profile` (func, строка 96)
 - `_profile_label` (func, строка 106)
 - `_save_profile` (func, строка 117)
-- `_render_active_runs` (func, строка 136)
-- `_render_active_runs._live` (func, строка 155)
-- `_render_one_run` (func, строка 173)
-- `render_sandbox_settings` (func, строка 196)
-- `_render_recent_runs` (func, строка 258)
-- `_format_when` (func, строка 280)
-- `_stub_profile` (func, строка 288)
+- `_save_config_value` (func, строка 122)
+- `_render_active_runs` (func, строка 141)
+- `_render_active_runs._live` (func, строка 160)
+- `_render_one_run` (func, строка 178)
+- `render_sandbox_settings` (func, строка 201)
+- `_render_recent_runs` (func, строка 306)
+- `_format_when` (func, строка 328)
+- `_stub_profile` (func, строка 336)
 
 ### `ui/pages/orchestrator_settings.py`
 - `page_orchestrator_settings` (func, строка 38)
@@ -1298,22 +1305,22 @@
 - `settings_section_key` (func, строка 304)
 - `_chat_toolbar_widget_key` (func, строка 309)
 - `_chat_pref_config_keys` (func, строка 319)
-- `_attachments_manifest_path` (func, строка 338)
-- `_load_attachments_manifest` (func, строка 343)
-- `_model_ids` (func, строка 353)
-- `_is_agent_active` (func, строка 358)
-- `_last_assistant_index` (func, строка 363)
-- `_split_chat_prompt` (func, строка 372)
-- `_dialog_limit` (func, строка 393)
-- `_get_max_tokens_limit` (func, строка 410)
-- `_reindex_history` (func, строка 434)
-- `_release_step_resources` (func, строка 449)
-- `_sync_safety_mode` (func, строка 469)
-- `_persist_thread_workspace_meta` (func, строка 483)
-- `_tool_result_title` (func, строка 507)
-- `_select_live_runs` (func, строка 515)
-- `_select_waiting_runs` (func, строка 535)
-- `build_state_keys` (func, строка 563)
+- `_attachments_manifest_path` (func, строка 339)
+- `_load_attachments_manifest` (func, строка 344)
+- `_model_ids` (func, строка 354)
+- `_is_agent_active` (func, строка 359)
+- `_last_assistant_index` (func, строка 364)
+- `_split_chat_prompt` (func, строка 373)
+- `_dialog_limit` (func, строка 394)
+- `_get_max_tokens_limit` (func, строка 411)
+- `_reindex_history` (func, строка 435)
+- `_release_step_resources` (func, строка 450)
+- `_sync_safety_mode` (func, строка 470)
+- `_persist_thread_workspace_meta` (func, строка 484)
+- `_tool_result_title` (func, строка 508)
+- `_select_live_runs` (func, строка 516)
+- `_select_waiting_runs` (func, строка 536)
+- `build_state_keys` (func, строка 564)
 
 ### `ui/pages/orchestrators.py`
 - `_go_to_page` (func, строка 24)
@@ -3677,11 +3684,12 @@
 - `profile_names` (func, строка 109)
 
 ### `core/sandbox/resolve.py`
-- `_as_bool` (func, строка 36)
-- `employee_config` (func, строка 45)
-- `sandbox_profile` (func, строка 64)
-- `safety_enabled` (func, строка 77)
-- `apply_to` (func, строка 86)
+- `_as_bool` (func, строка 44)
+- `employee_config` (func, строка 53)
+- `env_isolation` (func, строка 72)
+- `sandbox_profile` (func, строка 83)
+- `safety_enabled` (func, строка 102)
+- `apply_to` (func, строка 111)
 
 ### `core/sandbox/runner.py`
 - `build_request` (func, строка 20)
@@ -3694,13 +3702,13 @@
 ### `core/sandbox/status.py`
 - `reset_cache` (func, строка 27)
 - `describe` (func, строка 33)
-- `_default_providers` (func, строка 81)
-- `_is_isolated` (func, строка 91)
-- `_guarantee_words` (func, строка 96)
-- `format_lines` (func, строка 107)
-- `prompt_lines` (func, строка 175)
-- `_text` (func, строка 200)
-- `block` (func, строка 208)
+- `_default_providers` (func, строка 85)
+- `_is_isolated` (func, строка 95)
+- `_guarantee_words` (func, строка 100)
+- `format_lines` (func, строка 111)
+- `prompt_lines` (func, строка 199)
+- `_text` (func, строка 232)
+- `block` (func, строка 240)
 
 ### `core/sandbox/providers/__init__.py`
 - `default_providers` (func, строка 21)
@@ -3828,18 +3836,18 @@
 ### `core/orchestration/dialog_runner.py`
 - `build_state` (func, строка 53)
 - `build_dispatcher` (func, строка 123)
-- `send_adapter` (func, строка 168)
-- `send_adapter._send` (func, строка 182)
-- `attach_sender` (func, строка 199)
-- `run_step` (func, строка 210)
-- `run_loop` (func, строка 221)
-- `persist_step` (func, строка 289)
-- `final_triple` (func, строка 319)
-- `final_summary` (func, строка 331)
-- `register_root` (func, строка 340)
-- `close_root` (func, строка 360)
-- `release_root` (func, строка 369)
-- `cancel_report` (func, строка 383)
+- `send_adapter` (func, строка 172)
+- `send_adapter._send` (func, строка 186)
+- `attach_sender` (func, строка 203)
+- `run_step` (func, строка 214)
+- `run_loop` (func, строка 225)
+- `persist_step` (func, строка 293)
+- `final_triple` (func, строка 323)
+- `final_summary` (func, строка 335)
+- `register_root` (func, строка 344)
+- `close_root` (func, строка 364)
+- `release_root` (func, строка 373)
+- `cancel_report` (func, строка 387)
 
 ### `core/orchestration/invoke.py`
 - `_read_document_bytes` (func, строка 53)
@@ -7845,22 +7853,23 @@
 - `_markdown_calls` (func, строка 43)
 - `_checkbox_by_key` (func, строка 47)
 - `_checkbox_label` (func, строка 54)
-- `_orch_dict` (func, строка 62)
-- `_render_chat` (func, строка 73)
-- `test_devagent_page_uses_devagent_welcome` (func, строка 89)
-- `test_custom_orchestrator_keeps_generic_welcome` (func, строка 104)
-- `test_checkbox_values_come_from_saved_config` (func, строка 120)
-- `test_checkbox_defaults_without_saved_config` (func, строка 151)
-- `test_sandbox_checkbox_carries_a_real_tooltip` (func, строка 166)
-- `test_a_saved_sandbox_choice_is_restored` (func, строка 184)
-- `_dispatcher_for` (func, строка 199)
-- `test_a_cleared_checkbox_puts_the_dispatcher_into_off_mode` (func, строка 211)
-- `test_the_saved_profile_is_used_while_the_switch_is_on` (func, строка 236)
-- `test_the_sandbox_pref_persists_like_the_other_switches` (func, строка 246)
-- `test_toolbar_renders_once_without_bottom_duplicates` (func, строка 267)
-- `test_save_chat_pref_merges_config` (func, строка 285)
-- `test_save_chat_pref_rejects_unknown_key_and_missing_orch` (func, строка 312)
-- `test_chat_prefs_fallback_on_non_dict_config` (func, строка 326)
+- `_button_by_key` (func, строка 62)
+- `_orch_dict` (func, строка 70)
+- `_render_chat` (func, строка 81)
+- `test_devagent_page_uses_devagent_welcome` (func, строка 97)
+- `test_custom_orchestrator_keeps_generic_welcome` (func, строка 112)
+- `test_checkbox_values_come_from_saved_config` (func, строка 128)
+- `test_checkbox_defaults_without_saved_config` (func, строка 159)
+- `test_the_access_badge_explains_itself_and_stays_read_only` (func, строка 178)
+- `_dispatcher_for` (func, строка 195)
+- `test_the_grant_puts_the_dispatcher_into_full_access` (func, строка 207)
+- `test_the_stored_legacy_flag_still_clears_the_isolation` (func, строка 235)
+- `test_the_saved_profile_is_used_without_any_legacy_flag` (func, строка 255)
+- `test_the_grant_persists_like_the_other_settings` (func, строка 266)
+- `test_toolbar_renders_once_without_bottom_duplicates` (func, строка 289)
+- `test_save_chat_pref_merges_config` (func, строка 307)
+- `test_save_chat_pref_rejects_unknown_key_and_missing_orch` (func, строка 334)
+- `test_chat_prefs_fallback_on_non_dict_config` (func, строка 348)
 
 ### `tests/test_orchestrator_connections.py`
 - `isolated_data_dir` (func, строка 18)
@@ -9000,6 +9009,15 @@
 - `test_run_command_removes_the_child_home` (func, строка 67)
 - `test_run_command_removes_the_child_home.fake_run_under_sandbox` (func, строка 71)
 
+### `tests/test_sandbox_full_access.py`
+- `test_full_access_exposes_the_platform_environment` (func, строка 20)
+- `test_isolated_run_hides_the_platform_environment` (func, строка 27)
+- `test_full_access_keeps_the_real_home` (func, строка 35)
+- `test_full_access_home_is_never_removed` (func, строка 43)
+- `test_full_access_puts_the_project_first_on_pythonpath` (func, строка 51)
+- `test_full_access_does_not_duplicate_the_project_entry` (func, строка 61)
+- `test_full_access_still_forwards_the_enclosing_sandbox` (func, строка 70)
+
 ### `tests/test_sandbox_inheritance.py`
 - `test_marker_round_trips_every_grant` (func, строка 28)
 - `test_a_malformed_marker_is_treated_as_absent` (func, строка 40)
@@ -9064,11 +9082,13 @@
 - `test_binary_script_is_refused` (func, строка 289)
 - `test_printed_secret_values_are_redacted` (func, строка 306)
 - `test_redaction_keeps_ordinary_text` (func, строка 315)
-- `test_child_env_has_no_platform_variables` (func, строка 324)
-- `test_timeout_kills_the_process_group` (func, строка 335)
-- `test_output_is_bounded_in_memory` (func, строка 356)
-- `test_stdin_is_closed` (func, строка 378)
-- `test_parked_batch_reports_suspended_calls` (func, строка 400)
+- `test_redaction_covers_environment_names` (func, строка 321)
+- `test_redaction_keeps_paths_with_credential_words` (func, строка 338)
+- `test_child_env_has_no_platform_variables` (func, строка 347)
+- `test_timeout_kills_the_process_group` (func, строка 358)
+- `test_output_is_bounded_in_memory` (func, строка 379)
+- `test_stdin_is_closed` (func, строка 401)
+- `test_parked_batch_reports_suspended_calls` (func, строка 423)
 
 ### `tests/test_sandbox_phase1.py`
 - `StubProvider` (class, строка 29)
@@ -9166,15 +9186,22 @@
 - `test_an_unset_profile_means_the_policy_default` (func, строка 96)
 - `test_an_unknown_profile_is_never_replaced` (func, строка 103)
 - `test_string_forms_of_false_clear_the_switch` (func, строка 110)
-- `test_clearing_the_sandbox_does_not_clear_the_confirmation` (func, строка 119)
-- `test_clearing_the_confirmation_does_not_clear_the_sandbox` (func, строка 126)
-- `test_a_missing_safety_key_keeps_the_gate_on` (func, строка 133)
-- `test_an_unknown_employee_falls_back_to_the_defaults` (func, строка 139)
-- `test_the_child_builder_inherits_the_employee_preferences` (func, строка 148)
-- `test_the_child_builder_keeps_the_gate_when_the_employee_asked_for_it` (func, строка 167)
-- `test_the_dialog_builder_lets_the_request_tighten_the_gate` (func, строка 181)
-- `test_the_dialog_builder_honours_a_caller_that_waives_the_gate` (func, строка 198)
-- `test_the_schedule_builder_reads_the_employee_preferences` (func, строка 210)
+- `test_a_missing_env_key_keeps_the_environment_isolated` (func, строка 119)
+- `test_full_access_is_granted_only_explicitly` (func, строка 125)
+- `test_full_access_survives_a_cleared_toolbar_checkbox` (func, строка 131)
+- `test_full_access_forces_the_off_profile` (func, строка 141)
+- `test_full_access_does_not_touch_the_confirmation` (func, строка 147)
+- `test_the_stamp_carries_the_access_grant` (func, строка 154)
+- `test_the_stamp_defaults_to_the_isolated_form` (func, строка 165)
+- `test_clearing_the_sandbox_does_not_clear_the_confirmation` (func, строка 178)
+- `test_clearing_the_confirmation_does_not_clear_the_sandbox` (func, строка 185)
+- `test_a_missing_safety_key_keeps_the_gate_on` (func, строка 192)
+- `test_an_unknown_employee_falls_back_to_the_defaults` (func, строка 198)
+- `test_the_child_builder_inherits_the_employee_preferences` (func, строка 207)
+- `test_the_child_builder_keeps_the_gate_when_the_employee_asked_for_it` (func, строка 226)
+- `test_the_dialog_builder_lets_the_request_tighten_the_gate` (func, строка 240)
+- `test_the_dialog_builder_honours_a_caller_that_waives_the_gate` (func, строка 257)
+- `test_the_schedule_builder_reads_the_employee_preferences` (func, строка 269)
 
 ### `tests/test_sandbox_security.py`
 - `_providers` (func, строка 37)
@@ -9244,9 +9271,14 @@
 - `test_the_block_never_raises_on_broken_input` (func, строка 170)
 - `test_the_prompt_block_is_appended_for_the_employee_profile` (func, строка 179)
 - `test_the_prompt_block_is_appended_for_the_employee_profile.fake_block` (func, строка 185)
-- `test_the_cleared_toolbar_switch_reports_the_off_profile` (func, строка 199)
-- `test_the_cleared_toolbar_switch_reports_the_off_profile.fake_block` (func, строка 204)
-- `test_set_workspace_description_says_when_to_call_it` (func, строка 218)
+- `test_the_cleared_toolbar_switch_reports_the_off_profile` (func, строка 201)
+- `test_the_cleared_toolbar_switch_reports_the_off_profile.fake_block` (func, строка 206)
+- `test_the_full_access_grant_is_reported_to_the_model` (func, строка 217)
+- `test_the_full_access_grant_is_reported_to_the_model.fake_block` (func, строка 223)
+- `test_a_granted_block_does_not_claim_the_environment_is_filtered` (func, строка 236)
+- `test_an_isolated_block_still_states_the_filtered_environment` (func, строка 247)
+- `test_the_cache_keeps_the_two_grants_apart` (func, строка 257)
+- `test_set_workspace_description_says_when_to_call_it` (func, строка 271)
 
 ### `tests/test_sanitized_approval_flow.py`
 - `_read_result` (func, строка 43)
@@ -10158,6 +10190,9 @@
 - `test_child_home_is_not_the_user_home` (func, строка 99)
 - `test_pythonpath_points_at_the_project_only` (func, строка 110)
 - `test_build_child_env_blocks_extra_secrets` (func, строка 117)
+- `test_the_tool_passes_the_isolated_default` (func, строка 128)
+- `test_the_tool_honours_the_grant` (func, строка 136)
+- `test_the_tool_reads_the_grant_at_call_time` (func, строка 149)
 
 ### `tests/test_tool_result_size_cap.py`
 - `sandbox` (func, строка 30)
@@ -11420,6 +11455,14 @@
 - `test_scenario_browse_entry_records_and_stages_folder` (func, строка 281)
 - `test_scenario_browse_entry_cancel_keeps_staged_folder` (func, строка 332)
 - `test_scenario_stale_selector_value_keeps_staged_folder` (func, строка 371)
+
+### `tests/scenarios/test_full_access_scenario.py`
+- `platform_env` (func, строка 30)
+- `_executor` (func, строка 36)
+- `test_scenario_isolated_run_never_sees_the_platform_key` (func, строка 56)
+- `test_scenario_full_access_run_reaches_the_platform_key` (func, строка 73)
+- `test_scenario_the_printed_key_is_redacted_from_the_result` (func, строка 89)
+- `test_scenario_turning_the_grant_off_closes_the_environment_again` (func, строка 107)
 
 ### `tests/scenarios/test_generated_image_feed_scenario.py`
 - `ui_env` (func, строка 37)
@@ -12893,13 +12936,13 @@
 - `approval_context` (func, строка 80)
 
 ### `dev_agent/sandbox_env.py`
-- `_BlockedEnv` (class, строка 47)
-- `_BlockedEnv._forbidden` (func, строка 56)
-- `_BlockedEnv.__setitem__` (func, строка 66)
-- `_BlockedEnv.update` (func, строка 71)
-- `_BlockedEnv.setdefault` (func, строка 75)
-- `discard_env_home` (func, строка 87)
-- `build_child_env` (func, строка 116)
+- `_BlockedEnv` (class, строка 53)
+- `_BlockedEnv._forbidden` (func, строка 62)
+- `_BlockedEnv.__setitem__` (func, строка 72)
+- `_BlockedEnv.update` (func, строка 77)
+- `_BlockedEnv.setdefault` (func, строка 81)
+- `discard_env_home` (func, строка 100)
+- `build_child_env` (func, строка 130)
 
 ### `dev_agent/sandbox_proc.py`
 - `_reader` (func, строка 34)
@@ -13211,23 +13254,23 @@
 - `EditingTools.discard_edit` (func, строка 227)
 
 ### `dev_agent/tools/exec.py`
-- `ExecTools` (class, строка 42)
-- `ExecTools._execute` (func, строка 46)
-- `ExecTools._run_command` (func, строка 94)
-- `ExecTools._run_under_sandbox` (func, строка 124)
-- `ExecTools.run_test` (func, строка 163)
-- `ExecTools.run_code` (func, строка 179)
+- `ExecTools` (class, строка 43)
+- `ExecTools._execute` (func, строка 47)
+- `ExecTools._run_command` (func, строка 95)
+- `ExecTools._run_under_sandbox` (func, строка 126)
+- `ExecTools.run_test` (func, строка 165)
+- `ExecTools.run_code` (func, строка 181)
 
 ### `dev_agent/tools/exec_support.py`
-- `redact_secrets` (func, строка 39)
-- `read_script_text` (func, строка 53)
-- `subject_for_analysis` (func, строка 85)
-- `confirmation_result` (func, строка 100)
-- `inline_command` (func, строка 119)
-- `script_command` (func, строка 130)
-- `subprocess_cwd` (func, строка 138)
-- `result_payload` (func, строка 153)
-- `script_log_path` (func, строка 180)
+- `redact_secrets` (func, строка 48)
+- `read_script_text` (func, строка 65)
+- `subject_for_analysis` (func, строка 97)
+- `confirmation_result` (func, строка 112)
+- `inline_command` (func, строка 131)
+- `script_command` (func, строка 142)
+- `subprocess_cwd` (func, строка 150)
+- `result_payload` (func, строка 165)
+- `script_log_path` (func, строка 192)
 
 ### `dev_agent/tools/file_tree.py`
 - `_sort_key` (func, строка 14)

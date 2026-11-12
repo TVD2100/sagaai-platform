@@ -116,18 +116,23 @@ def _profile_label(profile: Any, usable: bool, lang: str) -> str:
 
 def _save_profile(slug: str, profile: str, lang: str) -> None:
     """Persist the chosen profile and rerun the page."""
+    _save_config_value(slug, "sandbox_profile", str(profile or ""), lang)
+
+
+def _save_config_value(slug: str, key: str, value, lang: str) -> None:
+    """Persist one config value of the employee and rerun the page."""
     try:
         orch = get_orchestrator(slug) or {}
         config = dict(orch.get("config") or {})
-        config["sandbox_profile"] = str(profile or "")
+        config[key] = value
         ok = bool(save_orchestrator(slug, config=config))
     except Exception:
         ok = False
     if ok:
         try:
-            flash_success(t("orch_sandbox_profile_saved", lang=lang, profile=profile))
+            flash_success(t("orch_sandbox_profile_saved", lang=lang, profile=value))
         except Exception:
-            st.success(t("orch_sandbox_profile_saved", lang=lang, profile=profile))
+            st.success(t("orch_sandbox_profile_saved", lang=lang, profile=value))
         st.rerun()
         return
     st.error(t("orch_sandbox_profile_error", lang=lang))
@@ -194,62 +199,105 @@ def _render_one_run(run: Dict[str, Any], lang: str) -> None:
 
 
 def render_sandbox_settings(slug: str, lang: str) -> None:
-    """Render the sandbox section of the settings page.
+    """Render the access section of the settings page.
 
-    Providers and the profile table describe the machine; the selector is
-    the one editable value, and it only offers profiles this machine can
-    honour. Everything else is a fact about the platform, not a per-dialog
-    preference: a toggle that promised a guarantee the platform cannot vary
-    would be worse than no toggle at all.
+    The section answers ONE question the user actually asks - may this agent
+    reach the machine? Everything else on the panel describes how the answer
+    is implemented, so it lives behind "details" and never competes with the
+    choice itself.
+
+    Args:
+        slug: the employee whose settings are being edited.
+        lang: the active UI language.
     """
-    st.markdown(t("orch_sandbox_section", lang=lang))
-    st.caption(t("orch_sandbox_section_help", lang=lang))
-
-    providers = _provider_rows()
-    st.markdown(t("orch_sandbox_providers", lang=lang))
-    st.table([{"provider": p["name"], "isolation": p["isolation"],
-               "capabilities": p["capabilities"] or "-",
-               "available": t("orch_sandbox_yes" if p["available"]
-                              else "orch_sandbox_no", lang=lang)}
-              for p in providers])
-
-    rows = _profile_rows(providers)
-    st.markdown(t("orch_sandbox_profiles", lang=lang))
-    st.table([{"profile": row["profile"].name,
-               "isolation": row["profile"].isolation,
-               "network": t("orch_sandbox_yes" if row["profile"].network
-                            else "orch_sandbox_no", lang=lang),
-               "via": row["via"] or "-",
-               "status": (t("orch_sandbox_available", lang=lang)
-                          if row["usable"] else t("orch_sandbox_refused", lang=lang))}
-              for row in rows])
-
-    if not any(row["usable"] for row in rows):
-        st.warning(t("orch_sandbox_no_provider", lang=lang))
-
-    current = _current_profile(slug)
-    by_name = {row["profile"].name: row for row in rows}
-    options = [profile.name for profile in _profiles()]
-    if current and current not in options:
-        # A profile that no longer exists (renamed in code) stays visible so
-        # the refusal is explained instead of looking like a reset.
-        options.insert(0, current)
-    index = options.index(current) if current in options else 0
-    chosen = st.selectbox(
-        t("orch_sandbox_profile_label", lang=lang), options=options, index=index,
-        key=f"orch_sandbox_profile_{slug}",
-        help=t("orch_sandbox_profile_help", lang=lang),
-        format_func=lambda name: _profile_label(
-            by_name[name]["profile"] if name in by_name else _stub_profile(name),
-            bool(by_name[name]["usable"]) if name in by_name else False, lang),
+    from core.sandbox.profiles import OFF
+    from ui.pages.orchestrator_flags import (
+        ACCESS_PARTIAL,
+        access_mode,
+        env_isolation,
     )
-    chosen_ok = (bool(by_name.get(chosen, {}).get("usable"))
-                 or chosen in _NO_ISOLATION)
-    if not chosen_ok:
-        st.warning(t("orch_sandbox_refused", lang=lang))
-    if st.button(t("orch_save_btn", lang=lang), key=f"orch_sandbox_save_{slug}",
-                 type="primary", disabled=not chosen_ok):
-        _save_profile(slug, chosen, lang)
+
+    st.markdown(t("orch_access_section", lang=lang))
+    st.caption(t("orch_access_section_help", lang=lang))
+
+    mode = access_mode(get_orchestrator, slug)
+    if mode == ACCESS_PARTIAL:
+        # A record that cleared the old sandbox checkbox before the access
+        # setting existed. Neither answer is safe to assume for the owner, so
+        # the section states what is in force and asks for an explicit choice.
+        st.warning(t("orch_access_partial_banner", lang=lang))
+
+    isolated_now = env_isolation(get_orchestrator, slug)
+    options = [True, False]
+    chosen = st.radio(
+        t("orch_access_label", lang=lang),
+        options=options,
+        index=0 if isolated_now else 1,
+        format_func=lambda value: (t("orch_access_option_isolated", lang=lang)
+                                   if value else t("orch_access_option_full", lang=lang)),
+        key=f"orch_access_mode_{slug}",
+        help=t("orch_access_help", lang=lang),
+    )
+    if chosen is False:
+        st.error(t("orch_access_full_warning", lang=lang))
+    else:
+        st.caption(t("orch_access_isolated_hint", lang=lang))
+
+    if st.button(t("orch_save_btn", lang=lang), key=f"orch_access_save_{slug}",
+                 type="primary"):
+        _save_config_value(slug, "env_isolation", bool(chosen), lang)
+
+    # The profile only matters inside the isolated mode: a full-access run is
+    # forced to ``off`` by the resolver, so offering the selector there would
+    # promise a choice that does not take effect.
+    with st.expander(t("orch_access_details", lang=lang), expanded=False):
+        providers = _provider_rows()
+        st.markdown(t("orch_sandbox_providers", lang=lang))
+        st.table([{"provider": p["name"], "isolation": p["isolation"],
+                   "capabilities": p["capabilities"] or "-",
+                   "available": t("orch_sandbox_yes" if p["available"]
+                                  else "orch_sandbox_no", lang=lang)}
+                  for p in providers])
+
+        rows = _profile_rows(providers)
+        st.markdown(t("orch_sandbox_profiles", lang=lang))
+        st.table([{"profile": row["profile"].name,
+                   "isolation": row["profile"].isolation,
+                   "network": t("orch_sandbox_yes" if row["profile"].network
+                                else "orch_sandbox_no", lang=lang),
+                   "via": row["via"] or "-",
+                   "status": (t("orch_sandbox_available", lang=lang)
+                              if row["usable"] else t("orch_sandbox_refused", lang=lang))}
+                  for row in rows])
+
+        if not any(row["usable"] for row in rows):
+            st.warning(t("orch_sandbox_no_provider", lang=lang))
+
+        current = _current_profile(slug)
+        by_name = {row["profile"].name: row for row in rows}
+        names = [profile.name for profile in _profiles()]
+        if current and current not in names:
+            names.insert(0, current)
+        index = names.index(current) if current in names else 0
+        chosen_profile = st.selectbox(
+            t("orch_sandbox_profile_label", lang=lang), options=names, index=index,
+            key=f"orch_sandbox_profile_{slug}",
+            help=t("orch_sandbox_profile_help", lang=lang),
+            disabled=chosen is False,
+            format_func=lambda name: _profile_label(
+                by_name[name]["profile"] if name in by_name else _stub_profile(name),
+                bool(by_name[name]["usable"]) if name in by_name else False, lang),
+        )
+        profile_ok = (bool(by_name.get(chosen_profile, {}).get("usable"))
+                      or chosen_profile in _NO_ISOLATION)
+        if chosen is False:
+            st.caption(t("orch_access_profile_ignored", lang=lang,
+                         profile=OFF))
+        elif not profile_ok:
+            st.warning(t("orch_sandbox_refused", lang=lang))
+        elif st.button(t("orch_save_btn", lang=lang),
+                       key=f"orch_sandbox_save_{slug}", type="primary"):
+            _save_profile(slug, chosen_profile, lang)
 
     _render_active_runs(lang)
     _render_recent_runs(lang)

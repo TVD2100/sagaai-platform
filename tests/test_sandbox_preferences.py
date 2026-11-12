@@ -113,6 +113,65 @@ def test_string_forms_of_false_clear_the_switch(employee, value):
     assert resolve.sandbox_profile("dev_agent") == OFF
 
 
+# ── full access: a grant of its own, never a side effect ────────────────────
+
+
+def test_a_missing_env_key_keeps_the_environment_isolated(employee):
+    """An install that never wrote the key keeps the filtered environment."""
+    employee(chat_sandbox=True)
+    assert resolve.env_isolation("dev_agent") is True
+
+
+def test_full_access_is_granted_only_explicitly(employee):
+    """A stored false is the grant; everything else is the isolated form."""
+    employee(env_isolation=False)
+    assert resolve.env_isolation("dev_agent") is False
+
+
+def test_full_access_survives_a_cleared_toolbar_checkbox(employee):
+    """Two switches that both mean \"no OS isolation\" stay distinct values.
+
+    Clearing the toolbar checkbox must not read as a full-access grant: the
+    environment stays filtered although the machine is unconfined.
+    """
+    employee(chat_sandbox=False)
+    assert resolve.env_isolation("dev_agent") is True
+
+
+def test_full_access_forces_the_off_profile(employee):
+    """A granted run needs the machine, so it cannot stay inside a boundary."""
+    employee(env_isolation=False, chat_sandbox=True, sandbox_profile="read_only")
+    assert resolve.sandbox_profile("dev_agent") == OFF
+
+
+def test_full_access_does_not_touch_the_confirmation(employee):
+    """Access and confirmation are separate: a grant keeps the gate on."""
+    employee(env_isolation=False, chat_safety_mode=True)
+    assert resolve.env_isolation("dev_agent") is False
+    assert resolve.safety_enabled("dev_agent") is True
+
+
+def test_the_stamp_carries_the_access_grant(employee, fake_dispatcher):
+    """The dialog builder hands the grant to the execution tools."""
+    from core.orchestration import dialog_runner
+
+    employee(env_isolation=False, chat_safety_mode=True)
+    dispatcher = dialog_runner.build_dispatcher(
+        "dev_agent", "thread", safety=True, web_search=False)
+    assert dispatcher.core._env_isolation is False
+    assert dispatcher.core._sandbox_profile == OFF
+
+
+def test_the_stamp_defaults_to_the_isolated_form(employee, fake_dispatcher):
+    """A dispatcher of an employee that never wrote the key stays filtered."""
+    from core.orchestration import dialog_runner
+
+    employee(chat_sandbox=True)
+    dispatcher = dialog_runner.build_dispatcher(
+        "dev_agent", "thread", safety=True, web_search=False)
+    assert dispatcher.core._env_isolation is True
+
+
 # ── the two switches are independent ────────────────────────────────────────
 
 

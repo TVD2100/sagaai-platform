@@ -31,6 +31,15 @@ _SECRET_VALUE_RE = re.compile(
 #: like a provider key (a prefix followed by a long random body).
 _SECRET_SHAPE_RE = re.compile(r"\b(?:sk|pk|ghp|gho|xoxb|AKIA|tvly)-[A-Za-z0-9_\-]{16,}")
 
+#: Assignment to an environment-style NAME whose credential word sits at the
+#: end (``SAGAAI_YANDEXAI_KEY=...``). The field pattern above looks for the
+#: word immediately before the separator, so a name like this slips past it
+#: although it carries exactly the value a full-access child can print.
+_SECRET_ENV_RE = re.compile(
+    r"(?im)(\b[A-Z][A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIALS?))"
+    r"[ \t]*[:=][ \t]*(\S{4,})"
+)
+
 #: Upper bound for a script read from ``path``. Larger files are refused:
 #: analysing a huge blob is not useful and the caller gets a clear reason.
 MAX_SCRIPT_BYTES = 512 * 1024
@@ -42,11 +51,14 @@ def redact_secrets(text: str) -> str:
     The child process can print anything it can read; a printed key would
     otherwise travel into the conversation, into the history and to the model
     provider. The marker keeps the shape of the finding (which field leaked)
-    without the value.
+    without the value. Both the ``field=value`` form and the
+    ``ENVIRONMENT_NAME=value`` form are covered, because a full-access child
+    can dump the whole environment it received.
     """
     if not text:
         return text
     redacted = _SECRET_VALUE_RE.sub(lambda m: m.group(1) + "[REDACTED]", text)
+    redacted = _SECRET_ENV_RE.sub(lambda m: m.group(1) + "=[REDACTED]", redacted)
     return _SECRET_SHAPE_RE.sub("[REDACTED]", redacted)
 
 

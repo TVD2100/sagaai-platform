@@ -9,18 +9,26 @@ defect this module exists to close: the toolbar checkbox was applied to the
 dialog dispatcher only, so a delegated child kept running under the default
 profile with the dangerous-code gate on, whatever the user had chosen.
 
-Two independent preferences live in the employee config:
+Three independent preferences live in the employee config:
 
-* ``chat_sandbox`` - the toolbar switch. ``False`` means the ``off`` profile:
-  no operating-system isolation, while the resource limits and the built
-  environment still apply.
+* ``env_isolation`` - the access grant. ``False`` is full access: the child
+  receives the platform environment (including provider credentials) and no
+  operating-system isolation. The default is ``True`` - a record that never
+  wrote the key keeps the isolated form.
+* ``chat_sandbox`` - the toolbar switch of the isolated mode. ``False`` means
+  the ``off`` profile: no operating-system isolation, while the resource
+  limits and the built environment still apply. It never widens the
+  environment: clearing it alone leaves the child with the filtered set.
 * ``chat_safety_mode`` - the dangerous-code gate. ``False`` means an execution
   tool runs the analysed text without asking for a confirmation.
 
 They are independent on purpose: turning isolation off must not silently
 drop the confirmation, and turning confirmations off must not silently drop
-isolation. The two are read by separate functions so neither can borrow the
-other's value by accident.
+isolation. Each is read by its own function so none can borrow another's
+value by accident. Full access is the only preference that widens more than
+one layer, because a task that manages the machine needs the environment and
+the machine at once; it is therefore a single explicit switch of its own,
+never a side effect of the toolbar checkbox.
 """
 from __future__ import annotations
 
@@ -61,14 +69,31 @@ def employee_config(slug: str) -> Dict[str, Any]:
     return dict(config) if isinstance(config, dict) else {}
 
 
+def env_isolation(slug: str) -> bool:
+    """Return whether the child of *slug* gets the filtered environment.
+
+    The default is on: an install that never wrote the key keeps the child
+    on the allowlist. Only an explicit false grants full access, so a
+    missing or unreadable record can never widen the environment by
+    accident.
+    """
+    return _as_bool(employee_config(slug).get("env_isolation"), True)
+
+
 def sandbox_profile(slug: str) -> str:
     """Return the profile a run of *slug* executes under.
 
     An empty string means "the policy default". It is returned as is rather
     than resolved here: an unknown name stored in the settings must reach the
     policy and be refused there, not be replaced by a permissive default.
+
+    Full access wins over both other settings: a run that receives the
+    platform environment must not also run inside an operating-system
+    boundary that would refuse the writes such a task needs.
     """
     config = employee_config(slug)
+    if _as_bool(config.get("env_isolation"), True) is False:
+        return OFF
     if _as_bool(config.get("chat_sandbox"), True) is False:
         return OFF
     return str(config.get("sandbox_profile") or "")
@@ -86,14 +111,16 @@ def safety_enabled(slug: str) -> bool:
 def apply_to(dispatcher: Any, slug: str) -> None:
     """Stamp the resolved preferences onto a freshly built dispatcher.
 
-    Both attributes are read by the execution tools at call time, so setting
-    them once here covers every ``run_code`` and ``run_test`` of the run.
+    All three attributes are read by the execution tools at call time, so
+    setting them once here covers every ``run_code`` and ``run_test`` of
+    the run.
     """
     core = getattr(dispatcher, "core", None)
     if core is None:  # pragma: no cover - every dispatcher has a core
         return
     core._sandbox_profile = sandbox_profile(slug)
     core._safety_enabled = safety_enabled(slug)
+    core._env_isolation = env_isolation(slug)
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

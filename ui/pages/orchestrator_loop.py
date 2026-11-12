@@ -32,7 +32,11 @@ from dev_agent.agent_loop import (
 )
 from dev_agent.universal_agent import UniversalDevAgent
 from storage.models import DEFAULT_MAX_STEPS
-from ui.pages.orchestrator_flags import effective_sandbox_profile, read_protection_flags
+from ui.pages.orchestrator_flags import (
+    effective_sandbox_profile,
+    env_isolation,
+    read_protection_flags,
+)
 from ui.pages.orchestrator_shared import late, st_proxy
 from ui.pages.orchestrator_state import (
     CHAT_PAGE_SIZE,
@@ -138,7 +142,10 @@ def _make_dispatcher_impl(slug: str) -> UniversalDevAgent:
     dispatcher.core._safety_enabled = True if safety_mode is None else bool(safety_mode)
     # Read every render: a cached value would outlive a settings change.
     dispatcher.core._sandbox_profile = effective_sandbox_profile(
-        get_orchestrator, slug, _ss(slug, "sandbox"))
+        get_orchestrator, slug)
+    # The access grant decides the child environment, so it has to be read
+    # from the settings on every render for the same reason.
+    dispatcher.core._env_isolation = env_isolation(get_orchestrator, slug)
     # Load custom orchestrator functions into the dispatcher so the LLM can
     # call them by name as if they were built-in tools.
     dispatcher.attach_orchestrator(slug)
@@ -582,12 +589,12 @@ def _sync_chat_pref_checkbox(slug: str, pref: str, value: bool) -> None:
 
     The toolbar renders a single checkbox widget whose key IS the canonical
     session slot; this helper persists the changed preference into the
-    orchestrator config via ``_save_chat_pref`` and, for safety_mode and
-    sandbox, rebuilds the live dispatcher so the switch applies at once.
+    orchestrator config via ``_save_chat_pref`` and, for safety_mode,
+    rebuilds the live dispatcher so the switch applies at once.
     """
     _set_ss(slug, pref, value)
     _save_chat_pref(slug, pref, value)
-    if pref in ("safety_mode", "sandbox"):
+    if pref == "safety_mode":
         try:
             _make_dispatcher(slug)
         except Exception:

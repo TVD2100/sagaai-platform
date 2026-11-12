@@ -182,9 +182,10 @@ def test_the_prompt_block_is_appended_for_the_employee_profile(monkeypatch):
 
     seen = {}
 
-    def fake_block(profile_name, workspace="", providers=None):
+    def fake_block(profile_name, workspace="", providers=None, env_isolated=True):
         seen["profile"] = profile_name
         seen["workspace"] = workspace
+        seen["env_isolated"] = env_isolated
         return "## Code execution sandbox\n\nstub line"
 
     monkeypatch.setattr("core.sandbox.status.block", fake_block)
@@ -193,6 +194,7 @@ def test_the_prompt_block_is_appended_for_the_employee_profile(monkeypatch):
 
     assert seen["profile"] == "read_only"
     assert seen["workspace"] == "/work/project"
+    assert seen["env_isolated"] is True
     assert "stub line" in lines
 
 
@@ -201,7 +203,7 @@ def test_the_cleared_toolbar_switch_reports_the_off_profile(monkeypatch):
 
     seen = {}
 
-    def fake_block(profile_name, workspace="", providers=None):
+    def fake_block(profile_name, workspace="", providers=None, env_isolated=True):
         seen["profile"] = profile_name
         return "## Code execution sandbox"
 
@@ -210,6 +212,57 @@ def test_the_cleared_toolbar_switch_reports_the_off_profile(monkeypatch):
         {"sandbox_profile": "read_only", "chat_sandbox": False}, "")
 
     assert seen["profile"] == "off"
+
+
+def test_the_full_access_grant_is_reported_to_the_model(monkeypatch):
+    """A granted employee is told the truth about its child environment."""
+    from core.sandbox import status as sandbox_status
+
+    seen = {}
+
+    def fake_block(profile_name, workspace="", providers=None, env_isolated=True):
+        seen["profile"] = profile_name
+        seen["env_isolated"] = env_isolated
+        return "## Code execution sandbox"
+
+    monkeypatch.setattr("core.sandbox.status.block", fake_block)
+    sandbox_status.prompt_lines(
+        {"sandbox_profile": "read_only", "env_isolation": False}, "")
+
+    assert seen["env_isolated"] is False
+    assert seen["profile"] == "off"
+
+
+def test_a_granted_block_does_not_claim_the_environment_is_filtered():
+    """The isolated wording would be a false statement under a grant."""
+    facts = status.describe("off", providers=[StubProvider("weak", "process")],
+                            env_isolated=False)
+    text = "\n".join(status.format_lines(facts))
+
+    assert "platform environment unchanged" in text
+    assert "the environment is filtered" not in text
+    assert "Credentials are unreadable" not in text
+
+
+def test_an_isolated_block_still_states_the_filtered_environment():
+    """The default wording stays: nothing claims a grant that is not there."""
+    facts = status.describe("off", providers=[StubProvider("weak", "process")])
+    text = "\n".join(status.format_lines(facts))
+
+    assert "the environment is filtered" in text
+    assert "Credentials are unreadable" in text
+    assert "platform environment unchanged" not in text
+
+
+def test_the_cache_keeps_the_two_grants_apart():
+    """A cached answer must not carry the other employee's grant."""
+    status.describe("off", providers=[StubProvider("weak", "process")])
+    granted = status.describe("off", providers=[StubProvider("weak", "process")],
+                              env_isolated=False)
+    isolated = status.describe("off", providers=[StubProvider("weak", "process")])
+
+    assert granted["env_isolated"] is False
+    assert isolated["env_isolated"] is True
 
 
 # ─── the set_workspace description ──────────────────────────────────────────

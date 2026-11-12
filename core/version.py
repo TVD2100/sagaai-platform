@@ -770,7 +770,25 @@
 # run in list form without a prompt, while the shell string form and the
 # destructive or network deny list keep asking.
 
-__version__ = "2.45.1"
+# 2.46.0 turns the sandbox switch into one access setting. "Is the code
+# isolated?" and "does it get the platform environment?" were two answers to a
+# question the user asks as one - may the agent reach the machine - and only
+# one of them was visible in the chat toolbar. The toolbar now shows a
+# read-only badge of the access mode and leads to the setting; the setting
+# itself is the isolated / full-access choice stored in ``config.env_isolation``
+# (isolated by default). Full access copies the platform environment into the
+# child - provider keys included - and forces the ``off`` profile, so the code
+# runs with the rights of the platform. What the child prints is still
+# redacted from the tool result, so the grant lets code USE a key without
+# letting the model read it. The stored ``config.chat_sandbox`` keeps its old
+# meaning and is NOT read as full access: an installation that cleared it gets
+# the OS isolation off but no environment, a state the page names explicitly
+# as partial access and offers to resolve. A run child keeps the real HOME
+# under full access, and a temporary HOME is only removed when it carries the
+# marker of the run that created it. The system prompt states the access mode
+# with the same wording the run enforces.
+
+__version__ = "2.46.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
