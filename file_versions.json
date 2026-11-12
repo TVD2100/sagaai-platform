@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "2.44.3",
+  "app_version": "2.45.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Данные тестов остаются вне установки: прогон набора больше не создаёт в ней тестовых подключений, и список подключений показывает только реальные. Изоляцию данных в тестах теперь проверяет автоматический страж - модуль, который пишет подключение, сотрудника или помощника без временного каталога данных, роняет прогон с указанием своего имени.",
-    "en": "Test data stays out of the installation: running the suite no longer creates test connections there, and the connection list shows only real ones. Data isolation in tests is now enforced by an automatic guard - a module that writes a connection, an employee or an assistant without a temporary data folder fails the run and is named."
+    "ru": "MCP-сервер из каталога ставится шаблоном (пресетом) на вкладку «MCP-серверы», а не готовым подключением: плитка появляется рядом со встроенными пресетами, и из неё можно создать столько подключений, сколько нужно, - каждое со своими учётными данными. Подключения, созданные пользователем, не удаляются вместе с сущностью. Сервер, который платформа уже поставляет, ставится без изменений.",
+    "en": "An MCP server from the catalog now installs as a preset on the MCP servers tab rather than as a ready-made connection: the tile appears next to the bundled presets, and as many connections as needed can be created from it, each with its own credentials. Connections the user created stay when the entity is removed. A server the platform already ships installs as a no-op."
   },
   "updated": "2026-11-12",
   "units": {
     "core": {
-      "version": "1.87.2",
+      "version": "1.88.0",
       "note": {
-        "ru": "Пакет: данные тестов больше не попадают в установку - пишущий тест пресетов изолирует DATA_DIR, а статический AST-страж в tests/test_test_state_isolation.py не даёт модулю с пишущим вызовом обойтись без изоляции.",
-        "en": "Package: test data stays out of the installation - the writing preset test isolates DATA_DIR, and a static AST guard in tests/test_test_state_isolation.py rejects a module that calls a writing API without isolating it."
+        "ru": "Пакет кода: установка MCP-сущности как пресета, пользовательский каталог пресетов, удаление пресета при деинсталляции.",
+        "en": "Code unit: MCP entities install as presets, the per-user preset root, and preset removal on uninstall."
       },
       "files": {
         "__init__.py": {
@@ -276,8 +276,8 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.78.1",
-          "sha256": "500efa1de9a87716a4b8d09b3770ab932c451639469910d077c4dc4ce1f93260",
+          "version": "1.79.0",
+          "sha256": "dc6b07d34f9d157a1f45dc3c707a2f27105111688acd4a7fcb317d9ce789ea5b",
           "note": {
             "ru": "Релиз 2.44.3: данные тестов не попадают в установку.",
             "en": "Release 2.44.3: test data stays out of the installation."
@@ -368,8 +368,8 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.12.8",
-          "sha256": "6710ce7e91c09e797a23dd48902eba67f0a8663e0905a1aec6f5e97e15b8d28f",
+          "version": "1.12.9",
+          "sha256": "28e7907e6ce8a748a50233ea4716bcba79103f4428a9b98d12bdc4ac69e39aea",
           "note": {
             "ru": "Описания тестов пресетов и изоляции состояния: изоляция DATA_DIR и второй AST-страж.",
             "en": "Descriptions of the preset tests and the state-isolation test: DATA_DIR isolation and the second AST guard."
@@ -1361,8 +1361,8 @@
           "sha256": "241c34956b030e55f80054dc4cfa868dbe5a0436b7fd1c2d8158b6ab9fe7887a"
         },
         "core/connector_presets.py": {
-          "version": "1.3.1",
-          "sha256": "9c27bb76f2e8f221bd209c19e8e43d94942dca76b1f24d772f50d0023b4bdbc7"
+          "version": "1.4.0",
+          "sha256": "6bd33ac0d55e07ef48fcdb6c70a6fd3b61c57bc87527355ac4cce4468591c049"
         },
         "tests/scenarios/test_mcp_preset_e2e_scenario.py": {
           "version": "1.1.1",
@@ -1382,8 +1382,8 @@
           }
         },
         "tests/test_connector_presets.py": {
-          "version": "1.0.3",
-          "sha256": "ffbc72dbb3347df7aa794d7b04cf9aaeb017a7bc9fa8e124cca80ec8f04d6382",
+          "version": "1.0.4",
+          "sha256": "a3a952a1be7024bcca88424fcb95315db61a9cb261a3b320717ea8266c83091d",
           "note": {
             "ru": "Тест instantiate_preset выполняется с временным DATA_DIR: черновик подключения не остаётся в установке.",
             "en": "The instantiate_preset test runs against a temporary DATA_DIR: the draft connection is not left in the installation."
@@ -1686,16 +1686,16 @@
           }
         },
         "core/marketplace/conflicts.py": {
-          "version": "1.0.2",
-          "sha256": "2f1fc397d936cbcdfc1b7a9b113cfd80929abcbc6c19d5ed097795c944f69b86",
+          "version": "1.1.0",
+          "sha256": "d697bfae95087af7fbe4b1976dcc04fa927b8a43fb6d3e87b08d5512fbac73d2",
           "note": {
             "ru": "Матрица конфликтов: план установки, локальные правки, три пути, удаление.",
             "en": "Conflict matrix: install plan, local edits, three resolutions and uninstall."
           }
         },
         "core/marketplace/installer.py": {
-          "version": "1.2.0",
-          "sha256": "7ae0481531a0e1414d619f53e708acbc8025020f697ca45e0db82e8960d1e21a",
+          "version": "1.2.1",
+          "sha256": "271a6d180f4bcd4eb0919b2c41c9b00a1c62c27d203bf2138b92c1da42c3f79f",
           "note": {
             "ru": "Установщик навыка: журнал прогона, атомарная запись и откат.",
             "en": "Skill installer: run journal, atomic write and rollback."
@@ -1758,8 +1758,8 @@
           }
         },
         "ui/pages/marketplace.py": {
-          "version": "1.4.0",
-          "sha256": "0b356ccae5e6541caa6d1c80f26bba16275f989f6b49e443aea95504db4a0d55",
+          "version": "1.5.0",
+          "sha256": "08979a38ef0b480988d1c11f64d612b9b7dfa83f33a4f26a422b813be5976b1a",
           "note": {
             "ru": "Страница «Маркетплейс»: витрина, карточка, установка, удаление.",
             "en": "Marketplace page: showcase, card, install and uninstall."
@@ -1866,8 +1866,8 @@
           "sha256": "5407b9f917267cdc9882e6114bee4b6f235ed03ffe6365bb329be7fff0f432ff"
         },
         "tests/test_marketplace_mcp_installer.py": {
-          "version": "1.0.1",
-          "sha256": "3e0255ec00eb4df9785fd5697ac0b55e806c3510a9826f9bf66b7142f21e6889"
+          "version": "1.1.0",
+          "sha256": "b2569644632c3300a8d9f633c4a0f9f29fbad88ec3435532615a04a3aed02c8d"
         },
         "tests/test_marketplace_migration.py": {
           "version": "1.1.1",
@@ -1902,8 +1902,8 @@
           "sha256": "c713961f73d900e5bfdd6e049ed0f9415787a0cb915e2b06cb71b6a46650ad1d"
         },
         "core/marketplace/mcp_installer.py": {
-          "version": "1.0.2",
-          "sha256": "680437a430425da0391c37907498ea9dfaeaefda1546eb1d4d3c3166ab03f003"
+          "version": "2.0.0",
+          "sha256": "05f842374fef5e0b64c85d86c76ba1c5fea5d5847b0d5ecd12961089ef5c866e"
         },
         "core/marketplace/migration.py": {
           "version": "1.1.1",
@@ -3404,14 +3404,22 @@
         "tests/scenarios/test_yandex_mail_mcp_scenario.py": {
           "version": "1.0.0",
           "sha256": "123c6a4dc320675c0e2af0928e6d46f3761eca20007c98efdca089b24fe644b1"
+        },
+        "core/marketplace/mcp_removal.py": {
+          "version": "1.0.0",
+          "sha256": "eefaec1680c379c5b4568e79af599a9ad66d045f1815bf381ab4b7fde23ce45a"
+        },
+        "tests/scenarios/test_marketplace_mcp_preset_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "082e021f742ff72c858da59177c4d08ddf6007ac100872067b4d19dc7530d3ca"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.77.5",
-      "sha256": "6620526b48be9808e82976d3f3a0136bd26d235837efc6a6a27ed49b6e310961",
+      "version": "1.78.0",
+      "sha256": "5e578471d16b40c6172ce509ae20523b3525bdc8d779612ff98eaa6d880da3f1",
       "note": {
         "ru": "Карта компонентов: пресет yandex_mail (http, схема OAuth) в видимом каталоге пресетов.",
         "en": "Component map: the yandex_mail preset (http, OAuth scheme) in the visible preset catalogue."
@@ -3426,16 +3434,16 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.78.5",
-      "sha256": "8d02ac7248a0ba503b95e43181133dc6a4f81d75c9df5698769c147cd1a71d56",
+      "version": "1.79.0",
+      "sha256": "51b74b185f65508077116f00486809c58b998656492aa6eb24669cc57c8be596",
       "note": {
         "ru": "Регенерация: обновлённые описания тестов пресетов и изоляции состояния.",
         "en": "Regenerated: updated descriptions of the preset tests and the state-isolation test."
       }
     },
     "README.md": {
-      "version": "1.62.4",
-      "sha256": "0d0ba8634fd07062b2b1fc4d51e6aae9dfa3cd13abbb15d469b2326ed4d6486e",
+      "version": "1.62.5",
+      "sha256": "57cf50fb08bafcc8470fb600d698744ebdfbc8b4fe861b429a9aa752c6d0bebf",
       "note": {
         "ru": "Строка статуса версии обновлена до 2.44.3.",
         "en": "The version status line is updated to 2.44.3."
@@ -3514,8 +3522,8 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.30.0",
-      "sha256": "bb633d808a618ec136bc1b973722ff2dd1e5f4b2c87745be9d3fe5c4e0c03086",
+      "version": "1.30.1",
+      "sha256": "9be84860db61de6a81d1c045fdea82a4943854090aa7787005a2d22bdbbdd28d",
       "note": {
         "ru": "Канонические строки блока «Названия».",
         "en": "Canonical strings of the Names block."
@@ -3530,8 +3538,8 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.30.0",
-      "sha256": "446b87958a0b7ff25098c1c4b8283519d5cbcdbf52b4f536269a99238e09a561",
+      "version": "1.30.1",
+      "sha256": "ef69e9bcf9177cf77e6fa35932e6a0c438e1ddbbf42c48385289366553cb8a8d",
       "note": {
         "ru": "Строки блока «Названия».",
         "en": "Strings of the Names block."
@@ -3546,8 +3554,8 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.30.0",
-      "sha256": "766834414f8c12007d16ee1a9de11b83c30908d4243fd8c84f3df0c6ee8f3b5f",
+      "version": "1.30.1",
+      "sha256": "81926218e2e0ace3e0934c6be256d9bc1512967ec2e30069f26dddcbd3da5368",
       "note": {
         "ru": "Строки блока «Названия».",
         "en": "Strings of the Names block."
@@ -3778,8 +3786,8 @@
       }
     },
     "langs/en.json": {
-      "version": "1.30.0",
-      "sha256": "e1019e9ccf98fc944d1960212ce48dc8b17c422b62c159c1197bd8d84bedf7d9",
+      "version": "1.30.1",
+      "sha256": "21c7b4578d628bd431b9e751aab744414031271ff6be075d68871c85f69a6649",
       "note": {
         "ru": "Строки блока «Названия» и языковых подписей.",
         "en": "Strings of the Names block and language labels."
@@ -3794,8 +3802,8 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.30.0",
-      "sha256": "cba9364f8ab7da41d3051bb274932752469f6c9619cbb5aab1edde0570e5bf4b",
+      "version": "1.30.1",
+      "sha256": "80e873162edd630626cb3a8fef08c1ee85fa1f556d12c4cfde2ba7736bfb241e",
       "note": {
         "ru": "Строки блока «Названия» и языковых подписей.",
         "en": "Strings of the Names block and language labels."
@@ -3810,8 +3818,8 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.30.0",
-      "sha256": "608f5a452820061182002ece6fb0f2c93bb3518b65f7f58deaab17435a289780",
+      "version": "1.30.1",
+      "sha256": "4a067f53eefecba82091ec6dd5a1f7b7d364fe38db9ed9e651fcd054b52397ee",
       "note": {
         "ru": "Строки блока «Названия» и языковых подписей.",
         "en": "Strings of the Names block and language labels."
@@ -3850,8 +3858,8 @@
       }
     },
     "AGENT.md": {
-      "version": "1.53.4",
-      "sha256": "5e8ec293db34ec5817633a6d223f9f8f814b047ec6f3764fc965fb0783733548",
+      "version": "1.54.0",
+      "sha256": "9a010322b1098e9f01166e21f6b2a2b8e0518231cca5db983da317824b96764d",
       "note": {
         "ru": "Требование: данные записи тестов не попадают в установку, изоляция DATA_DIR и проверяющий её AST-страж.",
         "en": "Requirement: test writes stay out of the installation, with DATA_DIR isolation and the AST guard that enforces it."
