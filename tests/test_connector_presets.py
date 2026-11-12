@@ -161,3 +161,140 @@ def test_bundled_yandex_mail_preset():
     # Drafting and sending are different things: the preset must say so.
     assert "Отправка писем не поддерживается" in preset["description"]
     assert "mail.read_message" in preset["memory_seed"]
+
+
+# ─── User-level presets (installed from the marketplace) ──────────────────
+
+@pytest.fixture()
+def user_root(tmp_path, monkeypatch):
+    """Point DATA_DIR at a temp dir and return the user preset root."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    monkeypatch.setattr(core.paths, "DATA_DIR", str(data_dir))
+    return data_dir / "connector_presets" / "mcp"
+
+
+class TestUserPresets:
+    def test_the_catalogue_merges_both_roots(self, preset_root, user_root):
+        connector_presets.save_preset(
+            "from_catalog",
+            {
+                "name": "From catalog",
+                "description": "Installed by the marketplace.",
+                "icon": "C",
+                "sort_order": 5,
+                "config": dict(_BASE_CONFIG),
+            },
+        )
+
+        ids = [
+            p["id"] for p in connector_presets.list_presets(
+                "mcp", preset_root=None)
+        ]
+        assert "from_catalog" in ids
+        # A dead user root must not hide the bundled catalogue.
+        assert "vkusvill" in ids
+
+    def test_a_user_preset_shadows_the_bundled_one_of_the_same_id(
+        self, preset_root, user_root
+    ):
+        _write_preset(str(preset_root), "shared", sort_order=10)
+        connector_presets.save_preset(
+            "shared",
+            {
+                "name": "Shadowing",
+                "description": "Installed over a bundled template.",
+                "icon": "S",
+                "sort_order": 10,
+                "config": dict(_BASE_CONFIG),
+            },
+        )
+
+        resolved = connector_presets.resolve_preset("shared", "mcp")
+        assert resolved is not None
+        assert resolved["name"] == "Shadowing"
+        assert resolved["origin"] == connector_presets.ORIGIN_USER
+        # The bundled template is still on disk and comes back on delete.
+        assert connector_presets.bundled_preset(
+            "shared", "mcp", preset_root=str(preset_root))["name"] == "Test preset"
+        assert connector_presets.delete_preset("shared", "mcp") is True
+        restored = connector_presets.resolve_preset(
+            "shared", "mcp", preset_root=str(preset_root))
+        assert restored["name"] == "Test preset"
+        assert restored["origin"] == connector_presets.ORIGIN_BUNDLED
+
+    def test_save_and_delete_round_trip(self, user_root):
+        saved = connector_presets.save_preset(
+            "round_trip",
+            {
+                "name": "Round trip",
+                "description": "Stored under DATA_DIR.",
+                "icon": "R",
+                "sort_order": 42,
+                "config": dict(_BASE_CONFIG),
+                "memory_seed": "A note.",
+            },
+        )
+        assert saved["origin"] == connector_presets.ORIGIN_USER
+        path = user_root / "round_trip.json"
+        assert path.is_file()
+
+        loaded = connector_presets.user_preset("round_trip", "mcp")
+        assert loaded["sort_order"] == 42
+        assert loaded["memory_seed"] == "A note."
+        assert connector_presets.preset_origin("round_trip", "mcp") == (
+            connector_presets.ORIGIN_USER)
+
+        assert connector_presets.delete_preset("round_trip", "mcp") is True
+        assert not path.exists()
+        assert connector_presets.delete_preset("round_trip", "mcp") is False
+        assert connector_presets.preset_origin("round_trip", "mcp") == ""
+
+    def test_a_pinned_root_never_sees_the_user_catalogue(
+        self, preset_root, user_root
+    ):
+        connector_presets.save_preset(
+            "only_user",
+            {
+                "name": "Only user",
+                "description": "Not part of a pinned root.",
+                "icon": "U",
+                "sort_order": 10,
+                "config": dict(_BASE_CONFIG),
+            },
+        )
+
+        ids = [
+            p["id"] for p in connector_presets.list_presets(
+                "mcp", preset_root=preset_root)
+        ]
+        assert "only_user" not in ids
+        assert connector_presets.resolve_preset(
+            "only_user", "mcp", preset_root=preset_root) is None
+
+    def test_save_refuses_a_preset_the_connector_layer_rejects(self, user_root):
+        with pytest.raises(ValueError):
+            connector_presets.save_preset(
+                "broken",
+                {
+                    "name": "Broken",
+                    "description": "An http preset without a URL.",
+                    "icon": "B",
+                    "sort_order": 10,
+                    "config": {"transport": "http"},
+                },
+            )
+        assert not (user_root / "broken.json").exists()
+
+    def test_save_refuses_an_unusable_id(self, user_root):
+        with pytest.raises(ValueError):
+            connector_presets.save_preset(
+                "../evil",
+                {
+                    "name": "Evil",
+                    "description": "Path traversal in the id.",
+                    "icon": "E",
+                    "sort_order": 10,
+                    "config": dict(_BASE_CONFIG),
+                },
+            )

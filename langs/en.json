@@ -449,6 +449,7 @@
   "mp_license": "License: {spdx}",
   "mp_loading": "Loading the catalog...",
   "mp_mcp_needs_credentials": "The server is installed as a connection. Fill in its credentials on the Connectors page: {fields}",
+  "mp_mcp_preset_tab_hint": "The server installs as a ready template: after installation it appears on the MCP servers tab of the Connectors page. There you can create as many connections from that template as you need and enter the credentials in each.",
   "mp_modified_by_user": "Installed · modified by you",
   "mp_platform": "Platform: from {minimum} to {maximum}",
   "mp_refresh": "Refresh",

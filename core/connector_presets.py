@@ -1,12 +1,26 @@
 # -*- coding: utf-8 -*-
 """
-core.connector_presets - bundled connection presets (MCP servers and friends).
+core.connector_presets - connection presets (MCP servers and friends).
 
-Presets live under ``defaults/connectors/<service>/<preset_id>.json`` and are
-published together with the platform. A preset describes everything except
-credentials: name/description, the validated ``config`` (stdlib transport,
-HTTP URL, auth-header template, secret-field mapping) and an optional
-``memory_seed`` - the initial notes for the connection's memory.md.
+Presets live in two roots:
+
+  * ``defaults/connectors/<service>/<preset_id>.json`` - templates shipped
+    with the platform;
+  * ``DATA_DIR/connector_presets/<service>/<preset_id>.json`` - presets
+    installed from the marketplace at run time.
+
+A preset describes everything except credentials: name/description, the
+validated ``config`` (transport, HTTP URL, auth-header template,
+secret-field mapping) and an optional ``memory_seed`` - the initial notes
+for the connection's memory.md.
+
+The user root wins on an id collision: a preset installed from the catalog
+replaces the bundled template of the same id while leaving the bundled
+file on disk, so removing the installed preset restores the template.
+
+The bundled catalogue is what the MCP tab of the Connectors page offers as
+tiles; a preset installed from the catalog lands there too, and a user may
+create as many connections from one preset as the accounts they keep.
 
 A preset may set ``hidden: true``: it disappears from the tile catalogue
 (``list_presets``) but remains resolvable by id, so connections created
@@ -22,15 +36,23 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
+import core.paths as core_paths
 from core import defaults as defaults_mod
 
 # Snapshot of a preset exposed to tools/UI (no secrets by construction).
 _PUBLIC_KEYS = (
     "id", "service", "name", "description", "icon", "config",
-    "memory_seed", "sort_order", "hidden",
+    "memory_seed", "sort_order", "hidden", "origin",
 )
+
+#: Directory under ``DATA_DIR`` holding presets installed from the catalog.
+USER_PRESETS_DIRNAME = "connector_presets"
+
+#: Origin values reported for a resolved preset.
+ORIGIN_BUNDLED = "bundled"
+ORIGIN_USER = "user"
 
 _MAX_NAME_LEN = 120
 _MAX_DESCRIPTION_LEN = 300
@@ -38,15 +60,38 @@ _MAX_ICON_LEN = 32
 _MEMORY_SEED_MAX_BYTES = 60 * 1024
 
 
+# ─── Roots ────────────────────────────────────────────────────────────────
+
 def _preset_root(preset_root: Optional[str] = None) -> str:
-    """Return the defaults/connectors root (runtime-resolved for tests)."""
+    """Return the bundled presets root (runtime-resolved for tests)."""
     if preset_root:
         return preset_root
     return defaults_mod.connector_presets_dir()
 
 
+def _data_dir() -> str:
+    """Return the live ``DATA_DIR`` (resolved per call, not at import time)."""
+    return str(getattr(core_paths, "DATA_DIR", "") or "")
+
+
+def user_preset_root(service: str = "mcp") -> str:
+    """Return the root of presets installed from the catalog for a service.
+
+    The path is resolved on every call: tests point ``core.paths.DATA_DIR``
+    at a temporary directory, and a value captured at import time would keep
+    writing into the installation.
+    """
+    return os.path.join(_data_dir(), USER_PRESETS_DIRNAME, service)
+
+
 def _service_dir(service: str, preset_root: Optional[str] = None) -> str:
+    """Return the bundled directory of one service."""
     return os.path.join(_preset_root(preset_root), service)
+
+
+def _user_service_dir(service: str) -> str:
+    """Return the user-level directory of one service."""
+    return user_preset_root(service)
 
 
 def _is_valid_id(value: str) -> bool:
@@ -58,10 +103,10 @@ def _is_valid_id(value: str) -> bool:
     return True
 
 
-def list_preset_ids(service: str = "mcp",
-                    preset_root: Optional[str] = None) -> List[str]:
-    """Return the sorted preset ids (file names) of a service."""
-    root = _service_dir(service, preset_root)
+# ─── Catalogue ────────────────────────────────────────────────────────────
+
+def _list_ids_in(root: str) -> List[str]:
+    """Return the sorted preset ids (file names) found under *root*."""
     if not os.path.isdir(root):
         return []
     ids = []
@@ -72,6 +117,17 @@ def list_preset_ids(service: str = "mcp",
         if _is_valid_id(preset_id):
             ids.append(preset_id)
     return ids
+
+
+def list_preset_ids(service: str = "mcp",
+                    preset_root: Optional[str] = None) -> List[str]:
+    """Return the sorted preset ids of one service (bundled root only).
+
+    The user-level root is merged by :func:`list_presets`; this function
+    keeps meaning "the ids of one explicit root" so a caller that already
+    holds a root never sees a second one mixed in.
+    """
+    return _list_ids_in(_service_dir(service, preset_root))
 
 
 def _coerce_hidden(value: Any) -> bool:
@@ -88,6 +144,8 @@ def _coerce_hidden(value: Any) -> bool:
         return value.strip().lower() in ("1", "true", "yes", "on")
     return False
 
+
+# ─── Validation ───────────────────────────────────────────────────────────
 
 def _validate_preset(data: Dict[str, Any], preset_id: str,
                      service: str) -> Dict[str, Any]:
@@ -153,15 +211,10 @@ def _validate_preset(data: Dict[str, Any], preset_id: str,
     return preset
 
 
-def load_preset(preset_id: str, service: str = "mcp",
-                preset_root: Optional[str] = None) -> Optional[Dict[str, Any]]:
-    """Load and validate one preset; None when the file is missing/corrupt."""
-    preset_id = str(preset_id or "").strip()
-    if not _is_valid_id(preset_id):
-        return None
-    path = os.path.join(
-        _service_dir(service, preset_root), f"{preset_id}.json"
-    )
+# ─── Loading ──────────────────────────────────────────────────────────────
+
+def _load_file(path: str, preset_id: str, service: str) -> Optional[Dict[str, Any]]:
+    """Load and validate one preset file; None when missing/corrupt."""
     if not os.path.isfile(path):
         return None
     try:
@@ -177,34 +230,131 @@ def load_preset(preset_id: str, service: str = "mcp",
         return None
 
 
+def _load_with_origin(preset_id: str, service: str = "mcp",
+                      preset_root: Optional[str] = None
+                      ) -> Optional[Tuple[Dict[str, Any], str]]:
+    """Return ``(preset, origin)`` for an id, or None when unknown.
+
+    An explicit *preset_root* pins the lookup to that one root (tests and
+    callers that already hold a root). Without it the user-level root is
+    searched first: a preset installed from the catalog shadows the bundled
+    template of the same id without deleting it.
+    """
+    preset_id = str(preset_id or "").strip()
+    if not _is_valid_id(preset_id):
+        return None
+    if preset_root is not None:
+        preset = _load_file(
+            os.path.join(_service_dir(service, preset_root), f"{preset_id}.json"),
+            preset_id, service,
+        )
+        return (preset, ORIGIN_BUNDLED) if preset else None
+    user_preset = _load_file(
+        os.path.join(_user_service_dir(service), f"{preset_id}.json"),
+        preset_id, service,
+    )
+    if user_preset is not None:
+        return user_preset, ORIGIN_USER
+    bundled = _load_file(
+        os.path.join(_service_dir(service, None), f"{preset_id}.json"),
+        preset_id, service,
+    )
+    if bundled is not None:
+        return bundled, ORIGIN_BUNDLED
+    return None
+
+
+def load_preset(preset_id: str, service: str = "mcp",
+                preset_root: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Load and validate one preset; None when the file is missing/corrupt."""
+    found = _load_with_origin(preset_id, service, preset_root)
+    return found[0] if found else None
+
+
+def bundled_preset(preset_id: str, service: str = "mcp",
+                   preset_root: Optional[str] = None
+                   ) -> Optional[Dict[str, Any]]:
+    """Return the BUNDLED preset with this id, ignoring the user root.
+
+    An explicit *preset_root* pins the lookup to that root, which is what a
+    test needs; without it the shipped ``defaults/connectors`` is read.
+    """
+    preset_id = str(preset_id or "").strip()
+    if not _is_valid_id(preset_id):
+        return None
+    return _load_file(
+        os.path.join(_service_dir(service, preset_root), f"{preset_id}.json"),
+        preset_id, service,
+    )
+
+
+def user_preset(preset_id: str, service: str = "mcp",
+                ) -> Optional[Dict[str, Any]]:
+    """Return the user-level preset with this id, ignoring the bundled root."""
+    preset_id = str(preset_id or "").strip()
+    if not _is_valid_id(preset_id):
+        return None
+    return _load_file(
+        os.path.join(_user_service_dir(service), f"{preset_id}.json"),
+        preset_id, service,
+    )
+
+
 def find_preset(preset_id: str, service: str = "mcp",
                 preset_root: Optional[str] = None) -> Optional[Dict[str, Any]]:
-    """Resolve a preset id from the bundled defaults."""
+    """Resolve a preset id from the known roots."""
     return load_preset(preset_id, service, preset_root)
 
 
-def _public_view(data: Dict[str, Any]) -> Dict[str, Any]:
+def preset_origin(preset_id: str, service: str = "mcp") -> str:
+    """Return ``'user'``, ``'bundled'`` or ``''`` for an unknown id."""
+    found = _load_with_origin(preset_id, service, None)
+    return found[1] if found else ""
+
+
+def _public_view(data: Dict[str, Any], origin: str) -> Dict[str, Any]:
     """White-list a preset dict for public exposure."""
-    return {key: data.get(key) for key in _PUBLIC_KEYS if key in data}
+    view = {key: data.get(key) for key in _PUBLIC_KEYS if key in data}
+    view["origin"] = origin
+    return view
 
 
 def list_presets(service: str = "mcp",
                  preset_root: Optional[str] = None,
-                 include_hidden: bool = False) -> List[Dict[str, Any]]:
+                 include_hidden: bool = False,
+                 include_user: Optional[bool] = None) -> List[Dict[str, Any]]:
     """Return the presets of a service (sorted by sort_order, then id).
+
+    Without an explicit *preset_root* the bundled catalogue and the presets
+    installed from the marketplace are merged, the user-level file winning
+    on an id collision. *include_user* is derived from that: it is on for
+    the live catalogue and off for a caller that pinned one root.
 
     Presets marked ``hidden`` are left out of the catalogue unless
     ``include_hidden`` is set: they stay resolvable by id, so connections
     created from them keep their preset fields, but no new tile is offered.
     """
-    result = []
+    if include_user is None:
+        include_user = preset_root is None
+    if preset_root is not None:
+        include_user = False
+    ids: List[str] = []
     for preset_id in list_preset_ids(service, preset_root):
-        preset = load_preset(preset_id, service, preset_root)
-        if not preset:
+        if preset_id not in ids:
+            ids.append(preset_id)
+    if include_user:
+        for preset_id in _list_ids_in(_user_service_dir(service)):
+            if preset_id not in ids:
+                ids.append(preset_id)
+    result = []
+    for preset_id in ids:
+        found = _load_with_origin(preset_id, service, preset_root)
+        if not found:
             continue
+        preset, origin = found
         if preset.get("hidden") and not include_hidden:
             continue
-        result.append(_public_view(preset))
+        result.append(_public_view(preset, origin))
     return sorted(
         result,
         key=lambda p: (int(p.get("sort_order") or 100), str(p.get("id"))),
@@ -215,8 +365,70 @@ def resolve_preset(preset_id: str, service: str = "mcp",
                    preset_root: Optional[str] = None,
                    ) -> Optional[Dict[str, Any]]:
     """Resolve a preset id to its public view (None when unknown)."""
-    preset = load_preset(preset_id, service, preset_root)
-    return _public_view(preset) if preset else None
+    found = _load_with_origin(preset_id, service, preset_root)
+    return _public_view(found[0], found[1]) if found else None
+
+
+# ─── Writing the user root ────────────────────────────────────────────────
+
+def save_preset(preset_id: str, data: Dict[str, Any], service: str = "mcp",
+                ) -> Dict[str, Any]:
+    """Validate a preset and write it into the user-level root.
+
+    This is how a marketplace MCP entity becomes a tile: the catalog supplies
+    the template, the platform stores it under ``DATA_DIR`` and the user
+    creates connections from the tile like from any bundled preset.
+
+    Returns the public view of the stored preset. Raises ``ValueError`` for
+    an unusable id or a preset the connector layer refuses.
+    """
+    preset_id = str(preset_id or "").strip()
+    if not _is_valid_id(preset_id):
+        raise ValueError(
+            f"Preset id '{preset_id or '-'}' is not usable: [A-Za-z0-9_-], up to 64 chars"
+        )
+    if not isinstance(data, dict):
+        raise ValueError("Preset data must be a JSON object")
+    preset = _validate_preset(data, preset_id, service)
+    payload: Dict[str, Any] = {
+        "name": preset["name"],
+        "description": preset["description"],
+        "icon": preset["icon"],
+        "sort_order": preset["sort_order"],
+        "config": preset["config"],
+    }
+    if preset.get("memory_seed"):
+        payload["memory_seed"] = preset["memory_seed"]
+    if preset.get("hidden"):
+        payload["hidden"] = True
+    directory = _user_service_dir(service)
+    os.makedirs(directory, exist_ok=True)
+    path = os.path.join(directory, f"{preset_id}.json")
+    temporary = path + ".tmp"
+    with open(temporary, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, indent=2)
+        handle.write("\n")
+    os.replace(temporary, path)
+    return _public_view(preset, ORIGIN_USER)
+
+
+def delete_preset(preset_id: str, service: str = "mcp") -> bool:
+    """Remove a preset from the user-level root; a bundled one is kept.
+
+    Returns True when a file was removed. The bundled template of the same
+    id - if any - becomes visible again on the next catalogue read.
+    """
+    preset_id = str(preset_id or "").strip()
+    if not _is_valid_id(preset_id):
+        return False
+    path = os.path.join(_user_service_dir(service), f"{preset_id}.json")
+    if not os.path.isfile(path):
+        return False
+    try:
+        os.remove(path)
+    except OSError:
+        return False
+    return True
 
 
 def instantiate_preset(preset_id: str, service: str = "mcp",

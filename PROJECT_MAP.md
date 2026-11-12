@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-12T09:03:15+00:00`
-- Файлов: **837**
+- Обновлено: `2026-11-12T09:46:13+00:00`
+- Файлов: **839**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **11099**
-- Отпечаток содержимого: `sha256:109b08d2800f0f3728912f164cc7b33d7d71dae788061750d106dccbd005432e` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 2, JSON: 37, Markdown: 42, PEM certificate: 2, Python: 754, TOML: 2, Text: 2
+- Python-символов: **11136**
+- Отпечаток содержимого: `sha256:0f0da814e483347c49eb5bb3975610dc4226f786dcb4f1c2ad75e40b69452a95` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 2, JSON: 37, Markdown: 42, PEM certificate: 2, Python: 756, TOML: 2, Text: 2
 
 ## Файлы и назначение
 
@@ -39,7 +39,7 @@
 | `ui/pages/chat.py` | Python | Chat page for AI assistants: selector, history, send form | - |
 | `ui/pages/connectors.py` | Python | Connectors page: service and preset tiles opening a full-page form, the saved-connections tab, credentials status, test/edit/delete; the connection card carries the agent memory block for that connection | ui |
 | `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | ui |
-| `ui/pages/marketplace.py` | Python | Marketplace page: showcase with search, the entity card (licence, required tools, platform range), install, the three conflict resolutions, reset to catalog and uninstall with an inline confirmation | ui |
+| `ui/pages/marketplace.py` | Python | Marketplace page: showcase with search, the entity card (licence, required tools, platform range), install, the three conflict resolutions, reset to catalog and uninstall with an inline confirmation; an mcp card states the credential the server needs and points to the MCP servers tab, where the installed preset becomes a tile the user makes connections from | ui |
 | `ui/pages/orchestrator.py` | Python | Facade of the orchestrator page: holds the import block (including the re-exports of orchestrator_text that the page and the tests resolve), thin wrappers over the late-bound names and the two entry points page_orchestrator/page_devagent; every body lives in the orchestrator_* modules below | storage, ui |
 | `ui/pages/orchestrator_chat.py` | Python | Chat tab of the orchestrator page: the reading sequence over the section helpers, the confirmation dialogs and the message controls; the header gate asks resolve_strong_model which provider the employee actually runs on instead of reading the raw config | ui |
 | `ui/pages/orchestrator_chat_input.py` | Python | Chat input area: the toolbar, attachment collection and the token/economy line under the prompt | ui |
@@ -101,7 +101,7 @@
 | `core/chat_db_archive.py` | Python | One-time switch of the assistant dialogues inside sagaai.db to the transcript file store: stamps the layout in PRAGMA user_version, detects table-backed dialogues, archives the whole database into a verified zip beside itself (the file is never replaced, so assistants and settings survive), writes every dialogue to its transcript while holding one write lock, fills the index columns, and only then drops the moved message rows - a failed archive, lock or transcript write leaves every row in place; an existing byte-identical archive is reused and a one-shot notice names the archive and the counts | - |
 | `core/chat_turn.py` | Python | One chat turn decided outside the page: turn_history in API form, run_chat_turn over the provider with the usage callback, collect_tokens for the figures of one turn (no report stays None), and persist_chat_turn writing the question before the answer with the file attached only when both its name and its text exist | - |
 | `core/config.py` | Python | Configuration load/save with secret encryption and env overlay | storage |
-| `core/connector_presets.py` | Python | MCP connection presets: list_presets/resolve_preset/instantiate_preset over secret-free templates from defaults/connectors/mcp/*.json plus the per-user preset dir; the required icon renders on the MCP-tab tiles and sort_order orders them (vkusvill shipped, github_mcp kept with hidden=true); the optional hidden flag drops a preset from the catalogue while list_presets(include_hidden=True) and resolve_preset still find it by id (invalid values mean visible), so connections created from a hidden preset keep their preset fields and the tile returns once the flag is cleared; instantiate_preset takes account/secrets/pending - the default pending=True snaps the preset config into a credential-less draft and seeds the connection memory from memory_seed, while the Connectors page passes pending=False with the typed credentials so a user-created connection is active at once | - |
+| `core/connector_presets.py` | Python | MCP connection presets: list_presets/resolve_preset/instantiate_preset over secret-free templates from defaults/connectors/mcp/*.json plus the per-user preset dir; the required icon renders on the MCP-tab tiles and sort_order orders them (vkusvill shipped, github_mcp kept with hidden=true); the optional hidden flag drops a preset from the catalogue while list_presets(include_hidden=True) and resolve_preset still find it by id (invalid values mean visible), so connections created from a hidden preset keep their preset fields and the tile returns once the flag is cleared; templates come from two roots - the bundled defaults/connectors/mcp and the per-user DATA_DIR/connector_presets/mcp written by the marketplace installer (preset_origin: bundled | user, a bundled file wins on an id clash, save_preset/delete_preset touch only the user root, resolved at call time); instantiate_preset takes account/secrets/pending - the default pending=True snaps the preset config into a credential-less draft and seeds the connection memory from memory_seed, while the Connectors page passes pending=False with the typed credentials so a user-created connection is active at once | - |
 | `core/connectors.py` | Python | Connector storage & CRUD: encrypted credential manifest per connection (DATA_DIR/connectors/<id>/manifest.json), pending drafts without credentials (credentials_status), per-field SSH secrets, mcp service (transport stdio/http, command whitelist, args, url scheme check, auth_header, preset, secret_env_fields; env_json secret plus env_pairs merge), per-connection memory file (64 KiB cap), services registry | - |
 | `core/context_guard.py` | Python | Pre-flight context guard (M4/M5/B4): unified input budget input_ceiling=window-max_out and input_budget=0.75*ceiling-prompt, soft trim at 0.75 window, hard cap 0.9, capped output reserve min(max_out, max(4096, 0.25*window)), economy head protection, history_cap() delegates to input_budget | - |
 | `core/crypto.py` | Python | Encryption key handling and Fernet helpers | - |
@@ -195,10 +195,11 @@
 | `core/marketplace/config.py` | Python | Marketplace settings: the enabled switch, the catalog base URL, allow_code, require_signature, the channel and the history limits | - |
 | `core/marketplace/conflict_fork.py` | Python | The fork resolution and its reverse action: the edited folder is copied to a new id and folder name while the original is brought to the catalog, and restore_user_version puts the backed-up files of a take_catalog run back in place | - |
 | `core/marketplace/conflict_state.py` | Python | What an installation looks like right now: the registry row of a catalog id, the folder it occupies, whether another entity took the folder and which declared files the user edited; comparison goes by content hash, never by modification time | - |
-| `core/marketplace/conflicts.py` | Python | Conflict matrix: resolve_plan answers what to do with an installed entity and the three resolutions (keep_mine, take_catalog with a backup of every replaced file, fork) sit next to adopt, reset_to_catalog and uninstall; the state it reads lives in conflict_state.py and the fork path in conflict_fork.py | - |
+| `core/marketplace/conflicts.py` | Python | Conflict matrix: resolve_plan answers what to do with an installed entity and the three resolutions (keep_mine, take_catalog with a backup of every replaced file, fork) sit next to adopt, reset_to_catalog and uninstall; the state it reads lives in conflict_state.py, the fork path in conflict_fork.py and the MCP preset/connection cleanup on uninstall in mcp_removal.py | - |
 | `core/marketplace/install_seed.py` | Python | What an installed agent starts with: the platform model basis filling only the keys a package left out, so an employee shipped without model settings runs like a bundled one, and the catalog card translations reaching the name slots of a package that merely repeats the card's English name; an author's own wording is never replaced | - |
 | `core/marketplace/installer.py` | Python | Skill installer: run journal written before any file changes, the signature gate before the package download, package copied to a temporary folder and verified by sha256, atomic move into place and the single transaction over marketplace_installed and skills.json | - |
-| `core/marketplace/mcp_installer.py` | Python | Installation of an MCP entity: an MCP entity ships no files, it is a connector preset (transport config, credential fields, memory seed), so the installer creates a connection from that preset; identity is (service, preset_id) rather than a folder name | - |
+| `core/marketplace/mcp_installer.py` | Python | Installation of an MCP entity: an MCP entity ships no files, it is a connector preset (transport config, credential fields, memory seed), so the installer writes that preset into the per-user preset root and creates NO connection - the user makes as many connections from the tile as needed, each with its own credentials; a bundled preset with the same server signature makes the install a no-op, and the registry row keeps runtime_slug = preset id | - |
+| `core/marketplace/mcp_removal.py` | Python | What an MCP uninstall takes off the disk: remove_preset deletes only the per-user preset file (a bundled template of the same id is never touched, the tile simply returns) and remove_connection keeps the older rule for rows that recorded a connection id; connections the user created from the preset always stay | - |
 | `core/marketplace/migration.py` | Python | Adoption of entities installed before the catalog: LEGACY_DEFAULTS maps a bundled orchestrator, a prebuilt knowledge base, a preset skill and a connector preset to a synthetic bundled version, so the registry reports them as installed instead of offering a second copy; the bundled Universal-Agent is adopted the same way - the executor ships with the platform and with the catalog, so the preinstalled folder gets a registry row instead of a second install under a suffix | - |
 | `core/marketplace/names.py` | Python | Display names of catalog entities: the localized name mapping of entity.json resolved through the shared name resolver, so a card shows the interface language and falls back to English | - |
 | `core/marketplace/package_pin.py` | Python | Update baseline of an installation: the package of the installed version is pinned so the cache sweep keeps it and an update months later still knows which values the user changed, while the version the agent moved away from is released once no installation refers to it | - |
@@ -322,7 +323,7 @@
 | `tests/test_cli_console.py` | Python | Unit tests of the console output layer: exactly one JSON object on stdout, the human report, the error envelope and the reserved-stream behaviour | - |
 | `tests/test_cli_imports.py` | Python | Tests that the console imports without streamlit, fastapi or pydantic, in a subprocess with the packages blocked rather than merely absent | - |
 | `tests/test_cold_start_deps.py` | Python | UI tests for the cold-start dependency warning in ui.app: missing/outdated reports render deps_missing/deps_outdated, no warning when up to date, audit runs once per session, probe errors are swallowed | ui |
-| `tests/test_connector_presets.py` | Python | Preset catalogue tests: hidden presets drop out of list_presets but stay resolvable by id (and with include_hidden=True), the hidden flag coerces booleans/strings/numbers and treats unknown values as visible, an invalid flag never breaks loading, instantiate_preset still works for a hidden preset (under an isolated DATA_DIR so the draft never lands in the installation), and the bundled catalogue ships vkusvill and yandex_mail (the mail preset pins the OAuth scheme, one credential field and the no-sending note) while github_mcp stays resolvable with hidden=true | - |
+| `tests/test_connector_presets.py` | Python | Preset catalogue tests: hidden presets drop out of list_presets but stay resolvable by id (and with include_hidden=True), the hidden flag coerces booleans/strings/numbers and treats unknown values as visible, an invalid flag never breaks loading, instantiate_preset still works for a hidden preset (under an isolated DATA_DIR so the draft never lands in the installation), and the bundled catalogue ships vkusvill and yandex_mail (the mail preset pins the OAuth scheme, one credential field and the no-sending note) while github_mcp stays resolvable with hidden=true; the per-user preset root written by the marketplace installer is listed next to the bundled one, a bundled file wins an id clash, save_preset/delete_preset touch only the user root and preset_origin reports bundled | user | - |
 | `tests/test_connectors.py` | Python | Unit tests for core.connectors: CRUD, encrypted token/secrets storage, public-view leak guard, pending drafts, connection memory | - |
 | `tests/test_context_window_guard.py` | Python | Context-guard tests: output-reserve formula, 32k window, economy head protection, unified input_ceiling/input_budget/history_cap (B4) | - |
 | `tests/test_copyright_headers.py` | Python | _(описание не задано)_ | - |
@@ -380,7 +381,7 @@
 | `tests/test_marketplace_installer.py` | Python | Unit tests for the skill installer: journal written first, sha256 verification, atomic move, the registry transaction and the failure paths | - |
 | `tests/test_marketplace_limits.py` | Python | Unit tests for the marketplace limits: package size, file count and path checks that refuse an oversized or malformed package | - |
 | `tests/test_marketplace_local_mods.py` | Python | Unit tests for local-edit detection: content-hash comparison against the recorded manifest, touched files that are not edits and the user_modified flag | - |
-| `tests/test_marketplace_mcp_installer.py` | Python | Unit tests for installing an MCP entity: the connection is created from its preset as a credential-less draft, identity is (service, preset_id) and re-installing does not duplicate the connection | - |
+| `tests/test_marketplace_mcp_installer.py` | Python | Unit tests for installing an MCP entity: the install writes a preset into the per-user root and creates no connection, identity is the preset id, a bundled preset with the same server is a no-op, each install from the tile yields its own connection and uninstall drops only the preset file | - |
 | `tests/test_marketplace_migration.py` | Python | Unit tests for adopting entities that predate the catalog: a present entity is registered under its catalog id with the synthetic bundled version, a missing one is not, and the removal marker still wins | - |
 | `tests/test_marketplace_names.py` | Python | Marketplace tests of localized names: the catalog resolves the entity name by interface language, an install writes all four slots and an update keeps the user-defined name | - |
 | `tests/test_marketplace_no_network.py` | Python | Tests that start-up stays offline: an AST check refuses catalog calls in the boot path and a socket ban renders the boot sequence and the Updates page | ui |
@@ -608,6 +609,7 @@
 | `tests/scenarios/test_loop_stuck_protection_scenarios.py` | Python | Loop-stuck protection scenarios: per-tool failure counter hints, duplicate-call flood compaction, prose loop_status continue | - |
 | `tests/scenarios/test_marketplace_agent_install_scenario.py` | Python | Installation scenario: an agent from the catalog opens its chat page, shows the name in the interface language, keeps an author own name and leaves the agent unchanged when the page is opened twice | ui |
 | `tests/scenarios/test_marketplace_conflict_scenario.py` | Python | Scenario tests for the conflict paths: a locally edited skill offers the three resolutions, keep_mine keeps the edit, take_catalog backs up and replaces, fork creates a new entity | ui |
+| `tests/scenarios/test_marketplace_mcp_preset_scenario.py` | Python | Scenario: a catalog MCP server becomes a tile, not a connection - the showcase card, the install that stores the preset and leaves Connections empty, the tile next to the bundled ones, two connections made from that one tile against a local fake HTTP MCP server (each call carries its own token) and the uninstall that removes the tile and keeps the connections | - |
 | `tests/scenarios/test_marketplace_signing_scenario.py` | Python | Signed marketplace scenario: a release published with the release key is read by the catalog transport and installed, while an edited manifest, a catalog without an index signature, a foreign keyring and a rotated key each end in the documented outcome | - |
 | `tests/scenarios/test_marketplace_skill_scenario.py` | Python | Scenario tests for installing a skill from the showcase: the card renders, install writes the files and the registry row, a refusal is shown instead of a broken install | - |
 | `tests/scenarios/test_marketplace_updates_scenario.py` | Python | Scenario tests for the Updates page: a check lists the available version, an edited installation is marked and updated with keep_mine, a platform refusal is reported instead of offering the button, the journal offers the undo of a finished install | - |
@@ -1054,24 +1056,24 @@
 - `_render_item` (func, строка 222)
 - `_card_view` (func, строка 269)
 - `_render_card` (func, строка 304)
-- `_bundle_cache_key` (func, строка 448)
-- `_clear_bundle_cache` (func, строка 453)
-- `_bundle_plan` (func, строка 459)
-- `_bundle_label` (func, строка 484)
-- `_render_bundle` (func, строка 503)
-- `_flash_pending_credentials` (func, строка 559)
-- `_install_button` (func, строка 577)
-- `_install_bundle` (func, строка 605)
-- `_install_together` (func, строка 641)
-- `_entity_type` (func, строка 712)
-- `_plan_for` (func, строка 717)
-- `_install` (func, строка 735)
-- `_resolve_choice` (func, строка 744)
-- `_reset` (func, строка 789)
-- `_adopt` (func, строка 818)
-- `_render_uninstall` (func, строка 843)
-- `_uninstall` (func, строка 864)
-- `_human_size` (func, строка 888)
+- `_bundle_cache_key` (func, строка 454)
+- `_clear_bundle_cache` (func, строка 459)
+- `_bundle_plan` (func, строка 465)
+- `_bundle_label` (func, строка 490)
+- `_render_bundle` (func, строка 509)
+- `_flash_pending_credentials` (func, строка 565)
+- `_install_button` (func, строка 583)
+- `_install_bundle` (func, строка 611)
+- `_install_together` (func, строка 647)
+- `_entity_type` (func, строка 718)
+- `_plan_for` (func, строка 723)
+- `_install` (func, строка 741)
+- `_resolve_choice` (func, строка 750)
+- `_reset` (func, строка 795)
+- `_adopt` (func, строка 824)
+- `_render_uninstall` (func, строка 849)
+- `_uninstall` (func, строка 870)
+- `_human_size` (func, строка 894)
 
 ### `ui/pages/orchestrator.py`
 - `_assistant_has_api_key` (func, строка 567)
@@ -1747,18 +1749,29 @@
 - `save_devagent_config` (func, строка 452)
 
 ### `core/connector_presets.py`
-- `_preset_root` (func, строка 41)
-- `_service_dir` (func, строка 48)
-- `_is_valid_id` (func, строка 52)
-- `list_preset_ids` (func, строка 61)
-- `_coerce_hidden` (func, строка 77)
-- `_validate_preset` (func, строка 92)
-- `load_preset` (func, строка 156)
-- `find_preset` (func, строка 180)
-- `_public_view` (func, строка 186)
-- `list_presets` (func, строка 191)
-- `resolve_preset` (func, строка 214)
-- `instantiate_preset` (func, строка 222)
+- `_preset_root` (func, строка 65)
+- `_data_dir` (func, строка 72)
+- `user_preset_root` (func, строка 77)
+- `_service_dir` (func, строка 87)
+- `_user_service_dir` (func, строка 92)
+- `_is_valid_id` (func, строка 97)
+- `_list_ids_in` (func, строка 108)
+- `list_preset_ids` (func, строка 122)
+- `_coerce_hidden` (func, строка 133)
+- `_validate_preset` (func, строка 150)
+- `_load_file` (func, строка 216)
+- `_load_with_origin` (func, строка 233)
+- `load_preset` (func, строка 267)
+- `bundled_preset` (func, строка 274)
+- `user_preset` (func, строка 291)
+- `find_preset` (func, строка 303)
+- `preset_origin` (func, строка 309)
+- `_public_view` (func, строка 315)
+- `list_presets` (func, строка 322)
+- `resolve_preset` (func, строка 364)
+- `save_preset` (func, строка 374)
+- `delete_preset` (func, строка 415)
+- `instantiate_preset` (func, строка 434)
 
 ### `core/connectors.py`
 - `_validate_mcp_url` (func, строка 96)
@@ -3163,7 +3176,6 @@
 - `_fail` (func, строка 505)
 - `reset_to_catalog` (func, строка 530)
 - `uninstall` (func, строка 692)
-- `_remove_connection` (func, строка 763)
 
 ### `core/marketplace/install_seed.py`
 - `_truthy` (func, строка 28)
@@ -3191,29 +3203,34 @@
 - `_commit_skill_run` (func, строка 423)
 - `install_skill` (func, строка 449)
 - `install_entity` (func, строка 556)
-- `_fail_run` (func, строка 626)
-- `_display_name` (func, строка 668)
-- `_display_description` (func, строка 684)
+- `_fail_run` (func, строка 625)
+- `_display_name` (func, строка 667)
+- `_display_description` (func, строка 683)
 
 ### `core/marketplace/mcp_installer.py`
-- `preset_of` (func, строка 59)
-- `preset_id_of` (func, строка 69)
-- `service_of` (func, строка 89)
-- `_secret_leaks` (func, строка 99)
-- `_auth_header_envs` (func, строка 133)
-- `check_protocol` (func, строка 138)
-- `preset_config` (func, строка 176)
-- `find_connection` (func, строка 249)
-- `_connection_config` (func, строка 275)
-- `_mcp_gate` (func, строка 283)
-- `_resolve_mcp_target` (func, строка 332)
-- `_apply_mcp_target` (func, строка 358)
-- `_create_mcp_connection` (func, строка 381)
-- `_register_mcp` (func, строка 413)
-- `_mcp_report` (func, строка 454)
-- `install_mcp` (func, строка 488)
-- `_secret_field_names` (func, строка 657)
-- `_apply_non_secret_changes` (func, строка 669)
+- `preset_of` (func, строка 68)
+- `preset_id_of` (func, строка 78)
+- `service_of` (func, строка 98)
+- `_secret_leaks` (func, строка 108)
+- `_auth_header_envs` (func, строка 142)
+- `check_protocol` (func, строка 147)
+- `preset_config` (func, строка 185)
+- `_preset_name` (func, строка 257)
+- `preset_payload` (func, строка 272)
+- `_server_signature` (func, строка 300)
+- `_serves_the_same_server` (func, строка 329)
+- `_resolve_origin` (func, строка 338)
+- `_sync_user_preset` (func, строка 354)
+- `_mcp_gate` (func, строка 383)
+- `_register_mcp` (func, строка 432)
+- `_mcp_report` (func, строка 473)
+- `install_mcp` (func, строка 500)
+- `_user_preset_snapshot` (func, строка 640)
+- `_restore_user_preset` (func, строка 647)
+
+### `core/marketplace/mcp_removal.py`
+- `remove_preset` (func, строка 22)
+- `remove_connection` (func, строка 44)
 
 ### `core/marketplace/migration.py`
 - `_data_dir` (func, строка 72)
@@ -5289,6 +5306,14 @@
 - `test_instantiate_hidden_preset_still_works` (func, строка 129)
 - `test_bundled_github_preset_is_hidden` (func, строка 136)
 - `test_bundled_yandex_mail_preset` (func, строка 147)
+- `user_root` (func, строка 169)
+- `TestUserPresets` (class, строка 177)
+- `TestUserPresets.test_the_catalogue_merges_both_roots` (func, строка 178)
+- `TestUserPresets.test_a_user_preset_shadows_the_bundled_one_of_the_same_id` (func, строка 198)
+- `TestUserPresets.test_save_and_delete_round_trip` (func, строка 226)
+- `TestUserPresets.test_a_pinned_root_never_sees_the_user_catalogue` (func, строка 253)
+- `TestUserPresets.test_save_refuses_a_preset_the_connector_layer_rejects` (func, строка 275)
+- `TestUserPresets.test_save_refuses_an_unusable_id` (func, строка 289)
 
 ### `tests/test_connectors.py`
 - `isolated_data_dir` (func, строка 17)
@@ -6605,38 +6630,40 @@
 - `_skill_id` (func, строка 145)
 
 ### `tests/test_marketplace_mcp_installer.py`
-- `_mcp_entity` (func, строка 44)
-- `_settings` (func, строка 59)
-- `_install` (func, строка 75)
-- `_connections` (func, строка 88)
-- `TestCreate` (class, строка 97)
-- `TestCreate.test_creates_a_draft_connection_and_a_registry_row` (func, строка 98)
-- `TestCreate.test_the_preset_memory_seed_becomes_the_connection_memory` (func, строка 124)
-- `TestCreate.test_a_stdio_preset_is_accepted_with_its_args` (func, строка 136)
-- `TestIdentity` (class, строка 162)
-- `TestIdentity.test_a_second_install_adopts_the_existing_connection` (func, строка 163)
-- `TestIdentity.test_forcing_a_new_connection_keeps_both` (func, строка 184)
-- `TestIdentity.test_a_reinstall_of_the_same_version_is_a_noop` (func, строка 196)
-- `TestIdentity.test_a_changed_non_secret_setting_is_applied_in_place` (func, строка 212)
-- `TestRefusals` (class, строка 239)
-- `TestRefusals.test_a_preset_carrying_a_credential_is_refused` (func, строка 240)
-- `TestRefusals.test_a_secret_field_description_with_a_value_is_refused` (func, строка 261)
-- `TestRefusals.test_a_server_on_another_protocol_revision_is_refused` (func, строка 282)
-- `TestRefusals.test_a_server_with_a_compatible_range_is_accepted` (func, строка 298)
-- `TestRefusals.test_an_auth_header_naming_an_undeclared_field_is_refused` (func, строка 313)
-- `TestRefusals.test_a_disabled_marketplace_refuses_the_install` (func, строка 335)
-- `test_install_entity_dispatches_to_the_mcp_installer` (func, строка 351)
-- `test_the_catalog_card_reports_the_required_credentials` (func, строка 365)
-- `test_the_conflict_matrix_treats_a_server_as_installable` (func, строка 384)
-- `test_an_installed_server_reports_a_noop_plan` (func, строка 403)
-- `TestUninstall` (class, строка 421)
-- `TestUninstall.test_it_removes_the_connection_it_created` (func, строка 422)
-- `TestUninstall.test_it_keeps_a_connection_the_user_has_configured` (func, строка 438)
-- `TestUninstall.test_uninstalling_twice_is_a_noop` (func, строка 465)
-- `TestConnectionDeletion` (class, строка 482)
-- `TestConnectionDeletion.test_deleting_the_connection_uninstalls_the_entity` (func, строка 483)
-- `TestConnectionDeletion.test_a_rollback_does_not_leave_a_removal_marker` (func, строка 504)
-- `TestConnectionDeletion.test_deleting_a_hand_made_connection_records_nothing` (func, строка 519)
+- `_mcp_entity` (func, строка 49)
+- `_settings` (func, строка 65)
+- `_install` (func, строка 81)
+- `_connections` (func, строка 94)
+- `_user_preset_file` (func, строка 101)
+- `TestCreate` (class, строка 108)
+- `TestCreate.test_it_stores_a_preset_and_creates_no_connection` (func, строка 109)
+- `TestCreate.test_the_installed_preset_becomes_a_tile` (func, строка 139)
+- `TestCreate.test_a_stdio_preset_is_stored_with_its_args` (func, строка 154)
+- `TestCreate.test_a_server_the_platform_bundles_installs_as_a_noop` (func, строка 179)
+- `TestIdentity` (class, строка 214)
+- `TestIdentity.test_a_reinstall_of_the_same_version_is_a_noop` (func, строка 215)
+- `TestIdentity.test_a_changed_endpoint_rewrites_the_stored_preset` (func, строка 234)
+- `TestIdentity.test_an_uppercase_preset_id_is_refused` (func, строка 266)
+- `TestRefusals` (class, строка 286)
+- `TestRefusals.test_a_preset_carrying_a_credential_is_refused` (func, строка 287)
+- `TestRefusals.test_a_secret_field_description_with_a_value_is_refused` (func, строка 309)
+- `TestRefusals.test_a_server_on_another_protocol_revision_is_refused` (func, строка 330)
+- `TestRefusals.test_a_server_with_a_compatible_range_is_accepted` (func, строка 346)
+- `TestRefusals.test_an_auth_header_naming_an_undeclared_field_is_refused` (func, строка 361)
+- `TestRefusals.test_a_disabled_marketplace_refuses_the_install` (func, строка 383)
+- `test_install_entity_dispatches_to_the_mcp_installer` (func, строка 399)
+- `test_the_catalog_card_reports_the_required_credentials` (func, строка 415)
+- `test_the_conflict_matrix_treats_a_server_as_installable` (func, строка 434)
+- `test_an_installed_server_reports_a_noop_plan` (func, строка 453)
+- `TestUninstall` (class, строка 468)
+- `TestUninstall.test_it_removes_the_preset_it_installed` (func, строка 469)
+- `TestUninstall.test_it_takes_the_tile_off_the_mcp_tab` (func, строка 487)
+- `TestUninstall.test_connections_created_from_the_preset_stay` (func, строка 503)
+- `TestUninstall.test_a_bundled_preset_is_only_unregistered` (func, строка 526)
+- `TestUninstall.test_an_old_row_with_a_connection_id_still_removes_the_draft` (func, строка 557)
+- `TestUninstall.test_uninstalling_twice_is_a_noop` (func, строка 615)
+- `TestPresetDeletion` (class, строка 632)
+- `TestPresetDeletion.test_deleting_the_preset_file_does_not_uninstall_the_entity` (func, строка 633)
 
 ### `tests/test_marketplace_migration.py`
 - `ready_dir` (func, строка 37)
@@ -11506,6 +11533,22 @@
 - `test_keep_mine_keeps_the_user_file_and_updates_the_rest` (func, строка 112)
 - `test_remove_asks_once_then_deletes` (func, строка 136)
 - `test_downgrade_warns_and_requires_a_confirmation` (func, строка 163)
+
+### `tests/scenarios/test_marketplace_mcp_preset_scenario.py`
+- `_FakeMailServer` (class, строка 47)
+- `_FakeMailServer.__init__` (func, строка 50)
+- `_FakeMailServer.__init__.Handler` (class, строка 53)
+- `_FakeMailServer.__init__.Handler.log_message` (func, строка 56)
+- `_FakeMailServer.__init__.Handler._token` (func, строка 59)
+- `_FakeMailServer.__init__.Handler.do_POST` (func, строка 63)
+- `_FakeMailServer.__init__.Handler._reply` (func, строка 129)
+- `_FakeMailServer.__init__.Handler._reply_bytes` (func, строка 133)
+- `_FakeMailServer.start` (func, строка 147)
+- `_FakeMailServer.stop` (func, строка 154)
+- `_enable_marketplace` (func, строка 161)
+- `_preset_block` (func, строка 177)
+- `_catalog_view` (func, строка 205)
+- `test_a_catalog_mcp_server_becomes_a_tile_and_serves_many_connections` (func, строка 228)
 
 ### `tests/scenarios/test_marketplace_signing_scenario.py`
 - `_release_pair` (func, строка 26)

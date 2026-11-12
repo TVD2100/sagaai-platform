@@ -323,6 +323,12 @@ def _render_card(view: dict, lang: str) -> None:
         kind_label = t(f"mp_agent_kind_{kind}", lang=lang)
         st.markdown(t("mp_agent_kind", lang=lang, kind=kind_label or kind))
 
+    # A server installs as a preset, not as a connection: the card says so
+    # before the button is pressed and after, because the credentials are
+    # entered later, when the user creates a connection from the tile.
+    if _entity_type(view) == "mcp":
+        st.caption(t("mp_mcp_preset_tab_hint", lang=lang))
+
     if view.get("requires_tools"):
         st.markdown(t(
             "mp_requests_tools",

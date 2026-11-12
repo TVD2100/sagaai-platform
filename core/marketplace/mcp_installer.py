@@ -1,24 +1,25 @@
 """
 core.marketplace.mcp_installer - installation of an ``mcp`` entity.
 
-An MCP entity ships no files at all: it is a preset of a connector - the
-transport config, the description of the credential fields and a memory
-seed. Installing it means creating a **connection** from that preset, so the
-installer here is a thin, careful layer over
-:mod:`core.connector_presets` and :mod:`core.connectors`.
+An MCP entity ships no files: it is a connector preset - the transport
+config, the description of the credential fields and a memory seed.
+Installing it therefore does not create a connection. It makes the preset
+available on the MCP servers tab of the Connectors page, and the user
+creates as many connections from it as the accounts they keep - exactly
+like from a bundled preset.
 
 Two properties decide the shape of this module:
 
-  * identity is ``(service, preset_id)``, not a folder name (D-09). The
-    connection id is a random uuid, so the same preset installed twice would
-    otherwise produce two connections that look unrelated. Every install
-    therefore looks for an existing connection whose ``config.preset``
-    matches, and adopts it instead of creating a duplicate.
+  * identity is the preset id. The catalog template is written to the
+    user-level preset root (``DATA_DIR/connector_presets/mcp``) unless the
+    platform already ships the very same server under that id; the registry
+    row records the preset id in ``runtime_slug``, so an update and a
+    removal find it without guessing.
   * the catalog can never carry a credential. A preset declares
-    ``secret_env_fields`` - names and labels of the fields the user fills in
-    - and the installer refuses a preset that carries a value for any of
-    them. The connection is created as a draft, so the tile appears in the
-    connectors page waiting for the user's credentials.
+    ``secret_env_fields`` - names and labels of the fields the user fills
+    in - and the installer refuses a preset that carries a value for any of
+    them. Credentials are entered when a connection is created from the
+    preset, never at install time.
 """
 from __future__ import annotations
 
@@ -50,8 +51,16 @@ _SECRET_KEY_HINTS = (
     "auth",
 )
 
-#: Charset a preset id may use (mirrors ``core.connector_presets``).
-_PRESET_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+#: Charset a preset id may use.
+#:
+#: Lowercase only: the id becomes ``config.preset`` of every connection
+#: created from it, and the connector layer accepts ``[a-z0-9_-]`` there.
+#: An id the connector layer would refuse must be refused here, where the
+#: message can still name the catalog entity.
+_PRESET_ID_RE = re.compile(r"^[a-z0-9_-]{1,64}$")
+
+#: Keys of a preset config that are presentation, not part of the server.
+_CONFIG_META_KEYS = ("preset", "description")
 
 
 # ─── Identity ─────────────────────────────────────────────────────────────
@@ -69,9 +78,9 @@ def preset_of(entity: dict) -> dict:
 def preset_id_of(entity: dict) -> str:
     """Return the preset id an entity installs, or an empty string.
 
-    The id doubles as the registry ``runtime_slug``: it is what the
-    deduplication compares and what the connectors page shows in the
-    connection's ``config.preset``.
+    The id doubles as the registry ``runtime_slug``: it is what an update
+    and a removal look up, and what the MCP tab shows in the connection's
+    ``config.preset``.
     """
     block = preset_of(entity)
     for candidate in (
@@ -176,9 +185,9 @@ def check_protocol(entity: dict) -> None:
 def preset_config(entity: dict) -> Dict[str, Any]:
     """Return the validated connector config an entity installs.
 
-    The config is what ``create_connection``/``update_connection`` receive:
-    the preset transport fields, the credential field descriptors and the
-    preset id itself, which is what makes the connection deduplicable.
+    The config is the transport part of the preset: the same shape
+    ``create_connection`` accepts when a connection is later created from
+    the tile.
     """
     block = preset_of(entity)
     config = block.get("config") if isinstance(block.get("config"), dict) else {}
@@ -210,10 +219,9 @@ def preset_config(entity: dict) -> Dict[str, Any]:
     if not _PRESET_ID_RE.match(preset_id or ""):
         raise InstallError(
             "invalid_preset_id",
-            f"Preset id '{preset_id or '-'}' is not usable: [A-Za-z0-9_-], up to 64 chars",
+            f"Preset id '{preset_id or '-'}' is not usable: [a-z0-9_-], up to 64 chars",
             {"id": str(entity.get("id") or "")},
         )
-    merged["preset"] = preset_id
     description = str(block.get("description") or "").strip()
     if description and not merged.get("description"):
         merged["description"] = description
@@ -244,38 +252,130 @@ def preset_config(entity: dict) -> Dict[str, Any]:
     return normalized
 
 
-# ─── Connection lookup ────────────────────────────────────────────────────
+# ─── The stored preset ────────────────────────────────────────────────────
 
-def find_connection(service: str, preset_id: str) -> Optional[dict]:
-    """Return the existing connection created from *preset_id*, or None.
+def _preset_name(entity: dict, block: dict, preset_id: str) -> str:
+    """Return the tile name of a preset.
 
-    ``config.preset`` is the only link between a catalog entity and a
-    connection: the connection id is random, so matching by folder name
-    cannot work (D-09). Several connections from one preset are possible -
-    a user may keep two accounts of the same server - and the first one is
-    reported so an install does not create a third.
+    The preset block names the SERVER - that is what the MCP tab shows on
+    its tile - while the entity name is the card title. The server name
+    wins, and the card title is the fallback for a catalog that states only
+    one of the two.
     """
-    if not preset_id:
-        return None
+    from core.naming import localized_text
+    from core.naming_runtime import current_lang
+
+    name = localized_text(block.get("name"), current_lang())
+    return name or _display_name(entity) or preset_id
+
+
+def preset_payload(entity: dict, config: dict) -> Dict[str, Any]:
+    """Build the preset file an entity installs.
+
+    The payload is what ``connector_presets.save_preset`` writes and what a
+    comparison against the bundled template reads: the presentation fields,
+    the server config and the memory seed. ``config.preset`` and
+    ``config.description`` are dropped - the first is added by the
+    connection layer when the tile is used, the second lives one level up.
+    """
+    block = preset_of(entity)
+    preset_id = preset_id_of(entity)
+    clean_config = {
+        key: value for key, value in (config or {}).items()
+        if key not in _CONFIG_META_KEYS
+    }
+    payload: Dict[str, Any] = {
+        "name": _preset_name(entity, block, preset_id),
+        "description": str(block.get("description") or "").strip(),
+        "icon": str(block.get("icon") or "").strip(),
+        "sort_order": block.get("sort_order") or 100,
+        "config": clean_config,
+    }
+    memory_seed = str(block.get("memory_seed") or "")
+    if memory_seed:
+        payload["memory_seed"] = memory_seed
+    return payload
+
+
+def _server_signature(config: dict) -> tuple:
+    """Return what identifies the SERVER a preset config points at.
+
+    Transport, endpoint, whitelisted command and the header template say
+    which server is meant; the names of the credential fields say which
+    secrets it needs. Labels, help texts and ordering are presentation and
+    stay out of the signature, so a catalog entry that only rewrites a label
+    is recognised as the same server instead of shadowing a bundled tile.
+    """
+    cfg = config if isinstance(config, dict) else {}
+    envs = ()
+    declared = cfg.get("secret_env_fields")
+    if isinstance(declared, dict):
+        envs = tuple(sorted(
+            str(item.get("env") or "")
+            for item in declared.values()
+            if isinstance(item, dict)
+        ))
+    args = cfg.get("args")
+    return (
+        str(cfg.get("transport") or ""),
+        str(cfg.get("url") or ""),
+        str(cfg.get("command") or ""),
+        tuple(str(arg) for arg in args) if isinstance(args, list) else (),
+        str(cfg.get("auth_header") or ""),
+        envs,
+    )
+
+
+def _serves_the_same_server(existing: dict, payload: dict) -> bool:
+    """True when *existing* describes the server *payload* describes."""
+    if not isinstance(existing, dict):
+        return False
+    return _server_signature(existing.get("config") or {}) == _server_signature(
+        payload.get("config") or {}
+    )
+
+
+def _resolve_origin(preset_id: str, payload: dict) -> str:
+    """Return ``'bundled'`` when the platform already ships this server.
+
+    A catalog entity that describes a server the platform bundles needs no
+    user-level copy: the tile is already there. A different server config
+    under a bundled id is a real update of the template, and it is stored
+    in the user root, which shadows the bundled file.
+    """
+    from core import connector_presets
+
+    bundled = connector_presets.bundled_preset(preset_id, DEFAULT_SERVICE)
+    if bundled is not None and _serves_the_same_server(bundled, payload):
+        return connector_presets.ORIGIN_BUNDLED
+    return connector_presets.ORIGIN_USER
+
+
+def _sync_user_preset(preset_id: str, payload: dict, origin: str) -> bool:
+    """Bring the user-level preset root in line with *origin*.
+
+    Returns True when a file was written or removed, so the caller can tell
+    a real change from a re-install of what is already there.
+    """
+    from core import connector_presets
+
+    current = connector_presets.user_preset(preset_id, DEFAULT_SERVICE)
+    if origin == connector_presets.ORIGIN_BUNDLED:
+        # The catalog now points at the bundled template; a leftover user
+        # copy would shadow it and hide the bundled update.
+        return bool(current is not None and connector_presets.delete_preset(
+            preset_id, DEFAULT_SERVICE))
+    if current is not None and _serves_the_same_server(current, payload):
+        return False
     try:
-        from core import connectors
-
-        manifests = connectors.list_connections()
-    except Exception:
-        return None
-    for manifest in manifests:
-        if str(manifest.get("service") or "") != service:
-            continue
-        config = manifest.get("config") if isinstance(manifest.get("config"), dict) else {}
-        if str(config.get("preset") or "") == preset_id:
-            return manifest
-    return None
-
-
-def _connection_config(manifest: dict) -> Dict[str, Any]:
-    """Return the comparable part of a connection config."""
-    config = manifest.get("config") if isinstance(manifest.get("config"), dict) else {}
-    return {str(key): value for key, value in config.items()}
+        connector_presets.save_preset(preset_id, payload, DEFAULT_SERVICE)
+    except ValueError as exc:
+        raise InstallError(
+            "preset_write_failed",
+            f"The preset could not be stored: {exc}",
+            {"preset": preset_id},
+        ) from exc
+    return True
 
 
 # ─── Install ──────────────────────────────────────────────────────────────
@@ -329,92 +429,11 @@ def _mcp_gate(
     }
 
 
-def _resolve_mcp_target(
-    *,
-    service: str,
-    preset_id: str,
-    existing_row: Optional[dict],
-    runtime_slug: Optional[str],
-    adopt_existing: bool,
-) -> tuple:
-    """Return the connection this install works on and the preset match.
-
-    ``adopt_existing=False`` asks for another instance of the same server -
-    a second account, a second endpoint. Neither the registry row nor the
-    connection found by preset is reused then; the row is repointed at the
-    connection this run creates.
-    """
-    target_id = str(runtime_slug or "")
-    if not target_id and adopt_existing:
-        target_id = str((existing_row or {}).get("runtime_slug") or "")
-    found = None
-    if not target_id:
-        found = find_connection(service, preset_id)
-        if found is not None and adopt_existing:
-            target_id = str(found.get("id") or "")
-    return target_id, found
-
-
-def _apply_mcp_target(
-    connectors,
-    entity: dict,
-    target_id: str,
-    config: dict,
-    found: Optional[dict],
-    existing_row: Optional[dict],
-) -> tuple:
-    """Apply the preset settings to an existing connection."""
-    manifest = connectors.get_connection(target_id) or {}
-    if not manifest:
-        raise InstallError(
-            "connection_missing",
-            "The connection this entity refers to no longer exists",
-            {"id": str(entity.get("id") or ""), "connection_id": target_id},
-        )
-    updated = _apply_non_secret_changes(
-        target_id, manifest, config, _display_name(entity)
-    )
-    adopted = found is not None and not existing_row
-    return manifest, updated, adopted
-
-
-def _create_mcp_connection(
-    connectors,
-    entity: dict,
-    service: str,
-    preset_id: str,
-    config: dict,
-) -> tuple:
-    """Create a pending connection for the entity and seed its memory."""
-    name = _display_name(entity) or str(preset_of(entity).get("name") or preset_id)
-    manifest = connectors.create_connection(
-        service,
-        name,
-        config=config,
-        secrets=None,
-        pending=True,
-    )
-    target_id = str(manifest.get("id") or "")
-    if not target_id:
-        raise InstallError(
-            "connection_not_created",
-            "The connector layer returned no connection id",
-            {"id": str(entity.get("id") or "")},
-        )
-    memory_seed = str(preset_of(entity).get("memory_seed") or "")
-    if memory_seed:
-        try:
-            connectors.set_connection_memory(target_id, memory_seed)
-        except Exception:
-            pass
-    return manifest, target_id
-
-
 def _register_mcp(
     *,
     entity: dict,
     entity_id: str,
-    target_id: str,
+    preset_id: str,
     version: str,
     channel: str,
     install_id: str,
@@ -426,7 +445,7 @@ def _register_mcp(
         {
             "type": "mcp",
             "id": entity_id,
-            "runtime_slug": target_id,
+            "runtime_slug": preset_id,
             "runtime_db_id": None,
             "runtime_skill_id": None,
             "fork_of": entity.get("fork_of"),
@@ -457,13 +476,10 @@ def _mcp_report(
     entity_id: str,
     version: str,
     install_id,
-    target_id: str,
     preset_id: str,
     service: str,
-    adopted: bool,
-    created: bool,
-    manifest: dict,
-    config: dict,
+    origin: str,
+    stored: bool,
 ) -> dict:
     """Build the install report shared by the noop and the success path."""
     return {
@@ -473,16 +489,12 @@ def _mcp_report(
         "type": "mcp",
         "version": version,
         "install_id": install_id,
-        "runtime_slug": target_id,
-        "connection_id": target_id,
+        "runtime_slug": preset_id,
         "preset": preset_id,
         "service": service,
-        "adopted": bool(adopted),
-        "created": bool(created),
-        "credentials_status": str(manifest.get("credentials_status") or "pending"),
-        "requires_secrets": _secret_field_names(config),
+        "origin": origin,
+        "stored": bool(stored),
     }
-
 
 
 def install_mcp(
@@ -492,10 +504,14 @@ def install_mcp(
     allow_code: Optional[bool] = None,
     source: Optional[source_mod.MarketplaceSource] = None,
     accept_license: bool = False,
-    runtime_slug: Optional[str] = None,
-    adopt_existing: bool = True,
 ) -> dict:
     """Install one MCP server from the catalog and return a report.
+
+    Installation means the preset becomes available on the MCP servers tab:
+    the catalog template is stored under ``DATA_DIR`` unless the platform
+    already bundles that very server, and the registry row records the
+    preset id. No connection is created - the user makes those from the
+    tile, as many as needed, and enters the credentials there.
 
     Parameters:
         entity: parsed ``entity.json`` of the server.
@@ -504,16 +520,11 @@ def install_mcp(
             installer shares one call signature.
         source: catalog transport; unused, kept for the same reason.
         accept_license: explicit licence acceptance when required.
-        runtime_slug: connection id to reuse; ``None`` picks the existing
-            connection of the same preset or creates a new one.
-        adopt_existing: when a connection from this preset already exists
-            but has no registry row, register it instead of creating a
-            second one. Passing ``False`` forces a new connection.
 
-    Returns a report with ``connection_id``, ``preset`` and ``service``. A
-    re-install of the same version is a no-op unless the preset declares
-    non-secret settings that differ from the stored connection - those are
-    applied in place, which is what an update of an MCP entity means.
+    Returns a report with ``preset``, ``origin`` and ``stored``. A re-install
+    of the same version is a no-op unless the shipped preset differs from
+    the stored one - that difference is what an update of an MCP entity
+    means, and it is applied in place.
     """
     gate = _mcp_gate(entity, accept_license=accept_license)
     entity_id = gate["entity_id"]
@@ -524,17 +535,9 @@ def install_mcp(
     licence_at = gate["licence_at"]
     existing_row = gate["existing_row"]
 
-    target_id, found = _resolve_mcp_target(
-        service=service,
-        preset_id=preset_id,
-        existing_row=existing_row,
-        runtime_slug=runtime_slug,
-        adopt_existing=adopt_existing,
-    )
+    payload = preset_payload(entity, config)
+    origin = _resolve_origin(preset_id, payload)
 
-    from core import connectors
-
-    created = False
     with store.install_lock():
         install_id = store.new_install_id()
         store.append_run(
@@ -547,27 +550,16 @@ def install_mcp(
                 "status": "applying",
             }
         )
+        previous_preset = _user_preset_snapshot(preset_id)
         try:
-            if target_id:
-                manifest, updated, adopted = _apply_mcp_target(
-                    connectors, entity, target_id, config, found, existing_row
-                )
-            else:
-                manifest, target_id = _create_mcp_connection(
-                    connectors, entity, service, preset_id, config
-                )
-                created = True
-                adopted = False
-                updated = False
+            stored = _sync_user_preset(preset_id, payload, origin)
 
             # A re-install of what is already there touches nothing: the
             # showcase renders such an entity as skipped, and a run that
             # changed no setting must not look like a fresh install.
             unchanged = (
                 existing_row is not None
-                and not adopted
-                and not created
-                and not updated
+                and not stored
                 and str(existing_row.get("version") or "") == version
             )
             if unchanged:
@@ -576,19 +568,16 @@ def install_mcp(
                     entity_id=entity_id,
                     version=version,
                     install_id=existing_row.get("install_id"),
-                    target_id=target_id,
                     preset_id=preset_id,
                     service=service,
-                    adopted=False,
-                    created=False,
-                    manifest=manifest,
-                    config=config,
+                    origin=origin,
+                    stored=False,
                 )
 
             _register_mcp(
                 entity=entity,
                 entity_id=entity_id,
-                target_id=target_id,
+                preset_id=preset_id,
                 version=version,
                 channel=channel,
                 install_id=install_id,
@@ -598,7 +587,7 @@ def install_mcp(
                 install_id,
                 status="done",
                 finished_at=store.isoformat_utc(),
-                runtime_slug=target_id,
+                runtime_slug=preset_id,
             )
             store.clear_state()
             try:
@@ -611,20 +600,14 @@ def install_mcp(
                 entity_id=entity_id,
                 version=version,
                 install_id=install_id,
-                target_id=target_id,
                 preset_id=preset_id,
                 service=service,
-                adopted=adopted,
-                created=created,
-                manifest=manifest,
-                config=config,
+                origin=origin,
+                stored=stored,
             )
         except Exception as exc:
-            if created and target_id:
-                try:
-                    connectors.delete_connection(target_id, record_removal=False)
-                except Exception:
-                    pass
+            if stored:
+                _restore_user_preset(preset_id, previous_preset)
             # The registry row is written last, so a failure before it leaves
             # the previous row - if any - as the truth. Restoring it instead
             # of deleting the id keeps an installed MCP server installed when
@@ -654,59 +637,39 @@ def install_mcp(
             ) from exc
 
 
-def _secret_field_names(config: dict) -> List[str]:
-    """Return the env names a user still has to fill in."""
-    declared = config.get("secret_env_fields")
-    if not isinstance(declared, dict):
-        return []
-    names = []
-    for descriptor in declared.values():
-        if isinstance(descriptor, dict) and descriptor.get("env"):
-            names.append(str(descriptor["env"]))
-    return sorted(names)
+def _user_preset_snapshot(preset_id: str) -> Optional[dict]:
+    """Return the raw user-level preset before a run changes it."""
+    from core import connector_presets
+
+    return connector_presets.user_preset(preset_id, DEFAULT_SERVICE)
 
 
-def _apply_non_secret_changes(
-    conn_id: str,
-    manifest: dict,
-    config: Dict[str, Any],
-    name: str,
-) -> bool:
-    """Bring an existing connection up to the catalog's non-secret settings.
+def _restore_user_preset(preset_id: str, previous: Optional[dict]) -> None:
+    """Undo the preset write of a failed run.
 
-    Only what the connection already stores is compared: a key the catalog
-    dropped is not removed, because the user may have added it deliberately
-    and the connector layer merges rather than replaces. Credentials are
-    never touched - the catalog carries none.
-
-    Returns True when something was written, so the caller can tell a real
-    change from a re-install of what is already there.
+    A preset that was not there before is removed; one that was there is
+    written back. Either way the failure leaves the MCP tab as it was.
     """
-    if not conn_id:
-        return False
-    from core import connectors
+    from core import connector_presets
 
-    stored = _connection_config(manifest)
-    changed = {
-        key: value for key, value in config.items()
-        if key != "description" and stored.get(key) != value
-    }
-    rename = str(name or "").strip()
-    name_now = str(manifest.get("name") or "").strip()
-    if not changed and (not rename or rename == name_now):
-        return False
     try:
-        connectors.update_connection(
-            conn_id,
-            name=rename if rename and rename != name_now else "",
-            config=changed or None,
+        if previous is None:
+            connector_presets.delete_preset(preset_id, DEFAULT_SERVICE)
+            return
+        connector_presets.save_preset(
+            preset_id,
+            {
+                "name": previous.get("name") or preset_id,
+                "description": previous.get("description") or "",
+                "icon": previous.get("icon") or "",
+                "sort_order": previous.get("sort_order") or 100,
+                "config": dict(previous.get("config") or {}),
+                "memory_seed": previous.get("memory_seed") or "",
+                "hidden": bool(previous.get("hidden")),
+            },
+            DEFAULT_SERVICE,
         )
-    except ValueError as exc:
-        raise InstallError(
-            "connection_update_failed",
-            f"The connection could not be updated: {exc}",
-            {"connection_id": conn_id},
-        ) from exc
-    return True
+    except Exception:
+        pass  # the run already failed; the report carries the real cause
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

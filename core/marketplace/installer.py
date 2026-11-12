@@ -607,14 +607,13 @@ def install_entity(
         )
     if type_ == "mcp":
         from core.marketplace.mcp_installer import install_mcp
-
+        # An MCP entity installs a preset, not a connection.
         return install_mcp(
             entity,
             channel=channel,
             allow_code=allow_code,
             source=source,
             accept_license=accept_license,
-            runtime_slug=runtime_slug,
         )
     raise InstallError(
         "unsupported_type",

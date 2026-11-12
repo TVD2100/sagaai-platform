@@ -449,6 +449,7 @@
   "mp_license": "许可证：{spdx}",
   "mp_loading": "正在加载目录...",
   "mp_mcp_needs_credentials": "服务器已作为连接安装。请在“连接器”页面填写凭据：{fields}",
+  "mp_mcp_preset_tab_hint": "服务器将作为模板安装：安装后会出现在“连接器”页面的 MCP 服务器标签页。您可以在那里从该模板创建任意数量的连接，并分别为每个连接填写凭据。",
   "mp_modified_by_user": "已安装 · 您已修改",
   "mp_platform": "平台：从 {minimum} 到 {maximum}",
   "mp_refresh": "刷新",

@@ -734,7 +734,10 @@ def uninstall(type_: str, id_: str, *, remove_files: bool = True) -> dict:
         shutil.rmtree(folder, ignore_errors=True)
         removed_files = not os.path.isdir(folder)
 
-    connection_removed = _remove_connection(type_, runtime_slug)
+    from core.marketplace.mcp_removal import remove_connection, remove_preset
+
+    preset_removed = remove_preset(type_, runtime_slug)
+    connection_removed = remove_connection(type_, runtime_slug)
 
     skill_id = str(row.get("runtime_skill_id") or "")
     if type_ == "skill" and skill_id:
@@ -756,35 +759,10 @@ def uninstall(type_: str, id_: str, *, remove_files: bool = True) -> dict:
         "runtime_slug": runtime_slug,
         "files_removed": removed_files,
         "row_removed": row_removed,
+        "preset_removed": preset_removed,
         "connection_removed": connection_removed,
     }
 
 
-def _remove_connection(type_: str, runtime_slug: str) -> bool:
-    """Remove the connection an MCP entity installed, when it is safe to.
-
-    An MCP entity owns no folder - its installation *is* a connector
-    connection, and leaving it behind would keep a server in the list that
-    the user just uninstalled from the showcase. A connection the user has
-    already configured is kept: it may hold credentials entered by hand and
-    be used by other prompts, so removal only touches a connection still
-    waiting for its credentials.
-
-    Returns True when a connection was removed.
-    """
-    if type_ != "mcp" or not runtime_slug:
-        return False
-    try:
-        from core import connectors
-
-        manifest = connectors.get_connection(runtime_slug) or {}
-        if not manifest:
-            return False
-        if str(manifest.get("credentials_status") or "") == "active":
-            return False
-        connectors.delete_connection(runtime_slug)
-        return True
-    except Exception:
-        return False
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

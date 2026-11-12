@@ -747,8 +747,19 @@
 # page showed it next to the user's own. The writing test now points DATA_DIR
 # at a throwaway folder, and a second AST guard in the isolation test fails
 # on any module that calls a writing API without doing the same.
+#
+# 2.45.0 turns an MCP entity from the catalog into a preset rather than a
+# ready-made connection. Installing one used to create a single connection
+# behind the user's back, so a server they wanted two accounts on had to be
+# set up by hand the second time, and an uninstall could take away a
+# connection that already held credentials. The install now writes a preset
+# into the user's own preset folder, the tile appears on the MCP servers tab
+# next to the bundled ones, and every connection the user makes from it is
+# theirs - with its own token, and untouched by an uninstall. A server the
+# platform already ships installs as a no-op, and registry rows written by
+# earlier versions keep their old uninstall rule.
 
-__version__ = "2.44.3"
+__version__ = "2.45.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

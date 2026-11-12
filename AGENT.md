@@ -843,11 +843,14 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   MCP-инструментов; имена и описания от сервера - недоверенные данные
   (санируются, не подставляются в код); секреты сервера в диалогах не
   раскрываются.
-- **Пресеты MCP-серверов:** шаблоны без секретов в
-  `defaults/connectors/mcp/` (видимые в каталоге: `vkusvill` - http,
-  `yandex_mail` - http, авторизация схемой `OAuth`)
-  загружаются модулем
-  `core/connector_presets.py`. У пресета проверяется обязательное
+- **Пресеты MCP-серверов:** шаблоны без секретов из двух корней -
+  встроенного `defaults/connectors/mcp/` (видимые в каталоге: `vkusvill` -
+  http, `yandex_mail` - http, авторизация схемой `OAuth`) и
+  пользовательского `<DATA_DIR>/connector_presets/mcp/`, куда установщик
+  маркетплейса кладёт сторонние серверы (`preset_origin`: `bundled` |
+  `user`; при совпадении id побеждает встроенный) - загружаются модулем
+  `core/connector_presets.py`; пользовательский корень резолвится от
+  `DATA_DIR` в момент вызова. У пресета проверяется обязательное
   поле `icon` (эмодзи-иконка для плитки вкладки MCP). Необязательный
   флаг `hidden: true` убирает пресет из каталога (`list_presets`), но
   оставляет его доступным по id (`resolve_preset`): подключение,
@@ -1608,6 +1611,17 @@ JSON и до скачивания пакета.
   `agent_installer`, `rag_installer`, `mcp_installer`. Список `SUPPORTED_TYPES`
   перечисляет все четыре типа и читается витриной и планировщиком пакетов
   вместо пробного вызова.
+- **MCP-сущность ставится пресетом, а не подключением.**
+  `mcp_installer.install_mcp` пишет файл пресета в пользовательский корень и
+  не создаёт подключение; строка `marketplace_installed` хранит
+  `runtime_slug` = id пресета, отчёт - `{preset, origin, stored}`. Встроенный
+  пресет с тем же сервером делает установку no-op (сравнение по
+  `_server_signature`: транспорт, url/command, args, `auth_header`, имена
+  env). Подключения пользователь создаёт из плитки сам, каждое со своими
+  секретами. Деинсталляция идёт через `core/marketplace/mcp_removal`:
+  `remove_preset` удаляет только пользовательский файл (встроенный не
+  трогает), `remove_connection` сохраняет прежнее правило для строк с
+  `runtime_slug` = id подключения (созданных до перехода на пресеты).
 - **Вид агента** (`agent_kind`). Сущность типа `agent` бывает двух видов:
   `orchestrator` (сотрудник: папка оркестратора, мерж конфига, инструкции,
   functions) и `assistant` (помощник: папка `DATA_DIR/assistants/<slug>` с
@@ -1947,11 +1961,11 @@ JSON и до скачивания пакета.
     # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
     # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
-- Список базовых файлов (342):
+- Список базовых файлов (343):
   - Корень (2): __init__.py, app.py
   - UI (42): ui/__init__.py, ui/app.py, ui/app_restore.py, ui/components/__init__.py, ui/components/flash.py, ui/components/name_fields.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/access.py, ui/pages/assistants.py, ui/pages/assistants_helpers.py, ui/pages/assistants_nav.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/marketplace.py, ui/pages/orchestrator.py, ui/pages/orchestrator_chat.py, ui/pages/orchestrator_chat_input.py, ui/pages/orchestrator_feed.py, ui/pages/orchestrator_flags.py, ui/pages/orchestrator_folder.py, ui/pages/orchestrator_loop.py, ui/pages/orchestrator_sandbox.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrator_settings_delegation.py, ui/pages/orchestrator_settings_models.py, ui/pages/orchestrator_settings_orch.py, ui/pages/orchestrator_settings_other.py, ui/pages/orchestrator_shared.py, ui/pages/orchestrator_state.py, ui/pages/orchestrator_text.py, ui/pages/orchestrators.py, ui/pages/schedules.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/updates.py, ui/pages/updates_marketplace.py, ui/pages/welcome.py
   - Core (100): core/__init__.py, core/api_bearer.py, core/api_deepseek.py, core/api_errors.py, core/api_gigachat.py, core/api_history_guard.py, core/api_http.py, core/api_layer.py, core/api_payload.py, core/api_responses.py, core/api_token_store.py, core/api_yandex.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/builtin_config_defaults.py, core/chat_db_archive.py, core/chat_turn.py, core/config.py, core/connector_presets.py, core/connectors.py, core/context_guard.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/dependency_check.py, core/devagent_db_archive.py, core/document_images.py, core/document_text.py, core/entity_sync.py, core/env_loader.py, core/feed_autoscroll.py, core/files.py, core/folder_dialog.py, core/fs.py, core/gateway_launcher.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/mcp_client.py, core/mcp_tools.py, core/memory_migration.py, core/multimodal.py, core/naming.py, core/naming_backfill.py, core/naming_runtime.py, core/ooxml.py, core/orchestrator_builtin.py, core/orchestrator_defaults.py, core/orchestrator_folders.py, core/orchestrator_import_files.py, core/orchestrator_instr.py, core/orchestrator_links.py, core/orchestrator_models.py, core/orchestrator_nav.py, core/orchestrator_prompt.py, core/orchestrator_reload.py, core/orchestrator_shared.py, core/orchestrator_strong.py, core/orchestrator_step.py, core/orchestrator_store.py, core/orchestrator_tools.py, core/orchestrator_transfer.py, core/orchestrators.py, core/paths.py, core/personal_memory.py, core/prompt_blocks.py, core/prompt_guard.py, core/prompt_improver.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_workspaces.py, core/render.py, core/services.py, core/signing.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/thread_mirror.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py, core/updater.py, core/updater_apply.py, core/url_fetch.py, core/version.py
-  - Marketplace (34): core/marketplace/__init__.py, core/marketplace/agent_areas.py, core/marketplace/agent_assistant.py, core/marketplace/agent_installer.py, core/marketplace/agent_merge.py, core/marketplace/agent_orchestrator.py, core/marketplace/agent_package.py, core/marketplace/agent_preflight.py, core/marketplace/agent_run.py, core/marketplace/attest.py, core/marketplace/bootstrap.py, core/marketplace/bundle_catalog.py, core/marketplace/bundles.py, core/marketplace/catalog.py, core/marketplace/config.py, core/marketplace/conflict_fork.py, core/marketplace/conflict_state.py, core/marketplace/conflicts.py, core/marketplace/install_seed.py, core/marketplace/installer.py, core/marketplace/mcp_installer.py, core/marketplace/migration.py, core/marketplace/names.py, core/marketplace/package_pin.py, core/marketplace/publish.py, core/marketplace/rag_area.py, core/marketplace/rag_installer.py, core/marketplace/registry.py, core/marketplace/rollback.py, core/marketplace/semver.py, core/marketplace/source.py, core/marketplace/store.py, core/marketplace/updates.py, core/marketplace/verify.py
+  - Marketplace (35): core/marketplace/__init__.py, core/marketplace/agent_areas.py, core/marketplace/agent_assistant.py, core/marketplace/agent_installer.py, core/marketplace/agent_merge.py, core/marketplace/agent_orchestrator.py, core/marketplace/agent_package.py, core/marketplace/agent_preflight.py, core/marketplace/agent_run.py, core/marketplace/attest.py, core/marketplace/bootstrap.py, core/marketplace/bundle_catalog.py, core/marketplace/bundles.py, core/marketplace/catalog.py, core/marketplace/config.py, core/marketplace/conflict_fork.py, core/marketplace/conflict_state.py, core/marketplace/conflicts.py, core/marketplace/install_seed.py, core/marketplace/installer.py, core/marketplace/mcp_installer.py, core/marketplace/mcp_removal.py, core/marketplace/migration.py, core/marketplace/names.py, core/marketplace/package_pin.py, core/marketplace/publish.py, core/marketplace/rag_area.py, core/marketplace/rag_installer.py, core/marketplace/registry.py, core/marketplace/rollback.py, core/marketplace/semver.py, core/marketplace/source.py, core/marketplace/store.py, core/marketplace/updates.py, core/marketplace/verify.py
   - Orchestration (26): core/orchestration/__init__.py, core/orchestration/child_runner.py, core/orchestration/child_text.py, core/orchestration/contracts.py, core/orchestration/dialog_runner.py, core/orchestration/invoke.py, core/orchestration/resume.py, core/orchestration/runs.py, core/orchestration/service.py, core/orchestration/tool_classes.py, core/orchestration/tools.py, core/orchestration/tools_catalog.py, core/orchestration/tools_clock.py, core/orchestration/tools_constants.py, core/orchestration/tools_control.py, core/orchestration/tools_dialog.py, core/orchestration/tools_journal.py, core/orchestration/tools_notes.py, core/orchestration/tools_records.py, core/orchestration/tools_rights.py, core/orchestration/tools_spawn.py, core/orchestration/tools_status.py, core/orchestration/tools_wait.py, core/orchestration/transcript_reader.py, core/orchestration/transcript_sink.py, core/orchestration/verify.py
   - Schedules (7): core/schedules/__init__.py, core/schedules/calc.py, core/schedules/daemon.py, core/schedules/form.py, core/schedules/model.py, core/schedules/runner.py, core/schedules/store.py
   - Sandbox (17): core/sandbox/__init__.py, core/sandbox/active.py, core/sandbox/contracts.py, core/sandbox/inheritance.py, core/sandbox/launcher.py, core/sandbox/policy.py, core/sandbox/profiles.py, core/sandbox/providers/__init__.py, core/sandbox/providers/_spawn.py, core/sandbox/providers/bwrap.py, core/sandbox/providers/container.py, core/sandbox/providers/inherited.py, core/sandbox/providers/process.py, core/sandbox/providers/seatbelt.py, core/sandbox/providers/wsl.py, core/sandbox/runner.py, core/sandbox/status.py
