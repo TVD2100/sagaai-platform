@@ -334,6 +334,25 @@ def test_resolve_http_auth_header_filled_placeholders():
     ) == "Authorization: Bearer t"
 
 
+def test_resolve_http_auth_header_keeps_the_oauth_scheme():
+    """A template without ``Name:`` becomes the Authorization value as is.
+
+    Yandex 360 mail MCP accepts the ``OAuth`` scheme only; a ``Bearer``
+    prefix is rejected by the server, so the scheme in the template must
+    survive resolution untouched.
+    """
+    assert _resolve_http_auth_header(
+        "OAuth {YANDEX_MAIL_OAUTH_TOKEN}", {"YANDEX_MAIL_OAUTH_TOKEN": "y0_AgAAA"}
+    ) == "Authorization: OAuth y0_AgAAA"
+    assert "Bearer" not in _resolve_http_auth_header(
+        "OAuth {YANDEX_MAIL_OAUTH_TOKEN}", {"YANDEX_MAIL_OAUTH_TOKEN": "y0_AgAAA"}
+    )
+    # An unfilled token means no Authorization header at all, not "OAuth ".
+    assert _resolve_http_auth_header(
+        "OAuth {YANDEX_MAIL_OAUTH_TOKEN}", {"YANDEX_MAIL_OAUTH_TOKEN": ""}
+    ) is None
+
+
 # ─── http auth-failure hints (GitHub MCP 401/403) ───────────────────────────
 
 def test_http_error_hint_covers_auth_failures():

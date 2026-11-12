@@ -1,15 +1,15 @@
 {
   "schema": 1,
-  "app_version": "2.44.1",
+  "app_version": "2.44.2",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Установка агента из каталога: сотрудник без модельных ключей запускается на платформенной модели вместо блокировки на странице чата, переводы имени из карточки доезжают до слотов, а пакет установленной версии закрепляется в кэше, чтобы обновление через месяц не оказалось пустым.",
-    "en": "Catalog agent install: an employee without model keys runs on the platform model instead of being blocked on the chat page, catalog name translations reach the slots, and the installed package stays pinned in the cache so an update months later is not empty."
+    "ru": "Пресет MCP Яндекс Почты: подключение к почтовому ящику Яндекс 360 плиткой на вкладке «MCP-серверы» - поиск и чтение писем, папки и метки, черновики, перемещение и удаление в Корзину. Авторизация схемой OAuth, отправка писем не поддерживается.",
+    "en": "Yandex 360 Mail MCP preset: connect a mailbox from a tile on the MCP tab - search and read messages, folders and labels, drafts, moving and deleting to Trash. OAuth-scheme authorization; sending mail is not supported."
   },
-  "updated": "2026-11-09",
+  "updated": "2026-11-12",
   "units": {
     "core": {
-      "version": "1.87.0",
+      "version": "1.87.1",
       "note": {
         "ru": "Пакет: единый резолвер названий (core/naming.py) с четырьмя слотами имени, хранение name_en/name_ru/name_zh и миграция 0011, зеркала в orchestrator.json/manifest.json, каталог маркетплейса и установка агентов через модуль слияния agent_merge, блок «Названия» в формах и заполнение пустых слотов у установленных сущностей.",
         "en": "Package: one name resolver (core/naming.py) over four name slots, name_en/name_ru/name_zh storage with migration 0011, mirrors in orchestrator.json/manifest.json, the marketplace catalog and agent installation through the agent_merge module, the Names block in the forms and the backfill of empty slots on installed entities."
@@ -276,11 +276,11 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.77.0",
-          "sha256": "4598d4b00857fcab7c5951ab4834f39c65c92749d1383c26bcbc9351cffaffa1",
+          "version": "1.78.0",
+          "sha256": "c880aef47fb55e49213b3ab30a735dcf157154b44ffc73ff9eb16b3a5ad33033",
           "note": {
-            "ru": "Релиз 2.44.1: установка агента получает модельный базис, переводы имён из карточки и закреплённый кэш пакета.",
-            "en": "Release 2.44.1: an installed agent gets the model basis, catalog name translations and a pinned package cache."
+            "ru": "Релиз 2.44.2: пресет MCP Яндекс Почты с авторизацией схемой OAuth.",
+            "en": "Release 2.44.2: the Yandex 360 Mail MCP preset with OAuth-scheme authorization."
           }
         },
         "dev_agent/__init__.py": {
@@ -368,11 +368,11 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.12.6",
-          "sha256": "5631b71a5a426d7688cea6282dd55aa542cf2f5f0dad946d83c4b5b4cfd8e4f6",
+          "version": "1.12.7",
+          "sha256": "cd3c6e6d3823840a743d27ee14022d3c2a900830cae658d61fb4842be6e28243",
           "note": {
-            "ru": "Описания установки агента из каталога, резолвера основной модели и закрепления кэша пакета.",
-            "en": "Descriptions of the catalog agent install, the strong-model resolver and the package-cache pin."
+            "ru": "Описания пресета Яндекс Почты, его сценарного теста и обновлённых тестов пресетов и MCP-клиента.",
+            "en": "Descriptions of the Yandex Mail preset, its scenario test and the updated preset and MCP-client tests."
           }
         },
         "scripts/verify_manifest.py": {
@@ -1349,11 +1349,11 @@
           "sha256": "5af3ec0ad3faefd201a4d1a51e232183262372692a13cbfee06afbb891ac57f0"
         },
         "tests/test_mcp_client.py": {
-          "version": "1.2.1",
-          "sha256": "b4d26dc0819be284cb0234f60f236935dcccc38024691b12e4370db9903c0885",
+          "version": "1.2.2",
+          "sha256": "59933eeca6e959ad3bdfac0054860c0ce975ec6d76cdf6a69b62f8885005d488",
           "note": {
-            "ru": "tests/test_mcp_client.py: проверки подсказок по HTTP-кодам и сообщения 403 без утечки секретов.",
-            "en": "tests/test_mcp_client.py: checks for the HTTP-code hints and the 403 message without secret leakage."
+            "ru": "Резолв заголовка: шаблон со схемой OAuth сохраняет схему, Bearer не появляется, пустой токен не отправляет заголовок.",
+            "en": "Header resolution: a template with the OAuth scheme keeps it, Bearer never appears and an empty token sends no header."
           }
         },
         "tests/scenarios/test_mcp_e2e_scenario.py": {
@@ -1382,8 +1382,12 @@
           }
         },
         "tests/test_connector_presets.py": {
-          "version": "1.0.1",
-          "sha256": "daf03ced84539da39fa8ab6637df53d70afe681dd56c7c678fb2e53877bb2c00"
+          "version": "1.0.2",
+          "sha256": "1912e7a6fff6109f786846e72014bd4b872163d1b075d51b09299fff770ca69c",
+          "note": {
+            "ru": "Тесты пресетов: видимый пресет yandex_mail (OAuth-схема, одно поле секрета, пометка об отсутствии отправки) рядом с vkusvill.",
+            "en": "Preset tests: the visible yandex_mail preset (OAuth scheme, one credential field, the no-sending note) next to vkusvill."
+          }
         },
         "core/url_fetch.py": {
           "version": "1.1.1",
@@ -3392,17 +3396,21 @@
         "tests/test_naming_runtime_threads.py": {
           "version": "1.0.0",
           "sha256": "899c50450800f6e2e43be01c1ecf2b21bab5d30c69085638ac126b361a257e25"
+        },
+        "tests/scenarios/test_yandex_mail_mcp_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "123c6a4dc320675c0e2af0928e6d46f3761eca20007c98efdca089b24fe644b1"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.77.4",
-      "sha256": "7b2cc6b9e550f7670e5b95f7aba7473a303d4a79a98258ecfbdda5355a1fc029",
+      "version": "1.77.5",
+      "sha256": "6620526b48be9808e82976d3f3a0136bd26d235837efc6a6a27ed49b6e310961",
       "note": {
-        "ru": "Карта компонентов: модельный базис установки агента и кэш пакета как база обновления.",
-        "en": "Component map: the install-time model basis and the package cache as the update baseline."
+        "ru": "Карта компонентов: пресет yandex_mail (http, схема OAuth) в видимом каталоге пресетов.",
+        "en": "Component map: the yandex_mail preset (http, OAuth scheme) in the visible preset catalogue."
       }
     },
     "LICENSE": {
@@ -3414,19 +3422,19 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.78.3",
-      "sha256": "9c8ff3a34c76c0a837b899ecf50c3d16d9808dfb05f271e62b593cd59f885107",
+      "version": "1.78.4",
+      "sha256": "a183b8e29086b834d1728327d59347da3bea82a8f29ae1b3c230cd26a8b7db89",
       "note": {
-        "ru": "Регенерация: описание core/naming_runtime.py приведено к фактическому поведению - язык берётся из сессии только при живом прогоне скрипта, фоновый поток читает сохранённую настройку.",
-        "en": "Regenerated: the core/naming_runtime.py description now matches the implementation - the session language is read only inside a live script run, a background worker reads the stored setting."
+        "ru": "Регенерация: пресет Яндекс Почты, его сценарный тест и обновлённые описания тестов пресетов и MCP-клиента.",
+        "en": "Regenerated: the Yandex Mail preset, its scenario test and the updated descriptions of the preset and MCP-client tests."
       }
     },
     "README.md": {
-      "version": "1.62.2",
-      "sha256": "581c93e9c2e2d31c4b27a01a372278c3a3a674dd6767b5c8df43ce0683a71b5f",
+      "version": "1.62.3",
+      "sha256": "09c40814c4dc5375bcb370e1632620e528626bdef7ba744019ddfd58703eeee4",
       "note": {
-        "ru": "Строка статуса версии обновлена до 2.44.1.",
-        "en": "The version status line is updated to 2.44.1."
+        "ru": "Пресеты MCP: к плитке «ВкусВилл» добавлена плитка «Яндекс Почта» (OAuth-токен), строка статуса версии обновлена до 2.44.2.",
+        "en": "MCP presets: the Vkusvill tile is joined by a Yandex Mail tile (OAuth token); the version status line is updated to 2.44.2."
       }
     },
     "defaults/README.md": {
@@ -3838,11 +3846,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.53.2",
-      "sha256": "41a2ca6e0254861f5a9af9b63a6f3fa9577823b58119e8dcc88c08925847fbe2",
+      "version": "1.53.3",
+      "sha256": "fe95354ca455647568a5f74916cc40eb05619f4d8710126cd7fcede112b21072",
       "note": {
-        "ru": "Требования: модельный базис установки агента, единый резолвер основной модели и переводы имён из карточки.",
-        "en": "Requirements: the install-time model basis, one strong-model resolver and catalog name translations."
+        "ru": "Требования: видимые MCP-пресеты - vkusvill и yandex_mail (http, схема OAuth).",
+        "en": "Requirements: the visible MCP presets are vkusvill and yandex_mail (http, OAuth scheme)."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/connector_creator.md": {
@@ -4075,6 +4083,14 @@
       "note": {
         "ru": "Публичная половина релизного ключа Ed25519 - якорь доверия для подписи манифеста обновлений. Приватная половина в репозиторий не попадает.",
         "en": "Public half of the Ed25519 release key - the trust anchor for the update manifest signature. The private half never enters the repository."
+      }
+    },
+    "defaults/connectors/mcp/yandex_mail.json": {
+      "version": "1.0.0",
+      "sha256": "ebd016df49face783c5ab4900191a6c52e72c09b9c2abd0d2d75d8c0294185a4",
+      "note": {
+        "ru": "Дополнительный файл (содержимое, не исполняемый код). Можно обновлять выборочно.",
+        "en": "Optional content file (non-code). Can be updated individually."
       }
     }
   }

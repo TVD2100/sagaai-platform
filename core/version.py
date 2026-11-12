@@ -730,7 +730,18 @@
 # stays cached as the update baseline, so an update months later still knows
 # what the user changed.
 
-__version__ = "2.44.1"
+# 2.44.2 ships the Yandex 360 Mail MCP preset. The server at
+# ``https://mcp.360.yandex.net/v1/mail/mcp`` speaks the platform's MCP revision
+# and authorizes with the ``OAuth`` scheme rather than ``Bearer``, which the
+# header-template resolver already supports: a template without a ``Name:``
+# prefix becomes the Authorization value as written. The preset declares one
+# credential field, so the draft installs without secrets and the user pastes
+# only the OAuth token; the memory seed records the tool surface, the
+# confirmation rule for changing actions and the fact that sending mail is not
+# supported. The catalog publishes the same preset as an ``mcp`` entity, so the
+# server is installable without upgrading the platform.
+
+__version__ = "2.44.2"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

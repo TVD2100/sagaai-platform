@@ -120,10 +120,30 @@ def test_instantiate_hidden_preset_still_works(preset_root):
 
 
 def test_bundled_github_preset_is_hidden():
-    """The bundled catalogue offers Vkusvill only; GitHub MCP stays resolvable."""
+    """The bundled catalogue offers the public servers; GitHub MCP stays resolvable."""
     ids = [p["id"] for p in connector_presets.list_presets("mcp")]
     assert "vkusvill" in ids
+    assert "yandex_mail" in ids
     assert "github_mcp" not in ids
     github = connector_presets.resolve_preset("github_mcp", "mcp")
     assert github is not None
     assert github["hidden"] is True
+
+
+def test_bundled_yandex_mail_preset():
+    """The mail preset carries the OAuth scheme and exactly one credential field."""
+    preset = connector_presets.resolve_preset("yandex_mail", "mcp")
+    assert preset is not None
+    assert preset["hidden"] is False
+    config = preset["config"]
+    assert config["transport"] == "http"
+    assert config["url"] == "https://mcp.360.yandex.net/v1/mail/mcp"
+    # The server accepts the OAuth scheme only; a Bearer header is rejected.
+    assert config["auth_header"] == "OAuth {YANDEX_MAIL_OAUTH_TOKEN}"
+    fields = config["secret_env_fields"]
+    assert list(fields) == ["token"]
+    assert fields["token"]["env"] == "YANDEX_MAIL_OAUTH_TOKEN"
+    assert fields["token"]["password"] is True
+    # Drafting and sending are different things: the preset must say so.
+    assert "Отправка писем не поддерживается" in preset["description"]
+    assert "mail.read_message" in preset["memory_seed"]

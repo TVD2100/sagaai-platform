@@ -1446,8 +1446,9 @@ vector/hybrid). Базы хранятся в `DATA_DIR/rag_bases/`.
   `secret_fields`: `env_json` - одна строка JSON, шифруется; приём
   `env_pairs` с слиянием в зашифрованный `env_json`).
 - **Пресеты (`core/connector_presets.py`)** - шаблоны без секретов из
-  `defaults/connectors/mcp/*.json` (видимый каталог: `vkusvill` - http;
-  `github_mcp` скрыт флагом `hidden`):
+  `defaults/connectors/mcp/*.json` (видимый каталог: `vkusvill` - http,
+  `yandex_mail` - http со схемой `OAuth`; `github_mcp` скрыт флагом
+  `hidden`):
   `list_presets` (скрытые пресеты не отдаёт без `include_hidden`),
   `resolve_preset` (находит пресет по id, включая скрытые) и
   `instantiate_preset` -

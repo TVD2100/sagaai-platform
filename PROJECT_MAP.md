@@ -2,11 +2,11 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-09T07:04:56+00:00`
+- Обновлено: `2026-11-12T08:00:32+00:00`
 - Файлов: **835**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **11076**
-- Отпечаток содержимого: `sha256:cc5536df9704c5a0147087a8cb768403ccdcdf2ba452b8cb0a1d6b1d51112f0b` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Python-символов: **11078**
+- Отпечаток содержимого: `sha256:67b70ccc09e515ef3db53a2936916a28e4ac725f037d91a9ed9c6487b570c3b4` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
 - Языки: Config: 2, JSON: 36, Markdown: 42, PEM certificate: 2, Python: 753, TOML: 2, Text: 2
 
 ## Файлы и назначение
@@ -322,7 +322,7 @@
 | `tests/test_cli_console.py` | Python | Unit tests of the console output layer: exactly one JSON object on stdout, the human report, the error envelope and the reserved-stream behaviour | - |
 | `tests/test_cli_imports.py` | Python | Tests that the console imports without streamlit, fastapi or pydantic, in a subprocess with the packages blocked rather than merely absent | - |
 | `tests/test_cold_start_deps.py` | Python | UI tests for the cold-start dependency warning in ui.app: missing/outdated reports render deps_missing/deps_outdated, no warning when up to date, audit runs once per session, probe errors are swallowed | ui |
-| `tests/test_connector_presets.py` | Python | Preset catalogue tests: hidden presets drop out of list_presets but stay resolvable by id (and with include_hidden=True), the hidden flag coerces booleans/strings/numbers and treats unknown values as visible, an invalid flag never breaks loading, instantiate_preset still works for a hidden preset, and the bundled catalogue ships vkusvill only while github_mcp stays resolvable with hidden=true | - |
+| `tests/test_connector_presets.py` | Python | Preset catalogue tests: hidden presets drop out of list_presets but stay resolvable by id (and with include_hidden=True), the hidden flag coerces booleans/strings/numbers and treats unknown values as visible, an invalid flag never breaks loading, instantiate_preset still works for a hidden preset, and the bundled catalogue ships vkusvill and yandex_mail (the mail preset pins the OAuth scheme, one credential field and the no-sending note) while github_mcp stays resolvable with hidden=true | - |
 | `tests/test_connectors.py` | Python | Unit tests for core.connectors: CRUD, encrypted token/secrets storage, public-view leak guard, pending drafts, connection memory | - |
 | `tests/test_context_window_guard.py` | Python | Context-guard tests: output-reserve formula, 32k window, economy head protection, unified input_ceiling/input_budget/history_cap (B4) | - |
 | `tests/test_copyright_headers.py` | Python | _(описание не задано)_ | - |
@@ -397,7 +397,7 @@
 | `tests/test_marketplace_updates.py` | Python | Unit tests for updates: version comparison, per-entity refusals (platform, code, licence), the conflict policy during an update and the applied report | - |
 | `tests/test_marketplace_updates_types.py` | Python | Unit tests for updates across entity types: the type-aware registry lookup, the installer-backed update path for agents and bases instead of the skill-only resolver, and the hashing area of a base | - |
 | `tests/test_mcp_catalog.py` | Python | MCP catalog tests: the catalog branch with an enabled connection, disabled_tools gating on mcp__ tools, a startup/list failure keeps the catalog healthy, secrets do not leak | storage |
-| `tests/test_mcp_client.py` | Python | MCP client tests with a stdlib mini JSON-RPC server fixture: handshake and bad-version start, tools/list with caching, call success/isError/rpc-error, non-text result rejection, broken command, dead process, timeout with termination and lockout, process registry, stderr, schema translation, http auth-header resolution (empty placeholders skip the header), HTTP code hints and a 403 message that exposes no secrets | - |
+| `tests/test_mcp_client.py` | Python | MCP client tests with a stdlib mini JSON-RPC server fixture: handshake and bad-version start, tools/list with caching, call success/isError/rpc-error, non-text result rejection, broken command, dead process, timeout with termination and lockout, process registry, stderr, schema translation, http auth-header resolution (empty placeholders skip the header, the OAuth scheme survives resolution while Bearer never appears), HTTP code hints and a 403 message that exposes no secrets | - |
 | `tests/test_memory_dir_config.py` | Python | Unit tests for the memory_dir setting and the deletion cascade: config storage, an empty value removes the key, the resolver sources, the central default, the explicit scopes and the memory archived on employee delete | - |
 | `tests/test_memory_migration.py` | Python | Unit tests for the legacy-folder migration: a plan without writes, a verified copy, conflict and missing-source reporting, and the dry-run and apply modes of the CLI | - |
 | `tests/test_multimodal.py` | Python | Unit tests for core.multimodal and the image request transports | - |
@@ -5285,6 +5285,7 @@
 - `test_invalid_hidden_does_not_break_load` (func, строка 105)
 - `test_instantiate_hidden_preset_still_works` (func, строка 115)
 - `test_bundled_github_preset_is_hidden` (func, строка 122)
+- `test_bundled_yandex_mail_preset` (func, строка 133)
 
 ### `tests/test_connectors.py`
 - `isolated_data_dir` (func, строка 17)
@@ -7069,8 +7070,9 @@
 - `test_translate_schema_untrusted_shapes_do_not_crash` (func, строка 294)
 - `test_resolve_http_auth_header_empty_placeholders_yield_none` (func, строка 314)
 - `test_resolve_http_auth_header_filled_placeholders` (func, строка 325)
-- `test_http_error_hint_covers_auth_failures` (func, строка 339)
-- `test_http_403_error_message_carries_hint_without_secrets` (func, строка 350)
+- `test_resolve_http_auth_header_keeps_the_oauth_scheme` (func, строка 337)
+- `test_http_error_hint_covers_auth_failures` (func, строка 358)
+- `test_http_403_error_message_carries_hint_without_secrets` (func, строка 369)
 
 ### `tests/test_memory_dir_config.py`
 - `isolated_data_dir` (func, строка 17)
