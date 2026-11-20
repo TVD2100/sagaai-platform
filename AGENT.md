@@ -773,6 +773,11 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   `ghr_test_connection`, `ghr_get_repo_info`, `ghr_read_file_meta`,
   `ghr_get_ref`, `ghr_get_commit`, `ghr_get_tree`, `ghr_create_ref`,
   `ghr_create_tag`; каталог - `get_tools()`.
+  Публикация сохраняет POSIX-режим файла: при чтении с диска
+  (`_files_from_paths` -> `_file_mode`) исполняемый файл получает
+  tree-mode `100755`, остальные - `100644`. Режим несёт tree-entry, а не
+  blob, поэтому `batch_upsert` считает файл с тем же содержимым, но
+  другим режимом, изменённым и публикует новую запись, переиспользуя blob.
   Сервис подключения - `github_rest`; legacy-сервис `github` (PyGithub)
   удалён и больше не существует. Токен шифруется через `core.crypto` при
   сохранении соединения и никогда не попадает в результаты, ошибки или

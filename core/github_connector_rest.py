@@ -1149,6 +1149,29 @@ def batch_commit(conn_id: str, repo: str, files: Any,
     return summary
 
 
+def _file_mode(abs_path: Path) -> str:
+    """Return the Git tree mode a checkout of *abs_path* must reproduce.
+
+    A Git tree entry records one permission distinction: whether the file
+    is executable (``100755``) or not (``100644``). Reading it from the
+    file on disk is what keeps a launcher runnable in the published copy -
+    a blob alone carries no permission, so a tree entry that always says
+    ``100644`` silently turns every executable script into a plain text
+    file for anyone who clones the repository.
+
+    The distinction exists only on POSIX systems: Windows has no executable
+    bit, so a file there is published as non-executable, which is what a
+    checkout on that platform would produce anyway.
+    """
+    if os.name != "posix":
+        return "100644"
+    try:
+        executable = bool(abs_path.stat().st_mode & 0o111)
+    except OSError:
+        executable = False
+    return "100755" if executable else "100644"
+
+
 def _files_from_paths(base_dir: str, paths: Any, binary: bool = False) -> List[Dict[str, Any]]:
     """Read batch files from disk under *base_dir*.
 
@@ -1198,10 +1221,14 @@ def _files_from_paths(base_dir: str, paths: Any, binary: bool = False) -> List[D
                 raw = abs_path.read_bytes()
             except OSError as exc:
                 raise GithubRestError(f"Cannot read file: {rel}: {exc}") from exc
-            files.append({
+            entry: Dict[str, Any] = {
                 "path": rel,
                 "content_base64": base64.b64encode(raw).decode("ascii"),
-            })
+            }
+            mode = _file_mode(abs_path)
+            if mode != "100644":
+                entry["mode"] = mode
+            files.append(entry)
             continue
         try:
             with open(abs_path, "r", encoding="utf-8") as fh:
@@ -1213,7 +1240,11 @@ def _files_from_paths(base_dir: str, paths: Any, binary: bool = False) -> List[D
             ) from exc
         except OSError as exc:
             raise GithubRestError(f"Cannot read file: {rel}: {exc}") from exc
-        files.append({"path": rel, "content": content})
+        entry = {"path": rel, "content": content}
+        mode = _file_mode(abs_path)
+        if mode != "100644":
+            entry["mode"] = mode
+        files.append(entry)
     return files
 
 
@@ -1250,8 +1281,10 @@ def batch_upsert(conn_id: str, repo: str, files: Any,
     owner, name = _repo_spec(conn_id, repo)
     branch, parent, base_tree, _exists = _resolve_target_ref(conn_id, owner, name, branch)
     entries = _normalize_batch_files(files)
-    # Snapshot of remote blobs: path -> blob sha.
+    # Snapshot of remote blobs: path -> blob sha, plus the mode each
+    # path currently carries (a mode-only change still needs a new entry).
     remote_blobs: Dict[str, str] = {}
+    remote_modes: Dict[str, str] = {}
     if base_tree:
         tree_data = _request(
             conn_id, "GET",
@@ -1262,6 +1295,10 @@ def batch_upsert(conn_id: str, repo: str, files: Any,
         for item in (tree_data or {}).get("tree") or []:
             if isinstance(item, dict) and item.get("type") == "blob":
                 remote_blobs[str(item.get("path") or "")] = str(item.get("sha") or "")
+                # The Trees API always reports a mode; absent means the
+                # non-executable default, the same one a new entry gets.
+                remote_modes[str(item.get("path") or "")] = str(
+                    item.get("mode") or "100644")
     created = 0
     updated = 0
     unchanged = 0
@@ -1274,7 +1311,18 @@ def batch_upsert(conn_id: str, repo: str, files: Any,
             local_sha = entry["blob_sha"] or _git_blob_sha(entry["content"])
         remote_sha = remote_blobs.get(path, "")
         if remote_sha and remote_sha == local_sha:
-            unchanged += 1
+            # An identical blob still needs a tree entry when only the mode
+            # differs: the permission is carried by the entry, not the blob.
+            # Skipping it would leave an executable file published as a
+            # plain one while the batch reports itself fully unchanged.
+            if remote_modes.get(path, entry["mode"]) == entry["mode"]:
+                unchanged += 1
+                continue
+            tree_entries.append({
+                "path": path, "mode": entry["mode"], "type": "blob",
+                "sha": remote_sha,
+            })
+            updated += 1
             continue
         if entry["blob_sha"] and not entry["content"] and entry["blob_sha"] == remote_sha:
             unchanged += 1

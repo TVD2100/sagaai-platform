@@ -2,11 +2,11 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-19T20:02:28+00:00`
+- Обновлено: `2026-11-20T10:12:55+00:00`
 - Файлов: **852**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **11322**
-- Отпечаток содержимого: `sha256:497af32c29146f8239d4197eca158eab2d8a40d3d880c34fe0072faecf9c13ed` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Python-символов: **11329**
+- Отпечаток содержимого: `sha256:ff0ba9393c93ee96b27c3f0d149f07b8d5456962b42465beabc694872ee17900` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
 - Языки: Config: 2, JSON: 37, Markdown: 42, PEM certificate: 2, Python: 769, TOML: 2, Text: 2
 
 ## Файлы и назначение
@@ -119,7 +119,7 @@
 | `core/folder_dialog.py` | Python | Native OS folder picker for the Streamlit UI (no built-in chooser): tkinter filedialog in a child process with an osascript fallback on macOS, verdict via a temp UTF-8 JSON file, timeout, graceful degradation without a GUI (SAGAAI_DISABLE_FOLDER_DIALOG) | - |
 | `core/fs.py` | Python | Filesystem helpers (json/text read/write, ensure_dir, combine_nonempty) | - |
 | `core/gateway_launcher.py` | Python | Launcher of the standalone HTTP API process: logging setup with the secret redaction filter, instance lock against a second process on the same port, uvicorn run of server.app.create_app(); exits 3 when the port is already claimed | - |
-| `core/github_connector_rest.py` | Python | GitHub REST connector: batch commits and file ops; GET requests retry on network errors (Timeout/ConnectionError, up to 3 attempts, 0.5/1.5s backoff) | - |
+| `core/github_connector_rest.py` | Python | GitHub REST connector: batch commits and file ops, preserving the POSIX executable bit in tree entries; GET requests retry on network errors (Timeout/ConnectionError, up to 3 attempts, 0.5/1.5s backoff) | - |
 | `core/github_tools_rest.py` | Python | _(описание не задано)_ | - |
 | `core/i18n.py` | Python | Language discovery and translation helper t() | - |
 | `core/instructions.py` | Python | CRUD for internal instructions (Assistant Creator, Employee Creator) | - |
@@ -2100,9 +2100,10 @@
 - `_decode_binary_field` (func, строка 1027)
 - `_normalize_batch_files` (func, строка 1045)
 - `batch_commit` (func, строка 1083)
-- `_files_from_paths` (func, строка 1152)
-- `batch_commit_paths` (func, строка 1220)
-- `batch_upsert` (func, строка 1237)
+- `_file_mode` (func, строка 1152)
+- `_files_from_paths` (func, строка 1175)
+- `batch_commit_paths` (func, строка 1251)
+- `batch_upsert` (func, строка 1268)
 
 ### `core/github_tools_rest.py`
 - `_get_connector_id` (func, строка 31)
@@ -6230,32 +6231,38 @@
 - `test_batch_commit_ref_retry_raises_when_head_unresolvable.handler` (func, строка 988)
 - `test_batch_commit_ref_retry_raises_when_head_unresolvable._request` (func, строка 1004)
 - `test_files_from_paths_reads_utf8_files` (func, строка 1028)
-- `test_files_from_paths_rejects_traversal_and_absolute_paths` (func, строка 1039)
-- `test_files_from_paths_rejects_missing_duplicates_and_binary` (func, строка 1054)
-- `test_batch_commit_paths_reads_files_and_publishes_one_commit` (func, строка 1071)
-- `test_normalize_batch_files_accepts_raw_bytes` (func, строка 1091)
-- `test_normalize_batch_files_rejects_broken_base64` (func, строка 1100)
-- `test_git_blob_sha_bytes_matches_the_text_hash` (func, строка 1107)
-- `test_files_from_paths_reads_binary_assets` (func, строка 1112)
-- `test_batch_commit_sends_raw_bytes_as_base64` (func, строка 1122)
-- `test_batch_commit_sends_raw_bytes_as_base64.handler` (func, строка 1126)
-- `test_batch_upsert_skips_an_unchanged_binary_asset` (func, строка 1153)
-- `test_batch_upsert_skips_an_unchanged_binary_asset.handler` (func, строка 1157)
-- `test_batch_commit_paths_publishes_binary_assets` (func, строка 1177)
-- `test_batch_commit_honest_counters_created_updated_unchanged` (func, строка 1194)
-- `test_batch_commit_honest_counters_created_updated_unchanged.handler` (func, строка 1198)
-- `_make_ref_handler` (func, строка 1246)
-- `_make_ref_handler.handler` (func, строка 1251)
-- `test_create_ref_tag_on_given_sha` (func, строка 1299)
-- `test_create_tag_with_abbreviated_sha` (func, строка 1315)
-- `test_create_ref_short_form_and_default_branch_resolution` (func, строка 1335)
-- `test_create_ref_existing_ref_requires_force` (func, строка 1346)
-- `test_create_ref_rejects_invalid_ref_names` (func, строка 1365)
-- `test_create_ref_rejects_non_hex_sha` (func, строка 1372)
-- `test_create_tag_lightweight_points_at_commit` (func, строка 1381)
-- `test_create_tag_annotated_creates_tag_object` (func, строка 1395)
-- `test_create_tag_force_moves_existing_tag` (func, строка 1417)
-- `test_create_tag_rejects_refs_prefix_and_empty` (func, строка 1431)
+- `test_files_from_paths_preserves_the_executable_bit` (func, строка 1039)
+- `test_files_from_paths_keeps_the_mode_of_binary_files` (func, строка 1055)
+- `test_files_from_paths_rejects_traversal_and_absolute_paths` (func, строка 1065)
+- `test_files_from_paths_rejects_missing_duplicates_and_binary` (func, строка 1080)
+- `test_batch_commit_paths_reads_files_and_publishes_one_commit` (func, строка 1097)
+- `test_normalize_batch_files_accepts_raw_bytes` (func, строка 1117)
+- `test_normalize_batch_files_rejects_broken_base64` (func, строка 1126)
+- `test_git_blob_sha_bytes_matches_the_text_hash` (func, строка 1133)
+- `test_files_from_paths_reads_binary_assets` (func, строка 1138)
+- `test_batch_commit_sends_raw_bytes_as_base64` (func, строка 1148)
+- `test_batch_commit_sends_raw_bytes_as_base64.handler` (func, строка 1152)
+- `test_batch_upsert_skips_an_unchanged_binary_asset` (func, строка 1179)
+- `test_batch_upsert_skips_an_unchanged_binary_asset.handler` (func, строка 1183)
+- `test_batch_upsert_publishes_a_mode_only_change` (func, строка 1203)
+- `test_batch_upsert_publishes_a_mode_only_change.handler` (func, строка 1212)
+- `test_batch_upsert_keeps_an_unchanged_entry_with_the_same_mode` (func, строка 1247)
+- `test_batch_upsert_keeps_an_unchanged_entry_with_the_same_mode.handler` (func, строка 1251)
+- `test_batch_commit_paths_publishes_binary_assets` (func, строка 1272)
+- `test_batch_commit_honest_counters_created_updated_unchanged` (func, строка 1289)
+- `test_batch_commit_honest_counters_created_updated_unchanged.handler` (func, строка 1293)
+- `_make_ref_handler` (func, строка 1341)
+- `_make_ref_handler.handler` (func, строка 1346)
+- `test_create_ref_tag_on_given_sha` (func, строка 1394)
+- `test_create_tag_with_abbreviated_sha` (func, строка 1410)
+- `test_create_ref_short_form_and_default_branch_resolution` (func, строка 1430)
+- `test_create_ref_existing_ref_requires_force` (func, строка 1441)
+- `test_create_ref_rejects_invalid_ref_names` (func, строка 1460)
+- `test_create_ref_rejects_non_hex_sha` (func, строка 1467)
+- `test_create_tag_lightweight_points_at_commit` (func, строка 1476)
+- `test_create_tag_annotated_creates_tag_object` (func, строка 1490)
+- `test_create_tag_force_moves_existing_tag` (func, строка 1512)
+- `test_create_tag_rejects_refs_prefix_and_empty` (func, строка 1526)
 
 ### `tests/test_github_connector_retry.py`
 - `isolated_connector` (func, строка 25)

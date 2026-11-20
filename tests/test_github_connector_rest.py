@@ -1036,6 +1036,32 @@ def test_files_from_paths_reads_utf8_files(tmp_path):
     ]
 
 
+def test_files_from_paths_preserves_the_executable_bit(tmp_path):
+    """A tree entry carries the permission: an executable file must be
+    published as 100755, everything else keeps the 100644 default."""
+    plain = tmp_path / "plain.sh"
+    plain.write_text("echo hi", encoding="utf-8")
+    script = tmp_path / "run.sh"
+    script.write_text("#!/bin/sh\necho hi", encoding="utf-8")
+    script.chmod(0o755)
+
+    files = ghr._files_from_paths(str(tmp_path), ["plain.sh", "run.sh"])
+
+    by_path = {entry["path"]: entry for entry in files}
+    assert "mode" not in by_path["plain.sh"]
+    assert by_path["run.sh"]["mode"] == "100755"
+
+
+def test_files_from_paths_keeps_the_mode_of_binary_files(tmp_path):
+    executable = tmp_path / "tool.bin"
+    executable.write_bytes(b"\x7fELF payload")
+    executable.chmod(0o755)
+
+    files = ghr._files_from_paths(str(tmp_path), ["tool.bin"], binary=True)
+
+    assert files[0]["mode"] == "100755"
+
+
 def test_files_from_paths_rejects_traversal_and_absolute_paths(tmp_path):
     (tmp_path / "a.txt").write_text("AAA", encoding="utf-8")
     outside = tmp_path.parent / "outside.txt"
@@ -1169,6 +1195,75 @@ def test_batch_upsert_skips_an_unchanged_binary_asset(isolated_connector):
               "content_base64": base64.b64encode(payload).decode("ascii")}]
     with mock.patch.object(ghr, "_request", new=api):
         result = ghr.batch_upsert(isolated_connector, "alice/repo", files, branch="main")
+
+    assert result["committed"] is False
+    assert result["files_unchanged"] == 1
+
+
+def test_batch_upsert_publishes_a_mode_only_change(isolated_connector):
+    """An identical blob with a different mode is a real change.
+
+    The permission lives in the tree entry, not in the blob, so comparing
+    blob SHAs alone would report an executable launcher published as a
+    plain file as fully unchanged and never restore the bit.
+    """
+    local_sha = ghr._git_blob_sha("#!/bin/sh\n")
+
+    def handler(call):
+        method, url = call["method"], call["url"]
+        if method == "GET" and url.endswith("/git/ref/heads/main"):
+            return {"ref": "refs/heads/main", "object": {"sha": "parent-1"}}
+        if method == "GET" and url.endswith("/git/commits/parent-1"):
+            return {"sha": "parent-1", "tree": {"sha": "base-tree"}}
+        if method == "GET" and url.endswith("/git/trees/base-tree"):
+            return {"tree": [{"path": "bin/run", "type": "blob",
+                              "sha": local_sha, "mode": "100644"}]}
+        if method == "POST" and url.endswith("/git/trees"):
+            return {"sha": "tree-mode"}
+        if method == "POST" and url.endswith("/git/commits"):
+            return {"sha": "commit-mode"}
+        if method == "PATCH" and url.endswith("/git/refs/heads/main"):
+            return {"ref": "refs/heads/main", "object": {"sha": "commit-mode"}}
+        raise AssertionError(f"Unexpected: {method} {url}")
+
+    api = FakeAPI(handler)
+    files = [{"path": "bin/run", "content": "#!/bin/sh\n", "mode": "100755"}]
+    with mock.patch.object(ghr, "_request", new=api):
+        result = ghr.batch_upsert(isolated_connector, "alice/repo", files,
+                                  branch="main")
+
+    assert result["committed"] is True
+    assert result["files_updated"] == 1
+    assert result["files_unchanged"] == 0
+    # No blob was created: the content was already there.
+    assert not any(c["url"].endswith("/git/blobs") for c in api.calls)
+    tree_call = next(c for c in api.calls
+                     if c["method"] == "POST" and c["url"].endswith("/git/trees"))
+    assert tree_call["body"]["tree"] == [
+        {"path": "bin/run", "mode": "100755", "type": "blob", "sha": local_sha}
+    ]
+
+
+def test_batch_upsert_keeps_an_unchanged_entry_with_the_same_mode(isolated_connector):
+    """Same blob and same mode stay untouched - no tree, no commit."""
+    local_sha = ghr._git_blob_sha("#!/bin/sh\n")
+
+    def handler(call):
+        method, url = call["method"], call["url"]
+        if method == "GET" and url.endswith("/git/ref/heads/main"):
+            return {"ref": "refs/heads/main", "object": {"sha": "parent-1"}}
+        if method == "GET" and url.endswith("/git/commits/parent-1"):
+            return {"sha": "parent-1", "tree": {"sha": "base-tree"}}
+        if method == "GET" and url.endswith("/git/trees/base-tree"):
+            return {"tree": [{"path": "bin/run", "type": "blob",
+                              "sha": local_sha, "mode": "100755"}]}
+        raise AssertionError(f"Unexpected write: {method} {url}")
+
+    api = FakeAPI(handler)
+    files = [{"path": "bin/run", "content": "#!/bin/sh\n", "mode": "100755"}]
+    with mock.patch.object(ghr, "_request", new=api):
+        result = ghr.batch_upsert(isolated_connector, "alice/repo", files,
+                                  branch="main")
 
     assert result["committed"] is False
     assert result["files_unchanged"] == 1

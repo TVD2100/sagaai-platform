@@ -282,12 +282,23 @@ Arguments:
   another directory).
 Files must be UTF-8 text. Returns the same summary as `ghr_batch_commit`.
 
+The executable bit travels with the commit: a POSIX-executable file is
+published with tree mode `100755`, every other file with `100644`. Git
+stores the permission in the tree entry, not in the blob, so a launcher
+published without it arrives as a plain text file for anyone who clones
+the repository. No action is needed on your side - just make the file
+executable locally (`chmod +x`) before publishing it.
+
 ### `ghr_batch_upsert` - batch with change detection
 Like `ghr_batch_commit`, but compares each local file with the remote tree by
 Git blob SHA and **skips unchanged files** (no commit is created when nothing
 changed). Returns `files_created`, `files_updated`, `files_unchanged`,
 `total_files`, `committed`, `commit_sha`.
 Use this for incremental sync of a folder to a repository.
+A file whose content is identical but whose executable bit differs is an
+update, not a skip: the permission lives in the tree entry, so the tool
+publishes a new entry for it (the blob is reused, no content is uploaded
+again).
 
 ---
 

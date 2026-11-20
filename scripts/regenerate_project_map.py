@@ -338,7 +338,7 @@ roles = {
     "tests/test_threads_devagent_search.py": "Unit tests for the thread-search storage/service layer: filtered listing, counts, message windows, access control",
     "tests/test_universal_agent_thread_search.py": "Unit tests for the thread-search tools in the universal dispatcher: defaults, access control, argument coercion",
     "tests/scenarios/test_thread_search_scenarios.py": "Scenario tests for the thread-search tools: current-dialog search without lists, explicit thread_id, orchestrator scope with period, search->read around a match, access control, list pagination",
-    "core/github_connector_rest.py": "GitHub REST connector: batch commits and file ops; GET requests retry on network errors (Timeout/ConnectionError, up to 3 attempts, 0.5/1.5s backoff)",
+    "core/github_connector_rest.py": "GitHub REST connector: batch commits and file ops, preserving the POSIX executable bit in tree entries; GET requests retry on network errors (Timeout/ConnectionError, up to 3 attempts, 0.5/1.5s backoff)",
     "tests/test_github_connector_rest.py": "Unit tests for the GitHub REST connector (mock sessions)",
     "tests/test_github_connector_retry.py": "Unit tests for the GitHub connector GET retry policy (network errors retried; writes not retried)",
     "tests/scenarios/test_state_recovery_scenario.py": "Scenario tests: compact task-state digest and budgeted CURRENT TASK STATE injection for large journals",
