@@ -1,1 +1,0 @@
-Temporary probe: verifies whether this token can write under .github/.
