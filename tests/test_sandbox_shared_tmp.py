@@ -261,3 +261,73 @@ def test_the_linux_provider_mounts_the_workspace_read_only_when_confined(tmp_pat
     """A read-only profile can still read the project it was given."""
     argv = _bwrap_argv(profiles.READ_ONLY, tmp_path)
     assert ("--ro-bind", str(tmp_path), str(tmp_path)) in _mounts(argv)
+
+
+# ── masking a secret that is a FILE, not a directory ────────────────────────
+#
+# ``--tmpfs`` always creates a directory, so putting it over a database file
+# makes bwrap refuse the whole namespace with ``Can't mkdir <file>: Not a
+# directory``. The platform databases are exactly such files, and they only
+# stayed invisible before because the private tree swallowed their parent.
+
+
+def test_a_secret_file_is_masked_without_creating_a_directory(tmp_path):
+    """A file is hidden by binding an empty source over it."""
+    from core.sandbox.providers import bwrap
+
+    secret = tmp_path / "platform.db"
+    secret.write_text("keys", encoding="utf-8")
+    argv = []
+    bwrap._mask(argv, str(secret), [])
+
+    assert argv == ["--ro-bind", os.devnull, str(secret)]
+    assert "--tmpfs" not in argv
+
+
+def test_a_secret_directory_is_masked_with_a_private_tree(tmp_path):
+    """A directory keeps the cheaper private-tree mask."""
+    from core.sandbox.providers import bwrap
+
+    vault = tmp_path / "keys"
+    vault.mkdir()
+    argv = []
+    bwrap._mask(argv, str(vault), [])
+
+    assert argv == ["--tmpfs", str(vault)]
+
+
+def test_a_mask_inside_a_replaced_tree_is_skipped(tmp_path):
+    """Naming a path the private tree already swallowed would create it."""
+    from core.sandbox.providers import bwrap
+
+    gone = tmp_path / "stage.db"
+    gone.write_text("x", encoding="utf-8")
+    argv = []
+    bwrap._mask(argv, str(gone), [str(tmp_path)])
+
+    assert argv == []
+
+
+def test_a_missing_path_gets_no_mask_at_all(tmp_path):
+    """A path with nothing behind it needs no rule."""
+    from core.sandbox.providers import bwrap
+
+    argv = []
+    bwrap._mask(argv, str(tmp_path / "never-created.db"), [])
+
+    assert argv == []
+
+
+def test_the_generated_argv_masks_a_secret_file_without_refusing(tmp_path, monkeypatch):
+    """The platform database is a file, so the namespace must still come up."""
+    from core.sandbox.providers import bwrap, seatbelt
+
+    secret = tmp_path / "sagaai.db"
+    secret.write_text("keys", encoding="utf-8")
+    monkeypatch.setattr(seatbelt, "sensitive_reads", lambda workspace: [str(secret)])
+
+    argv = bwrap.build_argv("bwrap", get_profile(profiles.WORKSPACE_WRITE),
+                            "/opt/project", {})
+
+    assert ("--ro-bind", os.devnull, str(secret)) in _mounts(argv)
+    assert ("--tmpfs", str(secret)) not in _mounts(argv)

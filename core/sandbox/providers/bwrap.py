@@ -73,6 +73,27 @@ def _bind(argv: List[str], path: str, writable: bool) -> None:
     argv += ["--bind" if writable else "--ro-bind", path, path]
 
 
+def _mask(argv: List[str], path: str, hidden: List[str]) -> None:
+    """Hide *path* from the child, whether it is a directory or a file.
+
+    ``--tmpfs`` always creates a directory, so it cannot be put over a file:
+    ``bwrap`` refuses with ``Can't mkdir <path>: Not a directory`` and the
+    whole namespace stays down. A file is masked by binding an empty source
+    over it instead. Two paths need no rule: one that does not exist, and one
+    that already vanished with a tree replaced by a private temporary one -
+    naming either would make ``bwrap`` create the path instead of hiding it.
+    """
+    if not path or not os.path.exists(path):
+        return
+    for tree in hidden:
+        if path == tree or path.startswith(tree.rstrip("/") + "/"):
+            return
+    if os.path.isdir(path):
+        argv += ["--tmpfs", path]
+    else:
+        argv += ["--ro-bind", os.devnull, path]
+
+
 def _private_trees(needed: List[str]) -> List[str]:
     """Return the temporary trees that can be replaced by a private one.
 
@@ -114,11 +135,12 @@ def build_argv(bwrap: str, profile: SandboxProfile, workspace: str,
     argv = [bwrap, "--die-with-parent", "--new-session",
             "--ro-bind", "/", "/",
             "--dev", "/dev", "--proc", "/proc"]
+    hidden = _private_trees(needed)
     # A private temporary tree: the child gets a writable /tmp of its own,
     # and the files of other processes on this machine stay out of its
     # reach. A tree the run itself lives in stays visible - see
     # ``_private_trees`` for why it cannot be replaced and then bound back.
-    for tree in _private_trees(needed):
+    for tree in hidden:
         argv += ["--tmpfs", tree]
     if not profile.network:
         argv.append("--unshare-net")
@@ -147,7 +169,7 @@ def build_argv(bwrap: str, profile: SandboxProfile, workspace: str,
     from core.sandbox.providers.seatbelt import sensitive_reads
 
     for blocked in sensitive_reads(workspace):
-        argv += ["--tmpfs", blocked]
+        _mask(argv, blocked, hidden)
     if workspace and profile.writable:
         # git EXECUTES hooks and can be told to run a program by its config,
         # so those entries stay read-only; the index, objects and refs stay
