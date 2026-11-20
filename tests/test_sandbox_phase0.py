@@ -345,9 +345,16 @@ def test_redaction_keeps_paths_with_credential_words():
 
 
 def test_child_env_has_no_platform_variables():
-    """None of the platform's own variables survive into the child."""
+    """None of the platform's own variables survive into the child.
+
+    The sandbox marker is the one exception and is checked on its own: it
+    describes the confinement a grandchild inherits, not a platform secret.
+    """
+    from dev_agent.sandbox_env import SANDBOX_GRANTS_VAR
+
     env = build_child_env(project_root=None)
-    leaked = [key for key in env if key.upper().startswith("SAGAAI_")]
+    leaked = [key for key in env
+              if key.upper().startswith("SAGAAI_") and key != SANDBOX_GRANTS_VAR]
     assert leaked == []
     assert "SSH_AUTH_SOCK" not in env
 

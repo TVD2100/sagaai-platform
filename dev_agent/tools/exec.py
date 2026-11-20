@@ -101,13 +101,20 @@ class ExecTools(ToolMixin):
             isolate_env=bool(getattr(self, "_env_isolation", True)),
         )
         cleanup: Optional[str] = None
+        script_target: Optional[str] = None
         try:
             if code is not None:
-                cleanup, cmd = inline_command(str(code), self.deps().config.DEFAULT_ENCODING)
+                cleanup, cmd = inline_command(str(code), self.deps().config.DEFAULT_ENCODING,
+                                             env=env)
             else:
                 target = script_path or config.resolve_in_project(path or "")
                 cmd = script_command(tool, target)
-            result = self._run_under_sandbox(tool, cmd, env, timeout_s, code_hash)
+                # The script may live outside the workspace; a provider that
+                # mounts a private temporary tree has to mount it back, or
+                # the interpreter cannot open the program.
+                script_target = str(target)
+            result = self._run_under_sandbox(tool, cmd, env, timeout_s, code_hash,
+                                             script_target)
         except Exception as exc:
             return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
         finally:
@@ -124,7 +131,8 @@ class ExecTools(ToolMixin):
         return result_payload(result, tool, timeout_s, code_hash)
 
     def _run_under_sandbox(self, tool: str, cmd: list, env: dict,
-                           timeout_s: int, code_hash: str) -> Dict[str, Any]:
+                           timeout_s: int, code_hash: str,
+                           script_target: Optional[str] = None) -> Dict[str, Any]:
         """Execute the prepared command through the sandbox journal.
 
         The sandbox decides whether the run may happen (fail-closed), picks
@@ -144,6 +152,7 @@ class ExecTools(ToolMixin):
             code_hash=code_hash, profile=profile,
             thread_id=str(getattr(config, "ACTIVE_THREAD_ID", "") or ""),
             workspace=str(config.PROJECT_ROOT),
+            read_paths=([script_target] if script_target else []),
         )
         # The wait on a child can last minutes. The paths of the request are
         # already resolved, so the process-wide workspace lock is handed back

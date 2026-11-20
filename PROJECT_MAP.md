@@ -2,11 +2,11 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-20T10:12:55+00:00`
+- Обновлено: `2026-11-20T11:27:17+00:00`
 - Файлов: **852**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **11329**
-- Отпечаток содержимого: `sha256:ff0ba9393c93ee96b27c3f0d149f07b8d5456962b42465beabc694872ee17900` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Python-символов: **11342**
+- Отпечаток содержимого: `sha256:c9ab828a41813a76fd8ac0b648c51380f7dd83b63700c462666677b0feb32ed8` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
 - Языки: Config: 2, JSON: 37, Markdown: 42, PEM certificate: 2, Python: 769, TOML: 2, Text: 2
 
 ## Файлы и назначение
@@ -235,7 +235,7 @@
 | `core/sandbox/status.py` | Python | Sandbox status for the system prompt: describe() reads the policy decision, format_lines() states profile, provider, guarantees, write scope, network, limits and whether the child receives the platform environment (the full-access wording never claims a filtered environment) | - |
 | `core/sandbox/providers/__init__.py` | Python | Isolation backend registry: the providers a build ships | - |
 | `core/sandbox/providers/_spawn.py` | Python | Shared spawn path of the OS-level providers: argv, environment, timeouts, output caps, kill-tree and cancellation | - |
-| `core/sandbox/providers/bwrap.py` | Python | T1 provider on Linux: bubblewrap namespaces, network-off and a read-only root with writable workspace | - |
+| `core/sandbox/providers/bwrap.py` | Python | T1 provider on Linux: bubblewrap namespaces, network-off, a read-only root, a private temporary tree and writable workspace, child home and requested read paths | - |
 | `core/sandbox/providers/container.py` | Python | T2 provider: Docker run with translated argv, read-only mounts, process/memory ceilings and container-level cancellation | - |
 | `core/sandbox/providers/inherited.py` | Python | Provider of a run already inside a sandbox: inherits it instead of nesting a second one | - |
 | `core/sandbox/providers/process.py` | Python | T0 provider: child process with built environment and hard limits (no OS isolation) | - |
@@ -3682,9 +3682,9 @@
 - `SandboxProfile` (class, строка 71)
 - `SandboxProfile.to_dict` (func, строка 100)
 - `SandboxRequest` (class, строка 116)
-- `SandboxRequest.fingerprint` (func, строка 132)
-- `SandboxResult` (class, строка 152)
-- `SandboxResult.to_dict` (func, строка 175)
+- `SandboxRequest.fingerprint` (func, строка 140)
+- `SandboxResult` (class, строка 160)
+- `SandboxResult.to_dict` (func, строка 183)
 
 ### `core/sandbox/inheritance.py`
 - `EnclosingSandbox` (class, строка 42)
@@ -3697,8 +3697,8 @@
 - `compare` (func, строка 138)
 
 ### `core/sandbox/launcher.py`
-- `limits_spec` (func, строка 71)
-- `wrap` (func, строка 99)
+- `limits_spec` (func, строка 82)
+- `wrap` (func, строка 110)
 
 ### `core/sandbox/policy.py`
 - `SandboxProvider` (class, строка 29)
@@ -3732,11 +3732,11 @@
 
 ### `core/sandbox/runner.py`
 - `build_request` (func, строка 20)
-- `execute` (func, строка 32)
-- `request_limits` (func, строка 64)
-- `_registry` (func, строка 69)
-- `_record` (func, строка 80)
-- `_main_engine` (func, строка 114)
+- `execute` (func, строка 40)
+- `request_limits` (func, строка 72)
+- `_registry` (func, строка 77)
+- `_record` (func, строка 88)
+- `_main_engine` (func, строка 122)
 
 ### `core/sandbox/status.py`
 - `reset_cache` (func, строка 27)
@@ -3757,12 +3757,15 @@
 - `log_path_for` (func, строка 111)
 
 ### `core/sandbox/providers/bwrap.py`
-- `_resolve_bwrap` (func, строка 32)
-- `build_argv` (func, строка 37)
-- `BwrapProvider` (class, строка 74)
-- `BwrapProvider.__init__` (func, строка 83)
-- `BwrapProvider.available` (func, строка 88)
-- `BwrapProvider.run` (func, строка 107)
+- `_resolve_bwrap` (func, строка 39)
+- `_shared_tmp_paths` (func, строка 44)
+- `_env_paths` (func, строка 49)
+- `_bind` (func, строка 64)
+- `build_argv` (func, строка 76)
+- `BwrapProvider` (class, строка 139)
+- `BwrapProvider.__init__` (func, строка 148)
+- `BwrapProvider.available` (func, строка 153)
+- `BwrapProvider.run` (func, строка 172)
 
 ### `core/sandbox/providers/container.py`
 - `_resolve_docker` (func, строка 44)
@@ -7041,25 +7044,25 @@
 - `TestInstallLock.test_threads_do_not_both_win._worker` (func, строка 122)
 - `TestInstallId` (class, строка 139)
 - `TestInstallId.test_format` (func, строка 140)
-- `TestInstallId.test_ids_are_unique` (func, строка 148)
-- `TestPackageCache` (class, строка 155)
-- `TestPackageCache._fake_packages` (func, строка 156)
-- `TestPackageCache.test_cache_and_read_back` (func, строка 159)
-- `TestPackageCache.test_missing_package_returns_none` (func, строка 167)
-- `TestPackageCache.test_expired_package_is_evicted` (func, строка 172)
-- `TestPackageCache.test_pinned_package_survives_ttl` (func, строка 185)
-- `TestPackageCache.test_lru_prunes_oldest_unpinned` (func, строка 197)
-- `TestPackageCache.test_prune_keeps_pinned_entries` (func, строка 216)
-- `TestRunLog` (class, строка 228)
-- `TestRunLog.test_append_and_find` (func, строка 229)
-- `TestRunLog.test_update_run` (func, строка 238)
-- `TestRunLog.test_retention_keeps_twenty_skills` (func, строка 246)
-- `TestRunLog.test_retention_keeps_three_rag_runs` (func, строка 255)
-- `TestRunLog.test_state_tracks_the_active_run` (func, строка 264)
-- `TestRunDirs` (class, строка 273)
-- `TestRunDirs.test_prepare_cleans_previous_attempt` (func, строка 274)
-- `TestRunDirs.test_cleanup_keeps_backup_by_default` (func, строка 282)
-- `TestRunDirs.test_run_meta_round_trip` (func, строка 292)
+- `TestInstallId.test_ids_are_unique` (func, строка 150)
+- `TestPackageCache` (class, строка 157)
+- `TestPackageCache._fake_packages` (func, строка 158)
+- `TestPackageCache.test_cache_and_read_back` (func, строка 161)
+- `TestPackageCache.test_missing_package_returns_none` (func, строка 169)
+- `TestPackageCache.test_expired_package_is_evicted` (func, строка 174)
+- `TestPackageCache.test_pinned_package_survives_ttl` (func, строка 187)
+- `TestPackageCache.test_lru_prunes_oldest_unpinned` (func, строка 199)
+- `TestPackageCache.test_prune_keeps_pinned_entries` (func, строка 218)
+- `TestRunLog` (class, строка 230)
+- `TestRunLog.test_append_and_find` (func, строка 231)
+- `TestRunLog.test_update_run` (func, строка 240)
+- `TestRunLog.test_retention_keeps_twenty_skills` (func, строка 248)
+- `TestRunLog.test_retention_keeps_three_rag_runs` (func, строка 257)
+- `TestRunLog.test_state_tracks_the_active_run` (func, строка 266)
+- `TestRunDirs` (class, строка 275)
+- `TestRunDirs.test_prepare_cleans_previous_attempt` (func, строка 276)
+- `TestRunDirs.test_cleanup_keeps_backup_by_default` (func, строка 284)
+- `TestRunDirs.test_run_meta_round_trip` (func, строка 294)
 
 ### `tests/test_marketplace_ui_page.py`
 - `_fresh_page` (func, строка 112)
@@ -9177,10 +9180,10 @@
 - `test_redaction_covers_environment_names` (func, строка 321)
 - `test_redaction_keeps_paths_with_credential_words` (func, строка 338)
 - `test_child_env_has_no_platform_variables` (func, строка 347)
-- `test_timeout_kills_the_process_group` (func, строка 358)
-- `test_output_is_bounded_in_memory` (func, строка 379)
-- `test_stdin_is_closed` (func, строка 401)
-- `test_parked_batch_reports_suspended_calls` (func, строка 423)
+- `test_timeout_kills_the_process_group` (func, строка 365)
+- `test_output_is_bounded_in_memory` (func, строка 386)
+- `test_stdin_is_closed` (func, строка 408)
+- `test_parked_batch_reports_suspended_calls` (func, строка 430)
 
 ### `tests/test_sandbox_phase1.py`
 - `StubProvider` (class, строка 29)
@@ -9251,15 +9254,15 @@
 - `test_an_approved_ticket_runs_the_operation_instead_of_parking._Tools` (class, строка 368)
 - `test_an_approved_ticket_runs_the_operation_instead_of_parking._Tools.__init__` (func, строка 371)
 - `test_an_approved_ticket_runs_the_operation_instead_of_parking._Tools._run_under_sandbox` (func, строка 374)
-- `test_an_approved_ticket_runs_the_operation_instead_of_parking._Tools.deps` (func, строка 378)
-- `test_an_approved_ticket_runs_the_operation_instead_of_parking._Tools.deps._Deps` (class, строка 379)
-- `test_an_approved_ticket_runs_the_operation_instead_of_parking._Tools.deps._Deps.config` (class, строка 380)
-- `test_a_run_that_is_not_parked_cannot_be_confirmed` (func, строка 398)
-- `test_a_run_that_is_not_parked_cannot_be_confirmed._Snapshot` (class, строка 404)
-- `test_only_a_confirmable_pause_keeps_its_live_state` (func, строка 416)
-- `test_only_a_confirmable_pause_keeps_its_live_state._Service` (class, строка 425)
-- `test_only_a_confirmable_pause_keeps_its_live_state._Service.save_record` (func, строка 427)
-- `test_an_unknown_decision_word_is_refused` (func, строка 454)
+- `test_an_approved_ticket_runs_the_operation_instead_of_parking._Tools.deps` (func, строка 379)
+- `test_an_approved_ticket_runs_the_operation_instead_of_parking._Tools.deps._Deps` (class, строка 380)
+- `test_an_approved_ticket_runs_the_operation_instead_of_parking._Tools.deps._Deps.config` (class, строка 381)
+- `test_a_run_that_is_not_parked_cannot_be_confirmed` (func, строка 399)
+- `test_a_run_that_is_not_parked_cannot_be_confirmed._Snapshot` (class, строка 405)
+- `test_only_a_confirmable_pause_keeps_its_live_state` (func, строка 417)
+- `test_only_a_confirmable_pause_keeps_its_live_state._Service` (class, строка 426)
+- `test_only_a_confirmable_pause_keeps_its_live_state._Service.save_record` (func, строка 428)
+- `test_an_unknown_decision_word_is_refused` (func, строка 455)
 
 ### `tests/test_sandbox_preferences.py`
 - `employee` (func, строка 22)
@@ -9296,49 +9299,59 @@
 - `test_the_schedule_builder_reads_the_employee_preferences` (func, строка 269)
 
 ### `tests/test_sandbox_security.py`
-- `_providers` (func, строка 37)
-- `_os_provider` (func, строка 44)
-- `zone` (func, строка 59)
-- `_run` (func, строка 69)
-- `test_a_writable_profile_can_write_inside_the_workspace` (func, строка 83)
-- `test_a_writable_profile_cannot_write_outside_the_workspace` (func, строка 93)
-- `test_a_symbolic_link_inside_the_workspace_does_not_widen_it` (func, строка 115)
-- `test_a_writable_profile_cannot_write_into_git_hooks` (func, строка 142)
-- `test_a_writable_profile_cannot_write_into_git_modules` (func, строка 168)
-- `test_a_writable_profile_can_stage_a_commit_into_git` (func, строка 183)
-- `test_protected_git_paths_names_only_existing_entries` (func, строка 205)
-- `test_the_platform_database_is_unreadable_from_a_run` (func, строка 223)
-- `test_a_skill_package_is_readable_from_a_run` (func, строка 242)
-- `test_sensitive_reads_protects_the_credential_stores` (func, строка 260)
-- `test_sensitive_reads_leaves_a_workspace_that_contains_the_data` (func, строка 282)
-- `test_a_read_only_profile_cannot_write_into_the_workspace` (func, строка 297)
-- `test_a_no_network_profile_cannot_open_a_socket` (func, строка 311)
-- `test_a_long_wait_does_not_block_another_dialog` (func, строка 325)
-- `test_a_long_wait_does_not_block_another_dialog.long_run` (func, строка 340)
-- `test_a_long_wait_does_not_block_another_dialog.other_dialog` (func, строка 348)
-- `test_the_binding_lock_is_balanced_after_a_suspended_wait` (func, строка 370)
-- `test_the_launcher_plans_only_limits_the_platform_can_hold` (func, строка 390)
-- `test_the_launcher_is_skipped_when_there_is_nothing_to_enforce` (func, строка 406)
-- `test_the_launcher_bounds_the_size_of_a_written_file` (func, строка 416)
-- `test_the_launcher_bounds_cpu_time` (func, строка 429)
-- `test_a_running_child_is_stopped_from_another_thread` (func, строка 445)
-- `test_a_running_child_is_stopped_from_another_thread.worker` (func, строка 457)
-- `test_cancelling_a_run_kills_its_grandchildren` (func, строка 483)
-- `test_cancelling_a_run_kills_its_grandchildren.worker` (func, строка 495)
-- `test_cancelling_one_run_leaves_its_sibling_alive` (func, строка 524)
-- `test_cancelling_one_run_leaves_its_sibling_alive.worker` (func, строка 529)
-- `test_cancelling_another_dialog_leaves_this_run_alone` (func, строка 554)
-- `test_cancelling_another_dialog_leaves_this_run_alone.worker` (func, строка 559)
+- `_providers` (func, строка 38)
+- `_os_provider` (func, строка 45)
+- `zone` (func, строка 60)
+- `_run` (func, строка 70)
+- `test_a_writable_profile_can_write_inside_the_workspace` (func, строка 84)
+- `test_a_writable_profile_cannot_write_outside_the_workspace` (func, строка 94)
+- `test_a_symbolic_link_inside_the_workspace_does_not_widen_it` (func, строка 116)
+- `test_a_writable_profile_cannot_write_into_git_hooks` (func, строка 143)
+- `test_a_writable_profile_cannot_write_into_git_modules` (func, строка 169)
+- `test_a_writable_profile_can_stage_a_commit_into_git` (func, строка 184)
+- `test_protected_git_paths_names_only_existing_entries` (func, строка 206)
+- `test_the_platform_database_is_unreadable_from_a_run` (func, строка 224)
+- `test_a_skill_package_is_readable_from_a_run` (func, строка 243)
+- `test_sensitive_reads_protects_the_credential_stores` (func, строка 261)
+- `test_sensitive_reads_leaves_a_workspace_that_contains_the_data` (func, строка 283)
+- `test_a_read_only_profile_cannot_write_into_the_workspace` (func, строка 298)
+- `test_a_no_network_profile_cannot_open_a_socket` (func, строка 312)
+- `test_a_long_wait_does_not_block_another_dialog` (func, строка 333)
+- `test_a_long_wait_does_not_block_another_dialog.long_run` (func, строка 348)
+- `test_a_long_wait_does_not_block_another_dialog.other_dialog` (func, строка 356)
+- `test_the_binding_lock_is_balanced_after_a_suspended_wait` (func, строка 378)
+- `test_the_launcher_plans_only_limits_the_platform_can_hold` (func, строка 398)
+- `test_the_launcher_is_skipped_when_there_is_nothing_to_enforce` (func, строка 414)
+- `test_the_launcher_bounds_the_size_of_a_written_file` (func, строка 424)
+- `test_the_launcher_bounds_cpu_time` (func, строка 437)
+- `test_the_cpu_ceiling_leaves_the_hard_limit_above_the_soft_one` (func, строка 450)
+- `test_a_running_child_is_stopped_from_another_thread` (func, строка 473)
+- `test_a_running_child_is_stopped_from_another_thread.worker` (func, строка 485)
+- `test_cancelling_a_run_kills_its_grandchildren` (func, строка 511)
+- `test_cancelling_a_run_kills_its_grandchildren.worker` (func, строка 523)
+- `test_cancelling_one_run_leaves_its_sibling_alive` (func, строка 552)
+- `test_cancelling_one_run_leaves_its_sibling_alive.worker` (func, строка 557)
+- `test_cancelling_another_dialog_leaves_this_run_alone` (func, строка 582)
+- `test_cancelling_another_dialog_leaves_this_run_alone.worker` (func, строка 587)
 
 ### `tests/test_sandbox_shared_tmp.py`
 - `test_writable_network_profiles_grant_the_shared_tree` (func, строка 34)
 - `test_confined_profiles_do_not_grant_the_shared_tree` (func, строка 40)
 - `test_shared_tmp_is_reported_in_the_profile_mapping` (func, строка 45)
-- `test_network_profile_policy_allows_writing_to_tmp` (func, строка 50)
-- `test_workspace_write_policy_does_not_name_the_shared_tree` (func, строка 56)
-- `test_read_only_policy_does_not_name_the_shared_tree` (func, строка 62)
-- `test_user_temp_dirs_reports_an_existing_directory` (func, строка 68)
-- `test_user_temp_dirs_is_empty_when_there_is_no_system_temp` (func, строка 75)
+- `_names_shared_tree` (func, строка 50)
+- `test_network_profile_policy_allows_writing_to_tmp` (func, строка 61)
+- `test_workspace_write_policy_does_not_name_the_shared_tree` (func, строка 67)
+- `test_read_only_policy_does_not_name_the_shared_tree` (func, строка 73)
+- `test_user_temp_dirs_reports_an_existing_directory` (func, строка 79)
+- `test_user_temp_dirs_is_empty_when_there_is_no_system_temp` (func, строка 86)
+- `_mounts` (func, строка 101)
+- `_bwrap_argv` (func, строка 119)
+- `test_the_linux_provider_keeps_the_temporary_tree_private` (func, строка 125)
+- `test_the_linux_provider_mounts_back_what_the_run_owns` (func, строка 138)
+- `test_a_script_outside_the_workspace_is_mounted_read_only` (func, строка 155)
+- `test_the_linux_provider_widens_the_shared_tree_only_on_request` (func, строка 170)
+- `test_the_linux_provider_mounts_the_child_home_for_writing` (func, строка 179)
+- `test_the_linux_provider_mounts_the_workspace_read_only_when_confined` (func, строка 195)
 
 ### `tests/test_sandbox_status.py`
 - `StubProvider` (class, строка 22)
@@ -13361,9 +13374,9 @@
 - `ExecTools` (class, строка 43)
 - `ExecTools._execute` (func, строка 47)
 - `ExecTools._run_command` (func, строка 95)
-- `ExecTools._run_under_sandbox` (func, строка 126)
-- `ExecTools.run_test` (func, строка 165)
-- `ExecTools.run_code` (func, строка 181)
+- `ExecTools._run_under_sandbox` (func, строка 133)
+- `ExecTools.run_test` (func, строка 174)
+- `ExecTools.run_code` (func, строка 190)
 
 ### `dev_agent/tools/exec_support.py`
 - `redact_secrets` (func, строка 48)
@@ -13371,10 +13384,10 @@
 - `subject_for_analysis` (func, строка 97)
 - `confirmation_result` (func, строка 112)
 - `inline_command` (func, строка 131)
-- `script_command` (func, строка 142)
-- `subprocess_cwd` (func, строка 150)
-- `result_payload` (func, строка 165)
-- `script_log_path` (func, строка 192)
+- `script_command` (func, строка 149)
+- `subprocess_cwd` (func, строка 157)
+- `result_payload` (func, строка 172)
+- `script_log_path` (func, строка 199)
 
 ### `dev_agent/tools/file_tree.py`
 - `_sort_key` (func, строка 14)

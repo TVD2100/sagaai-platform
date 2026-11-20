@@ -128,10 +128,17 @@ def confirmation_result(tool: str, assessment, *, path: Optional[Path] = None,
     }
 
 
-def inline_command(code: str, encoding: str):
-    """Write *code* to a temp file; return ``(path to remove, argv)``."""
+def inline_command(code: str, encoding: str, env: Optional[Dict[str, str]] = None):
+    """Write *code* to a temp file; return ``(path to remove, argv)``.
+
+    The file goes into the child's own temporary directory when it has one.
+    A sandbox mounts a private tree over ``/tmp``, so a snippet written to
+    the system path would not exist for the process that must open it: the
+    run would fail with "can't open file" instead of executing the code.
+    """
+    directory = str((env or {}).get("TMPDIR") or "") or None
     handle = tempfile.NamedTemporaryFile("w", suffix=".py", delete=False,
-                                         encoding=encoding)
+                                         encoding=encoding, dir=directory)
     try:
         handle.write(code)
         return handle.name, [__import__("sys").executable, handle.name]

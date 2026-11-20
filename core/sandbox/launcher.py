@@ -55,7 +55,18 @@ if resource is not None:
             _target = int(_value)
             if _hard not in (resource.RLIM_INFINITY, -1) and _target > _hard:
                 _target = _hard
-            resource.setrlimit(_res, (_target, _target))
+            # The soft ceiling is the one that reports: the kernel sends a
+            # signal the program can still handle (SIGXCPU for CPU time,
+            # SIGXFSZ for a file size) and only the hard ceiling kills it
+            # outright. Equal values would go straight to the kill, which
+            # hides WHY the run ended from both the program and the caller.
+            _limit = (_target, _target)
+            if _name == "RLIMIT_CPU":
+                _next = _target + 1
+                if _hard not in (resource.RLIM_INFINITY, -1):
+                    _next = min(_next, _hard)
+                _limit = (_target, _next)
+            resource.setrlimit(_res, _limit)
         except (ValueError, OSError):
             # An unsupported ceiling is skipped, never fatal.
             continue

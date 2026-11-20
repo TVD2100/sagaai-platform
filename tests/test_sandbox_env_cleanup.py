@@ -68,7 +68,8 @@ def test_run_command_removes_the_child_home(monkeypatch):
     """The execution path itself cleans up, not only the helper on its own."""
     seen = {}
 
-    def fake_run_under_sandbox(self, tool, cmd, env, timeout_s, code_hash):
+    def fake_run_under_sandbox(self, tool, cmd, env, timeout_s, code_hash,
+                              script_target=None):
         seen["home"] = env["HOME"]
         seen["exists_during_run"] = os.path.isdir(env["HOME"])
         return {"ok": True, "returncode": 0, "stdout": "", "stderr": "",

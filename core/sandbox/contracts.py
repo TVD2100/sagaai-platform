@@ -128,6 +128,14 @@ class SandboxRequest:
     profile: str = ""
     thread_id: str = ""
     workspace: str = ""
+    #: Paths outside the workspace the run must be able to READ - the script
+    #: of a ``path`` call, for instance. A provider that mounts a private
+    #: temporary tree has to mount these back, or the child cannot open the
+    #: program it was asked to run. They are mounted read-only on purpose:
+    #: running a script is not a reason to make its directory writable.
+    #: Deliberately outside ``fingerprint``: they name machine paths and
+    #: grant no execution of their own - the program is already in ``argv``.
+    read_paths: Tuple[str, ...] = ()
 
     def fingerprint(self) -> str:
         """Return a stable hash of the executable part of the request.

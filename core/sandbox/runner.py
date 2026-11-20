@@ -19,13 +19,21 @@ from core.sandbox.contracts import ResourceLimits, SandboxRequest, SandboxResult
 
 def build_request(*, tool: str, argv: Sequence[str], cwd: str, env: Dict[str, str],
                   code_hash: str = "", profile: str = "", thread_id: str = "",
-                  workspace: str = "") -> SandboxRequest:
-    """Describe one run without executing anything."""
+                  workspace: str = "",
+                  read_paths: Sequence[str] = ()) -> SandboxRequest:
+    """Describe one run without executing anything.
+
+    ``read_paths`` names files outside the workspace the run must be able to
+    read - the script of a ``path`` call. A provider that mounts a private
+    temporary tree mounts them back read-only, so the child can open the
+    program it was asked to run.
+    """
     return SandboxRequest(
         tool=str(tool or ""), argv=tuple(str(item) for item in argv),
         cwd=str(cwd or ""), env=dict(env or {}), code_hash=str(code_hash or ""),
         profile=str(profile or ""), thread_id=str(thread_id or ""),
         workspace=str(workspace or ""),
+        read_paths=tuple(str(item) for item in (read_paths or ()) if item),
     )
 
 

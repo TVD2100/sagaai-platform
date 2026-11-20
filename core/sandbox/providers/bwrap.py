@@ -2,10 +2,16 @@
 """T1 provider on Linux: bubblewrap (``bwrap``).
 
 ``bwrap`` builds a mount namespace for the child: the root filesystem is
-mounted read-only, a private temporary directory is provided, the workspace
-is bind-mounted read-write only when the profile is writable, and
+mounted read-only, a private temporary directory is provided, the child's own
+HOME and TMPDIR are mounted writable on top of it, the workspace is
+bind-mounted read-write only when the profile is writable, and
 ``--unshare-net`` removes the network namespace entirely when the profile
 does not grant it.
+
+The temporary tree is private unless the profile asks for the shared one:
+the files of other processes on the machine are not part of what a run was
+given. Everything the run itself needs there - its HOME, its own temporary
+directory, the snippet of an inline call - is mounted back by path.
 
 A read-only profile keeps the workspace mounted read-only instead of being
 omitted: the child must still be able to read the project it is inspecting.
@@ -17,9 +23,10 @@ rather than a missing guarantee.
 """
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from core.sandbox.contracts import ResourceLimits, SandboxProfile, SandboxRequest, SandboxResult
 from core.sandbox.policy import SandboxProvider
@@ -34,23 +41,81 @@ def _resolve_bwrap() -> Optional[str]:
     return shutil.which("bwrap")
 
 
-def build_argv(bwrap: str, profile: SandboxProfile, workspace: str) -> List[str]:
+def _shared_tmp_paths() -> List[str]:
+    """Return the shared temporary trees that exist on this machine."""
+    return [path for path in ("/tmp", "/var/tmp") if os.path.isdir(path)]
+
+
+def _env_paths(env: Optional[Dict[str, str]]) -> List[str]:
+    """Return the child's own HOME and temporary directories.
+
+    These are the paths the interpreter writes its caches to before the
+    generated program runs, so they are granted in every profile - the same
+    grant the macOS provider makes through ``_writable_paths``.
+    """
+    paths: List[str] = []
+    for key in ("HOME", "TMPDIR", "TMP", "TEMP"):
+        value = str((env or {}).get(key) or "")
+        if value and os.path.isdir(value) and value not in paths:
+            paths.append(value)
+    return paths
+
+
+def _bind(argv: List[str], path: str, writable: bool) -> None:
+    """Append a bind mount of *path* onto itself.
+
+    A missing path is skipped: a bind mount of something that does not
+    exist makes ``bwrap`` fail, and a directory nobody created needs no
+    rule.
+    """
+    if not path or not os.path.exists(path):
+        return
+    argv += ["--bind" if writable else "--ro-bind", path, path]
+
+
+def build_argv(bwrap: str, profile: SandboxProfile, workspace: str,
+               env: Optional[Dict[str, str]] = None,
+               read_paths: Optional[List[str]] = None) -> List[str]:
     """Return the bwrap arguments that implement *profile*.
 
     Args:
         bwrap: path of the executable.
         profile: the profile being honoured.
         workspace: project root mounted into the namespace.
+        env: environment of the child; its ``HOME`` and temporary
+            directories are mounted writable.
+        read_paths: files outside the workspace the run must be able to
+            open, mounted read-only.
     """
     argv = [bwrap, "--die-with-parent", "--new-session",
             "--ro-bind", "/", "/",
             "--dev", "/dev", "--proc", "/proc",
+            # A private temporary tree: the child gets a writable /tmp of its
+            # own, and the files of other processes on this machine stay
+            # out of its reach. What the run legitimately needs from the
+            # real tree is mounted back below, path by path.
             "--tmpfs", "/tmp"]
     if not profile.network:
         argv.append("--unshare-net")
+    # Staging a file at a hardcoded /tmp path is what ``shared_tmp`` grants:
+    # such a backend ignores TMPDIR, so the private tree has to be replaced
+    # by the real one for a profile that asked for it.
+    if profile.shared_tmp and profile.writable:
+        for path in _shared_tmp_paths():
+            _bind(argv, path, True)
     if workspace:
         argv += ["--bind" if profile.writable else "--ro-bind", workspace, workspace]
         argv += ["--chdir", workspace]
+    # The interpreter writes its caches into HOME and its temporary files
+    # into TMPDIR, so both are mounted writable - inside the private tree
+    # when they live there, which recreates just those directories there.
+    for path in _env_paths(env):
+        _bind(argv, path, True)
+    # A script the run must open but does not own - the ``path`` mode of a
+    # tool - is mounted read-only: running it is not a reason to let the
+    # child write into its directory.
+    for path in (read_paths or []):
+        _bind(argv, str(path), False)
     # Mounts are applied in order, so a later mask hides what the earlier
     # root bind made visible: the platform data directory and the user's key
     # stores are the files a generated program has no reason to see.
@@ -129,7 +194,8 @@ class BwrapProvider(SandboxProvider):
         if not executable:
             return SandboxResult(ok=False, provider=self.name, isolation=self.isolation,
                                  error="bwrap is not installed on this machine.")
-        prefix = build_argv(executable, profile, request.workspace or request.cwd)
+        prefix = build_argv(executable, profile, request.workspace or request.cwd,
+                            request.env, list(request.read_paths))
         marked = inheritance.with_marker(request, profile)
         return run_wrapped(self.name, self.isolation, prefix, marked, limits,
                            subprocess_module=self._subprocess)

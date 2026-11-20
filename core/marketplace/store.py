@@ -244,9 +244,9 @@ def read_json(path: str, default: Any = None) -> Any:
 
 
 def new_install_id() -> str:
-    """Return a fresh run identifier: ``<YYYYMMDD>T<HHMMSS>Z-<4hex>``."""
+    """Return a fresh run identifier: ``<YYYYMMDD>T<HHMMSS>Z-<8hex>`` (unique within a second)."""
     stamp = (_now()).strftime("%Y%m%dT%H%M%SZ")
-    return f"{stamp}-{uuid.uuid4().hex[:4]}"
+    return f"{stamp}-{uuid.uuid4().hex[:8]}"
 
 
 # ─── Install mutex ────────────────────────────────────────────────────────

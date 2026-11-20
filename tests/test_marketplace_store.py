@@ -142,8 +142,10 @@ class TestInstallId:
 
         install_id = store.new_install_id()
         # Fixed format: it names the backup folder and appears in the log.
-        assert len(install_id) == len("20261027T100000Z-aaaa")
         assert install_id[8] == "T" and install_id[15] == "Z" and install_id[16] == "-"
+        suffix = install_id.split("-", 1)[1]
+        assert len(suffix) == 8, suffix
+        assert all(char in "0123456789abcdef" for char in suffix), suffix
 
     def test_ids_are_unique(self, marketplace_data_dir):
         from core.marketplace import store

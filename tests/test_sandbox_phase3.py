@@ -371,7 +371,8 @@ def test_an_approved_ticket_runs_the_operation_instead_of_parking(monkeypatch):
         def __init__(self):
             self.calls = []
 
-        def _run_under_sandbox(self, tool, cmd, env, timeout_s, code_hash):
+        def _run_under_sandbox(self, tool, cmd, env, timeout_s, code_hash,
+                              script_target=None):
             self.calls.append((tool, list(cmd)))
             return {"ok": True, "returncode": 0, "stdout": "", "stderr": ""}
 

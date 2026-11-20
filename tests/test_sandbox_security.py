@@ -18,6 +18,7 @@ a silent pass on a machine without the backend would be worse than a skip.
 """
 from __future__ import annotations
 
+import ast
 import os
 import subprocess
 import sys
@@ -319,7 +320,14 @@ def test_a_no_network_profile_cannot_open_a_socket(zone):
 
     assert result.ok is False
     assert "CONNECTED" not in result.stdout
-    assert "Permission" in result.stderr or "not permitted" in result.stderr.lower()
+    # An unreachable network is refused rather than reached. Linux removes
+    # the network namespace entirely, so a connect fails with ENETUNREACH
+    # or ECONNREFUSED; macOS denies the syscall with EPERM. Both prove the
+    # guarantee - a reachable address would have connected.
+    refused = ("Permission" in result.stderr or "not permitted" in result.stderr.lower()
+               or "ConnectionRefusedError" in result.stderr
+               or "Network is unreachable" in result.stderr)
+    assert refused, result.stderr
 
 
 def test_a_long_wait_does_not_block_another_dialog():
@@ -437,6 +445,26 @@ def test_the_launcher_bounds_cpu_time():
     # -SIGXCPU (or the shell-style 128+24) is the kernel telling the child
     # that it used up its CPU budget.
     assert completed.returncode in (-24, 152), completed.returncode
+
+
+def test_the_cpu_ceiling_leaves_the_hard_limit_above_the_soft_one():
+    """The kernel must report before it kills.
+
+    With the soft and hard ceilings equal the kernel jumps straight to
+    SIGKILL, and the run ends with -9 instead of the -SIGXCPU that says WHY
+    it ended. The gap between the two is what the program gets to react in.
+    """
+    if os.name != "posix":  # pragma: no cover - rlimits are POSIX only
+        pytest.skip("resource limits are a POSIX concept")
+    code = "import resource; print(resource.getrlimit(resource.RLIMIT_CPU))"
+    argv = launcher.wrap([sys.executable, "-c", code], ResourceLimits(cpu_seconds=1))
+
+    completed = subprocess.run(argv, capture_output=True, text=True, timeout=60)
+
+    assert completed.returncode == 0, completed.stderr
+    soft, hard = ast.literal_eval(completed.stdout.strip())
+    assert soft == 1
+    assert hard == 2, (soft, hard)
 
 
 # ── cancellation ────────────────────────────────────────────────────────────
