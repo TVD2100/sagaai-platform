@@ -325,6 +325,11 @@ def test_the_generated_argv_masks_a_secret_file_without_refusing(tmp_path, monke
     secret = tmp_path / "sagaai.db"
     secret.write_text("keys", encoding="utf-8")
     monkeypatch.setattr(seatbelt, "sensitive_reads", lambda workspace: [str(secret)])
+    # Shared trees off the table: on a CI runner the pytest tree lies inside
+    # /tmp, and a path already swallowed by a private tree must NOT get a
+    # mask (naming it would recreate it). With no tree replaced, the mask
+    # always has to be emitted, on every platform.
+    monkeypatch.setattr(bwrap, "_shared_tmp_paths", lambda: [])
 
     argv = bwrap.build_argv("bwrap", get_profile(profiles.WORKSPACE_WRITE),
                             "/opt/project", {})
