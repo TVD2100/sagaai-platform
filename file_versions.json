@@ -6,7 +6,7 @@
     "ru": "У сотрудника появилась объявленная долговременная память: уровни always / on_demand / search с бюджетами чтения задаются в настройках роли, платформа рендерит из них блок Memory profile и даёт пять инструментов (статус, чтение, запись, поиск, ротация), которые работают только с объявленными уровнями. Запись находит точку вставки сама и проверяет строку по объявленным колонкам, поиск отвечает без загрузки файла целиком, ротация держит стоимость чтения постоянной. Субагент получает противоположный блок и не может писать в реестры запустившего его сотрудника. Правило журнала задач переведено на ту же основу: платформа дописывает блок Task journal сотруднику с полным набором инструментов журнала, а сам журнал заводится по правилу применимости, а не для каждой задачи.",
     "en": "An employee now has a declared long-term memory: always / on_demand / search levels with read budgets are set in the role settings, the platform renders the Memory profile block from them and offers five tools (status, read, append, search, rotate) that work only with the declared levels. Append finds the insertion point itself and validates a row against the declared columns, search answers without loading the whole file, and rotate keeps the reading cost flat. A subagent gets the opposite block and cannot write into the registries of the employee that launched it. The task-journal rule rests on the same footing: the platform appends the Task journal block to every employee holding the whole journal tool set, and a journal follows the applicability rule instead of being created for every task."
   },
-  "updated": "2026-11-19T20:02:40Z",
+  "updated": "2026-11-20T10:23:37Z",
   "units": {
     "core": {
       "version": "1.90.1",
@@ -371,8 +371,8 @@
           "version": "1.13.1",
           "sha256": "2332b582a548f6cc0ffc395f6daf3689b0eaa5da476bce73725e186b8ccbaebe",
           "note": {
-            "ru": "Описания тестов пресетов и изоляции состояния: изоляция DATA_DIR и второй AST-страж.",
-            "en": "Descriptions of the preset tests and the state-isolation test: DATA_DIR isolation and the second AST guard."
+            "ru": "Описание GitHub-коннектора в карте дополнено сохранением POSIX-режима при публикации.",
+            "en": "The connector description in the map now covers POSIX-mode preservation on publish."
           }
         },
         "scripts/verify_manifest.py": {
@@ -3493,8 +3493,8 @@
       "version": "1.81.2",
       "sha256": "f26731ae69fc7f62d204dec53de19e5db0f906d4e9cf7fd86e5901546574218e",
       "note": {
-        "ru": "Регенерация: обновлённые описания тестов пресетов и изоляции состояния.",
-        "en": "Regenerated: updated descriptions of the preset tests and the state-isolation test."
+        "ru": "Регенерация: описание GitHub-коннектора дополнено сохранением POSIX-режима в tree-entry.",
+        "en": "Regenerated: the GitHub connector description now covers POSIX-mode preservation in tree entries."
       }
     },
     "README.md": {
@@ -3557,8 +3557,8 @@
       "version": "2.6.0",
       "sha256": "cb40963550caf090a89da207cde73ba6f87afe027fbd47a40252c869400fdca6",
       "note": {
-        "ru": "Инструкция: обязательный файл памяти подключения (читать до работы, предлагать обновление после, без секретов).",
-        "en": "Instruction: the mandatory connection memory file (read before work, offer updates after, never secrets)."
+        "ru": "Публикация сохраняет POSIX-режим: исполняемый файл уходит с tree-mode 100755, а смена только режима считается изменением, а не пропуском.",
+        "en": "Publishing preserves the POSIX mode: an executable file lands with tree mode 100755, and a mode-only difference counts as an update rather than a skip."
       }
     },
     "defaults/instructions/multimodal_mode.md": {
@@ -3645,8 +3645,8 @@
       "version": "2.6.0",
       "sha256": "cb40963550caf090a89da207cde73ba6f87afe027fbd47a40252c869400fdca6",
       "note": {
-        "ru": "Копия DevAgent (идентична глобальной): добавлен раздел обязательного файла памяти подключения.",
-        "en": "DevAgent copy (identical to the global one): the mandatory connection memory file section added."
+        "ru": "Копия DevAgent (идентична глобальной): публикация сохраняет POSIX-режим, смена только режима - это изменение.",
+        "en": "DevAgent copy (identical to the global one): publishing preserves the POSIX mode, and a mode-only difference is an update."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/prompt_improver.md": {
@@ -3917,8 +3917,8 @@
       "version": "1.57.2",
       "sha256": "c42dbce6d2b32514cb5190ce91e1103ac43f4d6ccf974e54bee107717b069991",
       "note": {
-        "ru": "Инвариант lock: он обязан быть разрешён для целевой платформы, а не только для машины сборки - зависимость под маркером platform_system не попадает в файл и ломает установку на Linux-раннере.",
-        "en": "Lock invariant: it must resolve for the target platform, not only for the build machine - a dependency under a platform_system marker never reaches the file and breaks installation on a Linux runner."
+        "ru": "Инвариант lock для целевой платформы и сохранение POSIX-режима при публикации: режим несёт tree-entry, поэтому batch_upsert считает смену режима изменением.",
+        "en": "Lock invariant for the target platform and POSIX-mode preservation on publish: the permission lives in the tree entry, so batch_upsert treats a mode change as an update."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/connector_creator.md": {
