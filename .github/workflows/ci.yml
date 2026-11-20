@@ -47,12 +47,15 @@ jobs:
       # installed here rather than locked, so a tool upgrade never changes
       # what the platform itself resolves to. ``pyright[nodejs]`` ships a
       # Node runtime in the wheel, which keeps the step reproducible without
-      # a system node or a network download at check time.
+      # a system node or a network download at check time. The pyright
+      # version is pinned to the one the type budget was measured with
+      # (``expected_tool`` in pyright_budget.json): an unpinned upgrade would
+      # raise the error count and fail the gate without a code change.
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install --require-hashes -r requirements.lock
-          python -m pip install ruff "pyright[nodejs]"
+          python -m pip install ruff "pyright[nodejs]==1.1.414"
 
       - name: Run the checks
         run: python scripts/ci_check.py
