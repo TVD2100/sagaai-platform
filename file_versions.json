@@ -2478,8 +2478,8 @@
           "sha256": "4537f71d244d737e2795d196ed78b7da62041fea30981fdfd55867dda5447ca9"
         },
         "requirements.lock": {
-          "version": "1.0.1",
-          "sha256": "62a6081533c9f2039070608dd067aa5db089e6b21835c41108f98442601d80e8"
+          "version": "1.0.2",
+          "sha256": "ddbbc23fea9b9d901d39e12332ace16b6377aa1afca3c478c220bd4152ca0e0a"
         },
         "storage/migrations.py": {
           "version": "1.0.1",
@@ -3914,11 +3914,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.57.0",
-      "sha256": "983147f4265f7ab5340eb60f3780e6085cf988418940a9a30729324ca6a356cd",
+      "version": "1.57.1",
+      "sha256": "bd65f73e70eec46886dac19f83abacbb8f6af9436668a1d0aa683bf2cce12038",
       "note": {
-        "ru": "Декларативные уровни долговременной памяти, инструменты памяти с бюджетами и правило применимости журнала задач.",
-        "en": "Declared long-term memory levels, the memory tools with their budgets, and the task-journal applicability rule."
+        "ru": "Инвариант lock: он обязан быть разрешён для целевой платформы, а не только для машины сборки - зависимость под маркером platform_system не попадает в файл и ломает установку на Linux-раннере.",
+        "en": "Lock invariant: it must resolve for the target platform, not only for the build machine - a dependency under a platform_system marker never reaches the file and breaks installation on a Linux runner."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/connector_creator.md": {
