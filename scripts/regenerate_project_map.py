@@ -1038,5 +1038,16 @@ roles.update({
     "tests/scenarios/test_marketplace_agent_install_scenario.py": "Installation scenario: an agent from the catalog opens its chat page, shows the name in the interface language, keeps an author own name and leaves the agent unchanged when the page is opened twice"
 })
 
+roles.update({
+    "core/memory_profile.py": "Declared long-term memory of an employee: normalises the levels of config.memory_profile (always / on_demand / search with read budgets and declared columns), reads and appends records, searches a level without loading it whole, rotates the oldest tail into an archive and renders the Memory profile block for the prompt",
+    "core/prompt_memory.py": "The two memory blocks of a system prompt: the declared memory levels of an employee and the applicability rule of the task journal, each rendered only for a role whose tool set makes the block actionable",
+    "core/prompt_dialog.py": "The agent-dialog block of a system prompt: how a parent answers a parked child and how a child asks, rendered from the tool catalog so a role without the tool never reads the rule",
+    "dev_agent/tools/memory.py": "Memory tools of the executor (memory_status, memory_read, memory_append, memory_search, memory_rotate): they work only with the levels an employee declared, refuse a write from a delegated child and keep the reading cost inside the declared budgets",
+    "dev_agent/tools/role_guard.py": "Write barrier of a delegated child against the working-data folder of the employee that launched it: the child_mode flag of the executor plus the set of tools that record data a role keeps across dialogs",
+    "tests/test_memory_profile.py": "Unit tests of the declared memory levels: normalisation of a declaration, the read budget, append with column validation, search and rotation",
+    "tests/test_memory_tools.py": "Tool tests of the memory surface: the five tools reach only declared levels, a search level is not readable whole, and a delegated child is refused on write",
+    "tests/test_task_journal_rule.py": "Tests of the journal applicability rule in the prompt: the block appears only for a role holding the whole journal tool set, and the parent and child wording differ"
+})
+
 if __name__ == "__main__":
     main()

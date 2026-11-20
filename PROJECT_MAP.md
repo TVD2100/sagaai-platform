@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-12T18:31:57+00:00`
-- Файлов: **844**
+- Обновлено: `2026-11-19T20:02:28+00:00`
+- Файлов: **852**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **11236**
-- Отпечаток содержимого: `sha256:50f7da5baee1fb57af08f831c3ba9fb2b5363877b159fbb376051cda77151f5e` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 2, JSON: 37, Markdown: 42, PEM certificate: 2, Python: 761, TOML: 2, Text: 2
+- Python-символов: **11322**
+- Отпечаток содержимого: `sha256:497af32c29146f8239d4197eca158eab2d8a40d3d880c34fe0072faecf9c13ed` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 2, JSON: 37, Markdown: 42, PEM certificate: 2, Python: 769, TOML: 2, Text: 2
 
 ## Файлы и назначение
 
@@ -126,6 +126,7 @@
 | `core/mcp_client.py` | Python | MCP client, dual transport (stdlib only, no official SDK): McpClient (stdio) - Popen without shell, initialize/initialized handshake, per-process tools/list cache, text-only tools/call, 30/60s timeouts with termination and connection lockout, process registry, stderr to log; McpHttpClient (http) - POST requests with JSON or SSE responses, Mcp-Session-Id replay, Authorization header from an auth_header template resolved with the decrypted secrets per request (empty secrets skip the header), client cache dropped after secret updates; shared inputSchema translation into platform tool parameters | - |
 | `core/mcp_tools.py` | Python | MCP tools for orchestrators: static mcp_list_tools/mcp_call_tool and dynamic mcp__<conn>__<tool> tools with a reverse registry and a 60s discovery cache; env_json decrypted only for the server process; http transport branches; untrusted server data sanitized | - |
 | `core/memory_migration.py` | Python | Migration of a legacy <project>/<slug>_data folder into the central agents_data root: a read-only plan with per-file actions, a copy verified by size and sha256 before any success is reported, conflicts reported instead of merged, the source folder never deleted and a dry-run by default | - |
+| `core/memory_profile.py` | Python | Declared long-term memory of an employee: normalises the levels of config.memory_profile (always / on_demand / search with read budgets and declared columns), reads and appends records, searches a level without loading it whole, rotates the oldest tail into an archive and renders the Memory profile block for the prompt | - |
 | `core/multimodal.py` | Python | Vision/image model resolution + analyze_image/generate_image wrappers (core.multimodal); the analysis reply is fenced as DATA_FROM_IMAGE and reported as untrusted data | - |
 | `core/naming.py` | Python | One resolver for entity names: the four slots (user-defined, en, ru, zh-CN), the interface-language order with its fallbacks, split_name_slots and merge_slots for partial updates, and name_fields_from for folders and packages | - |
 | `core/naming_backfill.py` | Python | Filling empty name slots on already-installed entities: orchestrators and assistants get the translations their shipped preset carries, and a preset is recognised by slug so a rename never creates a copy | - |
@@ -151,8 +152,10 @@
 | `core/paths.py` | Python | Central path registry: DATA_DIR, DB_PATH, personal memory folder, AGENTS_DATA_DIR (the central root of the orchestrators' working folders) and ensure_data_dirs for the runtime layout | - |
 | `core/personal_memory.py` | Python | Personal memory layer: scopes user / orchestrator:<slug> / project:<hash12> / connector:<id> (adapter), 64 KiB per-scope limit, atomic write with updated_at/updated_by/revision header, ten recoverable versions under personal/.backups, credential screening, caller-based write rights, archive on employee deletion, owner-card rendering | - |
 | `core/prompt_blocks.py` | Python | _(описание не задано)_ | - |
+| `core/prompt_dialog.py` | Python | The agent-dialog block of a system prompt: how a parent answers a parked child and how a child asks, rendered from the tool catalog so a role without the tool never reads the rule | - |
 | `core/prompt_guard.py` | Python | Prompt-injection protection and sanitization | - |
 | `core/prompt_improver.py` | Python | _(описание не задано)_ | - |
+| `core/prompt_memory.py` | Python | The two memory blocks of a system prompt: the declared memory levels of an employee and the applicability rule of the task journal, each rendered only for a role whose tool set makes the block actionable | - |
 | `core/rag.py` | Python | RAG base CRUD: folder and manifest (search_mode bm25/vector/hybrid, default bm25), explicit-slug create_base (Latin, normalised), files, chunk stats and the provider-credentials activity flag | - |
 | `core/rag_bm25.py` | Python | Own BM25F lexical index of a RAG base: bm25_terms/bm25_docs tables with a field dimension in index.db (schema v3); body and chunk-header indexed as SEPARATE fields with their own df/avgdl, so a repeated header does not collapse the body IDF while a header-only product name stays searchable; conservative Cyrillic stemmer, ru/en stop-words, coordination factor, lazy rebuild of older indexes/legacy tables, incremental hooks, no API keys | - |
 | `core/rag_chunker.py` | Python | _(описание не задано)_ | - |
@@ -402,6 +405,8 @@
 | `tests/test_mcp_client.py` | Python | MCP client tests with a stdlib mini JSON-RPC server fixture: handshake and bad-version start, tools/list with caching, call success/isError/rpc-error, non-text result rejection, broken command, dead process, timeout with termination and lockout, process registry, stderr, schema translation, http auth-header resolution (empty placeholders skip the header, the OAuth scheme survives resolution while Bearer never appears), HTTP code hints and a 403 message that exposes no secrets | - |
 | `tests/test_memory_dir_config.py` | Python | Unit tests for the memory_dir setting and the deletion cascade: config storage, an empty value removes the key, the resolver sources, the central default, the explicit scopes and the memory archived on employee delete | - |
 | `tests/test_memory_migration.py` | Python | Unit tests for the legacy-folder migration: a plan without writes, a verified copy, conflict and missing-source reporting, and the dry-run and apply modes of the CLI | - |
+| `tests/test_memory_profile.py` | Python | Unit tests of the declared memory levels: normalisation of a declaration, the read budget, append with column validation, search and rotation | - |
+| `tests/test_memory_tools.py` | Python | Tool tests of the memory surface: the five tools reach only declared levels, a search level is not readable whole, and a delegated child is refused on write | - |
 | `tests/test_multimodal.py` | Python | Unit tests for core.multimodal and the image request transports | - |
 | `tests/test_multimodal_instruction.py` | Python | Tests for the multimodal_mode instruction seeding and content, incl. the picture-extraction contract | - |
 | `tests/test_multimodal_tools.py` | Python | Unit tests for the analyze_image/generate_image tools | - |
@@ -518,6 +523,7 @@
 | `tests/test_structured_output_consumers.py` | Python | _(описание не задано)_ | - |
 | `tests/test_subagent_transcript_modes.py` | Python | _(описание не задано)_ | - |
 | `tests/test_system_prompt_subagents.py` | Python | Tests for the subagent sections of the DevAgent system prompt: the launch rules, the background mode, the observation tools, the resume contract and the capped resume chain | - |
+| `tests/test_task_journal_rule.py` | Python | Tests of the journal applicability rule in the prompt: the block appears only for a role holding the whole journal tool set, and the parent and child wording differ | - |
 | `tests/test_task_scout_default.py` | Python | Unit tests for the bundled Task Scout: folder completeness, conservative defaults, prompt contract, default import, catalog adoptability, and the delegation boundary of both read-only helpers | storage |
 | `tests/test_task_state.py` | Python | Task-state journal tests (dialog-folder fallback in the empty state) | - |
 | `tests/test_task_state_prune.py` | Python | Unit tests for journal retention: only empty journals past the age threshold are removed, journals with an active task or history survive, the live dialog and fresh files survive, a non-journal file is left alone, an orphaned child journal goes only when its run reported a terminal outcome, and the sweep does not cascade onto children in the same pass | - |
@@ -811,7 +817,7 @@
 | `dev_agent/tool_registry.py` | Python | Pure helpers of the connection-tool registry and memory writes: overwrite-flag normalisation, append concatenation, the enabled service set, family registration and removal | - |
 | `dev_agent/tool_validation.py` | Python | Pre-execution validation of a tool call: disabled tools, argument names and delegation rights; free of dispatcher state, so the agent loop imports it directly instead of reaching through the facade | tool_catalog_data, tools |
 | `dev_agent/transcript.py` | Python | Append-only file store of delegated conversations, kept out of devagent.db: one JSONL segment per child under <history>/<parent>/subagents/<child>/ with rotation and a gzip-compressed cold segment, a single-line append under a per-path lock so a crash truncates at most the last line, event-prefix stripping, checkpoint records for resume, and retention (compress cold segments, drop whole segments of quiet threads, report - never silently delete - a folder whose index row is gone) | storage |
-| `dev_agent/universal_agent.py` | Python | Tool dispatcher for orchestrators: the workspace tool methods, the orchestrator, connection and memory administration surface and the deliberate re-export of the names the handlers and the test suite look up; the catalog data, the call validation, the document-image helpers, the dialog-search targeting rules and the connection-tool registry live in separate modules of the package, so the facade keeps only dispatch and state; get/set/list_personal_memory read and write the personal memory layer, and the file tools reach the working folder through the memory: prefix even with no project selected | orchestrator_tools, tool_catalog_data, tool_executor, tool_validation |
+| `dev_agent/universal_agent.py` | Python | Tool dispatcher for orchestrators: the workspace tool methods, the orchestrator, connection and memory administration surface and the deliberate re-export of the names the handlers and the test suite look up; the catalog data, the call validation, the document-image helpers, the dialog-search targeting rules and the connection-tool registry live in separate modules of the package, so the facade keeps only dispatch and state; get/set/list_personal_memory read and write the personal memory layer, and the file tools reach the working folder through the memory: prefix even with no project selected | orchestrator_tools, tool_catalog_data, tool_executor, tool_validation, tools |
 | `dev_agent/workspace_binding.py` | Python | Per-thread workspace binding registry under an RLock; thread_context applies and restores a thread's state, bind_child_thread gives a child run the parent's workspace with its own derived thread ({parent}__s{run_id[:8]}, no target_file), writes the child's thread index row (kind=subagent, parent_thread_id, a history-relative transcript_path, the workspace) idempotently and without letting a store failure break the run, and unbind_thread releases it when the run ends | storage |
 | `dev_agent/workspace_tools.py` | Python | Workspace layer: folders, project map (AST symbols, content fingerprint, GitHub-published scope filter), docs, snapshots; workspace_selected reporting and per-orchestrator recent workspaces (top 10) | backup_manager |
 | `dev_agent/tools/__init__.py` | Python | Package of the DevAgent tool handlers, grouped by subject: files, editing, patch, exec, workspace, assistants, library, catalog, args, text_utils, rag, history, web_search, url_fetch, images, clock and task_state | - |
@@ -829,9 +835,11 @@
 | `dev_agent/tools/history.py` | Python | Conversation history tools: get_history_index, get_history_messages and the dialog thread tools (search_in_threads, list_threads, read_thread) | deps |
 | `dev_agent/tools/images.py` | Python | Multimodal tools: analyze_image (project images or dialog uploads through the assigned vision model) and generate_image (the prompt, the optional save path, the JPEG written to disk) | deps |
 | `dev_agent/tools/library.py` | Python | Skills and instructions: list_skills_library, get_skill_folder, get_skill_prompt, get_skill_file, mark_skill_adapted and the instruction lookup tools | deps |
+| `dev_agent/tools/memory.py` | Python | Memory tools of the executor (memory_status, memory_read, memory_append, memory_search, memory_rotate): they work only with the levels an employee declared, refuse a write from a delegated child and keep the reading cost inside the declared budgets | deps |
 | `dev_agent/tools/patch.py` | Python | apply_patch: exact anchors first, then the whitespace-tolerant fuzzy match with CRLF normalisation, occurrences and suggestions when an anchor is missing; the phases live in _coerce_edits, _apply_one_edit, _read_patch_target and _commit_patch so the tool body stays a coordinator | deps, safe_writer, text_utils |
 | `dev_agent/tools/path_scope.py` | Python | Which folder a tool call addresses, judged by its path arguments: all_targets applies a predicate to every path, files, subdir and file_path target of one call, addresses_memory and addresses_dialog_files name the two roots that stay reachable before a project folder is chosen; one project-relative target in a batch is enough to refuse it | - |
 | `dev_agent/tools/rag.py` | Python | RAG tools: list_rag_bases and rag_search with the base search mode (bm25, vector, hybrid) resolved from the base settings, and rag_get_chunks for restoring the context around a hit | deps |
+| `dev_agent/tools/role_guard.py` | Python | Write barrier of a delegated child against the working-data folder of the employee that launched it: the child_mode flag of the executor plus the set of tools that record data a role keeps across dialogs | path_scope |
 | `dev_agent/tools/task_state.py` | Python | Task journal tools: task_state_init, task_state_read, task_state_update, task_state_mark_step and task_state_clear over the per-thread TASK_STATE__<thread_id>.md file | deps |
 | `dev_agent/tools/text_utils.py` | Python | Text helpers shared by the handlers: the usage string of a tool signature, line-window normalisation and the small formatting routines several tool groups need | - |
 | `dev_agent/tools/url_fetch.py` | Python | url_fetch: fetching one page or PDF as Markdown through the configured page-fetch model or Selenium, with the 30 000 character cap and the sanitised [DATA_FROM_URL_FETCH] body | deps |
@@ -2254,6 +2262,28 @@
 - `apply_migration` (func, строка 211)
 - `apply_plan` (func, строка 291)
 
+### `core/memory_profile.py`
+- `MemoryProfileError` (class, строка 58)
+- `safe_relative` (func, строка 62)
+- `_as_int` (func, строка 93)
+- `_normalize_level` (func, строка 102)
+- `normalize_profile` (func, строка 143)
+- `profile_of` (func, строка 179)
+- `get_level` (func, строка 193)
+- `resolve_level_path` (func, строка 209)
+- `_is_template` (func, строка 227)
+- `_read_lines` (func, строка 232)
+- `read_level` (func, строка 242)
+- `_find_table_insert` (func, строка 288)
+- `_find_title_insert` (func, строка 297)
+- `_cell` (func, строка 308)
+- `render_row` (func, строка 323)
+- `append_entry` (func, строка 351)
+- `search_level` (func, строка 417)
+- `rotate_level` (func, строка 468)
+- `level_status` (func, строка 507)
+- `render_block` (func, строка 525)
+
 ### `core/multimodal.py`
 - `MultimodalError` (class, строка 43)
 - `MultimodalError.__init__` (func, строка 54)
@@ -2436,26 +2466,26 @@
 - `sort_orchestrators.key` (func, строка 51)
 
 ### `core/orchestrator_prompt.py`
-- `_extend_prompt_with_personal_card_impl` (func, строка 57)
-- `_extend_prompt_with_memory_impl` (func, строка 96)
-- `_extend_prompt_with_working_memory_impl` (func, строка 164)
-- `_extend_prompt_with_connections_impl` (func, строка 233)
-- `_extend_prompt_with_tools_impl` (func, строка 318)
-- `_extend_prompt_with_rag_bases_impl` (func, строка 339)
-- `_delegation_availability` (func, строка 390)
-- `_agent_delegation_lines` (func, строка 411)
-- `_assistant_delegation_lines` (func, строка 441)
-- `_verify_delegation_lines` (func, строка 457)
-- `_extend_prompt_with_delegation_impl` (func, строка 462)
-- `_extend_prompt_with_skills_impl` (func, строка 507)
-- `_extend_prompt_with_instructions_impl` (func, строка 528)
-- `_format_utc_offset` (func, строка 598)
-- `_current_date_line` (func, строка 603)
-- `_extend_prompt_with_current_date` (func, строка 608)
-- `_extend_prompt_with_sandbox` (func, строка 663)
-- `_extend_prompt_with_dialog` (func, строка 682)
-- `build_assistant_dicts_impl` (func, строка 704)
-- `build_assistant_dicts_impl._resolve_effort` (func, строка 768)
+- `_extend_prompt_with_personal_card_impl` (func, строка 59)
+- `_extend_prompt_with_memory_impl` (func, строка 98)
+- `_extend_prompt_with_working_memory_impl` (func, строка 166)
+- `_extend_prompt_with_connections_impl` (func, строка 235)
+- `_extend_prompt_with_tools_impl` (func, строка 320)
+- `_extend_prompt_with_rag_bases_impl` (func, строка 341)
+- `_delegation_availability` (func, строка 392)
+- `_agent_delegation_lines` (func, строка 413)
+- `_assistant_delegation_lines` (func, строка 443)
+- `_verify_delegation_lines` (func, строка 459)
+- `_extend_prompt_with_delegation_impl` (func, строка 464)
+- `_extend_prompt_with_skills_impl` (func, строка 509)
+- `_extend_prompt_with_instructions_impl` (func, строка 530)
+- `_format_utc_offset` (func, строка 600)
+- `_current_date_line` (func, строка 605)
+- `_extend_prompt_with_current_date` (func, строка 610)
+- `_extend_prompt_with_sandbox` (func, строка 668)
+- `build_assistant_dicts_impl` (func, строка 687)
+- `_resolve_reasoning_effort` (func, строка 756)
+- `_assistant_payload` (func, строка 771)
 
 ### `core/orchestrator_reload.py`
 - `_name_kwargs` (func, строка 37)
@@ -2577,8 +2607,11 @@
 - `rebuild_index` (func, строка 746)
 
 ### `core/prompt_blocks.py`
-- `format_utc_offset` (func, строка 127)
-- `current_date_line` (func, строка 138)
+- `format_utc_offset` (func, строка 188)
+- `current_date_line` (func, строка 199)
+
+### `core/prompt_dialog.py`
+- `extend_prompt_with_dialog` (func, строка 13)
 
 ### `core/prompt_guard.py`
 - `wrap_data` (func, строка 34)
@@ -2593,6 +2626,11 @@
 ### `core/prompt_improver.py`
 - `get_improver_instruction` (func, строка 34)
 - `improve_prompt_with_main_model` (func, строка 53)
+
+### `core/prompt_memory.py`
+- `extend_prompt_with_memory_profile` (func, строка 19)
+- `extend_prompt_with_task_journal` (func, строка 76)
+- `_join` (func, строка 115)
 
 ### `core/rag.py`
 - `_now` (func, строка 44)
@@ -3788,14 +3826,14 @@
 - `child_display_name` (func, строка 99)
 - `bind_child_thread` (func, строка 106)
 - `build_child_dispatcher` (func, строка 128)
-- `build_child_dispatcher._send` (func, строка 166)
-- `open_child_sink` (func, строка 179)
-- `child_event_forwarder` (func, строка 203)
-- `child_event_forwarder._forward` (func, строка 217)
-- `apply_resume_state` (func, строка 238)
-- `step_child_loop` (func, строка 259)
-- `child_final_result` (func, строка 308)
-- `finish_child` (func, строка 337)
+- `build_child_dispatcher._send` (func, строка 174)
+- `open_child_sink` (func, строка 187)
+- `child_event_forwarder` (func, строка 211)
+- `child_event_forwarder._forward` (func, строка 225)
+- `apply_resume_state` (func, строка 246)
+- `step_child_loop` (func, строка 267)
+- `child_final_result` (func, строка 316)
+- `finish_child` (func, строка 345)
 
 ### `core/orchestration/child_text.py`
 - `derive_child_thread_id` (func, строка 19)
@@ -3974,7 +4012,7 @@
 - `_build_child_task_text` (func, строка 2302)
 - `_tree_root_of` (func, строка 2313)
 - `_default_child_runner` (func, строка 2344)
-- `get_service` (func, строка 2482)
+- `get_service` (func, строка 2483)
 
 ### `core/orchestration/tool_classes.py`
 - `_CallBlock` (class, строка 63)
@@ -7165,6 +7203,53 @@
 - `test_cli_apply_copies_and_keeps_the_source` (func, строка 258)
 - `test_cli_reports_an_empty_plan` (func, строка 270)
 
+### `tests/test_memory_profile.py`
+- `folder` (func, строка 25)
+- `test_normalize_accepts_list_and_object` (func, строка 45)
+- `test_normalize_defaults_kind_to_always` (func, строка 53)
+- `test_absolute_and_escaping_paths_are_refused` (func, строка 60)
+- `test_unknown_kind_and_duplicate_id_are_refused` (func, строка 65)
+- `test_level_and_column_limits_are_enforced` (func, строка 73)
+- `test_broken_declaration_does_not_raise_from_profile_of` (func, строка 82)
+- `test_always_level_honours_its_read_budget` (func, строка 88)
+- `test_read_limit_cannot_exceed_the_kind_ceiling` (func, строка 97)
+- `test_search_level_is_never_read_whole` (func, строка 103)
+- `test_search_returns_hits_without_the_whole_file` (func, строка 109)
+- `test_search_refuses_an_empty_query` (func, строка 118)
+- `test_append_prepends_right_after_the_table_header` (func, строка 124)
+- `test_append_creates_the_table_of_an_empty_file` (func, строка 136)
+- `test_append_validates_the_record_against_the_columns` (func, строка 145)
+- `test_append_refuses_a_structured_cell` (func, строка 155)
+- `test_append_refuses_too_long_a_cell` (func, строка 162)
+- `test_template_level_refuses_read_and_append` (func, строка 170)
+- `test_free_text_level_prepends_after_the_title` (func, строка 179)
+- `test_free_text_level_requires_a_body` (func, строка 188)
+- `test_rotate_moves_the_tail_and_keeps_the_head` (func, строка 194)
+- `test_rotate_is_a_no_op_below_the_limit` (func, строка 207)
+- `test_rotate_without_max_rows_is_refused` (func, строка 216)
+- `test_prompt_block_lists_levels_with_their_policy` (func, строка 224)
+- `test_prompt_block_of_a_child_forbids_role_registries` (func, строка 239)
+- `test_prompt_block_is_empty_without_levels` (func, строка 247)
+- `test_level_status_reports_without_reading_the_body` (func, строка 251)
+- `test_status_of_missing_file_is_honest` (func, строка 259)
+- `test_status_of_a_family_level_needs_no_file` (func, строка 266)
+- `test_declaration_round_trips_through_json` (func, строка 273)
+
+### `tests/test_memory_tools.py`
+- `executor` (func, строка 21)
+- `test_status_lists_levels_without_bodies` (func, строка 54)
+- `test_read_applies_the_declared_budget` (func, строка 64)
+- `test_read_refuses_to_load_a_search_level_whole` (func, строка 71)
+- `test_read_of_an_unknown_level_names_the_declared_ones` (func, строка 77)
+- `test_append_writes_one_row_and_keeps_the_rest` (func, строка 83)
+- `test_append_rejects_a_row_that_does_not_match_the_columns` (func, строка 92)
+- `test_search_answers_without_loading_the_journal` (func, строка 98)
+- `test_child_cannot_append_to_the_registries` (func, строка 105)
+- `test_child_cannot_rotate_a_level` (func, строка 115)
+- `test_child_can_still_read_and_search` (func, строка 122)
+- `test_rotate_without_max_rows_reports_the_missing_declaration` (func, строка 128)
+- `test_status_survives_an_unresolvable_folder` (func, строка 134)
+
 ### `tests/test_multimodal.py`
 - `_jpeg` (func, строка 31)
 - `_services` (func, строка 37)
@@ -9920,6 +10005,18 @@
 - `test_linters_run_before_the_test_tiers` (func, строка 146)
 - `test_an_approved_series_keeps_running` (func, строка 157)
 - `test_the_prompt_stays_one_managed_file` (func, строка 168)
+
+### `tests/test_task_journal_rule.py`
+- `journal_enabled` (func, строка 19)
+- `journal_disabled` (func, строка 26)
+- `test_rule_is_rendered_for_a_role_with_the_journal` (func, строка 33)
+- `test_rule_is_withheld_when_the_capability_is_incomplete` (func, строка 39)
+- `test_rule_names_both_the_threshold_and_the_skips` (func, строка 44)
+- `test_rule_points_a_one_step_request_at_long_term_memory` (func, строка 53)
+- `test_rule_requires_a_close_and_forbids_deletion` (func, строка 59)
+- `test_parent_and_child_rules_differ` (func, строка 65)
+- `test_child_rule_keeps_the_answer_out_of_the_journal` (func, строка 74)
+- `test_role_without_the_capability_gets_no_block` (func, строка 80)
 
 ### `tests/test_task_scout_default.py`
 - `platform` (func, строка 33)
@@ -13011,12 +13108,12 @@
 - `apply_active_thread` (func, строка 65)
 
 ### `dev_agent/tool_executor.py`
-- `ToolExecutor` (class, строка 75)
-- `ToolExecutor.__init__` (func, строка 76)
-- `ToolExecutor.set_send_request` (func, строка 121)
-- `ToolExecutor.set_orchestrator_slug` (func, строка 126)
-- `ToolExecutor.dispatch` (func, строка 142)
-- `ToolExecutor.dispatch_json` (func, строка 199)
+- `ToolExecutor` (class, строка 77)
+- `ToolExecutor.__init__` (func, строка 78)
+- `ToolExecutor.set_send_request` (func, строка 123)
+- `ToolExecutor.set_orchestrator_slug` (func, строка 128)
+- `ToolExecutor.dispatch` (func, строка 144)
+- `ToolExecutor.dispatch_json` (func, строка 201)
 
 ### `dev_agent/tool_registry.py`
 - `normalize_overwrite` (func, строка 16)
@@ -13077,66 +13174,66 @@
 - `sweep` (func, строка 982)
 
 ### `dev_agent/universal_agent.py`
-- `load_system_prompt` (func, строка 43)
-- `build_assistant_dict_from_config` (func, строка 71)
-- `build_assistant_dict_from_config._make_assistant` (func, строка 83)
-- `UniversalDevAgent` (class, строка 112)
-- `UniversalDevAgent.__init__` (func, строка 115)
-- `UniversalDevAgent.system_prompt` (func, строка 193)
-- `UniversalDevAgent.tool_catalog` (func, строка 198)
-- `UniversalDevAgent.dispatch` (func, строка 204)
-- `UniversalDevAgent._current_orchestrator_slug` (func, строка 216)
-- `UniversalDevAgent._is_disabled_for_orchestrator` (func, строка 225)
-- `UniversalDevAgent._disabled_tool_error` (func, строка 241)
-- `UniversalDevAgent._dispatch_impl` (func, строка 253)
-- `UniversalDevAgent.attach_orchestrator` (func, строка 303)
-- `UniversalDevAgent._pop_mcp_tools` (func, строка 359)
-- `UniversalDevAgent._attach_connection_tools` (func, строка 370)
-- `UniversalDevAgent._attach_service_family` (func, строка 401)
-- `UniversalDevAgent.attach_orchestrator_catalog` (func, строка 420)
-- `UniversalDevAgent.dispatch_json` (func, строка 439)
-- `UniversalDevAgent._recreate_core_preserving_history` (func, строка 451)
-- `UniversalDevAgent.set_thread_id` (func, строка 476)
-- `UniversalDevAgent._persist_thread_workspace` (func, строка 498)
-- `UniversalDevAgent._sync_binding_after_switch` (func, строка 519)
-- `UniversalDevAgent._set_workspace` (func, строка 525)
-- `UniversalDevAgent._set_target_file` (func, строка 534)
-- `UniversalDevAgent._write_project_map` (func, строка 543)
-- `UniversalDevAgent._write_doc` (func, строка 546)
-- `UniversalDevAgent._read_doc` (func, строка 549)
-- `UniversalDevAgent._snapshot_all` (func, строка 552)
-- `UniversalDevAgent._restore_all` (func, строка 555)
-- `UniversalDevAgent._active_thread_id` (func, строка 561)
-- `UniversalDevAgent._list_thread_files` (func, строка 566)
-- `UniversalDevAgent._read_thread_file` (func, строка 574)
-- `UniversalDevAgent._read_document` (func, строка 590)
-- `UniversalDevAgent._extract_document_images` (func, строка 626)
-- `UniversalDevAgent._vision_available` (func, строка 716)
-- `UniversalDevAgent._document_images_dir` (func, строка 724)
-- `UniversalDevAgent._resolve_document_path` (func, строка 740)
-- `UniversalDevAgent._thread_access_slugs` (func, строка 756)
-- `UniversalDevAgent._normalize_orchestrator_arg` (func, строка 774)
-- `UniversalDevAgent._as_bool` (func, строка 792)
-- `UniversalDevAgent._search_in_threads` (func, строка 805)
-- `UniversalDevAgent._list_threads` (func, строка 852)
-- `UniversalDevAgent._read_thread` (func, строка 874)
-- `UniversalDevAgent._list_connections` (func, строка 898)
-- `UniversalDevAgent._get_connection` (func, строка 903)
-- `UniversalDevAgent._list_connector_services` (func, строка 912)
-- `UniversalDevAgent._list_connection_presets` (func, строка 916)
-- `UniversalDevAgent._create_connection` (func, строка 928)
-- `UniversalDevAgent._update_connection` (func, строка 967)
-- `UniversalDevAgent._delete_connection` (func, строка 979)
-- `UniversalDevAgent._test_connection` (func, строка 988)
-- `UniversalDevAgent._get_enabled_connections` (func, строка 1010)
-- `UniversalDevAgent._set_enabled_connections` (func, строка 1015)
-- `UniversalDevAgent._personal_scope` (func, строка 1027)
-- `UniversalDevAgent._get_personal_memory` (func, строка 1050)
-- `UniversalDevAgent._set_personal_memory` (func, строка 1068)
-- `UniversalDevAgent._owner_profile_refusal` (func, строка 1116)
-- `UniversalDevAgent._list_personal_memory` (func, строка 1137)
-- `UniversalDevAgent._get_connection_memory` (func, строка 1146)
-- `UniversalDevAgent._set_connection_memory` (func, строка 1152)
+- `load_system_prompt` (func, строка 44)
+- `build_assistant_dict_from_config` (func, строка 72)
+- `build_assistant_dict_from_config._make_assistant` (func, строка 84)
+- `UniversalDevAgent` (class, строка 113)
+- `UniversalDevAgent.__init__` (func, строка 116)
+- `UniversalDevAgent.system_prompt` (func, строка 194)
+- `UniversalDevAgent.tool_catalog` (func, строка 199)
+- `UniversalDevAgent.dispatch` (func, строка 205)
+- `UniversalDevAgent._current_orchestrator_slug` (func, строка 217)
+- `UniversalDevAgent._is_disabled_for_orchestrator` (func, строка 226)
+- `UniversalDevAgent._disabled_tool_error` (func, строка 242)
+- `UniversalDevAgent._dispatch_impl` (func, строка 254)
+- `UniversalDevAgent.attach_orchestrator` (func, строка 307)
+- `UniversalDevAgent._pop_mcp_tools` (func, строка 363)
+- `UniversalDevAgent._attach_connection_tools` (func, строка 374)
+- `UniversalDevAgent._attach_service_family` (func, строка 405)
+- `UniversalDevAgent.attach_orchestrator_catalog` (func, строка 424)
+- `UniversalDevAgent.dispatch_json` (func, строка 443)
+- `UniversalDevAgent._recreate_core_preserving_history` (func, строка 455)
+- `UniversalDevAgent.set_thread_id` (func, строка 480)
+- `UniversalDevAgent._persist_thread_workspace` (func, строка 502)
+- `UniversalDevAgent._sync_binding_after_switch` (func, строка 523)
+- `UniversalDevAgent._set_workspace` (func, строка 529)
+- `UniversalDevAgent._set_target_file` (func, строка 538)
+- `UniversalDevAgent._write_project_map` (func, строка 547)
+- `UniversalDevAgent._write_doc` (func, строка 550)
+- `UniversalDevAgent._read_doc` (func, строка 553)
+- `UniversalDevAgent._snapshot_all` (func, строка 556)
+- `UniversalDevAgent._restore_all` (func, строка 559)
+- `UniversalDevAgent._active_thread_id` (func, строка 565)
+- `UniversalDevAgent._list_thread_files` (func, строка 570)
+- `UniversalDevAgent._read_thread_file` (func, строка 578)
+- `UniversalDevAgent._read_document` (func, строка 594)
+- `UniversalDevAgent._extract_document_images` (func, строка 630)
+- `UniversalDevAgent._vision_available` (func, строка 720)
+- `UniversalDevAgent._document_images_dir` (func, строка 728)
+- `UniversalDevAgent._resolve_document_path` (func, строка 744)
+- `UniversalDevAgent._thread_access_slugs` (func, строка 760)
+- `UniversalDevAgent._normalize_orchestrator_arg` (func, строка 778)
+- `UniversalDevAgent._as_bool` (func, строка 796)
+- `UniversalDevAgent._search_in_threads` (func, строка 809)
+- `UniversalDevAgent._list_threads` (func, строка 856)
+- `UniversalDevAgent._read_thread` (func, строка 878)
+- `UniversalDevAgent._list_connections` (func, строка 902)
+- `UniversalDevAgent._get_connection` (func, строка 907)
+- `UniversalDevAgent._list_connector_services` (func, строка 916)
+- `UniversalDevAgent._list_connection_presets` (func, строка 920)
+- `UniversalDevAgent._create_connection` (func, строка 932)
+- `UniversalDevAgent._update_connection` (func, строка 971)
+- `UniversalDevAgent._delete_connection` (func, строка 983)
+- `UniversalDevAgent._test_connection` (func, строка 992)
+- `UniversalDevAgent._get_enabled_connections` (func, строка 1014)
+- `UniversalDevAgent._set_enabled_connections` (func, строка 1019)
+- `UniversalDevAgent._personal_scope` (func, строка 1031)
+- `UniversalDevAgent._get_personal_memory` (func, строка 1054)
+- `UniversalDevAgent._set_personal_memory` (func, строка 1072)
+- `UniversalDevAgent._owner_profile_refusal` (func, строка 1120)
+- `UniversalDevAgent._list_personal_memory` (func, строка 1141)
+- `UniversalDevAgent._get_connection_memory` (func, строка 1150)
+- `UniversalDevAgent._set_connection_memory` (func, строка 1156)
 
 ### `dev_agent/workspace_binding.py`
 - `_norm_tid` (func, строка 55)
@@ -13314,6 +13411,16 @@
 - `LibraryTools.list_instructions` (func, строка 171)
 - `LibraryTools.get_instruction` (func, строка 186)
 
+### `dev_agent/tools/memory.py`
+- `MemoryTools` (class, строка 32)
+- `MemoryTools._memory_context` (func, строка 35)
+- `MemoryTools._is_child` (func, строка 65)
+- `MemoryTools.memory_status` (func, строка 69)
+- `MemoryTools.memory_read` (func, строка 96)
+- `MemoryTools.memory_append` (func, строка 116)
+- `MemoryTools.memory_search` (func, строка 141)
+- `MemoryTools.memory_rotate` (func, строка 156)
+
 ### `dev_agent/tools/patch.py`
 - `_coerce_edits` (func, строка 25)
 - `_apply_one_edit` (func, строка 48)
@@ -13334,6 +13441,9 @@
 - `RagTools.list_rag_bases` (func, строка 34)
 - `RagTools.rag_search` (func, строка 79)
 - `RagTools.rag_get_chunks` (func, строка 170)
+
+### `dev_agent/tools/role_guard.py`
+- `role_data_guard_error` (func, строка 23)
 
 ### `dev_agent/tools/task_state.py`
 - `TaskStateTools` (class, строка 9)

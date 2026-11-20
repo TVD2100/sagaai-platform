@@ -64,15 +64,17 @@ from .tools.files import FilesTools
 from .tools.history import HistoryTools
 from .tools.images import ImageTools
 from .tools.library import LibraryTools
+from .tools.memory import MemoryTools
 from .tools.patch import PatchTools
 from .tools.rag import RagTools
+from .tools.role_guard import role_data_guard_error
 from .tools.task_state import TaskStateTools
 from .tools.url_fetch import UrlFetchTools
 from .tools.web_search import WebSearchTools
 from .tools.workspace import WorkspaceTools
 
 
-class ToolExecutor(FilesTools, EditingTools, PatchTools, ExecTools, WebSearchTools, UrlFetchTools, ImageTools, RagTools, HistoryTools, LibraryTools, AssistantTools, TaskStateTools, ClockTools, WorkspaceTools):
+class ToolExecutor(FilesTools, EditingTools, PatchTools, ExecTools, WebSearchTools, UrlFetchTools, ImageTools, RagTools, HistoryTools, LibraryTools, MemoryTools, AssistantTools, TaskStateTools, ClockTools, WorkspaceTools):
     def __init__(self):
         config.ensure_runtime_dirs()
         self.backups = BackupManager()

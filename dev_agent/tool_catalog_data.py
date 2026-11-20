@@ -56,6 +56,12 @@ WORKSPACE_TOOL_CATALOG: List[Dict[str, str]] = [
     {"name": "get_personal_memory", "desc": "Read the personal memory of one scope - notes about the owner, an employee, a working folder or a connection. Returns content, bytes, updated_at. Args: [scope], [max_chars]. scope: 'current' or omitted (this employee's own notes, default), 'user' (the owner profile shared by every employee), 'orchestrator:<slug>', 'project:<path>', 'connector:<id>'."},
     {"name": "set_personal_memory", "desc": "Write the personal memory of one scope (64 KB cap; credentials are refused). Args: content, [scope], [mode], [note], [overwrite_owner_profile]. mode='replace' (default) or 'append'. scope: 'current' or omitted (own notes, default), 'user' (owner profile), 'project', 'orchestrator:<slug>'. Extend the owner profile with mode='append'; a full rewrite of scope='user' is refused unless overwrite_owner_profile=true and the owner asked for it. Report every write in one line."},
     {"name": "list_personal_memory", "desc": "List the personal memory scopes that hold notes, with size and update time. No args."},
+    # ── Declared long-term memory of the employee ─────────────────────────
+    {"name": "memory_status", "desc": "Report the long-term memory levels declared in this employee's config: id, read policy (always / on_demand / search), file, columns and line count, plus the working-data folder. It reads no level body. Call it when the memory section of the prompt names levels but their state is unclear. No args."},
+    {"name": "memory_read", "desc": "Read one declared memory level under its budget. An 'always' level returns at most its declared read_lines (default 20) so the cost does not grow with the history of the role; an 'on_demand' level returns a larger window; a 'search' level is refused and must be queried with memory_search. Args: level, [limit]."},
+    {"name": "memory_append", "desc": "Prepend ONE record to a declared memory level in a single call - no read-modify-write cycle. The platform finds the insertion point (right after the table header, or after the title of a plain file) and validates a table record against the declared columns before writing. Records are never deleted; a correction is a new dated record carrying the reason. A delegated subagent is refused here. Args: level, [row] (object keyed by the declared columns), [text] (body for a level without columns)."},
+    {"name": "memory_search", "desc": "Answer a query against a declared memory level without reading it whole: returns the matching lines with a two-line context window and the total line count. Use it for 'search' levels such as a journal that grows for years. Args: level, query."},
+    {"name": "memory_rotate", "desc": "Archive the oldest part of a declared memory level when it exceeds its declared max_rows, so reading cost stays flat. The tail moves to the level's archive file and the head stays in place. A delegated subagent is refused here. Args: level."},
 ]
 
 # Keyword-argument allow-lists for the catalog tools above. Used by
@@ -150,6 +156,12 @@ WORKSPACE_TOOL_ARGS: Dict[str, Dict[str, set]] = {
     "get_connection_memory": {"required": {"conn_id"}, "optional": set()},
     "set_connection_memory": {"required": {"conn_id", "content"}, "optional": set()},
     "get_personal_memory": {"required": set(), "optional": {"scope", "max_chars"}},
+    # ── Declared long-term memory ─────────────────────────────────────────
+    "memory_status": {"required": set(), "optional": set()},
+    "memory_read": {"required": {"level"}, "optional": {"limit"}},
+    "memory_append": {"required": {"level"}, "optional": {"row", "text"}},
+    "memory_search": {"required": {"level", "query"}, "optional": set()},
+    "memory_rotate": {"required": {"level"}, "optional": set()},
     "set_personal_memory": {"required": {"content"},
                            "optional": {"scope", "mode", "note",
                                         "overwrite_owner_profile"}},

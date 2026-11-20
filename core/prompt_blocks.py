@@ -52,6 +52,67 @@ DIALOG_RULES_CHILD = (
     "question/answer pairs per run is limited, and a question costs a round.\n",
 )
 
+# ─── Task-journal rules ─────────────────────────────────────────────────────
+
+# The task journal (task_state) is a platform capability, not a role feature:
+# every employee that has the tools receives the same rule about WHEN a
+# journal is worth creating. Keeping the rule here rather than in each prompt
+# is what stops the capability from existing with a rule in one role and no
+# rule in the others - and what keeps a one-step request from paying for a
+# plan, a file and a close it does not need.
+
+TASK_JOURNAL_RULES_PARENT = (
+    "## Task journal (task_state)\n",
+    "",
+    "The task journal is a working file for ONE task of this dialog. It is "
+    "not a log of everything you do: creating it costs a file, a plan and a "
+    "close, so a one-step request must not pay for it.\n",
+    "",
+    "Start a journal with `task_state_init` when BOTH hold:\n",
+    "- the work needs 3 or more steps, or touches 3 or more files or units, "
+    "or is a series of approved items;\n",
+    "- the result is assembled from several findings, so a truncated dialog "
+    "would lose the plan, the decisions or the handoff to a later step.\n",
+    "",
+    "Do NOT start a journal when:\n",
+    "- the request is informational - a question, an explanation, a lookup, "
+    "an opinion, a comparison: the answer itself is the result;\n",
+    "- the change is one step - update one field, rename one file, fix one "
+    "line, mark one project done;\n",
+    "- the work ends inside one or two tool calls, in this same step.\n",
+    "",
+    "For those, act directly, then record the durable outcome in your "
+    "long-term memory (`memory_append`) - a registry row or a memory entry "
+    "is the right record of a finished action, and a task journal would only "
+    "duplicate it.\n",
+    "",
+    "While a journal exists, keep it current: mark a step `in_progress` "
+    "BEFORE the work on it and `done` AFTER its verification passed, with the "
+    "facts the next step needs. The injected CURRENT TASK STATE block is the "
+    "working view; the file is the record that survives the dialog. After the "
+    "final report, close the task with `task_state_clear` - never delete the "
+    "file.\n",
+)
+
+TASK_JOURNAL_RULES_CHILD = (
+    "## Task journal (task_state)\n",
+    "",
+    "Your journal is your OWN file: the caller reads it with "
+    "`read_subagent_state` when it needs your handoff. Create it with "
+    "`task_state_init` when the brief needs 3 or more steps or several files; "
+    "skip it for a one-step lookup or a single edit - then just return the "
+    "result.\n",
+    "",
+    "Record what a resume would need: the plan, the decisions, the files "
+    "produced and what is left open. Never put the final answer only in the "
+    "journal - the result travels in your reply, and the journal is the "
+    "route back into unfinished work.\n",
+    "",
+    "Mark a step `in_progress` before the work and `done` after its "
+    "verification, and close the task with `task_state_clear` once you send "
+    "the result.\n",
+)
+
 # ─── Delegation blocks ──────────────────────────────────────────────────────
 
 #: Opening of the ``spawn_agent`` catalog block: what the tool does, how the

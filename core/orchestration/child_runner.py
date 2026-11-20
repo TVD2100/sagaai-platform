@@ -145,6 +145,14 @@ def build_child_dispatcher(slug: str, base_dir: Optional[str],
 
     dispatcher = UniversalDevAgent(workspace=base_dir, thread_id=child_thread_id)
     dispatcher.attach_orchestrator(slug)
+    # Mark the executor as a child: the memory write tools and the role-data
+    # guard read this flag, so a child cannot record anything in the
+    # registries of the employee that launched it - a text instruction in the
+    # brief is not a permission boundary.
+    try:
+        dispatcher.core.child_mode = True
+    except Exception:  # pragma: no cover - the flag is best effort
+        pass
     # The child inherits the execution preferences of its employee, exactly
     # like the dialog that launched it: a user who switched isolation off
     # must not get it back because the work was delegated. Without this the

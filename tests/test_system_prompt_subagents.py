@@ -20,7 +20,7 @@ def _text() -> str:
 
 
 def test_header_carries_the_version():
-    assert _text().startswith("# DevAgent - System Prompt (v3.31)")
+    assert _text().startswith("# DevAgent - System Prompt (v3.32)")
 
 
 def test_a_child_has_no_confirmation_button():

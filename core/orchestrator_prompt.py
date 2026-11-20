@@ -30,6 +30,8 @@ from core.prompt_blocks import (
     current_date_line,
     format_utc_offset,
 )
+from core.prompt_dialog import extend_prompt_with_dialog
+from core.prompt_memory import extend_prompt_with_memory_profile, extend_prompt_with_task_journal
 from core.services import (
     default_reasoning_effort,
     service_supports_reasoning_effort,
@@ -658,6 +660,9 @@ def _extend_prompt_with_current_date(prompt: str,
 
 _DIALOG_RULES_PARENT = DIALOG_RULES_PARENT
 _DIALOG_RULES_CHILD = DIALOG_RULES_CHILD
+_extend_prompt_with_memory_profile_impl = extend_prompt_with_memory_profile
+_extend_prompt_with_task_journal_impl = extend_prompt_with_task_journal
+_extend_prompt_with_dialog = extend_prompt_with_dialog
 
 
 def _extend_prompt_with_sandbox(prompt: str, cfg: dict, workspace: str = "") -> str:
@@ -677,28 +682,6 @@ def _extend_prompt_with_sandbox(prompt: str, cfg: dict, workspace: str = "") -> 
         return prompt
     block = "\n".join(lines)
     return f"{prompt}\n\n{block}" if prompt.strip() else block
-
-
-def _extend_prompt_with_dialog(prompt: str, orchestrator_slug: str = DEVAGENT_SLUG,
-                               role: str = "parent") -> str:
-    """Append the rules of the agent dialog for the given role.
-
-    ``role`` is ``parent`` for an orchestrator that may answer a parked child
-    and ``child`` for the subagent that may ask. The block is best effort: a
-    config read failure returns the prompt unchanged rather than breaking it.
-    """
-    try:
-        from core.orchestrator_tools import is_conditional_tool_enabled
-        tool = "answer_child" if role == "parent" else "ask_parent"
-        if not is_conditional_tool_enabled(tool, orchestrator_slug):
-            return prompt
-    except Exception:
-        return prompt
-    lines = _DIALOG_RULES_PARENT if role == "parent" else _DIALOG_RULES_CHILD
-    block = "".join(lines).rstrip()
-    if prompt.strip():
-        return prompt + "\n\n" + block
-    return block
 
 
 def build_assistant_dicts_impl(orchestrator_slug: str = DEVAGENT_SLUG,
@@ -735,6 +718,10 @@ def build_assistant_dicts_impl(orchestrator_slug: str = DEVAGENT_SLUG,
     # Append the working-data folder: path plus the way to address it. This is
     # a platform fact, so no employee prompt has to repeat it (and drift).
     prompt = _extend_prompt_with_working_memory(prompt, orchestrator_slug, workspace)
+    # Append the declared memory levels: read policy, budget and the append
+    # rule, relative to the folder block above.
+    prompt = extend_prompt_with_memory_profile(prompt, orchestrator_slug,
+                                               workspace, dialog_role)
     # Append enabled external service connections (connectors).
     prompt = _extend_prompt_with_connections(prompt, orchestrator_slug)
     # Append assigned RAG knowledge bases (DevAgent: all; others: assigned).
@@ -747,6 +734,11 @@ def build_assistant_dicts_impl(orchestrator_slug: str = DEVAGENT_SLUG,
     # text: a top-level dialog answers its children, a child asks its parent.
     prompt = _extend_prompt_with_dialog(prompt, orchestrator_slug,
                                         role=dialog_role)
+    # Append the rule that decides WHEN a task journal is worth creating.
+    # It follows the dialog rules: both describe how the loop behaves, and
+    # both depend on the role - a parent answers, a child asks and returns.
+    prompt = extend_prompt_with_task_journal(prompt, orchestrator_slug,
+                                             dialog_role)
     # Append the available-tools catalog (system + custom functions),
     # excluding disabled tools.
     prompt = _extend_prompt_with_tools(prompt, orchestrator_slug)
@@ -758,37 +750,46 @@ def build_assistant_dicts_impl(orchestrator_slug: str = DEVAGENT_SLUG,
     # until the date rolls over.
     prompt = _extend_prompt_with_current_date(prompt, orchestrator_slug)
 
+    return _assistant_payload(prompt, cfg)
+
+
+def _resolve_reasoning_effort(cfg: dict, cfg_key: str, svc_def: dict,
+                              strong: bool, model_id: str = "") -> str:
+    """Return the reasoning effort to send, or '' when the provider has none.
+
+    An explicit config value wins; otherwise the provider's default for the
+    model is used, and a provider without the capability gets nothing.
+    """
+    raw = cfg.get(cfg_key, "")
+    if isinstance(raw, str) and raw.strip():
+        return raw.strip().lower()
+    if service_supports_reasoning_effort(svc_def):
+        return default_reasoning_effort(svc_def, strong=strong, model=model_id) or ""
+    return ""
+
+
+def _assistant_payload(prompt: str, cfg: dict) -> Tuple[dict, dict]:
+    """Build the strong assistant dict for *prompt* and copy it as the weak one.
+
+    The weak alias receives an identical copy so that legacy single-model
+    consumers keep working unchanged.
+    """
     strong_svc, strong_mdl = strong_pair(cfg)
-    strong_temp = float(cfg.get("strong_temperature", 0.2) or 0.2)
-    strong_max_tokens = int(cfg.get("strong_max_tokens", 0) or 0)
-
-    services = _get_services()
-    strong_svc_def = services.get(strong_svc, {})
-
-    def _resolve_effort(cfg_key: str, svc_def: dict, strong: bool, model_id: str = "") -> str:
-        raw = cfg.get(cfg_key, "")
-        if isinstance(raw, str) and raw.strip():
-            return raw.strip().lower()
-        if service_supports_reasoning_effort(svc_def):
-            return default_reasoning_effort(svc_def, strong=strong, model=model_id) or ""
-        return ""
-
-    strong_effort = _resolve_effort("strong_reasoning_effort", strong_svc_def, True, strong_mdl)
-
     strong = {
         "text": prompt,
         "service": strong_svc,
         "model": strong_mdl,
-        "temperature": strong_temp,
+        "temperature": float(cfg.get("strong_temperature", 0.2) or 0.2),
     }
-    if strong_effort:
-        strong["reasoning_effort"] = strong_effort
-    if strong_max_tokens > 0:
-        strong["max_tokens"] = strong_max_tokens
-    # Single-model mode: the weak alias receives an identical copy of the
-    # main assistant so legacy consumers keep working unchanged.
-    weak = dict(strong)
-    return strong, weak
+    effort = _resolve_reasoning_effort(cfg, "strong_reasoning_effort",
+                                       _get_services().get(strong_svc, {}), True,
+                                       strong_mdl)
+    if effort:
+        strong["reasoning_effort"] = effort
+    max_tokens = int(cfg.get("strong_max_tokens", 0) or 0)
+    if max_tokens > 0:
+        strong["max_tokens"] = max_tokens
+    return strong, dict(strong)
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

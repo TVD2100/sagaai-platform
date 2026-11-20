@@ -788,7 +788,26 @@
 # marker of the run that created it. The system prompt states the access mode
 # with the same wording the run enforces.
 
-__version__ = "2.46.0"
+# 2.47.0 gives an employee a declared long-term memory. Until now a role's
+# memory was prose in its prompt plus whatever files it happened to write: the
+# reading cost grew with the history, nothing said which files matter at
+# startup, and a delegated child could append to its parent's registries. The
+# structure is now declared in ``config.memory_profile`` - always, on_demand
+# and search levels with read budgets - and rendered into the prompt as
+# ``## Memory profile`` by core/memory_profile.py, so every employee reads one
+# declaration instead of a hand-written copy that drifts. Five tools
+# (memory_status / memory_read / memory_append / memory_search / memory_rotate)
+# work only with the declared levels: append finds the insertion point itself
+# and validates a row against the declared columns, search answers without
+# loading the file, rotate keeps the reading cost flat. A delegated child gets
+# the opposite block - it has no levels of its own - and the role-data barrier
+# in dev_agent/tools/role_guard.py refuses its writes into the folder of the
+# employee that launched it. The task-journal rule moves to the same footing:
+# the platform appends ``## Task journal (task_state)`` to every employee that
+# holds the whole journal tool set, so the applicability rule (three or more
+# steps, several files) replaces the demand to journal every task.
+
+__version__ = "2.47.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

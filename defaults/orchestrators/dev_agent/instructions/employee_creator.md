@@ -72,8 +72,26 @@ Two stores exist and never merge:
   installation (`scope="orchestrator:<slug>"`), never in the project.
 
 The employee reads and writes personal memory with `get_personal_memory` /
-`set_personal_memory` at run time. The working-data folder is ordinary file
-work through `read_file` / `propose_file`. Do not duplicate one in the other.
+`set_personal_memory` at run time. The working-data folder is read and written
+through the memory tools, which enforce the declared budgets:
+
+- `memory_status` - what the levels hold and how large they are, without
+  reading their bodies;
+- `memory_read(level)` - the head of an `always` level within its `read_lines`
+  budget, or one `on_demand` file in full. A level whose path carries `<key>`
+  is a family of per-unit files: `memory_read` refuses it, and the concrete
+  file is read with `read_file`. A `search` level is refused too - it is
+  answered only by `memory_search`;
+- `memory_append(level, row)` - prepend a record, validated against the
+  declared columns;
+- `memory_search(level, query)` - query a `search` level with a few lines of
+  context around each hit;
+- `memory_rotate(level)` - move the oldest rows into the archive.
+
+A whole-file read or rewrite of a level skips the budgets, so the level's file
+is not edited as ordinary text: the tools are the surface, and the file itself
+is never the address. Do not duplicate personal memory and the working-data
+folder in one another.
 
 ---
 
@@ -98,6 +116,44 @@ After the interview, perform the following steps in order:
     text is never parsed - do not rely on a sentence like "all data lives in
     X" as a machine signal. State the marker once; a second occurrence is a
     conflict, only the first one counts.
+1c. Declare the memory levels in `config.memory_profile` (all roles except
+    ENGINEERING). The declaration answers the one question the platform cannot
+    guess: WHEN each file is read. Pass it through `create_orchestrator` /
+    `update_orchestrator` as part of `config`, preserving the other keys:
+
+```json
+{"levels": [
+  {"id": "registry", "kind": "always", "path": "registry.md",
+   "columns": ["date", "unit", "status"], "read_lines": 40,
+   "describe": "one row per unit; rows are never deleted"},
+  {"id": "card", "kind": "on_demand", "path": "items/<key>/card.md",
+   "describe": "passport and current state of one unit"},
+  {"id": "journal", "kind": "search", "path": "journal.md",
+   "columns": ["date", "decision", "reason"], "max_rows": 2000,
+   "archive": "archive",
+   "describe": "chronology of role-level decisions"}
+]}
+```
+
+    - `kind` sets the read policy: `always` is read at the start of a task
+      within `read_lines` (max 200); `on_demand` is loaded whole only when the
+      task touches the unit it describes; `search` is never read whole - it is
+      queried with `memory_search` and answers with a few surrounding lines.
+    - `path` is relative to the employee folder and may carry a `<key>`
+      placeholder for a family of per-unit files. An absolute path, `..` and an
+      empty path are rejected: the folder comes from the platform, never from
+      a declaration.
+    - `columns` (max 16) is the record schema. `memory_append` refuses a row
+      that does not match it, so the declared columns are what keeps a
+      registry readable by `memory_read` instead of a full rewrite.
+    - `max_rows` + `archive` enable `memory_rotate`: the oldest rows move into
+      the archive folder, so the read cost of a long-lived journal stays flat.
+    - A role with nothing durable to keep declares no levels and gets no
+      block at all.
+
+    The schema lives in `core/memory_profile.py` and a declaration is validated
+    on read, so a malformed level is reported instead of being ignored.
+
 2. Call `create_orchestrator(slug, name, description, prompt_text, config, tools, max_steps, auto_apply, name_en, name_ru, name_zh)`.
    The response contains `slug` - the ACTUAL (normalized) slug. Always use
    that value for all later calls; never reuse your original string.
@@ -162,7 +218,10 @@ listed in the employee's `tools` list. Common useful tools:
 - get_history_index, get_history_messages
 - list_recent_workspaces
 - task_state_init, task_state_read, task_state_update, task_state_mark_step,
-  task_state_clear
+  task_state_clear (keep the whole set together or none: a role that can open
+  a journal but not close it leaves the file open forever)
+- memory_status, memory_read, memory_append, memory_search, memory_rotate
+  (the declared long-term memory levels; see §1a)
 - list_rag_bases, rag_search
 - list_orchestrators, get_orchestrator, create_orchestrator,
   update_orchestrator, delete_orchestrator, reload_orchestrator
@@ -174,6 +233,14 @@ listed in the employee's `tools` list. Common useful tools:
 Select only the tools that match the employee's purpose. For example,
 a content editor may only need read_file/propose_file, while a full developer
 employee gets the whole DevAgent set.
+
+**Do not describe the task journal or the memory tools in the prompt.** The
+platform appends both blocks itself: `## Task journal (task_state)` states when
+a journal is worth creating and is added to every employee that has the
+journal tools, and `## Memory profile` is rendered from the declared levels.
+A hand-written copy in the role prompt duplicates the rule and drifts from the
+platform one - the prompt only states what the employee does, not how the loop
+or the memory mechanism works.
 
 ---
 
@@ -190,10 +257,11 @@ Write the employee's system prompt as a Markdown document with sections:
    question and after the final report; continue is allowed only in the
    middle of an already approved plan.
 4. **## MEMORY AND CONTINUITY** -- for non-ENGINEERING roles (see §1a): what
-   the memory consists of, how the employee restores context at the start of a
-   dialog and how it updates the records at the end of a task. It carries a
-   `MEMORY_DIR:` line ONLY for a non-default folder (step 1b). ENGINEERING
-   roles omit this section entirely.
+   the memory consists of and which unit a record belongs to. The read order,
+   the budgets and the append rule are NOT written here: they follow from the
+   declared levels (step 1c) and are rendered by the platform into the
+   `## Memory profile` block. It carries a `MEMORY_DIR:` line ONLY for a
+   non-default folder (step 1b). ENGINEERING roles omit this section entirely.
 
    Do NOT write the data folder's path, nor explain the `memory:` prefix, in
    the prompt: the platform appends its own `## Working memory` block with the
@@ -231,34 +299,32 @@ work belong here.
 
 ### What the memory consists of
 
-| File | Purpose |
-|---|---|
-| `AGENT.md` | Map of the data: what is where, record formats, update rules, how to restore context. |
-| `registry.md` | Registry of units (`<unit>`): one row per unit; rows are never deleted. |
-| `journal.md` | Chronology of role-level decisions: schema changes, agreements, discovered constraints. Append-only. |
-| `items/<key>/` | Unit folder: `<card>.md` (passport and current state), `journal.md` (decisions with reasons), `<role-specific>` (specific artefacts). |
-| `archive/` | Finished units and compacted journal parts. Removal is replaced by moving here. |
+| File | Purpose | Level |
+|---|---|---|
+| `AGENT.md` | Map of the data: what is where, record formats, update rules. | usually `always` |
+| `registry.md` | Registry of units (`<unit>`): one row per unit; rows are never deleted. | `always` |
+| `journal.md` | Chronology of role-level decisions: schema changes, agreements, discovered constraints. Append-only. | `search` |
+| `items/<key>/` | Unit folder: `<card>.md` (passport and current state), `journal.md` (decisions with reasons), `<role-specific>` (specific artefacts). | `on_demand` |
+| `archive/` | Finished units and compacted journal parts. Removal is replaced by moving here. | the `archive` of a level |
 
-### Restoring context at the start of a dialog
+The level column is what the declaration in step 1c must reproduce: a file with
+the `always` policy is read at the start of every task, so it stays small; a
+`search` journal is never read whole, so it can grow for years.
 
-1. Read `AGENT.md` (if missing - create it and say so).
-2. Read `registry.md` - enough to know what exists.
-3. Read the last 20-30 entries of `journal.md`, not the whole file.
-4. For a specific unit, read its `items/<key>/<card>.md` and the tail of its journal.
-5. Never start by walking the folder: the paths are fixed in `AGENT.md`.
-6. On a mismatch between files (registry says "in progress", card says done) do
-   not silently pick one: record the mismatch and propose an update.
+### What the role adds to the mechanism
 
-### Updating at the end of a task
+The read policy, the budgets and the record schemas are declared in
+`config.memory_profile` (step 1c) and the platform renders them into the
+`## Memory profile` block. The prompt does NOT repeat them: a hand-written copy
+drifts from the declaration the moment a level is added or a budget changes.
+What the prompt states is the role-specific part:
 
-Mandatory step; without it the task is not finished:
-
-1. Update the unit row in `registry.md` (status, change date). A status change
-   is always TWO actions: the unit card and the registry row.
-2. Append a unit journal entry: what was decided, why, what was rejected.
-3. If the rules of the role changed, append a role-level `journal.md` entry and
-   adjust `AGENT.md`.
-4. Move a finished unit to `archive/` instead of deleting it.
+1. Which unit a record belongs to and what its lifecycle looks like.
+2. That a status change is TWO records - the unit card and the registry row -
+   because a row alone loses the reasoning behind the status.
+3. That a finished unit moves to `archive/` and nothing is deleted.
+4. On a mismatch between records (registry says "in progress", card says done)
+   do not silently pick one: record the mismatch and propose an update.
 
 ### Prohibitions
 
@@ -374,4 +440,6 @@ After creation, report:
   default | prompt | config),
 - what the platform announces by itself (path, `memory:` prefix) - never
   repeated in the role prompt,
-- memory profile: <PORTFOLIO | STREAM | COURSE | PERSONAL | RESEARCH | SIMPLIFIED | ENGINEERING (no block)>.
+- memory profile: <PORTFOLIO | STREAM | COURSE | PERSONAL | RESEARCH | SIMPLIFIED | ENGINEERING (no block)>,
+- declared levels: one line per level - id, kind, path, read budget - so the
+  owner can see what the platform will render.

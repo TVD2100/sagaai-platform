@@ -2,10 +2,8 @@
 
 Every module here is a mixin or a helper set; the facade
 ``dev_agent.tool_executor`` owns the state, the dispatcher and the public
-names. Nothing in this package imports the facade at module level - the
-``deps`` bundle reaches it lazily, so the import graph stays acyclic.
-"""
-
+names. Nothing here imports the facade at module level: the ``deps`` bundle
+reaches it lazily, so the import graph stays acyclic."""
 __all__ = [
     'args',
     'assistants',
@@ -18,8 +16,10 @@ __all__ = [
     'history',
     'images',
     'library',
+    'memory',
     'patch',
     'rag',
+    'role_guard',
     'task_state',
     'text_utils',
     'url_fetch',

@@ -2397,8 +2397,9 @@ def _default_child_runner(*, child_slug: str, brief: AgentBrief,
 
         # A child is the ASKING side of the dialog: its prompt carries the
         # rules for ask_parent, not for answering somebody else's children.
+        # The workspace decides which memory folder the child is told about.
         strong_assistant, weak_assistant = build_assistant_dicts(
-            slug, dialog_role="child")
+            slug, workspace=base_dir or "", dialog_role="child")
         dispatcher = _build_child_dispatcher(
             slug, base_dir, child_thread_id, depth, limits,
             strong_assistant, lang, CHILD_DISABLED_TOOLS)

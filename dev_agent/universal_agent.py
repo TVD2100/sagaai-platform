@@ -38,6 +38,7 @@ from .tool_validation import (  # noqa: F401  (public re-export)
     _workspace_usage,
     validate_tool_call,
 )
+from .tools.role_guard import role_data_guard_error
 
 
 def load_system_prompt() -> str:
@@ -285,6 +286,9 @@ class UniversalDevAgent(OrchestratorToolsMixin):
         guard = workspace_guard_error(tool_name, args)
         if guard is not None:
             return guard
+        role_guard = role_data_guard_error(tool_name, args, self.core)
+        if role_guard is not None:
+            return role_guard
         if tool_name in self._extra:
             args = _coerce_numeric_args(self._extra[tool_name], args)
             result = self._extra[tool_name](**args)

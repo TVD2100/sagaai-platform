@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "2.46.0",
+  "app_version": "2.47.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Доступ агента к системе стал одним переключателем: изолированный режим или полный доступ. Полный доступ передаёт запускаемому коду окружение платформы вместе с ключами провайдеров и снимает изоляцию ОС, а напечатанные значения вырезаются из результата инструмента. В панели чата вместо флажка «Песочница» - индикатор режима со ссылкой в настройку.",
-    "en": "Agent access to the system is one setting now: isolated mode or full access. Full access hands the platform environment, provider keys included, to the code it runs and lifts the OS isolation, while printed values are redacted from the tool result. The chat toolbar shows the access mode as a badge that leads to the setting instead of the sandbox checkbox."
+    "ru": "У сотрудника появилась объявленная долговременная память: уровни always / on_demand / search с бюджетами чтения задаются в настройках роли, платформа рендерит из них блок Memory profile и даёт пять инструментов (статус, чтение, запись, поиск, ротация), которые работают только с объявленными уровнями. Запись находит точку вставки сама и проверяет строку по объявленным колонкам, поиск отвечает без загрузки файла целиком, ротация держит стоимость чтения постоянной. Субагент получает противоположный блок и не может писать в реестры запустившего его сотрудника. Правило журнала задач переведено на ту же основу: платформа дописывает блок Task journal сотруднику с полным набором инструментов журнала, а сам журнал заводится по правилу применимости, а не для каждой задачи.",
+    "en": "An employee now has a declared long-term memory: always / on_demand / search levels with read budgets are set in the role settings, the platform renders the Memory profile block from them and offers five tools (status, read, append, search, rotate) that work only with the declared levels. Append finds the insertion point itself and validates a row against the declared columns, search answers without loading the whole file, and rotate keeps the reading cost flat. A subagent gets the opposite block and cannot write into the registries of the employee that launched it. The task-journal rule rests on the same footing: the platform appends the Task journal block to every employee holding the whole journal tool set, and a journal follows the applicability rule instead of being created for every task."
   },
-  "updated": "2026-11-12T18:25:55Z",
+  "updated": "2026-11-19T20:02:40Z",
   "units": {
     "core": {
       "version": "1.90.0",
       "note": {
-        "ru": "Пакет кода: единая настройка доступа агента к системе (изолированный режим или полный доступ), правдивый блок песочницы в системном промпте, маркированный временный HOME и расширенная редакция вывода.",
-        "en": "Code unit: one agent access setting (isolated mode or full access), an honest sandbox block in the system prompt, a marked temporary HOME and extended output redaction."
+        "ru": "Пакет кода: объявленные уровни долговременной памяти с бюджетами, инструменты памяти, барьер записи субагента и платформенное правило применимости журнала задач.",
+        "en": "Code unit: declared long-term memory levels with budgets, the memory tools, the subagent write barrier and the platform-side task-journal applicability rule."
       },
       "files": {
         "__init__.py": {
@@ -172,7 +172,7 @@
           }
         },
         "core/orchestrators.py": {
-          "version": "1.22.0",
+          "version": "1.22.1",
           "sha256": "f6a18996673f349fca417a298e76c34d418c18888da8d783a6340e8e0ced1c67",
           "note": {
             "ru": "Публичная поверхность API: реализация разложена по темам на восемь модулей orchestrator_*, фасад держит реэкспорты и тонкие обёртки.",
@@ -276,8 +276,8 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.80.1",
-          "sha256": "5d61aa72e225173d042ba87a948bbeaa9111ef6dc2912fa764376d7c0c1810ae",
+          "version": "1.81.0",
+          "sha256": "9455202ca5a90b54baaff35890f7a9e953aa50b97595d8fe741edb564f07bbe6",
           "note": {
             "ru": "Релиз 2.44.3: данные тестов не попадают в установку.",
             "en": "Release 2.44.3: test data stays out of the installation."
@@ -328,16 +328,16 @@
           }
         },
         "dev_agent/tool_executor.py": {
-          "version": "1.18.1",
-          "sha256": "7cf2bf2ffa702c0e8d72172647dff60fd693cd17d430262b50070fcd66192b54",
+          "version": "1.19.0",
+          "sha256": "bc7464aba2c6b1e6028424f3d7e26aa50a12cc5cea968f811b6a60485be96dce",
           "note": {
             "ru": "Фасад набора инструментов: диспетчер и защиты остались здесь, тела инструментов разложены по пакету dev_agent/tools/ (19 модулей по предметным областям); зависимости миксины получают через tools.deps.build_deps, который читает фасад на каждом вызове. Файл: 3289 -> 229 строк, самая длинная функция 217 -> 59 строк, максимальная цикломатика 30 -> 10.",
             "en": "Tool-set facade: the dispatcher and the guards stay here while the tool bodies moved into the dev_agent/tools package (19 subject modules); the mixins read their dependencies through tools.deps.build_deps, which resolves the facade on every call. File: 3289 -> 229 lines, longest function 217 -> 59, max cyclomatic complexity 30 -> 10."
           }
         },
         "dev_agent/universal_agent.py": {
-          "version": "1.27.0",
-          "sha256": "71283166bb80ba2c196e5077f714eb9543ddd48d94ea94b24212fbf00c33a493",
+          "version": "1.28.0",
+          "sha256": "81a87a4484f00f8f5523329497bea1b34212e2b6cb84f4eff3121654293edd08",
           "note": {
             "ru": "Фасад рабочего слоя DevAgent: диспетчер workspace-инструментов, управление оркестраторами, соединениями и памятью. Данные каталога, валидация вызовов, помощники документов, правила поиска по диалогам и реестр connection-инструментов живут в отдельных модулях пакета.",
             "en": "Facade of the DevAgent workspace layer: the workspace tool dispatcher, orchestrator, connection and memory management. Catalog data, call validation, document helpers, dialog-search rules and the connection-tool registry live in separate modules of the package."
@@ -368,8 +368,8 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.12.11",
-          "sha256": "985198780873f7fb14a7e1a574dec7f6ca88b7884f14e3252c0a7fa3e8f94566",
+          "version": "1.13.0",
+          "sha256": "c6ba8c7c6eb274349070a629a09e36683ac27047f44244c801c857003679d924",
           "note": {
             "ru": "Описания тестов пресетов и изоляции состояния: изоляция DATA_DIR и второй AST-страж.",
             "en": "Descriptions of the preset tests and the state-isolation test: DATA_DIR isolation and the second AST guard."
@@ -556,8 +556,8 @@
           "sha256": "351e10538504bf824580b867882f57a33b50d7a1ccacb6170a38d0acabb61fd0"
         },
         "tests/scenarios/test_orchestrator_tool_gating.py": {
-          "version": "1.2.20",
-          "sha256": "9879d40e26faca4f51814650b18af856723e03c0a823f78338ccbf02c5894286",
+          "version": "1.2.21",
+          "sha256": "c628811694a2af418cef9a094fca705fb514c60f9d2e62daf3da20ffc147762b",
           "note": {
             "ru": "Пин промпта DevAgent v3.30 и инвариант спеки изменения в скретче.",
             "en": "Pins the DevAgent v3.30 prompt and the change-scoped spec invariant."
@@ -1434,8 +1434,8 @@
           }
         },
         "core/orchestration/service.py": {
-          "version": "1.11.0",
-          "sha256": "c5053a4fa135e19868c4933da2ca0b26f07e5f3b59dd50b641cfd3df4e5b0905",
+          "version": "1.11.1",
+          "sha256": "028add89fa4717bcd68b381ba96221862dc846e6d6f3f06441392f2e0f14c845",
           "note": {
             "ru": "Сервис оркестрации разделён: дочерний раннер вынесен в child_runner.py, чистые помощники бутстрапа - в child_text.py; фасад реэкспортирует их, поэтому точка входа одна.",
             "en": "The orchestration service is split: the child runner moved to child_runner.py and the pure bootstrap helpers to child_text.py; the facade re-exports them, so the entry point stays single."
@@ -1598,8 +1598,8 @@
           "sha256": "2dd42c63f77ea870e7179e23d5be4b324443f22b1d4ce08ca0ca27f49cb67064"
         },
         "tests/test_system_prompt_subagents.py": {
-          "version": "1.0.7",
-          "sha256": "57169a1c9e83e860f60a23fe28d7bd46ca0bf0c962c3ef93ea04e35234cb1214"
+          "version": "1.0.8",
+          "sha256": "e6f71809a1141c726acb1467123abeee31c67136c5fa65242a5e9530cc1926af"
         },
         "tests/test_delegation_injection_inheritance.py": {
           "version": "1.0.1",
@@ -2686,8 +2686,8 @@
           "sha256": "09eab1a26a3606f70958b1795dc889be769488dfe4b5bc09666d896d22f2abe9"
         },
         "dev_agent/tools/__init__.py": {
-          "version": "1.0.0",
-          "sha256": "17a836f63d8e221d703f65fb9816462a49254a21481030e9bdafecc15f107eb1"
+          "version": "1.1.0",
+          "sha256": "9b9cd0df08c5def8b78731e5b72dd0cd190a45d04019cb7c427772d59d4ed1f5"
         },
         "dev_agent/tools/args.py": {
           "version": "1.0.1",
@@ -2758,7 +2758,7 @@
           "sha256": "c9c89e5afaff7194fe15b385a176872666ea240dbc004c964bf1e80740c204b3"
         },
         "dev_agent/tools/workspace.py": {
-          "version": "1.1.0",
+          "version": "1.1.1",
           "sha256": "76aff6874698d2bcc16b73b1d5c700158659f67e482710b6e0cbe399b3df0885"
         },
         "ui/pages/orchestrator_text.py": {
@@ -2774,12 +2774,16 @@
           "sha256": "486b57e6138c4e705869377a14591c75d15a2ab590f6726a2522c9e5ed7e5693"
         },
         "core/prompt_blocks.py": {
-          "version": "1.0.0",
-          "sha256": "6b5b2523aa9776ed72dda4b64b67fd7b7f899b501d80d4972cc84b9384910e7b"
+          "version": "1.1.0",
+          "sha256": "d9d0c2c4267735b0b606717b5e8bfb62f683eb49bb192c59c3022b59d9a975f8",
+          "note": {
+            "ru": "Правило применимости журнала задач: когда журнал нужен, а когда итог фиксируется записью в долговременной памяти.",
+            "en": "The task-journal applicability rule: when a journal is warranted and when the outcome belongs in long-term memory instead."
+          }
         },
         "core/orchestration/child_runner.py": {
-          "version": "1.0.1",
-          "sha256": "70da07a698c5acb6f64080c672c5567eb501fdf276e45dce769f0e1c5cb10707",
+          "version": "1.1.0",
+          "sha256": "827f753329e7e8918b08e9e596d40bd69857b5900e3e3c9ab82660d36a07af84",
           "note": {
             "ru": "Дочерняя сторона запуска: диспетчер с суженным каталогом инструментов, приёмник транскрипта, область журнала, восстановление резюма, прокрутка цикла и итоговый AgentRunResult.",
             "en": "The child side of a delegated run: the dispatcher with its narrowed tool catalog, the transcript sink, the journal scope, resume restoration, the child loop and the final AgentRunResult."
@@ -2802,8 +2806,8 @@
           }
         },
         "dev_agent/tool_catalog_data.py": {
-          "version": "1.1.0",
-          "sha256": "17010975a6d56c5034da10a267c80c0cf9a674c2ff6a4ed8c48956954f2408c4",
+          "version": "1.2.0",
+          "sha256": "d8bcbca0a9112a243453f2364c306f51aeff6c344c9b0187c287e4a902ec105d",
           "note": {
             "ru": "Каталог workspace-инструментов и белые списки имён аргументов, вынесенные из фасада universal_agent как данные без логики.",
             "en": "The workspace tool catalog and the argument-name allow-lists, moved out of the universal_agent facade as data without logic."
@@ -3030,8 +3034,8 @@
           "sha256": "ee572df28cdaa9f8e0c06a791c0644fda94d02cefad5928e6ca091c9c2bcd06e"
         },
         "core/orchestrator_prompt.py": {
-          "version": "1.1.1",
-          "sha256": "0f3325a3e99ffa9e981f9e727751bc359e6cb4c08d429241799a0d6a39b56fe6"
+          "version": "1.2.0",
+          "sha256": "4267314656229dff6983d3c6fbae92ccb84b25e9e49a401496d64a9941599542"
         },
         "core/orchestrator_models.py": {
           "version": "1.0.0",
@@ -3432,17 +3436,49 @@
         "tests/test_sandbox_full_access.py": {
           "version": "1.0.0",
           "sha256": "c4adc9f3aafdf1db2eb4f2332dda148d9823d3934c7dda5e278e59ce3d2c6397"
+        },
+        "core/memory_profile.py": {
+          "version": "1.0.0",
+          "sha256": "835ad6e8590303906da029a3bc1d23fcd20cc2ad9634196095277ee913920363"
+        },
+        "core/prompt_dialog.py": {
+          "version": "1.0.0",
+          "sha256": "765a17e665eca5ec37fa086007359c412c06cbf7f755cf86e1926cd843ce895c"
+        },
+        "core/prompt_memory.py": {
+          "version": "1.0.0",
+          "sha256": "83bc97a6f46ca0e7e6c521751f2879f7f4994693008284c51bc73efc77157b31"
+        },
+        "dev_agent/tools/memory.py": {
+          "version": "1.0.0",
+          "sha256": "afa95f604fd25ef8b59d8d7530d0b548a1ceab11f06fed0aecc823c12e2e3806"
+        },
+        "dev_agent/tools/role_guard.py": {
+          "version": "1.0.0",
+          "sha256": "7a52372842c62755cc935c0b9e66448cebb83ec053ef3825ccad016411eda61c"
+        },
+        "tests/test_memory_profile.py": {
+          "version": "1.0.0",
+          "sha256": "a3654275d2e69c0dd4756637c2ebf6e92027e806991ed7478e5e87beb7a2ad85"
+        },
+        "tests/test_memory_tools.py": {
+          "version": "1.0.0",
+          "sha256": "5c625817b4e08374715e936905d4ff1a8f6855c0b25a8d3bb6604a0afc157769"
+        },
+        "tests/test_task_journal_rule.py": {
+          "version": "1.0.0",
+          "sha256": "fd8bc0e961c6e6ef3003d00398a346f70532283a35f63383d4ba570f90cf8b54"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.79.1",
-      "sha256": "4c223050f6beeb0932f5585d05b8d05984171039d6b0b7e6d04044aa834f2c26",
+      "version": "1.81.0",
+      "sha256": "a9812b969f5845f6333d2b92aef10d0b9f05c9f08d2a8c9ab37f28e251bd37ab",
       "note": {
-        "ru": "Карта компонентов: пресет yandex_mail (http, схема OAuth) в видимом каталоге пресетов.",
-        "en": "Component map: the yandex_mail preset (http, OAuth scheme) in the visible preset catalogue."
+        "ru": "Уровни памяти (always / on_demand / search), блок Memory profile, инструменты памяти и барьер записи субагента.",
+        "en": "Memory levels (always / on_demand / search), the Memory profile block, the memory tools and the subagent write barrier."
       }
     },
     "LICENSE": {
@@ -3454,19 +3490,19 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.80.1",
-      "sha256": "085c8513a915e7d3658fef1377668e2f175999d7c1034ffb301de1d78e20718f",
+      "version": "1.81.1",
+      "sha256": "c1be8514c7bdef94ff764f3300183e796e0310c1ecc98a0a41b29b10564976a7",
       "note": {
         "ru": "Регенерация: обновлённые описания тестов пресетов и изоляции состояния.",
         "en": "Regenerated: updated descriptions of the preset tests and the state-isolation test."
       }
     },
     "README.md": {
-      "version": "1.62.7",
-      "sha256": "9ac85779d62c55a391ae75edfe833e6a5342ec962ec169a2d5fff02aebf2f109",
+      "version": "1.62.8",
+      "sha256": "19f78b0f0f524a9939fb16fa562ac6a13f90069f3f9fe435cd405438e669f244",
       "note": {
-        "ru": "Строка статуса версии обновлена до 2.44.3.",
-        "en": "The version status line is updated to 2.44.3."
+        "ru": "Строка статуса версии обновлена до 2.47.0.",
+        "en": "The version status line is updated to 2.47.0."
       }
     },
     "defaults/README.md": {
@@ -3598,11 +3634,11 @@
       }
     },
     "defaults/orchestrators/dev_agent/instructions/employee_creator.md": {
-      "version": "1.5.0",
-      "sha256": "d7668773dfde622145ee77855102a061be1c21ad5d2377c79703214781fa2dae",
+      "version": "1.7.0",
+      "sha256": "7683fee2648a3557067df8b142fb372371ef9497cc77bb1be9cfb1eec864cd8e",
       "note": {
-        "ru": "Инструкция: четыре слота названия сотрудника и правила правки.",
-        "en": "Instruction: the four employee name slots and the editing rules."
+        "ru": "Инструкция: набор инструментов памяти и журнала передаётся целиком, а правила механизма платформа дописывает сама.",
+        "en": "Instruction: the memory and journal tool sets travel whole, and the platform appends the mechanism rules itself."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/github_connector.md": {
@@ -3798,11 +3834,11 @@
       }
     },
     "dev_agent/system_prompt.md": {
-      "version": "3.31",
-      "sha256": "0fb857ef5df8a0dfc0aaa66f61272584168eb79a456df932a014c4989a56f992",
+      "version": "3.32",
+      "sha256": "381c2ce40b0c445d9462c0cf09b51f0bf89834e980e6d9bbe1a063deaf143793",
       "note": {
-        "ru": "DevAgent v3.30: спека охватывает только изменение и живёт в .dev_agent/scratch/task_spec.md - проектная документация не переписывается, файл удаляется вместе со скретчем.",
-        "en": "DevAgent v3.30: the spec covers the change only and lives in .dev_agent/scratch/task_spec.md - project documentation is never rewritten, and the file is removed with the scratch area."
+        "ru": "DevAgent v3.32: журнал задач заводится по правилу применимости из платформенного блока, а не для каждой задачи; итог короткой работы фиксируется записью в долговременной памяти.",
+        "en": "DevAgent v3.32: a task journal follows the applicability rule of the platform block instead of being created for every task; the outcome of short work goes into long-term memory."
       }
     },
     "langs/en.json": {
@@ -3878,11 +3914,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.55.1",
-      "sha256": "13236f079e7215706130492a15ed0225b0e88e4468221b1a5fc51b3d85af10c8",
+      "version": "1.57.0",
+      "sha256": "983147f4265f7ab5340eb60f3780e6085cf988418940a9a30729324ca6a356cd",
       "note": {
-        "ru": "Требование: данные записи тестов не попадают в установку, изоляция DATA_DIR и проверяющий её AST-страж.",
-        "en": "Requirement: test writes stay out of the installation, with DATA_DIR isolation and the AST guard that enforces it."
+        "ru": "Декларативные уровни долговременной памяти, инструменты памяти с бюджетами и правило применимости журнала задач.",
+        "en": "Declared long-term memory levels, the memory tools with their budgets, and the task-journal applicability rule."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/connector_creator.md": {
