@@ -6,10 +6,10 @@
     "ru": "У сотрудника появилась объявленная долговременная память: уровни always / on_demand / search с бюджетами чтения задаются в настройках роли, платформа рендерит из них блок Memory profile и даёт пять инструментов (статус, чтение, запись, поиск, ротация), которые работают только с объявленными уровнями. Запись находит точку вставки сама и проверяет строку по объявленным колонкам, поиск отвечает без загрузки файла целиком, ротация держит стоимость чтения постоянной. Субагент получает противоположный блок и не может писать в реестры запустившего его сотрудника. Правило журнала задач переведено на ту же основу: платформа дописывает блок Task journal сотруднику с полным набором инструментов журнала, а сам журнал заводится по правилу применимости, а не для каждой задачи.",
     "en": "An employee now has a declared long-term memory: always / on_demand / search levels with read budgets are set in the role settings, the platform renders the Memory profile block from them and offers five tools (status, read, append, search, rotate) that work only with the declared levels. Append finds the insertion point itself and validates a row against the declared columns, search answers without loading the whole file, and rotate keeps the reading cost flat. A subagent gets the opposite block and cannot write into the registries of the employee that launched it. The task-journal rule rests on the same footing: the platform appends the Task journal block to every employee holding the whole journal tool set, and a journal follows the applicability rule instead of being created for every task."
   },
-  "updated": "2026-11-20T11:33:25Z",
+  "updated": "2026-11-20T11:50:16Z",
   "units": {
     "core": {
-      "version": "1.90.2",
+      "version": "1.90.3",
       "note": {
         "ru": "Пакет кода: объявленные уровни долговременной памяти с бюджетами, инструменты памяти, барьер записи субагента и платформенное правило применимости журнала задач.",
         "en": "Code unit: declared long-term memory levels with budgets, the memory tools, the subagent write barrier and the platform-side task-journal applicability rule."
@@ -368,8 +368,8 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.13.2",
-          "sha256": "2a0b9e4a34851ed94232aa1be7a9a10e53668cba24b013d6df10ca7e7a90341a",
+          "version": "1.13.3",
+          "sha256": "3ed8270709223aca7450163f4e8b8e339d265fe18c195f72109eb7764a8533cf",
           "note": {
             "ru": "Описание GitHub-коннектора в карте дополнено сохранением POSIX-режима при публикации.",
             "en": "The connector description in the map now covers POSIX-mode preservation on publish."
@@ -3182,8 +3182,8 @@
           "sha256": "951aaa3705d93825729789ac36e327553b7b8060b23ed2653ba14731789b8259"
         },
         "core/sandbox/providers/bwrap.py": {
-          "version": "1.1.0",
-          "sha256": "4691cee9a9a460b8fce6e9244bc132e464cacdf90004bcb2941d293966508318"
+          "version": "1.1.1",
+          "sha256": "5f25635d5d362155f7d6c590d477bee1cc3a0f9854aabee3982e7c9dfba7ebfa"
         },
         "core/sandbox/providers/container.py": {
           "version": "1.0.0",
@@ -3270,8 +3270,8 @@
           "sha256": "9f4440c179e1353bf681d62c45135879a5c9eb397b43586036447f906e9e2abe"
         },
         "tests/test_sandbox_shared_tmp.py": {
-          "version": "1.1.0",
-          "sha256": "6d7da0b5dbe0be338a6d189650f91136bcdb886716bcff59dad70dac7bbe13e9"
+          "version": "1.1.1",
+          "sha256": "04f9546249643bd62892a307be6f0067b6fab1dee6474566a45e272d7c3a348a"
         },
         "tests/test_sandbox_status.py": {
           "version": "1.0.0",
@@ -3490,8 +3490,8 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.81.3",
-      "sha256": "e6480c1c18b6f0d8802c234f7fed54df1a72e6012032bd224cfcced516702896",
+      "version": "1.81.4",
+      "sha256": "b5c566a14c72793a6911f1423e62f20cfdebedc5eba840d4af1f7a67dcf824a2",
       "note": {
         "ru": "Регенерация: описание GitHub-коннектора дополнено сохранением POSIX-режима в tree-entry.",
         "en": "Regenerated: the GitHub connector description now covers POSIX-mode preservation in tree entries."
@@ -3914,8 +3914,8 @@
       }
     },
     "AGENT.md": {
-      "version": "1.57.3",
-      "sha256": "d5fdedd98fc066097585e9b91222ac939a0dc69855ad9524cecf03bb3e56af6e",
+      "version": "1.57.4",
+      "sha256": "9c58bb99fc74b0b4b60ccfdf271bbe15cb24941319b527d450afdd6e0bba732e",
       "note": {
         "ru": "Инвариант lock для целевой платформы и сохранение POSIX-режима при публикации: режим несёт tree-entry, поэтому batch_upsert считает смену режима изменением.",
         "en": "Lock invariant for the target platform and POSIX-mode preservation on publish: the permission lives in the tree entry, so batch_upsert treats a mode change as an update."
