@@ -9,7 +9,7 @@
   "updated": "2026-11-19T20:02:40Z",
   "units": {
     "core": {
-      "version": "1.90.0",
+      "version": "1.90.1",
       "note": {
         "ru": "Пакет кода: объявленные уровни долговременной памяти с бюджетами, инструменты памяти, барьер записи субагента и платформенное правило применимости журнала задач.",
         "en": "Code unit: declared long-term memory levels with budgets, the memory tools, the subagent write barrier and the platform-side task-journal applicability rule."
@@ -136,8 +136,8 @@
           "sha256": "00b4000b6b617c956fdb5676ad3b607b4df08bedd42423862f4c78469082c4a0"
         },
         "core/github_connector_rest.py": {
-          "version": "1.4.3",
-          "sha256": "547ba2329259e3d63122ea1263f78a39909695d538d3bc94b0d2409ee5cbb8b4"
+          "version": "1.5.0",
+          "sha256": "a2294bfc7d5a31d25ec1da43486033134750c06e14dbbadee37e32d50e1d346b"
         },
         "core/github_tools_rest.py": {
           "version": "1.3.1",
@@ -368,8 +368,8 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.13.0",
-          "sha256": "c6ba8c7c6eb274349070a629a09e36683ac27047f44244c801c857003679d924",
+          "version": "1.13.1",
+          "sha256": "2332b582a548f6cc0ffc395f6daf3689b0eaa5da476bce73725e186b8ccbaebe",
           "note": {
             "ru": "Описания тестов пресетов и изоляции состояния: изоляция DATA_DIR и второй AST-страж.",
             "en": "Descriptions of the preset tests and the state-isolation test: DATA_DIR isolation and the second AST guard."
@@ -828,8 +828,8 @@
           "sha256": "ef912a522445bfeebfabe85b364c6d700aae7ead5e7d2f37b6a1e54d9e137f05"
         },
         "tests/test_github_connector_rest.py": {
-          "version": "1.3.2",
-          "sha256": "93ad86dc5d78e6887feb6c103431778f5e96dced13039b001d017d3eb4ffcd88"
+          "version": "1.3.3",
+          "sha256": "bf224b46fb698a37204a8532b8d93a2c6ce8770a4107aa85cb68ad74d4fdfe5b"
         },
         "tests/test_github_connector_retry.py": {
           "version": "1.0.0",
@@ -3490,8 +3490,8 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.81.1",
-      "sha256": "c1be8514c7bdef94ff764f3300183e796e0310c1ecc98a0a41b29b10564976a7",
+      "version": "1.81.2",
+      "sha256": "f26731ae69fc7f62d204dec53de19e5db0f906d4e9cf7fd86e5901546574218e",
       "note": {
         "ru": "Регенерация: обновлённые описания тестов пресетов и изоляции состояния.",
         "en": "Regenerated: updated descriptions of the preset tests and the state-isolation test."
@@ -3554,8 +3554,8 @@
       }
     },
     "defaults/instructions/github_connector.md": {
-      "version": "2.5.0",
-      "sha256": "1cb0d110e3ebecabf837d6dbba6371504877a53e21f71f170c7914ee520baf13",
+      "version": "2.6.0",
+      "sha256": "cb40963550caf090a89da207cde73ba6f87afe027fbd47a40252c869400fdca6",
       "note": {
         "ru": "Инструкция: обязательный файл памяти подключения (читать до работы, предлагать обновление после, без секретов).",
         "en": "Instruction: the mandatory connection memory file (read before work, offer updates after, never secrets)."
@@ -3642,8 +3642,8 @@
       }
     },
     "defaults/orchestrators/dev_agent/instructions/github_connector.md": {
-      "version": "2.5.0",
-      "sha256": "1cb0d110e3ebecabf837d6dbba6371504877a53e21f71f170c7914ee520baf13",
+      "version": "2.6.0",
+      "sha256": "cb40963550caf090a89da207cde73ba6f87afe027fbd47a40252c869400fdca6",
       "note": {
         "ru": "Копия DevAgent (идентична глобальной): добавлен раздел обязательного файла памяти подключения.",
         "en": "DevAgent copy (identical to the global one): the mandatory connection memory file section added."
@@ -3914,8 +3914,8 @@
       }
     },
     "AGENT.md": {
-      "version": "1.57.1",
-      "sha256": "bd65f73e70eec46886dac19f83abacbb8f6af9436668a1d0aa683bf2cce12038",
+      "version": "1.57.2",
+      "sha256": "c42dbce6d2b32514cb5190ce91e1103ac43f4d6ccf974e54bee107717b069991",
       "note": {
         "ru": "Инвариант lock: он обязан быть разрешён для целевой платформы, а не только для машины сборки - зависимость под маркером platform_system не попадает в файл и ломает установку на Linux-раннере.",
         "en": "Lock invariant: it must resolve for the target platform, not only for the build machine - a dependency under a platform_system marker never reaches the file and breaks installation on a Linux runner."
