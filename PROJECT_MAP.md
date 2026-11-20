@@ -2,11 +2,11 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-20T11:27:17+00:00`
+- Обновлено: `2026-11-20T11:50:01+00:00`
 - Файлов: **852**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **11342**
-- Отпечаток содержимого: `sha256:c9ab828a41813a76fd8ac0b648c51380f7dd83b63700c462666677b0feb32ed8` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Python-символов: **11347**
+- Отпечаток содержимого: `sha256:8ab52e5709605ced3fab30638d5e61244c5926b1b814997af4e8bd825d4c43a1` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
 - Языки: Config: 2, JSON: 37, Markdown: 42, PEM certificate: 2, Python: 769, TOML: 2, Text: 2
 
 ## Файлы и назначение
@@ -235,7 +235,7 @@
 | `core/sandbox/status.py` | Python | Sandbox status for the system prompt: describe() reads the policy decision, format_lines() states profile, provider, guarantees, write scope, network, limits and whether the child receives the platform environment (the full-access wording never claims a filtered environment) | - |
 | `core/sandbox/providers/__init__.py` | Python | Isolation backend registry: the providers a build ships | - |
 | `core/sandbox/providers/_spawn.py` | Python | Shared spawn path of the OS-level providers: argv, environment, timeouts, output caps, kill-tree and cancellation | - |
-| `core/sandbox/providers/bwrap.py` | Python | T1 provider on Linux: bubblewrap namespaces, network-off, a read-only root, a private temporary tree and writable workspace, child home and requested read paths | - |
+| `core/sandbox/providers/bwrap.py` | Python | T1 provider on Linux: bubblewrap namespaces, network-off, a read-only root, a private temporary tree when nothing the run needs lives there, and writable workspace, child home and requested read paths | - |
 | `core/sandbox/providers/container.py` | Python | T2 provider: Docker run with translated argv, read-only mounts, process/memory ceilings and container-level cancellation | - |
 | `core/sandbox/providers/inherited.py` | Python | Provider of a run already inside a sandbox: inherits it instead of nesting a second one | - |
 | `core/sandbox/providers/process.py` | Python | T0 provider: child process with built environment and hard limits (no OS isolation) | - |
@@ -3761,11 +3761,12 @@
 - `_shared_tmp_paths` (func, строка 44)
 - `_env_paths` (func, строка 49)
 - `_bind` (func, строка 64)
-- `build_argv` (func, строка 76)
-- `BwrapProvider` (class, строка 139)
-- `BwrapProvider.__init__` (func, строка 148)
-- `BwrapProvider.available` (func, строка 153)
-- `BwrapProvider.run` (func, строка 172)
+- `_private_trees` (func, строка 76)
+- `build_argv` (func, строка 96)
+- `BwrapProvider` (class, строка 164)
+- `BwrapProvider.__init__` (func, строка 173)
+- `BwrapProvider.available` (func, строка 178)
+- `BwrapProvider.run` (func, строка 197)
 
 ### `core/sandbox/providers/container.py`
 - `_resolve_docker` (func, строка 44)
@@ -9344,14 +9345,18 @@
 - `test_read_only_policy_does_not_name_the_shared_tree` (func, строка 73)
 - `test_user_temp_dirs_reports_an_existing_directory` (func, строка 79)
 - `test_user_temp_dirs_is_empty_when_there_is_no_system_temp` (func, строка 86)
-- `_mounts` (func, строка 101)
-- `_bwrap_argv` (func, строка 119)
-- `test_the_linux_provider_keeps_the_temporary_tree_private` (func, строка 125)
-- `test_the_linux_provider_mounts_back_what_the_run_owns` (func, строка 138)
-- `test_a_script_outside_the_workspace_is_mounted_read_only` (func, строка 155)
-- `test_the_linux_provider_widens_the_shared_tree_only_on_request` (func, строка 170)
-- `test_the_linux_provider_mounts_the_child_home_for_writing` (func, строка 179)
-- `test_the_linux_provider_mounts_the_workspace_read_only_when_confined` (func, строка 195)
+- `_mounts` (func, строка 102)
+- `_bwrap_argv` (func, строка 120)
+- `test_the_linux_provider_keeps_the_temporary_tree_private` (func, строка 126)
+- `test_a_tree_holding_what_the_run_needs_is_not_replaced` (func, строка 139)
+- `test_a_workspace_under_the_shared_tree_keeps_it_visible` (func, строка 155)
+- `test_the_linux_provider_mounts_back_what_the_run_owns` (func, строка 170)
+- `test_a_script_outside_the_workspace_is_mounted_read_only` (func, строка 187)
+- `test_an_inline_snippet_is_written_where_the_child_can_open_it` (func, строка 202)
+- `test_an_inline_snippet_falls_back_to_the_system_tree` (func, строка 224)
+- `test_the_linux_provider_widens_the_shared_tree_only_on_request` (func, строка 235)
+- `test_the_linux_provider_mounts_the_child_home_for_writing` (func, строка 244)
+- `test_the_linux_provider_mounts_the_workspace_read_only_when_confined` (func, строка 260)
 
 ### `tests/test_sandbox_status.py`
 - `StubProvider` (class, строка 22)

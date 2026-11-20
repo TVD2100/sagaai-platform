@@ -226,7 +226,7 @@ roles = {
     "core/sandbox/inheritance.py": "Detection of a run that is already inside a sandbox: the marker, its format and the check that stops a nested sandbox",
     "core/sandbox/launcher.py": "Child-side launcher: applies the resource ceilings and reports them back (no preexec_fn)",
     "core/sandbox/providers/_spawn.py": "Shared spawn path of the OS-level providers: argv, environment, timeouts, output caps, kill-tree and cancellation",
-    "core/sandbox/providers/bwrap.py": "T1 provider on Linux: bubblewrap namespaces, network-off, a read-only root, a private temporary tree and writable workspace, child home and requested read paths",
+    "core/sandbox/providers/bwrap.py": "T1 provider on Linux: bubblewrap namespaces, network-off, a read-only root, a private temporary tree when nothing the run needs lives there, and writable workspace, child home and requested read paths",
     "core/sandbox/providers/seatbelt.py": "T1 provider on macOS: sandbox-exec profile generated from the sandbox profile, network-off and write confinement",
     "core/sandbox/providers/container.py": "T2 provider: Docker run with translated argv, read-only mounts, process/memory ceilings and container-level cancellation",
     "core/sandbox/providers/wsl.py": "Windows provider: runs the command inside the WSL2 distribution, translating drives to /mnt and refusing unreachable paths",

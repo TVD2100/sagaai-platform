@@ -73,6 +73,26 @@ def _bind(argv: List[str], path: str, writable: bool) -> None:
     argv += ["--bind" if writable else "--ro-bind", path, path]
 
 
+def _private_trees(needed: List[str]) -> List[str]:
+    """Return the temporary trees that can be replaced by a private one.
+
+    ``bwrap`` applies the mounts in order inside one namespace, so a tree
+    that is replaced early is gone as a mount SOURCE as well: a ``--bind``
+    of a path under it has nothing left to open, and the namespace is
+    refused before the program starts. A tree is therefore replaced only
+    when nothing the run needs lives inside it; otherwise it stays visible
+    through the read-only root bind and the profile alone decides whether
+    writes reach it.
+    """
+    trees: List[str] = []
+    for tree in _shared_tmp_paths():
+        root = tree.rstrip("/") + "/"
+        if not any(str(path) == tree or str(path).startswith(root)
+                   for path in needed if path):
+            trees.append(tree)
+    return trees
+
+
 def build_argv(bwrap: str, profile: SandboxProfile, workspace: str,
                env: Optional[Dict[str, str]] = None,
                read_paths: Optional[List[str]] = None) -> List[str]:
@@ -87,14 +107,19 @@ def build_argv(bwrap: str, profile: SandboxProfile, workspace: str,
         read_paths: files outside the workspace the run must be able to
             open, mounted read-only.
     """
+    needed = list(_env_paths(env))
+    if workspace:
+        needed.append(str(workspace))
+    needed += [str(path) for path in (read_paths or [])]
     argv = [bwrap, "--die-with-parent", "--new-session",
             "--ro-bind", "/", "/",
-            "--dev", "/dev", "--proc", "/proc",
-            # A private temporary tree: the child gets a writable /tmp of its
-            # own, and the files of other processes on this machine stay
-            # out of its reach. What the run legitimately needs from the
-            # real tree is mounted back below, path by path.
-            "--tmpfs", "/tmp"]
+            "--dev", "/dev", "--proc", "/proc"]
+    # A private temporary tree: the child gets a writable /tmp of its own,
+    # and the files of other processes on this machine stay out of its
+    # reach. A tree the run itself lives in stays visible - see
+    # ``_private_trees`` for why it cannot be replaced and then bound back.
+    for tree in _private_trees(needed):
+        argv += ["--tmpfs", tree]
     if not profile.network:
         argv.append("--unshare-net")
     # Staging a file at a hardcoded /tmp path is what ``shared_tmp`` grants:

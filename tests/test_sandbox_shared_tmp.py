@@ -91,11 +91,12 @@ def test_user_temp_dirs_is_empty_when_there_is_no_system_temp(monkeypatch):
 
 # ── the Linux provider mounts the same grant ────────────────────────────────
 #
-# bubblewrap used to put an empty tmpfs over the shared tree. The snippet of
-# an inline run is written there BEFORE the namespace exists, so the child
-# could not open its own program, and the child's HOME lived in the same
-# vanished tree. The tree therefore stays visible through the read-only root
-# bind, and only writes to it depend on the profile.
+# bubblewrap used to put an empty tmpfs over the shared tree. Two things
+# break that: the snippet of an inline run is written there BEFORE the
+# namespace exists, so the child could not open its own program, and the
+# tree stops being a mount SOURCE as well - a workspace or HOME under it has
+# nothing left to bind. The tree therefore stays visible through the
+# read-only root bind, and only writes to it depend on the profile.
 
 
 def _mounts(argv):
@@ -122,17 +123,48 @@ def _bwrap_argv(name, workspace, env=None):
     return bwrap.build_argv("bwrap", get_profile(name), str(workspace), env or {})
 
 
-def test_the_linux_provider_keeps_the_temporary_tree_private(tmp_path):
+def test_the_linux_provider_keeps_the_temporary_tree_private():
     """The files of other processes on this machine are not part of a grant.
 
-    A writable /tmp shared with every program on the machine lets one run
-    read and rewrite a neighbour's temporary data. The private tree is the
-    default; what the run itself needs there is mounted back by path.
+    The workspace is named outside the shared tree on purpose: a project that
+    lives inside it keeps the tree visible (see the mount-source test below),
+    and this test is about the ordinary case.
     """
-    argv = _bwrap_argv(profiles.WORKSPACE_WRITE, tmp_path)
+    argv = _bwrap_argv(profiles.WORKSPACE_WRITE, "/opt/project")
     targets = [target for flag, _source, target in _mounts(argv) if flag == "--tmpfs"]
     assert "/tmp" in targets
     assert ("--ro-bind", "/", "/") in _mounts(argv)
+
+
+def test_a_tree_holding_what_the_run_needs_is_not_replaced():
+    """A replaced tree cannot serve as the source of a later mount.
+
+    ``bwrap`` applies the mounts in order inside one namespace, so after an
+    empty tmpfs is put over ``/tmp`` a ``--bind`` of a path under it has
+    nothing left to open, and the whole namespace is refused with
+    ``Can't mkdir``. On a CI runner the workspace and the child's HOME live
+    exactly there, so such a tree is left visible.
+    """
+    from core.sandbox.providers import bwrap
+
+    assert "/tmp" not in bwrap._private_trees(["/tmp/pytest-of-runner/work"])
+    assert "/tmp" not in bwrap._private_trees(["/tmp/pytest-of-runner/work/home"])
+    assert "/tmp" in bwrap._private_trees(["/opt/project", "/home/runner"])
+
+
+def test_a_workspace_under_the_shared_tree_keeps_it_visible(tmp_path, monkeypatch):
+    """The namespace is built, not refused, when the project lives in /tmp."""
+    from core.sandbox.providers import bwrap
+
+    monkeypatch.setattr(bwrap, "_shared_tmp_paths", lambda: [str(tmp_path)])
+    workspace = tmp_path / "work"
+    workspace.mkdir()
+    argv = bwrap.build_argv("bwrap", get_profile(profiles.WORKSPACE_WRITE),
+                            str(workspace), {})
+
+    targets = [target for flag, _source, target in _mounts(argv) if flag == "--tmpfs"]
+    assert str(tmp_path) not in targets
+    assert ("--bind", str(workspace), str(workspace)) in _mounts(argv)
 
 
 def test_the_linux_provider_mounts_back_what_the_run_owns(tmp_path):
