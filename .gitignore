@@ -20,6 +20,7 @@
 /connectors/
 /agents_data/
 /.marketplace/
+/logs/
 
 # DevAgent workspace artifacts (repo root)
 /.dev_agent/
