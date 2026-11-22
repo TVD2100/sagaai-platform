@@ -1,8 +1,8 @@
 # core/version.py - single source of truth for the SagaAI platform version.
 #
-# The platform is published as a stable release: the 2.x line keeps its
+# The platform is published as a stable release: a minor release keeps its
 # public APIs, UI and data formats backward compatible; breaking changes
-# would arrive in a new major version. The version follows SemVer.
+# arrive in a new major version. The version follows SemVer.
 #
 # 2.0.0 changes the distribution terms: since this release the platform is
 # licensed under PolyForm Noncommercial 1.0.0 (commercial use requires a
@@ -823,7 +823,17 @@
 # unproven claim: the injected working block names such steps and the archive
 # reports them instead of carrying the claim into history as checked.
 
-__version__ = "2.48.0"
+# 3.0.0 is the first major release of the stable line: the platform leaves
+# preview status. The 2.x releases from 2.35.0 to 2.48.0 shipped the release
+# pipeline and the agent runtime as one system - typed API contracts with
+# golden tests, a single CI entry point, scheduled runs, the code-execution
+# sandbox with its access switch, Ed25519-signed updates, catalog entities
+# with multilingual names, declared long-term memory for employees and a task
+# journal that belongs to the dialog. The version follows SemVer: a minor
+# release keeps its public APIs, UI and data formats backward compatible,
+# breaking changes arrive in a new major version.
+
+__version__ = "3.0.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

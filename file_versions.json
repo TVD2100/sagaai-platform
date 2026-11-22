@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "2.48.0",
+  "app_version": "3.0.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Журнал задач принадлежит диалогу и переезжает вместе с ним между рабочими папками; тред пинится на шаг, архив сохраняет план и строки проверки, неподтверждённый шаг больше не проходит молча.",
-    "en": "The task journal belongs to the dialog and follows it across workspaces; a step pins its thread, the archive keeps the plan and verification lines, and an unproven step no longer passes silently."
+    "ru": "Первый мажорный релиз стабильной линии: платформа выходит из предрелиза. Минорные релизы сохраняют совместимость API, интерфейса и форматов данных; в этой версии - песочница исполнения кода, подписанные обновления, объявленная память сотрудников и журнал задач диалога.",
+    "en": "The first major release of the stable line: the platform leaves preview status. Minor releases keep the API, UI and data formats backward compatible; this version brings code execution sandboxing, signed updates, declared employee memory and a dialog-owned task journal."
   },
-  "updated": "2026-11-20T12:16:56Z",
+  "updated": "2026-11-22T20:13:37Z",
   "units": {
     "core": {
-      "version": "1.92.0",
+      "version": "2.0.0",
       "note": {
-        "ru": "Пакет кода: журнал задач в папке диалога с миграцией, пин треда на шаг, архив с планом и verification-строками, сигнал о неподтверждённых шагах.",
-        "en": "Code unit: the task journal in the dialog folder with migration, the thread pinned for a step, an archive with the plan and verification lines, a signal for unproven steps."
+        "ru": "Пакет кода 3.0.0: стабильный релиз. Поведение относительно 2.48.0 не менялось - закреплён контракт: минорные релизы сохраняют совместимость публичных API, интерфейса и форматов данных.",
+        "en": "Code unit 3.0.0: the stable release. Behavior is unchanged from 2.48.0 - the contract is fixed: a minor release keeps the public APIs, UI and data formats backward compatible."
       },
       "files": {
         "__init__.py": {
@@ -276,11 +276,11 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.82.0",
-          "sha256": "1b3edd1ffbd04d1e01d2685e1337779fd12c8ca12eb144db2aeaf8916c59ffd6",
+          "version": "2.0.0",
+          "sha256": "e0562c10c0f98691f002dcb9ebb14c41cc248a725c7bd9df1f35e29ebbad6b57",
           "note": {
-            "ru": "Релиз 2.44.3: данные тестов не попадают в установку.",
-            "en": "Release 2.44.3: test data stays out of the installation."
+            "ru": "Версия платформы 3.0.0, параграф истории релиза и формулировка о совместимости минорных релизов.",
+            "en": "Platform version 3.0.0, the release history paragraph and the wording about minor-release compatibility."
           }
         },
         "dev_agent/__init__.py": {
@@ -3526,19 +3526,19 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.81.7",
-      "sha256": "bfde507223ff95788a4afe8e3b143abdc13717bbed8f04a2ce59c83d0e14c91f",
+      "version": "1.82.0",
+      "sha256": "37343ae9834ff1bf0643c96d5007e5e81f639ddfba37488e8c536ba3ff7a37d0",
       "note": {
-        "ru": "Регенерация: описания тестов журнала задач и актуальные версии промптов.",
-        "en": "Regenerated: descriptions of the task-journal tests and the current prompt versions."
+        "ru": "Регенерация под релиз 3.0.0: состав публикуемых файлов и отпечаток содержимого.",
+        "en": "Regenerated for the 3.0.0 release: the published file set and the content fingerprint."
       }
     },
     "README.md": {
-      "version": "1.62.9",
-      "sha256": "d2d404fa5f3c27b686002def8e20e25fe7f7787c287d16d75fffb068b3d09dce",
+      "version": "1.63.0",
+      "sha256": "0261bbe440aa8b9fe06b2a49cfeea859334be3b459621fe88a1ccacd7dac4fd7",
       "note": {
-        "ru": "Строка статуса версии обновлена до 2.47.0.",
-        "en": "The version status line is updated to 2.47.0."
+        "ru": "Статус версии: стабильный релиз v3.0.0 вместо предрелиза.",
+        "en": "Version status: the v3.0.0 stable release instead of the preview."
       }
     },
     "defaults/README.md": {
@@ -4174,11 +4174,11 @@
       }
     },
     "SECURITY.md": {
-      "version": "1.0.0",
-      "sha256": "1ad3d6958ef8d2c659f65009ca0821e5cb489d8a7a501f28b28c38f2f7184d74",
+      "version": "1.1.0",
+      "sha256": "87886315750f7993ed68a25bf380b45576e6839950dd86ce437c2a6817dc37bd",
       "note": {
-        "ru": "Политика безопасности: как сообщить об уязвимости, поддерживаемые версии, политика каналов подписи, что гарантирует песочница исполнения кода и что нужно беречь в установке.",
-        "en": "Security policy: how to report a vulnerability, supported versions, the signature channel policy, what the execution sandbox guarantees and what an installation must keep safe."
+        "ru": "Политика безопасности: как сообщить об уязвимости, поддерживаемая линия 3.x, политика каналов подписи, что гарантирует песочница исполнения кода и что нужно беречь в установке.",
+        "en": "Security policy: how to report a vulnerability, the supported 3.x line, the signature channel policy, what the execution sandbox guarantees and what an installation must keep safe."
       }
     },
     "keys/ed25519-public.pem": {
