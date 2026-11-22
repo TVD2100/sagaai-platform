@@ -34,6 +34,23 @@ def _restore_dev_agent_state():
             wb._REGISTRY.update(old_registry)
 
 
+@pytest.fixture(autouse=True)
+def isolated_journal_home(tmp_path, monkeypatch):
+    """Keep task-state journals out of the install's real data folder.
+
+    A journal belongs to its dialog and lives in the data dir, which a test
+    does not own: without this the suite would write ``history/<tid>``
+    folders into the installation it runs from. Every test gets its own
+    history root instead; a test that needs a specific one replaces the
+    attribute itself and wins, because it runs after this fixture.
+    """
+    import core.paths as paths_mod
+
+    monkeypatch.setattr(paths_mod, "HISTORY_DIR", str(tmp_path / "history"),
+                        raising=False)
+    yield
+
+
 @pytest.fixture
 def isolated_app_modules():
     """Isolate project modules (core/storage/ui) for the duration of a test.

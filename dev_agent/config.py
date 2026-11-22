@@ -140,12 +140,16 @@ DEFAULT_ENCODING = "utf-8"
 TARGET_FILE: Optional[str] = None
 
 # ─── Task-state memory (TASK_STATE.md per dialog thread) ─────────────────────
-# TASK_STATE files live in a hidden .dev_agent/task_states folder INSIDE the
-# active project - one journal file per dialog thread, named
-# TASK_STATE__<thread_id>.md (see task_state.py). ACTIVE_THREAD_ID is set by
-# the agent loop at the start of every step so the task-state layer always
-# knows which thread's journal it should read/write.
+# TASK_STATE files are addressed by thread id; the location itself is
+# resolved by task_state.py (the install data dir by default). ACTIVE_THREAD_ID
+# is set by the agent loop at the start of every step so the task-state layer
+# always knows which thread's journal it should read/write.
 TASK_STATES_DIR = _RUNTIME_DIR / "task_states"
+#: The value ``TASK_STATES_DIR`` has when nobody overrode it. A caller that
+#: needs the journals elsewhere (a test isolating a run, a maintenance script)
+#: replaces ``TASK_STATES_DIR`` directly; comparing the two tells the journal
+#: layer that this happened, and an explicit choice then wins over the default.
+TASK_STATES_DIR_DEFAULT = TASK_STATES_DIR
 ACTIVE_THREAD_ID: str = ""
 
 
@@ -188,6 +192,7 @@ def apply_paths(root, *, target_file: Optional[str] = None,
     """
     global PROJECT_ROOT, WORKING_ON_INSTALL, _RUNTIME_DIR
     global BACKUPS_DIR, WORKSPACE_DIR, CHANGELOG_FILE, TASK_STATES_DIR
+    global TASK_STATES_DIR_DEFAULT
     global PROJECT_MAP_FILE, AGENT_FILE, ARCHITECTURE_FILE, README_FILE
     global PROJECT_DOC_NAMES, PROTECTED_FILES, TARGET_FILE, ACTIVE_THREAD_ID
     global WORKSPACE_SELECTED
@@ -205,6 +210,7 @@ def apply_paths(root, *, target_file: Optional[str] = None,
     BACKUPS_DIR = _RUNTIME_DIR / "backups"
     WORKSPACE_DIR = _RUNTIME_DIR / "workspace"
     TASK_STATES_DIR = _RUNTIME_DIR / "task_states"
+    TASK_STATES_DIR_DEFAULT = TASK_STATES_DIR
     CHANGELOG_FILE = new_root / "CHANGELOG.md"
     PROJECT_MAP_FILE = new_root / "PROJECT_MAP.md"
     AGENT_FILE = new_root / "AGENT.md"

@@ -358,7 +358,8 @@ items/<key>/ and record the switch in AGENT.md and journal.md.
 
 ENGINEERING roles get no memory block: the working folder is chosen with
 `set_workspace`, long-lived notes live in the project's own `AGENT.md` /
-`PROJECT_MAP.md`, and the task journal lives in `.dev_agent/task_states/`.
+`PROJECT_MAP.md`, and the task journal lives in the dialog folder
+(`<history>/<thread_id>/task_states/`), not in the project.
 
 Runtime fallback when the role HAS a memory block but the marker resolves to
 nothing - the folder was moved, deleted, or the workspace points elsewhere:

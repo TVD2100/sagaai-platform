@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "2.47.0",
+  "app_version": "2.48.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "У сотрудника появилась объявленная долговременная память: уровни always / on_demand / search с бюджетами чтения задаются в настройках роли, платформа рендерит из них блок Memory profile и даёт пять инструментов (статус, чтение, запись, поиск, ротация), которые работают только с объявленными уровнями. Запись находит точку вставки сама и проверяет строку по объявленным колонкам, поиск отвечает без загрузки файла целиком, ротация держит стоимость чтения постоянной. Субагент получает противоположный блок и не может писать в реестры запустившего его сотрудника. Правило журнала задач переведено на ту же основу: платформа дописывает блок Task journal сотруднику с полным набором инструментов журнала, а сам журнал заводится по правилу применимости, а не для каждой задачи.",
-    "en": "An employee now has a declared long-term memory: always / on_demand / search levels with read budgets are set in the role settings, the platform renders the Memory profile block from them and offers five tools (status, read, append, search, rotate) that work only with the declared levels. Append finds the insertion point itself and validates a row against the declared columns, search answers without loading the whole file, and rotate keeps the reading cost flat. A subagent gets the opposite block and cannot write into the registries of the employee that launched it. The task-journal rule rests on the same footing: the platform appends the Task journal block to every employee holding the whole journal tool set, and a journal follows the applicability rule instead of being created for every task."
+    "ru": "Журнал задач принадлежит диалогу и переезжает вместе с ним между рабочими папками; тред пинится на шаг, архив сохраняет план и строки проверки, неподтверждённый шаг больше не проходит молча.",
+    "en": "The task journal belongs to the dialog and follows it across workspaces; a step pins its thread, the archive keeps the plan and verification lines, and an unproven step no longer passes silently."
   },
   "updated": "2026-11-20T12:16:56Z",
   "units": {
     "core": {
-      "version": "1.90.5",
+      "version": "1.92.0",
       "note": {
-        "ru": "Пакет кода: объявленные уровни долговременной памяти с бюджетами, инструменты памяти, барьер записи субагента и платформенное правило применимости журнала задач.",
-        "en": "Code unit: declared long-term memory levels with budgets, the memory tools, the subagent write barrier and the platform-side task-journal applicability rule."
+        "ru": "Пакет кода: журнал задач в папке диалога с миграцией, пин треда на шаг, архив с планом и verification-строками, сигнал о неподтверждённых шагах.",
+        "en": "Code unit: the task journal in the dialog folder with migration, the thread pinned for a step, an archive with the plan and verification lines, a signal for unproven steps."
       },
       "files": {
         "__init__.py": {
@@ -276,8 +276,8 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "1.81.0",
-          "sha256": "9455202ca5a90b54baaff35890f7a9e953aa50b97595d8fe741edb564f07bbe6",
+          "version": "1.82.0",
+          "sha256": "1b3edd1ffbd04d1e01d2685e1337779fd12c8ca12eb144db2aeaf8916c59ffd6",
           "note": {
             "ru": "Релиз 2.44.3: данные тестов не попадают в установку.",
             "en": "Release 2.44.3: test data stays out of the installation."
@@ -308,8 +308,12 @@
           "sha256": "581317be1aba87ef7b2a236a67325fb2a292b9538187eb3f6217eeafcde6deed"
         },
         "dev_agent/config.py": {
-          "version": "1.6.0",
-          "sha256": "55ffa379af4d3728f10d260b9758c4398baab534987c264024cbf82e6b82ada1"
+          "version": "1.7.0",
+          "sha256": "b4754768705fa86d1a11d92f0e8589464b1c3477c5e9b7e3a270ea2de837fd41",
+          "note": {
+            "ru": "Константа TASK_STATES_DIR_DEFAULT: явно заданный каталог журналов побеждает значение по умолчанию.",
+            "en": "TASK_STATES_DIR_DEFAULT: an explicitly chosen journal directory wins over the default."
+          }
         },
         "dev_agent/llm_utils.py": {
           "version": "1.0.2",
@@ -320,11 +324,11 @@
           "sha256": "d0df95822424d40712ca63af67d49e80a39b41a3f625b72d4670d04ddae6751d"
         },
         "dev_agent/task_state.py": {
-          "version": "1.7.1",
-          "sha256": "77aa478c5bd62a71fd68f2ddeccb9031a70fd933b925b78ec6e08d7b68899fa0",
+          "version": "1.8.0",
+          "sha256": "9a6d9c5b0fdff100ded149d334c18557557e0389cf585901230affc628145c5f",
           "note": {
-            "ru": "Тред журнала передаётся явным параметром с фолбэком на config.ACTIVE_THREAD_ID; thread_scope пинит тред ребёнка в текущем потоке Python.",
-            "en": "The journal thread is an explicit parameter with a config.ACTIVE_THREAD_ID fallback; thread_scope pins a child thread in the current Python thread."
+            "ru": "Журнал задач живёт в папке диалога (history/<tid>/task_states) с миграцией старого места; атомарный резолв треда, архивация с планом и verification-строками.",
+            "en": "Task journals live in the dialog folder (history/<tid>/task_states) with migration from the old location; atomic thread resolution, archiving keeps the plan and verification lines."
           }
         },
         "dev_agent/tool_executor.py": {
@@ -368,11 +372,11 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.13.3",
-          "sha256": "3ed8270709223aca7450163f4e8b8e339d265fe18c195f72109eb7764a8533cf",
+          "version": "1.13.5",
+          "sha256": "8c259c65013b90e73413a5dd68920d1f05865dc800131f1dc19f4bc99385bc54",
           "note": {
-            "ru": "Описание GitHub-коннектора в карте дополнено сохранением POSIX-режима при публикации.",
-            "en": "The connector description in the map now covers POSIX-mode preservation on publish."
+            "ru": "Описания в карте: тесты журнала задач, актуальные пины версий промптов.",
+            "en": "Map descriptions: the task-journal tests and the current prompt version pins."
           }
         },
         "scripts/verify_manifest.py": {
@@ -416,8 +420,8 @@
           "sha256": "4963934c13063d8345492fa9cedb2b56cdd7f2cf3517303c60a19be138341279"
         },
         "tests/conftest.py": {
-          "version": "1.2.0",
-          "sha256": "81bd8164c52f8166305b6da76c770dba82b32a90a8bfd0b64c36fc75ae9675d5"
+          "version": "1.2.1",
+          "sha256": "7799a0dd5c584a2a8e90e1353f1bc33da45d3a43d15ec9575eecd82233176258"
         },
         "tests/fixtures/rag_eval/corpus.json": {
           "version": "1.0.0",
@@ -556,8 +560,8 @@
           "sha256": "351e10538504bf824580b867882f57a33b50d7a1ccacb6170a38d0acabb61fd0"
         },
         "tests/scenarios/test_orchestrator_tool_gating.py": {
-          "version": "1.2.21",
-          "sha256": "c628811694a2af418cef9a094fca705fb514c60f9d2e62daf3da20ffc147762b",
+          "version": "1.2.22",
+          "sha256": "069db9bd781435b38556dfcdcc4001f1f188cfd9c5acac1b0f774c871fb3e87d",
           "note": {
             "ru": "Пин промпта DevAgent v3.30 и инвариант спеки изменения в скретче.",
             "en": "Pins the DevAgent v3.30 prompt and the change-scoped spec invariant."
@@ -660,8 +664,8 @@
           "sha256": "3229bc36f0a0e3fc24a176ad4718038636b5e3ca4844ad9c2ce9381d1a77591f"
         },
         "tests/scenarios/test_yandex_models_catalog_scenario.py": {
-          "version": "1.0.3",
-          "sha256": "c9c9acb503a69e12defef8c52e806728126d3f6ff942de60d42bfafc8e8452de"
+          "version": "1.0.4",
+          "sha256": "69d9c593fa910189389529a7dc82a7f50dd29397cb43c62dcc344297e207ba8b"
         },
         "tests/scenarios/test_yandex_responses_failures_scenario.py": {
           "version": "1.0.0",
@@ -1080,8 +1084,12 @@
           "sha256": "ce4e2859447dbc6fee2a90b1d0668ad56ec7a1475977ea09c47391ad0e458f78"
         },
         "tests/test_task_state.py": {
-          "version": "1.3.1",
-          "sha256": "bef58c5e54cdbbde91baca7175c0e79871a961c23fb8e72e6fbfd3bc7b5eed58"
+          "version": "1.4.0",
+          "sha256": "738169bcc82c09c40b3a4e0bbc2b752151bd3b445fd6cb6abee366f1a9dd57ef",
+          "note": {
+            "ru": "Тесты журнала: новое место хранения, миграция, архивация с планом и verification-строками.",
+            "en": "Journal tests: the new storage location, migration, archiving with the plan and verification lines."
+          }
         },
         "tests/test_theme_restore.py": {
           "version": "1.1.1",
@@ -1598,8 +1606,8 @@
           "sha256": "2dd42c63f77ea870e7179e23d5be4b324443f22b1d4ce08ca0ca27f49cb67064"
         },
         "tests/test_system_prompt_subagents.py": {
-          "version": "1.0.8",
-          "sha256": "e6f71809a1141c726acb1467123abeee31c67136c5fa65242a5e9530cc1926af"
+          "version": "1.0.9",
+          "sha256": "db96bb746c9fe03707d69193880b97e8c22d3560ff4d0a2d7f3ef5101bd4d3ce"
         },
         "tests/test_delegation_injection_inheritance.py": {
           "version": "1.0.1",
@@ -1650,8 +1658,8 @@
           "sha256": "a88938b07272cf2050b04fbe82d21cdaf9c93d7025fa972beadde8931ec8edc1"
         },
         "tests/scenarios/test_journal_retention_scenario.py": {
-          "version": "1.0.1",
-          "sha256": "7b79a10979b4941bfeeeb83c666800c7882c4c4987719271602ea427fa260a9c"
+          "version": "1.0.2",
+          "sha256": "e4b637ca93ac5dddb38461ea7ebaeaf622448d5fc02433de7cf85137394e051c"
         },
         "core/marketplace/__init__.py": {
           "version": "1.0.1",
@@ -2650,8 +2658,8 @@
           }
         },
         "dev_agent/loop/context.py": {
-          "version": "1.0.0",
-          "sha256": "e9955abb229cd0916b36865b99e283523d7d9f2529b1276354cfd8a4cb0ee8b0"
+          "version": "1.0.1",
+          "sha256": "eefae2ceee0ae1fcd7a0c912b4320d3fe54ef76a0a3d1bab646b92db02e5f3a6"
         },
         "dev_agent/loop/steps/__init__.py": {
           "version": "1.0.0",
@@ -2678,8 +2686,12 @@
           "sha256": "abab838e488e1b104f44698c59b3c13f170b9f0a2dd51f0dd80a95ec5f647b16"
         },
         "dev_agent/loop/steps/runner.py": {
-          "version": "1.0.0",
-          "sha256": "790c9282ef0394ba31d9cbcf96ac1feef0f29d7307d7e03454962487c10670ce"
+          "version": "1.1.0",
+          "sha256": "6280d2480b26795294c97108d466f3deaf113734ac8cbe8f67c0d5dc838cccc1",
+          "note": {
+            "ru": "Тред журнала пинится на весь шаг диалога, включая вложенные вызовы.",
+            "en": "The journal thread is pinned for the whole dialog step, nested calls included."
+          }
         },
         "dev_agent/loop/steps/runtime.py": {
           "version": "1.0.0",
@@ -2698,8 +2710,12 @@
           "sha256": "df96b81dd7488d0c977d3680a3efc99b3a6480a8586b9aa8265d3c08ba220e91"
         },
         "dev_agent/tools/catalog.py": {
-          "version": "1.1.0",
-          "sha256": "df79c9f3506a470f5ce73b76de7325e2101e47742f7c43fd12b398c00f376d41"
+          "version": "1.1.1",
+          "sha256": "e29776d33b492eae1023bc417c63465c5c7a2e8b204abbc5179ae8ba6f0ca192",
+          "note": {
+            "ru": "Описания инструментов журнала: место хранения, обязательная verification и содержимое архива.",
+            "en": "Journal tool descriptions: storage location, mandatory verification and the contents of the archive."
+          }
         },
         "dev_agent/tools/clock.py": {
           "version": "1.0.0",
@@ -2774,11 +2790,11 @@
           "sha256": "486b57e6138c4e705869377a14591c75d15a2ab590f6726a2522c9e5ed7e5693"
         },
         "core/prompt_blocks.py": {
-          "version": "1.1.0",
-          "sha256": "d9d0c2c4267735b0b606717b5e8bfb62f683eb49bb192c59c3022b59d9a975f8",
+          "version": "1.2.0",
+          "sha256": "1d8824af182db863658b3191f0ca0b4a2c6be04f541da50864edf8a2aba607e4",
           "note": {
-            "ru": "Правило применимости журнала задач: когда журнал нужен, а когда итог фиксируется записью в долговременной памяти.",
-            "en": "The task-journal applicability rule: when a journal is warranted and when the outcome belongs in long-term memory instead."
+            "ru": "Правила ведения журнала: доказанный шаг, содержательные result/context, рабочие файлы в task_dir, состав архива.",
+            "en": "Journal-writing rules: a proven step, substantive result/context, working files in task_dir, what the archive keeps."
           }
         },
         "core/orchestration/child_runner.py": {
@@ -3468,17 +3484,37 @@
         "tests/test_task_journal_rule.py": {
           "version": "1.0.0",
           "sha256": "fd8bc0e961c6e6ef3003d00398a346f70532283a35f63383d4ba570f90cf8b54"
+        },
+        "tests/test_agent_loop_step_scope.py": {
+          "version": "1.0.0",
+          "sha256": "d5fc62c064d290d9d8ec7ce8d07fc7474ce916337e7bb79feafb4991c8f86594"
+        },
+        "tests/test_task_journal_rules.py": {
+          "version": "1.0.0",
+          "sha256": "d6fc981bc440e08e9a34e6972c41664328c1794f3444ecf6ef1b5252b0f4f6b1"
+        },
+        "tests/test_task_state_archive.py": {
+          "version": "1.0.0",
+          "sha256": "26b3670fdc5b7b449dd361ce19d95ca6b03995a8d5aeb6f62dea73802770ec7a"
+        },
+        "tests/test_task_state_home.py": {
+          "version": "1.0.0",
+          "sha256": "6c456d35fce67975d6af3313dacfcd447d3658ea196c2836a25ff9838c976348"
+        },
+        "tests/test_task_state_unverified.py": {
+          "version": "1.0.0",
+          "sha256": "84db1078ace90d968d9e8b054cb287b3d5e1f26b71d740df9f3150a7d5ba224d"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.81.0",
-      "sha256": "a9812b969f5845f6333d2b92aef10d0b9f05c9f08d2a8c9ab37f28e251bd37ab",
+      "version": "1.81.2",
+      "sha256": "85e9fd1ff99c84326fb8431ee4af582f0227c1b38d5ff95c0abcd4fe42cd519f",
       "note": {
-        "ru": "Уровни памяти (always / on_demand / search), блок Memory profile, инструменты памяти и барьер записи субагента.",
-        "en": "Memory levels (always / on_demand / search), the Memory profile block, the memory tools and the subagent write barrier."
+        "ru": "Журнал задач: место в папке диалога, миграция старого места, атомарный резолв треда, архив с планом и строками проверки.",
+        "en": "Task journal: the dialog folder as its home, migration from the old location, atomic thread resolution, an archive keeping the plan and the verification lines."
       }
     },
     "LICENSE": {
@@ -3490,16 +3526,16 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.81.4",
-      "sha256": "b5c566a14c72793a6911f1423e62f20cfdebedc5eba840d4af1f7a67dcf824a2",
+      "version": "1.81.7",
+      "sha256": "bfde507223ff95788a4afe8e3b143abdc13717bbed8f04a2ce59c83d0e14c91f",
       "note": {
-        "ru": "Регенерация: описание GitHub-коннектора дополнено сохранением POSIX-режима в tree-entry.",
-        "en": "Regenerated: the GitHub connector description now covers POSIX-mode preservation in tree entries."
+        "ru": "Регенерация: описания тестов журнала задач и актуальные версии промптов.",
+        "en": "Regenerated: descriptions of the task-journal tests and the current prompt versions."
       }
     },
     "README.md": {
-      "version": "1.62.8",
-      "sha256": "19f78b0f0f524a9939fb16fa562ac6a13f90069f3f9fe435cd405438e669f244",
+      "version": "1.62.9",
+      "sha256": "d2d404fa5f3c27b686002def8e20e25fe7f7787c287d16d75fffb068b3d09dce",
       "note": {
         "ru": "Строка статуса версии обновлена до 2.47.0.",
         "en": "The version status line is updated to 2.47.0."
@@ -3634,8 +3670,8 @@
       }
     },
     "defaults/orchestrators/dev_agent/instructions/employee_creator.md": {
-      "version": "1.7.0",
-      "sha256": "7683fee2648a3557067df8b142fb372371ef9497cc77bb1be9cfb1eec864cd8e",
+      "version": "1.7.1",
+      "sha256": "2924930b36020d3355b351e94eac13870cb5e486b6a937f6664182b4d673ee29",
       "note": {
         "ru": "Инструкция: набор инструментов памяти и журнала передаётся целиком, а правила механизма платформа дописывает сама.",
         "en": "Instruction: the memory and journal tool sets travel whole, and the platform appends the mechanism rules itself."
@@ -3754,11 +3790,11 @@
       }
     },
     "defaults/orchestrators/ya_agent/system_prompt.md": {
-      "version": "2.11",
-      "sha256": "f11795501d8ac9e8bd3e575da21d38bbe4b40cf9b34f891598f000465fc17fdf",
+      "version": "2.12",
+      "sha256": "e22fd6930a8b7aa1ee1fa1ada58779dad427251f1737072cf679599f3c4ce348",
       "note": {
-        "ru": "Промпт YaAgent v2.11: docs-first по AGENT.md, §8/§9.4/§10 и таблица документов обновлены (SPEC.md -> AGENT.md).",
-        "en": "YaAgent prompt v2.11: AGENT.md-first docs workflow, sections 8/9.4/10 and the docs table updated (SPEC.md -> AGENT.md)."
+        "ru": "Промпт YaAgent v2.12: журнал задач в папке диалога, обязательная verification у доказанного шага, состав архива.",
+        "en": "YaAgent prompt v2.12: the task journal lives in the dialog folder, a proven step carries verification, what the archive keeps."
       }
     },
     "defaults/rag_bases/yaagentai_2020/index.db": {
@@ -3834,11 +3870,11 @@
       }
     },
     "dev_agent/system_prompt.md": {
-      "version": "3.32",
-      "sha256": "381c2ce40b0c445d9462c0cf09b51f0bf89834e980e6d9bbe1a063deaf143793",
+      "version": "3.33",
+      "sha256": "ba88174e7703d5fb74cd5754e1bb27fe396230f8f4925157666ab8d50d4ae51e",
       "note": {
-        "ru": "DevAgent v3.32: журнал задач заводится по правилу применимости из платформенного блока, а не для каждой задачи; итог короткой работы фиксируется записью в долговременной памяти.",
-        "en": "DevAgent v3.32: a task journal follows the applicability rule of the platform block instead of being created for every task; the outcome of short work goes into long-term memory."
+        "ru": "DevAgent v3.33: журнал задач в папке диалога, обязательная verification у доказанного шага, план и verification-строки сохраняются в архиве.",
+        "en": "DevAgent v3.33: the task journal lives in the dialog folder, a proven step carries verification, the plan and verification lines survive archiving."
       }
     },
     "langs/en.json": {
@@ -3914,11 +3950,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.57.5",
-      "sha256": "7b3993d0bb3b8a76dec6a719a6f3797e5ad5ba08497adfa7541e00e205326124",
+      "version": "1.58.0",
+      "sha256": "c85f037aaa7ef34fd172e3460f20f0b02c32ac0801f937623d98a775de954661",
       "note": {
-        "ru": "Инвариант lock для целевой платформы и сохранение POSIX-режима при публикации: режим несёт tree-entry, поэтому batch_upsert считает смену режима изменением.",
-        "en": "Lock invariant for the target platform and POSIX-mode preservation on publish: the permission lives in the tree entry, so batch_upsert treats a mode change as an update."
+        "ru": "Журнал задач принадлежит диалогу: место в папке диалога, миграция старого места, пин треда на шаг, архив с планом и строками проверки, сигнал о неподтверждённых шагах.",
+        "en": "The task journal belongs to the dialog: its home in the dialog folder, migration from the old location, the thread pinned for a step, an archive with the plan and verification lines, a signal for unproven steps."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/connector_creator.md": {

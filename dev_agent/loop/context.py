@@ -50,11 +50,12 @@ def _facade_attr(name: str, default: Any) -> Any:
 
 
 # ── Task-state external memory (per-thread journal) ───────────────────────────
-# For every task the agent keeps a per-thread task-state journal
-# (.dev_agent/task_states/TASK_STATE__<thread_id>.md: Active Task +
-# Task History). The Active Task is injected as a system message at the
-# END of every request, so the agent always knows where it is even when
-# economy mode truncates history.
+# For every task the agent keeps a per-thread task-state journal in the
+# dialog folder of the data dir
+# (<history>/<thread_id>/task_states/TASK_STATE__<thread_id>.md:
+# Active Task + Task History). The Active Task is injected as a system
+# message at the END of every request, so the agent always knows where it is
+# even when economy mode truncates history.
 
 def _maybe_task_state_context() -> Optional[str]:
     """Return the task-state block for context injection, or None."""

@@ -46,7 +46,12 @@ def test_journal_file_name_embeds_thread_id(sandbox):
     ts.ensure_task_state_file()
     path = ts.task_state_path()
     assert path.name == "TASK_STATE__test_thread_123.md"
-    assert path.parent == config.TASK_STATES_DIR
+    # The journal belongs to the dialog: it lives in the dialog's own folder
+    # in the data dir, so switching the workspace cannot lose it.
+    assert path.parent.name == "task_states"
+    assert path.parent.parent.name == "test_thread_123"
+    assert path.parent.parent.parent == Path(
+        __import__("core.paths", fromlist=["HISTORY_DIR"]).HISTORY_DIR)
 
 
 def test_build_contains_all_sections():
@@ -686,3 +691,101 @@ def test_runtime_handoff_needs_a_thread(sandbox):
     assert res['ok'] is False
     assert res['wrote'] is False
     assert 'thread_id' in res['error']
+
+
+# --- Thread id resolution is atomic per call ----------------------------
+
+def test_thread_id_is_resolved_once_per_path(sandbox, monkeypatch):
+    """A path must name one thread even if the global changes mid-call.
+
+    Two resolutions of the live id within one call (folder first, file name
+    later) can interleave with another step that republishes
+    ``ACTIVE_THREAD_ID``: the folder would belong to one dialog and the file
+    to the next. The id is therefore pinned before the base is chosen, and
+    this test flips the global on every resolution attempt after the first.
+    """
+    calls = []
+    real = ts.current_thread_id
+
+    def flaky(thread_id=None):
+        calls.append(thread_id)
+        # A concurrent step publishes its own thread after the first lookup.
+        if len(calls) > 1:
+            config.ACTIVE_THREAD_ID = "test_thread_other"
+        return real(thread_id)
+
+    monkeypatch.setattr(ts, "current_thread_id", flaky)
+    path = ts.task_state_path()
+
+    assert sum(1 for arg in calls if not arg) == 1
+    assert path.name == "TASK_STATE__test_thread_123.md"
+
+
+def test_thread_id_is_resolved_once_per_write(sandbox, monkeypatch):
+    """Folder, file name and result payload must all name the same thread."""
+    calls = []
+    real = ts.current_thread_id
+
+    def flaky(thread_id=None):
+        calls.append(thread_id)
+        if len(calls) > 1:
+            config.ACTIVE_THREAD_ID = "test_thread_other"
+        return real(thread_id)
+
+    monkeypatch.setattr(ts, "current_thread_id", flaky)
+    res = ts.archive_and_start_task(task="Atomic T", plan=PLAN_TEXT)
+
+    assert res.get("ok"), res
+    # The live global is consulted ONCE; every later lookup carries the id
+    # explicitly, so the concurrent flip cannot reach any of them.
+    assert sum(1 for arg in calls if not arg) == 1
+    assert res["thread_id"] == "test_thread_123"
+    assert Path(res["path"]).name == "TASK_STATE__test_thread_123.md"
+    # The per-task folder sits under the SAME thread the file belongs to.
+    assert "/test_thread_123/" in res["task_dir"]
+
+
+def test_section_write_never_crosses_threads(sandbox, monkeypatch):
+    """A read-modify-write cycle stays inside the thread it started in."""
+    ts.archive_and_start_task(task="Cross T", plan=PLAN_TEXT)
+    before = ts.read_task_state()
+    calls = []
+    real = ts.current_thread_id
+
+    def flaky(thread_id=None):
+        calls.append(thread_id)
+        if len(calls) > 1:
+            config.ACTIVE_THREAD_ID = "test_thread_other"
+        return real(thread_id)
+
+    monkeypatch.setattr(ts, "current_thread_id", flaky)
+    res = ts.update_task_state_section("handoff", "facts after flip")
+
+    assert res.get("ok"), res
+    assert sum(1 for arg in calls if not arg) == 1
+    assert res["thread_id"] == "test_thread_123"
+    after = ts.read_task_state_at(before["path"])
+    assert after["sections"]["handoff"] == "facts after flip"
+
+
+def test_step_marking_never_crosses_threads(sandbox, monkeypatch):
+    """Marking a step keeps Progress and Plan in the originating journal."""
+    ts.archive_and_start_task(task="Step T", plan=PLAN_TEXT)
+    calls = []
+    real = ts.current_thread_id
+
+    def flaky(thread_id=None):
+        calls.append(thread_id)
+        if len(calls) > 1:
+            config.ACTIVE_THREAD_ID = "test_thread_other"
+        return real(thread_id)
+
+    monkeypatch.setattr(ts, "current_thread_id", flaky)
+    res = ts.update_plan_step_status("step_1", status="done",
+                                     verification="tests: ok", result="layers")
+
+    assert res.get("ok"), res
+    assert sum(1 for arg in calls if not arg) == 1
+    assert res["thread_id"] == "test_thread_123"
+    journal = ts.read_task_state_at(res["path"])
+    assert journal["sections"]["progress"].count("[x]") == 1

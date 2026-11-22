@@ -41,7 +41,13 @@ def _journal(directory, thread, *, task=None, history=None, outcome=None,
 
 @pytest.fixture
 def install(tmp_path, monkeypatch):
-    """A workspace journal folder plus a data dir with dialog journals."""
+    """A workspace journal folder plus a data dir with dialog journals.
+
+    The runtime folder is installed as the DEFAULT journal location, not as
+    an explicit override: the sweep is supposed to cover every folder an
+    install can hold journals in, and an override deliberately narrows it to
+    one place.
+    """
     runtime = tmp_path / "project" / ".dev_agent" / "task_states"
     runtime.mkdir(parents=True)
     history = tmp_path / "data" / "history"
@@ -49,6 +55,7 @@ def install(tmp_path, monkeypatch):
     (history / "dialog_b" / "task_states").mkdir(parents=True)
 
     monkeypatch.setattr(config, "TASK_STATES_DIR", runtime, raising=False)
+    monkeypatch.setattr(config, "TASK_STATES_DIR_DEFAULT", runtime, raising=False)
     monkeypatch.setattr(config, "ACTIVE_THREAD_ID", "dialog_a", raising=False)
     import core.paths as paths
     monkeypatch.setattr(paths, "HISTORY_DIR", str(history), raising=False)

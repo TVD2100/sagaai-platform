@@ -807,7 +807,23 @@
 # holds the whole journal tool set, so the applicability rule (three or more
 # steps, several files) replaces the demand to journal every task.
 
-__version__ = "2.47.0"
+# 2.48.0 fixes how the task journal is kept. A journal lived in the project's
+# ``.dev_agent/task_states`` folder, so a dialog started in one project and
+# continued in another lost its active task, and two dialogs in one folder
+# could mix their journals up. The journal now belongs to the dialog
+# (``<data_dir>/history/<thread_id>/task_states``), and a journal left in a
+# project runtime folder by an earlier version moves there with its per-task
+# working folder on first use. A step also pins its thread for its whole
+# duration: ``ACTIVE_THREAD_ID`` is process-wide, so interleaved steps of two
+# dialogs used to overwrite it and a section or an archive could land in the
+# other journal. The archive itself used to keep a step counter (``2/3``)
+# instead of the plan, so what the task did could not be recovered - it now
+# keeps the plan text, the verification line of every step and the working
+# folder. Finally, a step marked done without a verification line is an
+# unproven claim: the injected working block names such steps and the archive
+# reports them instead of carrying the claim into history as checked.
+
+__version__ = "2.48.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

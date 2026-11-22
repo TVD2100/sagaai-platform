@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-20T11:50:01+00:00`
-- Файлов: **852**
+- Обновлено: `2026-11-22T19:09:48+00:00`
+- Файлов: **857**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **11347**
-- Отпечаток содержимого: `sha256:8ab52e5709605ced3fab30638d5e61244c5926b1b814997af4e8bd825d4c43a1` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 2, JSON: 37, Markdown: 42, PEM certificate: 2, Python: 769, TOML: 2, Text: 2
+- Python-символов: **11408**
+- Отпечаток содержимого: `sha256:8cae0206b24ffdd174f9dcb740700fa1fdba3d87444fa27585158d6858c85bbd` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 2, JSON: 37, Markdown: 42, PEM certificate: 2, Python: 774, TOML: 2, Text: 2
 
 ## Файлы и назначение
 
@@ -295,6 +295,7 @@
 | `tests/test_agent_loop_json_repair.py` | Python | _(описание не задано)_ | - |
 | `tests/test_agent_loop_snapshot_chain.py` | Python | Unit: persistent TS/TC snapshot chain in the agent loop | - |
 | `tests/test_agent_loop_snapshot_persistence.py` | Python | Unit: snapshot chain round-trip through the thread store | storage |
+| `tests/test_agent_loop_step_scope.py` | Python | Unit: a dialog step keeps its journal thread bound for the whole step, so interleaved steps of two dialogs neither share nor swap a journal, and the scope is released when the step ends | - |
 | `tests/test_agent_loop_subagent_notices.py` | Python | Unit tests for notice delivery in the loop: formatting of [SUBAGENT_NOTICE], the hidden system message in the calling_llm phase, destructive draining and the auto-continue wording | - |
 | `tests/test_agent_loop_thread_context.py` | Python | Agent-loop thread-context tests: TS/TC snapshot chain, service-block marking, persistence round-trip | storage |
 | `tests/test_agent_memory_root.py` | Python | Unit tests for the central agents_data root and the memory: addressing: default path, per-slug folder, resolution with no project selected, and a refusal to escape the root | - |
@@ -524,9 +525,13 @@
 | `tests/test_subagent_transcript_modes.py` | Python | _(описание не задано)_ | - |
 | `tests/test_system_prompt_subagents.py` | Python | Tests for the subagent sections of the DevAgent system prompt: the launch rules, the background mode, the observation tools, the resume contract and the capped resume chain | - |
 | `tests/test_task_journal_rule.py` | Python | Tests of the journal applicability rule in the prompt: the block appears only for a role holding the whole journal tool set, and the parent and child wording differ | - |
+| `tests/test_task_journal_rules.py` | Python | Unit: the rules a model reads about the task journal - the system prompt section, the tool catalog entries and the platform parent/child blocks state the dialog-folder location, the mandatory verification line and what the archive keeps | - |
 | `tests/test_task_scout_default.py` | Python | Unit tests for the bundled Task Scout: folder completeness, conservative defaults, prompt contract, default import, catalog adoptability, and the delegation boundary of both read-only helpers | storage |
 | `tests/test_task_state.py` | Python | Task-state journal tests (dialog-folder fallback in the empty state) | - |
+| `tests/test_task_state_archive.py` | Python | Unit: what the Task History of a journal preserves - the plan text and the working folder, the verification of a finished step, a render-parse round trip, multi-line step facts, one status marker per progress entry | - |
+| `tests/test_task_state_home.py` | Python | Unit: the journal belongs to its dialog (history/<tid>/task_states), a legacy project-runtime journal is migrated with its content, a workspace switch keeps the same journal, an explicitly chosen folder is not mixed with another location | - |
 | `tests/test_task_state_prune.py` | Python | Unit tests for journal retention: only empty journals past the age threshold are removed, journals with an active task or history survive, the live dialog and fresh files survive, a non-journal file is left alone, an orphaned child journal goes only when its run reported a terminal outcome, and the sweep does not cascade onto children in the same pass | - |
+| `tests/test_task_state_unverified.py` | Python | Unit: done steps marked without a verification line - detection, the reminder in the injected working block, and the warning carried into the archive | - |
 | `tests/test_test_state_isolation.py` | Python | Guards how the suite isolates process-global state and runtime data: the base conftest ships _restore_dev_agent_state without autouse, the scenario folder owns its own restore hook, an AST scan fails with the offender's file name when a module calls apply_paths or _reset_dialog without restoring the state, and a second scan fails when a module calls a writing API (create_connection, instantiate_preset, create_orchestrator, create_assistant, ...) without isolating core.paths.DATA_DIR - by touching DATA_DIR, by importing an *data_dir fixture or by requesting one | - |
 | `tests/test_theme_restore.py` | Python | _(описание не задано)_ | - |
 | `tests/test_thread_deeplink.py` | Python | _(описание не задано)_ | - |
@@ -633,7 +638,7 @@
 | `tests/scenarios/test_orchestrator_devagent_scenarios.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_orchestrator_other_settings_scenario.py` | Python | _(описание не задано)_ | storage |
 | `tests/scenarios/test_orchestrator_thread_files.py` | Python | Scenario tests: uploads land in thread files; legacy workspace manifests still re-announced | storage, ui |
-| `tests/scenarios/test_orchestrator_tool_gating.py` | Python | Gating scenarios: system-prompt version pins (v3.26/v2.11), empty-state prompt invariants, generated-document rule, Stage 0 recent-folders menu, the subagent stop/transcript rules and thread-search tool invariants | storage |
+| `tests/scenarios/test_orchestrator_tool_gating.py` | Python | Gating scenarios: system-prompt version pins (v3.33/v2.12), empty-state prompt invariants, generated-document rule, Stage 0 recent-folders menu, the subagent stop/transcript rules and thread-search tool invariants | storage |
 | `tests/scenarios/test_personal_memory_scenario.py` | Python | Scenario tests for the two-store memory model (given->when->then): note survives the dialog and reaches the prompt, append vs replace with recoverable versions, size limit and credential refusal, MEMORY_DIR marker wins with relocation warnings, scopes stay isolated with write rights, deletion archives the notes | - |
 | `tests/scenarios/test_project_map_freshness_scenario.py` | Python | Scenario: PROJECT_MAP regeneration - GitHub-published scope only, recorded fingerprint and staleness detection, reproducible output | storage |
 | `tests/scenarios/test_provider_economy_settings_scenario.py` | Python | _(описание не задано)_ | ui |
@@ -2608,8 +2613,8 @@
 - `rebuild_index` (func, строка 746)
 
 ### `core/prompt_blocks.py`
-- `format_utc_offset` (func, строка 188)
-- `current_date_line` (func, строка 199)
+- `format_utc_offset` (func, строка 198)
+- `current_date_line` (func, строка 209)
 
 ### `core/prompt_dialog.py`
 - `extend_prompt_with_dialog` (func, строка 13)
@@ -3761,12 +3766,13 @@
 - `_shared_tmp_paths` (func, строка 44)
 - `_env_paths` (func, строка 49)
 - `_bind` (func, строка 64)
-- `_private_trees` (func, строка 76)
-- `build_argv` (func, строка 96)
-- `BwrapProvider` (class, строка 164)
-- `BwrapProvider.__init__` (func, строка 173)
-- `BwrapProvider.available` (func, строка 178)
-- `BwrapProvider.run` (func, строка 197)
+- `_mask` (func, строка 76)
+- `_private_trees` (func, строка 97)
+- `build_argv` (func, строка 117)
+- `BwrapProvider` (class, строка 186)
+- `BwrapProvider.__init__` (func, строка 195)
+- `BwrapProvider.available` (func, строка 200)
+- `BwrapProvider.run` (func, строка 219)
 
 ### `core/sandbox/providers/container.py`
 - `_resolve_docker` (func, строка 44)
@@ -4417,7 +4423,8 @@
 
 ### `tests/conftest.py`
 - `_restore_dev_agent_state` (func, строка 8)
-- `isolated_app_modules` (func, строка 38)
+- `isolated_journal_home` (func, строка 38)
+- `isolated_app_modules` (func, строка 55)
 
 ### `tests/marketplace_fixtures.py`
 - `marketplace_data_dir` (func, строка 37)
@@ -4637,6 +4644,19 @@
 - `test_snapshot_chain_roundtrip_keeps_hidden` (func, строка 71)
 - `test_saved_count_anchor_after_reload` (func, строка 103)
 - `test_save_thread_messages_keeps_hidden_marker` (func, строка 125)
+
+### `tests/test_agent_loop_step_scope.py`
+- `sandbox` (func, строка 40)
+- `_Dispatcher` (class, строка 56)
+- `_Dispatcher.dispatch` (func, строка 59)
+- `_runtime` (func, строка 63)
+- `_done_state` (func, строка 67)
+- `test_step_keeps_its_own_thread_when_another_dialog_publishes` (func, строка 75)
+- `test_step_keeps_its_own_thread_when_another_dialog_publishes.spy` (func, строка 82)
+- `test_scope_is_released_when_the_step_ends` (func, строка 99)
+- `test_two_threads_do_not_share_a_journal` (func, строка 114)
+- `test_two_threads_do_not_share_a_journal.spy` (func, строка 128)
+- `test_two_threads_do_not_share_a_journal.worker` (func, строка 132)
 
 ### `tests/test_agent_loop_subagent_notices.py`
 - `_FakeService` (class, строка 22)
@@ -9357,6 +9377,11 @@
 - `test_the_linux_provider_widens_the_shared_tree_only_on_request` (func, строка 235)
 - `test_the_linux_provider_mounts_the_child_home_for_writing` (func, строка 244)
 - `test_the_linux_provider_mounts_the_workspace_read_only_when_confined` (func, строка 260)
+- `test_a_secret_file_is_masked_without_creating_a_directory` (func, строка 274)
+- `test_a_secret_directory_is_masked_with_a_private_tree` (func, строка 287)
+- `test_a_mask_inside_a_replaced_tree_is_skipped` (func, строка 299)
+- `test_a_missing_path_gets_no_mask_at_all` (func, строка 311)
+- `test_the_generated_argv_masks_a_secret_file_without_refusing` (func, строка 321)
 
 ### `tests/test_sandbox_status.py`
 - `StubProvider` (class, строка 22)
@@ -10043,6 +10068,16 @@
 - `test_child_rule_keeps_the_answer_out_of_the_journal` (func, строка 74)
 - `test_role_without_the_capability_gets_no_block` (func, строка 80)
 
+### `tests/test_task_journal_rules.py`
+- `_system_prompt` (func, строка 28)
+- `_catalog_entry` (func, строка 33)
+- `test_system_prompt_says_the_journal_belongs_to_the_dialog` (func, строка 41)
+- `test_system_prompt_states_what_the_archive_keeps` (func, строка 50)
+- `test_tool_catalog_states_the_journal_location` (func, строка 58)
+- `test_tool_catalog_requires_a_verification_line_for_done` (func, строка 66)
+- `test_platform_parent_block_requires_verification` (func, строка 74)
+- `test_platform_child_block_requires_verification` (func, строка 83)
+
 ### `tests/test_task_scout_default.py`
 - `platform` (func, строка 33)
 - `scout` (func, строка 54)
@@ -10074,55 +10109,79 @@
 ### `tests/test_task_state.py`
 - `sandbox` (func, строка 22)
 - `test_journal_file_name_embeds_thread_id` (func, строка 45)
-- `test_build_contains_all_sections` (func, строка 52)
-- `test_split_active_sections_roundtrip` (func, строка 65)
-- `test_extract_step_ids` (func, строка 77)
-- `test_parse_step_handles_variants` (func, строка 82)
-- `test_ensure_and_read_roundtrip` (func, строка 91)
-- `test_ensure_existing_not_overwritten` (func, строка 104)
-- `test_update_section_preserves_others` (func, строка 116)
-- `test_update_section_unknown_rejected` (func, строка 128)
-- `test_mark_step_updates_status_and_progress` (func, строка 135)
-- `test_mark_step_records_context_for_next_step` (func, строка 151)
-- `test_mark_step_replaces_existing_meta` (func, строка 162)
-- `test_mark_step_unknown_fails` (func, строка 175)
-- `test_mark_step_invalid_status_fails` (func, строка 183)
-- `test_clear_archives_active_task_and_keeps_file` (func, строка 193)
-- `test_archive_and_start_task_appends_to_same_journal` (func, строка 212)
-- `test_history_survives_multiple_tasks` (func, строка 228)
-- `test_legacy_root_file_migrated_once` (func, строка 239)
-- `test_context_helper_missing_returns_none` (func, строка 260)
-- `test_context_helper_returns_block_with_meta` (func, строка 264)
-- `test_context_includes_recent_history` (func, строка 274)
-- `test_context_helper_truncates` (func, строка 288)
-- `test_tool_methods_roundtrip` (func, строка 299)
-- `test_tool_init_archives_previous_task` (func, строка 325)
-- `test_tool_catalog_lists_task_state_tools` (func, строка 338)
-- `test_agent_loop_helpers_present` (func, строка 348)
-- `test_analysis_and_requests_sections_roundtrip` (func, строка 373)
-- `test_build_scaffolds_all_seven_sections` (func, строка 383)
-- `test_start_task_allocates_numbered_task_dir` (func, строка 390)
-- `test_next_task_gets_next_number_and_moves_current_marker` (func, строка 407)
-- `test_mark_in_progress_shows_tilde_marker` (func, строка 417)
-- `test_mark_done_then_pending_toggles_markers` (func, строка 426)
-- `test_context_section_order_matches_canon` (func, строка 437)
-- `empty_state_sandbox` (func, строка 462)
-- `test_empty_state_journal_lives_in_thread_dir` (func, строка 477)
-- `test_empty_state_task_folders_live_in_thread_dir` (func, строка 493)
-- `test_empty_state_context_injection_keeps_thread_path` (func, строка 504)
-- `test_compact_read_returns_digest_without_full_content` (func, строка 517)
-- `test_compact_read_missing_journal_is_not_an_error` (func, строка 540)
-- `_big_plan_lines` (func, строка 546)
-- `test_compact_digest_keeps_newest_plan_facts` (func, строка 555)
-- `test_context_injection_keeps_newest_plan_facts` (func, строка 564)
-- `test_context_injection_stays_within_hard_cap` (func, строка 575)
-- `test_clear_current_marker_merges_duplicate_plain_folder` (func, строка 588)
-- `test_start_task_survives_duplicate_plain_folder` (func, строка 604)
-- `test_runtime_handoff_creates_a_journal_for_a_silent_child` (func, строка 617)
-- `test_runtime_handoff_records_a_failure_verdict` (func, строка 639)
-- `test_runtime_handoff_keeps_what_the_child_wrote` (func, строка 654)
-- `test_runtime_handoff_is_idempotent_per_run` (func, строка 669)
-- `test_runtime_handoff_needs_a_thread` (func, строка 683)
+- `test_build_contains_all_sections` (func, строка 57)
+- `test_split_active_sections_roundtrip` (func, строка 70)
+- `test_extract_step_ids` (func, строка 82)
+- `test_parse_step_handles_variants` (func, строка 87)
+- `test_ensure_and_read_roundtrip` (func, строка 96)
+- `test_ensure_existing_not_overwritten` (func, строка 109)
+- `test_update_section_preserves_others` (func, строка 121)
+- `test_update_section_unknown_rejected` (func, строка 133)
+- `test_mark_step_updates_status_and_progress` (func, строка 140)
+- `test_mark_step_records_context_for_next_step` (func, строка 156)
+- `test_mark_step_replaces_existing_meta` (func, строка 167)
+- `test_mark_step_unknown_fails` (func, строка 180)
+- `test_mark_step_invalid_status_fails` (func, строка 188)
+- `test_clear_archives_active_task_and_keeps_file` (func, строка 198)
+- `test_archive_and_start_task_appends_to_same_journal` (func, строка 217)
+- `test_history_survives_multiple_tasks` (func, строка 233)
+- `test_legacy_root_file_migrated_once` (func, строка 244)
+- `test_context_helper_missing_returns_none` (func, строка 265)
+- `test_context_helper_returns_block_with_meta` (func, строка 269)
+- `test_context_includes_recent_history` (func, строка 279)
+- `test_context_helper_truncates` (func, строка 293)
+- `test_tool_methods_roundtrip` (func, строка 304)
+- `test_tool_init_archives_previous_task` (func, строка 330)
+- `test_tool_catalog_lists_task_state_tools` (func, строка 343)
+- `test_agent_loop_helpers_present` (func, строка 353)
+- `test_analysis_and_requests_sections_roundtrip` (func, строка 378)
+- `test_build_scaffolds_all_seven_sections` (func, строка 388)
+- `test_start_task_allocates_numbered_task_dir` (func, строка 395)
+- `test_next_task_gets_next_number_and_moves_current_marker` (func, строка 412)
+- `test_mark_in_progress_shows_tilde_marker` (func, строка 422)
+- `test_mark_done_then_pending_toggles_markers` (func, строка 431)
+- `test_context_section_order_matches_canon` (func, строка 442)
+- `empty_state_sandbox` (func, строка 467)
+- `test_empty_state_journal_lives_in_thread_dir` (func, строка 482)
+- `test_empty_state_task_folders_live_in_thread_dir` (func, строка 498)
+- `test_empty_state_context_injection_keeps_thread_path` (func, строка 509)
+- `test_compact_read_returns_digest_without_full_content` (func, строка 522)
+- `test_compact_read_missing_journal_is_not_an_error` (func, строка 545)
+- `_big_plan_lines` (func, строка 551)
+- `test_compact_digest_keeps_newest_plan_facts` (func, строка 560)
+- `test_context_injection_keeps_newest_plan_facts` (func, строка 569)
+- `test_context_injection_stays_within_hard_cap` (func, строка 580)
+- `test_clear_current_marker_merges_duplicate_plain_folder` (func, строка 593)
+- `test_start_task_survives_duplicate_plain_folder` (func, строка 609)
+- `test_runtime_handoff_creates_a_journal_for_a_silent_child` (func, строка 622)
+- `test_runtime_handoff_records_a_failure_verdict` (func, строка 644)
+- `test_runtime_handoff_keeps_what_the_child_wrote` (func, строка 659)
+- `test_runtime_handoff_is_idempotent_per_run` (func, строка 674)
+- `test_runtime_handoff_needs_a_thread` (func, строка 688)
+- `test_thread_id_is_resolved_once_per_path` (func, строка 698)
+- `test_thread_id_is_resolved_once_per_path.flaky` (func, строка 710)
+- `test_thread_id_is_resolved_once_per_write` (func, строка 724)
+- `test_thread_id_is_resolved_once_per_write.flaky` (func, строка 729)
+- `test_section_write_never_crosses_threads` (func, строка 748)
+- `test_section_write_never_crosses_threads.flaky` (func, строка 755)
+- `test_step_marking_never_crosses_threads` (func, строка 771)
+- `test_step_marking_never_crosses_threads.flaky` (func, строка 777)
+
+### `tests/test_task_state_archive.py`
+- `sandbox` (func, строка 35)
+- `test_archive_keeps_the_plan_and_the_working_folder` (func, строка 52)
+- `test_archive_keeps_the_verification_of_a_finished_step` (func, строка 69)
+- `test_archived_plan_survives_a_render_parse_round_trip` (func, строка 85)
+- `test_multi_line_step_facts_keep_their_lines` (func, строка 95)
+- `test_progress_entry_does_not_repeat_the_status_marker` (func, строка 108)
+
+### `tests/test_task_state_home.py`
+- `sandbox` (func, строка 38)
+- `_history_journal` (func, строка 55)
+- `test_journal_lives_in_the_dialog_folder` (func, строка 61)
+- `test_legacy_runtime_journal_is_moved_with_its_content` (func, строка 70)
+- `test_workspace_switch_keeps_the_same_journal` (func, строка 91)
+- `test_explicit_journal_folder_is_not_mixed_with_another_location` (func, строка 106)
 
 ### `tests/test_task_state_prune.py`
 - `_age` (func, строка 20)
@@ -10145,6 +10204,14 @@
 - `test_the_once_wrapper_scans_only_once` (func, строка 236)
 - `test_a_journal_written_during_the_scan_is_kept` (func, строка 250)
 - `test_a_journal_written_during_the_scan_is_kept.touch_then_report` (func, строка 262)
+
+### `tests/test_task_state_unverified.py`
+- `sandbox` (func, строка 37)
+- `test_detection_reports_only_unproven_done_steps` (func, строка 54)
+- `test_a_proven_plan_reports_nothing` (func, строка 68)
+- `test_injected_context_names_the_unproven_step` (func, строка 78)
+- `test_the_archive_reports_what_it_could_not_prove` (func, строка 92)
+- `test_a_fully_proven_task_archives_without_a_warning` (func, строка 106)
 
 ### `tests/test_test_state_isolation.py`
 - `_read` (func, строка 36)
@@ -11708,9 +11775,9 @@
 - `_backdate` (func, строка 20)
 - `_journal` (func, строка 26)
 - `install` (func, строка 43)
-- `test_a_long_lived_install_keeps_only_what_it_can_still_read` (func, строка 61)
-- `test_a_second_step_of_the_same_process_does_no_work` (func, строка 121)
-- `test_a_journal_of_a_running_dialog_is_never_swept` (func, строка 142)
+- `test_a_long_lived_install_keeps_only_what_it_can_still_read` (func, строка 68)
+- `test_a_second_step_of_the_same_process_does_no_work` (func, строка 128)
+- `test_a_journal_of_a_running_dialog_is_never_swept` (func, строка 149)
 
 ### `tests/scenarios/test_json_repair_scenarios.py`
 - `_make_skill` (func, строка 24)
@@ -12977,21 +13044,21 @@
 ### `dev_agent/config.py`
 - `_resolve_project_root` (func, строка 43)
 - `ensure_neutral_root` (func, строка 75)
-- `set_target_root` (func, строка 153)
-- `apply_paths` (func, строка 173)
-- `snapshot_state` (func, строка 225)
-- `restore_state` (func, строка 247)
-- `ensure_runtime_dirs` (func, строка 277)
-- `set_memory_root` (func, строка 295)
-- `memory_root` (func, строка 325)
-- `thread_files_root` (func, строка 341)
-- `is_thread_files_path` (func, строка 358)
-- `is_memory_path` (func, строка 381)
-- `to_project_relative` (func, строка 401)
-- `_memory_relative` (func, строка 447)
-- `_thread_files_relative` (func, строка 461)
-- `is_protected` (func, строка 476)
-- `resolve_in_project` (func, строка 486)
+- `set_target_root` (func, строка 157)
+- `apply_paths` (func, строка 177)
+- `snapshot_state` (func, строка 231)
+- `restore_state` (func, строка 253)
+- `ensure_runtime_dirs` (func, строка 283)
+- `set_memory_root` (func, строка 301)
+- `memory_root` (func, строка 331)
+- `thread_files_root` (func, строка 347)
+- `is_thread_files_path` (func, строка 364)
+- `is_memory_path` (func, строка 387)
+- `to_project_relative` (func, строка 407)
+- `_memory_relative` (func, строка 453)
+- `_thread_files_relative` (func, строка 467)
+- `is_protected` (func, строка 482)
+- `resolve_in_project` (func, строка 492)
 
 ### `dev_agent/document_tools.py`
 - `select_source` (func, строка 17)
@@ -13075,57 +13142,65 @@
 - `split_for_display` (func, строка 211)
 
 ### `dev_agent/task_state.py`
-- `TaskStateError` (class, строка 119)
-- `current_thread_id` (func, строка 132)
-- `thread_scope` (func, строка 154)
-- `_empty_state_states_dir` (func, строка 170)
-- `_ensure_state_dir` (func, строка 203)
-- `task_state_path` (func, строка 212)
-- `thread_states_dir` (func, строка 218)
-- `_clear_current_marker` (func, строка 226)
-- `_task_folder_number` (func, строка 260)
-- `_plain_task_dir_path` (func, строка 268)
-- `_allocate_next_task_dir` (func, строка 281)
-- `current_task_dir` (func, строка 306)
-- `_now_iso` (func, строка 334)
-- `_backup_if_exists` (func, строка 339)
-- `_split_top_sections` (func, строка 355)
-- `_split_active_sections` (func, строка 377)
-- `_parse_legacy` (func, строка 404)
-- `_read_active_meta` (func, строка 426)
-- `_parse_history_entries` (func, строка 438)
-- `_parse_step` (func, строка 469)
-- `extract_step_ids` (func, строка 486)
-- `render_active_task` (func, строка 499)
-- `render_task_history` (func, строка 527)
-- `build_task_state` (func, строка 551)
-- `_has_active_content` (func, строка 594)
-- `_summarize_active` (func, строка 602)
-- `_archive_active_task` (func, строка 620)
-- `_write_raw` (func, строка 640)
-- `_write_journal` (func, строка 649)
-- `_migrate_legacy_file` (func, строка 683)
-- `ensure_task_state_file` (func, строка 716)
-- `read_task_state_at` (func, строка 753)
-- `read_task_state` (func, строка 793)
-- `archive_and_start_task` (func, строка 857)
-- `update_task_state_section` (func, строка 906)
-- `_set_meta_line` (func, строка 951)
-- `update_plan_step_status` (func, строка 967)
-- `clear_task_state` (func, строка 1092)
-- `_clamp_text` (func, строка 1123)
-- `_plan_facts_text` (func, строка 1131)
-- `_compact_digest` (func, строка 1163)
-- `task_state_for_context` (func, строка 1216)
-- `task_state_for_context._render_section_body` (func, строка 1258)
-- `_runtime_handoff_block` (func, строка 1316)
-- `record_runtime_handoff` (func, строка 1338)
-- `_journal_is_empty` (func, строка 1449)
-- `_journal_is_finished` (func, строка 1472)
-- `_parent_journal_name` (func, строка 1491)
-- `prune_task_state_journals` (func, строка 1499)
-- `_journal_directories` (func, строка 1616)
-- `prune_task_state_journals_once` (func, строка 1639)
+- `TaskStateError` (class, строка 124)
+- `current_thread_id` (func, строка 137)
+- `thread_scope` (func, строка 159)
+- `_journal_base_override` (func, строка 175)
+- `_history_states_dir` (func, строка 196)
+- `journal_candidates` (func, строка 219)
+- `_journal_name` (func, строка 242)
+- `_migrate_journal_to_home` (func, строка 247)
+- `_ensure_state_dir` (func, строка 290)
+- `task_state_path` (func, строка 306)
+- `thread_states_dir` (func, строка 329)
+- `_clear_current_marker` (func, строка 348)
+- `_task_folder_number` (func, строка 382)
+- `_plain_task_dir_path` (func, строка 390)
+- `_allocate_next_task_dir` (func, строка 403)
+- `current_task_dir` (func, строка 428)
+- `_now_iso` (func, строка 456)
+- `_backup_if_exists` (func, строка 461)
+- `_split_top_sections` (func, строка 477)
+- `_split_active_sections` (func, строка 499)
+- `_parse_legacy` (func, строка 526)
+- `_read_active_meta` (func, строка 548)
+- `_parse_history_entries` (func, строка 560)
+- `_parse_step` (func, строка 601)
+- `extract_step_ids` (func, строка 619)
+- `render_active_task` (func, строка 632)
+- `render_task_history` (func, строка 660)
+- `build_task_state` (func, строка 696)
+- `_has_active_content` (func, строка 739)
+- `_summarize_active` (func, строка 747)
+- `_archive_active_task` (func, строка 768)
+- `_write_raw` (func, строка 797)
+- `_write_journal` (func, строка 812)
+- `_migrate_legacy_file` (func, строка 846)
+- `ensure_task_state_file` (func, строка 879)
+- `read_task_state_at` (func, строка 917)
+- `read_task_state` (func, строка 957)
+- `archive_and_start_task` (func, строка 1022)
+- `update_task_state_section` (func, строка 1078)
+- `_set_meta_line` (func, строка 1124)
+- `update_plan_step_status` (func, строка 1149)
+- `steps_missing_verification` (func, строка 1272)
+- `steps_missing_verification._flush` (func, строка 1286)
+- `_unverified_note` (func, строка 1307)
+- `clear_task_state` (func, строка 1318)
+- `_clamp_text` (func, строка 1361)
+- `_plan_facts_text` (func, строка 1369)
+- `_compact_digest` (func, строка 1401)
+- `task_state_for_context` (func, строка 1454)
+- `task_state_for_context._render_section_body` (func, строка 1497)
+- `_runtime_handoff_block` (func, строка 1561)
+- `record_runtime_handoff` (func, строка 1583)
+- `_journal_is_empty` (func, строка 1694)
+- `_journal_is_finished` (func, строка 1717)
+- `_parent_journal_name` (func, строка 1736)
+- `_parent_journal_present` (func, строка 1744)
+- `prune_task_state_journals` (func, строка 1764)
+- `_journal_directories` (func, строка 1879)
+- `prune_task_state_journals_once` (func, строка 1914)
 
 ### `dev_agent/thread_scope.py`
 - `normalize_scope` (func, строка 21)
@@ -13510,27 +13585,27 @@
 
 ### `dev_agent/loop/context.py`
 - `_facade_attr` (func, строка 38)
-- `_maybe_task_state_context` (func, строка 59)
-- `_snapshot_kind_of` (func, строка 88)
-- `_last_snapshot` (func, строка 108)
-- `_snapshot_content` (func, строка 116)
-- `_append_context_snapshot` (func, строка 121)
-- `refresh_context_snapshots` (func, строка 140)
-- `_ensure_snapshot_visibility` (func, строка 173)
-- `_maybe_thread_context` (func, строка 198)
-- `_auto_continue_prefix` (func, строка 250)
-- `_make_short_summary` (func, строка 256)
-- `_classify_message` (func, строка 286)
-- `_index_message` (func, строка 312)
-- `_get_economy_tail_messages` (func, строка 319)
-- `_economy_meta_key` (func, строка 334)
-- `_make_meta_msg` (func, строка 345)
-- `_estimate_messages_tokens` (func, строка 369)
-- `_enforce_history_token_budget` (func, строка 396)
-- `build_economy_context` (func, строка 500)
-- `carry_over_economy_cache` (func, строка 587)
-- `economy_cache_to_dict` (func, строка 604)
-- `apply_economy_cache` (func, строка 621)
+- `_maybe_task_state_context` (func, строка 60)
+- `_snapshot_kind_of` (func, строка 89)
+- `_last_snapshot` (func, строка 109)
+- `_snapshot_content` (func, строка 117)
+- `_append_context_snapshot` (func, строка 122)
+- `refresh_context_snapshots` (func, строка 141)
+- `_ensure_snapshot_visibility` (func, строка 174)
+- `_maybe_thread_context` (func, строка 199)
+- `_auto_continue_prefix` (func, строка 251)
+- `_make_short_summary` (func, строка 257)
+- `_classify_message` (func, строка 287)
+- `_index_message` (func, строка 313)
+- `_get_economy_tail_messages` (func, строка 320)
+- `_economy_meta_key` (func, строка 335)
+- `_make_meta_msg` (func, строка 346)
+- `_estimate_messages_tokens` (func, строка 370)
+- `_enforce_history_token_budget` (func, строка 397)
+- `build_economy_context` (func, строка 501)
+- `carry_over_economy_cache` (func, строка 588)
+- `economy_cache_to_dict` (func, строка 605)
+- `apply_economy_cache` (func, строка 622)
 
 ### `dev_agent/loop/delegation.py`
 - `_agent_brief_from_args` (func, строка 49)
@@ -13697,7 +13772,8 @@
 ### `dev_agent/loop/steps/runner.py`
 - `step_agent_loop_impl` (func, строка 31)
 - `run_step` (func, строка 59)
-- `runtime_handlers` (func, строка 83)
+- `_run_step_scoped` (func, строка 79)
+- `runtime_handlers` (func, строка 103)
 
 ### `dev_agent/loop/steps/runtime.py`
 - `LoopRuntime` (class, строка 26)

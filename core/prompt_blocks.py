@@ -92,6 +92,14 @@ TASK_JOURNAL_RULES_PARENT = (
     "working view; the file is the record that survives the dialog. After the "
     "final report, close the task with `task_state_clear` - never delete the "
     "file.\n",
+    "",
+    "Write the journal for a reader who has only the journal. A step marked "
+    "`done` carries a `verification` line naming the command and its result - "
+    "an unproven step is recorded as an unproven step, not as done. `result` "
+    "states what changed and `context` what the next step must know; both "
+    "stay short enough to be read on their own. Working files of a task go "
+    "into its `task_dir`, and the plan text, the verification lines and that "
+    "folder are what the archive of a finished task keeps.\n",
 )
 
 TASK_JOURNAL_RULES_CHILD = (
@@ -110,7 +118,9 @@ TASK_JOURNAL_RULES_CHILD = (
     "",
     "Mark a step `in_progress` before the work and `done` after its "
     "verification, and close the task with `task_state_clear` once you send "
-    "the result.\n",
+    "the result. A `done` step carries a `verification` line naming the "
+    "command and its result: marking an unproven step as done tells the "
+    "caller the work is finished when it is not.\n",
 )
 
 # ─── Delegation blocks ──────────────────────────────────────────────────────

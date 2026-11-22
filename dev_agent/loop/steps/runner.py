@@ -57,7 +57,27 @@ def step_agent_loop_impl(
 
 
 def run_step(state: AgentLoopState, runtime: LoopRuntime) -> AgentLoopState:
-    """Open the step and dispatch it on the phase it starts in."""
+    """Open the step and dispatch it on the phase it starts in.
+
+    The whole step runs inside a journal thread scope. ``begin_step``
+    publishes this dialog's id into the process-wide ``ACTIVE_THREAD_ID``, and
+    a step of another dialog can republish it while this one is still
+    running - the journal layer would then follow the global into the other
+    dialog's file. The scope keeps every journal call of this step (the
+    scaffold, the section writes, the archive) bound to the thread the state
+    belongs to, whatever the global says meanwhile.
+    """
+    tid = (getattr(state, "thread_id", "") or "").strip()
+    if not tid:
+        return _run_step_scoped(state, runtime)
+    from dev_agent.task_state import thread_scope
+
+    with thread_scope(tid):
+        return _run_step_scoped(state, runtime)
+
+
+def _run_step_scoped(state: AgentLoopState, runtime: LoopRuntime) -> AgentLoopState:
+    """Body of one step, executed inside the journal thread scope."""
     initial_phase = state.phase
     state = begin_step(state, runtime)
 

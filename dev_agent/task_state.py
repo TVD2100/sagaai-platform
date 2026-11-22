@@ -2,9 +2,14 @@
 """Task State - per-thread task journal (external memory) for DevAgent.
 
 For EVERY task (big or small) DevAgent maintains one Markdown journal file
-for the current dialog thread, stored in the project's hidden runtime dir:
+for the current dialog thread. The journal belongs to the DIALOG, not to the
+project, so it lives in the dialog folder of the data dir:
 
-    <project>/.dev_agent/task_states/TASK_STATE__<thread_id>.md
+    <history>/<thread_id>/task_states/TASK_STATE__<thread_id>.md
+
+A task started in one workspace and continued in another is the same task;
+the journal follows the dialog, and a journal left in the old project runtime
+folder is migrated on first use.
 
 Key behaviours (v3):
 
@@ -167,29 +172,40 @@ def thread_scope(thread_id: str) -> Iterator[None]:
         _SCOPE.thread_id = previous
 
 
-def _empty_state_states_dir(thread_id: Optional[str] = None) -> Optional[Path]:
-    """Journal directory of a dialog without a selected workspace.
+def _journal_base_override() -> Optional[Path]:
+    """Return the journal folder a caller chose explicitly, or None.
 
-    With no folder selected (workspace isolation v2) the journal belongs to
-    the dialog itself: it is stored next to the dialog's uploads in
-    ``<DATA_DIR>/history/<tid>/task_states`` instead of the shared neutral
-    placeholder root. Returns None when a workspace IS selected (the project
-    runtime dir is used) or when no dialog thread is attached.
-
-    With an explicit *thread_id* the binding registry decides first: a child
-    run owns a bound workspace, and its journal belongs in that project even
-    when the process-wide ``WORKSPACE_SELECTED`` happens to describe another
-    dialog. Without it the historical global check applies unchanged.
+    A caller that replaces ``config.TASK_STATES_DIR`` (a test isolating one
+    run, a maintenance script) means exactly that folder, so it wins over the
+    default location. The comparison against the recorded default is what
+    separates such a choice from the value a workspace switch computed on
+    its own.
     """
-    if thread_id:
-        try:
-            from dev_agent import workspace_binding as _wb
-            if _wb.get_thread_workspace(thread_id):
-                return None
-        except Exception:
-            pass
-    if getattr(config, "WORKSPACE_SELECTED", True):
-        return None
+    base = Path(config.TASK_STATES_DIR)
+    default = getattr(config, "TASK_STATES_DIR_DEFAULT", None)
+    if default is None:
+        return base
+    try:
+        if Path(default) == base:
+            return None
+    except TypeError:
+        pass
+    return base
+
+
+def _history_states_dir(thread_id: Optional[str] = None) -> Optional[Path]:
+    """Default journal directory of a dialog: ``history/<tid>/task_states``.
+
+    The journal belongs to the DIALOG, not to the folder the dialog happens to
+    develop: a task started in one workspace and continued in another is the
+    same task, and a journal stored inside the project vanished the moment the
+    workspace changed. Keeping it next to the dialog's own files makes such a
+    switch harmless and lets a reader address one dialog's journal without
+    knowing any workspace at all.
+
+    Returns None when no dialog thread is attached, so a caller can fall back
+    to the runtime folder (single-file mode, maintenance scripts).
+    """
     tid = current_thread_id(thread_id)
     if not tid or tid == "nothread":
         return None
@@ -200,27 +216,133 @@ def _empty_state_states_dir(thread_id: Optional[str] = None) -> Optional[Path]:
         return None
 
 
+def journal_candidates(thread_id: Optional[str] = None) -> List[Path]:
+    """Folders a thread's journal may live in, the write location first.
+
+    The first entry is where a journal is WRITTEN; the rest are places an
+    older install kept it, so a journal written before the storage move is
+    still found. An explicit ``config.TASK_STATES_DIR`` override collapses the
+    list to that single folder: a caller that redirected the journal storage
+    does not want a stale file of another location read behind its back.
+    """
+    tid = current_thread_id(thread_id)
+    override = _journal_base_override()
+    if override is not None:
+        return [override]
+    dirs: List[Path] = []
+    history = _history_states_dir(tid)
+    if history is not None:
+        dirs.append(history)
+    runtime = Path(config.TASK_STATES_DIR)
+    if runtime not in dirs:
+        dirs.append(runtime)
+    return dirs
+
+
+def _journal_name(thread_id: str) -> str:
+    """File name of one thread's journal."""
+    return f"{TASK_STATE_PREFIX}{thread_id}{TASK_STATE_SUFFIX}"
+
+
+def _migrate_journal_to_home(thread_id: Optional[str] = None) -> Optional[Path]:
+    """Move a journal from an older location into the write folder.
+
+    Called before a write: the journal of a thread served before the storage
+    move still sits in the project runtime folder, and writing a fresh file
+    next to it would leave the readable content behind. The move is a rename,
+    falling back to a copy when the two folders are on different devices; the
+    per-task folders travel with the journal. A failed move is not fatal - the
+    caller then keeps using the old location.
+    """
+    tid = current_thread_id(thread_id)
+    dirs = journal_candidates(tid)
+    if len(dirs) < 2:
+        return None
+    name = _journal_name(tid)
+    home = dirs[0] / name
+    if home.exists():
+        return None
+    for legacy_dir in dirs[1:]:
+        source = legacy_dir / name
+        if not source.is_file():
+            continue
+        try:
+            dirs[0].mkdir(parents=True, exist_ok=True)
+            try:
+                source.rename(home)
+            except OSError:
+                home.write_text(source.read_text(encoding=config.DEFAULT_ENCODING),
+                                encoding=config.DEFAULT_ENCODING)
+                source.unlink()
+        except OSError:
+            return None
+        legacy_tasks = legacy_dir / tid
+        target_tasks = dirs[0] / tid
+        if legacy_tasks.is_dir() and not target_tasks.exists():
+            try:
+                legacy_tasks.rename(target_tasks)
+            except OSError:
+                pass
+        return home
+    return None
+
+
 def _ensure_state_dir(thread_id: Optional[str] = None) -> Path:
-    """Create (if needed) and return the directory holding this journal."""
-    base = _empty_state_states_dir(thread_id)
-    if base is None:
-        base = config.TASK_STATES_DIR
+    """Create (if needed) and return the directory holding this journal.
+
+    The thread id is resolved once here and passed down explicitly, so the
+    folder this call creates and the file a later write targets cannot
+    disagree about which thread they serve. A journal left in an older
+    location by a previous install is moved here first, so the write below
+    extends it instead of starting a second, empty file.
+    """
+    tid = current_thread_id(thread_id)
+    base = journal_candidates(tid)[0]
     base.mkdir(parents=True, exist_ok=True)
+    _migrate_journal_to_home(tid)
     return base
 
 
 def task_state_path(thread_id: Optional[str] = None) -> Path:
-    """Absolute path of a thread's journal file (explicit id wins)."""
-    base = _empty_state_states_dir(thread_id) or config.TASK_STATES_DIR
-    return base / f"{TASK_STATE_PREFIX}{current_thread_id(thread_id)}{TASK_STATE_SUFFIX}"
+    """Absolute path of a thread's journal file (explicit id wins).
+
+    The id is resolved ONCE, before the base directory is chosen. Resolving
+    it a second time for the file name would let a concurrent step publish
+    another id in between and hand back a path that belongs to neither
+    thread.
+
+    The path points at an existing file when one of the candidate folders
+    still holds it (a journal written before the storage move), and at the
+    write folder otherwise, so a caller that writes to the result always
+    writes where the journal belongs.
+    """
+    tid = current_thread_id(thread_id)
+    dirs = journal_candidates(tid)
+    name = _journal_name(tid)
+    for folder in dirs:
+        candidate = folder / name
+        if candidate.is_file():
+            return candidate
+    return dirs[0] / name
 
 
 def thread_states_dir(thread_id: Optional[str] = None) -> Path:
-    """Absolute path of a thread's per-task folders directory."""
-    base = _empty_state_states_dir(thread_id)
-    if base is not None:
+    """Absolute path of a thread's per-task folders directory.
+
+    The id is resolved before the base is chosen, so a folder created from
+    this path always ends up under the same thread the caller asked about.
+
+    The dialog-owned folder (``history/<tid>/task_states``) is already unique
+    to the thread, so the task folders sit directly inside it. The shared
+    runtime folder hosts the journals of every thread, so there the thread id
+    is the separating level.
+    """
+    tid = current_thread_id(thread_id)
+    base = journal_candidates(tid)[0]
+    history = _history_states_dir(tid)
+    if history is not None and base == history:
         return base
-    return config.TASK_STATES_DIR / current_thread_id(thread_id)
+    return base / tid
 
 
 def _clear_current_marker(base: Path) -> None:
@@ -436,7 +558,12 @@ def _read_active_meta(active_body: str) -> Dict[str, str]:
 
 
 def _parse_history_entries(content: str) -> List[Dict[str, str]]:
-    """Parse the Task History section into a list of completed-task dicts."""
+    """Parse the Task History section into a list of completed-task dicts.
+
+    ``plan`` and ``summary`` are multi-line: their continuation lines are
+    indented and keep the newlines, so the archived plan of a finished task
+    survives a read-render round trip without being flattened into one line.
+    """
     if not content:
         return []
     entries: List[Dict[str, str]] = []
@@ -446,22 +573,27 @@ def _parse_history_entries(content: str) -> List[Dict[str, str]]:
         if not lines:
             continue
         entry: Dict[str, str] = {"task": lines[0].strip(), "summary": ""}
-        summary_parts: List[str] = []
-        in_summary = False
+        collected: Dict[str, List[str]] = {"plan": [], "summary": []}
+        open_field = ""
         for ln in lines[1:]:
             s = ln.strip()
-            m = re.match(r"^- (started|finished|status|completed_steps|summary):\s*(.*)$", s)
+            m = re.match(
+                r"^- (started|finished|status|completed_steps|task_dir|plan|summary):\s*(.*)$",
+                s,
+            )
             if m:
-                if m.group(1) == "summary":
-                    in_summary = True
+                key = m.group(1)
+                if key in collected:
+                    open_field = key
                     if m.group(2).strip():
-                        summary_parts.append(m.group(2).strip())
+                        collected[key].append(m.group(2).strip())
                 else:
-                    in_summary = False
-                    entry[m.group(1)] = m.group(2).strip()
-            elif in_summary and s:
-                summary_parts.append(s)
-        entry["summary"] = "\n".join(summary_parts).strip()
+                    open_field = ""
+                    entry[key] = m.group(2).strip()
+            elif open_field and s:
+                collected[open_field].append(s)
+        for key, parts in collected.items():
+            entry[key] = "\n".join(parts).strip()
         entries.append(entry)
     return entries
 
@@ -480,7 +612,8 @@ def _parse_step(line: str) -> Optional[Dict[str, Any]]:
     if not m:
         return None
     num = int(m.group(1))
-    return {"num": num, "title": m.group(2).strip(), "id": f"step_{num}"}
+    title = re.sub(r"\s*\(status:[^)]*\)", "", m.group(2)).strip()
+    return {"num": num, "title": title, "id": f"step_{num}"}
 
 
 def extract_step_ids(content: str) -> List[str]:
@@ -525,7 +658,12 @@ def render_active_task(
 
 
 def render_task_history(entries: List[Dict[str, str]]) -> str:
-    """Render the '## Task History' journal section from completed-task dicts."""
+    """Render the '## Task History' journal section from completed-task dicts.
+
+    The plan of a finished task is rendered with its own continuation lines,
+    so the archived record shows what was planned, not just how many steps
+    were done.
+    """
     if not entries:
         return f"## Task History\n\n{_NOT_SET_MARKER}"
     parts: List[str] = ["## Task History", ""]
@@ -533,10 +671,17 @@ def render_task_history(entries: List[Dict[str, str]]) -> str:
         raw_title = (entry.get("task") or "Completed task").strip()
         title = (raw_title.splitlines() or ["Completed task"])[0][:120]
         parts.append(f"### Completed {i} - {title}")
-        for key in ("started", "finished", "status", "completed_steps"):
+        for key in ("started", "finished", "status", "completed_steps", "task_dir"):
             value = (entry.get(key) or "").strip()
             if value:
                 parts.append(f"- {key}: {value}")
+        plan = (entry.get("plan") or "").strip()
+        if plan:
+            parts.append("")
+            plan_lines = plan.splitlines()
+            parts.append(f"- plan: {plan_lines[0]}")
+            for extra in plan_lines[1:]:
+                parts.append("  " + extra)
         summary = (entry.get("summary") or "").strip()
         if summary:
             parts.append("")
@@ -600,16 +745,19 @@ def _has_active_content(active: Dict[str, str]) -> bool:
 
 
 def _summarize_active(active: Dict[str, str]) -> str:
-    """Condensed context of a task: step contexts/results + handoff facts.
+    """Condensed context of a task: step facts + handoff facts.
 
     This is what the next stage (or the next task in the same thread) needs,
     so the agent keeps working correctly even when chat history is truncated.
+    A step's verification line belongs here as much as its result: it records
+    HOW the step was proven, which is exactly what a later reader cannot
+    reconstruct from the code.
     """
     parts: List[str] = []
     plan_text = active.get("plan", "") or ""
     for ln in plan_text.splitlines():
         s = ln.strip()
-        if s.startswith("- context:") or s.startswith("- result:"):
+        if s.startswith(("- context:", "- result:", "- verification:")):
             parts.append(s)
     handoff = (active.get("handoff") or "").strip()
     if handoff and handoff != _NOT_SET_MARKER:
@@ -623,7 +771,14 @@ def _archive_active_task(
     finished: str,
     status: str = "done",
 ) -> Dict[str, str]:
-    """Build a Task History entry from the current Active Task block."""
+    """Build a Task History entry from the current Active Task block.
+
+    The entry keeps the PLAN itself, not only a count of its steps: an archive
+    that says ``2/3`` without naming the third step tells a later reader
+    nothing about what was left undone. The per-task working folder is kept
+    for the same reason - the notes written during the task stay reachable
+    from the archive that refers to them.
+    """
     plan_text = active.get("plan", "") or ""
     steps = extract_step_ids(plan_text)
     done_count = len(re.findall(r"\(status:\s*done\)", plan_text))
@@ -633,14 +788,22 @@ def _archive_active_task(
         "finished": finished,
         "status": status,
         "completed_steps": f"{done_count}/{len(steps)}" if steps else "",
+        "task_dir": (meta.get("task_dir") or "").strip(),
         "summary": _summarize_active(active),
+        "plan": plan_text.strip(),
     }
 
 
 def _write_raw(text: str, thread_id: Optional[str] = None) -> Path:
-    """Backup + write *text* to the journal file. Returns the path."""
-    _ensure_state_dir(thread_id)
-    path = task_state_path(thread_id)
+    """Backup + write *text* to the journal file. Returns the path.
+
+    ``_ensure_state_dir`` releases the GIL while it creates the folder, so a
+    second resolution of the thread id after it could point at another
+    project. The id is therefore pinned ONCE and reused for both steps.
+    """
+    tid = current_thread_id(thread_id)
+    _ensure_state_dir(tid)
+    path = task_state_path(tid)
     _backup_if_exists(path)
     path.write_text(text, encoding=config.DEFAULT_ENCODING)
     return path
@@ -720,23 +883,24 @@ def ensure_task_state_file(force: bool = False) -> Dict[str, Any]:
     one-time migration of a legacy root TASK_STATE.md. Returns the
     tool-style result dict.
     """
-    _ensure_state_dir()
-    migrated = _migrate_legacy_file()
-    path = task_state_path()
+    tid = current_thread_id()
+    _ensure_state_dir(tid)
+    migrated = _migrate_legacy_file(tid)
+    path = task_state_path(tid)
     if path.exists() and not force:
         try:
             size = path.stat().st_size
         except OSError:
             size = 0
         return {
-            "ok": True, "path": str(path), "thread_id": current_thread_id(),
+            "ok": True, "path": str(path), "thread_id": tid,
             "exists": True, "wrote": False, "migrated_legacy": migrated,
             "size_bytes": size,
         }
     if force:
         _backup_if_exists(path)
     try:
-        text = build_task_state(history=[], started=_now_iso())
+        text = build_task_state(history=[], started=_now_iso(), thread_id=tid)
         path.write_text(text, encoding=config.DEFAULT_ENCODING)
     except OSError as e:
         return {"ok": False, "error": str(e)}
@@ -745,7 +909,7 @@ def ensure_task_state_file(force: bool = False) -> Dict[str, Any]:
     except OSError:
         size = 0
     return {
-        "ok": True, "path": str(path), "thread_id": current_thread_id(),
+        "ok": True, "path": str(path), "thread_id": tid,
         "exists": True, "wrote": True, "migrated_legacy": migrated, "size_bytes": size,
     }
 
@@ -805,11 +969,12 @@ def read_task_state(compact: bool = False) -> Dict[str, Any]:
     completed task - the cheap way back into a task whose chat history was
     truncated.
     """
-    _migrate_legacy_file()
-    path = task_state_path()
+    tid = current_thread_id()
+    _migrate_legacy_file(tid)
+    path = task_state_path(tid)
     if not path.exists():
         return {
-            "ok": True, "path": str(path), "thread_id": current_thread_id(),
+            "ok": True, "path": str(path), "thread_id": tid,
             "exists": False, "content": "", "sections": {}, "step_ids": [],
             "task_dir": "", "history": [], "size_bytes": 0,
             "compact": bool(compact), "digest": "",
@@ -827,11 +992,11 @@ def read_task_state(compact: bool = False) -> Dict[str, Any]:
         return {
             "ok": True,
             "path": str(path),
-            "thread_id": current_thread_id(),
+            "thread_id": tid,
             "exists": True,
             "compact": True,
             "content": "",
-            "digest": _compact_digest(path, meta, active, entries),
+            "digest": _compact_digest(path, meta, active, entries, tid),
             "sections": {},
             "task_dir": (meta.get("task_dir") or "").strip(),
             "step_ids": extract_step_ids(active.get("plan", "")),
@@ -841,7 +1006,7 @@ def read_task_state(compact: bool = False) -> Dict[str, Any]:
     return {
         "ok": True,
         "path": str(path),
-        "thread_id": current_thread_id(),
+        "thread_id": tid,
         "exists": True,
         "compact": False,
         "content": content,
@@ -854,7 +1019,8 @@ def read_task_state(compact: bool = False) -> Dict[str, Any]:
     }
 
 
-def archive_and_start_task(task: str, architecture: str = "", plan: str = "") -> Dict[str, Any]:
+def archive_and_start_task(task: str, architecture: str = "", plan: str = "",
+                           thread_id: Optional[str] = None) -> Dict[str, Any]:
     """Start a NEW task in this thread's journal.
 
     If the journal already has an Active Task with real content, it is first
@@ -862,12 +1028,17 @@ def archive_and_start_task(task: str, architecture: str = "", plan: str = "") ->
     extends the same file). The journal file itself is never deleted. A new
     numbered per-task folder ``task_states/<thread_id>/task_NN/`` is
     allocated and its path is recorded in the ``- task_dir:`` meta line.
+
+    *thread_id* names the journal explicitly; without it the live dialog
+    thread is used. An explicit id lets a parent open the journal of a
+    delegated run before that run has started.
     """
     task = (task or "").strip()
     architecture = (architecture or "").strip()
     plan = (plan or "").strip()
-    _migrate_legacy_file()
-    path = task_state_path()
+    tid = current_thread_id(thread_id)
+    _migrate_legacy_file(tid)
+    path = task_state_path(tid)
     archived_previous = False
     history: List[Dict[str, str]] = []
     if path.exists():
@@ -882,19 +1053,20 @@ def archive_and_start_task(task: str, architecture: str = "", plan: str = "") ->
                 archived_previous = True
         except OSError as e:
             return {"ok": False, "error": str(e)}
-    task_dir = _plain_task_dir_path(_allocate_next_task_dir())
+    task_dir = _plain_task_dir_path(_allocate_next_task_dir(tid))
     text = build_task_state(
         task=task, architecture=architecture, plan=plan,
         history=history, started=_now_iso(), task_dir=str(task_dir),
+        thread_id=tid,
     )
     try:
-        _write_raw(text)
+        _write_raw(text, tid)
     except OSError as e:
         return {"ok": False, "error": str(e)}
     return {
         "ok": True,
         "path": str(path),
-        "thread_id": current_thread_id(),
+        "thread_id": tid,
         "task_dir": str(task_dir),
         "size_bytes": len(text.encode(config.DEFAULT_ENCODING)),
         "step_ids": extract_step_ids(plan),
@@ -916,8 +1088,9 @@ def update_task_state_section(section: str, content: str) -> Dict[str, Any]:
     if key not in _SECTION_KEYS:
         return {"ok": False, "error": f"Unknown section: {section}. "
                                       f"Use one of: {', '.join(sorted(_SECTION_KEYS))}."}
-    _migrate_legacy_file()
-    path = task_state_path()
+    tid = current_thread_id()
+    _migrate_legacy_file(tid)
+    path = task_state_path(tid)
     if not path.exists():
         ensure_res = ensure_task_state_file()
         if not ensure_res.get("ok"):
@@ -936,31 +1109,40 @@ def update_task_state_section(section: str, content: str) -> Dict[str, Any]:
         # A section write creates real active-task content: allocate the
         # per-task folder once and keep it from now on (stored as the
         # PLAIN path; the `(current)` marker exists only on disk).
-        task_dir = str(_plain_task_dir_path(_allocate_next_task_dir()))
+        task_dir = str(_plain_task_dir_path(_allocate_next_task_dir(tid)))
     try:
         new_text = _write_journal(active, history, started=meta.get("started", ""),
-                                  task_dir=task_dir)
+                                  task_dir=task_dir, thread_id=tid)
     except OSError as e:
         return {"ok": False, "error": str(e)}
     return {"ok": True, "path": str(path), "section": key,
-            "thread_id": current_thread_id(),
+            "thread_id": tid,
             "size_bytes": len(new_text.encode(config.DEFAULT_ENCODING)),
             "step_ids": extract_step_ids(active.get("plan", ""))}
 
 
 def _set_meta_line(block: List[str], key: str, value: str) -> List[str]:
-    """Replace (or append) a `- key: value` meta line inside a step block."""
+    """Replace (or append) a `- key: value` meta line inside a step block.
+
+    A multi-line value keeps its line structure: continuation lines are
+    indented by two spaces, the same convention the archive uses for a
+    multi-line plan or summary. Flattening a result into one line loses the
+    very structure (items, steps, bullets) that makes it readable later.
+    """
     prefix = f"- {key}:"
+    rendered = [f"- {key}: {value.splitlines()[0] if value else ''}"]
+    for extra in (value.splitlines()[1:] if value else []):
+        rendered.append("  " + extra)
     found = False
     out: List[str] = []
     for ln in block:
         if ln.strip().startswith(prefix):
-            out.append(f"- {key}: {value}")
+            out.extend(rendered)
             found = True
         else:
             out.append(ln)
     if not found:
-        out.append(f"- {key}: {value}")
+        out.extend(rendered)
     return out
 
 
@@ -989,8 +1171,9 @@ def update_plan_step_status(
     if not m:
         return {"ok": False, "error": "step_id must look like 'step_1'."}
 
-    _migrate_legacy_file()
-    path = task_state_path()
+    tid = current_thread_id()
+    _migrate_legacy_file(tid)
+    path = task_state_path(tid)
     if not path.exists():
         ensure_res = ensure_task_state_file()
         if not ensure_res.get("ok"):
@@ -1053,20 +1236,17 @@ def update_plan_step_status(
         info = _parse_step(s)
         if info is None:
             continue
-        item_status = status if info["id"] == step_id else None
-        cur_status = None
         sm = re.search(r"\(status:\s*([^)]+)\)", s)
-        if sm:
-            cur_status = sm.group(1).strip()
-        if item_status is None:
-            item_status = cur_status or "pending"
-        if item_status == "done":
+        cur_status = sm.group(1).strip() if sm else "pending"
+        if info["id"] == step_id:
+            cur_status = status
+        if cur_status == "done":
             mark = "[x]"
-        elif item_status == "in_progress":
+        elif cur_status == "in_progress":
             mark = "[~]"
         else:
             mark = "[ ]"
-        if item_status == "done":
+        if cur_status == "done":
             done_items += 1
         progress_lines.append(f"- {mark} Step {info['num']} - {info['title']}")
     if progress_lines:
@@ -1077,16 +1257,62 @@ def update_plan_step_status(
     task_dir = meta.get("task_dir", "")
     if not task_dir:
         # No per-task folder yet: allocate one, stored as the plain path.
-        task_dir = str(_plain_task_dir_path(_allocate_next_task_dir()))
+        task_dir = str(_plain_task_dir_path(_allocate_next_task_dir(tid)))
     try:
         new_text = _write_journal(active, history, started=meta.get("started", ""),
-                                  task_dir=task_dir)
+                                  task_dir=task_dir, thread_id=tid)
     except OSError as e:
         return {"ok": False, "error": str(e)}
     return {"ok": True, "path": str(path), "step_id": step_id, "status": status,
-            "thread_id": current_thread_id(),
+            "thread_id": tid,
             "size_bytes": len(new_text.encode(config.DEFAULT_ENCODING)),
             "step_ids": extract_step_ids(active.get("plan", ""))}
+
+
+def steps_missing_verification(plan_text: str) -> List[str]:
+    """Return the ids of steps marked done without a verification line.
+
+    A step marked ``done`` is a claim that the work is finished. Without a
+    verification line nothing proves it, and the archive of the task would
+    carry that claim forever as if it had been checked. This is the guard the
+    agent sees in its injected context and in the result of the archive step:
+    it names the unproven steps instead of silently accepting them.
+    """
+    missing: List[str] = []
+    current_id = ""
+    current_done = False
+    current_verified = False
+
+    def _flush() -> None:
+        if current_id and current_done and not current_verified:
+            missing.append(current_id)
+
+    for ln in (plan_text or "").splitlines():
+        s = ln.strip()
+        if s.startswith("### Step "):
+            _flush()
+            info = _parse_step(s)
+            current_id = info["id"] if info else ""
+            sm = re.search(r"\(status:\s*([^)]+)\)", s)
+            current_done = bool(sm and sm.group(1).strip().lower() == "done")
+            current_verified = False
+            continue
+        if current_id and s.startswith("- verification:"):
+            if s[len("- verification:"):].strip():
+                current_verified = True
+    _flush()
+    return missing
+
+
+def _unverified_note(plan_text: str) -> str:
+    """One-line reminder naming the done steps that have no verification."""
+    missing = steps_missing_verification(plan_text)
+    if not missing:
+        return ""
+    return (
+        "unverified done steps: " + ", ".join(missing)
+        + " - record the command and its result with task_state_mark_step"
+    )
 
 
 def clear_task_state() -> Dict[str, Any]:
@@ -1095,10 +1321,11 @@ def clear_task_state() -> Dict[str, Any]:
     The journal file is NEVER deleted (requirement). When there is no active
     task to archive, returns archived=False, so repeated calls are safe.
     """
-    _migrate_legacy_file()
-    path = task_state_path()
+    tid = current_thread_id()
+    _migrate_legacy_file(tid)
+    path = task_state_path(tid)
     if not path.exists():
-        return {"ok": True, "path": str(path), "thread_id": current_thread_id(),
+        return {"ok": True, "path": str(path), "thread_id": tid,
                 "archived": False}
     try:
         current = path.read_text(encoding=config.DEFAULT_ENCODING)
@@ -1108,16 +1335,27 @@ def clear_task_state() -> Dict[str, Any]:
     active = _split_active_sections(top.get("active_task", ""))
     history = _parse_history_entries(top.get("task_history", ""))
     if not _has_active_content(active):
-        return {"ok": True, "path": str(path), "thread_id": current_thread_id(),
+        return {"ok": True, "path": str(path), "thread_id": tid,
                 "archived": False, "history_entries": len(history)}
     meta = _read_active_meta(top.get("active_task", ""))
+    unproven = steps_missing_verification(active.get("plan", ""))
     history.append(_archive_active_task(active, meta, _now_iso()))
     try:
-        _write_journal({}, history, started="")
+        _write_journal({}, history, started="", thread_id=tid)
     except OSError as e:
         return {"ok": False, "error": str(e)}
-    return {"ok": True, "path": str(path), "thread_id": current_thread_id(),
-            "archived": True, "history_entries": len(history)}
+    result: Dict[str, Any] = {
+        "ok": True, "path": str(path), "thread_id": tid,
+        "archived": True, "history_entries": len(history),
+        "unverified_steps": unproven,
+    }
+    if unproven:
+        result["warning"] = (
+            "steps marked done without a verification line: "
+            + ", ".join(unproven)
+            + " - the archive records them as unproven work"
+        )
+    return result
 
 
 def _clamp_text(text: str, limit: int) -> str:
@@ -1161,7 +1399,7 @@ def _plan_facts_text(plan: str, limit: int) -> str:
 
 
 def _compact_digest(path: Path, meta: Dict[str, str], active: Dict[str, str],
-                    entries: List[Dict[str, str]]) -> str:
+                    entries: List[Dict[str, str]], thread_id: str = "") -> str:
     """Return a compact working-state digest for task_state_read(compact=True).
 
     Holds the goal, the progress counter, the handoff facts, the freshest
@@ -1170,7 +1408,7 @@ def _compact_digest(path: Path, meta: Dict[str, str], active: Dict[str, str],
     journal always stays on disk.
     """
     parts: List[str] = ["COMPACT TASK STATE:"]
-    parts.append(f"thread_id: {current_thread_id()}")
+    parts.append(f"thread_id: {thread_id or current_thread_id()}")
     parts.append(f"task_state_file: {path}")
     task_dir = (meta.get("task_dir") or "").strip()
     if task_dir:
@@ -1226,8 +1464,9 @@ def task_state_for_context(max_history: int = 3) -> Optional[str]:
     freshest facts survive even for a grown journal; MAX_STATE_CHARS stays
     as the outer hard cap.
     """
-    _migrate_legacy_file()
-    path = task_state_path()
+    tid = current_thread_id()
+    _migrate_legacy_file(tid)
+    path = task_state_path(tid)
     if not path.exists():
         return None
     try:
@@ -1239,7 +1478,7 @@ def task_state_for_context(max_history: int = 3) -> Optional[str]:
     top = _split_top_sections(content)
     header = (
         "CURRENT TASK STATE:\n"
-        f"thread_id: {current_thread_id()}\n"
+        f"thread_id: {tid}\n"
         f"task_state_file: {path}\n"
         "note: sections below are budgeted; task_state_read() returns the full journal\n"
     )
@@ -1286,6 +1525,10 @@ def task_state_for_context(max_history: int = 3) -> Optional[str]:
             parts.append("")
             parts.append(_render_section_body(key, active.get(key, "")))
             parts.append("")
+        unverified = _unverified_note(active.get("plan", ""))
+        if unverified:
+            parts.append(f"> {unverified}")
+            parts.append("")
     entries = _parse_history_entries(top.get("task_history", ""))
     if entries:
         parts.append("## Recent Task History")
@@ -1296,6 +1539,8 @@ def task_state_for_context(max_history: int = 3) -> Optional[str]:
                 parts.append(f"- finished: {entry['finished']}")
             if entry.get("completed_steps"):
                 parts.append(f"- completed_steps: {entry['completed_steps']}")
+            if entry.get("plan"):
+                parts.append(f"- plan: {entry['plan'][:600]}")
             if entry.get("summary"):
                 parts.append(f"- summary: {entry['summary'][:800]}")
             parts.append("")
@@ -1496,6 +1741,26 @@ def _parent_journal_name(thread: str) -> str:
     return f"{TASK_STATE_PREFIX}{parent}{TASK_STATE_SUFFIX}"
 
 
+def _parent_journal_present(thread: str, directory: Path, parent_name: str) -> bool:
+    """Tell whether the parent journal of a delegated run still exists.
+
+    Orphan detection must look beyond the scanned folder: with the default
+    layout every journal lives in the folder of its OWN dialog, so the parent
+    is a sibling folder rather than a sibling file. The scanned folder is
+    checked first - that covers a caller keeping all journals in one place,
+    and the legacy runtime folder - then the parent's own resolved path.
+    """
+    if (directory / parent_name).is_file():
+        return True
+    parent = (thread or "").partition(SUBAGENT_MARKER)[0]
+    if not parent:
+        return False
+    try:
+        return task_state_path(parent).is_file()
+    except Exception:
+        return False
+
+
 def prune_task_state_journals(
     directory: Optional[Path] = None,
     max_age_days: int = PRUNE_MIN_AGE_DAYS,
@@ -1553,9 +1818,6 @@ def prune_task_state_journals(
     except Exception:
         live_thread = ""
     cutoff = time.time() - max(0, int(max_age_days)) * 86400
-    #: Names present in the folder, so an orphan is detected against the real
-    #: set rather than by probing the filesystem once per candidate.
-    names = {p.name for p in entries if p.is_file()}
 
     for path in entries:
         name = path.name
@@ -1578,7 +1840,8 @@ def prune_task_state_journals(
             continue
 
         parent_name = _parent_journal_name(thread)
-        orphan = bool(parent_name) and parent_name not in names
+        orphan = bool(parent_name) and not _parent_journal_present(
+            thread, base, parent_name)
         empty = _journal_is_empty(path)
         if empty is None:
             report["kept"] += 1
@@ -1616,13 +1879,22 @@ def prune_task_state_journals(
 def _journal_directories() -> List[Path]:
     """Every folder that can hold journals.
 
-    Two places exist: the project runtime dir (a dialog with a workspace)
-    and one folder per dialog that had no workspace selected
-    (``<DATA_DIR>/history/<tid>/task_states``). Retention has to sweep both,
-    otherwise an install that mostly serves empty-state dialogs keeps its
-    files forever.
+    The default layout keeps each journal in the folder of its own dialog
+    (``<DATA_DIR>/history/<tid>/task_states``), so the sweep has to walk the
+    dialog folders of the data dir. The runtime folder is still scanned: it
+    holds the journals written before the move until a write migrates them,
+    and it keeps whatever a newer install leaves there.
+
+    A caller that redirected the journal storage (a test isolating one run, a
+    maintenance script) gets exactly that folder and nothing else - scanning
+    the real data dir behind its back would delete files it never meant to
+    touch.
     """
-    dirs: List[Path] = [config.TASK_STATES_DIR]
+    override = _journal_base_override()
+    if override is not None:
+        return [override]
+
+    dirs: List[Path] = []
     try:
         from core.paths import HISTORY_DIR
         root = Path(HISTORY_DIR)
@@ -1633,6 +1905,9 @@ def _journal_directories() -> List[Path]:
             ))
     except Exception:
         pass
+    runtime = Path(config.TASK_STATES_DIR)
+    if runtime not in dirs:
+        dirs.append(runtime)
     return dirs
 
 
