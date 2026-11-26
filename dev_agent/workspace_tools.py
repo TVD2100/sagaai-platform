@@ -1,27 +1,17 @@
 # DevAgent Universal Developer - workspace layer.
 #
-# This module turns DevAgent from "an editor of the SagaAI install" into a
-# general-purpose developer that operates on an ARBITRARY target folder
-# OR a SINGLE target file.
+# Turns DevAgent from "an editor of the SagaAI install" into a general-purpose
+# developer that operates on an ARBITRARY target folder or a SINGLE target file.
+# Layered ON TOP of the protected core (config / tool_executor / safe_writer /
+# backup_manager) and never modifies it: plain stdlib plus the public dispatch
+# surface, so the Inviolable Core stays intact.
 #
-# It is deliberately layered ON TOP of the protected core (config / dev_agent /
-# tool_executor / safe_writer / backup_manager) and never modifies it.
-# Everything here is plain stdlib + the public DevAgent dispatch surface, so the
-# Inviolable Core stays intact.
-#
-# Responsibilities:
-#   1. Target-folder selection (set_workspace) - repoints config.PROJECT_ROOT.
-#   2. Single-file mode (set_target_file) - narrows the workspace to one file.
-#   3. Folder inspection (scan_folder) - files, languages, and which docs exist.
-#   4. Deterministic project map (build_project_map) - structure facts the LLM
-#      then enriches with "what each file is responsible for".
-#   5. Doc scaffolding (ensure_project_docs) - PROJECT_MAP.md / AGENT.md /
-#      ARCHITECTURE.md / README.md created as markdown so users can hand-edit them.
-#   6. State report (assess_workspace) - the three pipeline entry states:
-#        empty | software_without_docs | software_with_docs
-#   7. System-wide backup/restore (snapshot_all / restore_all).
-#   8. Recent-workspaces history (list_recent_workspaces) - lets the agent
-#      suggest the last 10 projects at the start of a new task.
+# Responsibilities: target-folder selection (set_workspace), single-file mode
+# (set_target_file), folder inspection (scan_folder), the deterministic project
+# map (build_project_map), doc scaffolding (ensure_project_docs), the state
+# report (assess_workspace), system-wide backup/restore (snapshot_all /
+# restore_all) and recent-workspaces history (list_recent_workspaces, the last
+# 10 projects at the start of a new task).
 
 from __future__ import annotations
 
@@ -199,12 +189,10 @@ def current_install() -> Dict[str, Any]:
 def list_recent_workspaces(slug: Optional[str] = None) -> Dict[str, Any]:
     """Return up to 10 recently used workspace paths (newest first).
 
-    Each entry contains a 1-based index (for the user to pick by number),
-    the absolute path, and a short display name (folder basename).
-    Paths that no longer exist are filtered out.
-
-    The history is scoped to the *slug* orchestrator (None maps to the
-    dev_agent scope), so other employees' folders never appear in this menu.
+    Each entry carries a 1-based index (so the user can pick by number), the
+    absolute path and a short folder basename; missing paths are filtered out.
+    The history is scoped to the *slug* orchestrator (None means dev_agent), so
+    other employees' folders never appear in this menu.
     """
     try:
         from core.recent_workspaces import get_recent_workspaces
@@ -236,12 +224,10 @@ def _iter_project_files(
 ) -> List[Path]:
     """Yield text/code files under base, skipping noise dirs and the runtime dir.
 
-    In single-file mode, returns ONLY the target file (if it is under base),
-    REGARDLESS of its extension - the user explicitly chose this file.
-
-    When *allowed_extensions* is given (a set of lowercase suffixes including
-    the leading dot), it REPLACES the built-in TEXT_EXTENSIONS allow-list, so
-    callers can explicitly search files outside it (e.g. .csv).
+    In single-file mode returns ONLY the target file (if under base), whatever
+    its extension, because the user chose it explicitly. *allowed_extensions*
+    (lowercase suffixes with the leading dot) REPLACES the TEXT_EXTENSIONS
+    allow-list, so callers can search files outside it (e.g. .csv).
     """
     if config.TARGET_FILE:
         tf = Path(config.TARGET_FILE).resolve()
@@ -540,12 +526,11 @@ def search_in_files(
     expression. Only text files are scanned, noise directories are skipped,
     and single-file mode narrows the scan to the target file.
 
-    Returns ``path`` / ``line`` / ``text`` matches capped at *max_results*,
-    plus the ``truncated`` flag and the ``files_skipped_large`` /
-    ``files_unreadable`` counters. Priority of the scope arguments is
-    ``files`` > ``path`` > ``subdir``; an explicit file list or file path
-    ignores the extension filter. Positive ``context_before`` /
-    ``context_after`` attach trimmed ``before`` / ``after`` line windows.
+    Matches carry ``path`` / ``line`` / ``text``, capped at *max_results* with a
+    ``truncated`` flag and the ``files_skipped_large`` / ``files_unreadable``
+    counters. Scope priority is ``files`` > ``path`` > ``subdir``; an explicit
+    file list or path ignores the extension filter, and positive
+    ``context_before`` / ``context_after`` attach trimmed line windows.
     """
     args = _coerce_search_args(query, max_results, context_before, context_after)
     if isinstance(args, dict):
@@ -754,21 +739,14 @@ def build_project_map(
 
     In single-file mode, maps only the target file.
 
-    *include_paths* optionally restricts the map to an explicit set of
-    relative paths (for example the files a repository publishes to a
-    remote). ``None`` maps every scanned file (the default for arbitrary
-    projects); an empty iterable maps nothing. Paths of *include_paths*
-    the scan does not reach are reported in ``extra_paths`` (binary
-    assets and extensionless files, e.g. LICENSE) so callers can list
-    them too.
-
-    *scope_note* is a free-form line echoed into the rendered map header
-    (for example the inclusion policy).
-
+    *include_paths* restricts the map to an explicit set of relative paths (for
+    example the files a repository publishes); ``None`` maps every scanned file,
+    an empty iterable maps nothing, and unreachable paths land in
+    ``extra_paths`` (binary assets and extensionless files such as LICENSE).
+    *scope_note* is echoed into the rendered header as the inclusion policy.
     *fingerprint_exclude* lists paths left out of the content fingerprint
-    (default: the managed project docs). The fingerprint changes whenever
-    any other mapped file changes, so a map whose recorded fingerprint no
-    longer matches ``build_project_map()['fingerprint']`` is stale.
+    (default: the managed project docs); a recorded fingerprint that no longer
+    matches ``build_project_map()['fingerprint']`` means the map is stale.
     """
     scan = scan_folder()
     base = config.PROJECT_ROOT.resolve()
@@ -970,11 +948,22 @@ def default_readme_markdown() -> str:
     )
 
 
-def _backup_before_overwrite(dest: Path) -> None:
-    """Best-effort backup of *dest* before it is overwritten.
+MAP_TIMESTAMP_PREFIX = "- Обновлено:"
 
-    Swallows all exceptions - a backup failure must not prevent the write.
+
+def project_map_body(markdown: str) -> str:
+    """Return *markdown* without its generation-timestamp line.
+
+    The stamp is the only part that differs between two runs over identical
+    sources: keeping the previous one makes the file byte-stable and safe to
+    carry a sha256 in the version manifest.
     """
+    lines = markdown.split("\n")
+    return "\n".join(ln for ln in lines if not ln.startswith(MAP_TIMESTAMP_PREFIX))
+
+
+def _backup_before_overwrite(dest: Path) -> None:
+    """Best-effort backup of *dest*; a failure must not prevent the write."""
     if not dest.exists():
         return
     try:
@@ -993,10 +982,12 @@ def write_project_map(
     """Build and write PROJECT_MAP.md with LLM-supplied responsibility descriptions.
 
     *include_paths*, *scope_note* and *fingerprint_exclude* are forwarded to
-    build_project_map (see its docstring). Note for callers that regenerate an
-    existing map: pass the CURRENT descriptions as *responsibilities* -
-    omitted paths are rendered as placeholders, so hand-written or previous
-    descriptions are preserved only when they are included in the dict.
+    build_project_map (see its docstring). Callers that regenerate an existing
+    map must pass the CURRENT descriptions as *responsibilities* - omitted paths
+    are rendered as placeholders, so previous ones survive only through the
+    dict. A regeneration that changes nothing but the timestamp leaves the file
+    untouched and reports ``unchanged: True``, keeping the bytes - and the
+    manifest sha256 - stable.
     """
     pmap = build_project_map(
         include_paths=include_paths,
@@ -1007,6 +998,13 @@ def write_project_map(
         return pmap
     md = render_project_map_markdown(pmap, responsibilities)
     dest = config.PROJECT_MAP_FILE
+    try:
+        previous = dest.read_text(encoding=config.DEFAULT_ENCODING)
+    except (OSError, UnicodeDecodeError):
+        previous = ""
+    if previous and project_map_body(previous) == project_map_body(md):
+        size = len(previous.encode(config.DEFAULT_ENCODING))
+        return {"ok": True, "path": str(dest), "size_bytes": size, "unchanged": True}
     _backup_before_overwrite(dest)
     try:
         dest.write_text(md, encoding=config.DEFAULT_ENCODING)

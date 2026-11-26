@@ -7,8 +7,12 @@ Scenario tests for the canonical PROJECT_MAP regeneration pipeline
   then   only published files appear in the table, methods and classes are
          visible, the header records a content fingerprint, the fingerprint
          detects later staleness, and a second regeneration without changes
-         reproduces the same map (the original bug: zero-indent symbol scan
-         kept class methods out of the map).
+         reproduces the map BYTE FOR BYTE - the generation timestamp is kept,
+         so the sha256 a version manifest records cannot drift. ``--check``
+         reports staleness without writing, and an unknown flag is refused
+         instead of silently regenerating (the original bugs: zero-indent
+         symbol scan kept class methods out of the map; a timestamp made every
+         regeneration differ; an ignored flag made a "check" rewrite the map).
 """
 import hashlib
 import importlib.util
@@ -169,16 +173,42 @@ def test_methods_visible_and_fingerprint_detects_staleness(repo_ws):
     assert changed != recorded  # staleness is detectable
 
 
+def test_check_mode_reports_staleness_without_writing(repo_ws):
+    """--check must answer without touching the map, in both directions."""
+    mod = _load_script()
+    assert mod.main(["--check"])["stale"] is True  # no map yet
+    assert not (repo_ws / "PROJECT_MAP.md").exists()
+
+    assert mod.main()["ok"]
+    fresh_before = (repo_ws / "PROJECT_MAP.md").read_bytes()
+    fresh = mod.main(["--check"])
+    assert fresh["stale"] is False and fresh["ok"] is True
+    assert (repo_ws / "PROJECT_MAP.md").read_bytes() == fresh_before
+
+    (repo_ws / "app.py").write_text("def run():\n    return 7\n", encoding="utf-8")
+    stale = mod.main(["--check"])
+    assert stale["stale"] is True and stale["ok"] is False
+    assert (repo_ws / "PROJECT_MAP.md").read_bytes() == fresh_before
+
+
+def test_unknown_flag_is_refused(repo_ws):
+    """A typo in the flag name must fail loudly instead of silently writing."""
+    mod = _load_script()
+    with pytest.raises(SystemExit) as excinfo:
+        mod.main(["--nonsense"])
+    assert excinfo.value.code == 2
+    assert not (repo_ws / "PROJECT_MAP.md").exists()
+
+
 def test_regeneration_is_reproducible(repo_ws):
     mod = _load_script()
     assert mod.main()["ok"]
     md1 = (repo_ws / "PROJECT_MAP.md").read_text(encoding="utf-8")
-    assert mod.main()["ok"]
+    regen = mod.main()
     md2 = (repo_ws / "PROJECT_MAP.md").read_text(encoding="utf-8")
 
-    def _stable(md):
-        return [ln for ln in md.split("\n") if not ln.startswith("- Обновлено:")]
-
-    assert _stable(md1) == _stable(md2)
+    # Nothing changed, so even the timestamp is kept: the bytes are identical.
+    assert regen.get("unchanged") is True
+    assert md1 == md2
     assert _recorded_fingerprint(md1) == _recorded_fingerprint(md2)
     assert _table_paths(md1) == _table_paths(md2)

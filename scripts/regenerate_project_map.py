@@ -6,7 +6,13 @@ The map is a generated artifact: never edit PROJECT_MAP.md by hand (no
 apply_patch / propose_file / direct writes). Update the descriptions below and
 re-run this script; the file list is taken from file_versions.json so the map
 covers exactly the files published on GitHub.
+
+``--check`` reports whether the map on disk still matches the sources and exits
+1 when it does not; it never writes. The generation timestamp alone never makes
+a map stale, so a check between a regeneration and a release cannot desynchronise
+the sha256 recorded in file_versions.json.
 """
+import argparse
 import json
 import os
 import sys
@@ -36,8 +42,43 @@ def build_publish_set(manifest: dict) -> dict:
     return {"paths": sorted(paths), "count": len(paths)}
 
 
-def main() -> dict:
-    """Regenerate PROJECT_MAP.md for the workspace's published file set."""
+def check_map(publish: dict) -> dict:
+    """Compare the rendered map with the file on disk; never writes.
+
+    Returns ``ok=True`` only when the map on disk matches the sources; a stale
+    or missing map reports ``stale: True`` so the caller can exit non-zero.
+    """
+    from dev_agent import config as dev_config
+    pmap = wt.build_project_map(include_paths=publish["paths"], scope_note=SCOPE_NOTE)
+    if not pmap.get("ok"):
+        return pmap
+    rendered = wt.render_project_map_markdown(pmap, roles)
+    path = Path(dev_config.PROJECT_MAP_FILE)
+    try:
+        on_disk = path.read_text(encoding=dev_config.DEFAULT_ENCODING)
+    except (OSError, UnicodeDecodeError):
+        return {"ok": False, "path": str(path), "stale": True,
+                "reason": "map is missing or unreadable"}
+    stale = wt.project_map_body(on_disk) != wt.project_map_body(rendered)
+    return {"ok": not stale, "path": str(path), "stale": stale,
+            "reason": "map does not match the sources" if stale else "map is fresh"}
+
+
+def main(argv=None) -> dict:
+    """Regenerate PROJECT_MAP.md, or with --check only report staleness.
+
+    *argv* is the argument list; ``None`` means "no flags", so a programmatic
+    call never reads ``sys.argv``. An unknown flag is refused by argparse.
+    """
+    parser = argparse.ArgumentParser(
+        prog="regenerate_project_map.py",
+        description="Regenerate PROJECT_MAP.md for the published file set.",
+    )
+    parser.add_argument(
+        "--check", action="store_true",
+        help="report staleness instead of writing; exit 1 when the map is stale",
+    )
+    args = parser.parse_args(argv if argv is not None else [])
     from dev_agent import config as dev_config
     root = Path(dev_config.PROJECT_ROOT).resolve()
     manifest_path = root / MANIFEST_NAME
@@ -47,11 +88,14 @@ def main() -> dict:
         return out
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     publish = build_publish_set(manifest)
-    res = wt.write_project_map(
-        roles,
-        include_paths=publish["paths"],
-        scope_note=SCOPE_NOTE,
-    )
+    if args.check:
+        res = check_map(publish)
+    else:
+        res = wt.write_project_map(
+            roles,
+            include_paths=publish["paths"],
+            scope_note=SCOPE_NOTE,
+        )
     print(res)
     return res
 
@@ -1061,4 +1105,4 @@ roles.update({
 })
 
 if __name__ == "__main__":
-    main()
+    sys.exit(0 if main(sys.argv[1:]).get("ok") else 1)

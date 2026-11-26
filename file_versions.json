@@ -1,15 +1,15 @@
 {
   "schema": 1,
-  "app_version": "3.1.0",
+  "app_version": "3.1.1",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Управление безопасностью собрано в одной вкладке: режим доступа выбирается одним переключателем и показывает факты выбранного профиля, подтверждение команд по умолчанию выключено. Подтверждения сохранения появляются под нажатой кнопкой во всех разделах настроек. Предел шагов по умолчанию поднят до 1000, отменённые дефолты поднимаются одноразово и не переписывают выбранное значение. Активная вкладка настроек, коннекторов и маркетплейса больше не сбрасывается на первую при работе с полями внутри раздела.",
-    "en": "Security management lives in one tab: the access mode is a single choice that shows the facts of the chosen profile, and command confirmation is off by default. Save confirmations appear under the button that saved, in every settings section. The default step limit is 1000; retired defaults are raised once and never overwrite a chosen value. The active settings, connectors and marketplace tab no longer falls back to the first one when a field inside the section is used."
+    "ru": "3.1.1 устраняет рассогласование публикации: карта проекта больше не меняется от одной лишь метки времени, поэтому её sha256 в манифесте совпадает с опубликованным файлом и обновление больше не отбрасывается проверкой целостности. У генератора карты появился настоящий режим --check: сравнивает без записи, завершается кодом 1 на устаревшей карте и отвергает неизвестный флаг. Поведение 3.1.0 без изменений: управление безопасностью в одной вкладке, подтверждение команд по умолчанию выключено, подтверждения сохранения под нажатой кнопкой, предел шагов 1000.",
+    "en": "3.1.1 fixes a publication inconsistency: the project map no longer changes on the generation timestamp alone, so the sha256 recorded in the manifest matches the published file and the integrity check no longer discards the update. The map generator gained a real --check mode that compares without writing, exits 1 on a stale map and refuses an unknown flag. Behaviour from 3.1.0 is unchanged: security management in one tab, command confirmation off by default, save confirmations under the pressed button, a step limit of 1000."
   },
-  "updated": "2026-11-26T08:15:00Z",
+  "updated": "2026-11-26T08:42:01Z",
   "units": {
     "core": {
-      "version": "3.1.0",
+      "version": "3.1.1",
       "note": {
         "ru": "Пакет кода 3.1.0: вкладка «Безопасность», адресные подтверждения сохранения, предел шагов 1000 с миграцией отменённых дефолтов.",
         "en": "The code unit 3.1.0: the Security tab, anchored save confirmations, the step limit of 1000 with the retired-default migration."
@@ -276,8 +276,8 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "2.1.1",
-          "sha256": "86aea4b23d350d2c14a9a62ffd18bcc9eb1eeeea44694c75f1bc05380727853c",
+          "version": "2.1.2",
+          "sha256": "8189a9ddd02d4739513038deba7ec9ba0e829f83eabd2dec7508e4ad1d7cdaaa",
           "note": {
             "ru": "Версия платформы 3.1.0; линия 3.x объявлена предрелизом, совместимость между минорными версиями не гарантируется.",
             "en": "Platform version 3.1.0; the 3.x line is declared a pre-release, compatibility between minor releases is not guaranteed."
@@ -356,8 +356,12 @@
           }
         },
         "dev_agent/workspace_tools.py": {
-          "version": "1.4.4",
-          "sha256": "d37aad0d94c7e414a9be76b02a4a8638107afb25498772482a3da1a23e289bd4"
+          "version": "1.4.5",
+          "sha256": "e98d5c731f424a97bac83e208785e43f302d6cfceaa2159f059cdd0bebbaae9c",
+          "note": {
+            "ru": "Карта проекта стала байтово стабильной: write_project_map сохраняет прежнюю метку времени и возвращает unchanged=True, когда меняется только она; добавлен project_map_body() для сравнения без метки.",
+            "en": "The project map is byte-stable now: write_project_map keeps the previous timestamp and reports unchanged=True when only it would change; project_map_body() compares maps without the stamp."
+          }
         },
         "pytest.ini": {
           "version": "1.0.0",
@@ -372,11 +376,11 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.13.7",
-          "sha256": "5658cc3fd84936f399d5dfd5da0aaba21cc7cdbe879f071fac8c22baea33e042",
+          "version": "1.13.8",
+          "sha256": "1b589f2869583dbf10d8c8de1c867e863358385d226e7fc0583b4ad92c3ef79c",
           "note": {
-            "ru": "Описания вкладок настроек, коннекторов и маркетплейса, мока и тестов приведены к текущему контракту; добавлено описание сценария удержания вкладки.",
-            "en": "Descriptions of the settings, connectors and marketplace tabs, the mock and the tests follow the current contract; the tab-retention scenario is described."
+            "ru": "Добавлен настоящий режим --check: сравнивает карту с источниками без записи и завершается кодом 1 на устаревшей карте; неизвестный флаг отвергается с кодом 2 вместо молчаливой перезаписи.",
+            "en": "A real --check mode: compares the map with the sources without writing and exits 1 on a stale map; an unknown flag is refused with code 2 instead of silently rewriting the file."
           }
         },
         "scripts/verify_manifest.py": {
@@ -576,8 +580,12 @@
           }
         },
         "tests/scenarios/test_project_map_freshness_scenario.py": {
-          "version": "1.0.1",
-          "sha256": "19017bf2064404a911f9c66d558d6dd35a43544d98e5822d0e12c7d82b888f4a"
+          "version": "1.0.2",
+          "sha256": "46951af7f79eb3ea504fe71e789a21312706b100e9d07c24471e19b21a79d6bf",
+          "note": {
+            "ru": "Воспроизводимость проверяется байтовым равенством с unchanged=True; добавлены проверки режима --check (не пишет, код 1 на устаревшей карте) и отказа на неизвестный флаг.",
+            "en": "Reproducibility is checked by byte equality with unchanged=True; new checks cover --check (never writes, exit 1 on a stale map) and the refusal of an unknown flag."
+          }
         },
         "tests/scenarios/test_provider_economy_settings_scenario.py": {
           "version": "1.0.1",
@@ -2588,11 +2596,11 @@
           "sha256": "59963f7094f2283ac8f00f35e85aa1432acb0a94954dc666d24ad9dd0803ca05"
         },
         "refactor_budget.json": {
-          "version": "1.8.0",
-          "sha256": "13bc556c1ef2e513a2a182d59917165d7ffabfc699a1180f0d361969a17dd05a",
+          "version": "1.8.1",
+          "sha256": "6fa87e1f7d996c240749c759d7702e0b8490e35289536409c7ab5c3b119e7e83",
           "note": {
-            "ru": "Запись ui/pages/orchestrator.py понижена 3364->668 строк, добавлены десять модулей сплита.",
-            "en": "The ui/pages/orchestrator.py entry lowered 3364->668 lines, ten split modules added."
+            "ru": "Бюджет опущен после сжатия docstring-ов workspace_tools.py: 1151 -> 1149 строк файла, 98 -> 91 строка самой длинной функции.",
+            "en": "The budget is lowered after compressing workspace_tools.py docstrings: 1151 -> 1149 file lines, 98 -> 91 lines of the longest function."
           }
         },
         "tests/test_refactor_budget.py": {
@@ -3560,11 +3568,11 @@
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.81.4",
-      "sha256": "b21e99a30d59b63d1c264c3bc03eda9af4017d8bec62e642d8778805120a5bd2",
+      "version": "1.81.5",
+      "sha256": "5d3723bc573bfef560bf92cccfac2d86e8606a33fb6891ed3a3295fde62d56b9",
       "note": {
-        "ru": "Журнал задач: место в папке диалога, миграция старого места, атомарный резолв треда, архив с планом и строками проверки.",
-        "en": "Task journal: the dialog folder as its home, migration from the old location, atomic thread resolution, an archive keeping the plan and the verification lines."
+        "ru": "Описана байтовая стабильность карты проекта (project_map_body, unchanged=True) и отделённый от записи режим --check как устранение рассогласования манифеста с файлом.",
+        "en": "Described the byte stability of the project map (project_map_body, unchanged=True) and the write-free --check mode as the fix for a manifest drifting from the file."
       }
     },
     "LICENSE": {
@@ -3576,16 +3584,16 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.82.3",
-      "sha256": "9ec02d86090bac6fed63200d206935c58b5626eb480356e49c1fd64049b9208e",
+      "version": "1.82.5",
+      "sha256": "f5f4724a072ea12f6b2d809e1f0672575f387d24250d3b61ea570ca7ba6332dd",
       "note": {
-        "ru": "Регенерация под релиз 3.0.0: состав публикуемых файлов и отпечаток содержимого.",
-        "en": "Regenerated for the 3.0.0 release: the published file set and the content fingerprint."
+        "ru": "Регенерация под 3.1.1: отпечаток содержимого отражает исправленные источники, байты карты совпадают с sha256 в манифесте.",
+        "en": "Regenerated for 3.1.1: the content fingerprint reflects the fixed sources and the map bytes match the manifest sha256."
       }
     },
     "README.md": {
-      "version": "1.63.3",
-      "sha256": "273d32135200b09e101fdd631e3f25812490f7911d8d4f8cc714b9e53bb42964",
+      "version": "1.63.4",
+      "sha256": "508730f48570dd653651fe73ccc6e577fa5c0d8b96a11b019c8cd3aa12a7ae79",
       "note": {
         "ru": "Статус версии: предрелиз v3.1.0; совместимость между минорными версиями не гарантируется.",
         "en": "Version status: the v3.1.0 pre-release; compatibility between minor releases is not guaranteed."
@@ -4000,11 +4008,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.59.2",
-      "sha256": "7cb96461904296b36070ea84cdc1d6f6beb16f5ee2bef4e3ffb8b32589c73a5c",
+      "version": "1.59.3",
+      "sha256": "913f8d6e76779f417943498278f8290f3d3ac35fa5e22c19ae1d5b0e9f4d4b70",
       "note": {
-        "ru": "Требования: подтверждение команд выключено по умолчанию, вкладка «Безопасность», адресные подтверждения сохранения, предел шагов 1000 и миграция отменённых дефолтов.",
-        "en": "Requirements: command confirmation is off by default, a Security tab, anchored save confirmations, a step limit of 1000 and a migration of retired defaults."
+        "ru": "Добавлена конвенция: файл с sha256 в манифесте обязан быть байтово детерминированным; генератор обязан иметь режим сравнения без записи, неизвестный флаг отвергается; зафиксирован порядок перед публикацией.",
+        "en": "Added the convention that any file carrying a sha256 in the manifest must be byte-deterministic, that a generator used for checking must offer a compare-only mode and refuse unknown flags, and the pre-publication order."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/connector_creator.md": {

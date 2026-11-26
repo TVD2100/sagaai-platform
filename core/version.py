@@ -836,7 +836,13 @@
 # default, save confirmations appear under the button that saved, and the
 # default step limit is 1000 while retired defaults are raised only once.
 
-__version__ = "3.1.0"
+# 3.1.1 closes a publication-consistency defect of 3.1.0: the project map
+# changed on its generation timestamp alone, so the sha256 recorded in the
+# manifest disagreed with the published bytes and the updater discarded the
+# file. The map is byte-stable now, the generator has a real --check mode,
+# and the manifest matches the published tree.
+
+__version__ = "3.1.1"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

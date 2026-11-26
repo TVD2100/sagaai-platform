@@ -610,8 +610,8 @@
       "most_complex": "_create_connection"
     },
     "dev_agent/workspace_tools.py": {
-      "file_lines": 1151,
-      "function_lines": 98,
+      "file_lines": 1149,
+      "function_lines": 91,
       "max_cc": 13,
       "longest_function": "build_project_map",
       "most_complex": "render_project_map_markdown"
