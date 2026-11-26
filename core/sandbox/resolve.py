@@ -19,8 +19,10 @@ Three independent preferences live in the employee config:
   the ``off`` profile: no operating-system isolation, while the resource
   limits and the built environment still apply. It never widens the
   environment: clearing it alone leaves the child with the filtered set.
-* ``chat_safety_mode`` - the dangerous-code gate. ``False`` means an execution
-  tool runs the analysed text without asking for a confirmation.
+* ``chat_safety_mode`` - the command-confirmation gate. It is ``False``
+  unless the owner asked for it: an execution tool runs the analysed text
+  without stopping for a confirmation, while the deny list of the scanner
+  still refuses what must never run.
 
 They are independent on purpose: turning isolation off must not silently
 drop the confirmation, and turning confirmations off must not silently drop
@@ -100,12 +102,14 @@ def sandbox_profile(slug: str) -> str:
 
 
 def safety_enabled(slug: str) -> bool:
-    """Return whether the dangerous-code gate is on for *slug*.
+    """Return whether the command-confirmation gate is on for *slug*.
 
-    The default is on: an install that never wrote the key keeps asking for
-    a confirmation before an analysed snippet runs.
+    The default is off: an install that never wrote the key runs an analysed
+    command without stopping for a confirmation. The gate is a courtesy for
+    the owner who wants to review an execution, not a boundary - the deny
+    list of the scanner applies either way.
     """
-    return _as_bool(employee_config(slug).get("chat_safety_mode"), True)
+    return _as_bool(employee_config(slug).get("chat_safety_mode"), False)
 
 
 def apply_to(dispatcher: Any, slug: str) -> None:

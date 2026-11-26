@@ -219,9 +219,9 @@ from ui.pages.orchestrator_settings_delegation import (
     _render_verifier_section,
     _save_delegation_settings,
 )
+from ui.pages.orchestrator_settings_economy import _render_economy_settings
 from ui.pages.orchestrator_settings_models import (
     _current_optional_pair,
-    _render_economy_settings,
     _render_models_settings,
     _render_optional_capability_sections,
     _render_optional_model_section,
@@ -249,11 +249,12 @@ from ui.pages.orchestrator_settings_orch import (
     _render_orchestrator_functions_settings,
     _render_orchestrator_instructions_settings,
 )
-from ui.pages.orchestrator_shared import (
-    SETTINGS_SECTIONS,
+from ui.pages.orchestrator_settings_save import (
     pin_settings_section_impl,
+    settings_save_button_impl,
     settings_save_failed_impl,
 )
+from ui.pages.orchestrator_shared import SETTINGS_SECTIONS
 from ui.pages.orchestrator_state import (
     CHAT_PAGE_SIZE,
     ECONOMY_MODE_ALWAYS_ON,
@@ -553,6 +554,7 @@ __all__ = [
     "set_orchestrator_rag_bases",
     "set_universal_agent_enabled",
     "set_verifier_agent",
+    "settings_save_button",
     "settings_section_key",
     "settings_tabs_key",
     "st",
@@ -629,14 +631,9 @@ def _thread_folder(*args, **kwargs):
     return _thread_folder_impl(*args, **kwargs)
 
 
-def pin_settings_section(*args, **kwargs):
-    """Call ``pin_settings_section_impl`` with the arguments the caller passed."""
-    return pin_settings_section_impl(*args, **kwargs)
-
-
-def settings_save_failed(*args, **kwargs):
-    """Call ``settings_save_failed_impl`` with the arguments the caller passed."""
-    return settings_save_failed_impl(*args, **kwargs)
+pin_settings_section = pin_settings_section_impl
+settings_save_button = settings_save_button_impl
+settings_save_failed = settings_save_failed_impl
 
 
 def page_orchestrator(slug: str) -> None:

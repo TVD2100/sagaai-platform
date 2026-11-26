@@ -55,13 +55,15 @@ def _number_input_kwargs(st):
 
 
 def test_other_tab_default_value_and_tooltip(mock_env):
-    """Widget renders with the 500-step default and a real tooltip."""
+    """Widget renders with the shipped step default and a real tooltip."""
     from core.i18n import t
+    from storage.models import DEFAULT_MAX_STEPS
+
     _render_other(mock_env, dict(ORCH_NO_MAX))
 
     kwargs = _number_input_kwargs(mock_env)
     assert kwargs is not None, "max-steps number input was not rendered"
-    assert kwargs.get("value") == 500
+    assert kwargs.get("value") == DEFAULT_MAX_STEPS
     assert kwargs.get("min_value") == 1
     assert kwargs.get("max_value") == 10000
     help_text = kwargs.get("help")

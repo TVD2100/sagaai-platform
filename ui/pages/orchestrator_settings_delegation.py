@@ -35,6 +35,7 @@ get_universal_agent_enabled = late("get_universal_agent_enabled")
 list_orchestrators = late("list_orchestrators")
 pin_settings_section = late("pin_settings_section")
 save_orchestrator = late("save_orchestrator")
+settings_save_button = late("settings_save_button")
 set_allowed_agents = late("set_allowed_agents")
 set_allowed_assistants = late("set_allowed_assistants")
 set_delegation_limits = late("set_delegation_limits")
@@ -71,8 +72,8 @@ def _render_delegation_settings(slug: str, lang: str) -> None:
     dialog_sel = _render_dialog_limits(slug, lang)
 
     st.markdown("---")
-    if st.button(t("orch_delegation_save_btn", lang=lang),
-                 key=f"orch_save_delegation_{slug}", type="primary"):
+    if settings_save_button(t("orch_delegation_save_btn", lang=lang),
+                            key=f"orch_save_delegation_{slug}", type="primary"):
         _save_delegation_settings(slug, lang, agents, assistants, verifier,
                                   limits_sel, dialog_sel)
 

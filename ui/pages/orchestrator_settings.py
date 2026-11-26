@@ -5,10 +5,20 @@ ui.pages.orchestrator_settings - dedicated settings page for orchestrators.
 Navigated to via orchestrator_settings:{slug}. Renders the settings of one
 orchestrator on its own page with a "Back to chat" button.
 
-The sections are native st.tabs. Their selection is kept across reruns by a
-stable tab key; a save handler additionally pins the section it saved, so
-after its st.rerun() the page reopens on the tab the user was editing and
-the queued confirmation is visible next to the section it belongs to.
+The sections are native st.tabs, created STATEFUL (``on_change="rerun"``).
+Without ``on_change="rerun"`` the widget keeps no state at all: its key is
+only a CSS identity, so a rerun falls back to the first tab and a pinned
+section is silently ignored. With it, the active label lives in
+``st.session_state[key]``, and a save handler pins the section it saved by
+writing that slot before the container is created - after its st.rerun() the
+page reopens on the tab the user was editing and the queued confirmation is
+visible next to the section it belongs to.
+
+The container is created with the SAME arguments on every pass. Streamlit
+derives a widget identity from its parameters, so passing ``default`` on the
+pinning pass only would describe a different widget on the next pass and
+discard the stored label: any click inside the section would throw the user
+back to the first tab.
 """
 import streamlit as st
 
@@ -73,6 +83,7 @@ def page_orchestrator_settings(slug: str) -> None:
         t("orch_tab_connections", lang=lang),
         t("orch_tab_memory", lang=lang),
         t("orch_tab_delegation", lang=lang),
+        t("orch_tab_security", lang=lang),
         t("orch_tab_other", lang=lang),
     ]
 
@@ -82,6 +93,10 @@ def page_orchestrator_settings(slug: str) -> None:
     tabs_key = settings_tabs_key(slug)
     requested = st.session_state.pop(settings_section_key(slug), None)
     if requested in SETTINGS_SECTIONS:
+        # A requested section wins over whatever tab was active. The label is
+        # written into the widget slot here, BEFORE the container is created:
+        # that is the only moment Streamlit lets a widget state change, and
+        # the stateful tabs read their active label from session_state.
         st.session_state[tabs_key] = labels[SETTINGS_SECTIONS.index(requested)]
     elif st.session_state.get(tabs_key) not in labels:
         # The stored selection is a translated label, so switching the UI
@@ -89,9 +104,17 @@ def page_orchestrator_settings(slug: str) -> None:
         # handing the widget an unknown tab name.
         st.session_state.pop(tabs_key, None)
 
-    # key= pins the container identity, so the selected tab is preserved
-    # across reruns and a settings save no longer falls back to the first tab.
-    sub_tabs = st.tabs(labels, key=tabs_key)
+    # key= pins the container identity and on_change="rerun" is what makes
+    # the widget stateful: the active label is stored in session_state and a
+    # rerun reopens the tab the user was working in.
+    #
+    # The call passes the SAME arguments on every render pass. Streamlit
+    # derives a widget identity from its parameters: handing ``default`` over
+    # on the pinning pass only would describe a different widget, and the
+    # active label stored for the previous one would be discarded - the user
+    # would be thrown onto the first tab by the next click anywhere in the
+    # section they are editing.
+    sub_tabs = st.tabs(labels, key=tabs_key, on_change="rerun")
 
     with sub_tabs[0]:
         _render_models_settings(slug, lang)
@@ -114,10 +137,11 @@ def page_orchestrator_settings(slug: str) -> None:
     with sub_tabs[9]:
         _render_delegation_settings(slug, lang)
     with sub_tabs[10]:
-        # The sandbox panel comes first in this tab: it answers how generated
-        # code is isolated on this machine, which a user looks for before the
-        # miscellaneous settings.
+        # The access panel owns its own tab: it answers how generated code is
+        # isolated on this machine, which is a question of its own and not a
+        # part of the miscellaneous settings.
         render_sandbox_settings(slug, lang)
+    with sub_tabs[11]:
         _render_other_settings(slug, lang)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

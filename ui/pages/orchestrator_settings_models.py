@@ -27,14 +27,13 @@ from ui.pages.orchestrator_text import (
 
 st = st_proxy()
 flash_success = late("flash_success")
-get_economy_config = late("get_economy_config")
-get_economy_tail_messages = late("get_economy_tail_messages")
 get_orchestrator = late("get_orchestrator")
 get_services = late("get_services")
 get_web_search_config = late("get_web_search_config")
 pin_settings_section = late("pin_settings_section")
 reset_builtin_prompt = late("reset_builtin_prompt")
 save_orchestrator = late("save_orchestrator")
+settings_save_button = late("settings_save_button")
 settings_save_failed = late("settings_save_failed")
 t = late("t")
 
@@ -130,7 +129,8 @@ def _render_models_settings(slug: str, lang: str) -> None:
     search = _render_search_model_section(slug, lang, cfg)
 
     # Save models
-    if st.button(t("orch_save_models_btn", lang=lang), key=f"orch_save_models_{slug}", type="primary"):
+    if settings_save_button(t("orch_save_models_btn", lang=lang),
+                            key=f"orch_save_models_{slug}", type="primary"):
         _save_models_settings(slug, lang, cfg, strong, optional, search)
 
 
@@ -391,7 +391,8 @@ def _render_prompt_settings(slug: str, lang: str) -> None:
         key=f"orch_prompt_{slug}",
         label_visibility="collapsed",
     )
-    if st.button(t("orch_save_prompt_btn", lang=lang), key=f"orch_save_prompt_{slug}", type="primary"):
+    if settings_save_button(t("orch_save_prompt_btn", lang=lang),
+                            key=f"orch_save_prompt_{slug}", type="primary"):
         if save_orchestrator(slug, prompt_text=new_prompt):
             # Drop the widget state so the field re-reads the stored prompt,
             # then ask the page to reopen this section after the rerun.
@@ -402,7 +403,8 @@ def _render_prompt_settings(slug: str, lang: str) -> None:
         else:
             settings_save_failed(slug, "prompt", "orch_save_prompt_error", lang)
     if prompt_edited:
-        if st.button(t("orch_prompt_reset_btn", lang=lang), key=f"orch_reset_prompt_{slug}"):
+        if settings_save_button(t("orch_prompt_reset_btn", lang=lang),
+                                key=f"orch_reset_prompt_{slug}"):
             if reset_builtin_prompt(slug):
                 st.session_state.pop(f"orch_prompt_{slug}", None)
                 pin_settings_section(slug, "prompt")
@@ -412,60 +414,5 @@ def _render_prompt_settings(slug: str, lang: str) -> None:
                 settings_save_failed(slug, "prompt", "orch_prompt_reset_error", lang)
 
 
-def _render_economy_settings(slug: str, lang: str) -> None:
-    orch = get_orchestrator(slug)
-    if orch is None:
-        st.error(t("orch_not_found", lang=lang))
-        return
-    economy_config = get_economy_config(slug)
-    cur_tail = min(100, max(4, int(economy_config.get("tail_messages", get_economy_tail_messages(slug)))))
-    cur_cache_enabled = bool(economy_config.get("cache_enabled", False))
-    cur_multiplier = int(economy_config.get("cache_multiplier", 2))
-
-    st.markdown(t("orch_economy_section", lang=lang))
-    st.markdown(t("orch_economy_desc", lang=lang))
-
-    col_t1, col_t2 = st.columns([2, 1])
-    with col_t1:
-        sel_tail = st.slider(
-            t("orch_economy_tail_label", lang=lang),
-            min_value=4, max_value=100, value=cur_tail, step=2,
-            key=f"orch_economy_tail_{slug}",
-            help=t("orch_economy_tail_help", lang=lang),
-        )
-    with col_t2:
-        st.metric("L", sel_tail)
-
-    sel_cache_enabled = st.checkbox(
-        t("orch_economy_cache_label", lang=lang),
-        value=cur_cache_enabled,
-        key=f"orch_economy_cache_{slug}",
-        help=t("orch_economy_cache_help", lang=lang),
-    )
-
-    multiplier_options = [1, 2, 3, 4, 5]
-    if cur_multiplier not in multiplier_options:
-        cur_multiplier = 2
-    sel_multiplier = st.selectbox(
-        t("orch_economy_multiplier_label", lang=lang),
-        options=multiplier_options,
-        index=multiplier_options.index(cur_multiplier),
-        format_func=lambda x: f"x{x}",
-        key=f"orch_economy_multiplier_{slug}",
-        help=t("orch_economy_multiplier_help", lang=lang),
-    )
-
-    if st.button(t("orch_save_btn", lang=lang), key=f"orch_save_economy_{slug}", type="primary"):
-        cfg = orch.get("config", {})
-        new_cfg = dict(cfg)
-        new_cfg["economy_tail_messages"] = sel_tail
-        new_cfg["economy_cache_enabled"] = bool(sel_cache_enabled)
-        new_cfg["economy_cache_multiplier"] = int(sel_multiplier)
-        if save_orchestrator(slug, config=new_cfg):
-            pin_settings_section(slug, "economy")
-            flash_success(t("orch_economy_saved", lang=lang, tail=sel_tail))
-            st.rerun()
-        else:
-            settings_save_failed(slug, "economy", "orch_economy_save_error", lang)
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

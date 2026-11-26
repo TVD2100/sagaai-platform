@@ -157,14 +157,14 @@ def test_checkbox_values_come_from_saved_config(ui_env, monkeypatch):
 
 
 def test_checkbox_defaults_without_saved_config(ui_env, monkeypatch):
-    """Without saved prefs: web off, safety on, access isolated."""
+    """Without saved prefs: web off, command confirmation off, access isolated."""
     slug = "custom1"
     _render_chat(ui_env, monkeypatch, slug, _orch_dict(slug=slug))
 
     ws = _checkbox_by_key(ui_env, f"orch_{slug}_web_search")
     safety = _checkbox_by_key(ui_env, f"orch_{slug}_safety_mode")
     assert ws is not None and ws["value"] is False
-    assert safety is not None and safety["value"] is True
+    assert safety is not None and safety["value"] is False
     # No saved grant means the isolated form: handing the platform
     # environment to a child must be an explicit act.
     badge = _button_by_key(ui_env, f"orch_access_badge_{slug}")
@@ -187,6 +187,56 @@ def test_the_access_badge_explains_itself_and_stays_read_only(ui_env, monkeypatc
     assert badge["help"] == t("orch_access_badge_isolated_help", lang="English")
     assert badge["label"].endswith(t("orch_access_badge_isolated", lang="English"))
     assert _checkbox_by_key(ui_env, f"orch_{slug}_sandbox") is None
+
+
+def test_the_full_access_badge_shows_an_explicit_open_lock(ui_env, monkeypatch):
+    """The grant badge must read as open at a glance.
+
+    The padlock emojis render their shackle at a few pixels, so the open and
+    the closed lock look the same on a button - the worst possible confusion
+    for a switch that hands out the platform environment. The explicit
+    Material symbol is used instead of an emoji, and only for this mode.
+    """
+    slug = "custom1"
+    _render_chat(ui_env, monkeypatch, slug, _orch_dict(
+        slug=slug, config={"env_isolation": False}))
+
+    badge = _button_by_key(ui_env, f"orch_access_badge_{slug}")
+    assert badge is not None, "the toolbar shows no access badge"
+    assert badge["label"].startswith(":material/lock_open:"), badge
+    assert "\U0001f513" not in badge["label"], "the ambiguous emoji is back"
+    from core.i18n import t
+    assert badge["label"].endswith(t("orch_access_badge_full", lang="English"))
+
+
+def test_only_the_full_access_badge_carries_an_icon(ui_env, monkeypatch):
+    """The other modes keep their emoji and get no extra icon argument."""
+    slug = "custom1"
+    _render_chat(ui_env, monkeypatch, slug, _orch_dict(slug=slug))
+
+    badge = _button_by_key(ui_env, f"orch_access_badge_{slug}")
+    assert badge is not None
+    assert "material" not in badge["label"], badge
+    assert "\U0001f6e1" in badge["label"]
+
+
+def test_the_access_badge_opens_the_security_tab(ui_env, monkeypatch):
+    """Clicking the badge must land on the Security tab, not on Other.
+
+    Given an employee with the isolated access mode,
+    when  the user clicks the access badge in the chat toolbar,
+    then  the settings page is asked to reopen the ``security`` section.
+    """
+    import ui.pages.orchestrator as orch_page
+
+    slug = "custom1"
+    _render_chat(ui_env, monkeypatch, slug, _orch_dict(slug=slug))
+
+    ui_env.click(f"orch_access_badge_{slug}")
+    _rerender(ui_env, lambda: orch_page.page_orchestrator(slug))
+
+    assert ui_env.session_state[orch_page.settings_section_key(slug)] == "security"
+    assert ui_env.session_state["current_page"] == f"orchestrator_settings:{slug}"
 
 
 # ─── the switch reaches the tool dispatcher ──────────────────────────────────
@@ -264,7 +314,7 @@ def test_the_saved_profile_is_used_without_any_legacy_flag(ui_env, monkeypatch):
 
 
 def test_the_grant_persists_like_the_other_settings(ui_env, monkeypatch):
-    """Saving the access section writes env_isolation and keeps other keys."""
+    """Saving the access section writes the whole mode and keeps other keys."""
     import ui.pages.orchestrator  # noqa: F401  - the page facade late() resolves through it
     import ui.pages.orchestrator_sandbox as sandbox_mod
 
@@ -279,11 +329,37 @@ def test_the_grant_persists_like_the_other_settings(ui_env, monkeypatch):
                             saved.update({"config": dict(config or {})}), True)[-1])
 
     with pytest.raises(StopRerun):
-        sandbox_mod._save_config_value("custom1", "env_isolation", False,
-                                       "English")
+        # Full access is one decision stored as two keys: the environment
+        # grant and the profile a run executes under.
+        sandbox_mod._save_mode("custom1", "full", "English")
 
     assert saved["config"]["env_isolation"] is False
+    assert saved["config"]["sandbox_profile"] == "off"
     assert saved["config"]["strong_service"] == "DeepSeek"
+
+
+def test_saving_a_profile_mode_writes_the_grant_and_the_profile(ui_env, monkeypatch):
+    """Saving a profile mode writes both keys and drops the removed switch."""
+    import ui.pages.orchestrator  # noqa: F401  - the page facade late() resolves through it
+    import ui.pages.orchestrator_sandbox as sandbox_mod
+
+    orch = {"slug": "custom1", "name": "Custom", "config": {
+        "strong_service": "DeepSeek", "chat_sandbox": False,
+    }}
+    monkeypatch.setattr(sandbox_mod, "get_orchestrator",
+                        lambda s: orch if s == "custom1" else None)
+    saved = {}
+    monkeypatch.setattr(sandbox_mod, "save_orchestrator",
+                        lambda slug, config=None, **kw: (
+                            saved.update({"config": dict(config or {})}), True)[-1])
+
+    with pytest.raises(StopRerun):
+        sandbox_mod._save_mode("custom1", "read_only", "English")
+
+    assert saved["config"]["env_isolation"] is True
+    assert saved["config"]["sandbox_profile"] == "read_only"
+    assert saved["config"]["strong_service"] == "DeepSeek"
+    assert "chat_sandbox" not in saved["config"]
 
 
 def test_toolbar_renders_once_without_bottom_duplicates(ui_env, monkeypatch):
@@ -355,4 +431,4 @@ def test_chat_prefs_fallback_on_non_dict_config(ui_env, monkeypatch):
 
     assert ui_env.session_state["orch_custom1_web_search"] is False
     assert ui_env.session_state["orch_custom1_economy_mode"] is True
-    assert ui_env.session_state["orch_custom1_safety_mode"] is True
+    assert ui_env.session_state["orch_custom1_safety_mode"] is False

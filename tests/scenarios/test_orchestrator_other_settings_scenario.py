@@ -74,7 +74,7 @@ def test_scenario_other_tab_shows_default_500(isolated_data):
 
     Given the built-in DevAgent profile exists with no stored step limit,
     when  the user opens the Other settings tab,
-    then  the step-limit widget renders with the 500-step default,
+    then  the step-limit widget renders with the shipped default,
           clamped to [1, 10000], a real tooltip and no errors.
     """
     from core.i18n import t
@@ -90,7 +90,7 @@ def test_scenario_other_tab_shows_default_500(isolated_data):
     assert st.errors == [], "settings render emitted errors: %r" % st.errors
     kwargs = _number_input_kwargs(st)
     assert kwargs is not None, "max-steps number input was not rendered"
-    assert kwargs.get("value") == 500
+    assert kwargs.get("value") == DEFAULT_MAX_STEPS
     assert kwargs.get("min_value") == 1
     assert kwargs.get("max_value") == 10000
     help_text = kwargs.get("help")

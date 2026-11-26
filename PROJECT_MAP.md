@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-22T20:13:47+00:00`
-- Файлов: **857**
+- Обновлено: `2026-11-26T08:28:21+00:00`
+- Файлов: **863**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **11408**
-- Отпечаток содержимого: `sha256:51dd5c9614cc0232db03058c74782f0369ac6ffcf6090159804e4b6e1f1ccb69` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 2, JSON: 37, Markdown: 42, PEM certificate: 2, Python: 774, TOML: 2, Text: 2
+- Python-символов: **11458**
+- Отпечаток содержимого: `sha256:f9fa41cb2897ae0a1d2518a024bdcd2100f4a65e81046b8cb2908feaf56fff30` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 2, JSON: 37, Markdown: 42, PEM certificate: 2, Python: 780, TOML: 2, Text: 2
 
 ## Файлы и назначение
 
@@ -39,7 +39,7 @@
 | `ui/pages/chat.py` | Python | Chat page for AI assistants: selector, history, send form | - |
 | `ui/pages/connectors.py` | Python | Connectors page: service and preset tiles opening a full-page form, the saved-connections tab, credentials status, test/edit/delete; the connection card carries the agent memory block for that connection | ui |
 | `ui/pages/history.py` | Python | Unified dialogue history page (assistants + employees) | ui |
-| `ui/pages/marketplace.py` | Python | Marketplace page: showcase with search, the entity card (licence, required tools, platform range), install, the three conflict resolutions, reset to catalog and uninstall with an inline confirmation; an mcp card states the credential the server needs and points to the MCP servers tab, where the installed preset becomes a tile the user makes connections from | ui |
+| `ui/pages/marketplace.py` | Python | Marketplace page: showcase with search, the entity card (licence, required tools, platform range), install, the three conflict resolutions, reset to catalog and uninstall with an inline confirmation; the section tabs are stateful with a constant call signature, so a sidebar request lands in the tab key before the container is built and a click inside a section keeps it open; an mcp card states the credential the server needs and points to the MCP servers tab, where the installed preset becomes a tile the user makes connections from | ui |
 | `ui/pages/orchestrator.py` | Python | Facade of the orchestrator page: holds the import block (including the re-exports of orchestrator_text that the page and the tests resolve), thin wrappers over the late-bound names and the two entry points page_orchestrator/page_devagent; every body lives in the orchestrator_* modules below | storage, ui |
 | `ui/pages/orchestrator_chat.py` | Python | Chat tab of the orchestrator page: the reading sequence over the section helpers, the confirmation dialogs and the message controls; the header gate asks resolve_strong_model which provider the employee actually runs on instead of reading the raw config | ui |
 | `ui/pages/orchestrator_chat_input.py` | Python | Chat input area: the toolbar (including the read-only access badge that leads to the setting), attachment collection and the token/economy line under the prompt | ui |
@@ -47,13 +47,15 @@
 | `ui/pages/orchestrator_flags.py` | Python | Settings flags of the orchestrator: safety mode, injection protection, the access mode (isolated, full access, or the legacy partial record) and the profile an isolated run executes under | - |
 | `ui/pages/orchestrator_folder.py` | Python | Workspace folder picker of the chat page: the auto/recent/native menu, the manual path entry and applying a choice to the thread | ui |
 | `ui/pages/orchestrator_loop.py` | Python | Agent step and run tree of the chat page: _do_step split into phases, run registration and stop requests, the subagent status and loop status panels | storage, ui |
-| `ui/pages/orchestrator_sandbox.py` | Python | Settings panel of the agent access: the isolated or full-access choice with its warning, the legacy partial record explained by a banner, and - behind the details expander - the providers, which profiles this machine can honour (the profile ceiling included), the profile selector of the isolated mode and the live run journal | storage, ui |
+| `ui/pages/orchestrator_sandbox.py` | Python | Settings panel of the agent access: the isolated or full-access choice with its warning, the legacy partial record explained by a banner, and - behind the details expander - the providers, which profiles this machine can honour (the profile ceiling included), the profile selector of the isolated mode and the live run journal | ui |
 | `ui/pages/orchestrator_settings.py` | Python | Orchestrator settings page: tabbed sections (eleven tabs including Memory), the active tab is kept across reruns and pinned after a save | ui |
 | `ui/pages/orchestrator_settings_delegation.py` | Python | Delegation settings tab: the allowed agents and assistants, the delegation limits and the stale-id display | ui |
+| `ui/pages/orchestrator_settings_economy.py` | Python | Settings tab for the economy mode: the tail size, the cache switch and its multiplier in one block, with the save button reporting its result beneath itself | ui |
 | `ui/pages/orchestrator_settings_models.py` | Python | Model settings tab: strong model, economy tail, prompt settings and the service list | ui |
 | `ui/pages/orchestrator_settings_orch.py` | Python | Orchestrator settings tab: the tool set, system functions, RAG bases, instructions and the allowed connections | ui |
 | `ui/pages/orchestrator_settings_other.py` | Python | Other settings tab of an employee: the name block, description and the fields that belong to neither models nor tools | storage, ui |
-| `ui/pages/orchestrator_shared.py` | Python | Late-binding layer of the orchestrator page: late(name) resolves a patchable global on the facade at call time, st_proxy() does the same for Streamlit, and bind_facade pins the layer to the facade object so a second live copy of the package cannot swallow a monkeypatch | ui |
+| `ui/pages/orchestrator_settings_save.py` | Python | Save plumbing of the settings tabs: a save queues its confirmation and reruns, so the flash helper renders it under the button that saved, with the label, key, help text and section anchors the callers pass | ui |
+| `ui/pages/orchestrator_shared.py` | Python | Late-binding layer of the orchestrator page: late(name) resolves a patchable global on the facade at call time, st_proxy() does the same for Streamlit, and bind_facade pins the layer to the facade object so a second live copy of the package cannot swallow a monkeypatch | - |
 | `ui/pages/orchestrator_state.py` | Python | Session state of the chat page: the initial state, the chat preference and economy cache, thread loading and the state keys built from the page settings | ui |
 | `ui/pages/orchestrator_text.py` | Python | Pure text and event helpers of the orchestrator page, kept free of Streamlit and of translated strings so they can be reasoned about on their own: model-output cleanup (HTML details wrappers, empty fenced blocks, JSON/XML/DSML tool-call residue) and the has_tool_calls flag that drives the per-message copy controls, the two-line preview and argument formatting used by the step feed, the result-body extraction for a tool result, the per-run event grouping, and build_state_keys - the session-state key map of one chat, which takes the persisted checkbox defaults and the page-level constants as arguments so no page configuration leaks in; the page module re-exports every name so the chat feed, the tests and the tool-result renderer resolve them through ui.pages.orchestrator | - |
 | `ui/pages/orchestrators.py` | Python | Employees (orchestrators) management page (create/open/settings/delete; export/import deferred) | ui |
@@ -144,6 +146,7 @@
 | `core/orchestrator_reload.py` | Python | Reloading an orchestrator from its personal folder: hand-made edits of orchestrator.json, the prompt and instructions become visible to a running employee | storage |
 | `core/orchestrator_shared.py` | Python | Late-binding layer of the orchestrator API: late(name) resolves a patchable global on the facade at call time, and bind_facade binds the layer to the facade object so a second live copy of the package does not intercept the patch | - |
 | `core/orchestrator_step.py` | Python | Writing one agent step into its thread: messages_to_persist cutting the history by the saved cursor (a cursor past the end yields nothing), message_row as the single mapping of history keys to store fields, and persist_step_messages returning the new cursor so a rerun duplicates nothing | - |
+| `core/orchestrator_steps_migration.py` | Python | One-shot upgrade of a retired default step limit: a record still carrying a number that once WAS the default is raised to the current one, a limit the owner typed is never overwritten, and a config marker keeps the upgrade from repeating | - |
 | `core/orchestrator_store.py` | Python | Reading and writing an orchestrator: CRUD over the database, the folder mirror of orchestrator.json with its prompt file, and the folder sync that keeps the two sides equal | storage |
 | `core/orchestrator_strong.py` | Python | Which provider and model an employee runs on: resolve_strong_model answers with the configured strong pair, then the legacy service/model keys, then the platform default held by DEFAULT_STRONG_SERVICE/DEFAULT_STRONG_MODEL; the answer is never empty, so an employee shipped without model settings starts on the platform default instead of being blocked, and the chat page gate and the prompt assembly both ask this resolver rather than the raw config | - |
 | `core/orchestrator_tools.py` | Python | Tool catalog for orchestrators: core + workspace + delegation + connection + custom functions, the English '## Available tools' prompt block and the system-functions list; spawn_agent and answer_child are offered to the parent, ask_parent only in the child catalog, invoke_assistant only with a non-empty assistant allowlist, and disabled_tools stays a plain blacklist | - |
@@ -280,7 +283,7 @@
 | `core/gateway/runs.py` | Python | Run state through the gateway: current status, long-poll wait, result projection and cancellation, reading live runs and stored ones through one code path | - |
 | `core/gateway/threads.py` | Python | Dialog threads through the gateway: messages with absolute indices, scope resolution inside the gateway so a foreign thread reads as not-found | - |
 | `tests/__init__.py` | Python | Package marker | - |
-| `tests/_st_mock.py` | Python | Streamlit mock used by UI tests: widgets, session state, call log and the tabs/expander stand-ins | - |
+| `tests/_st_mock.py` | Python | Streamlit mock used by UI tests: widgets, session state, call log, the tabs/expander stand-ins, the widget-key lock and the widget-identity rule (a render whose parameters differ from the previous one starts a NEW widget and discards the stored value) | - |
 | `tests/_test_isolation.py` | Python | _(описание не задано)_ | - |
 | `tests/conftest.py` | Python | Pytest fixture bootstrap | - |
 | `tests/marketplace_fixtures.py` | Python | Shared marketplace test fixtures: an in-process catalog HTTP server, entity and package builders and the data-directory fixture | storage |
@@ -448,10 +451,11 @@
 | `tests/test_orchestrator_message_controls.py` | Python | Per-message download/copy controls tests (plain-prose answers) | ui |
 | `tests/test_orchestrator_models_settings.py` | Python | Orchestrator settings UI tests (main model + optional vision/image selectors) | ui |
 | `tests/test_orchestrator_nav.py` | Python | _(описание не задано)_ | - |
-| `tests/test_orchestrator_other_settings.py` | Python | _(описание не задано)_ | ui |
+| `tests/test_orchestrator_other_settings.py` | Python | _(описание не задано)_ | storage, ui |
 | `tests/test_orchestrator_page_facade.py` | Python | _(описание не задано)_ | - |
 | `tests/test_orchestrator_prompt_settings.py` | Python | UI tests: prompt settings tab - save, reset button and edited-prompt notice for the built-in orchestrator | ui |
-| `tests/test_orchestrator_settings_tabs.py` | Python | Tests for the settings tab pinning: eleven sections map to their own tab and a stale label from another language is dropped | ui |
+| `tests/test_orchestrator_security_tab.py` | Python | Unit tests for the Security settings section: the five access modes as a single choice, the facts of the chosen profile shown below the selector, and the save that writes the whole decision | ui |
+| `tests/test_orchestrator_settings_tabs.py` | Python | Tests for the settings tab pinning: eleven sections map to their own tab, a stale label from another language is dropped, and a click inside a pinned section keeps the user there | ui |
 | `tests/test_orchestrator_strong_model.py` | Python | Unit tests of the strong-model resolver: the configured pair, the crew fallback, the platform default and the never-empty answer | - |
 | `tests/test_orchestrator_subagent_ui.py` | Python | UI tests for the background subagent parts of the chat page: the running-runs status line, the _notice badge and the st.fragment refresh | ui |
 | `tests/test_orchestrator_system_tools_ui.py` | Python | _(описание не задано)_ | ui |
@@ -554,7 +558,7 @@
 | `tests/test_transcript_schema.py` | Python | _(описание не задано)_ | storage |
 | `tests/test_transcript_sink.py` | Python | Unit tests for the sink: a step becomes records in order, UI render data is not stored, and a store failure never propagates into the run | storage |
 | `tests/test_transcript_writer.py` | Python | Unit tests for the transcript writer: record shape, event-prefix stripping, rotation, append after a torn line, the checkpoint record and the folder layout | - |
-| `tests/test_ui_connectors_mcp.py` | Python | UI tests for the Connectors page: stateful tabs (on_change='rerun' + default), preset tiles with icons, a tile click opens the full-page create form and writes nothing, submitting that form creates an already-active connection with the typed token, Cancel creates nothing, a preset-based edit form shows only the credential fields and saves env_pairs, MCP cards render on the Connections tab, mcp is excluded from the general service tiles, and a preset hidden from the catalogue offers no tile while its connection keeps the preset edit form (resolved by id) | ui |
+| `tests/test_ui_connectors_mcp.py` | Python | UI tests for the Connectors page: stateful tabs (on_change='rerun', constant call signature, the request written into the tab key), preset tiles with icons, a tile click opens the full-page create form and writes nothing, submitting that form creates an already-active connection with the typed token, Cancel creates nothing, a preset-based edit form shows only the credential fields and saves env_pairs, MCP cards render on the Connections tab, mcp is excluded from the general service tiles, and a preset hidden from the catalogue offers no tile while its connection keeps the preset edit form (resolved by id) | ui |
 | `tests/test_ui_connectors_ssh.py` | Python | UI tests for the connectors page SSH support and the pending-credentials warning | ui |
 | `tests/test_ui_flash.py` | Python | Unit tests for ui.components.flash: queueing of every kind, missing/garbage session state tolerated, render_flash paints once and clears, pending queue capped | ui |
 | `tests/test_ui_pages.py` | Python | UI page tests | ui |
@@ -583,6 +587,7 @@
 | `tests/smoke/test_app_smoke.py` | Python | App smoke tests | ui |
 | `tests/golden/api_contract.json` | JSON | The recorded public JSON of the API contract, normalised for volatile fields; regenerated deliberately with UPDATE_GOLDEN=1 | - |
 | `tests/scenarios/conftest.py` | Python | _(описание не задано)_ | - |
+| `tests/scenarios/test_access_badge_scenario.py` | Python | Scenario tests for the access badge: the full-access grant drawn as an explicit open lock, the badge click opening the Security section over a remembered tab, and an ordinary render keeping the chosen section | ui |
 | `tests/scenarios/test_access_scenarios.py` | Python | _(описание не задано)_ | ui |
 | `tests/scenarios/test_agent_dialog_scenario.py` | Python | Scenario tests (given->when->then) for the agent dialog: a child asks and resumes the same run (A), the limits refuse a sixth round, an over-long question, an expired wait and a late answer (B), and the question stays data-bounded, confined to its own tree and never reaches the system channel (C) | - |
 | `tests/scenarios/test_agent_md_doc_scenario.py` | Python | Scenario tests: AGENT.md managed doc (scaffold with mandatory conventions, legacy 'spec' alias, assess states) | storage |
@@ -654,6 +659,7 @@
 | `tests/scenarios/test_schedules_scenario.py` | Python | Scenario tests for scheduled runs (given->when->then): a saved rule fires once and its dialog appears in History, a restart does not repeat a point, downtime is recorded as a miss instead of a burst, a blocked weekday is skipped in the preview, and three failures hold the rule | storage |
 | `tests/scenarios/test_search_in_files_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_settings_tab_persists_scenario.py` | Python | Scenario tests: a settings save keeps its own tab (given->when->then) - save pin, repeated save, chat rerun keeps the section | ui |
+| `tests/scenarios/test_settings_tab_survives_widget_click.py` | Python | Scenario against the real Streamlit runtime (AppTest): the Security section is pinned, the user picks another access mode there, and the page stays on Security - a click inside a section never throws the user back to the first tab | ui |
 | `tests/scenarios/test_skills_adaptation_scenario.py` | Python | _(описание не задано)_ | storage, ui |
 | `tests/scenarios/test_ssh_connector_scenarios.py` | Python | Scenario tests for the SSH connector feature | storage |
 | `tests/scenarios/test_state_recovery_scenario.py` | Python | Scenario tests: compact task-state digest and budgeted CURRENT TASK STATE injection for large journals | - |
@@ -922,13 +928,19 @@
 - `_handle_thread_deeplink` (func, строка 188)
 
 ### `ui/components/flash.py`
-- `_queue` (func, строка 39)
-- `flash` (func, строка 48)
-- `flash_success` (func, строка 65)
-- `flash_error` (func, строка 70)
-- `flash_warning` (func, строка 75)
-- `flash_info` (func, строка 80)
-- `render_flash` (func, строка 85)
+- `_st` (func, строка 50)
+- `_queue` (func, строка 62)
+- `set_flash_anchor` (func, строка 72)
+- `current_flash_anchor` (func, строка 81)
+- `clear_flash_anchor` (func, строка 87)
+- `flash` (func, строка 95)
+- `flash_success` (func, строка 118)
+- `flash_error` (func, строка 123)
+- `flash_warning` (func, строка 128)
+- `flash_info` (func, строка 133)
+- `_painters` (func, строка 138)
+- `render_flash_after` (func, строка 149)
+- `render_flash` (func, строка 181)
 
 ### `ui/components/name_fields.py`
 - `name_widget_key` (func, строка 33)
@@ -1009,32 +1021,32 @@
 - `_start_edit` (func, строка 105)
 - `_back_to_list` (func, строка 112)
 - `_apply_target_tab` (func, строка 123)
-- `_general_service_tiles` (func, строка 146)
-- `_service_label` (func, строка 165)
-- `_render_general_service_tiles` (func, строка 170)
-- `_service_icon` (func, строка 192)
-- `_test_connection` (func, строка 204)
-- `_ssh_stored_fields` (func, строка 235)
-- `_render_ssh_fields` (func, строка 243)
-- `_mcp_stored_env_json` (func, строка 299)
-- `_mcp_stored_env_names` (func, строка 307)
-- `_mcp_preset_options` (func, строка 318)
-- `_mcp_preset_by_id` (func, строка 326)
-- `_mcp_preset_for` (func, строка 347)
-- `_mcp_field_help` (func, строка 354)
-- `_render_mcp_preset_credential_fields` (func, строка 362)
-- `_render_custom_mcp_transport` (func, строка 397)
-- `_render_custom_mcp_transport_body` (func, строка 415)
-- `_form_header` (func, строка 478)
-- `_create_target` (func, строка 489)
-- `_render_create_view` (func, строка 502)
-- `_render_edit_view` (func, строка 567)
-- `_render_connection_card` (func, строка 640)
-- `_render_connections` (func, строка 758)
-- `_render_preset_tile` (func, строка 765)
-- `_render_custom_tile` (func, строка 777)
-- `_render_mcp_tab` (func, строка 785)
-- `_render_list_view` (func, строка 799)
+- `_general_service_tiles` (func, строка 144)
+- `_service_label` (func, строка 163)
+- `_render_general_service_tiles` (func, строка 168)
+- `_service_icon` (func, строка 190)
+- `_test_connection` (func, строка 202)
+- `_ssh_stored_fields` (func, строка 233)
+- `_render_ssh_fields` (func, строка 241)
+- `_mcp_stored_env_json` (func, строка 297)
+- `_mcp_stored_env_names` (func, строка 305)
+- `_mcp_preset_options` (func, строка 316)
+- `_mcp_preset_by_id` (func, строка 324)
+- `_mcp_preset_for` (func, строка 345)
+- `_mcp_field_help` (func, строка 352)
+- `_render_mcp_preset_credential_fields` (func, строка 360)
+- `_render_custom_mcp_transport` (func, строка 395)
+- `_render_custom_mcp_transport_body` (func, строка 413)
+- `_form_header` (func, строка 476)
+- `_create_target` (func, строка 487)
+- `_render_create_view` (func, строка 500)
+- `_render_edit_view` (func, строка 565)
+- `_render_connection_card` (func, строка 638)
+- `_render_connections` (func, строка 756)
+- `_render_preset_tile` (func, строка 763)
+- `_render_custom_tile` (func, строка 775)
+- `_render_mcp_tab` (func, строка 783)
+- `_render_list_view` (func, строка 797)
 - `page_connectors` (func, строка 824)
 
 ### `ui/pages/history.py`
@@ -1063,54 +1075,52 @@
 - `_marketplace_sections` (func, строка 40)
 - `_section_labels` (func, строка 57)
 - `_apply_section_request` (func, строка 62)
-- `_sync_section_from_tabs` (func, строка 81)
-- `_active_section` (func, строка 94)
-- `page_marketplace` (func, строка 107)
-- `_filter_section` (func, строка 133)
-- `_render_toolbar` (func, строка 151)
-- `_query` (func, строка 169)
-- `_load_items` (func, строка 174)
-- `_render_list` (func, строка 189)
-- `_render_item` (func, строка 222)
-- `_card_view` (func, строка 269)
-- `_render_card` (func, строка 304)
-- `_bundle_cache_key` (func, строка 454)
-- `_clear_bundle_cache` (func, строка 459)
-- `_bundle_plan` (func, строка 465)
-- `_bundle_label` (func, строка 490)
-- `_render_bundle` (func, строка 509)
-- `_flash_pending_credentials` (func, строка 565)
-- `_install_button` (func, строка 583)
-- `_install_bundle` (func, строка 611)
-- `_install_together` (func, строка 647)
-- `_entity_type` (func, строка 718)
-- `_plan_for` (func, строка 723)
-- `_install` (func, строка 741)
-- `_resolve_choice` (func, строка 750)
-- `_reset` (func, строка 795)
-- `_adopt` (func, строка 824)
-- `_render_uninstall` (func, строка 849)
-- `_uninstall` (func, строка 870)
-- `_human_size` (func, строка 894)
+- `_sync_section_from_tabs` (func, строка 87)
+- `_active_section` (func, строка 100)
+- `page_marketplace` (func, строка 113)
+- `_filter_section` (func, строка 140)
+- `_render_toolbar` (func, строка 158)
+- `_query` (func, строка 176)
+- `_load_items` (func, строка 181)
+- `_render_list` (func, строка 196)
+- `_render_item` (func, строка 229)
+- `_card_view` (func, строка 276)
+- `_render_card` (func, строка 311)
+- `_bundle_cache_key` (func, строка 461)
+- `_clear_bundle_cache` (func, строка 466)
+- `_bundle_plan` (func, строка 472)
+- `_bundle_label` (func, строка 497)
+- `_render_bundle` (func, строка 516)
+- `_flash_pending_credentials` (func, строка 572)
+- `_install_button` (func, строка 590)
+- `_install_bundle` (func, строка 618)
+- `_install_together` (func, строка 654)
+- `_entity_type` (func, строка 725)
+- `_plan_for` (func, строка 730)
+- `_install` (func, строка 748)
+- `_resolve_choice` (func, строка 757)
+- `_reset` (func, строка 802)
+- `_adopt` (func, строка 831)
+- `_render_uninstall` (func, строка 856)
+- `_uninstall` (func, строка 877)
+- `_human_size` (func, строка 901)
 
 ### `ui/pages/orchestrator.py`
-- `_assistant_has_api_key` (func, строка 567)
-- `_do_step` (func, строка 572)
-- `_init_orch_state` (func, строка 577)
-- `_load_thread` (func, строка 582)
-- `_make_dispatcher` (func, строка 587)
-- `_make_send_adapter` (func, строка 592)
-- `_render_event` (func, строка 597)
-- `_render_token_line` (func, строка 602)
-- `_render_tool_result` (func, строка 607)
-- `_reset_dialog` (func, строка 612)
-- `_set_ss` (func, строка 617)
-- `_ss` (func, строка 622)
-- `_thread_folder` (func, строка 627)
-- `pin_settings_section` (func, строка 632)
-- `settings_save_failed` (func, строка 637)
-- `page_orchestrator` (func, строка 642)
-- `page_devagent` (func, строка 655)
+- `_assistant_has_api_key` (func, строка 569)
+- `_do_step` (func, строка 574)
+- `_init_orch_state` (func, строка 579)
+- `_load_thread` (func, строка 584)
+- `_make_dispatcher` (func, строка 589)
+- `_make_send_adapter` (func, строка 594)
+- `_render_event` (func, строка 599)
+- `_render_token_line` (func, строка 604)
+- `_render_tool_result` (func, строка 609)
+- `_reset_dialog` (func, строка 614)
+- `_set_ss` (func, строка 619)
+- `_ss` (func, строка 624)
+- `_thread_folder` (func, строка 629)
+- `page_orchestrator` (func, строка 639)
+- `page_devagent` (func, строка 652)
 
 ### `ui/pages/orchestrator_chat.py`
 - `_render_chat_tab` (func, строка 53)
@@ -1168,13 +1178,13 @@
 - `_render_event_impl` (func, строка 337)
 
 ### `ui/pages/orchestrator_flags.py`
-- `_flag_false` (func, строка 36)
-- `access_mode` (func, строка 45)
-- `toolbar_specs` (func, строка 62)
-- `sandbox_profile` (func, строка 83)
-- `env_isolation` (func, строка 93)
-- `effective_sandbox_profile` (func, строка 108)
-- `read_protection_flags` (func, строка 141)
+- `_flag_false` (func, строка 38)
+- `access_mode` (func, строка 47)
+- `toolbar_specs` (func, строка 64)
+- `sandbox_profile` (func, строка 85)
+- `env_isolation` (func, строка 95)
+- `effective_sandbox_profile` (func, строка 110)
+- `read_protection_flags` (func, строка 143)
 
 ### `ui/pages/orchestrator_folder.py`
 - `_folder_picker_key` (func, строка 37)
@@ -1215,40 +1225,45 @@
 - `_cancel_dialog_tree` (func, строка 614)
 
 ### `ui/pages/orchestrator_sandbox.py`
-- `_provider_rows` (func, строка 40)
-- `_profile_rows` (func, строка 57)
-- `_offers` (func, строка 82)
-- `_profiles` (func, строка 89)
-- `_current_profile` (func, строка 96)
-- `_profile_label` (func, строка 106)
-- `_save_profile` (func, строка 117)
-- `_save_config_value` (func, строка 122)
-- `_render_active_runs` (func, строка 141)
-- `_render_active_runs._live` (func, строка 160)
-- `_render_one_run` (func, строка 178)
-- `render_sandbox_settings` (func, строка 201)
-- `_render_recent_runs` (func, строка 306)
-- `_format_when` (func, строка 328)
-- `_stub_profile` (func, строка 336)
+- `_provider_rows` (func, строка 71)
+- `_profile_rows` (func, строка 88)
+- `_offers` (func, строка 113)
+- `_profiles` (func, строка 120)
+- `_employee_config` (func, строка 127)
+- `_current_mode` (func, строка 137)
+- `_mode_options` (func, строка 153)
+- `_mode_label` (func, строка 165)
+- `_facts_row` (func, строка 173)
+- `_mode_usable` (func, строка 200)
+- `_render_mode_facts` (func, строка 208)
+- `_save_mode` (func, строка 220)
+- `_save_config` (func, строка 240)
+- `_render_active_runs` (func, строка 254)
+- `_render_active_runs._live` (func, строка 273)
+- `_render_one_run` (func, строка 291)
+- `render_sandbox_settings` (func, строка 314)
 
 ### `ui/pages/orchestrator_settings.py`
-- `page_orchestrator_settings` (func, строка 38)
+- `page_orchestrator_settings` (func, строка 48)
 
 ### `ui/pages/orchestrator_settings_delegation.py`
-- `_render_delegation_settings` (func, строка 47)
-- `_live_orchestrator_entries` (func, строка 80)
-- `_render_allowed_agents` (func, строка 88)
-- `_render_allowed_assistants` (func, строка 135)
-- `_render_verifier_section` (func, строка 163)
-- `_number_input_setting` (func, строка 201)
-- `_render_delegation_limits` (func, строка 212)
-- `_render_dialog_limits` (func, строка 243)
-- `_save_delegation_settings` (func, строка 283)
+- `_render_delegation_settings` (func, строка 48)
+- `_live_orchestrator_entries` (func, строка 81)
+- `_render_allowed_agents` (func, строка 89)
+- `_render_allowed_assistants` (func, строка 136)
+- `_render_verifier_section` (func, строка 164)
+- `_number_input_setting` (func, строка 202)
+- `_render_delegation_limits` (func, строка 213)
+- `_render_dialog_limits` (func, строка 244)
+- `_save_delegation_settings` (func, строка 284)
+
+### `ui/pages/orchestrator_settings_economy.py`
+- `_render_economy_settings` (func, строка 29)
 
 ### `ui/pages/orchestrator_settings_models.py`
-- `_render_optional_model_section` (func, строка 42)
-- `_current_optional_pair` (func, строка 86)
-- `_render_models_settings` (func, строка 109)
+- `_render_optional_model_section` (func, строка 41)
+- `_current_optional_pair` (func, строка 85)
+- `_render_models_settings` (func, строка 108)
 - `_warn_unavailable_pair` (func, строка 137)
 - `_render_reasoning_effort` (func, строка 155)
 - `_render_strong_model_section` (func, строка 175)
@@ -1258,39 +1273,41 @@
 - `_render_search_prompt` (func, строка 331)
 - `_save_models_settings` (func, строка 345)
 - `_render_prompt_settings` (func, строка 373)
-- `_render_economy_settings` (func, строка 415)
 
 ### `ui/pages/orchestrator_settings_orch.py`
-- `_render_orch_system_tools` (func, строка 48)
-- `_render_orchestrator_functions_settings` (func, строка 90)
-- `_render_function_cards` (func, строка 112)
-- `_render_function_form` (func, строка 138)
-- `_render_orchestrator_instructions_settings` (func, строка 181)
-- `_render_instruction_cards` (func, строка 201)
-- `_render_instruction_form` (func, строка 228)
-- `_render_orch_skills_settings` (func, строка 268)
-- `_render_orch_rag_bases` (func, строка 312)
-- `_render_orch_connections` (func, строка 367)
-- `_render_orch_memory` (func, строка 413)
-- `_render_memory_dir_section` (func, строка 453)
-- `_render_memory_editor` (func, строка 482)
+- `_render_orch_system_tools` (func, строка 49)
+- `_render_orchestrator_functions_settings` (func, строка 91)
+- `_render_function_cards` (func, строка 113)
+- `_render_function_form` (func, строка 139)
+- `_render_orchestrator_instructions_settings` (func, строка 182)
+- `_render_instruction_cards` (func, строка 202)
+- `_render_instruction_form` (func, строка 229)
+- `_render_orch_skills_settings` (func, строка 270)
+- `_render_orch_rag_bases` (func, строка 313)
+- `_render_orch_connections` (func, строка 368)
+- `_render_orch_memory` (func, строка 414)
+- `_render_memory_dir_section` (func, строка 454)
+- `_render_memory_editor` (func, строка 483)
 
 ### `ui/pages/orchestrator_settings_other.py`
-- `_render_names_block` (func, строка 27)
-- `_render_max_steps_block` (func, строка 44)
-- `_render_other_settings` (func, строка 75)
+- `_render_names_block` (func, строка 28)
+- `_render_max_steps_block` (func, строка 45)
+- `_render_other_settings` (func, строка 74)
+
+### `ui/pages/orchestrator_settings_save.py`
+- `pin_settings_section_impl` (func, строка 28)
+- `settings_save_button_impl` (func, строка 41)
+- `settings_save_failed_impl` (func, строка 61)
 
 ### `ui/pages/orchestrator_shared.py`
-- `bind_facade` (func, строка 43)
-- `facade` (func, строка 49)
-- `late` (func, строка 64)
-- `late._call` (func, строка 73)
-- `_StProxyType` (class, строка 84)
-- `_StProxyType.__getattr__` (func, строка 92)
-- `_StProxyType.__repr__` (func, строка 95)
-- `st_proxy` (func, строка 102)
-- `pin_settings_section_impl` (func, строка 128)
-- `settings_save_failed_impl` (func, строка 141)
+- `bind_facade` (func, строка 41)
+- `facade` (func, строка 47)
+- `late` (func, строка 62)
+- `late._call` (func, строка 71)
+- `_StProxyType` (class, строка 82)
+- `_StProxyType.__getattr__` (func, строка 90)
+- `_StProxyType.__repr__` (func, строка 93)
+- `st_proxy` (func, строка 100)
 
 ### `ui/pages/orchestrator_state.py`
 - `_chat_prefs` (func, строка 35)
@@ -1879,14 +1896,14 @@
 - `_marketplace_active` (func, строка 83)
 - `_marketplace_removed_slugs` (func, строка 98)
 - `ensure_default_orchestrators` (func, строка 125)
-- `ensure_default_rag_bases` (func, строка 245)
-- `_stamp_manifest_source` (func, строка 307)
-- `_merge_preset_rag_bases` (func, строка 335)
-- `_backfill_assistant_names` (func, строка 346)
-- `ensure_default_assistants` (func, строка 391)
-- `ensure_default_instructions` (func, строка 522)
-- `ensure_default_skills` (func, строка 586)
-- `ensure_all_defaults` (func, строка 722)
+- `ensure_default_rag_bases` (func, строка 252)
+- `_stamp_manifest_source` (func, строка 314)
+- `_merge_preset_rag_bases` (func, строка 342)
+- `_backfill_assistant_names` (func, строка 353)
+- `ensure_default_assistants` (func, строка 398)
+- `ensure_default_instructions` (func, строка 529)
+- `ensure_default_skills` (func, строка 593)
+- `ensure_all_defaults` (func, строка 729)
 
 ### `core/defaults.py`
 - `defaults_root` (func, строка 51)
@@ -2356,17 +2373,16 @@
 - `extract_xlsx_text` (func, строка 415)
 
 ### `core/orchestrator_builtin.py`
-- `_ensure_default_orchestrators` (func, строка 41)
-- `_refresh_marketplace_registry_cache` (func, строка 60)
-- `_load_bundled_prompt_text` (func, строка 76)
-- `_first_boot_config` (func, строка 90)
-- `_builtin_tool_names` (func, строка 120)
-- `_create_builtin_orchestrator` (func, строка 130)
-- `_backfill_builtin_config` (func, строка 162)
-- `_migrate_builtin_max_steps` (func, строка 224)
-- `ensure_builtin_orchestrators` (func, строка 232)
-- `load_devagent_config` (func, строка 294)
-- `save_devagent_config` (func, строка 333)
+- `_ensure_default_orchestrators` (func, строка 42)
+- `_refresh_marketplace_registry_cache` (func, строка 61)
+- `_load_bundled_prompt_text` (func, строка 77)
+- `_first_boot_config` (func, строка 91)
+- `_builtin_tool_names` (func, строка 121)
+- `_create_builtin_orchestrator` (func, строка 131)
+- `_backfill_builtin_config` (func, строка 163)
+- `ensure_builtin_orchestrators` (func, строка 230)
+- `load_devagent_config` (func, строка 292)
+- `save_devagent_config` (func, строка 331)
 
 ### `core/orchestrator_defaults.py`
 - `_devagent_default_config` (func, строка 38)
@@ -2508,6 +2524,9 @@
 - `messages_to_persist` (func, строка 18)
 - `message_row` (func, строка 35)
 - `persist_step_messages` (func, строка 53)
+
+### `core/orchestrator_steps_migration.py`
+- `migrate_max_steps` (func, строка 23)
 
 ### `core/orchestrator_store.py`
 - `list_orchestrators_impl` (func, строка 47)
@@ -3728,12 +3747,12 @@
 - `profile_names` (func, строка 109)
 
 ### `core/sandbox/resolve.py`
-- `_as_bool` (func, строка 44)
-- `employee_config` (func, строка 53)
-- `env_isolation` (func, строка 72)
-- `sandbox_profile` (func, строка 83)
-- `safety_enabled` (func, строка 102)
-- `apply_to` (func, строка 111)
+- `_as_bool` (func, строка 46)
+- `employee_config` (func, строка 55)
+- `env_isolation` (func, строка 74)
+- `sandbox_profile` (func, строка 85)
+- `safety_enabled` (func, строка 104)
+- `apply_to` (func, строка 115)
 
 ### `core/sandbox/runner.py`
 - `build_request` (func, строка 20)
@@ -4369,49 +4388,51 @@
 - `_SessionState.__setattr__` (func, строка 44)
 - `_SessionState._guard` (func, строка 50)
 - `_SessionState.__setitem__` (func, строка 62)
-- `_SessionState.pop` (func, строка 66)
-- `StreamlitMock` (class, строка 71)
-- `StreamlitMock.__init__` (func, строка 79)
-- `StreamlitMock._rec` (func, строка 101)
-- `StreamlitMock._bind` (func, строка 109)
-- `StreamlitMock.click` (func, строка 119)
-- `StreamlitMock.reset_clicks` (func, строка 122)
-- `StreamlitMock.__getattr__` (func, строка 126)
-- `StreamlitMock.__getattr__._stub` (func, строка 128)
-- `StreamlitMock.button` (func, строка 134)
-- `StreamlitMock.form_submit_button` (func, строка 139)
-- `StreamlitMock.selectbox` (func, строка 144)
-- `StreamlitMock.text_input` (func, строка 155)
-- `StreamlitMock.text_area` (func, строка 162)
-- `StreamlitMock.number_input` (func, строка 169)
-- `StreamlitMock.date_input` (func, строка 174)
-- `StreamlitMock.slider` (func, строка 179)
-- `StreamlitMock.file_uploader` (func, строка 183)
-- `StreamlitMock.chat_input` (func, строка 187)
-- `StreamlitMock.checkbox` (func, строка 194)
-- `StreamlitMock.multiselect` (func, строка 208)
-- `StreamlitMock.radio` (func, строка 216)
-- `StreamlitMock.error` (func, строка 221)
-- `StreamlitMock.warning` (func, строка 225)
-- `StreamlitMock.rerun` (func, строка 229)
-- `StreamlitMock.stop` (func, строка 233)
-- `StreamlitMock.sidebar` (func, строка 237)
-- `StreamlitMock.columns` (func, строка 240)
-- `StreamlitMock.tabs` (func, строка 245)
-- `StreamlitMock.expander` (func, строка 249)
-- `StreamlitMock.container` (func, строка 253)
-- `StreamlitMock.form` (func, строка 257)
-- `StreamlitMock.spinner` (func, строка 261)
-- `StreamlitMock.chat_message` (func, строка 265)
-- `StreamlitMock.empty` (func, строка 269)
-- `_NullCtx` (class, строка 274)
-- `_NullCtx.__init__` (func, строка 281)
-- `_NullCtx.__enter__` (func, строка 285)
-- `_NullCtx.__exit__` (func, строка 288)
-- `_NullCtx.__call__` (func, строка 291)
-- `_NullCtx.__getattr__` (func, строка 296)
-- `_NullCtx.__getattr__._stub` (func, строка 299)
-- `install_streamlit_mock` (func, строка 315)
+- `_SessionState.widget_write` (func, строка 66)
+- `_SessionState.pop` (func, строка 75)
+- `StreamlitMock` (class, строка 80)
+- `StreamlitMock.__init__` (func, строка 89)
+- `StreamlitMock._rec` (func, строка 112)
+- `StreamlitMock._bind` (func, строка 120)
+- `StreamlitMock._identity_changed` (func, строка 130)
+- `StreamlitMock.click` (func, строка 148)
+- `StreamlitMock.reset_clicks` (func, строка 151)
+- `StreamlitMock.__getattr__` (func, строка 155)
+- `StreamlitMock.__getattr__._stub` (func, строка 157)
+- `StreamlitMock.button` (func, строка 163)
+- `StreamlitMock.form_submit_button` (func, строка 168)
+- `StreamlitMock.selectbox` (func, строка 173)
+- `StreamlitMock.text_input` (func, строка 184)
+- `StreamlitMock.text_area` (func, строка 191)
+- `StreamlitMock.number_input` (func, строка 198)
+- `StreamlitMock.date_input` (func, строка 203)
+- `StreamlitMock.slider` (func, строка 208)
+- `StreamlitMock.file_uploader` (func, строка 212)
+- `StreamlitMock.chat_input` (func, строка 216)
+- `StreamlitMock.checkbox` (func, строка 223)
+- `StreamlitMock.multiselect` (func, строка 237)
+- `StreamlitMock.radio` (func, строка 245)
+- `StreamlitMock.error` (func, строка 256)
+- `StreamlitMock.warning` (func, строка 260)
+- `StreamlitMock.rerun` (func, строка 264)
+- `StreamlitMock.stop` (func, строка 268)
+- `StreamlitMock.sidebar` (func, строка 272)
+- `StreamlitMock.columns` (func, строка 275)
+- `StreamlitMock.tabs` (func, строка 280)
+- `StreamlitMock.expander` (func, строка 312)
+- `StreamlitMock.container` (func, строка 316)
+- `StreamlitMock.form` (func, строка 320)
+- `StreamlitMock.spinner` (func, строка 324)
+- `StreamlitMock.chat_message` (func, строка 328)
+- `StreamlitMock.empty` (func, строка 332)
+- `_NullCtx` (class, строка 337)
+- `_NullCtx.__init__` (func, строка 344)
+- `_NullCtx.__enter__` (func, строка 348)
+- `_NullCtx.__exit__` (func, строка 351)
+- `_NullCtx.__call__` (func, строка 354)
+- `_NullCtx.__getattr__` (func, строка 359)
+- `_NullCtx.__getattr__._stub` (func, строка 362)
+- `install_streamlit_mock` (func, строка 378)
 
 ### `tests/_test_isolation.py`
 - `is_app_module` (func, строка 17)
@@ -7100,12 +7121,13 @@
 - `test_the_helpers_section_shows_helpers_only` (func, строка 272)
 - `test_the_skills_section_hides_agents` (func, строка 289)
 - `test_a_sidebar_request_opens_the_matching_tab` (func, строка 301)
-- `test_agent_card_lists_its_recommended_package` (func, строка 319)
-- `test_bundle_install_sends_the_ticked_members` (func, строка 352)
-- `test_bundle_install_sends_the_ticked_members._install` (func, строка 358)
-- `test_install_works_on_the_rerun_after_the_card_was_opened` (func, строка 381)
-- `test_install_works_on_the_rerun_after_the_card_was_opened._install` (func, строка 394)
-- `test_the_card_shows_a_single_install_button` (func, строка 426)
+- `test_a_widget_click_keeps_the_section_the_user_is_in` (func, строка 326)
+- `test_agent_card_lists_its_recommended_package` (func, строка 357)
+- `test_bundle_install_sends_the_ticked_members` (func, строка 390)
+- `test_bundle_install_sends_the_ticked_members._install` (func, строка 396)
+- `test_install_works_on_the_rerun_after_the_card_was_opened` (func, строка 419)
+- `test_install_works_on_the_rerun_after_the_card_was_opened._install` (func, строка 432)
+- `test_the_card_shows_a_single_install_button` (func, строка 464)
 
 ### `tests/test_marketplace_uninstall.py`
 - `_install` (func, строка 22)
@@ -7977,15 +7999,19 @@
 - `test_checkbox_values_come_from_saved_config` (func, строка 128)
 - `test_checkbox_defaults_without_saved_config` (func, строка 159)
 - `test_the_access_badge_explains_itself_and_stays_read_only` (func, строка 178)
-- `_dispatcher_for` (func, строка 195)
-- `test_the_grant_puts_the_dispatcher_into_full_access` (func, строка 207)
-- `test_the_stored_legacy_flag_still_clears_the_isolation` (func, строка 235)
-- `test_the_saved_profile_is_used_without_any_legacy_flag` (func, строка 255)
-- `test_the_grant_persists_like_the_other_settings` (func, строка 266)
-- `test_toolbar_renders_once_without_bottom_duplicates` (func, строка 289)
-- `test_save_chat_pref_merges_config` (func, строка 307)
-- `test_save_chat_pref_rejects_unknown_key_and_missing_orch` (func, строка 334)
-- `test_chat_prefs_fallback_on_non_dict_config` (func, строка 348)
+- `test_the_full_access_badge_shows_an_explicit_open_lock` (func, строка 192)
+- `test_only_the_full_access_badge_carries_an_icon` (func, строка 212)
+- `test_the_access_badge_opens_the_security_tab` (func, строка 223)
+- `_dispatcher_for` (func, строка 245)
+- `test_the_grant_puts_the_dispatcher_into_full_access` (func, строка 257)
+- `test_the_stored_legacy_flag_still_clears_the_isolation` (func, строка 285)
+- `test_the_saved_profile_is_used_without_any_legacy_flag` (func, строка 305)
+- `test_the_grant_persists_like_the_other_settings` (func, строка 316)
+- `test_saving_a_profile_mode_writes_the_grant_and_the_profile` (func, строка 341)
+- `test_toolbar_renders_once_without_bottom_duplicates` (func, строка 365)
+- `test_save_chat_pref_merges_config` (func, строка 383)
+- `test_save_chat_pref_rejects_unknown_key_and_missing_orch` (func, строка 410)
+- `test_chat_prefs_fallback_on_non_dict_config` (func, строка 424)
 
 ### `tests/test_orchestrator_connections.py`
 - `isolated_data_dir` (func, строка 18)
@@ -8235,12 +8261,12 @@
 - `_render_other` (func, строка 36)
 - `_number_input_kwargs` (func, строка 50)
 - `test_other_tab_default_value_and_tooltip` (func, строка 57)
-- `test_other_tab_respects_stored_value` (func, строка 72)
-- `test_other_tab_save_persists_and_shows_success` (func, строка 80)
-- `test_other_tab_save_clamps_upper_bound` (func, строка 100)
-- `test_other_tab_save_clamps_lower_bound` (func, строка 107)
-- `test_other_tab_invalid_input_falls_back_to_current` (func, строка 114)
-- `test_other_tab_save_failure_shows_error` (func, строка 121)
+- `test_other_tab_respects_stored_value` (func, строка 74)
+- `test_other_tab_save_persists_and_shows_success` (func, строка 82)
+- `test_other_tab_save_clamps_upper_bound` (func, строка 102)
+- `test_other_tab_save_clamps_lower_bound` (func, строка 109)
+- `test_other_tab_invalid_input_falls_back_to_current` (func, строка 116)
+- `test_other_tab_save_failure_shows_error` (func, строка 123)
 
 ### `tests/test_orchestrator_page_facade.py`
 - `_parse` (func, строка 50)
@@ -8275,6 +8301,23 @@
 - `test_custom_orchestrator_has_no_reset` (func, строка 123)
 - `test_reset_button_calls_reset_builtin_prompt` (func, строка 128)
 
+### `tests/test_orchestrator_security_tab.py`
+- `st_env` (func, строка 29)
+- `_orch` (func, строка 39)
+- `_modules` (func, строка 47)
+- `_render` (func, строка 61)
+- `_radio` (func, строка 69)
+- `_tables` (func, строка 77)
+- `test_the_listed_modes_are_exactly_the_five_documented_ones` (func, строка 82)
+- `test_every_mode_has_a_label_that_separates_off_from_full_access` (func, строка 98)
+- `test_the_chosen_mode_shows_the_facts_of_its_profile` (func, строка 111)
+- `test_full_access_is_shown_as_the_off_profile_with_the_platform_env` (func, строка 131)
+- `_current` (func, строка 146)
+- `test_saving_a_profile_mode_writes_both_config_keys` (func, строка 153)
+- `test_saving_full_access_writes_the_grant_and_the_off_profile` (func, строка 176)
+- `test_the_recent_runs_list_is_not_rendered` (func, строка 192)
+- `test_a_legacy_record_reads_as_the_off_mode` (func, строка 205)
+
 ### `tests/test_orchestrator_settings_tabs.py`
 - `st_env` (func, строка 34)
 - `_page_modules` (func, строка 48)
@@ -8282,14 +8325,16 @@
 - `_tabs_calls` (func, строка 68)
 - `_tab_label` (func, строка 72)
 - `test_tabs_container_has_a_stable_key` (func, строка 78)
-- `test_pinned_section_activates_its_tab` (func, строка 89)
-- `test_unknown_section_is_ignored` (func, строка 102)
-- `test_prompt_save_keeps_the_prompt_tab` (func, строка 113)
-- `test_repeated_prompt_save_reports_every_time` (func, строка 147)
-- `test_failed_prompt_save_reports_the_error_in_place` (func, строка 174)
-- `test_stale_tab_label_after_language_switch_is_dropped` (func, строка 196)
-- `test_current_language_selection_is_kept` (func, строка 206)
-- `test_every_section_save_pins_its_own_tab` (func, строка 217)
+- `test_pinned_section_wins_over_a_previously_active_tab` (func, строка 97)
+- `test_pinned_section_activates_its_tab` (func, строка 116)
+- `test_unknown_section_is_ignored` (func, строка 129)
+- `test_prompt_save_keeps_the_prompt_tab` (func, строка 143)
+- `test_repeated_prompt_save_reports_every_time` (func, строка 177)
+- `test_failed_prompt_save_reports_the_error_in_place` (func, строка 204)
+- `test_stale_tab_label_after_language_switch_is_dropped` (func, строка 226)
+- `test_current_language_selection_is_kept` (func, строка 239)
+- `test_every_section_save_pins_its_own_tab` (func, строка 250)
+- `test_clicking_a_widget_inside_a_pinned_section_keeps_the_section` (func, строка 264)
 
 ### `tests/test_orchestrator_strong_model.py`
 - `test_empty_config_resolves_to_the_platform_defaults` (func, строка 24)
@@ -8698,7 +8743,9 @@
 - `test_devagent_user_max_steps_survives_bootstrap` (func, строка 221)
 - `test_preset_legacy_100_migrates_to_default` (func, строка 233)
 - `test_preset_user_max_steps_survives_bootstrap` (func, строка 247)
-- `test_preset_preserves_user_changes` (func, строка 256)
+- `test_preset_legacy_500_migrates_to_default` (func, строка 256)
+- `test_a_retired_number_chosen_by_the_user_survives` (func, строка 274)
+- `test_preset_preserves_user_changes` (func, строка 293)
 
 ### `tests/test_project_map_ast.py`
 - `isolated_db` (func, строка 29)
@@ -9108,11 +9155,11 @@
 - `test_the_chain_limit_is_checked_before_the_checkpoint` (func, строка 146)
 
 ### `tests/test_safety_mode.py`
-- `test_safety_enabled_is_true_by_default` (func, строка 24)
-- `test_run_code_skips_confirmation_when_safety_disabled` (func, строка 29)
-- `test_run_code_requires_confirmation_when_safety_enabled` (func, строка 40)
-- `test_run_test_skips_confirmation_when_safety_disabled` (func, строка 51)
-- `test_run_test_requires_confirmation_when_safety_enabled` (func, строка 62)
+- `test_safety_enabled_is_false_by_default` (func, строка 24)
+- `test_run_code_skips_confirmation_when_safety_disabled` (func, строка 30)
+- `test_run_code_requires_confirmation_when_safety_enabled` (func, строка 41)
+- `test_run_test_skips_confirmation_when_safety_disabled` (func, строка 52)
+- `test_run_test_requires_confirmation_when_safety_enabled` (func, строка 63)
 
 ### `tests/test_sandbox_env_cleanup.py`
 - `_Deps` (class, строка 17)
@@ -9311,7 +9358,7 @@
 - `test_the_stamp_defaults_to_the_isolated_form` (func, строка 165)
 - `test_clearing_the_sandbox_does_not_clear_the_confirmation` (func, строка 178)
 - `test_clearing_the_confirmation_does_not_clear_the_sandbox` (func, строка 185)
-- `test_a_missing_safety_key_keeps_the_gate_on` (func, строка 192)
+- `test_a_missing_safety_key_leaves_the_gate_off` (func, строка 192)
 - `test_an_unknown_employee_falls_back_to_the_defaults` (func, строка 198)
 - `test_the_child_builder_inherits_the_employee_preferences` (func, строка 207)
 - `test_the_child_builder_keeps_the_gate_when_the_employee_asked_for_it` (func, строка 226)
@@ -10611,21 +10658,22 @@
 - `_button_labels` (func, строка 120)
 - `_open_create` (func, строка 125)
 - `test_page_renders_stateful_tabs` (func, строка 134)
-- `test_return_targets_connections_tab_through_default` (func, строка 149)
-- `test_mcp_tab_renders_preset_and_custom_tiles` (func, строка 164)
-- `test_preset_tile_click_only_opens_form` (func, строка 175)
-- `test_preset_create_form_prefills_preset` (func, строка 195)
-- `test_preset_create_form_prefills_preset._capture` (func, строка 203)
-- `test_preset_create_submit_creates_active_connection` (func, строка 220)
-- `test_create_cancel_returns_without_writing` (func, строка 246)
-- `test_custom_tile_click_opens_create_form` (func, строка 268)
-- `test_custom_create_submit_creates_stdio_connection` (func, строка 286)
-- `test_preset_mcp_edit_view_saves_env_pairs` (func, строка 316)
-- `test_edit_view_cancel_returns_without_saving` (func, строка 357)
-- `test_mcp_connection_card_renders_on_connections_tab` (func, строка 381)
-- `test_general_tab_uses_service_tiles_without_mcp` (func, строка 394)
-- `test_hidden_preset_offers_no_tile` (func, строка 445)
-- `test_connection_from_hidden_preset_keeps_preset_edit_form` (func, строка 456)
+- `test_return_target_opens_the_connections_tab` (func, строка 149)
+- `test_a_widget_click_keeps_the_tab_the_user_is_in` (func, строка 170)
+- `test_mcp_tab_renders_preset_and_custom_tiles` (func, строка 197)
+- `test_preset_tile_click_only_opens_form` (func, строка 208)
+- `test_preset_create_form_prefills_preset` (func, строка 228)
+- `test_preset_create_form_prefills_preset._capture` (func, строка 236)
+- `test_preset_create_submit_creates_active_connection` (func, строка 253)
+- `test_create_cancel_returns_without_writing` (func, строка 279)
+- `test_custom_tile_click_opens_create_form` (func, строка 301)
+- `test_custom_create_submit_creates_stdio_connection` (func, строка 319)
+- `test_preset_mcp_edit_view_saves_env_pairs` (func, строка 349)
+- `test_edit_view_cancel_returns_without_saving` (func, строка 390)
+- `test_mcp_connection_card_renders_on_connections_tab` (func, строка 414)
+- `test_general_tab_uses_service_tiles_without_mcp` (func, строка 427)
+- `test_hidden_preset_offers_no_tile` (func, строка 478)
+- `test_connection_from_hidden_preset_keeps_preset_edit_form` (func, строка 489)
 
 ### `tests/test_ui_connectors_ssh.py`
 - `st_mock` (func, строка 48)
@@ -10658,6 +10706,11 @@
 - `test_queue_is_capped` (func, строка 93)
 - `test_render_without_queue_is_a_noop` (func, строка 104)
 - `test_malformed_queue_value_is_reset` (func, строка 111)
+- `test_an_orphaned_message_falls_back_to_the_page` (func, строка 122)
+- `test_the_anchor_paints_on_the_next_pass_and_leaves_others` (func, строка 138)
+- `test_a_queued_message_follows_the_button_being_handled` (func, строка 152)
+- `test_an_explicit_empty_anchor_stays_page_level` (func, строка 163)
+- `test_the_anchor_is_forgotten_once_the_button_rendered` (func, строка 176)
 
 ### `tests/test_ui_pages.py`
 - `_apply_all` (func, строка 80)
@@ -11210,6 +11263,16 @@
 
 ### `tests/scenarios/conftest.py`
 - `_restore_scenario_state` (func, строка 14)
+
+### `tests/scenarios/test_access_badge_scenario.py`
+- `env` (func, строка 30)
+- `_orch` (func, строка 43)
+- `_bind` (func, строка 52)
+- `_render` (func, строка 66)
+- `_badge` (func, строка 74)
+- `test_the_grant_badge_reads_as_an_open_lock` (func, строка 82)
+- `test_the_badge_opens_the_security_section_of_a_worked_in_page` (func, строка 96)
+- `test_an_ordinary_render_keeps_the_chosen_section` (func, строка 121)
 
 ### `tests/scenarios/test_access_scenarios.py`
 - `_FakeLoopState` (class, строка 28)
@@ -11944,16 +12007,16 @@
 - `test_scenario_new_dialog_agent_guarded_neighbour_reads_own_project` (func, строка 214)
 
 ### `tests/scenarios/test_orchestrator_chat_prefs_scenario.py`
-- `page_env` (func, строка 32)
-- `_render` (func, строка 44)
-- `_render._no_input` (func, строка 66)
-- `_markdown_calls` (func, строка 78)
-- `_checkbox` (func, строка 82)
-- `test_scenario_devagent_welcome_and_defaults` (func, строка 89)
-- `test_scenario_saved_prefs_restored_in_new_dialog` (func, строка 119)
-- `test_scenario_toggling_checkbox_persists` (func, строка 149)
-- `test_scenario_single_toolbar_after_toggle` (func, строка 198)
-- `test_scenario_safety_mode_off_persists` (func, строка 233)
+- `page_env` (func, строка 33)
+- `_render` (func, строка 45)
+- `_render._no_input` (func, строка 67)
+- `_markdown_calls` (func, строка 79)
+- `_checkbox` (func, строка 83)
+- `test_scenario_devagent_welcome_and_defaults` (func, строка 90)
+- `test_scenario_saved_prefs_restored_in_new_dialog` (func, строка 120)
+- `test_scenario_toggling_checkbox_persists` (func, строка 150)
+- `test_scenario_single_toolbar_after_toggle` (func, строка 199)
+- `test_scenario_safety_mode_on_persists` (func, строка 234)
 
 ### `tests/scenarios/test_orchestrator_devagent_scenarios.py`
 - `isolated_data_dir` (func, строка 40)
@@ -12109,8 +12172,8 @@
 - `test_scenario_harmless_code_runs_and_is_journaled` (func, строка 66)
 - `test_scenario_unreachable_isolation_is_refused_and_journaled` (func, строка 86)
 - `test_scenario_settings_panel_reports_every_profile` (func, строка 107)
-- `test_scenario_a_tool_argument_cannot_widen_a_limit` (func, строка 157)
-- `test_scenario_sandbox_panel_opens_the_other_tab` (func, строка 173)
+- `test_scenario_a_tool_argument_cannot_widen_a_limit` (func, строка 160)
+- `test_scenario_sandbox_panel_opens_the_other_tab` (func, строка 176)
 
 ### `tests/scenarios/test_save_confirmation_scenario.py`
 - `st_env` (func, строка 25)
@@ -12148,6 +12211,11 @@
 - `_painted_since` (func, строка 79)
 - `test_prompt_save_keeps_the_user_on_the_prompt_section` (func, строка 83)
 - `test_failed_save_reports_the_error_and_keeps_the_section` (func, строка 122)
+
+### `tests/scenarios/test_settings_tab_survives_widget_click.py`
+- `app` (func, строка 73)
+- `_security_label` (func, строка 98)
+- `test_widget_click_inside_a_pinned_section_keeps_the_user_there` (func, строка 103)
 
 ### `tests/scenarios/test_skills_adaptation_scenario.py`
 - `isolated_data_dir` (func, строка 29)
@@ -12765,22 +12833,22 @@
 - `upgrade_installation` (func, строка 280)
 
 ### `storage/models.py`
-- `Assistant` (class, строка 19)
-- `Assistant.to_dict` (func, строка 49)
-- `Thread` (class, строка 75)
-- `Thread.to_dict` (func, строка 125)
-- `Message` (class, строка 151)
-- `Message.to_dict` (func, строка 170)
-- `ConfigKV` (class, строка 180)
-- `ConfigKV.to_dict` (func, строка 187)
-- `Instruction` (class, строка 195)
-- `Instruction.to_dict` (func, строка 211)
-- `Orchestrator` (class, строка 221)
-- `Orchestrator.to_dict` (func, строка 252)
-- `Orchestrator.to_export_dict` (func, строка 280)
-- `OrchestratorInstruction` (class, строка 287)
-- `OrchestratorInstruction.to_dict` (func, строка 305)
-- `OrchestratorInstruction.to_full_dict` (func, строка 314)
+- `Assistant` (class, строка 20)
+- `Assistant.to_dict` (func, строка 50)
+- `Thread` (class, строка 76)
+- `Thread.to_dict` (func, строка 126)
+- `Message` (class, строка 152)
+- `Message.to_dict` (func, строка 171)
+- `ConfigKV` (class, строка 181)
+- `ConfigKV.to_dict` (func, строка 188)
+- `Instruction` (class, строка 196)
+- `Instruction.to_dict` (func, строка 212)
+- `Orchestrator` (class, строка 222)
+- `Orchestrator.to_dict` (func, строка 253)
+- `Orchestrator.to_export_dict` (func, строка 281)
+- `OrchestratorInstruction` (class, строка 288)
+- `OrchestratorInstruction.to_dict` (func, строка 306)
+- `OrchestratorInstruction.to_full_dict` (func, строка 315)
 
 ### `storage/repository.py`
 - `repo_load_assistants` (func, строка 22)

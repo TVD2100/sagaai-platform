@@ -332,7 +332,7 @@ def _chat_pref_config_keys() -> Dict[str, tuple]:
     # access setting owns both the environment and the machine boundary, and
     # the toolbar shows it as a badge instead of duplicating it.
     return {"web_search": ("chat_web_search", False),
-            "safety_mode": ("chat_safety_mode", True),
+            "safety_mode": ("chat_safety_mode", False),
             "injection_protection": ("chat_injection_protection", True)}
 
 

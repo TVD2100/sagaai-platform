@@ -189,16 +189,16 @@ def test_clearing_the_confirmation_does_not_clear_the_sandbox(employee):
     assert resolve.safety_enabled("dev_agent") is False
 
 
-def test_a_missing_safety_key_keeps_the_gate_on(employee):
-    """Silence in the settings is not permission to skip a confirmation."""
+def test_a_missing_safety_key_leaves_the_gate_off(employee):
+    """The confirmation is opt-in: a record that never wrote the key runs."""
     employee(chat_sandbox=False)
-    assert resolve.safety_enabled("dev_agent") is True
+    assert resolve.safety_enabled("dev_agent") is False
 
 
 def test_an_unknown_employee_falls_back_to_the_defaults(employee):
     """A missing record is read through the defaults, not through an error."""
     assert resolve.sandbox_profile("missing") == ""
-    assert resolve.safety_enabled("missing") is True
+    assert resolve.safety_enabled("missing") is False
 
 
 # ── the wiring: every builder stamps the resolved values ────────────────────

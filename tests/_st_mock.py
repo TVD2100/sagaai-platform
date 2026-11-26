@@ -63,6 +63,15 @@ class _SessionState(dict):
         self._guard(key)
         super().__setitem__(key, value)
 
+    def widget_write(self, key, value) -> None:
+        """Store a widget's own state, bypassing the post-instantiation guard.
+
+        The guard protects a SCRIPT from writing into a widget key after the
+        widget was created; a widget writing its own value at creation time is
+        the normal Streamlit behaviour, not that mistake.
+        """
+        dict.__setitem__(self, key, value)
+
     def pop(self, key, *args):
         self._guard(key)
         return super().pop(key, *args)
@@ -74,6 +83,7 @@ class StreamlitMock(types.ModuleType):
         "button", "form_submit_button", "selectbox", "text_input",
         "text_area", "number_input", "date_input", "slider",
         "file_uploader", "chat_input", "checkbox", "multiselect", "radio",
+        "tabs",
     })
 
     def __init__(self):
@@ -83,6 +93,7 @@ class StreamlitMock(types.ModuleType):
         # catch writes into an instantiated widget key.
         self.lock_widgets = False
         self._locked_keys = set()       # widget keys bound in this script run
+        self._widget_signatures = {}    # key -> parameters of its last render
         self.session_state = _SessionState(self)
         self.calls = []                 # list of (fn_name, args, kwargs)
         self._buttons_true = set()      # keys/labels that should return True once
@@ -115,6 +126,24 @@ class StreamlitMock(types.ModuleType):
         key = kwargs.get("key")
         if key:
             self._locked_keys.add(key)
+
+    def _identity_changed(self, name, key, kwargs, args) -> bool:
+        """Return True when *key* was rendered with different parameters.
+
+        Real Streamlit derives a widget identity from its type, its key and
+        its parameters: when that identity changes the widget is a NEW one
+        and the value stored for the old one is discarded. A mock that kept
+        the value across such a change would hide exactly the bug where a
+        caller passes an argument (``default``, ``index``, ...) on some
+        render passes only - the widget then silently resets itself in the
+        real app while every test stays green.
+        """
+        signature = (name,
+                     tuple(sorted((k, repr(v)) for k, v in kwargs.items() if k != "key")),
+                     repr(args))
+        previous = self._widget_signatures.get(key)
+        self._widget_signatures[key] = signature
+        return previous is not None and previous != signature
 
     def click(self, *keys_or_labels):
         self._buttons_true = set(keys_or_labels)
@@ -214,9 +243,15 @@ class StreamlitMock(types.ModuleType):
         return list(default) if default else (opts[:1] if opts else [])
 
     def radio(self, label="", options=None, *args, **kwargs):
+        if options is not None:
+            kwargs = dict(kwargs, options=options)
         self._rec("radio", (label,), kwargs)
         opts = list(options or [])
-        return opts[0] if opts else None
+        key = kwargs.get("key")
+        if key is not None and key in self.session_state:
+            return self.session_state[key]
+        idx = kwargs.get("index", 0) or 0
+        return opts[idx] if opts and idx < len(opts) else (opts[0] if opts else None)
 
     def error(self, msg="", *a, **k):
         self._rec("error", (msg,), k)
@@ -243,7 +278,35 @@ class StreamlitMock(types.ModuleType):
         return [_NullCtx(self, f"columns[{i}]") for i in range(n)]
 
     def tabs(self, labels, *a, **k):
+        """Render tabs and reproduce whether they hold state at all.
+
+        Real Streamlit creates a STATEFUL tab widget only when
+        ``on_change`` is not ``"ignore"`` (or ``bind`` is given): the active
+        label then lives in ``st.session_state[key]`` and ``default`` is
+        honoured. A plain ``key=`` without ``on_change`` is only a CSS
+        identity - the widget stores nothing and every rerun falls back to
+        the first tab. Emulating both cases is what lets a test catch a
+        pinned section that never opens.
+        """
         self._rec("tabs", (labels,), k)
+        labels = list(labels or [])
+        key = k.get("key")
+        stateful = k.get("on_change", "ignore") != "ignore" or "bind" in k
+        if stateful and key is not None and self._identity_changed("tabs", key, k, labels):
+            # A parameter set that changed means a different widget: the
+            # active tab stored for the previous one is gone. Dropped with
+            # ``dict.pop`` because this is the widget's own state, not a
+            # script write into an instantiated key.
+            dict.pop(self.session_state, key, None)
+        default = k.get("default")
+        default_label = default if default in labels else (labels[0] if labels else None)
+        active = default_label
+        if stateful and key is not None:
+            stored = self.session_state.get(key)
+            active = stored if stored in labels else default_label
+            self.session_state.widget_write(key, active)
+        self._active_tab = active
+        self._bind("tabs", k)
         return [_NullCtx(self, f"tabs[{i}]") for i in range(len(labels))]
 
     def expander(self, *a, **k):

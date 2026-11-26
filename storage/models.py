@@ -9,11 +9,12 @@ from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
-# Default autonomous-loop step limit for orchestrators. Orchestrators created
-# before the 500-step default keep their stored value; migration code in
-# core/orchestrators and core/default_imports upgrades the legacy 100 default
-# exactly once (guarded by the config marker ``max_steps_default_migrated``).
-DEFAULT_MAX_STEPS = 500
+# Default autonomous-loop step limit for orchestrators. A record that still
+# carries one of the retired defaults (100 or 500) is upgraded to this value
+# exactly once by the migration code in core/orchestrator_builtin and
+# core/default_imports, each guarded by its own config marker. A limit the
+# owner chose - anything that was never a shipped default - is never touched.
+DEFAULT_MAX_STEPS = 1000
 
 
 class Assistant(Base):

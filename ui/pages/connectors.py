@@ -120,27 +120,25 @@ def _back_to_list(tab_id: str = _TAB_CONNECTIONS) -> None:
     st.rerun()
 
 
-def _apply_target_tab(lang: str):
-    """Consume the pending tab request and return the tabs ``default`` label.
+def _apply_target_tab(lang: str) -> None:
+    """Consume the pending tab request into the tabs widget slot.
 
     The stateful tabs widget reads its value from session_state, so a request
-    is honoured by dropping the stored value and handing the wanted label as
-    ``default`` - that happens BEFORE the widget is created, which is the only
-    moment Streamlit allows a widget state to change.
+    is honoured by writing the wanted label there BEFORE the widget is
+    created - the only moment Streamlit allows a widget state to change.
     """
     labels = _conn_tab_labels(lang)
     target = st.session_state.pop(_TARGET_TAB_KEY, None)
-    default_label = None
+    wanted = None
     if isinstance(target, int) and 0 <= target < len(labels):
-        default_label = labels[target]
+        wanted = labels[target]
     elif isinstance(target, str) and target in labels:
-        default_label = target
-    if default_label:
-        st.session_state.pop(CONNECTORS_TABS_KEY, None)
+        wanted = target
+    if wanted:
+        st.session_state[CONNECTORS_TABS_KEY] = wanted
     elif st.session_state.get(CONNECTORS_TABS_KEY) not in labels:
         # A stored translated label goes stale when the UI language changes.
         st.session_state.pop(CONNECTORS_TABS_KEY, None)
-    return default_label
 
 
 def _general_service_tiles(lang: str) -> list:
@@ -799,11 +797,13 @@ def _render_mcp_tab(lang: str) -> None:
 def _render_list_view(lang: str) -> None:
     """Render the LIST view: three stateful tabs."""
     labels = _conn_tab_labels(lang)
-    default_label = _apply_target_tab(lang)
-    tabs_kwargs = {"key": CONNECTORS_TABS_KEY, "on_change": "rerun"}
-    if default_label:
-        tabs_kwargs["default"] = default_label
-    tab_general, tab_mcp, tab_connections = st.tabs(labels, **tabs_kwargs)
+    # The request lands in the widget slot BEFORE the container is created;
+    # the call itself is identical on every pass, because Streamlit gives a
+    # widget a new identity when its parameters differ and would drop the
+    # stored tab after the first click inside the section.
+    _apply_target_tab(lang)
+    tab_general, tab_mcp, tab_connections = st.tabs(
+        labels, key=CONNECTORS_TABS_KEY, on_change="rerun")
 
     with tab_general:
         tiles = _general_service_tiles(lang)

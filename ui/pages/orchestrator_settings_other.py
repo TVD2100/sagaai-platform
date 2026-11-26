@@ -2,8 +2,8 @@
 """
 ui.pages.orchestrator_settings_other - the "Other" settings section.
 
-Two independent settings live here: the four name slots of an employee and
-the autonomous-loop step limit. Each has its own save button, because a
+The section holds two independent settings of an employee: its name slots
+and the autonomous-loop step limit. Each has its own save button, because a
 rename and a limit change are different intentions and their confirmations
 must not overwrite each other.
 
@@ -20,6 +20,7 @@ flash_success = late("flash_success")
 get_orchestrator = late("get_orchestrator")
 pin_settings_section = late("pin_settings_section")
 save_orchestrator = late("save_orchestrator")
+settings_save_button = late("settings_save_button")
 settings_save_failed = late("settings_save_failed")
 t = late("t")
 
@@ -27,8 +28,8 @@ t = late("t")
 def _render_names_block(slug: str, lang: str, orch: dict) -> None:
     """Render the four name inputs and persist them on their own button."""
     names = render_name_fields(lang, slug, orch, st=st)
-    if not st.button(t("names_save_btn", lang=lang), key=f"orch_save_names_{slug}",
-                     type="primary"):
+    if not settings_save_button(t("names_save_btn", lang=lang),
+                                key=f"orch_save_names_{slug}", type="primary"):
         return
     if save_orchestrator(
         slug, name=names["name"], name_en=names["name_en"],
@@ -43,9 +44,6 @@ def _render_names_block(slug: str, lang: str, orch: dict) -> None:
 
 def _render_max_steps_block(slug: str, lang: str, orch: dict) -> None:
     """Render the autonomous-loop step limit and persist it on save."""
-    st.markdown(t("orch_other_section", lang=lang))
-    st.markdown(t("orch_other_section_desc", lang=lang))
-
     cur_max_steps = int(orch.get("max_steps", DEFAULT_MAX_STEPS) or DEFAULT_MAX_STEPS)
     sel_max_steps = st.number_input(
         t("orch_max_steps_label", lang=lang),
@@ -57,7 +55,8 @@ def _render_max_steps_block(slug: str, lang: str, orch: dict) -> None:
     st.caption(t("orch_max_steps_hint", lang=lang, default=DEFAULT_MAX_STEPS))
 
     st.markdown("---")
-    if not st.button(t("orch_save_btn", lang=lang), key=f"orch_save_other_{slug}", type="primary"):
+    if not settings_save_button(t("orch_save_btn", lang=lang),
+                                key=f"orch_save_other_{slug}", type="primary"):
         return
     try:
         new_max_steps = int(sel_max_steps)
@@ -78,6 +77,9 @@ def _render_other_settings(slug: str, lang: str) -> None:
     if orch is None:
         st.error(t("orch_not_found", lang=lang))
         return
+
+    st.markdown(t("orch_other_section", lang=lang))
+    st.markdown(t("orch_other_section_desc", lang=lang))
 
     _render_names_block(slug, lang, orch)
     st.markdown("---")

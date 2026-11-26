@@ -27,6 +27,7 @@ from core.orchestrator_models import (
     get_economy_tail_messages,
 )
 from core.orchestrator_shared import late
+from core.orchestrator_steps_migration import migrate_max_steps
 from storage.models import DEFAULT_MAX_STEPS
 from storage.repository import repo_create_orchestrator
 
@@ -221,12 +222,9 @@ def _backfill_builtin_config(config: Dict[str, Any]) -> bool:
     return backfilled
 
 
-def _migrate_builtin_max_steps(config: Dict[str, Any], existing: Dict[str, Any]) -> bool:
-    """Migrate the legacy 100-step default; return True when it applied."""
-    if config.get("max_steps_default_migrated") or existing.get("max_steps") != 100:
-        return False
-    config["max_steps_default_migrated"] = True
-    return True
+# The retired-default upgrade of the step limit is a module of its own; the
+# bootstrap only asks whether it applies.
+_migrate_builtin_max_steps = migrate_max_steps
 
 
 def ensure_builtin_orchestrators() -> Dict[str, str]:

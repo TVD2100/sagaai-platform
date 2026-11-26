@@ -110,9 +110,9 @@ class ToolExecutor(FilesTools, EditingTools, PatchTools, ExecTools, WebSearchToo
         # configured: the url_fetch tool is absent from the catalog and
         # refuses to run.
         self._url_fetch_config: Optional[Dict[str, Any]] = None
-        # Safety-mode gate set by the UI. When False, run_code/run_test execute
-        # without the usual dangerous-pattern confirmation check.
-        self._safety_enabled = True
+        # Command-confirmation gate: off unless the owner asked for it; the
+        # scanner's deny list still refuses what must never run.
+        self._safety_enabled = False
         # Sandbox profile generated code executes under (set by the UI from
         # the orchestrator config). Empty means the legacy default; an
         # unknown name is refused by the policy, never silently replaced.

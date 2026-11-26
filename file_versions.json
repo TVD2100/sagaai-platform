@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "3.0.0",
+  "app_version": "3.1.0",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Первый мажорный релиз стабильной линии: платформа выходит из предрелиза. Минорные релизы сохраняют совместимость API, интерфейса и форматов данных; в этой версии - песочница исполнения кода, подписанные обновления, объявленная память сотрудников и журнал задач диалога.",
-    "en": "The first major release of the stable line: the platform leaves preview status. Minor releases keep the API, UI and data formats backward compatible; this version brings code execution sandboxing, signed updates, declared employee memory and a dialog-owned task journal."
+    "ru": "Управление безопасностью собрано в одной вкладке: режим доступа выбирается одним переключателем и показывает факты выбранного профиля, подтверждение команд по умолчанию выключено. Подтверждения сохранения появляются под нажатой кнопкой во всех разделах настроек. Предел шагов по умолчанию поднят до 1000, отменённые дефолты поднимаются одноразово и не переписывают выбранное значение. Активная вкладка настроек, коннекторов и маркетплейса больше не сбрасывается на первую при работе с полями внутри раздела.",
+    "en": "Security management lives in one tab: the access mode is a single choice that shows the facts of the chosen profile, and command confirmation is off by default. Save confirmations appear under the button that saved, in every settings section. The default step limit is 1000; retired defaults are raised once and never overwrite a chosen value. The active settings, connectors and marketplace tab no longer falls back to the first one when a field inside the section is used."
   },
-  "updated": "2026-11-22T20:13:37Z",
+  "updated": "2026-11-26T08:15:00Z",
   "units": {
     "core": {
-      "version": "2.0.0",
+      "version": "3.1.0",
       "note": {
-        "ru": "Пакет кода 3.0.0: стабильный релиз. Поведение относительно 2.48.0 не менялось - закреплён контракт: минорные релизы сохраняют совместимость публичных API, интерфейса и форматов данных.",
-        "en": "Code unit 3.0.0: the stable release. Behavior is unchanged from 2.48.0 - the contract is fixed: a minor release keeps the public APIs, UI and data formats backward compatible."
+        "ru": "Пакет кода 3.1.0: вкладка «Безопасность», адресные подтверждения сохранения, предел шагов 1000 с миграцией отменённых дефолтов.",
+        "en": "The code unit 3.1.0: the Security tab, anchored save confirmations, the step limit of 1000 with the retired-default migration."
       },
       "files": {
         "__init__.py": {
@@ -96,8 +96,8 @@
           "sha256": "7c6539f8290c8792a39a395d7a4d59ee270ec13b45d6af294cd12a8885260354"
         },
         "core/default_imports.py": {
-          "version": "1.4.0",
-          "sha256": "d0f957cbb6d50f3c5e9c669f57713ecada0900b59ced19ad597f219e5ebc9566",
+          "version": "1.5.0",
+          "sha256": "e0ee9aa66d3375d210fcce259a19ece3d29baf6e4355f9dcae2b1086822ddfa7",
           "note": {
             "ru": "Встроенный навык Rag Base Creator сеется в папку со своим именем и потому усыновляется каталогом; сидинг пропускается, если каталог уже поставил навык (маркер source=marketplace/<id> или занятая папка).",
             "en": "The bundled Rag Base Creator is seeded into the folder named after its preset, so the catalog adopts it; the seed is skipped when the catalog already installed the skill (a marketplace/<id> source marker or a taken folder)."
@@ -276,11 +276,11 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "2.0.0",
-          "sha256": "e0562c10c0f98691f002dcb9ebb14c41cc248a725c7bd9df1f35e29ebbad6b57",
+          "version": "2.1.1",
+          "sha256": "86aea4b23d350d2c14a9a62ffd18bcc9eb1eeeea44694c75f1bc05380727853c",
           "note": {
-            "ru": "Версия платформы 3.0.0, параграф истории релиза и формулировка о совместимости минорных релизов.",
-            "en": "Platform version 3.0.0, the release history paragraph and the wording about minor-release compatibility."
+            "ru": "Версия платформы 3.1.0; линия 3.x объявлена предрелизом, совместимость между минорными версиями не гарантируется.",
+            "en": "Platform version 3.1.0; the 3.x line is declared a pre-release, compatibility between minor releases is not guaranteed."
           }
         },
         "dev_agent/__init__.py": {
@@ -332,8 +332,8 @@
           }
         },
         "dev_agent/tool_executor.py": {
-          "version": "1.19.0",
-          "sha256": "bc7464aba2c6b1e6028424f3d7e26aa50a12cc5cea968f811b6a60485be96dce",
+          "version": "1.20.0",
+          "sha256": "9ae2f3f3b7c146f1a54a011106bd7e62a1181c8c78fd261d773e190e06f0d5f0",
           "note": {
             "ru": "Фасад набора инструментов: диспетчер и защиты остались здесь, тела инструментов разложены по пакету dev_agent/tools/ (19 модулей по предметным областям); зависимости миксины получают через tools.deps.build_deps, который читает фасад на каждом вызове. Файл: 3289 -> 229 строк, самая длинная функция 217 -> 59 строк, максимальная цикломатика 30 -> 10.",
             "en": "Tool-set facade: the dispatcher and the guards stay here while the tool bodies moved into the dev_agent/tools package (19 subject modules); the mixins read their dependencies through tools.deps.build_deps, which resolves the facade on every call. File: 3289 -> 229 lines, longest function 217 -> 59, max cyclomatic complexity 30 -> 10."
@@ -372,11 +372,11 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.13.5",
-          "sha256": "8c259c65013b90e73413a5dd68920d1f05865dc800131f1dc19f4bc99385bc54",
+          "version": "1.13.7",
+          "sha256": "5658cc3fd84936f399d5dfd5da0aaba21cc7cdbe879f071fac8c22baea33e042",
           "note": {
-            "ru": "Описания в карте: тесты журнала задач, актуальные пины версий промптов.",
-            "en": "Map descriptions: the task-journal tests and the current prompt version pins."
+            "ru": "Описания вкладок настроек, коннекторов и маркетплейса, мока и тестов приведены к текущему контракту; добавлено описание сценария удержания вкладки.",
+            "en": "Descriptions of the settings, connectors and marketplace tabs, the mock and the tests follow the current contract; the tab-retention scenario is described."
           }
         },
         "scripts/verify_manifest.py": {
@@ -396,8 +396,12 @@
           "sha256": "1c3d3b0c5bfd63be015cef41e4f1b19f3badb9bcb650627cf7eb52f2d74392f1"
         },
         "storage/models.py": {
-          "version": "1.4.0",
-          "sha256": "2d1516188c429af8989fde58445b79bd1237cedc555936b0c5d8285075fd7707"
+          "version": "1.5.0",
+          "sha256": "9ba1caf6b2e7462cd823175289316dd3994c6a5100e2f97b2dd3d58b33963bea",
+          "note": {
+            "ru": "Предел шагов по умолчанию - 1000.",
+            "en": "The default step limit is 1000."
+          }
         },
         "storage/repository.py": {
           "version": "1.3.0",
@@ -412,8 +416,12 @@
           "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         },
         "tests/_st_mock.py": {
-          "version": "1.2.4",
-          "sha256": "a545b24c3ac6ddb61bbcfb7b7bb0b48474893aee0b596fa7c9d93518c573a918"
+          "version": "1.2.6",
+          "sha256": "a90a01125746932353b2d0ab02824ea8f35b3f1c0bef34c353382e1d55d1d936",
+          "note": {
+            "ru": "Мок Streamlit воспроизводит идентичность виджета: рендер с другим набором параметров начинает новый виджет и отбрасывает сохранённое значение.",
+            "en": "The Streamlit mock reproduces widget identity: a render with a different parameter set starts a new widget and discards the stored value."
+          }
         },
         "tests/_test_isolation.py": {
           "version": "1.0.1",
@@ -540,8 +548,8 @@
           "sha256": "5b044de33dc23518bd58ac43451c1f4e8b272564b808d53174d0cd1857517e24"
         },
         "tests/scenarios/test_orchestrator_chat_prefs_scenario.py": {
-          "version": "1.0.2",
-          "sha256": "2165b996288524ce6b509bf1fba6f473c423256e1556c607907718f3788ac867",
+          "version": "1.0.3",
+          "sha256": "a5ee43cea8f2fed17814b3ab1e4841f39c145c6dbcdbb8d2f591a6a898d2b916",
           "note": {
             "ru": "Сценарии чата без чекбокса эконом-режима при сохранённом chat_economy_mode=False.",
             "en": "Chat scenarios without the economy checkbox, even with chat_economy_mode=False saved."
@@ -552,8 +560,8 @@
           "sha256": "467a271f881f0f3088a6f6d177715b4f2755af8fb990dd7c53ec00e4c7a2396d"
         },
         "tests/scenarios/test_orchestrator_other_settings_scenario.py": {
-          "version": "1.0.2",
-          "sha256": "8cb77d5083196236ce9583a09769a52f48421229768b8e474a4621e40e72cbe4"
+          "version": "1.0.3",
+          "sha256": "3d162ad167bc230be7eda19641e8242f0d43ece28f15440ff6956dc18dd6b17b"
         },
         "tests/scenarios/test_orchestrator_thread_files.py": {
           "version": "1.0.2",
@@ -652,8 +660,8 @@
           "sha256": "30ea972108b1961af9944b9d3e3dc6a88fa08ce482d62730279943283b5c3669"
         },
         "tests/scenarios/test_welcome_page_scenarios.py": {
-          "version": "1.1.3",
-          "sha256": "ad3925ca8f7bc4f351c6f5b9e645af3dd1725e1b36d6fa3c86ce098a1b6541e1",
+          "version": "1.1.4",
+          "sha256": "d31d14274958e51ae337acf2d456ff91c4224bf9b6be4729baf3baf17487e71d",
           "note": {
             "ru": "Ожидание сценарного теста настроек: 10 нативных вкладок.",
             "en": "Settings scenario expectation: 10 native tabs."
@@ -876,8 +884,8 @@
           "sha256": "cb508065c5803865d76a440adf6cdac7e3dbdd3ac665d45ed324ac76bbf64d0a"
         },
         "tests/test_orchestrator_chat_prefs.py": {
-          "version": "1.1.1",
-          "sha256": "83c44eb9168911e0db35ea582d8949ea7e6515ffd931635db81a053ea1992a86",
+          "version": "1.1.2",
+          "sha256": "9c1ab285a1e646f1d379e09d71ca0ec7cead06f7b9fd7911c31f5a19ade94969",
           "note": {
             "ru": "Проверки отсутствия переключателя эконом-режима и игнорирования chat_economy_mode.",
             "en": "Checks that the economy switch is gone and chat_economy_mode is ignored."
@@ -912,8 +920,8 @@
           "sha256": "3c05ec88485ce610a191f89e3be752c80b3ada19b982314eba73f6e1b7d76947"
         },
         "tests/test_orchestrator_other_settings.py": {
-          "version": "1.0.1",
-          "sha256": "eb34add64bda43fbcac0ef718e988c5463e4c5b77aa384a8baba044e8de537f3"
+          "version": "1.0.2",
+          "sha256": "ce59af6e116b7f1a8de94557b60ba1dcf6f207519c2828f70c51b44311cb8c66"
         },
         "tests/test_orchestrator_prompt_settings.py": {
           "version": "1.0.1",
@@ -952,8 +960,8 @@
           "sha256": "c3006872fbdc7be5b1f5626dfbefac82b2b417cbef40ce7a657bc05c944e0191"
         },
         "tests/test_preset_orchestrators.py": {
-          "version": "1.2.2",
-          "sha256": "154f264fc65eda82264d783febe9ce339f4f376194400f9de4be15063ddf9efd"
+          "version": "1.2.3",
+          "sha256": "a8b76bb6ac58baa5803f35e119282f0ff509a72e95d86de0c55fd898135583e4"
         },
         "tests/test_project_map_ast.py": {
           "version": "1.0.1",
@@ -1020,8 +1028,8 @@
           "sha256": "843fa6966e3da2a382d80240763279654169675a38b61204481d9d7cc60d7967"
         },
         "tests/test_safety_mode.py": {
-          "version": "1.0.1",
-          "sha256": "8c6f20280c60917e6caafb5025b8ec8a99616b89f4c08d8269048b935e28292c"
+          "version": "1.0.2",
+          "sha256": "bd0d82c8cc9a5a636b4a9e6daa5b2d4003506e771bbf874a76132e60af93431a"
         },
         "tests/test_sanitized_approval_flow.py": {
           "version": "1.0.3",
@@ -1240,28 +1248,31 @@
           }
         },
         "ui/pages/connectors.py": {
-          "version": "1.10.1",
-          "sha256": "fdd0b18c00aa921ce431ab45aa26d898bb147d0f984ef45da7d6ce60f9cd7b24",
-          "note": "the MCP preset edit form resolves a preset by id, so a connection created from a hidden preset keeps its preset fields"
+          "version": "1.10.2",
+          "sha256": "69d3cf0b829cc7d743a8490130429d051b8ed4f4df81d424c5b1e91f2a366681",
+          "note": {
+            "ru": "Вкладки «Коннекторов» сохраняют выбор при клике внутри вкладки: запрос пишется в ключ вкладок, аргументы st.tabs не меняются между проходами.",
+            "en": "The Connectors tabs keep their selection when a widget inside a tab is used: the request is written into the tab key and the st.tabs call keeps a constant signature."
+          }
         },
         "ui/pages/history.py": {
           "version": "1.0.3",
           "sha256": "990f5aebd0cbe7f921f2278a53d014dedb9c4764b36f2ff4def58ef96a235afa"
         },
         "ui/pages/orchestrator.py": {
-          "version": "1.28.0",
-          "sha256": "a07223dccc94167da15ab1345ed325d94a41d5ee7c0e8bb3b337aa97a44cdb14",
+          "version": "1.29.0",
+          "sha256": "422ced1e93b867465893f81b80dab845f711b0ca56f343be4c818d8b2f641e58",
           "note": {
-            "ru": "Страница разложена на фасад и девять модулей orchestrator_*; подменяемые имена разрешаются поздно через orchestrator_shared.",
-            "en": "The page split into a facade and nine orchestrator_* modules; patchable names resolve late through orchestrator_shared."
+            "ru": "Фасад страницы: кнопки сохранения и панель настроек собраны в отдельных модулях; вкладка «Безопасность» с единым выбором режима доступа.",
+            "en": "The page facade: save buttons and the settings panel now live in dedicated modules; a Security tab owns the single access-mode choice."
           }
         },
         "ui/pages/orchestrator_settings.py": {
-          "version": "1.4.3",
-          "sha256": "aecddbb52a1b7efb57f7e682c132a3373b476561e5cbb21f8e0d21c912adebdb",
+          "version": "1.5.1",
+          "sha256": "a33aee9eed6ece2d7bbb7fdc58e13b86dd49c15c2f4b1f52993bb53bedc03710",
           "note": {
-            "ru": "Десятая вкладка настроек - «Делегирование»; открытая секция удерживается после сохранения. Раздел «Песочница исполнения» открывает вкладку «Другое».",
-            "en": "The tenth settings tab - Delegation; the open section is kept after a save. The sandbox panel opens the Other tab."
+            "ru": "Активная вкладка настроек больше не сбрасывается на «Модели» при клике внутри раздела: запрошенная секция пишется в ключ вкладок до создания виджета, аргументы st.tabs постоянны.",
+            "en": "The active settings tab no longer falls back to Models when a widget inside the section is used: a requested section is written into the tab key before the widget is created and the st.tabs call keeps a constant signature."
           }
         },
         "ui/pages/orchestrators.py": {
@@ -1305,12 +1316,12 @@
           }
         },
         "ui/components/flash.py": {
-          "version": "1.0.1",
-          "sha256": "424673517cc34a5dad52cc1b3168e5a1a8b627446a4b40ce6212f20799ceeea3"
+          "version": "1.1.0",
+          "sha256": "84c61550fae46ff8ac070ba415841921cedcd0811d12d1a1684c777d760031ab"
         },
         "tests/test_ui_flash.py": {
-          "version": "1.0.0",
-          "sha256": "28caea5e3b717cd7e587776b477164249b2ee06eca18ad45738f85263d58ea63"
+          "version": "1.0.1",
+          "sha256": "1f51c906002032d0be832432fb1fca5c40c635cd997cffddddf7c65f7af10ad5"
         },
         "tests/scenarios/test_save_confirmation_scenario.py": {
           "version": "1.1.1",
@@ -1321,11 +1332,11 @@
           "sha256": "cae3327ea33d45cd019f6118e2cb826c3c6af4d68c29d32e56acb6868bd9dbc9"
         },
         "tests/test_orchestrator_settings_tabs.py": {
-          "version": "1.1.3",
-          "sha256": "e17e5e56d372126f0c593d70ed0e7f6891d9a07c591bde743f0e356ae037c622",
+          "version": "1.1.5",
+          "sha256": "28686113f6975bce1e424347de19d93ac3a4223d74755d06e1b513d91e4fd4b4",
           "note": {
-            "ru": "Ожидания числа вкладок настроек: 10 секций вместо 9.",
-            "en": "Settings tab count expectations: 10 sections instead of 9."
+            "ru": "Регрессия: клик внутри закреплённого раздела не выбрасывает со вкладки.",
+            "en": "Regression: a click inside a pinned section does not throw the user off the tab."
           }
         },
         "tests/test_save_orchestrator_folder_sync.py": {
@@ -1377,9 +1388,12 @@
           "sha256": "c5c5ad1bbedda60d30980c2e7a18ee39ec4d360ff6785bcacf6cd86a2eeb6d41"
         },
         "tests/test_ui_connectors_mcp.py": {
-          "version": "1.2.2",
-          "sha256": "2bbe523df694bf4df3e2f88c1ae3c634a51a1728abcb37c23b9ccca7d4671c0f",
-          "note": "a hidden preset shows no tile yet its connection still opens the preset edit form"
+          "version": "1.2.4",
+          "sha256": "3daa25a41fbae9e90d4e8d6a4bced1b6f1be52158e383c1dd883573e18dcdb44",
+          "note": {
+            "ru": "Тесты вкладок коннекторов обновлены под постоянную сигнатуру вызова; добавлена регрессия на клик внутри вкладки.",
+            "en": "Connectors tab tests follow the constant call signature; a regression covers a click inside a tab."
+          }
         },
         "tests/scenarios/test_mcp_tab_ui_scenario.py": {
           "version": "1.2.1",
@@ -1766,11 +1780,11 @@
           }
         },
         "ui/pages/marketplace.py": {
-          "version": "1.5.0",
-          "sha256": "08979a38ef0b480988d1c11f64d612b9b7dfa83f33a4f26a422b813be5976b1a",
+          "version": "1.5.2",
+          "sha256": "fab557a733202a0aa99bbe7591e8ea6a3964780c8a451d8f5406cda7748ed5b0",
           "note": {
-            "ru": "Страница «Маркетплейс»: витрина, карточка, установка, удаление.",
-            "en": "Marketplace page: showcase, card, install and uninstall."
+            "ru": "Вкладки витрины маркетплейса сохраняют выбор при клике внутри раздела: запрос пишется в ключ вкладок, аргументы st.tabs не меняются между проходами.",
+            "en": "The marketplace section tabs keep their selection when a widget inside a section is used: the request is written into the tab key and the st.tabs call keeps a constant signature."
           }
         },
         "ui/pages/updates_marketplace.py": {
@@ -1890,8 +1904,12 @@
           "sha256": "d19d616e3af1f338236edbea1a91be28c2583cfddf0192203362147202db3344"
         },
         "tests/test_marketplace_ui_page.py": {
-          "version": "1.1.1",
-          "sha256": "8c64f369177c7f046c8ffb3f10eb4a6981d602172e8ddb839a78033e399da4bd"
+          "version": "1.1.2",
+          "sha256": "4d967445dfc933c7115646447c41fc49bf616df47edba61fc480417e88674e6c",
+          "note": {
+            "ru": "Тесты подразделов маркетплейса обновлены под постоянную сигнатуру вызова; добавлена регрессия на клик внутри раздела.",
+            "en": "Marketplace section tests follow the constant call signature; a regression covers a click inside a section."
+          }
         },
         "tests/test_marketplace_updates_types.py": {
           "version": "1.0.1",
@@ -2570,8 +2588,8 @@
           "sha256": "59963f7094f2283ac8f00f35e85aa1432acb0a94954dc666d24ad9dd0803ca05"
         },
         "refactor_budget.json": {
-          "version": "1.7.1",
-          "sha256": "7ab6769323b6d03c83645000682b3ba76fa13a2b2bbb2f4dc7c567c075280fe0",
+          "version": "1.8.0",
+          "sha256": "13bc556c1ef2e513a2a182d59917165d7ffabfc699a1180f0d361969a17dd05a",
           "note": {
             "ru": "Запись ui/pages/orchestrator.py понижена 3364->668 строк, добавлены десять модулей сплита.",
             "en": "The ui/pages/orchestrator.py entry lowered 3364->668 lines, ten split modules added."
@@ -2778,8 +2796,8 @@
           "sha256": "76aff6874698d2bcc16b73b1d5c700158659f67e482710b6e0cbe399b3df0885"
         },
         "ui/pages/orchestrator_text.py": {
-          "version": "1.2.1",
-          "sha256": "6ed149da09fd2026fe621b2ad730bd880355b68566376f5a794b4bf1673a4743",
+          "version": "1.3.0",
+          "sha256": "d776e82d439a65fdf806a6e5fcbb205f2bc94cbbf3a2b1c186a2a7067064fc4f",
           "note": {
             "ru": "Добавлена build_state_keys - карта ключей session_state диалога, принимающая настройки и константы страницы аргументами.",
             "en": "Added build_state_keys - the chat session-state key map, taking the page settings and constants as arguments."
@@ -2986,8 +3004,12 @@
           "sha256": "f39fc1d763a2374de3a6502e109f6c81471c0a3d5fd8c5f913bf5f1aa90a456d"
         },
         "ui/pages/orchestrator_shared.py": {
-          "version": "1.0.0",
-          "sha256": "d414a29de716c71d3dc2bee9f9fe29eeb516b2789ba22433631300bbf362fa22"
+          "version": "1.1.0",
+          "sha256": "7fcd09d9abbfa6c1cb203e74bb3ba3d056dd6d488f48fdf631eaebbd97add149",
+          "note": {
+            "ru": "Слой позднего связывания без платёжной логики: сохранение настроек вынесено в отдельный модуль.",
+            "en": "The late-binding layer without save plumbing: the settings save helpers moved into their own module."
+          }
         },
         "ui/pages/orchestrator_state.py": {
           "version": "1.0.0",
@@ -2998,8 +3020,8 @@
           "sha256": "82be8cf3549d1874466d0f42b012bdc6ffeee64580f429dd4f46054cc80d2ad1"
         },
         "ui/pages/orchestrator_loop.py": {
-          "version": "1.1.1",
-          "sha256": "9d8455fa71899b6f502939873d1b7e97fb379728407d2b3997c307d89929bed0",
+          "version": "1.2.0",
+          "sha256": "30a1a9936136c05f982428d752dc4184371e8e5c00344e8f687672f953d17def",
           "note": {
             "ru": "Запись шага в тред вынесена в core/orchestrator_step.",
             "en": "The step write into the thread moved to core/orchestrator_step."
@@ -3014,20 +3036,24 @@
           "sha256": "ea6c536e0040958f852a1396cc6114201d0438685360eabb9c651cd7013c67b0"
         },
         "ui/pages/orchestrator_chat_input.py": {
-          "version": "1.2.0",
-          "sha256": "2bcf89a47a019128198b967dae020c01ffbc26147b9cdc977a1e2079c4dfac1c"
+          "version": "1.3.0",
+          "sha256": "2deb270ba6ca177d095b9b0dd96ac346f2068581a79a2d7e87b0cc2d157f3a88",
+          "note": {
+            "ru": "Бейдж доступа ведёт на вкладку «Безопасность».",
+            "en": "The access badge opens the Security tab."
+          }
         },
         "ui/pages/orchestrator_settings_models.py": {
-          "version": "1.0.0",
-          "sha256": "c469290aa38a41843ea264ca6a5f3df8cbed56360ba4fdfb9775b32bfd432ab5"
+          "version": "1.1.0",
+          "sha256": "79bfb98c2964c129b6a9f10125f54a5d87db52db1d0afb4d61cf06ae75834a28"
         },
         "ui/pages/orchestrator_settings_orch.py": {
-          "version": "1.0.0",
-          "sha256": "8994219973df2ebaf7f3ab9b6f9e1eb761d933eca6d2efb13da5d3df8d8bc137"
+          "version": "1.1.0",
+          "sha256": "c556c9f217f20bc0e14bfbfa3f9dadade9573cb9cc7c774b84260f317e8310be"
         },
         "ui/pages/orchestrator_settings_delegation.py": {
-          "version": "1.1.0",
-          "sha256": "6529bdfa66e771d6245c4dd9ca1fdddae55f44db562846905b21d4f250cc1182"
+          "version": "1.2.0",
+          "sha256": "0edce30a892149aeca1f505d3392d3dfcc67b35cd01a5b0045bc64f0aa69eb64"
         },
         "tests/test_orchestrator_page_facade.py": {
           "version": "1.0.0",
@@ -3066,8 +3092,8 @@
           "sha256": "634735806bcbb7b6f0f28afbd224957a532676fcc51463e43d99f5834b364d47"
         },
         "core/orchestrator_builtin.py": {
-          "version": "1.1.0",
-          "sha256": "a2574b56210260833e94815e4b8f92b0542c29fdf9193fdf10368677871d87c0"
+          "version": "1.2.0",
+          "sha256": "d5765c78d0cbdfcf58970f8edb857ab727892d88c697582ae0a3e7ba1b36f4ce"
         },
         "tests/test_orchestrator_api_facade.py": {
           "version": "1.0.0",
@@ -3098,8 +3124,8 @@
           "sha256": "65ce2bf95f4ee618fd44982ec4f57d03a2d2cdd7d9bb93bf6e33853613b67066"
         },
         "ui/pages/orchestrator_flags.py": {
-          "version": "1.2.0",
-          "sha256": "a6df3967807d53354f51423b6409740705360635f2dd6aa192b410ee71e28578"
+          "version": "1.3.0",
+          "sha256": "033e80b88955c039f75e138228d2c464cc674067b0aa80e57a67856d64adf2bb"
         },
         "dev_agent/tools/exec_support.py": {
           "version": "1.1.1",
@@ -3166,11 +3192,11 @@
           "sha256": "76899d9ea120bea7c231327f7966fc96068cf4146f6cc57d06d41f3f62d8ace8"
         },
         "ui/pages/orchestrator_sandbox.py": {
-          "version": "1.2.0",
-          "sha256": "69362f24be433c26580749ddb2be522e6f1676cbcfa92398a80a976701b1a402",
+          "version": "1.3.0",
+          "sha256": "c118a1e152758b8fb11775c8bac56cf78d0b66bbe43b5f340c9ebbb0ec44c1b9",
           "note": {
-            "ru": "Панель песочницы читает streamlit через прокси страницы, поэтому подмена модуля в тестах на неё действует.",
-            "en": "The sandbox panel reaches streamlit through the page proxy, so a module swap in tests applies to it."
+            "ru": "Панель безопасности: режим доступа выбирается одним переключателем, выбранный режим показывает факты своего профиля.",
+            "en": "The security panel: the access mode is one choice, and the chosen mode shows the facts of its profile."
           }
         },
         "tests/test_sandbox_phase1.py": {
@@ -3178,8 +3204,8 @@
           "sha256": "a0358c0c928cf012e59ba0106e39eb50c957212022620fb6feba36c8aa0577c3"
         },
         "tests/scenarios/test_sandbox_scenario.py": {
-          "version": "1.0.1",
-          "sha256": "f18c3b4d88dbfb8b93d1a0e3a5fc6cc19e53874ce55b061383c80e930c48c87e"
+          "version": "1.0.2",
+          "sha256": "b1b7b914e5b76c0db6d9b5df0dbcbf5db20ba31bca9136bdf305c3a5e1d49749"
         },
         "core/gateway/approvals.py": {
           "version": "1.0.0",
@@ -3382,8 +3408,8 @@
           "sha256": "e0f679190be1ace11f7491d72c2bd617183cf2251a154d5b6ed826f7bca781e5"
         },
         "ui/pages/orchestrator_settings_other.py": {
-          "version": "1.0.0",
-          "sha256": "c50cfeb1043d08e93e959c2ce50a2400e1bd27dba6e7b3a6bc49d04447256e90"
+          "version": "1.1.0",
+          "sha256": "42456a8e6413ec1c69d423f9f558f301588d507120e4ca6eaa3c1198a220a3b6"
         },
         "core/marketplace/install_seed.py": {
           "version": "1.0.0",
@@ -3434,12 +3460,12 @@
           "sha256": "082e021f742ff72c858da59177c4d08ddf6007ac100872067b4d19dc7530d3ca"
         },
         "core/sandbox/resolve.py": {
-          "version": "1.1.0",
-          "sha256": "31b470b23840a9f802b01be1d309606192c81b1230be440d7f710e6dd0c5e0ca"
+          "version": "1.2.0",
+          "sha256": "8b3fe80910d64ce71de82192971584c21fa3d98689d19d1c45941e36d179eedb"
         },
         "tests/test_sandbox_preferences.py": {
-          "version": "1.0.2",
-          "sha256": "92d90faab553cecd2c331576428d4720a800951af857ef025d4966e9a417f609"
+          "version": "1.0.3",
+          "sha256": "3d43515628eb97350bbba10a7e56e1e35793dc769e8348d41c0ba7e20695a8a3"
         },
         "tests/scenarios/test_execution_preferences_scenario.py": {
           "version": "1.0.1",
@@ -3504,14 +3530,38 @@
         "tests/test_task_state_unverified.py": {
           "version": "1.0.0",
           "sha256": "84db1078ace90d968d9e8b054cb287b3d5e1f26b71d740df9f3150a7d5ba224d"
+        },
+        "ui/pages/orchestrator_settings_save.py": {
+          "version": "1.1.0",
+          "sha256": "02edb84d590c8f9fe2db952bc59d84e7228bcd7bd027315d3271478d02de30cc"
+        },
+        "ui/pages/orchestrator_settings_economy.py": {
+          "version": "1.1.0",
+          "sha256": "d38d97d41f35d4d40b0402a4357dae65f9c813e5170a31d4bfbaae08fe6fc6e4"
+        },
+        "core/orchestrator_steps_migration.py": {
+          "version": "1.1.0",
+          "sha256": "10ebe7be2d4cb5b0c9888ce384c7ae9a54ca4bac1f21825e6b1271e72d6fe351"
+        },
+        "tests/test_orchestrator_security_tab.py": {
+          "version": "1.0.1",
+          "sha256": "fb9b0c1606be7434ad7229c92101c4b82f4d61319d99863e79f0443e044ae082"
+        },
+        "tests/scenarios/test_access_badge_scenario.py": {
+          "version": "1.0.0",
+          "sha256": "0a327a16c27db8b829660050846a4d148a48373e6c6923340511c24cca3bca4d"
+        },
+        "tests/scenarios/test_settings_tab_survives_widget_click.py": {
+          "version": "1.0.0",
+          "sha256": "7d6f92c90570755e60fafc2824d96bd383c43eb88aa0f397f94cc2d4df020412"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.81.2",
-      "sha256": "85e9fd1ff99c84326fb8431ee4af582f0227c1b38d5ff95c0abcd4fe42cd519f",
+      "version": "1.81.4",
+      "sha256": "b21e99a30d59b63d1c264c3bc03eda9af4017d8bec62e642d8778805120a5bd2",
       "note": {
         "ru": "Журнал задач: место в папке диалога, миграция старого места, атомарный резолв треда, архив с планом и строками проверки.",
         "en": "Task journal: the dialog folder as its home, migration from the old location, atomic thread resolution, an archive keeping the plan and the verification lines."
@@ -3526,19 +3576,19 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.82.0",
-      "sha256": "37343ae9834ff1bf0643c96d5007e5e81f639ddfba37488e8c536ba3ff7a37d0",
+      "version": "1.82.3",
+      "sha256": "9ec02d86090bac6fed63200d206935c58b5626eb480356e49c1fd64049b9208e",
       "note": {
         "ru": "Регенерация под релиз 3.0.0: состав публикуемых файлов и отпечаток содержимого.",
         "en": "Regenerated for the 3.0.0 release: the published file set and the content fingerprint."
       }
     },
     "README.md": {
-      "version": "1.63.0",
-      "sha256": "0261bbe440aa8b9fe06b2a49cfeea859334be3b459621fe88a1ccacd7dac4fd7",
+      "version": "1.63.3",
+      "sha256": "273d32135200b09e101fdd631e3f25812490f7911d8d4f8cc714b9e53bb42964",
       "note": {
-        "ru": "Статус версии: стабильный релиз v3.0.0 вместо предрелиза.",
-        "en": "Version status: the v3.0.0 stable release instead of the preview."
+        "ru": "Статус версии: предрелиз v3.1.0; совместимость между минорными версиями не гарантируется.",
+        "en": "Version status: the v3.1.0 pre-release; compatibility between minor releases is not guaranteed."
       }
     },
     "defaults/README.md": {
@@ -3614,8 +3664,8 @@
       }
     },
     "defaults/langs/en.json": {
-      "version": "1.30.3",
-      "sha256": "558de6ed16c0ace5c25aa77a018abd7f2c0f12253c4fce988b9f5f618bf7a3c1",
+      "version": "1.31.1",
+      "sha256": "26b9561f101deda90586bb3ea19f032176e2d9ec75979c48fb91dda32ae49f56",
       "note": {
         "ru": "Канонические строки блока «Названия».",
         "en": "Canonical strings of the Names block."
@@ -3630,8 +3680,8 @@
       }
     },
     "defaults/langs/ru.json": {
-      "version": "1.30.3",
-      "sha256": "1a4d63e907bb63185805b57b093593975a03b4e708b5e99cb4a8ed8dccd9612b",
+      "version": "1.31.1",
+      "sha256": "b82d1286c7b2a9f1b4d7c4188643249a4a8d5c9c15566516cc151eefe844f129",
       "note": {
         "ru": "Строки блока «Названия».",
         "en": "Strings of the Names block."
@@ -3646,8 +3696,8 @@
       }
     },
     "defaults/langs/zh-CN.json": {
-      "version": "1.30.3",
-      "sha256": "7e4dc25b4b93e2740616cf8f3d2b66530527a2bf37a5eaf423f32f104914b306",
+      "version": "1.31.1",
+      "sha256": "f83cef324d68b23a095918e2cbd402548db7b3d6c2acce8697c2a0cba9b0dc5e",
       "note": {
         "ru": "Строки блока «Названия».",
         "en": "Strings of the Names block."
@@ -3782,8 +3832,8 @@
       }
     },
     "defaults/orchestrators/ya_agent/orchestrator.json": {
-      "version": "1.4.0",
-      "sha256": "ed1fd4746804628519936b83292389dc2a6dc377228c2b5d95394dcf8e622d5c",
+      "version": "1.5.0",
+      "sha256": "d88d305340d4712d7c4d426608497a78efd452de4e3d590e88ac498ecde61d08",
       "note": {
         "ru": "Пресет: названия в трёх переводах.",
         "en": "Preset: names in three translations."
@@ -3878,8 +3928,8 @@
       }
     },
     "langs/en.json": {
-      "version": "1.30.3",
-      "sha256": "e5b7ce037e7c6e09815d9da50fcce35bb0a0d501600edab2ad98ed5ed574a7dd",
+      "version": "1.30.5",
+      "sha256": "720e0263b49de485c92ba51bbcce863541ee528f303935212eaa059ae9ffeb66",
       "note": {
         "ru": "Строки блока «Названия» и языковых подписей.",
         "en": "Strings of the Names block and language labels."
@@ -3894,8 +3944,8 @@
       }
     },
     "langs/ru.json": {
-      "version": "1.30.3",
-      "sha256": "57e6233e97ba316a32a2210aeab8a7e78f3b19febb90749ab65b0b1ce2fd8a5b",
+      "version": "1.30.5",
+      "sha256": "9e0532da7c282057a02d45d4b95173ea64b7326e6118d9d3a08c6c7251c15beb",
       "note": {
         "ru": "Строки блока «Названия» и языковых подписей.",
         "en": "Strings of the Names block and language labels."
@@ -3910,8 +3960,8 @@
       }
     },
     "langs/zh-CN.json": {
-      "version": "1.30.3",
-      "sha256": "339ccbc026ffb1ac4033f180b0ec5fbe119505c452bf16adae72c0ee3375fc32",
+      "version": "1.30.5",
+      "sha256": "9d540a9f71fb55652d3935501185b8d27e98ed5cbc845cf93a70495564ddc085",
       "note": {
         "ru": "Строки блока «Названия» и языковых подписей.",
         "en": "Strings of the Names block and language labels."
@@ -3950,11 +4000,11 @@
       }
     },
     "AGENT.md": {
-      "version": "1.58.0",
-      "sha256": "c85f037aaa7ef34fd172e3460f20f0b02c32ac0801f937623d98a775de954661",
+      "version": "1.59.2",
+      "sha256": "7cb96461904296b36070ea84cdc1d6f6beb16f5ee2bef4e3ffb8b32589c73a5c",
       "note": {
-        "ru": "Журнал задач принадлежит диалогу: место в папке диалога, миграция старого места, пин треда на шаг, архив с планом и строками проверки, сигнал о неподтверждённых шагах.",
-        "en": "The task journal belongs to the dialog: its home in the dialog folder, migration from the old location, the thread pinned for a step, an archive with the plan and verification lines, a signal for unproven steps."
+        "ru": "Требования: подтверждение команд выключено по умолчанию, вкладка «Безопасность», адресные подтверждения сохранения, предел шагов 1000 и миграция отменённых дефолтов.",
+        "en": "Requirements: command confirmation is off by default, a Security tab, anchored save confirmations, a step limit of 1000 and a migration of retired defaults."
       }
     },
     "defaults/orchestrators/dev_agent/instructions/connector_creator.md": {

@@ -76,7 +76,12 @@ def _tab_label(st_env, settings_mod):
 
 
 def test_tabs_container_has_a_stable_key(st_env):
-    """Given the settings page, when rendered, then tabs carry their key."""
+    """Given the settings page, when rendered, then tabs carry their key.
+
+    The container must also be STATEFUL: a plain ``key=`` stores no state in
+    Streamlit, so the tab would fall back to the first one on every rerun and
+    a pinned section would never open.
+    """
     modules = _page_modules(st_env)
     _render_page(st_env, modules)
 
@@ -84,6 +89,28 @@ def test_tabs_container_has_a_stable_key(st_env):
     assert calls, "settings tabs were not rendered"
     _args, kwargs = calls[-1]
     assert kwargs.get("key") == modules[0].settings_tabs_key(SLUG)
+    assert kwargs.get("on_change") == "rerun", (
+        "tabs must be stateful, otherwise the active tab is not preserved"
+    )
+
+
+def test_pinned_section_wins_over_a_previously_active_tab(st_env):
+    """Given another tab was open, when a section is pinned, then it opens.
+
+    This is the chat-side badge flow: the user worked in the settings before,
+    so a tab label is already stored, and then asks for the Security section
+    from the chat. Reading the stored value first would reopen the old tab.
+    """
+    orch_mod, settings_mod = _page_modules(st_env)
+    _render_page(st_env, (orch_mod, settings_mod))
+    first_labels = _tabs_calls(st_env)[-1][0][0]
+    st_env.session_state[orch_mod.settings_tabs_key(SLUG)] = first_labels[0]
+
+    orch_mod.pin_settings_section(SLUG, "security")
+    _render_page(st_env, (orch_mod, settings_mod))
+
+    assert st_env.session_state[orch_mod.settings_tabs_key(SLUG)] == \
+        first_labels[orch_mod.SETTINGS_SECTIONS.index("security")]
 
 
 def test_pinned_section_activates_its_tab(st_env):
@@ -107,7 +134,10 @@ def test_unknown_section_is_ignored(st_env):
     _render_page(st_env, (orch_mod, settings_mod))
 
     assert orch_mod.settings_section_key(SLUG) not in st_env.session_state
-    assert orch_mod.settings_tabs_key(SLUG) not in st_env.session_state
+    # The request was dropped, so the container stayed on its first tab
+    # instead of jumping to a section that does not exist.
+    labels = _tabs_calls(st_env)[-1][0][0]
+    assert st_env.session_state[orch_mod.settings_tabs_key(SLUG)] == labels[0]
 
 
 def test_prompt_save_keeps_the_prompt_tab(st_env):
@@ -200,7 +230,10 @@ def test_stale_tab_label_after_language_switch_is_dropped(st_env):
 
     _render_page(st_env, (orch_mod, settings_mod))
 
-    assert st_env.session_state.get(orch_mod.settings_tabs_key(SLUG)) is None
+    # The stale label matched no tab, so the widget fell back to its default
+    # and rewrote the slot: the user never lands on a tab that is gone.
+    labels = _tabs_calls(st_env)[-1][0][0]
+    assert st_env.session_state.get(orch_mod.settings_tabs_key(SLUG)) == labels[0]
 
 
 def test_current_language_selection_is_kept(st_env):
@@ -217,8 +250,8 @@ def test_current_language_selection_is_kept(st_env):
 def test_every_section_save_pins_its_own_tab(st_env):
     """Each settings section maps to a distinct tab and pin helper call."""
     orch_mod, settings_mod = _page_modules(st_env)
-    assert len(orch_mod.SETTINGS_SECTIONS) == 11
-    assert len(set(orch_mod.SETTINGS_SECTIONS)) == 11
+    assert len(orch_mod.SETTINGS_SECTIONS) == 12
+    assert len(set(orch_mod.SETTINGS_SECTIONS)) == 12
 
     for section in orch_mod.SETTINGS_SECTIONS:
         st_env.session_state.pop(orch_mod.settings_section_key(SLUG), None)
@@ -228,5 +261,34 @@ def test_every_section_save_pins_its_own_tab(st_env):
         labels = _tabs_calls(st_env)[-1][0][0]
         assert st_env.session_state[orch_mod.settings_tabs_key(SLUG)] == \
             labels[expected_index]
+def test_clicking_a_widget_inside_a_pinned_section_keeps_the_section(st_env):
+    """Given the Security section is open, when a widget there is used, then
+    the page stays on Security.
+
+    Streamlit derives a widget identity from its parameters: a tabs container
+    rendered with ``default`` on one pass and without it on the next is a NEW
+    widget, so the stored active tab is discarded and the page falls back to
+    the first tab. The user sees that as being thrown onto Models in the
+    middle of choosing an access mode.
+    """
+    orch_mod, settings_mod = _page_modules(st_env)
+    from core.i18n import t
+    security_label = t("orch_tab_security", lang=LANG)
+
+    # The chat badge pins the Security section, exactly like a click there.
+    orch_mod.pin_settings_section(SLUG, "security")
+    _render_page(st_env, (orch_mod, settings_mod))
+    assert st_env.session_state[orch_mod.settings_tabs_key(SLUG)] == security_label
+
+    # The user now picks an access mode: a widget inside the pinned section
+    # reports a new value and the runner reruns the page.
+    st_env.session_state[f"orch_access_mode_{SLUG}"] = "off"
+    _render_page(st_env, (orch_mod, settings_mod))
+
+    assert st_env.session_state[orch_mod.settings_tabs_key(SLUG)] == security_label, (
+        "the page jumped away from the section the user was working in"
+    )
+
+
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -59,23 +59,29 @@ def _section_labels(lang: str) -> list:
     return [t(section[3], lang=lang) for section in _marketplace_sections()]
 
 
-def _apply_section_request(labels: list) -> str:
-    """Consume the pending sidebar request and return the tabs ``default``.
+def _apply_section_request(labels: list) -> None:
+    """Consume the pending sidebar request into the tabs widget slot.
 
     Streamlit allows a widget state to change only before the widget is
-    created, so a sidebar click drops the stored tab value and hands the
-    wanted label as ``default`` on this pass.
+    created, so the active label is written into ``st.session_state`` here
+    and the stateful tabs pick it up when they are rendered right after.
+
+    The stored section is the fallback when the tab state does not exist yet:
+    a section chosen before the showcase rendered this session (a restored
+    page, a cold start) would otherwise be overwritten by the first tab the
+    new widget reports.
     """
     keys = [section[0] for section in _marketplace_sections()]
     target = st.session_state.pop(SECTION_TARGET_KEY, None)
+    if target not in keys and _TABS_KEY not in st.session_state:
+        target = str(st.session_state.get(SECTION_KEY) or "")
     if target not in keys:
-        return ""
-    st.session_state.pop(_TABS_KEY, None)
+        return
+    st.session_state[_TABS_KEY] = labels[keys.index(target)]
     # The record of the section is kept here rather than waiting for the
     # tabs to report it back: the sidebar highlight must be right on the
     # very pass that honours the click.
     st.session_state[SECTION_KEY] = target
-    return labels[keys.index(target)]
 
 
 def _sync_section_from_tabs(labels: list) -> None:
@@ -120,11 +126,12 @@ def page_marketplace() -> None:
 
     _render_toolbar(lang)
     labels = _section_labels(lang)
-    default_label = _apply_section_request(labels)
-    tabs_kwargs = {"key": _TABS_KEY, "on_change": "rerun"}
-    if default_label:
-        tabs_kwargs["default"] = default_label
-    st.tabs(labels, **tabs_kwargs)
+    # The request lands in the widget slot BEFORE the container is created;
+    # the call itself is identical on every pass, because Streamlit gives a
+    # widget a new identity when its parameters differ and would drop the
+    # stored selection after the first click inside the section.
+    _apply_section_request(labels)
+    st.tabs(labels, key=_TABS_KEY, on_change="rerun")
     _sync_section_from_tabs(labels)
     st.markdown("---")
     _render_list(lang, _active_section(labels))

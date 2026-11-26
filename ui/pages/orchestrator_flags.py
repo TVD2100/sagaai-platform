@@ -7,7 +7,9 @@ who wants fewer confirmation dialogs must not lose prompt-injection
 protection as a side effect, so each switch owns its own session slot, its
 own widget key and its own syncing into the running loop state.
 
-* ``safety_mode`` - ask the user before a dangerous execution;
+* ``safety_mode`` - ask the user before a dangerous execution. It is OFF
+  by default: an analysed snippet runs as written unless the owner asks for
+  a confirmation;
 * ``injection_protection`` - sanitise external content before it reaches the
   model;
 * ``sandbox`` - run generated code isolated from the machine. It is the only
@@ -19,7 +21,7 @@ from typing import Optional, Tuple
 
 #: Default of each switch when the session slot was never written.
 PROTECTION_DEFAULTS = {
-    "safety_mode": True,
+    "safety_mode": False,
     "injection_protection": True,
 }
 

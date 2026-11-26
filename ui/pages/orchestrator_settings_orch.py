@@ -41,6 +41,7 @@ orch_list_instructions = late("orch_list_instructions")
 pin_settings_section = late("pin_settings_section")
 save_orchestrator = late("save_orchestrator")
 set_disabled_tools = late("set_disabled_tools")
+settings_save_button = late("settings_save_button")
 settings_save_failed = late("settings_save_failed")
 t = late("t")
 
@@ -77,8 +78,8 @@ def _render_orch_system_tools(slug: str, lang: str) -> None:
             disabled_selected.append(name)
 
     st.markdown("---")
-    if st.button(t("orch_sysfunc_save_btn", lang=lang), key=f"orch_save_sysfunc_{slug}",
-                 type="primary"):
+    if settings_save_button(t("orch_sysfunc_save_btn", lang=lang),
+                            key=f"orch_save_sysfunc_{slug}", type="primary"):
         if set_disabled_tools(slug, disabled_selected):
             pin_settings_section(slug, "functions")
             flash_success(t("orch_sysfunc_saved", lang=lang))
@@ -157,8 +158,8 @@ def _render_function_form(slug: str, lang: str, edit_name) -> None:
         st.caption(t("orch_func_code_hint", lang=lang))
         c1, c2 = st.columns([1, 4])
         with c1:
-            if st.button(t("orch_instr_save_btn", lang=lang), type="primary",
-                         key=f"orch_func_save_{slug}"):
+            if settings_save_button(t("orch_instr_save_btn", lang=lang),
+                                    key=f"orch_func_save_{slug}", type="primary"):
                 if not name.strip() or not code.strip():
                     st.error(t("orch_func_required", lang=lang))
                 else:
@@ -242,7 +243,8 @@ def _render_instruction_form(slug: str, lang: str, edit_id) -> None:
                                    help=t("orch_instr_prompt_help", lang=lang))
         c1, c2 = st.columns([1, 4])
         with c1:
-            if st.button(t("orch_instr_save_btn", lang=lang), type="primary", key=f"orch_oinstr_save_{slug}"):
+            if settings_save_button(t("orch_instr_save_btn", lang=lang),
+                                    key=f"orch_oinstr_save_{slug}", type="primary"):
                 if not name.strip() or not prompt_text.strip():
                     st.error(t("orch_instr_required", lang=lang))
                 else:
@@ -299,8 +301,7 @@ def _render_orch_skills_settings(slug: str, lang: str) -> None:
             selected.append(skill_id)
 
     st.markdown("---")
-    if st.button(t("orch_skills_save_btn", lang=lang), key=f"orch_save_skills_{slug}",
-                 type="primary"):
+    if settings_save_button(t("orch_skills_save_btn", lang=lang), key=f"orch_save_skills_{slug}", type="primary"):
         if set_enabled_skills(slug, selected):
             pin_settings_section(slug, "skills")
             flash_success(t("orch_skills_saved", lang=lang))
@@ -354,8 +355,8 @@ def _render_orch_rag_bases(slug: str, lang: str) -> None:
             selected.append(bslug)
 
     st.markdown("---")
-    if st.button(t("orch_rag_bases_save_btn", lang=lang), key=f"orch_save_rag_bases_{slug}",
-                 type="primary"):
+    if settings_save_button(t("orch_rag_bases_save_btn", lang=lang),
+                            key=f"orch_save_rag_bases_{slug}", type="primary"):
         if set_orchestrator_rag_bases(slug, selected):
             pin_settings_section(slug, "rag_bases")
             flash_success(t("orch_rag_bases_saved", lang=lang))
@@ -399,9 +400,9 @@ def _render_orch_connections(slug: str, lang: str) -> None:
             selected.append(conn_id)
 
     st.markdown("---")
-    if st.button(t("orch_connections_save_btn", lang=lang),
-                 key=f"orch_save_connections_{slug}",
-                 type="primary"):
+    if settings_save_button(t("orch_connections_save_btn", lang=lang),
+                            key=f"orch_save_connections_{slug}",
+                            type="primary"):
         if set_enabled_connections(slug, selected):
             pin_settings_section(slug, "connections")
             flash_success(t("orch_connections_saved", lang=lang))
@@ -468,8 +469,8 @@ def _render_memory_dir_section(slug: str, lang: str, cfg: dict, resolved: dict,
                      path=str(conflict.get("path") or ""),
                      files=int(conflict.get("files") or 0)))
 
-    if st.button(t("orch_memory_dir_save_btn", lang=lang),
-                 key=f"orch_save_memory_dir_{slug}", type="primary"):
+    if settings_save_button(t("orch_memory_dir_save_btn", lang=lang),
+                            key=f"orch_save_memory_dir_{slug}", type="primary"):
         if save_orchestrator(slug, memory_dir=new_dir):
             pin_settings_section(slug, "memory")
             shown = new_dir.strip() or default_name
@@ -501,8 +502,7 @@ def _render_memory_editor(slug: str, lang: str, pm, scope: str) -> None:
         key=f"orch_memory_text_{slug}",
         label_visibility="collapsed",
     )
-    if st.button(t("orch_memory_save_btn", lang=lang),
-                 key=f"orch_save_memory_{slug}", type="primary"):
+    if settings_save_button(t("orch_memory_save_btn", lang=lang), key=f"orch_save_memory_{slug}", type="primary"):
         try:
             pm.write_memory(scope, text, updated_by="ui")
         except Exception as exc:

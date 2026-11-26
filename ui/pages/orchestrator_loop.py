@@ -139,7 +139,7 @@ def _make_dispatcher_impl(slug: str) -> UniversalDevAgent:
     dispatcher.core._web_search_config = get_web_search_config(slug)
     dispatcher.core._url_fetch_config = get_fetch_config(slug)
     safety_mode = _ss(slug, "safety_mode")
-    dispatcher.core._safety_enabled = True if safety_mode is None else bool(safety_mode)
+    dispatcher.core._safety_enabled = False if safety_mode is None else bool(safety_mode)
     # Read every render: a cached value would outlive a settings change.
     dispatcher.core._sandbox_profile = effective_sandbox_profile(
         get_orchestrator, slug)

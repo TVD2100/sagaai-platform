@@ -146,17 +146,50 @@ def test_page_renders_stateful_tabs(st_mock):
     assert kwargs.get("on_change") == "rerun"
 
 
-def test_return_targets_connections_tab_through_default(st_mock):
+def test_return_target_opens_the_connections_tab(st_mock):
+    """A recorded request must open its tab, not merely be consumed.
+
+    The page writes the wanted label into the tabs widget slot BEFORE the
+    container is created - the only moment Streamlit accepts a widget state
+    change. The call itself stays identical on every pass: a container whose
+    parameters differ between passes is a NEW widget to Streamlit, and the
+    stored tab would be dropped by the next click inside the section.
+    """
     page = _page()
     st_mock.session_state[page._TARGET_TAB_KEY] = 2
     st_mock.session_state[page.CONNECTORS_TABS_KEY] = "General services"
     _render_page(page, [])
     kwargs = _tabs_calls(st_mock)[0]
-    assert kwargs.get("default") == "Connections"
-    # The stale stored value is dropped before the widget is created, which
-    # is the only moment Streamlit accepts a state reset for a widget.
-    assert page.CONNECTORS_TABS_KEY not in st_mock.session_state
+    assert "default" not in kwargs, (
+        "the tabs call must not change its parameters between passes"
+    )
+    assert st_mock.session_state[page.CONNECTORS_TABS_KEY] == "Connections"
     assert page._TARGET_TAB_KEY not in st_mock.session_state
+
+
+def test_a_widget_click_keeps_the_tab_the_user_is_in(st_mock):
+    """Given a tab opened by a request, when a widget there is used, then the
+    page stays on that tab.
+
+    A tabs container rendered with ``default`` on the pinning pass and
+    without it on the next pass is a different widget to Streamlit, so the
+    stored active label is dropped and the page falls back to the first tab
+    after any click inside the section.
+    """
+    page = _page()
+    st_mock.session_state[page._TARGET_TAB_KEY] = "Connections"
+    _render_page(page, [])
+    opened = st_mock.session_state.get(page.CONNECTORS_TABS_KEY)
+    assert opened == "Connections"
+
+    # Second pass, the way a click inside the tab triggers it: the request
+    # has been consumed, only the widget's own stored value remains.
+    st_mock.calls.clear()
+    _render_page(page, [])
+
+    assert st_mock.session_state.get(page.CONNECTORS_TABS_KEY) == opened, (
+        "the page jumped away from the tab the user was in"
+    )
 
 
 # ── MCP tab: preset tiles + custom tile ──────────────────────────────────────

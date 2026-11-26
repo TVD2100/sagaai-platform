@@ -128,17 +128,20 @@ def test_scenario_settings_panel_reports_every_profile():
 
     tables = [args[0] for name, args, _kw in st.calls if name == "table"]
     assert tables, "the sandbox panel rendered no tables"
-    # The panel renders several tables (providers, profiles, recent runs);
-    # the profile one is identified by its keys, not by its position, so
-    # adding another section cannot silently turn this test into a check of
-    # the wrong table.
+    # The panel renders several tables: the facts of the chosen mode, the
+    # providers and the full profile list. The one under test is the list of
+    # EVERY profile, so it is identified by covering the declared names - not
+    # by its position, which would turn this test into a check of whichever
+    # table happens to come first.
+    declared = set(profiles.profile_names())
     profile_rows = next(
         (table for table in tables
          if table and isinstance(table[0], dict) and "profile" in table[0]
-         and "isolation" in table[0]),
+         and "isolation" in table[0]
+         and {row["profile"] for row in table} == declared),
         None,
     )
-    assert profile_rows, "the panel rendered no profile table"
+    assert profile_rows, "the panel rendered no full profile table"
     listed = {row["profile"] for row in profile_rows}
     assert listed == set(profiles.profile_names())
     status = {row["profile"]: row["status"] for row in profile_rows}

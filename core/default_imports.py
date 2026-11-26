@@ -197,15 +197,22 @@ def ensure_default_orchestrators() -> Dict[str, str]:
                     save_orchestrator(slug, **name_fields)
             except Exception:
                 pass
-            # One-time migration of the legacy 100-step default: existing
-            # default orchestrators created with the old default are upgraded
-            # to the current default once, guarded by a config marker so a
-            # user-chosen max_steps is never overwritten.
+            # One-time migration of a retired default step limit: a preset
+            # that still carries a number the platform once shipped as its
+            # default never chose it, so it is raised to the current default
+            # once. The marker keeps the upgrade one-shot, so a value the
+            # owner later types - even a retired number - is never touched.
             try:
+                from core.orchestrator_steps_migration import (
+                    MAX_STEPS_MIGRATED_KEY,
+                    RETIRED_MAX_STEPS,
+                )
+
                 current_cfg = dict(current.get("config", {}) or {})
-                if (not current_cfg.get("max_steps_default_migrated")
-                        and current.get("max_steps") == 100):
-                    current_cfg["max_steps_default_migrated"] = True
+                stored_steps = int(current.get("max_steps") or 0)
+                if (not current_cfg.get(MAX_STEPS_MIGRATED_KEY)
+                        and stored_steps in RETIRED_MAX_STEPS):
+                    current_cfg[MAX_STEPS_MIGRATED_KEY] = True
                     save_orchestrator(slug, config=current_cfg,
                                       max_steps=DEFAULT_MAX_STEPS)
             except Exception:

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Regression tests for the orchestrator "Safe mode" toggle.
+Regression tests for the orchestrator "Command confirmation" toggle.
 
-When the "Safe mode" checkbox is OFF, the agent must NOT stop for dangerous
-operation confirmations. These tests pin the ToolExecutor behavior that backs
-that contract.
+When the checkbox is OFF - which is the default - the agent must NOT stop for
+dangerous-operation confirmations. These tests pin the ToolExecutor behavior
+that backs that contract.
 """
 from __future__ import annotations
 
@@ -21,9 +21,10 @@ _DANGEROUS_BUT_HARMLESS = (
 )
 
 
-def test_safety_enabled_is_true_by_default():
+def test_safety_enabled_is_false_by_default():
+    """A fresh executor runs a command without asking: the gate is opt-in."""
     exec = ToolExecutor()
-    assert exec._safety_enabled is True
+    assert exec._safety_enabled is False
 
 
 def test_run_code_skips_confirmation_when_safety_disabled():

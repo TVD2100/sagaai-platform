@@ -7,16 +7,17 @@ Scenarios (given -> when -> then), walking the public UI entry point
 
   Scenario 1 - a fresh DevAgent dialog greets with the DevAgent-specific
                welcome and shows the default chat-preference checkboxes
-               (web off, safety on); economy mode has no checkbox because it
-               is always on.
+               (web search off, command confirmation off); economy mode has
+               no checkbox because it is always on.
   Scenario 2 - saved chat preferences survive a NEW dialog: the checkboxes
                are initialised from the persisted orchestrator config.
   Scenario 3 - toggling a preference checkbox persists it into the
                orchestrator config and survives the next render.
   Scenario 4 - the toolbar is rendered once: toggling a checkbox persists
                the value and never creates bottom-duplicate widgets.
-  Scenario 5 - disabling the Safety checkbox persists chat_safety_mode=False
-               into the config and survives a brand-new render.
+  Scenario 5 - enabling the Command-confirmation checkbox persists
+               chat_safety_mode=True into the config and survives a
+               brand-new render.
 """
 import sys
 from pathlib import Path
@@ -92,8 +93,8 @@ def test_scenario_devagent_welcome_and_defaults(page_env):
     Given a user with no saved preferences and no history,
     when  they open the DevAgent chat page,
     then  the DevAgent-specific welcome is shown (not the generic one) and
-          the preference checkboxes appear with the historical defaults:
-          web search off, economy on, safety on.
+          the preference checkboxes appear with their defaults: web search
+          off, economy on, command confirmation off.
     """
     from core.i18n import t
 
@@ -110,7 +111,7 @@ def test_scenario_devagent_welcome_and_defaults(page_env):
     ws = _checkbox(st, f"orch_{slug}_web_search")
     safety = _checkbox(st, f"orch_{slug}_safety_mode")
     assert ws is not None and ws["value"] is False, f"web-search: {ws}"
-    assert safety is not None and safety["value"] is True, f"safety: {safety}"
+    assert safety is not None and safety["value"] is False, f"confirmation: {safety}"
     # Economy mode carries no switch: the compact context is always used.
     assert _checkbox(st, f"orch_{slug}_economy_mode") is None
     assert st.session_state[f"orch_{slug}_economy_mode"] is True
@@ -230,13 +231,13 @@ def test_scenario_single_toolbar_after_toggle(page_env):
     assert any(cfg.get("chat_web_search") is True for cfg in saved_configs)
 
 
-def test_scenario_safety_mode_off_persists(page_env):
-    """Scenario 5: disabling Safety persists chat_safety_mode=False.
+def test_scenario_safety_mode_on_persists(page_env):
+    """Scenario 5: enabling the confirmation persists chat_safety_mode=True.
 
-    Given a fresh DevAgent dialog (safety default ON),
-    when  the user unchecks the Safety checkbox,
+    Given a fresh DevAgent dialog (command confirmation default OFF),
+    when  the user checks the Command-confirmation checkbox,
     then  the new value is saved into the orchestrator config and a fresh
-          render (new session state) still shows Safety OFF.
+          render (new session state) still shows the confirmation ON.
     """
     st, monkeypatch = page_env
     orch_page = _render(st, monkeypatch, "dev_agent")
@@ -253,14 +254,14 @@ def test_scenario_safety_mode_off_persists(page_env):
     assert widget is not None, "safety checkbox missing"
     on_change = widget.get("on_change")
     assert callable(on_change), f"safety on_change: {widget}"
-    assert widget["value"] is True  # default
+    assert widget["value"] is False  # default off
 
-    st.session_state[safety_key] = False
+    st.session_state[safety_key] = True
     on_change(slug, "safety_mode")
 
-    assert st.session_state[safety_key] is False
-    assert any(cfg.get("chat_safety_mode") is False for cfg in saved_configs), \
-        f"safety pref not persisted: {saved_configs}"
+    assert st.session_state[safety_key] is True
+    assert any(cfg.get("chat_safety_mode") is True for cfg in saved_configs), \
+        f"confirmation pref not persisted: {saved_configs}"
 
     # Simulate a brand-new session: wipe the page's session slots but keep the
     # persisted config (the injected get_orchestrator now returns the saved
@@ -271,7 +272,7 @@ def test_scenario_safety_mode_off_persists(page_env):
             "slug": slug, "name": "DevAgent", "description": "",
             "is_builtin": True, "prompt_text": "",
             "config": {"strong_service": "DeepSeek", "strong_model": "m1",
-                       "chat_safety_mode": False},
+                       "chat_safety_mode": True},
         } if s == slug else None)
     for key in [safety_key, f"orch_{slug}_history", f"orch_{slug}_loop_state"]:
         st.session_state.pop(key, None)
@@ -282,6 +283,6 @@ def test_scenario_safety_mode_off_persists(page_env):
         pass
 
     re_rendered = _checkbox(st, safety_key)
-    assert re_rendered is not None and re_rendered["value"] is False, \
-        f"safety reset on fresh render: {re_rendered}"
-    assert st.session_state[safety_key] is False
+    assert re_rendered is not None and re_rendered["value"] is True, \
+        f"confirmation reset on fresh render: {re_rendered}"
+    assert st.session_state[safety_key] is True

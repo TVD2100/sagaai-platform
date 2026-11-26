@@ -114,5 +114,75 @@ def test_malformed_queue_value_is_reset(st_env):
     st_env.session_state[mod.FLASH_KEY] = "broken"
     mod.render_flash()
     assert st_env.session_state[mod.FLASH_KEY] == []
+
+
+# ─── anchored notifications ────────────────────────────────────────────────
+
+
+def test_an_orphaned_message_falls_back_to_the_page(st_env):
+    """Given a message whose button never rendered, the page still shows it.
+
+    The anchored widget paints its own messages on the pass after the save.
+    If that widget is not on screen at all, the page-level pass is the last
+    chance to reach the user - a confirmation lost in the queue is worse
+    than one shown at the bottom of the page.
+    """
+    mod = _flash_module()
+    mod.flash_success("Saved.", anchor="save-btn")
+
+    mod.render_flash()
+
+    assert _painted(st_env, "success") == ["Saved."]
+
+
+def test_the_anchor_paints_on_the_next_pass_and_leaves_others(st_env):
+    """Given two anchored messages, when one widget renders, only it paints."""
+    mod = _flash_module()
+    mod.flash_success("First.", anchor="btn-a")
+    mod.flash_error("Second.", anchor="btn-b")
+
+    mod.render_flash_after("btn-a")
+
+    assert _painted(st_env, "success") == ["First."]
+    assert _painted(st_env, "error") == []
+    mod.render_flash_after("btn-b")
+    assert _painted(st_env, "error") == ["Second."]
+
+
+def test_a_queued_message_follows_the_button_being_handled(st_env):
+    """A plain flash inside a button handler lands under that button."""
+    mod = _flash_module()
+    mod.set_flash_anchor("save-btn")
+    mod.flash_success("Saved.")
+
+    mod.render_flash_after("save-btn")
+
+    assert _painted(st_env, "success") == ["Saved."]
+
+
+def test_an_explicit_empty_anchor_stays_page_level(st_env):
+    """An explicit "" keeps a message page-level even inside a handler."""
+    mod = _flash_module()
+    mod.set_flash_anchor("save-btn")
+    mod.flash_success("General.", anchor="")
+
+    mod.render_flash_after("save-btn")
+    assert _painted(st_env, "success") == []
+
+    mod.render_flash()
+    assert _painted(st_env, "success") == ["General."]
+
+
+def test_the_anchor_is_forgotten_once_the_button_rendered(st_env):
+    """A handled anchor must not capture a later handler's messages."""
+    mod = _flash_module()
+    mod.set_flash_anchor("save-btn")
+
+    mod.render_flash_after("save-btn")
+
+    assert st_env.session_state.get(mod.ANCHOR_KEY) == ""
+    mod.flash_success("Later.")
+    mod.render_flash()
+    assert _painted(st_env, "success") == ["Later."]
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

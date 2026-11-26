@@ -67,16 +67,15 @@ t = late("t")
 
 
 def _render_access_badge(slug: str, lang: str) -> None:
-    """Show the access state of the employee as a read-only badge.
+    """Show the access state as a read-only badge that opens its own setting.
 
-    The badge is not a switch: full access is a rare, dangerous grant and a
-    stray click in the chat must not take it away or hand it out. It opens
-    the settings section that owns the choice instead, so the user always
-    lands one click away from the place where it is changed.
+    The badge is not a switch, so a stray click cannot hand out full access;
+    that mode is drawn with a Material lock, because the padlock emoji reads
+    as a closed lock at button size.
     """
     mode = access_mode(get_orchestrator, slug)
     if mode == ACCESS_FULL:
-        label = "🔓 " + t("orch_access_badge_full", lang=lang)
+        label = ":material/lock_open: " + t("orch_access_badge_full", lang=lang)
         help_text = t("orch_access_badge_full_help", lang=lang)
     elif mode == ACCESS_PARTIAL:
         label = "⚠️ " + t("orch_access_badge_partial", lang=lang)
@@ -86,7 +85,8 @@ def _render_access_badge(slug: str, lang: str) -> None:
         help_text = t("orch_access_badge_isolated_help", lang=lang)
     if st.button(label, key=f"orch_access_badge_{slug}",
                  use_container_width=True, type="secondary", help=help_text):
-        pin_settings_section(slug, "other")
+        # The access mode has its own Security tab, not the misc settings.
+        pin_settings_section(slug, "security")
         st.session_state["current_page"] = f"orchestrator_settings:{slug}"
         st.rerun()
 

@@ -1,23 +1,37 @@
 # -*- coding: utf-8 -*-
 """Settings panel of the execution sandbox.
 
-The panel answers two questions before anything runs: which profiles this
-machine can actually honour, and which one this employee's generated code
-executes under. A profile whose isolation or guarantees are unavailable is
-marked as such and cannot be saved - the run would be refused by the policy,
-and offering the choice anyway would promise a guarantee the platform cannot
-keep.
+The panel answers ONE question - which access mode this employee's generated
+code runs under - and everything it renders follows from that answer: the
+modes are a single choice, the chosen mode shows the facts of the profile it
+selects, and the machinery behind it (profiles, providers) stays behind
+"details" instead of competing with the choice.
 
-The run list is read-only: it reports what is executing right now, so a run
-that the user forgot about is visible instead of silently holding a process.
+The modes are one choice and not independent switches: a run has exactly one
+operating-system boundary, so two checkboxes could only disagree. ``off`` and
+full access both drop that boundary and differ in the environment the child
+receives - ``off`` keeps the allowlist and hides the platform keys, full
+access hands the platform environment over - which is why the two are named
+and explained apart instead of being left to look identical.
 """
 from __future__ import annotations
 
-import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from core.i18n import t
-from core.sandbox.profiles import LEGACY_PROCESS, OFF
+from core.sandbox.profiles import (
+    DEFAULT_PROFILE,
+    LEGACY_PROCESS,
+    OFF,
+    READ_ONLY,
+    WORKSPACE_WRITE,
+)
+from ui.pages.orchestrator_flags import (
+    ACCESS_FULL,
+    ACCESS_PARTIAL,
+    access_mode,
+    sandbox_profile,
+)
 from ui.pages.orchestrator_shared import late, st_proxy
 
 # Resolved through the page facade on every access: the test suite swaps the
@@ -25,14 +39,31 @@ from ui.pages.orchestrator_shared import late, st_proxy
 # writing into the double of whichever test imported this module first.
 st = st_proxy()
 
+flash_error = late("flash_error")
 flash_success = late("flash_success")
 get_orchestrator = late("get_orchestrator")
+pin_settings_section = late("pin_settings_section")
 save_orchestrator = late("save_orchestrator")
+settings_save_button = late("settings_save_button")
 
-#: Label of the legacy profile in the selector (it has no sandbox of its own).
-_LEGACY_LABEL_KEY = "orch_sandbox_profile_legacy"
-#: Label of the profile the toolbar checkbox switches to when it is cleared.
-_OFF_LABEL_KEY = "orch_sandbox_profile_off"
+#: The mode that grants the platform environment. It is not a profile: the
+#: resolver forces the ``off`` profile onto such a run, so the setting names
+#: the grant and the profile follows from it.
+MODE_FULL = "full"
+
+#: The modes in the order the selector lists them.
+SECURITY_MODES: Tuple[str, ...] = (READ_ONLY, WORKSPACE_WRITE, LEGACY_PROCESS,
+                                   OFF, MODE_FULL)
+
+#: Label key of each listed mode.
+_MODE_LABEL_KEYS = {
+    READ_ONLY: "orch_security_mode_read_only",
+    WORKSPACE_WRITE: "orch_security_mode_workspace_write",
+    LEGACY_PROCESS: "orch_security_mode_legacy_process",
+    OFF: "orch_security_mode_off",
+    MODE_FULL: "orch_security_mode_full",
+}
+
 #: The two profiles that never depend on the machine: they isolate nothing.
 _NO_ISOLATION = (LEGACY_PROCESS, OFF)
 
@@ -93,49 +124,131 @@ def _profiles():
     return list(all_profiles())
 
 
-def _current_profile(slug: str) -> str:
-    """Return the profile this employee's generated code runs under."""
+def _employee_config(slug: str) -> Dict[str, Any]:
+    """Return a mutable copy of the config of *slug*, or an empty mapping."""
     try:
         orch = get_orchestrator(slug) or {}
     except Exception:
         orch = {}
-    config = orch.get("config") or {}
-    return str(config.get("sandbox_profile") or LEGACY_PROCESS)
+    config = orch.get("config") if isinstance(orch, dict) else None
+    return dict(config) if isinstance(config, dict) else {}
 
 
-def _profile_label(profile: Any, usable: bool, lang: str) -> str:
-    """Return the selector label of *profile* with its availability."""
-    if profile.name == LEGACY_PROCESS:
-        return "%s (%s)" % (profile.name, t(_LEGACY_LABEL_KEY, lang=lang))
-    if profile.name == OFF:
-        return "%s (%s)" % (profile.name, t(_OFF_LABEL_KEY, lang=lang))
-    status = (t("orch_sandbox_available", lang=lang) if usable
-              else t("orch_sandbox_refused", lang=lang))
-    return "%s - %s" % (profile.name, status)
+def _current_mode(slug: str) -> str:
+    """Return the mode the runs of this employee execute under right now.
+
+    A record that cleared the removed toolbar checkbox reads as ``off``: the
+    machine is open while the environment is still filtered, which is exactly
+    what that mode means. An unset profile reads as the policy default rather
+    than as an empty selector, which would misreport the state.
+    """
+    state = access_mode(get_orchestrator, slug)
+    if state == ACCESS_FULL:
+        return MODE_FULL
+    if state == ACCESS_PARTIAL:
+        return OFF
+    return str(sandbox_profile(get_orchestrator, slug) or DEFAULT_PROFILE)
 
 
-def _save_profile(slug: str, profile: str, lang: str) -> None:
-    """Persist the chosen profile and rerun the page."""
-    _save_config_value(slug, "sandbox_profile", str(profile or ""), lang)
+def _mode_options(current: str) -> List[str]:
+    """Return the listed modes plus a stored one that is no longer listed.
+
+    A profile saved by an older build keeps its own entry: the selector must
+    show what is in force instead of quietly pretending another mode runs.
+    """
+    options = list(SECURITY_MODES)
+    if current and current not in options:
+        options.append(str(current))
+    return options
 
 
-def _save_config_value(slug: str, key: str, value, lang: str) -> None:
-    """Persist one config value of the employee and rerun the page."""
+def _mode_label(mode: str, lang: str) -> str:
+    """Return the selector label of *mode*."""
+    key = _MODE_LABEL_KEYS.get(mode)
+    if key:
+        return t(key, lang=lang)
+    return t("orch_security_mode_extra", lang=lang, name=mode)
+
+
+def _facts_row(mode: str, rows: Dict[str, Dict[str, Any]], lang: str) -> Dict[str, str]:
+    """Return the profile table row of *mode*.
+
+    The columns are the ones the panel always reported, so the choice and the
+    diagnostics describe the same run in the same words.
+    """
+    yes = t("orch_sandbox_yes", lang=lang)
+    no = t("orch_sandbox_no", lang=lang)
+    if mode == MODE_FULL:
+        return {"profile": "%s (%s)" % (t("orch_access_option_full", lang=lang), OFF),
+                "isolation": "none",
+                "network": yes,
+                "via": "-",
+                "status": t("orch_sandbox_available", lang=lang)}
+    row = rows.get(mode)
+    if row is None:
+        return {"profile": mode, "isolation": "-", "network": "-", "via": "-",
+                "status": t("orch_sandbox_refused", lang=lang)}
+    profile = row["profile"]
+    return {"profile": profile.name,
+            "isolation": profile.isolation,
+            "network": yes if profile.network else no,
+            "via": row["via"] or "-",
+            "status": (t("orch_sandbox_available", lang=lang) if row["usable"]
+                       else t("orch_sandbox_refused", lang=lang))}
+
+
+def _mode_usable(mode: str, rows: Dict[str, Dict[str, Any]]) -> bool:
+    """True when this machine can honour the run *mode* selects."""
+    if mode == MODE_FULL or mode in _NO_ISOLATION:
+        return True
+    row = rows.get(mode)
+    return bool(row and row["usable"])
+
+
+def _render_mode_facts(mode: str, rows: Dict[str, Dict[str, Any]], lang: str) -> None:
+    """Show the facts of the chosen mode, with what it does to the environment."""
+    st.markdown(t("orch_security_selected_profile", lang=lang))
+    st.table([_facts_row(mode, rows, lang)])
+    if mode == MODE_FULL:
+        st.caption(t("orch_security_env_full", lang=lang))
+    elif mode == OFF:
+        st.caption(t("orch_security_env_off", lang=lang))
+    else:
+        st.caption(t("orch_security_env_isolated", lang=lang))
+
+
+def _save_mode(slug: str, mode: str, lang: str) -> None:
+    """Persist the chosen mode as one coherent pair of config values.
+
+    The access grant and the profile are two keys of the same decision, so a
+    save writes both: leaving the other one behind would let a mode the user
+    has just replaced decide the next run.
+    """
+    config = _employee_config(slug)
+    # The removed toolbar switch is dropped from the record: left in place it
+    # would keep overriding the profile chosen here.
+    config.pop("chat_sandbox", None)
+    if mode == MODE_FULL:
+        config["env_isolation"] = False
+        config["sandbox_profile"] = OFF
+    else:
+        config["env_isolation"] = True
+        config["sandbox_profile"] = str(mode)
+    _save_config(slug, config, lang=lang, mode=mode)
+
+
+def _save_config(slug: str, config: Dict[str, Any], lang: str, mode: str) -> None:
+    """Write the config, keep the section open and report the outcome."""
     try:
-        orch = get_orchestrator(slug) or {}
-        config = dict(orch.get("config") or {})
-        config[key] = value
         ok = bool(save_orchestrator(slug, config=config))
     except Exception:
         ok = False
-    if ok:
-        try:
-            flash_success(t("orch_sandbox_profile_saved", lang=lang, profile=value))
-        except Exception:
-            st.success(t("orch_sandbox_profile_saved", lang=lang, profile=value))
-        st.rerun()
+    if not ok:
+        st.error(t("orch_security_save_error", lang=lang))
         return
-    st.error(t("orch_sandbox_profile_error", lang=lang))
+    pin_settings_section(slug, "security")
+    flash_success(t("orch_security_saved", lang=lang, mode=_mode_label(mode, lang)))
+    st.rerun()
 
 
 def _render_active_runs(lang: str) -> None:
@@ -199,57 +312,52 @@ def _render_one_run(run: Dict[str, Any], lang: str) -> None:
 
 
 def render_sandbox_settings(slug: str, lang: str) -> None:
-    """Render the access section of the settings page.
+    """Render the Security section of the settings page.
 
-    The section answers ONE question the user actually asks - may this agent
-    reach the machine? Everything else on the panel describes how the answer
-    is implemented, so it lives behind "details" and never competes with the
-    choice itself.
+    The section answers ONE question the user actually asks - what may this
+    agent's code reach - as a single choice. The chosen mode shows the facts
+    of its profile at once, so the difference between the modes (the boundary
+    and the environment are two of them) is visible where the choice is made
+    instead of being inferred from a second widget.
 
     Args:
         slug: the employee whose settings are being edited.
         lang: the active UI language.
     """
-    from core.sandbox.profiles import OFF
-    from ui.pages.orchestrator_flags import (
-        ACCESS_PARTIAL,
-        access_mode,
-        env_isolation,
-    )
-
     st.markdown(t("orch_access_section", lang=lang))
     st.caption(t("orch_access_section_help", lang=lang))
 
-    mode = access_mode(get_orchestrator, slug)
-    if mode == ACCESS_PARTIAL:
+    current = _current_mode(slug)
+    if access_mode(get_orchestrator, slug) == ACCESS_PARTIAL:
         # A record that cleared the old sandbox checkbox before the access
         # setting existed. Neither answer is safe to assume for the owner, so
         # the section states what is in force and asks for an explicit choice.
         st.warning(t("orch_access_partial_banner", lang=lang))
 
-    isolated_now = env_isolation(get_orchestrator, slug)
-    options = [True, False]
+    options = _mode_options(current)
     chosen = st.radio(
         t("orch_access_label", lang=lang),
         options=options,
-        index=0 if isolated_now else 1,
-        format_func=lambda value: (t("orch_access_option_isolated", lang=lang)
-                                   if value else t("orch_access_option_full", lang=lang)),
+        index=options.index(current) if current in options else 0,
+        format_func=lambda value: _mode_label(value, lang),
         key=f"orch_access_mode_{slug}",
-        help=t("orch_access_help", lang=lang),
+        help=t("orch_security_modes_help", lang=lang),
     )
-    if chosen is False:
+
+    rows = {row["profile"].name: row for row in _profile_rows(_provider_rows())}
+    _render_mode_facts(chosen, rows, lang)
+
+    if chosen == MODE_FULL:
         st.error(t("orch_access_full_warning", lang=lang))
-    else:
-        st.caption(t("orch_access_isolated_hint", lang=lang))
+    usable = _mode_usable(chosen, rows)
+    if not usable:
+        # Offering the choice is honest; saving a mode this machine cannot
+        # honour is not - the run would be refused by the policy.
+        st.warning(t("orch_sandbox_refused", lang=lang))
+    if usable and settings_save_button(t("orch_save_btn", lang=lang),
+                                       key=f"orch_access_save_{slug}", type="primary"):
+        _save_mode(slug, chosen, lang)
 
-    if st.button(t("orch_save_btn", lang=lang), key=f"orch_access_save_{slug}",
-                 type="primary"):
-        _save_config_value(slug, "env_isolation", bool(chosen), lang)
-
-    # The profile only matters inside the isolated mode: a full-access run is
-    # forced to ``off`` by the resolver, so offering the selector there would
-    # promise a choice that does not take effect.
     with st.expander(t("orch_access_details", lang=lang), expanded=False):
         providers = _provider_rows()
         st.markdown(t("orch_sandbox_providers", lang=lang))
@@ -259,7 +367,6 @@ def render_sandbox_settings(slug: str, lang: str) -> None:
                                   else "orch_sandbox_no", lang=lang)}
                   for p in providers])
 
-        rows = _profile_rows(providers)
         st.markdown(t("orch_sandbox_profiles", lang=lang))
         st.table([{"profile": row["profile"].name,
                    "isolation": row["profile"].isolation,
@@ -268,76 +375,13 @@ def render_sandbox_settings(slug: str, lang: str) -> None:
                    "via": row["via"] or "-",
                    "status": (t("orch_sandbox_available", lang=lang)
                               if row["usable"] else t("orch_sandbox_refused", lang=lang))}
-                  for row in rows])
+                  for row in rows.values()])
 
-        if not any(row["usable"] for row in rows):
+        if not any(row["usable"] for row in rows.values()):
             st.warning(t("orch_sandbox_no_provider", lang=lang))
 
-        current = _current_profile(slug)
-        by_name = {row["profile"].name: row for row in rows}
-        names = [profile.name for profile in _profiles()]
-        if current and current not in names:
-            names.insert(0, current)
-        index = names.index(current) if current in names else 0
-        chosen_profile = st.selectbox(
-            t("orch_sandbox_profile_label", lang=lang), options=names, index=index,
-            key=f"orch_sandbox_profile_{slug}",
-            help=t("orch_sandbox_profile_help", lang=lang),
-            disabled=chosen is False,
-            format_func=lambda name: _profile_label(
-                by_name[name]["profile"] if name in by_name else _stub_profile(name),
-                bool(by_name[name]["usable"]) if name in by_name else False, lang),
-        )
-        profile_ok = (bool(by_name.get(chosen_profile, {}).get("usable"))
-                      or chosen_profile in _NO_ISOLATION)
-        if chosen is False:
-            st.caption(t("orch_access_profile_ignored", lang=lang,
-                         profile=OFF))
-        elif not profile_ok:
-            st.warning(t("orch_sandbox_refused", lang=lang))
-        elif st.button(t("orch_save_btn", lang=lang),
-                       key=f"orch_sandbox_save_{slug}", type="primary"):
-            _save_profile(slug, chosen_profile, lang)
-
     _render_active_runs(lang)
-    _render_recent_runs(lang)
 
-
-def _render_recent_runs(lang: str) -> None:
-    """Show the newest journal rows (read-only).
-
-    The journal is what makes a refusal auditable after the fact: the panel
-    reports the decision (refused or executed) and its outcome, while the
-    full output stays in the log file the row points to.
-    """
-    from storage import sandbox_journal
-
-    try:
-        from storage.db import get_engine
-
-        rows = sandbox_journal.recent_runs(get_engine(), limit=10)
-    except Exception:
-        rows = []
-    if not rows:
-        return
-    st.markdown(t("orch_sandbox_recent_runs", lang=lang))
-    st.table([{"when": _format_when(row.get("started_at")),
-               "run": sandbox_journal.summarise(row)} for row in rows])
-
-
-def _format_when(value: Any) -> str:
-    """Return a journal timestamp as a short local date and time."""
-    try:
-        return time.strftime("%Y-%m-%d %H:%M", time.localtime(float(value)))
-    except (TypeError, ValueError, OSError):
-        return "-"
-
-
-def _stub_profile(name: str):
-    """Return a minimal profile-like object for a name that no longer exists."""
-    from types import SimpleNamespace
-
-    return SimpleNamespace(name=name, requires=())
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

@@ -253,6 +253,43 @@ def test_preset_user_max_steps_survives_bootstrap(isolated_data_dir, bundled_pre
     assert _get_preset()["max_steps"] == 777
 
 
+def test_preset_legacy_500_migrates_to_default(isolated_data_dir, bundled_preset):
+    """A bundled default still carrying the retired 500 limit is upgraded.
+
+    The 500 limit shipped as the platform default, so a preset that still
+    has it never chose it; the bootstrap raises it to the current default
+    and marks the record as migrated.
+    """
+    from storage.models import DEFAULT_MAX_STEPS
+
+    _run_bootstrap()
+    assert _set_max_steps(PRESET_SLUG, 500)["max_steps"] == 500
+
+    _run_bootstrap()
+    orch = _get_preset()
+    assert orch["max_steps"] == DEFAULT_MAX_STEPS
+    assert orch["config"].get("max_steps_default_migrated") is True
+
+
+def test_a_retired_number_chosen_by_the_user_survives(isolated_data_dir, bundled_preset):
+    """Once migrated, typing a retired number is a user choice and is kept.
+
+    The migration is one-shot: an owner who deliberately sets the limit back
+    to a number the platform once shipped as its default keeps that value
+    across later boots.
+    """
+    from core.orchestrators import get_orchestrator, save_orchestrator
+
+    _run_bootstrap()
+    orch = get_orchestrator(PRESET_SLUG)
+    cfg = dict(orch["config"] or {})
+    cfg["max_steps_default_migrated"] = True
+    assert save_orchestrator(PRESET_SLUG, config=cfg, max_steps=500)
+
+    _run_bootstrap()
+    assert _get_preset()["max_steps"] == 500
+
+
 def test_preset_preserves_user_changes(isolated_data_dir, bundled_preset):
     """User-edited preset settings survive subsequent bootstrap runs."""
     from core.orchestrators import save_orchestrator

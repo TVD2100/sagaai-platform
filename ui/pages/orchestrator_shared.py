@@ -25,8 +25,6 @@ cycle.
 import sys
 from typing import Any, Callable
 
-from ui.components.flash import flash_error
-
 # The facade module path, resolved lazily: at import time this module is
 # loaded BY the facade, so the facade object is not ready yet.
 FACADE = "ui.pages.orchestrator"
@@ -112,42 +110,10 @@ def st_proxy() -> _StProxyType:
 # the settings page reopens there after its rerun.
 SETTINGS_SECTIONS = (
     "models", "prompt", "economy", "functions", "instructions",
-    "skills", "rag_bases", "connections", "memory", "delegation", "other",
+    "skills", "rag_bases", "connections", "memory", "delegation",
+    "security", "other",
 )
 
 
-# ``t`` and ``st`` for this module itself: the helpers below render and
-# localise, so they resolve through the same late layer. ``pin_settings_section``
-# is late too: a test may replace it on the facade, and a save handler must
-# honour that replacement.
-t = late("t")
-st = _SHARED_ST
-pin_settings_section = late("pin_settings_section")
-
-
-def pin_settings_section_impl(slug: str, section: str) -> None:
-    """Ask the settings page to reopen *section* on the next render pass.
-
-    A save handler calls this before ``st.rerun()``: the page reads the
-    request before it creates the tabs and activates the matching one, so a
-    save keeps the user in the section they were editing instead of dropping
-    them on the first tab.
-    """
-    if section in SETTINGS_SECTIONS:
-        from ui.pages.orchestrator_text import settings_section_key
-        st.session_state[settings_section_key(slug)] = section
-
-
-def settings_save_failed_impl(slug: str, section: str, message_key: str,
-                              lang: str) -> None:
-    """Report a failed settings save and keep the user in *section*.
-
-    The message is queued and the page is rerun: the next pass paints it
-    below the page content, so the error is visible together with the very
-    section whose save failed.
-    """
-    pin_settings_section(slug, section)
-    flash_error(t(message_key, lang=lang))
-    st.rerun()
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

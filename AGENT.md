@@ -308,6 +308,29 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   сотрудник появляется вверху списка.
 - Страница оркестратора содержит вкладки: **Чат**, **История** и
   **Навыки**; ссылка на отдельную страницу **Настройки**.
+- Страница **Настройки** держит 12 разделов (`SETTINGS_SECTIONS`: модели,
+  промпт, эконом, функции, инструкции, навыки, базы знаний, коннекторы,
+  память, делегирование, безопасность, прочее) и создаёт `st.tabs`
+  **stateful** (`on_change="rerun"`). Без `on_change="rerun"` виджет не
+  хранит состояние вообще - его `key` остаётся только CSS-идентичностью, -
+  поэтому после любого rerun открывалась первая вкладка и закреплённый
+  раздел терялся. Активная метка живёт в `st.session_state[key]`, а запрос
+  извне (сохранение раздела, клик по бейджу доступа) применяется записью
+  метки в этот ключ перед созданием виджета: запись в ключ уже созданного
+  виджета Streamlit не принимает.
+
+  Вызов `st.tabs` обязан быть **идентичным на каждом проходе**: Streamlit
+  выводит идентичность виджета из его параметров, поэтому переданный «через
+  раз» `default=<метка>` описывает уже ДРУГОЙ виджет, сохранённая метка
+  предыдущего отбрасывается, и первый же клик внутри раздела выбрасывает
+  пользователя на первую вкладку. Настройки, «Коннекторы» и «Маркетплейс»
+  держат один и тот же принцип: закрепление пишет метку в ключ вкладок, а
+  аргументы вызова не меняются.
+
+  Бейдж режима доступа в чате ведёт в раздел
+  «Безопасность»; у режима полного доступа иконка - явный символ
+  `:material/lock_open:`, потому что эмодзи-замки рисуют дужку в несколько
+  пикселей и открытый замок неотличим от закрытого.
 - Настройки моделей - сервис + модель + температура: основная модель
   используется на всех шагах. У встроенного DevAgent поставляемые
   дефолты: основная модель - DeepSeek/`deepseek-flash` с уровнем
@@ -936,9 +959,11 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   (`connectors_view` = `list` | `create` | `edit`), и форма ЗАМЕНЯЕТ
   список на той же странице. Список - три вкладки: `General services`,
   `MCP servers` и `Connections`; `st.tabs` создаётся stateful
-  (`on_change="rerun"` + `default=<метка>`), потому что без
-  `on_change="rerun"` виджет не хранит состояние вообще и после rerun
-  всегда открывает первую вкладку. `General services` - плитки
+  (`on_change="rerun"`), потому что без него виджет не хранит состояние
+  вообще и после rerun всегда открывает первую вкладку. Запрос извне
+  пишется меткой в ключ вкладок до создания виджета; сам вызов остаётся
+  неизменным - иначе Streamlit считает вкладки новым виджетом и теряет
+  выбранную вкладку при первом же клике внутри неё. `General services` - плитки
   сервисов с иконкой и описанием (github_rest, ssh): клик по плитке
   только ОТКРЫВАЕТ форму создания сервиса, в БД ничего не пишется.
   `MCP servers` - плитки пресетов рядами по три (иконка, имя,
@@ -1681,8 +1706,15 @@ JSON и до скачивания пакета.
   и помощники делят тип `agent`, но ставятся в разные места, поэтому у них
   свои списки. Подразделы работают и вкладками витрины, и пунктами меню; обе
   стороны пишут ключ `mp_section`, а запрос из меню идёт отдельным ключом
-  `mp_section_target` и открывает нужную вкладку через `default` - записать
-  состояние вкладки после её создания Streamlit не даёт.
+  `mp_section_target` и открывает нужную вкладку записью её метки в ключ
+  вкладок - записать состояние вкладки после её создания Streamlit не даёт.
+  Вызов `st.tabs` при этом не меняется между проходами: Streamlit выводит
+  идентичность виджета из параметров, и переданный «через раз» `default`
+  сделал бы из него новый виджет, потеряв выбранный раздел. Пока виджет
+  вкладок ни разу не создан в этой сессии (холодный старт, восстановленная
+  страница), сохранённый `mp_section` сам задаёт открываемую метку:
+  stateful-вкладки записывают свою метку сразу при создании и без этого
+  перекрыли бы раздел первым табом.
 - **Блок «Дополнительно».** Рекомендуемый набор сущности показан в карточке
   отдельным блоком: позиции подписаны переведёнными названиями типов и своим
   состоянием, галочки стоят по `default_selected`, недоступные позиции
@@ -2009,7 +2041,7 @@ JSON и до скачивания пакета.
   «Доступ агента к системе» (`config.env_isolation`) отвечает, может ли код
   агента дотянуться до машины: изолированный режим строит окружение из
   allowlist, полный доступ передаёт окружение платформы и снимает границу
-  ОС. «Безопасный режим» (`config.chat_safety_mode`) - подтверждение опасных
+  ОС. «Подтверждение команд» (`config.chat_safety_mode`) - подтверждение опасных
   команд. Снятие одного не снимает второй. Значения читает
   `core/sandbox/resolve.py`, поэтому диалог, субагент и запуск по
   расписанию работают с одним и тем же решением.
@@ -2023,7 +2055,7 @@ JSON и до скачивания пакета.
   запуска.** Диалог, делегированный субагент и запуск по расписанию
   строят диспетчер через `build_dispatcher`/`build_child_dispatcher`/
   `_make_dispatcher`, которые применяют `resolve.apply_to`. Снятый
-  «Безопасный режим» действует и в субагенте: у него нет кнопки
+  «Подтверждение команд» действует и в субагенте: у него нет кнопки
   Allow, поэтому запрет вернулся бы ему как ошибка инструмента и
   остановил работу.
 
@@ -2094,10 +2126,10 @@ JSON и до скачивания пакета.
     # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
     # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
-- Список базовых файлов (349):
+- Список базовых файлов (352):
   - Корень (2): __init__.py, app.py
-  - UI (42): ui/__init__.py, ui/app.py, ui/app_restore.py, ui/components/__init__.py, ui/components/flash.py, ui/components/name_fields.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/access.py, ui/pages/assistants.py, ui/pages/assistants_helpers.py, ui/pages/assistants_nav.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/marketplace.py, ui/pages/orchestrator.py, ui/pages/orchestrator_chat.py, ui/pages/orchestrator_chat_input.py, ui/pages/orchestrator_feed.py, ui/pages/orchestrator_flags.py, ui/pages/orchestrator_folder.py, ui/pages/orchestrator_loop.py, ui/pages/orchestrator_sandbox.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrator_settings_delegation.py, ui/pages/orchestrator_settings_models.py, ui/pages/orchestrator_settings_orch.py, ui/pages/orchestrator_settings_other.py, ui/pages/orchestrator_shared.py, ui/pages/orchestrator_state.py, ui/pages/orchestrator_text.py, ui/pages/orchestrators.py, ui/pages/schedules.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/updates.py, ui/pages/updates_marketplace.py, ui/pages/welcome.py
-  - Core (103): core/__init__.py, core/api_bearer.py, core/api_deepseek.py, core/api_errors.py, core/api_gigachat.py, core/api_history_guard.py, core/api_http.py, core/api_layer.py, core/api_payload.py, core/api_responses.py, core/api_token_store.py, core/api_yandex.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/builtin_config_defaults.py, core/chat_db_archive.py, core/chat_turn.py, core/config.py, core/connector_presets.py, core/connectors.py, core/context_guard.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/dependency_check.py, core/devagent_db_archive.py, core/document_images.py, core/document_text.py, core/entity_sync.py, core/env_loader.py, core/feed_autoscroll.py, core/files.py, core/folder_dialog.py, core/fs.py, core/gateway_launcher.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/mcp_client.py, core/mcp_tools.py, core/memory_migration.py, core/memory_profile.py, core/multimodal.py, core/naming.py, core/naming_backfill.py, core/naming_runtime.py, core/ooxml.py, core/orchestrator_builtin.py, core/orchestrator_defaults.py, core/orchestrator_folders.py, core/orchestrator_import_files.py, core/orchestrator_instr.py, core/orchestrator_links.py, core/orchestrator_models.py, core/orchestrator_nav.py, core/orchestrator_prompt.py, core/orchestrator_reload.py, core/orchestrator_shared.py, core/orchestrator_strong.py, core/orchestrator_step.py, core/orchestrator_store.py, core/orchestrator_tools.py, core/orchestrator_transfer.py, core/orchestrators.py, core/paths.py, core/personal_memory.py, core/prompt_blocks.py, core/prompt_dialog.py, core/prompt_guard.py, core/prompt_improver.py, core/prompt_memory.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_workspaces.py, core/render.py, core/services.py, core/signing.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/thread_mirror.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py, core/updater.py, core/updater_apply.py, core/url_fetch.py, core/version.py
+  - UI (44): ui/__init__.py, ui/app.py, ui/app_restore.py, ui/components/__init__.py, ui/components/flash.py, ui/components/name_fields.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/access.py, ui/pages/assistants.py, ui/pages/assistants_helpers.py, ui/pages/assistants_nav.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/marketplace.py, ui/pages/orchestrator.py, ui/pages/orchestrator_chat.py, ui/pages/orchestrator_chat_input.py, ui/pages/orchestrator_feed.py, ui/pages/orchestrator_flags.py, ui/pages/orchestrator_folder.py, ui/pages/orchestrator_loop.py, ui/pages/orchestrator_sandbox.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrator_settings_delegation.py, ui/pages/orchestrator_settings_economy.py, ui/pages/orchestrator_settings_models.py, ui/pages/orchestrator_settings_orch.py, ui/pages/orchestrator_settings_other.py, ui/pages/orchestrator_settings_save.py, ui/pages/orchestrator_shared.py, ui/pages/orchestrator_state.py, ui/pages/orchestrator_text.py, ui/pages/orchestrators.py, ui/pages/schedules.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/updates.py, ui/pages/updates_marketplace.py, ui/pages/welcome.py
+  - Core (104): core/__init__.py, core/api_bearer.py, core/api_deepseek.py, core/api_errors.py, core/api_gigachat.py, core/api_history_guard.py, core/api_http.py, core/api_layer.py, core/api_payload.py, core/api_responses.py, core/api_token_store.py, core/api_yandex.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/builtin_config_defaults.py, core/chat_db_archive.py, core/chat_turn.py, core/config.py, core/connector_presets.py, core/connectors.py, core/context_guard.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/dependency_check.py, core/devagent_db_archive.py, core/document_images.py, core/document_text.py, core/entity_sync.py, core/env_loader.py, core/feed_autoscroll.py, core/files.py, core/folder_dialog.py, core/fs.py, core/gateway_launcher.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/mcp_client.py, core/mcp_tools.py, core/memory_migration.py, core/memory_profile.py, core/multimodal.py, core/naming.py, core/naming_backfill.py, core/naming_runtime.py, core/ooxml.py, core/orchestrator_builtin.py, core/orchestrator_defaults.py, core/orchestrator_folders.py, core/orchestrator_import_files.py, core/orchestrator_instr.py, core/orchestrator_links.py, core/orchestrator_models.py, core/orchestrator_nav.py, core/orchestrator_prompt.py, core/orchestrator_reload.py, core/orchestrator_shared.py, core/orchestrator_strong.py, core/orchestrator_step.py, core/orchestrator_steps_migration.py, core/orchestrator_store.py, core/orchestrator_tools.py, core/orchestrator_transfer.py, core/orchestrators.py, core/paths.py, core/personal_memory.py, core/prompt_blocks.py, core/prompt_dialog.py, core/prompt_guard.py, core/prompt_improver.py, core/prompt_memory.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_workspaces.py, core/render.py, core/services.py, core/signing.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/thread_mirror.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py, core/updater.py, core/updater_apply.py, core/url_fetch.py, core/version.py
   - Marketplace (35): core/marketplace/__init__.py, core/marketplace/agent_areas.py, core/marketplace/agent_assistant.py, core/marketplace/agent_installer.py, core/marketplace/agent_merge.py, core/marketplace/agent_orchestrator.py, core/marketplace/agent_package.py, core/marketplace/agent_preflight.py, core/marketplace/agent_run.py, core/marketplace/attest.py, core/marketplace/bootstrap.py, core/marketplace/bundle_catalog.py, core/marketplace/bundles.py, core/marketplace/catalog.py, core/marketplace/config.py, core/marketplace/conflict_fork.py, core/marketplace/conflict_state.py, core/marketplace/conflicts.py, core/marketplace/install_seed.py, core/marketplace/installer.py, core/marketplace/mcp_installer.py, core/marketplace/mcp_removal.py, core/marketplace/migration.py, core/marketplace/names.py, core/marketplace/package_pin.py, core/marketplace/publish.py, core/marketplace/rag_area.py, core/marketplace/rag_installer.py, core/marketplace/registry.py, core/marketplace/rollback.py, core/marketplace/semver.py, core/marketplace/source.py, core/marketplace/store.py, core/marketplace/updates.py, core/marketplace/verify.py
   - Orchestration (26): core/orchestration/__init__.py, core/orchestration/child_runner.py, core/orchestration/child_text.py, core/orchestration/contracts.py, core/orchestration/dialog_runner.py, core/orchestration/invoke.py, core/orchestration/resume.py, core/orchestration/runs.py, core/orchestration/service.py, core/orchestration/tool_classes.py, core/orchestration/tools.py, core/orchestration/tools_catalog.py, core/orchestration/tools_clock.py, core/orchestration/tools_constants.py, core/orchestration/tools_control.py, core/orchestration/tools_dialog.py, core/orchestration/tools_journal.py, core/orchestration/tools_notes.py, core/orchestration/tools_records.py, core/orchestration/tools_rights.py, core/orchestration/tools_spawn.py, core/orchestration/tools_status.py, core/orchestration/tools_wait.py, core/orchestration/transcript_reader.py, core/orchestration/transcript_sink.py, core/orchestration/verify.py
   - Schedules (7): core/schedules/__init__.py, core/schedules/calc.py, core/schedules/daemon.py, core/schedules/form.py, core/schedules/model.py, core/schedules/runner.py, core/schedules/store.py

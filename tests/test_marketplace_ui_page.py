@@ -302,7 +302,11 @@ def test_a_sidebar_request_opens_the_matching_tab(monkeypatch):
     """A sidebar click hands its subsection to the tabs of the page.
 
     The sidebar cannot write the tab widget state after creation, so it
-    records a request; the page consumes it before building the tabs.
+    records a request; the page consumes it and stores the wanted label in
+    the tabs widget slot BEFORE the container is created. The tabs call
+    itself keeps the same parameters on every pass: a container whose
+    parameters differ is a NEW widget to Streamlit, and the stored label
+    would be discarded by the next click inside the section.
     """
     with install_streamlit_mock() as st_mock:
         st_mock.lock_widgets = True
@@ -311,9 +315,43 @@ def test_a_sidebar_request_opens_the_matching_tab(monkeypatch):
 
         tab_calls = [(a, k) for name, a, k in st_mock.calls if name == "tabs"]
         assert tab_calls, "the section tabs did not render"
-        assert tab_calls[0][1].get("default") == "Помощники"
+        assert "default" not in tab_calls[0][1], (
+            "the tabs call must not change its parameters between passes"
+        )
+        assert st_mock.session_state["mp_tabs"] == "Помощники"
         assert "mp_section_target" not in st_mock.session_state
         assert st_mock.session_state["mp_section"] == "helpers"
+
+
+def test_a_widget_click_keeps_the_section_the_user_is_in(monkeypatch):
+    """Given a section opened from the sidebar, when a widget is used there,
+    then the page stays on that section.
+
+    A tabs container rendered with ``default`` on the pinning pass and
+    without it on the next pass is a different widget to Streamlit, so the
+    stored active label is gone and the page silently falls back to the
+    first section - the user is thrown out of the section being browsed by
+    any click in it.
+    """
+    with install_streamlit_mock() as st_mock:
+        st_mock.lock_widgets = True
+        page = _patched(monkeypatch)
+        import streamlit as st
+
+        st.session_state.clear()
+        st.session_state.update({"ui_lang": "Русский", "mp_section_target": "helpers"})
+        page.page_marketplace()
+        pinned = st_mock.session_state.get("mp_tabs")
+        assert pinned == "Помощники"
+
+        # A second pass, the way a click inside the section triggers it: no
+        # request left, only the value the widget stored for itself.
+        st_mock.calls.clear()
+        page.page_marketplace()
+
+        assert st_mock.session_state.get("mp_tabs") == pinned, (
+            "the page jumped away from the section the user was in"
+        )
 
 
 def test_agent_card_lists_its_recommended_package(monkeypatch):

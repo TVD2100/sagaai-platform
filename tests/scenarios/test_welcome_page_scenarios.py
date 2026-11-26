@@ -91,8 +91,9 @@ def test_devagent_settings_full_render_without_api_key_warning(isolated_data):
     """
     Given a fresh install with the built-in DevAgent profile seeded,
     when the dedicated DevAgent settings page is opened,
-    then all ten settings tabs and the back-to-chat button render without
-    the orchestrator no-API-key warning and without errors.
+    then all settings tabs - the access mode has a Security tab of its own -
+    and the back-to-chat button render without the orchestrator no-API-key
+    warning and without errors.
     """
     from core.orchestrators import ensure_builtin_orchestrators
     ensure_builtin_orchestrators()
@@ -122,8 +123,8 @@ def test_devagent_settings_full_render_without_api_key_warning(isolated_data):
             if name == "tabs"
             for labels in args
         ]
-        assert any(len(labels) == 11 for labels in tab_calls), (
-            "expected the 11 native settings tabs, got %r" % tab_calls
+        assert any(len(labels) == 12 for labels in tab_calls), (
+            "expected the 12 native settings tabs, got %r" % tab_calls
         )
 
         rendered_keys = {kwargs.get("key") for _n, _a, kwargs in st.calls}
