@@ -50,7 +50,7 @@ def isolated_data(monkeypatch):
     tmp = tempfile.mkdtemp(prefix="sagaai_test_scenarios_")
     old_env = os.environ.get("SAGAAI_DATA_DIR")
     for var in ("SAGAAI_DEEPSEEK_KEY", "SAGAAI_YANDEXAI_KEY",
-                "SAGAAI_YANDEXAI_KEY2", "SAGAAI_GIGACHAT_KEY"):
+                "SAGAAI_YANDEXAI_KEY2", "SAGAAI_CLOUD_KEY"):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("SAGAAI_DATA_DIR", tmp)
 

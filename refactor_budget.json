@@ -21,13 +21,6 @@
       "longest_function": "_deepseek_anthropic_web_search",
       "most_complex": "_deepseek_responses_request"
     },
-    "core/api_gigachat.py": {
-      "file_lines": 127,
-      "function_lines": 64,
-      "max_cc": 13,
-      "longest_function": "_gigachat_messages",
-      "most_complex": "_gigachat_messages"
-    },
     "core/api_history_guard.py": {
       "file_lines": 121,
       "function_lines": 71,

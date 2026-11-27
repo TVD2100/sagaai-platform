@@ -42,7 +42,7 @@ defaults/
 |       +-- files/                   # прикреплённые текстовые файлы
 |-- services/                        # LLM-провайдеры (JSON-определения)
 |   |-- deepseek.json
-|   |-- gigachat.json
+|   |-- cloud.json
 |   +-- yandex.json
 |-- langs/                           # языки интерфейса
 |   |-- en.json

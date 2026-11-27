@@ -7,9 +7,8 @@ Scenarios (given -> when -> then):
   Scenario 1 - YandexAI provider settings expose only reasoning_effort:
                the removed web-search plumbing fields are gone from both
                service copies and from the effective runtime service.
-  Scenario 2 - GigaChat environment fallback is limited to one key:
-               SAGAAI_GIGACHAT_KEY2 no longer participates in env checks
-               or env merging.
+  Scenario 2 - environment fallback is limited to one key: a second key
+               variable no longer participates in env checks or env merging.
   Scenario 3 - economy defaults are tail=50 and multiplier=x2 for DevAgent
                (config getters + built-in fallback) and for the YaAgent
                preset bundle.
@@ -62,13 +61,13 @@ def test_yandex_extra_fields_expose_only_reasoning_effort():
     assert _extra_field_keys(effective) == ["reasoning_effort"]
 
 
-# ─── Scenario 2 - GigaChat env fallback limited to one key ───────────────────
+# ─── Scenario 2 - env fallback limited to one key ────────────────────────────
 
 
-def test_gigachat_env_fallback_limited_to_single_key(monkeypatch):
-    """Given the GigaChat service declares env_key_fields=[config_key], when
-    SAGAAI_GIGACHAT_KEY2 is set, then it is invisible to env checks and env
-    merging; only SAGAAI_GIGACHAT_KEY fills the API key."""
+def test_env_fallback_limited_to_single_key(monkeypatch):
+    """Given a service declares env_key_fields=[config_key], when a second
+    key variable is set, then it is invisible to env checks and env merging;
+    only the declared variable fills the API key."""
     from core.config import (
         _merge_env_keys,
         env_key_fields_for_service,
@@ -76,29 +75,27 @@ def test_gigachat_env_fallback_limited_to_single_key(monkeypatch):
         is_env_key_set_for_service,
     )
 
-    monkeypatch.delenv("SAGAAI_GIGACHAT_KEY", raising=False)
-    monkeypatch.delenv("SAGAAI_GIGACHAT_KEY2", raising=False)
+    monkeypatch.delenv("SAGAAI_CLOUD_KEY", raising=False)
+    monkeypatch.delenv("SAGAAI_CLOUD_KEY2", raising=False)
 
-    assert env_key_fields_for_service("GigaChat") == ("config_key",)
-    assert is_env_key_set_for_service("GigaChat", "config_key") is False
+    assert env_key_fields_for_service("Cloud") == ("config_key",)
+    assert is_env_key_set_for_service("Cloud", "config_key") is False
 
     # KEY2 is set but must be completely invisible to the env machinery.
-    monkeypatch.setenv("SAGAAI_GIGACHAT_KEY2", "scoped-key")
-    assert is_env_key_set_for_service("GigaChat", "config_key2") is False
+    monkeypatch.setenv("SAGAAI_CLOUD_KEY2", "scoped-key")
+    assert is_env_key_set_for_service("Cloud", "config_key2") is False
 
-    cfg = {"GIGACHAT_API_KEY": "", "GIGACHAT_SCOPE": ""}
+    cfg = {"CLOUD_API_KEY": ""}
     _merge_env_keys(cfg)
-    assert cfg["GIGACHAT_API_KEY"] == ""
-    assert cfg["GIGACHAT_SCOPE"] == ""
+    assert cfg["CLOUD_API_KEY"] == ""
 
     # Only the declared KEY variable fills the API key.
-    monkeypatch.setenv("SAGAAI_GIGACHAT_KEY", "auth-key")
-    assert is_env_key_set_for_service("GigaChat", "config_key") is True
-    assert env_key_name_for_service("GigaChat", "config_key") == "SAGAAI_GIGACHAT_KEY"
+    monkeypatch.setenv("SAGAAI_CLOUD_KEY", "auth-key")
+    assert is_env_key_set_for_service("Cloud", "config_key") is True
+    assert env_key_name_for_service("Cloud", "config_key") == "SAGAAI_CLOUD_KEY"
 
     _merge_env_keys(cfg)
-    assert cfg["GIGACHAT_API_KEY"] == "auth-key"
-    assert cfg["GIGACHAT_SCOPE"] == ""
+    assert cfg["CLOUD_API_KEY"] == "auth-key"
 
 
 # ─── Scenario 3 - economy defaults 50 / x2 ────────────────────────────────────

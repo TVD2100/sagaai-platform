@@ -1,0 +1,119 @@
+{
+  "name": "gigachat_ai_studio",
+  "config_key": "GIGACHAT_AI_STUDIO_API_KEY",
+  "env_key_fields": ["config_key"],
+  "key_label": "API Key",
+  "base_url": "https://api.aistudio.giga.chat/v1/chat/completions",
+  "auth_type": "bearer",
+  "require_folder_id": false,
+  "temp_min": 0.0,
+  "temp_max": 2.0,
+  "temp_default": 0.7,
+  "temp_step": 0.1,
+  "context_window_default": 128000,
+  "max_tokens_default": 32768,
+  "single_system_message": {
+    "models": ["GigaChat"]
+  },
+  "models": [
+    {
+      "id": "GigaChat-4-708B-A41B",
+      "context_window": 524288,
+      "max_tokens": 32768
+    },
+    {
+      "id": "GigaChat-3.5-432B-A28B",
+      "context_window": 523264,
+      "max_tokens": 32768
+    },
+    {
+      "id": "GigaChat-3.5-Ultra-Reasoning",
+      "context_window": 1047552,
+      "max_tokens": 32768
+    },
+    {
+      "id": "GigaChat-4-37B-A4B",
+      "context_window": 1047552,
+      "max_tokens": 32768
+    },
+    {
+      "id": "GigaChat-3-Ultra",
+      "context_window": 523264,
+      "max_tokens": 32768
+    },
+    {
+      "id": "GigaChat-3-Pro",
+      "context_window": 130048,
+      "max_tokens": 32768
+    },
+    {
+      "id": "GigaChat-3-Lightning",
+      "context_window": 261120,
+      "max_tokens": 32768
+    }
+  ],
+  "vision_models": [
+    {
+      "id": "GigaChat-4-708B-A41B",
+      "label": {
+        "ru": "GigaChat 4 708B - распознавание изображений (текст и изображения на входе)",
+        "en": "GigaChat 4 708B - image analysis (text and images as input)"
+      }
+    },
+    {
+      "id": "GigaChat-3.5-432B-A28B",
+      "label": {
+        "ru": "GigaChat 3.5 432B - распознавание изображений (текст и изображения на входе)",
+        "en": "GigaChat 3.5 432B - image analysis (text and images as input)"
+      }
+    },
+    {
+      "id": "GigaChat-3-Ultra",
+      "label": {
+        "ru": "GigaChat 3 Ultra - распознавание изображений (текст и изображения на входе)",
+        "en": "GigaChat 3 Ultra - image analysis (text and images as input)"
+      }
+    },
+    {
+      "id": "GigaChat-3-Pro",
+      "label": {
+        "ru": "GigaChat 3 Pro - распознавание изображений (текст и изображения на входе)",
+        "en": "GigaChat 3 Pro - image analysis (text and images as input)"
+      }
+    }
+  ],
+  "rag_models": [
+    {
+      "id": "GigaChat-4-708B-A41B",
+      "label": {
+        "ru": "GigaChat 4 708B (рекомендуется для RAG-генерации)",
+        "en": "GigaChat 4 708B (recommended for RAG generation)"
+      }
+    },
+    {
+      "id": "GigaChat-3.5-432B-A28B",
+      "label": {
+        "ru": "GigaChat 3.5 432B",
+        "en": "GigaChat 3.5 432B"
+      }
+    },
+    {
+      "id": "GigaChat-3-Ultra",
+      "label": {
+        "ru": "GigaChat 3 Ultra",
+        "en": "GigaChat 3 Ultra"
+      }
+    },
+    {
+      "id": "GigaChat-3-Lightning",
+      "label": {
+        "ru": "GigaChat 3 Lightning (быстрая и недорогая суммаризация)",
+        "en": "GigaChat 3 Lightning (fast and cheap summarisation)"
+      }
+    }
+  ],
+  "key_help": {
+    "ru": "API-ключ GigaChat AI Studio. Создайте его в консоли AI Studio и вставьте сюда. Ключ подставляется в заголовок Authorization: Bearer. Folder ID не нужен.",
+    "en": "GigaChat AI Studio API key. Create it in the AI Studio console and paste it here. The key is sent in the Authorization: Bearer header; no folder id is required."
+  }
+}

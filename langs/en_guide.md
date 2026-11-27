@@ -23,7 +23,7 @@ Below is the correct setup order for full SagaAI functionality.
 
 First, connect AI services - without them the platform cannot respond.
 
-- Add API keys for required services (OpenAI-compatible, YandexAI, GigaChat, etc.).
+- Add API keys for required services (OpenAI-compatible, YandexAI, Cloud.ru, etc.).
 - Test the connection with the «🔍 Test connection» button.
 - Choose a default model.
 

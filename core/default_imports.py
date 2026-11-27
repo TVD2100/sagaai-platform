@@ -734,6 +734,11 @@ def ensure_all_defaults() -> Dict[str, Dict[str, str]]:
     the folders-first sync so every assistant/orchestrator folder is in sync
     with the DB cache (idempotent).
 
+    Between the seeding and the folder sync, records that still reference a
+    retired service move to its replacement and the retired credentials are
+    dropped - the folder cache written afterwards must reflect the migrated
+    state, not the retired one.
+
     Returns {"orchestrators": {...}, "assistants": {...},
              "instructions": {...}, "skills": {...}, "folders": {...}}.
     """
@@ -747,6 +752,11 @@ def ensure_all_defaults() -> Dict[str, Dict[str, str]]:
         "global_instructions": ensure_global_instructions(),
         "skills": ensure_default_skills(),
     }
+    try:
+        from core.service_migration import migrate_retired_services
+        results["migrated_services"] = migrate_retired_services()
+    except Exception as exc:
+        results["migrated_services"] = {"_error": str(exc)}
     try:
         from core.entity_sync import ensure_entity_folders_sync
         results["folders"] = ensure_entity_folders_sync()

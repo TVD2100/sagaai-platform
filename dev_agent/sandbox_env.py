@@ -47,7 +47,7 @@ SANDBOX_GRANTS_VAR = "SAGAAI_SANDBOX_GRANTS"
 #: Prefixes that are NEVER forwarded, even when explicitly requested. The
 #: check is a safety net for callers that pass an extra mapping.
 _BLOCKED_PREFIXES = ("SAGAAI_", "AWS_", "GITHUB_", "OPENAI_", "ANTHROPIC_",
-                     "YANDEX_", "DEEPSEEK_", "GIGACHAT_")
+                     "YANDEX_", "DEEPSEEK_", "CLOUD_")
 
 
 class _BlockedEnv(dict):

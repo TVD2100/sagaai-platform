@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 from core.assistant_tools import (
     execute_assistant_rag_chunks,
     execute_assistant_rag_search,
+    run_bearer_tool_loop,
     run_yandex_responses_tool_loop,
 )
 
@@ -736,3 +737,256 @@ def test_execute_rag_search_hits_carry_mode_when_present():
     assert data["hits"] == [{"chunk_id": 7, "source": "docs/b.md",
                              "chunk_index": 1, "score": 0.5,
                              "mode": "bm25"}]
+
+
+# ─── bearer (chat/completions) tool loop ───────────────────────────────────
+
+def _chat_resp(content="", tool_calls=None, usage=(10, 20)):
+    """Build one chat/completions response body."""
+    message = {"role": "assistant", "content": content}
+    if tool_calls is not None:
+        message["tool_calls"] = tool_calls
+    return {
+        "choices": [{"message": message, "finish_reason": "stop"}],
+        "usage": {"prompt_tokens": usage[0], "completion_tokens": usage[1]},
+    }
+
+
+def _chat_call(call_id, name, arguments):
+    """Build one chat/completions tool_call entry."""
+    return {
+        "id": call_id,
+        "type": "function",
+        "function": {"name": name, "arguments": json.dumps(arguments)},
+    }
+
+
+def test_bearer_loop_single_rag_call_happy_path():
+    """given a model that calls rag_search once
+    when: the bearer loop runs against a mocked chat/completions endpoint
+    then: the tool executes, its output rides back as a tool message and the
+          final answer is returned
+    """
+    first = _chat_resp(tool_calls=[_chat_call("c1", "rag_search",
+                                              {"slug": "b1", "query": "q"})])
+    final = _chat_resp(content="Итоговый ответ")
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.side_effect = [first, final]
+
+    with patch("core.assistant_tools.search_base",
+               return_value=[{"source": "a", "chunk_index": 0, "score": 1.0,
+                              "text": "чанк"}]) as search_mock, \
+         patch("core.assistant_tools._assistant_allowed_rag_bases",
+               return_value={"b1"}):
+        with patch("core.assistant_tools.requests.post",
+                   return_value=mock_resp) as post:
+            tool_events = []
+            result = run_bearer_tool_loop(
+                "https://gw.example/v1/chat/completions", "k", "model-1",
+                "sys", [], "вопрос", temperature=0.3,
+                tools_list=[_FUNCTION_TOOL], cfg={}, svc_name="Cloud",
+                assistant={"slug": "docs_bot"},
+                on_tool_call=lambda e: tool_events.append(e),
+            )
+
+    assert result == "Итоговый ответ"
+    assert post.call_count == 2
+    assert search_mock.call_count == 1
+    assert tool_events and tool_events[0]["name"] == "rag_search"
+
+    # The second request must carry the assistant turn plus the tool result.
+    second_payload = post.call_args_list[1].kwargs["json"]
+    roles = [m["role"] for m in second_payload["messages"]]
+    assert roles[-2:] == ["assistant", "tool"]
+    tool_msg = second_payload["messages"][-1]
+    assert tool_msg["tool_call_id"] == "c1"
+    assert json.loads(tool_msg["content"])["ok"] is True
+
+
+def test_bearer_loop_sequential_calls():
+    """given a model that calls two different tools in a row
+    when: the bearer loop runs
+    then: both calls execute and each result is reported
+    """
+    first = _chat_resp(tool_calls=[_chat_call("c1", "rag_search",
+                                              {"slug": "b1", "query": "q"})])
+    second = _chat_resp(tool_calls=[_chat_call("c2", "rag_get_chunks",
+                                               {"slug": "b1", "chunk_ids": [5]})])
+    final = _chat_resp(content="Готово")
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.side_effect = [first, second, final]
+
+    with patch("core.assistant_tools.search_base", return_value=[]), \
+         patch("core.assistant_tools.get_chunks",
+               return_value=[{"chunk_id": 5, "text": "кусок"}]), \
+         patch("core.assistant_tools._assistant_allowed_rag_bases",
+               return_value={"b1"}):
+        with patch("core.assistant_tools.requests.post",
+                   return_value=mock_resp) as post:
+            events = []
+            result = run_bearer_tool_loop(
+                "https://gw.example/v1/chat/completions", "k", "m",
+                "sys", [], "q", temperature=0.3,
+                tools_list=[_FUNCTION_TOOL, _CHUNKS_TOOL], cfg={},
+                svc_name="Cloud",
+                on_tool_call=lambda e: events.append(e),
+            )
+
+    assert result == "Готово"
+    assert post.call_count == 3
+    assert [e["name"] for e in events] == ["rag_search", "rag_get_chunks"]
+
+
+def test_bearer_loop_unknown_tool_feeds_error_back():
+    """given a tool call for a name the platform does not implement
+    when: the loop executes it
+    then: the model receives a structured error and can still answer
+    """
+    first = _chat_resp(tool_calls=[_chat_call("c1", "no_such_tool", {"x": 1})])
+    final = _chat_resp(content="Отвечаю без инструмента")
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.side_effect = [first, final]
+
+    with patch("core.assistant_tools.requests.post", return_value=mock_resp) as post:
+        result = run_bearer_tool_loop(
+            "https://gw.example/v1/chat/completions", "k", "m",
+            "sys", [], "q", temperature=0.3,
+            tools_list=[_FUNCTION_TOOL], cfg={}, svc_name="Cloud",
+        )
+
+    assert result == "Отвечаю без инструмента"
+    tool_msg = post.call_args_list[1].kwargs["json"]["messages"][-1]
+    payload = json.loads(tool_msg["content"])
+    assert payload["ok"] is False
+    assert "no_such_tool" in payload["error"]
+
+
+def test_bearer_loop_iteration_limit():
+    """given a model that never stops calling tools
+    when: the loop reaches max_tool_calls
+    then: it stops without inventing a final answer
+    """
+    endless = _chat_resp(tool_calls=[_chat_call("c1", "rag_search",
+                                                {"slug": "b1", "query": "q"})])
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = endless
+
+    with patch("core.assistant_tools.search_base", return_value=[]), \
+         patch("core.assistant_tools._assistant_allowed_rag_bases",
+               return_value={"b1"}):
+        with patch("core.assistant_tools.requests.post",
+                   return_value=mock_resp) as post:
+            result = run_bearer_tool_loop(
+                "https://gw.example/v1/chat/completions", "k", "m",
+                "sys", [], "q", temperature=0.3,
+                tools_list=[_FUNCTION_TOOL], max_tool_calls=2,
+                cfg={}, svc_name="Cloud",
+            )
+
+    # 2 tool rounds + 1 final round
+    assert post.call_count == 3
+    assert result == ""
+
+
+def test_bearer_loop_reports_usage():
+    """given a usage callback
+    when: one round completes
+    then: the provider's token counters reach the callback
+    """
+    final = _chat_resp(content="ответ", usage=(31, 17))
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = final
+    usage = []
+
+    with patch("core.assistant_tools.requests.post", return_value=mock_resp):
+        run_bearer_tool_loop(
+            "https://gw.example/v1/chat/completions", "k", "m",
+            "sys", [], "q", temperature=0.3,
+            tools_list=[_FUNCTION_TOOL], cfg={}, svc_name="Cloud",
+            usage_callback=lambda u: usage.append(u),
+        )
+
+    assert usage and usage[0]["in"] == 31
+    assert usage[0]["out"] == 17
+
+
+def test_bearer_loop_extra_payload_reaches_request():
+    """given extra payload fields declared by the service
+    when: the loop builds a request
+    then: those fields land in the payload next to the platform's own keys
+    """
+    final = _chat_resp(content="ok")
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = final
+
+    with patch("core.assistant_tools.requests.post", return_value=mock_resp) as post:
+        run_bearer_tool_loop(
+            "https://gw.example/v1/chat/completions", "k", "m",
+            "sys", [], "q", temperature=0.3,
+            tools_list=[_FUNCTION_TOOL], cfg={}, svc_name="Cloud",
+            extra_payload={"chat_template_kwargs": {"enable_thinking": True}},
+        )
+
+    sent = post.call_args.kwargs["json"]
+    assert sent["chat_template_kwargs"] == {"enable_thinking": True}
+    assert sent["model"] == "m"
+
+
+def test_bearer_loop_sends_nested_tool_shape():
+    """given a flat Responses-shape function tool
+    when: the bearer loop sends its first request
+    then: the wire payload nests the function fields under "function"
+    """
+    final = _chat_resp(content="ok")
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = final
+
+    with patch("core.assistant_tools.requests.post", return_value=mock_resp) as post:
+        run_bearer_tool_loop(
+            "https://gw.example/v1/chat/completions", "k", "m",
+            "sys", [], "q", temperature=0.3,
+            tools_list=[_FUNCTION_TOOL], cfg={}, svc_name="Cloud",
+        )
+
+    sent_tool = post.call_args.kwargs["json"]["tools"][0]
+    assert sent_tool["type"] == "function"
+    assert sent_tool["function"]["name"] == "rag_search"
+    assert "name" not in sent_tool
+
+
+def test_bearer_loop_degrades_when_gateway_rejects_tools():
+    """given a gateway that refuses the tools payload
+    when: the first request fails with a tools-related 400
+    then: the loop retries without tools and returns the plain answer
+    """
+    from core.api_errors import ProviderHTTPError
+
+    ok = MagicMock()
+    ok.status_code = 200
+    ok.json.return_value = _chat_resp(content="Ответ без инструментов")
+    rejected = MagicMock()
+    rejected.status_code = 400
+    rejected.json.return_value = {
+        "error": {"message": "tools are not supported by this model"}
+    }
+
+    with patch("core.assistant_tools.requests.post",
+               side_effect=[rejected, ok]) as post:
+        result = run_bearer_tool_loop(
+            "https://gw.example/v1/chat/completions", "k", "m",
+            "sys", [], "q", temperature=0.3,
+            tools_list=[_FUNCTION_TOOL], cfg={}, svc_name="Cloud",
+        )
+
+    assert result == "Ответ без инструментов"
+    assert post.call_count == 2
+    assert "tools" not in post.call_args_list[1].kwargs["json"]
+    # The first error must surface as a provider error, not be swallowed.
+    assert ProviderHTTPError(400, "x").status_code == 400

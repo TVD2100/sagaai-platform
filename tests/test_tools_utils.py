@@ -16,7 +16,7 @@ def test_no_service_def_returns_empty():
 
 
 def test_missing_tools_options_returns_empty():
-    svc = {"name": "GigaChat", "models": []}
+    svc = {"name": "Cloud", "models": []}
     assert service_supported_tools(svc) == []
 
 

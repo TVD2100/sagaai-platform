@@ -157,7 +157,7 @@ def get_embedding_models(svc: dict) -> list:
 
     Each entry: {"id", "name", "dimension", "max_tokens", "label"} - matching
     the ``embedding_models`` block in the service JSON file. Returns [] when
-    the service does not declare embedding models (e.g. GigaChat on stage 1).
+    the service does not declare embedding models.
     """
     if not isinstance(svc, dict):
         return []

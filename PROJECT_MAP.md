@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-26T09:02:49+00:00`
-- Файлов: **863**
+- Обновлено: `2026-11-27T10:15:28+00:00`
+- Файлов: **870**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **11461**
-- Отпечаток содержимого: `sha256:f7459d9cc8600c23c5493f7152e14cbb0482974490f942d49a79c11a8eb3ad16` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 2, JSON: 37, Markdown: 42, PEM certificate: 2, Python: 780, TOML: 2, Text: 2
+- Python-символов: **11541**
+- Отпечаток содержимого: `sha256:86d58d1aca40f4bd726580e084ba215ac6c607444dfbcedc21595b728234497b` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 2, JSON: 39, Markdown: 42, PEM certificate: 1, Python: 786, TOML: 2, Text: 2
 
 ## Файлы и назначение
 
@@ -81,21 +81,21 @@
 | `migrations/versions/0010_sandbox_cancelled.py` | Python | Schema: the cancelled marker of a sandbox run | storage |
 | `migrations/versions/0011_localized_names.py` | Python | Schema migration: adds name_en, name_ru and name_zh to orchestrators and assistants, leaving the user-defined name untouched | storage |
 | `core/__init__.py` | Python | Package marker | - |
-| `core/api_bearer.py` | Python | OpenAI-compatible chat/completions transport: messages as-is, native functions, response_format and the usage callback | - |
+| `core/api_bearer.py` | Python | OpenAI-compatible chat/completions transport: one POST with messages as-is, native functions, response_format and the usage callback; the request body comes from core.api_chat | - |
+| `core/api_chat.py` | Python | Request shaping for chat/completions calls: tool nesting into the OpenAI shape, provider-specific extra fields with the platform keys protected, body assembly and token-usage reporting shared by the single-request transport and the function-calling loop, plus the single-system-message normalisation (collapse_system_messages/needs_single_system) for providers that keep only the last system message | - |
 | `core/api_deepseek.py` | Python | DeepSeek Responses transport and server-side web search via the Anthropic-compatible tool: reasoning effort, request assembly, text extraction and the search-use counter | - |
 | `core/api_errors.py` | Python | API error hierarchy and user messages | - |
-| `core/api_gigachat.py` | Python | GigaChat transport: OAuth token with an external TLS policy, message normalisation (leading system blocks fold into one) and the models URL | - |
 | `core/api_history_guard.py` | Python | Prompt-injection guard: tool results are marked as data before the request is sent, and the sanitized marker is parsed back | - |
 | `core/api_http.py` | Python | Transport HTTP policy: TLS switches, the retry budget (retry_call, _retry_params), error-body extraction and the request timeouts | - |
-| `core/api_layer.py` | Python | Facade of the LLM transport: send_request (phase helpers _resolve_chat_service, _resolve_generation_settings, _compose_user_content, _resolve_tool_options, _run_with_retry), _do_request over the _AUTH_HANDLERS table, test_connection over the _PROBES table, the vision/image transports and the wrappers of the patchable surface (_gigachat_verify, _assistant_web_search_config, _gigachat_token); re-exports the provider modules so existing monkeypatch points keep working | - |
-| `core/api_payload.py` | Python | Request assembly: output limits, tools normalisation, token estimation and the structured-output formats for Responses, chat/completions and GigaChat | - |
+| `core/api_layer.py` | Python | Facade of the LLM transport: send_request (phase helpers _resolve_chat_service, _resolve_generation_settings, _compose_user_content, _resolve_tool_options, _run_with_retry), _do_request over the _AUTH_HANDLERS table, test_connection over the _PROBES table, the vision/image transports and the wrappers of the patchable surface (_assistant_web_search_config); re-exports the provider modules so existing monkeypatch points keep working | - |
+| `core/api_payload.py` | Python | Request assembly: output limits, tools normalisation, token estimation, the structured-output formats for Responses and chat/completions, and the wire-field filter for outgoing messages | - |
 | `core/api_responses.py` | Python | Parsing of Responses API bodies: visible text assembly, failure and truncation diagnostics, JSON unwrapping and schema-rejection detection | - |
 | `core/api_token_store.py` | Python | Storage and checking of API access tokens: generation with a fixed prefix, sha256 hash at rest (the plaintext is shown once), constant-time comparison, enable/disable, revocation and last-use tracking | storage |
 | `core/api_yandex.py` | Python | Yandex AI Studio Responses transport: gpt:// model URI, reasoning effort, web-search configuration and request assembly | - |
 | `core/assistant_creator.py` | Python | Validation and linting helpers for assistant prompts | - |
 | `core/assistant_folders.py` | Python | _(описание не задано)_ | - |
 | `core/assistant_nav.py` | Python | _(описание не задано)_ | - |
-| `core/assistant_tools.py` | Python | Assistant Responses-API tool loop (local function_call execution incl. rag_search/rag_get_chunks honoring per-base search modes; assistant folder ACL) | - |
+| `core/assistant_tools.py` | Python | Assistant tool loops: the bearer chat/completions loop (run_bearer_tool_loop, single-system pass-through for providers that need it) and the Responses-API loop, both executing function calls locally incl. rag_search/rag_get_chunks honoring per-base search modes; assistant folder ACL | - |
 | `core/assistants.py` | Python | CRUD for AI assistant profiles and their attachment files | storage |
 | `core/auth.py` | Python | Optional password authentication gate | - |
 | `core/bootstrap.py` | Python | First-run provisioning: Assistant/Employee Creator instructions, DevAgent settings, legacy skill_creator migration | - |
@@ -169,6 +169,7 @@
 | `core/recent_assistants.py` | Python | Tracks recently used assistant IDs in session_state | - |
 | `core/recent_workspaces.py` | Python | Recent workspaces tracking, scoped per orchestrator (slug-keyed dict seeded from own threads; up to 10 entries with an optional limit; platform paths hidden; legacy flat list read as dev_agent) | storage |
 | `core/render.py` | Python | Markdown rendering / clipboard helpers | - |
+| `core/service_migration.py` | Python | _(описание не задано)_ | storage |
 | `core/services.py` | Python | Service definitions discovery (services/*.json, defaults win) plus capability catalogs: reasoning-effort options (service-wide and per-model), embedding/rag models, vision and image-generation models and the URL-fetch models (get_fetch_models / svc_supports_fetch); a profile without fetch_models does not support provider-side fetching | - |
 | `core/signing.py` | Python | Detached Ed25519 signatures over raw bytes: key id derived from the public key, keyring loaded from a folder of PEM files, sign_bytes/verify_bytes, write_signature/verify_file, channel policy (stable refuses, a development channel warns) and a journal of decisions; imports nothing from core, so the standalone catalog publisher reuses it | - |
 | `core/skills.py` | Python | DEPRECATED shim -> core/assistants.py (legacy aliases) | - |
@@ -367,7 +368,6 @@
 | `tests/test_gateway_dto.py` | Python | Unit tests of the gateway dataclasses and their constructors from the orchestration records | - |
 | `tests/test_gateway_imports.py` | Python | Tests that the gateway facade imports without streamlit, fastapi or pydantic, and that the dependency direction server -> gateway -> orchestration -> dev_agent holds | - |
 | `tests/test_gateway_runner.py` | Python | Unit tests of the transport-neutral dialog runner: a step, the outcome, the callbacks and the failure path | - |
-| `tests/test_gigachat_messages.py` | Python | GigaChat payload tests: single leading system, mid-history system blocks keep the user role, role merging | - |
 | `tests/test_github_connector_rest.py` | Python | Unit tests for the GitHub REST connector (mock sessions) | - |
 | `tests/test_github_connector_retry.py` | Python | Unit tests for the GitHub connector GET retry policy (network errors retried; writes not retried) | - |
 | `tests/test_github_tools_rest.py` | Python | _(описание не задано)_ | - |
@@ -510,12 +510,14 @@
 | `tests/test_schedules_store.py` | Python | Unit tests for the schedule store: rule CRUD, the due query, the one-point-one-run claim, the history rows and their counters, active_run, runs_today and settle_schedule | storage |
 | `tests/test_schema_history.py` | Python | Schema-history tests: N-2 to head upgrade keeps data, repeat run is a no-op, baseline adoption | storage |
 | `tests/test_search_in_files.py` | Python | _(описание не задано)_ | - |
-| `tests/test_service_model_catalogs.py` | Python | Vision/image model catalog tests for service profiles | - |
+| `tests/test_service_migration.py` | Python | Retired-service migration: config key carry-over, model remapping, assistant/orchestrator rewrites | storage |
+| `tests/test_service_model_catalogs.py` | Python | Catalog tests for service profiles: one test per provider (vision/image models, GigaChat AI Studio model windows and vision set) plus the default/copy sync of every catalog file | - |
 | `tests/test_sidebar_employees_nav.py` | Python | _(описание не задано)_ | - |
 | `tests/test_sidebar_nav.py` | Python | Unit tests for the sidebar blocks: the four section headers, the five marketplace subsections under the marketplace switch, the three primary settings entries plus the collapsed More block, and the shared section key between the menu and the showcase tabs | - |
 | `tests/test_sign_release.py` | Python | Release signing CLI: keygen, sign, verify and keyring subcommands over a temporary manifest and key pair, including the refusal of an edited manifest and of an unknown key | - |
 | `tests/test_signing.py` | Python | Signature primitives: the key id is derived from the key, a signature covers exactly the bytes it was computed over, an unknown key id is a refusal, several keys verify at once during a rotation, and the channel policy decides between a refusal and a journalled warning | - |
 | `tests/test_single_model_config.py` | Python | Single-model config tests (legacy weak_* tolerance, vision/image keys, no weak_* persistence) | storage |
+| `tests/test_single_system_message.py` | Python | Unit: single-system-message normalisation (collapse merges every system text into the leading message keeping order and the user turns, needs_single_system resolves true/prefix/malformed catalog rules, build_chat_payload applies it only when asked) | - |
 | `tests/test_skill_build_base.py` | Python | Unit: Rag Base Creator build_base.py - dry-run plan, bm25 build with zero embedding calls, and the --slug contract (override, normalisation, refusal without Latin, replace) | storage |
 | `tests/test_skills_adaptation.py` | Python | _(описание не задано)_ | storage, ui |
 | `tests/test_skills_library.py` | Python | Skills library tests | storage |
@@ -579,6 +581,7 @@
 | `tests/test_usability_fixes.py` | Python | UI regression tests for the usability fixes (two-step delete confirmations, neutral employee caption, datetime captions, inline chat-input file upload: accept_file="multiple", raw-byte persistence, size cap) | ui |
 | `tests/test_verify_manifest.py` | Python | _(описание не задано)_ | - |
 | `tests/test_web_search_prompt.py` | Python | _(описание не задано)_ | - |
+| `tests/test_wire_messages.py` | Python | Wire payload hygiene: history entries lose platform bookkeeping before the request | - |
 | `tests/test_working_memory_prompt.py` | Python | Unit tests for the platform ## Working memory block: path and scope announcement, the folder-state line, the memory: addressing hint and the legacy-folder warning | - |
 | `tests/test_workspace_binding.py` | Python | Workspace-binding registry tests (empty state, per-thread isolation) | storage |
 | `tests/test_workspace_empty_state.py` | Python | Empty-state tests: neutral root, WORKSPACE_SELECTED flag, snapshot/restore round-trip | - |
@@ -598,6 +601,9 @@
 | `tests/scenarios/test_chat_db_archive_scenario.py` | Python | Scenario tests for the upgrade of an existing installation (given->when->then): a previous build's dialogues move to files while the database and the other tables stay intact, the archive reopens as the old build knew it, an upgraded dialogue reads back unchanged, a restart changes nothing, a new dialogue is mirrored from the first message, and a damaged step keeps every dialogue readable from the table | storage |
 | `tests/scenarios/test_child_transcript_readability_scenario.py` | Python | Scenario tests (given->when->then) for the parent's view of delegated work: a child that died before its first step is readable as an empty conversation, a child that worked returns what it actually said in order, a child recorded before the fix gets a named problem pointing at the journal, and a plain dialog keeps its own reading path | storage |
 | `tests/scenarios/test_cli_scenarios.py` | Python | Scenario tests of the console (given->when->then): preparing a bare machine, a maintenance window with a snapshot and a rollback, an update from a local mirror, handing a token to a script, refusals without a terminal, and the whole console working without Streamlit | - |
+| `tests/scenarios/test_cloud_models_scenario.py` | Python | Scenario: Cloud catalog (GigaChat line first, vendor models), RAG recommendation, request to the Cloud endpoint | - |
+| `tests/scenarios/test_cloud_orchestrator_scenario.py` | Python | Scenario: orchestrator turn on Cloud sends a provider-valid payload (leading system, no bookkeeping keys) | ui |
+| `tests/scenarios/test_cloud_tool_loop_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_connection_retry_scenarios.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_connectors_scenarios.py` | Python | Scenario tests for the connectors feature: lifecycle, token safety, validation, orchestrator binding/prompt, GitHub tools, dispatcher integration, draft flow | storage |
 | `tests/scenarios/test_context_overflow_protection.py` | Python | Scenario: context-overflow protection - spill of a huge tool result and the failed-spill hard error | - |
@@ -618,8 +624,8 @@
 | `tests/scenarios/test_folder_picker_scenario.py` | Python | Scenario tests for the chat folder picker (Выбор папки): applied on first send, mid-dialog switch, agent detour does not change the reported folder, native browse button records and stages the folder | storage, ui |
 | `tests/scenarios/test_full_access_scenario.py` | Python | Scenarios of the agent access setting on the real child process: an isolated run never sees a provider key, a full-access run reaches it, the printed value is redacted from the tool result, and turning the grant off closes the environment again on the next run | - |
 | `tests/scenarios/test_generated_image_feed_scenario.py` | Python | Scenario tests for the generated image shown immediately in the chat feed (outside the collapsed tool-result block) | ui |
-| `tests/scenarios/test_gigachat_models_scenario.py` | Python | _(описание не задано)_ | - |
-| `tests/scenarios/test_gigachat_orchestrator_scenario.py` | Python | Scenario: orchestrator run on a GigaChat-like payload (leading-system fold, error visibility) | ui |
+| `tests/scenarios/test_gigachat_ai_studio_scenario.py` | Python | Scenario: GigaChat AI Studio - the catalog and its copy stay in sync, measured model windows, the vision set, bearer sending with and without a key, the native tool-call loop and the connection test | - |
+| `tests/scenarios/test_gigachat_single_system_scenario.py` | Python | Scenario: GigaChat on Cloud and AI Studio get one leading system message that keeps the agent prompt and the platform snapshots, the user turn untouched; every other model and provider keeps the full system chain | - |
 | `tests/scenarios/test_github_read_retry_scenario.py` | Python | Scenario tests: GitHub read retries via the public API (get_user_info/create_repo), no token leaks | - |
 | `tests/scenarios/test_github_rest_scenario.py` | Python | _(описание не задано)_ | - |
 | `tests/scenarios/test_incomplete_responses_recovery_scenario.py` | Python | Scenarios: incomplete-responses recovery - truncation then success, partial text kept, persistent truncation terminates | - |
@@ -786,8 +792,9 @@
 | `defaults/skills/README.md` | Markdown | _(описание не задано)_ | - |
 | `defaults/skills/rag_base_creator/SKILL.md` | Markdown | Rag Base Creator skill: create and index RAG bases; Search modes section (bm25 default without keys - fielded BM25F over body+header, vector, hybrid), --search-mode | - |
 | `defaults/skills/rag_base_creator/scripts/build_base.py` | Python | Rag Base Creator helper: builds a base offline (default bm25, no embedding calls) or with embeddings for vector/hybrid | - |
+| `defaults/services/cloud.json` | JSON | Cloud.ru Foundation Models service definition (defaults copy; bearer auth, text/vision/RAG catalogs incl. the GigaChat line, which is declared as keeping only the last system message) | - |
 | `defaults/services/deepseek.json` | JSON | DeepSeek service profile (defaults): responses endpoint, the Anthropic web-search endpoint, the vision chat/completions endpoint, the URL-fetch endpoint fetch_base_url (https://api.deepseek.com/v1/tools/fetch) with the fetch_models catalog (deepseek-flash, deepseek-v4-pro), models and reasoning-effort options | - |
-| `defaults/services/gigachat.json` | JSON | _(описание не задано)_ | - |
+| `defaults/services/gigachat_ai_studio.json` | JSON | GigaChat AI Studio service definition, defaults copy (bearer auth at api.aistudio.giga.chat; seven chat models with their measured context windows, four vision models, no image generation or vectorization; keeps only the last system message) | - |
 | `defaults/services/yandex.json` | JSON | _(описание не задано)_ | - |
 | `langs/en.json` | JSON | English UI strings | - |
 | `langs/en_guide.md` | Markdown | English user guide | - |
@@ -795,7 +802,6 @@
 | `langs/ru_guide.md` | Markdown | Russian user guide | - |
 | `langs/zh-CN.json` | JSON | Simplified Chinese UI strings | - |
 | `langs/zh_CN_guide.md` | Markdown | Chinese user guide | - |
-| `certs/russian_trusted_root_ca.pem` | PEM certificate | Russian Trusted Root CA certificate for GigaChat TLS | - |
 | `scripts/capture_loop_golden.py` | Python | Re-records the agent-loop golden snapshots (UPDATE_GOLDEN=1) and immediately re-runs the suite without the flag, so a snapshot that cannot be reproduced fails the same command | - |
 | `scripts/ci_check.py` | Python | The single gate runner: ruff, pyright against the committed error budget, the structural budget of the god files, the version manifest, lock agreement of both constraint files and the whole test suite in one sequential process; --list and --only select the checks, the exit code reports passed, failed or unrunnable | - |
 | `scripts/marketplace_publish.py` | Python | Command-line publisher of one entity version into the catalog repository: builds the entity folder, the index entry and the hashes through core.marketplace.publish, signs the manifests and commits them | - |
@@ -873,8 +879,9 @@
 | `dev_agent/loop/steps/prepare.py` | Python | State at the start of a step: normalising the resumed history, refreshing the context snapshots and the plan/task markers, plus the step timestamp helper | - |
 | `dev_agent/loop/steps/runner.py` | Python | One iteration of the loop end to end: prepare, call the model, parse, execute tools, collect results and finalize, returning the updated state | - |
 | `dev_agent/loop/steps/runtime.py` | Python | The runtime object a step receives instead of reaching for module globals: dispatcher, language, event emission, request sending and the context hooks | - |
+| `services/cloud.json` | JSON | Cloud.ru Foundation Models service definition (bearer auth; catalogs of text, vision and RAG models incl. the GigaChat line, which is declared as keeping only the last system message) | - |
 | `services/deepseek.json` | JSON | DeepSeek service definition (vision_base_url + vision_models catalog) | - |
-| `services/gigachat.json` | JSON | GigaChat service definition | - |
+| `services/gigachat_ai_studio.json` | JSON | GigaChat AI Studio service definition (bearer auth at api.aistudio.giga.chat; seven chat models with their measured context windows, four vision models, no image generation or vectorization; keeps only the last system message) | - |
 | `services/yandex.json` | JSON | YandexAI service definition | - |
 
 ## Прочие публикуемые файлы (вне текстового скана)
@@ -1489,7 +1496,16 @@
 - `downgrade` (func, строка 42)
 
 ### `core/api_bearer.py`
-- `bearer_request_impl` (func, строка 27)
+- `bearer_request_impl` (func, строка 23)
+
+### `core/api_chat.py`
+- `_merge_extra_payload` (func, строка 24)
+- `_to_chat_tools` (func, строка 40)
+- `_snapshot_block` (func, строка 81)
+- `collapse_system_messages` (func, строка 86)
+- `needs_single_system` (func, строка 128)
+- `report_chat_usage` (func, строка 158)
+- `build_chat_payload` (func, строка 188)
 
 ### `core/api_deepseek.py`
 - `_deepseek_reasoning_effort` (func, строка 56)
@@ -1520,68 +1536,57 @@
 - `ContextWindowError.__init__` (func, строка 187)
 - `api_error_message` (func, строка 212)
 
-### `core/api_gigachat.py`
-- `_gigachat_messages` (func, строка 17)
-- `gigachat_token` (func, строка 83)
-- `gigachat_models_url` (func, строка 108)
-
 ### `core/api_history_guard.py`
 - `_parse_sanitized_info` (func, строка 22)
 - `_protect_history` (func, строка 48)
 
 ### `core/api_http.py`
-- `gigachat_verify_impl` (func, строка 40)
-- `_retry_params` (func, строка 71)
-- `retry_call` (func, строка 96)
-- `_extract_error_body` (func, строка 131)
-- `_extract_gigachat_error` (func, строка 152)
+- `_retry_params` (func, строка 40)
+- `retry_call` (func, строка 65)
+- `_extract_error_body` (func, строка 100)
 
 ### `core/api_layer.py`
-- `_gigachat_verify` (func, строка 121)
-- `_bearer_request` (func, строка 144)
-- `_deepseek_responses_request` (func, строка 155)
-- `_deepseek_anthropic_web_search` (func, строка 172)
-- `_assistant_web_search_config` (func, строка 188)
-- `_yandex_responses_request` (func, строка 217)
-- `_gigachat_token` (func, строка 242)
-- `send_vision_request` (func, строка 262)
-- `send_image_generation_request` (func, строка 371)
-- `_assistant_rag_context` (func, строка 455)
-- `_resolve_chat_service` (func, строка 509)
-- `_resolve_generation_settings` (func, строка 524)
-- `_compose_user_content` (func, строка 542)
-- `_resolve_tool_options` (func, строка 590)
-- `_run_with_retry` (func, строка 617)
-- `_run_with_retry._send_once` (func, строка 626)
-- `_run_with_retry._call` (func, строка 644)
-- `send_request` (func, строка 666)
-- `_svc_key` (func, строка 736)
-- `_svc_folder` (func, строка 748)
-- `_request_bearer` (func, строка 759)
-- `_request_deepseek` (func, строка 776)
-- `_request_yandex` (func, строка 796)
-- `_request_gigachat` (func, строка 839)
-- `_do_request` (func, строка 909)
-- `_first_test_model` (func, строка 940)
-- `_probe_bearer` (func, строка 949)
-- `_probe_responses` (func, строка 972)
-- `_probe_deepseek` (func, строка 1000)
-- `_probe_yandex` (func, строка 1013)
-- `_probe_responses_yandex` (func, строка 1029)
-- `_probe_gigachat` (func, строка 1055)
-- `test_connection` (func, строка 1097)
+- `_bearer_request` (func, строка 122)
+- `_deepseek_responses_request` (func, строка 135)
+- `_deepseek_anthropic_web_search` (func, строка 152)
+- `_assistant_web_search_config` (func, строка 168)
+- `_yandex_responses_request` (func, строка 197)
+- `send_vision_request` (func, строка 233)
+- `send_image_generation_request` (func, строка 342)
+- `_assistant_rag_context` (func, строка 426)
+- `_resolve_chat_service` (func, строка 480)
+- `_resolve_generation_settings` (func, строка 495)
+- `_compose_user_content` (func, строка 513)
+- `_resolve_tool_options` (func, строка 561)
+- `_run_with_retry` (func, строка 588)
+- `_run_with_retry._send_once` (func, строка 597)
+- `_run_with_retry._call` (func, строка 615)
+- `send_request` (func, строка 637)
+- `_svc_key` (func, строка 707)
+- `_svc_folder` (func, строка 719)
+- `_request_bearer` (func, строка 730)
+- `_request_deepseek` (func, строка 773)
+- `_request_yandex` (func, строка 793)
+- `_do_request` (func, строка 843)
+- `_first_test_model` (func, строка 874)
+- `_probe_bearer` (func, строка 883)
+- `_probe_responses` (func, строка 908)
+- `_probe_deepseek` (func, строка 936)
+- `_probe_yandex` (func, строка 949)
+- `_probe_responses_yandex` (func, строка 965)
+- `test_connection` (func, строка 998)
 
 ### `core/api_payload.py`
 - `_get_model_max_tokens` (func, строка 21)
 - `_clamp_max_tokens` (func, строка 42)
-- `_normalise_json_schema` (func, строка 77)
-- `_responses_json_format` (func, строка 96)
-- `_openai_response_format` (func, строка 109)
-- `_gigachat_response_format` (func, строка 123)
-- `_content_has_material` (func, строка 140)
-- `_normalise_tools` (func, строка 166)
-- `_has_native_function_tools` (func, строка 184)
-- `_estimate_tokens_in` (func, строка 199)
+- `_normalise_json_schema` (func, строка 76)
+- `_responses_json_format` (func, строка 95)
+- `_openai_response_format` (func, строка 108)
+- `_content_has_material` (func, строка 117)
+- `_normalise_tools` (func, строка 143)
+- `_has_native_function_tools` (func, строка 156)
+- `_wire_messages` (func, строка 177)
+- `_estimate_tokens_in` (func, строка 197)
 
 ### `core/api_responses.py`
 - `_prepare_response_content` (func, строка 19)
@@ -1675,31 +1680,37 @@
 - `execute_assistant_rag_search` (func, строка 249)
 - `execute_assistant_rag_chunks` (func, строка 311)
 - `_report_usage` (func, строка 381)
-- `run_yandex_responses_tool_loop` (func, строка 402)
+- `_execute_assistant_tool` (func, строка 402)
+- `_post_chat_completions` (func, строка 418)
+- `_post_chat_completions._attempt` (func, строка 433)
+- `_chat_tool_call_arguments` (func, строка 456)
+- `_tools_rejected` (func, строка 470)
+- `run_bearer_tool_loop` (func, строка 478)
+- `run_yandex_responses_tool_loop` (func, строка 585)
 
 ### `core/assistants.py`
-- `_get_user_data_dir` (func, строка 59)
-- `ensure_dir` (func, строка 64)
-- `_unique_slug` (func, строка 82)
-- `load_assistants_index` (func, строка 101)
-- `load_assistant_prompt_text` (func, строка 111)
-- `save_assistant_prompt_text` (func, строка 117)
-- `get_assistant_by_id` (func, строка 133)
-- `get_assistant_by_slug` (func, строка 150)
-- `create_assistant` (func, строка 157)
-- `update_assistant` (func, строка 194)
-- `delete_assistant` (func, строка 221)
-- `get_legacy_assistant_files_dir` (func, строка 237)
-- `get_assistant_files_dir` (func, строка 242)
-- `list_assistant_files` (func, строка 255)
-- `save_assistant_file` (func, строка 266)
-- `delete_assistant_file` (func, строка 284)
-- `load_assistant_files_context` (func, строка 298)
-- `export_assistant` (func, строка 324)
-- `import_assistant` (func, строка 357)
-- `import_assistant._apply` (func, строка 382)
-- `reload_assistant_from_folder` (func, строка 441)
-- `reload_assistant_from_folder._apply` (func, строка 464)
+- `_get_user_data_dir` (func, строка 60)
+- `ensure_dir` (func, строка 65)
+- `_unique_slug` (func, строка 83)
+- `load_assistants_index` (func, строка 102)
+- `load_assistant_prompt_text` (func, строка 112)
+- `save_assistant_prompt_text` (func, строка 118)
+- `get_assistant_by_id` (func, строка 134)
+- `get_assistant_by_slug` (func, строка 151)
+- `create_assistant` (func, строка 158)
+- `update_assistant` (func, строка 195)
+- `delete_assistant` (func, строка 222)
+- `get_legacy_assistant_files_dir` (func, строка 238)
+- `get_assistant_files_dir` (func, строка 243)
+- `list_assistant_files` (func, строка 256)
+- `save_assistant_file` (func, строка 267)
+- `delete_assistant_file` (func, строка 285)
+- `load_assistant_files_context` (func, строка 299)
+- `export_assistant` (func, строка 325)
+- `import_assistant` (func, строка 358)
+- `import_assistant._apply` (func, строка 383)
+- `reload_assistant_from_folder` (func, строка 442)
+- `reload_assistant_from_folder._apply` (func, строка 465)
 
 ### `core/auth.py`
 - `_coerce_bool` (func, строка 58)
@@ -2813,6 +2824,14 @@
 - `format_token_line` (func, строка 291)
 - `_iter_md_blocks` (func, строка 338)
 - `format_ts_label` (func, строка 418)
+
+### `core/service_migration.py`
+- `migrated_model` (func, строка 61)
+- `_as_int` (func, строка 71)
+- `_migrate_config` (func, строка 86)
+- `_migrate_assistants` (func, строка 114)
+- `_migrate_orchestrators` (func, строка 170)
+- `migrate_retired_services` (func, строка 212)
 
 ### `core/services.py`
 - `_scan_dir` (func, строка 16)
@@ -5056,38 +5075,48 @@
 - `TestEntitySync.test_ensure_entity_folders_sync` (func, строка 359)
 
 ### `tests/test_assistant_function_tools.py`
-- `test_normalise_tools_converts_strings_and_passes_dicts` (func, строка 62)
-- `test_has_native_function_tools` (func, строка 70)
-- `test_extract_function_calls` (func, строка 78)
-- `test_execute_rag_search_missing_args` (func, строка 96)
-- `test_execute_rag_search_access_denied` (func, строка 103)
-- `test_execute_rag_search_denied_when_no_bases_assigned` (func, строка 115)
-- `test_execute_rag_search_ok` (func, строка 127)
-- `_resp` (func, строка 146)
-- `test_execute_rag_search_search_base_error` (func, строка 154)
-- `test_loop_single_rag_call_happy_path` (func, строка 168)
-- `test_loop_no_tool_call_single_request` (func, строка 213)
-- `test_loop_iteration_limit` (func, строка 233)
-- `test_loop_400_fallback_textual` (func, строка 260)
-- `test_loop_400_fallback_textual._side_effect` (func, строка 271)
-- `test_send_request_routes_to_tool_loop_when_native_function_tools` (func, строка 310)
-- `test_send_request_routes_to_tool_loop_when_native_function_tools._fake_loop` (func, строка 333)
-- `test_send_request_preserves_legacy_yandex_path` (func, строка 359)
-- `test_yandex_web_search_config_parses_provider_values` (func, строка 399)
-- `test_yandex_web_search_config_list_values_and_defaults` (func, строка 417)
-- `test_assistant_web_search_config_prefers_manifest_overrides` (func, строка 436)
-- `test_assistant_web_search_config_falls_back_to_provider` (func, строка 459)
-- `test_loop_assistant_no_web_search_tool_has_no_web_tool` (func, строка 478)
-- `test_loop_unknown_function_tool_returns_error` (func, строка 516)
-- `test_loop_payload_uses_assistant_web_search_overrides` (func, строка 548)
-- `test_execute_rag_chunks_missing_slug` (func, строка 590)
-- `test_execute_rag_chunks_needs_an_address_mode` (func, строка 597)
-- `test_execute_rag_chunks_access_denied` (func, строка 607)
-- `test_execute_rag_chunks_ok_returns_context_and_metadata` (func, строка 618)
-- `test_execute_rag_chunks_error_is_json_not_raised` (func, строка 645)
-- `test_loop_routes_rag_get_chunks` (func, строка 658)
-- `test_execute_rag_search_ok_includes_hits_metadata` (func, строка 704)
-- `test_execute_rag_search_hits_carry_mode_when_present` (func, строка 719)
+- `test_normalise_tools_converts_strings_and_passes_dicts` (func, строка 63)
+- `test_has_native_function_tools` (func, строка 71)
+- `test_extract_function_calls` (func, строка 79)
+- `test_execute_rag_search_missing_args` (func, строка 97)
+- `test_execute_rag_search_access_denied` (func, строка 104)
+- `test_execute_rag_search_denied_when_no_bases_assigned` (func, строка 116)
+- `test_execute_rag_search_ok` (func, строка 128)
+- `_resp` (func, строка 147)
+- `test_execute_rag_search_search_base_error` (func, строка 155)
+- `test_loop_single_rag_call_happy_path` (func, строка 169)
+- `test_loop_no_tool_call_single_request` (func, строка 214)
+- `test_loop_iteration_limit` (func, строка 234)
+- `test_loop_400_fallback_textual` (func, строка 261)
+- `test_loop_400_fallback_textual._side_effect` (func, строка 272)
+- `test_send_request_routes_to_tool_loop_when_native_function_tools` (func, строка 311)
+- `test_send_request_routes_to_tool_loop_when_native_function_tools._fake_loop` (func, строка 334)
+- `test_send_request_preserves_legacy_yandex_path` (func, строка 360)
+- `test_yandex_web_search_config_parses_provider_values` (func, строка 400)
+- `test_yandex_web_search_config_list_values_and_defaults` (func, строка 418)
+- `test_assistant_web_search_config_prefers_manifest_overrides` (func, строка 437)
+- `test_assistant_web_search_config_falls_back_to_provider` (func, строка 460)
+- `test_loop_assistant_no_web_search_tool_has_no_web_tool` (func, строка 479)
+- `test_loop_unknown_function_tool_returns_error` (func, строка 517)
+- `test_loop_payload_uses_assistant_web_search_overrides` (func, строка 549)
+- `test_execute_rag_chunks_missing_slug` (func, строка 591)
+- `test_execute_rag_chunks_needs_an_address_mode` (func, строка 598)
+- `test_execute_rag_chunks_access_denied` (func, строка 608)
+- `test_execute_rag_chunks_ok_returns_context_and_metadata` (func, строка 619)
+- `test_execute_rag_chunks_error_is_json_not_raised` (func, строка 646)
+- `test_loop_routes_rag_get_chunks` (func, строка 659)
+- `test_execute_rag_search_ok_includes_hits_metadata` (func, строка 705)
+- `test_execute_rag_search_hits_carry_mode_when_present` (func, строка 720)
+- `_chat_resp` (func, строка 744)
+- `_chat_call` (func, строка 755)
+- `test_bearer_loop_single_rag_call_happy_path` (func, строка 764)
+- `test_bearer_loop_sequential_calls` (func, строка 807)
+- `test_bearer_loop_unknown_tool_feeds_error_back` (func, строка 842)
+- `test_bearer_loop_iteration_limit` (func, строка 867)
+- `test_bearer_loop_reports_usage` (func, строка 895)
+- `test_bearer_loop_extra_payload_reaches_request` (func, строка 918)
+- `test_bearer_loop_sends_nested_tool_shape` (func, строка 941)
+- `test_bearer_loop_degrades_when_gateway_rejects_tools` (func, строка 964)
 
 ### `tests/test_assistant_sidebar_sort.py`
 - `_a` (func, строка 22)
@@ -5488,74 +5517,69 @@
 - `test_responses_transports_render_text_format` (func, строка 84)
 - `test_send_request_yandex_payload_contains_text_format` (func, строка 95)
 - `test_send_request_deepseek_payload_contains_text_format` (func, строка 121)
-- `test_send_request_gigachat_payload_contains_response_format` (func, строка 149)
-- `test_unwrap_json_text_strips_unk_fence_and_envelope` (func, строка 182)
-- `test_unwrap_json_text_strips_unk_token` (func, строка 189)
-- `test_bearer_unwraps_gigachat_style_envelope` (func, строка 195)
-- `test_send_request_retries_without_schema_on_rejection` (func, строка 215)
-- `test_send_request_retries_without_schema_on_rejection._fake_post` (func, строка 219)
-- `test_send_request_does_not_retry_on_other_errors` (func, строка 244)
-- `test_normalise_json_schema_envelopes` (func, строка 260)
+- `test_send_request_cloud_payload_contains_response_format` (func, строка 149)
+- `test_unwrap_json_text_strips_unk_fence_and_envelope` (func, строка 178)
+- `test_unwrap_json_text_strips_unk_token` (func, строка 185)
+- `test_bearer_unwraps_fenced_envelope` (func, строка 191)
+- `test_send_request_retries_without_schema_on_rejection` (func, строка 212)
+- `test_send_request_retries_without_schema_on_rejection._fake_post` (func, строка 216)
+- `test_send_request_does_not_retry_on_other_errors` (func, строка 241)
+- `test_normalise_json_schema_envelopes` (func, строка 257)
 
 ### `tests/test_core_api_layer.py`
-- `test_normalise_tools_strings` (func, строка 18)
-- `test_normalise_tools_dicts` (func, строка 28)
-- `test_normalise_tools_mixed` (func, строка 37)
-- `test_normalise_tools_empty` (func, строка 52)
-- `test_extract_responses_text_from_output_text` (func, строка 60)
-- `test_extract_responses_text_from_output_blocks` (func, строка 66)
-- `test_extract_responses_text_empty` (func, строка 83)
-- `test_prepare_response_content_text_only` (func, строка 93)
-- `test_prepare_response_content_ignores_reasoning_when_content_empty` (func, строка 99)
-- `test_prepare_response_content_ignores_reasoning_when_content_present` (func, строка 111)
-- `test_prepare_response_content_tool_calls_only` (func, строка 120)
-- `test_prepare_response_content_both` (func, строка 138)
-- `test_prepare_response_content_empty` (func, строка 156)
-- `test_prepare_response_content_broken_tool_args` (func, строка 163)
-- `test_gigachat_verify_honours_global_disable` (func, строка 182)
-- `test_gigachat_verify_returns_default_bundle_when_present` (func, строка 188)
-- `test_gigachat_verify_honours_env_bundle` (func, строка 198)
-- `test_gigachat_verify_falls_back_when_bundle_missing` (func, строка 207)
+- `test_normalise_tools_strings` (func, строка 13)
+- `test_normalise_tools_dicts` (func, строка 23)
+- `test_normalise_tools_mixed` (func, строка 32)
+- `test_normalise_tools_empty` (func, строка 47)
+- `test_to_chat_tools_nests_flat_function_tool` (func, строка 55)
+- `test_to_chat_tools_passes_nested_function_tool_through` (func, строка 78)
+- `test_to_chat_tools_passes_server_tools_through` (func, строка 86)
+- `test_to_chat_tools_converts_strings_and_drops_unknown` (func, строка 96)
+- `test_to_chat_tools_empty` (func, строка 104)
+- `test_merge_extra_payload_adds_new_keys` (func, строка 112)
+- `test_merge_extra_payload_never_overrides_platform_keys` (func, строка 121)
+- `test_merge_extra_payload_empty_is_noop` (func, строка 150)
+- `test_extract_responses_text_from_output_text` (func, строка 160)
+- `test_extract_responses_text_from_output_blocks` (func, строка 166)
+- `test_extract_responses_text_empty` (func, строка 183)
+- `test_prepare_response_content_text_only` (func, строка 193)
+- `test_prepare_response_content_ignores_reasoning_when_content_empty` (func, строка 199)
+- `test_prepare_response_content_ignores_reasoning_when_content_present` (func, строка 211)
+- `test_prepare_response_content_tool_calls_only` (func, строка 220)
+- `test_prepare_response_content_both` (func, строка 238)
+- `test_prepare_response_content_empty` (func, строка 256)
+- `test_prepare_response_content_broken_tool_args` (func, строка 263)
 
 ### `tests/test_core_api_send.py`
 - `_make_svc` (func, строка 27)
 - `_make_cfg` (func, строка 40)
-- `_make_skill` (func, строка 51)
-- `test_bearer_request_success` (func, строка 70)
-- `test_bearer_request_http_error` (func, строка 96)
-- `test_bearer_request_with_tools` (func, строка 116)
-- `test_gigachat_token_success` (func, строка 140)
-- `test_gigachat_token_http_error` (func, строка 152)
-- `test_send_request_bearer_success` (func, строка 166)
-- `test_send_request_bearer_missing_key` (func, строка 183)
-- `test_send_request_unknown_service` (func, строка 196)
-- `test_send_request_yandex_iam_with_tools` (func, строка 208)
-- `test_send_request_yandex_iam_without_tools` (func, строка 241)
-- `test_send_request_yandex_iam_missing_key` (func, строка 272)
-- `test_send_request_yandex_iam_missing_folder_id` (func, строка 290)
-- `test_send_request_gigachat_success` (func, строка 308)
-- `test_send_request_gigachat_http_error` (func, строка 338)
-- `test_send_request_unknown_auth_type` (func, строка 371)
-- `test_send_request_timeout` (func, строка 385)
-- `test_send_request_network_error` (func, строка 400)
-- `test_send_request_with_file_context` (func, строка 415)
-- `test_test_connection_bearer_success` (func, строка 439)
-- `test_test_connection_bearer_missing_key` (func, строка 456)
-- `test_test_connection_unknown_service` (func, строка 468)
-- `test_test_connection_yandex_iam_success` (func, строка 477)
-- `test_test_connection_yandex_iam_missing_key` (func, строка 504)
-- `test_test_connection_yandex_iam_missing_folder_id` (func, строка 520)
-- `test_test_connection_gigachat_success` (func, строка 536)
-- `test_test_connection_gigachat_models_failure` (func, строка 563)
-- `test_test_connection_missing_service` (func, строка 590)
-- `test_test_connection_exception` (func, строка 599)
-- `test_test_connection_truly_unknown_auth` (func, строка 612)
-- `test_gigachat_models_url_derivation` (func, строка 628)
-- `test_test_connection_gigachat_uses_derived_models_url` (func, строка 642)
-- `test_bearer_request_reports_openai_cached_tokens` (func, строка 670)
-- `test_bearer_request_reports_deepseek_prompt_cache_hit_tokens` (func, строка 698)
-- `test_bearer_request_cache_zero_when_not_reported` (func, строка 726)
-- `test_send_request_gigachat_reports_precached_tokens` (func, строка 750)
+- `_make_skill` (func, строка 49)
+- `test_bearer_request_success` (func, строка 68)
+- `test_bearer_request_http_error` (func, строка 94)
+- `test_bearer_request_with_tools` (func, строка 114)
+- `test_send_request_bearer_success` (func, строка 138)
+- `test_send_request_bearer_missing_key` (func, строка 155)
+- `test_send_request_unknown_service` (func, строка 168)
+- `test_send_request_yandex_iam_with_tools` (func, строка 180)
+- `test_send_request_yandex_iam_without_tools` (func, строка 213)
+- `test_send_request_yandex_iam_missing_key` (func, строка 244)
+- `test_send_request_yandex_iam_missing_folder_id` (func, строка 262)
+- `test_send_request_unknown_auth_type` (func, строка 280)
+- `test_send_request_timeout` (func, строка 294)
+- `test_send_request_network_error` (func, строка 309)
+- `test_send_request_with_file_context` (func, строка 324)
+- `test_test_connection_bearer_success` (func, строка 348)
+- `test_test_connection_bearer_missing_key` (func, строка 365)
+- `test_test_connection_unknown_service` (func, строка 377)
+- `test_test_connection_yandex_iam_success` (func, строка 386)
+- `test_test_connection_yandex_iam_missing_key` (func, строка 413)
+- `test_test_connection_yandex_iam_missing_folder_id` (func, строка 429)
+- `test_test_connection_missing_service` (func, строка 445)
+- `test_test_connection_exception` (func, строка 454)
+- `test_test_connection_truly_unknown_auth` (func, строка 467)
+- `test_bearer_request_reports_openai_cached_tokens` (func, строка 483)
+- `test_bearer_request_reports_deepseek_prompt_cache_hit_tokens` (func, строка 511)
+- `test_bearer_request_cache_zero_when_not_reported` (func, строка 539)
 
 ### `tests/test_core_files.py`
 - `test_max_upload_tokens_constant` (func, строка 18)
@@ -6175,23 +6199,6 @@
 - `test_release_root_survives_a_failing_service` (func, строка 217)
 - `test_release_root_survives_a_failing_service._Service` (class, строка 218)
 - `test_release_root_survives_a_failing_service._Service.release_tree` (func, строка 219)
-
-### `tests/test_gigachat_messages.py`
-- `test_leading_system_folds_and_mid_history_blocks_become_user_role` (func, строка 51)
-- `test_mid_history_snapshot_change_keeps_head_byte_stable` (func, строка 70)
-- `test_consecutive_same_roles_are_merged` (func, строка 88)
-- `test_no_system_message_when_prompt_empty` (func, строка 105)
-- `test_ui_only_keys_are_stripped` (func, строка 111)
-- `test_clamp_caps_gigachat_model_limit` (func, строка 123)
-- `test_clamp_keeps_value_below_limit` (func, строка 127)
-- `test_clamp_uses_service_default_for_unknown_model` (func, строка 131)
-- `test_clamp_passthrough_without_explicit_limit` (func, строка 136)
-- `test_clamp_deepseek_limit_unchanged` (func, строка 141)
-- `_run_send` (func, строка 147)
-- `_run_send._fake_do_request` (func, строка 151)
-- `test_send_request_clamps_gigachat_max_tokens` (func, строка 165)
-- `test_send_request_keeps_deepseek_max_tokens` (func, строка 174)
-- `test_gigachat_wire_payload_has_single_leading_system_and_clamped_tokens` (func, строка 182)
 
 ### `tests/test_github_connector_rest.py`
 - `isolated_connector` (func, строка 22)
@@ -9730,14 +9737,25 @@
 - `test_files_non_string_entry_rejected` (func, строка 305)
 - `test_files_duplicates_do_not_crash` (func, строка 311)
 
+### `tests/test_service_migration.py`
+- `isolated_data_dir` (func, строка 19)
+- `test_retired_service_is_declared_with_a_replacement` (func, строка 59)
+- `test_migrated_model_maps_known_and_unknown_ids` (func, строка 71)
+- `test_retired_key_is_removed_and_not_passed_to_the_replacement` (func, строка 81)
+- `test_a_key_the_owner_already_entered_survives_the_migration` (func, строка 97)
+- `test_assistant_is_repointed_to_the_replacement_service` (func, строка 109)
+- `test_orchestrator_role_fields_are_rewritten` (func, строка 125)
+- `test_second_run_finds_nothing_to_migrate` (func, строка 151)
+
 ### `tests/test_service_model_catalogs.py`
-- `_repo_root` (func, строка 26)
-- `test_yandex_declares_vision_and_image_catalogs` (func, строка 31)
-- `test_deepseek_declares_vision_catalog_with_dedicated_endpoint` (func, строка 51)
-- `test_services_without_a_catalog_return_empty_lists` (func, строка 66)
-- `test_catalog_helpers_are_defensive` (func, строка 73)
-- `test_defaults_and_legacy_service_files_stay_in_sync` (func, строка 81)
-- `test_every_shipped_model_declares_an_output_limit` (func, строка 95)
+- `_repo_root` (func, строка 31)
+- `test_yandex_declares_vision_and_image_catalogs` (func, строка 36)
+- `test_deepseek_declares_vision_catalog_with_dedicated_endpoint` (func, строка 56)
+- `test_gigachat_ai_studio_declares_the_live_catalog` (func, строка 71)
+- `test_services_without_a_catalog_return_empty_lists` (func, строка 112)
+- `test_catalog_helpers_are_defensive` (func, строка 118)
+- `test_defaults_and_legacy_service_files_stay_in_sync` (func, строка 126)
+- `test_every_shipped_model_declares_an_output_limit` (func, строка 140)
 
 ### `tests/test_sidebar_employees_nav.py`
 - `isolated_data` (func, строка 25)
@@ -9834,6 +9852,28 @@
 - `test_defaults_and_bootstrap_have_no_weak_keys` (func, строка 193)
 - `test_export_import_roundtrip_keeps_multimodal_fields` (func, строка 220)
 - `test_dev_agent_build_assistant_dict_from_config_single_model` (func, строка 255)
+
+### `tests/test_single_system_message.py`
+- `_roles` (func, строка 24)
+- `test_one_system_message_is_unchanged` (func, строка 30)
+- `test_two_system_messages_merge_into_the_leading_one` (func, строка 40)
+- `test_three_system_messages_keep_their_order` (func, строка 54)
+- `test_the_leading_prompt_is_kept_verbatim` (func, строка 67)
+- `test_the_user_turn_is_never_rewritten` (func, строка 78)
+- `test_a_late_system_message_is_absorbed_and_the_turns_stay_put` (func, строка 88)
+- `test_trailing_snapshot_joins_the_head` (func, строка 101)
+- `test_no_user_message_at_all_still_yields_one_system` (func, строка 112)
+- `test_empty_list_and_garbage_entries` (func, строка 122)
+- `test_input_is_not_mutated` (func, строка 128)
+- `test_empty_snapshot_text_is_dropped` (func, строка 140)
+- `test_no_declaration_means_no_collapse` (func, строка 154)
+- `test_true_applies_to_every_model` (func, строка 160)
+- `test_prefix_list_matches_only_its_models` (func, строка 166)
+- `test_single_string_prefix_is_accepted` (func, строка 175)
+- `test_malformed_rule_is_false` (func, строка 181)
+- `test_payload_keeps_every_system_without_the_flag` (func, строка 189)
+- `test_payload_merges_with_the_flag` (func, строка 199)
+- `test_the_flag_does_not_alias_the_caller_list` (func, строка 212)
 
 ### `tests/test_skill_build_base.py`
 - `isolated_data_dir` (func, строка 35)
@@ -11142,6 +11182,13 @@
 - `test_web_search_both_empty_returns_explicit_error` (func, строка 301)
 - `test_catalog_web_search_mentions_instructions` (func, строка 324)
 
+### `tests/test_wire_messages.py`
+- `test_platform_bookkeeping_is_dropped` (func, строка 24)
+- `test_provider_fields_are_kept` (func, строка 33)
+- `test_helpers_tolerate_empty_and_foreign_entries` (func, строка 50)
+- `test_bearer_request_sends_only_provider_fields` (func, строка 60)
+- `test_bearer_request_sends_only_provider_fields._fake_post` (func, строка 68)
+
 ### `tests/test_working_memory_prompt.py`
 - `central` (func, строка 19)
 - `no_records` (func, строка 27)
@@ -11448,6 +11495,54 @@
 - `test_scenario_an_unknown_employee_names_the_command_that_lists_them` (func, строка 281)
 - `test_scenario_the_console_never_needs_the_ui` (func, строка 294)
 
+### `tests/scenarios/test_cloud_models_scenario.py`
+- `_json` (func, строка 40)
+- `_cfg` (func, строка 45)
+- `_ok_response` (func, строка 50)
+- `test_service_copies_offer_the_cloud_catalog` (func, строка 61)
+- `test_every_model_declares_an_output_limit` (func, строка 90)
+- `test_rag_models_recommend_gigachat4_first` (func, строка 102)
+- `test_sending_with_a_cloud_model_uses_the_bearer_endpoint` (func, строка 115)
+- `test_sending_without_a_key_reports_the_missing_credential` (func, строка 141)
+- `test_connection_test_probes_the_chat_endpoint` (func, строка 163)
+- `test_connection_test_reports_a_rejected_key` (func, строка 185)
+- `test_retired_provider_is_absent_from_catalog_and_transport` (func, строка 207)
+
+### `tests/scenarios/test_cloud_orchestrator_scenario.py`
+- `_cloud_service` (func, строка 43)
+- `_ok_response` (func, строка 48)
+- `_error_response` (func, строка 59)
+- `_make_session` (func, строка 69)
+- `ui_env` (func, строка 76)
+- `_patch_transport` (func, строка 105)
+- `_setup_page` (func, строка 118)
+- `_setup_page._Core` (class, строка 132)
+- `_setup_page._Core.set_history` (func, строка 135)
+- `_setup_page._Core.set_send_request` (func, строка 138)
+- `_setup_page._Dispatcher` (class, строка 141)
+- `_setup_page._Dispatcher.__init__` (func, строка 142)
+- `_setup_page._Dispatcher.dispatch` (func, строка 145)
+- `_seed` (func, строка 166)
+- `_drive` (func, строка 176)
+- `test_scenario_orchestrator_turn_on_cloud_sends_valid_payload` (func, строка 193)
+- `test_scenario_provider_error_is_visible_in_feed_and_next_turn_recovers` (func, строка 233)
+
+### `tests/scenarios/test_cloud_tool_loop_scenario.py`
+- `_cloud_service` (func, строка 58)
+- `_assistant` (func, строка 63)
+- `_tool_call_response` (func, строка 79)
+- `_answer_response` (func, строка 101)
+- `_ok` (func, строка 110)
+- `_rejected` (func, строка 118)
+- `Wire` (class, строка 127)
+- `Wire.__init__` (func, строка 135)
+- `Wire.post` (func, строка 139)
+- `Wire.bodies` (func, строка 150)
+- `cloud` (func, строка 155)
+- `test_scenario_assistant_calls_a_tool_on_cloud` (func, строка 176)
+- `test_scenario_unassigned_base_is_refused_and_the_answer_still_lands` (func, строка 233)
+- `test_scenario_gateway_without_tool_support_answers_plainly` (func, строка 262)
+
 ### `tests/scenarios/test_connection_retry_scenarios.py`
 - `fast_retries` (func, строка 28)
 - `_FakeCore` (class, строка 34)
@@ -11733,34 +11828,38 @@
 - `test_scenario_missing_file_keeps_feed_alive` (func, строка 191)
 - `test_scenario_failed_generation_shows_error_no_controls` (func, строка 211)
 
-### `tests/scenarios/test_gigachat_models_scenario.py`
-- `_json` (func, строка 35)
-- `_cfg` (func, строка 40)
-- `test_service_copies_offer_gigachat3_models_on_new_endpoint` (func, строка 48)
-- `test_api_layer_has_no_legacy_host` (func, строка 67)
-- `test_rag_models_recommend_gigachat3_pro` (func, строка 77)
-- `test_sending_with_gigachat3_model_uses_new_endpoint` (func, строка 91)
-- `test_connection_test_derives_models_url_from_base_url` (func, строка 126)
+### `tests/scenarios/test_gigachat_ai_studio_scenario.py`
+- `_json` (func, строка 48)
+- `_cfg` (func, строка 53)
+- `_ok_response` (func, строка 58)
+- `test_service_copies_offer_the_ai_studio_catalog` (func, строка 69)
+- `test_every_model_declares_its_measured_limits` (func, строка 92)
+- `test_only_image_capable_models_are_offered_as_vision_models` (func, строка 108)
+- `test_sending_with_an_ai_studio_model_uses_the_bearer_endpoint` (func, строка 135)
+- `test_sending_without_a_key_reports_the_missing_credential` (func, строка 161)
+- `test_a_tool_call_runs_through_the_native_chat_loop` (func, строка 183)
+- `test_connection_test_probes_the_chat_endpoint` (func, строка 229)
+- `test_connection_test_reports_a_rejected_key` (func, строка 251)
 
-### `tests/scenarios/test_gigachat_orchestrator_scenario.py`
-- `_gigachat_service` (func, строка 48)
-- `_ok_response` (func, строка 53)
-- `_error_response` (func, строка 64)
-- `_make_session` (func, строка 74)
-- `ui_env` (func, строка 81)
-- `_patch_transport` (func, строка 110)
-- `_setup_page` (func, строка 125)
-- `_setup_page._Core` (class, строка 140)
-- `_setup_page._Core.set_history` (func, строка 143)
-- `_setup_page._Core.set_send_request` (func, строка 146)
-- `_setup_page._Dispatcher` (class, строка 149)
-- `_setup_page._Dispatcher.__init__` (func, строка 150)
-- `_setup_page._Dispatcher.dispatch` (func, строка 153)
-- `_seed` (func, строка 174)
-- `_drive` (func, строка 184)
-- `test_scenario_orchestrator_turn_on_gigachat_sends_valid_payload` (func, строка 201)
-- `test_scenario_provider_422_is_visible_in_feed_and_next_turn_recovers` (func, строка 240)
-- `test_scenario_economy_meta_and_consecutive_user_roles_are_folded` (func, строка 288)
+### `tests/scenarios/test_gigachat_single_system_scenario.py`
+- `_history` (func, строка 26)
+- `_require` (func, строка 35)
+- `_Captured` (class, строка 65)
+- `_Captured.__init__` (func, строка 68)
+- `_Captured.__call__` (func, строка 71)
+- `_Captured.__call__._Response` (class, строка 74)
+- `_Captured.__call__._Response.json` (func, строка 78)
+- `captured_post` (func, строка 87)
+- `_system_count` (func, строка 94)
+- `test_cloud_gigachat_sends_exactly_one_system` (func, строка 104)
+- `test_gigachat_ai_studio_sends_exactly_one_system` (func, строка 113)
+- `test_both_snapshots_survive_as_platform_context` (func, строка 122)
+- `test_cloud_non_gigachat_keeps_every_system` (func, строка 147)
+- `test_service_without_the_rule_keeps_every_system` (func, строка 158)
+- `_record_post` (func, строка 166)
+- `_record_post._post` (func, строка 168)
+- `test_tool_loop_collapses_for_gigachat` (func, строка 174)
+- `test_tool_loop_keeps_every_system_by_default` (func, строка 188)
 
 ### `tests/scenarios/test_github_read_retry_scenario.py`
 - `isolated_connector` (func, строка 28)
@@ -12082,15 +12181,15 @@
 - `test_regeneration_is_reproducible` (func, строка 203)
 
 ### `tests/scenarios/test_provider_economy_settings_scenario.py`
-- `_json` (func, строка 34)
-- `_extra_field_keys` (func, строка 39)
-- `test_yandex_extra_fields_expose_only_reasoning_effort` (func, строка 47)
-- `test_gigachat_env_fallback_limited_to_single_key` (func, строка 68)
-- `test_economy_defaults_tail_50_multiplier_x2` (func, строка 107)
-- `ui_env` (func, строка 133)
-- `_slider_kwargs` (func, строка 144)
-- `test_economy_slider_spans_4_to_100_and_clamps_legacy_values` (func, строка 155)
-- `test_economy_slider_spans_4_to_100_and_clamps_legacy_values._render` (func, строка 163)
+- `_json` (func, строка 33)
+- `_extra_field_keys` (func, строка 38)
+- `test_yandex_extra_fields_expose_only_reasoning_effort` (func, строка 46)
+- `test_env_fallback_limited_to_single_key` (func, строка 67)
+- `test_economy_defaults_tail_50_multiplier_x2` (func, строка 104)
+- `ui_env` (func, строка 130)
+- `_slider_kwargs` (func, строка 141)
+- `test_economy_slider_spans_4_to_100_and_clamps_legacy_values` (func, строка 152)
+- `test_economy_slider_spans_4_to_100_and_clamps_legacy_values._render` (func, строка 160)
 
 ### `tests/scenarios/test_rag_assistant_dialog.py`
 - `_function_call` (func, строка 22)

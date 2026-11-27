@@ -47,15 +47,15 @@ SagaAI построена по модульной архитектуре с чё
 
 | Модуль | Ключевые функции |
 |--------|------------------|
-| `api_layer` | **Фасад транспорта LLM**: `send_request` (фазы подготовки вынесены в `_resolve_chat_service`, `_resolve_generation_settings`, `_compose_user_content`, `_resolve_tool_options`, `_run_with_retry`), `_do_request` (таблица обработчиков `_AUTH_HANDLERS` по `auth_type`), `test_connection` (таблица проб `_PROBES`), транспорты изображений `send_vision_request` и `send_image_generation_request`, авто-RAG `_assistant_rag_context` и обёртки патчимой поверхности (`_gigachat_verify`, `_assistant_web_search_config`, `_gigachat_token`); реэкспортирует имена провайдерных модулей, поэтому существующие точки monkeypatch продолжают работать |
-| `api_http` | TLS-политика (`_VERIFY_TLS`, `_GIGACHAT_DEFAULT_CA_BUNDLE`, `gigachat_verify_impl`), бюджет ретраев (`retry_call`, `_retry_params`), разбор тел ошибок (`_extract_error_body`, `_extract_gigachat_error`) и константы таймаутов |
-| `api_payload` | Сборка запроса: лимиты вывода (`_get_model_max_tokens`, `_clamp_max_tokens`), нормализация tools (`_normalise_tools`, `_has_native_function_tools`, `_content_has_material`), оценка токенов (`_estimate_tokens_in`) и форматы структурированного вывода для Responses, chat/completions и GigaChat |
+| `api_layer` | **Фасад транспорта LLM**: `send_request` (фазы подготовки вынесены в `_resolve_chat_service`, `_resolve_generation_settings`, `_compose_user_content`, `_resolve_tool_options`, `_run_with_retry`), `_do_request` (таблица обработчиков `_AUTH_HANDLERS` по `auth_type`), `test_connection` (таблица проб `_PROBES`), транспорты изображений `send_vision_request` и `send_image_generation_request`, авто-RAG `_assistant_rag_context` и обёртка патчимой поверхности (`_assistant_web_search_config`); реэкспортирует имена провайдерных модулей, поэтому существующие точки monkeypatch продолжают работать |
+| `api_http` | TLS-политика (`_VERIFY_TLS`), бюджет ретраев (`retry_call`, `_retry_params`), разбор тел ошибок (`_extract_error_body`) и константы таймаутов |
+| `api_payload` | Сборка запроса: лимиты вывода (`_get_model_max_tokens`, `_clamp_max_tokens`), нормализация tools (`_normalise_tools`, `_has_native_function_tools`, `_content_has_material`), оценка токенов (`_estimate_tokens_in`), формы структурированного вывода для Responses и chat/completions, а также `_wire_messages` - отбор полей сообщения, которые понимает chat/completions-эндпоинт |
 | `api_responses` | Разбор тела Responses API: сборка видимого текста (`_extract_responses_text`, `_extract_deepseek_responses_text`, `_extract_openai_message_text`), диагностика отказов и усечения (`_responses_failure_details`, `_responses_incomplete_details`, `_raise_responses_failure`), снятие JSON-обёртки и распознавание отказа схемы |
 | `api_history_guard` | Защита истории от prompt-injection: `_protect_history` размечает tool-результаты как данные, `_parse_sanitized_info` разбирает пометку |
-| `api_bearer` | OpenAI-совместимый chat/completions: сообщения как есть, нативные функции, `response_format` и отчёт о расходе токенов через колбэк |
+| `api_bearer` | OpenAI-совместимый chat/completions: один POST с сообщениями как есть, тело запроса собирает `api_chat` |
+| `api_chat` | Сборка тела chat/completions: `_to_chat_tools` вкладывает нативные функции во вложенный OpenAI-формат, `_merge_extra_payload` добавляет поля каталога сервиса, не давая перетереть ключи платформы, `build_chat_payload` собирает запрос, `collapse_system_messages` сливает цепочку system в ведущее сообщение для провайдеров, оставляющих только одно system-сообщение, `needs_single_system` решает это по каталогу сервиса, `report_chat_usage` отчитывается о токенах - общий код одиночного транспорта и цикла вызова инструментов |
 | `api_deepseek` | Транспорт DeepSeek Responses и серверный web-search через Anthropic-совместимый инструмент: разрешение reasoning effort, сборка запроса, извлечение текста и счётчик использований поиска |
 | `api_yandex` | Транспорт Yandex AI Studio Responses: URI модели вида `gpt://<folder_id>/<model>`, reasoning effort, конфигурация web_search (размер контекста и домены) и сборка запроса |
-| `api_gigachat` | Транспорт GigaChat: OAuth-токен с внешней TLS-политикой, нормализация сообщений (ведущие system-блоки фолдятся в один, mid-history остаются с ролью `user`) и адрес списка моделей |
 | `api_errors` | Единая иерархия ошибок API и локализованные сообщения |
 | `files` | Определение типов файлов, оценка токенов, извлечение контента |
 | `fs` | Низкоуровневые операции: чтение/запись JSON и текста, кодировки, `ensure_dir` |
@@ -68,6 +68,7 @@ SagaAI построена по модульной архитектуре с чё
 | `threads_devagent` | Управление тредами оркестраторов (отдельная БД `devagent.db`); поиск по сообщениям (`search_thread_messages`), список диалогов (`list_threads_filtered`) и окно чтения (`read_thread_window`) с контролем доступа (`allowed_slugs`); мета рабочей папки треда и одноразовая миграция легаси-меты; `read_thread_file` извлекает текст документов вложений через `core.document_text` |
 | `assistant_nav` / `orchestrator_nav` | Сортировка и разбиение списков помощников/сотрудников для сайдбара (5 видимых + «Все (N)»; сортировка сотрудников по последнему диалогу) |
 | `services` | Обнаружение доступных AI-сервисов из `services/` (фолбэк на `defaults/services/`); RAG-модели; каталоги vision/image-моделей (`get_vision_models` / `get_image_models`) |
+| `service_migration` | Перевод пользовательских настроек со снятого сервиса на его преемника на холодном старте: настройки моделей оркестраторов, помощники и оркестраторы; сохранённый ключ снятого сервиса удаляется (он не аутентифицирует запрос к преемнику); повторный прогон идемпотентен |
 | `config` | Чтение и запись конфигурации (SQLite KV); DevAgent-настройки проксируются через оркестраторы |
 | `env_loader` | Загрузка переменных окружения из shell-профилей |
 | `render` | Рендеринг сообщений: Markdown → HTML, кнопка копирования |
@@ -977,6 +978,64 @@ Responses (`core/assistant_tools.py`) обёрнуты тем же механи�
 `max_output_tokens`), которое иначе выглядело бы как обычный пустой ответ.
 `dev_agent/agent_loop.py` подписывается на него и при отсутствии видимого
 текста делает один восстановительный повтор с пониженным `reasoning_effort`.
+
+### Вызов инструментов помощниками
+Нативные инструменты уходят провайдеру в том формате, который он
+понимает. `core/api_chat.py` собирает тело chat/completions для обоих
+путей - одиночного транспорта (`core/api_bearer.py`) и цикла вызова
+инструментов (`run_bearer_tool_loop`, `core/assistant_tools.py`):
+`_to_chat_tools` вкладывает функцию под ключ `function` (Responses-формат
+с полями на верхнем уровне шлюз не принимает - инструмент пропадает, и
+модель имитирует вызов текстом), `_merge_extra_payload` добавляет поля,
+объявленные каталогом сервиса, не давая перетереть ключи платформы, а
+`report_chat_usage` отчитывается о токенах. Цикл исполняет каждый
+запрошенный вызов локально и возвращает результат как сообщение
+`role: tool` с `tool_call_id`, пока модель не ответит без вызовов или не
+исчерпан лимит итераций. Шлюз, отвергающий tools с 400/422, получает
+один повтор без инструментов: помощник деградирует до обычного ответа
+вместо отказа.
+
+### Провайдеры с единственным system-сообщением
+GigaChat на обоих каналах (Cloud.ru Foundation Models и
+`api.aistudio.giga.chat`) учитывает только последнее `system`-сообщение
+запроса и молча отбрасывает все предыдущие. Платформа ведёт промпт
+оркестратора первым `system`-сообщением, а снимки состояния (журнал
+задачи, папка артефактов диалога, заголовок экономии контекста) -
+следующими, поэтому такой провайдер видел короткий снимок вместо промпта
+на десятки тысяч токенов и терял роль, инструменты и правила: модель
+отвечала пустым или нерелевантным текстом (замер: 1 system-сообщение -
+28599 prompt-токенов и верный ответ, 3 сообщения - 43 токена и пустой
+ответ).
+
+Каталог сервиса объявляет это свойство полем
+`single_system_message` - `true` для всех моделей сервиса или
+`{"models": ["<префикс>", ...]}` для отдельных моделей по префиксу
+(`GigaChat/`, `ai-sage/GigaChat` в облачном каталоге, `GigaChat` в
+каталоге AI Studio). Поле читает `needs_single_system`, и только для
+совпавших моделей `build_chat_payload` пропускает сообщения через
+`collapse_system_messages`: все тексты `system` сливаются в ведущее
+сообщение в порядке поступления, каждый снимок - под маркером
+`[PLATFORM CONTEXT]`, а ходы `user` и `assistant` уходят без изменений.
+Флаг доезжает до тела запроса по обоим bearer-путям: `_request_bearer`
+передаёт его в `bearer_request_impl` и в `run_bearer_tool_loop`. Модели
+без объявления свойства и все прочие провайдеры (Responses API DeepSeek и
+Yandex, openai-, anthropic- и google-модели Cloud.ru) получают запрос в
+исходном виде: нормализация включена каталогом, а не протоколом.
+
+### Подключение провайдера без кода
+Провайдер, совместимый с chat/completions и принимающий обычный Bearer-ключ,
+не требует ветки в транспорте: достаточно каталога в `defaults/services/`
+(и его копии в `services/`). Каталог объявляет `auth_type: bearer`,
+`base_url`, словарь `models` с контекстным окном каждой модели,
+`vision_models`, `rag_models`, `image_models` и при необходимости
+`extra_payload`; ключ читается из переменной
+`SAGAAI_<ИМЯ_СЕРВИСА_В_ВЕРХНЕМ_РЕГИСТРЕ>_KEY`, поэтому имя сервиса задаёт
+имя переменной окружения. Так подключён Cloud.ru Foundation Models и так же
+подключён GigaChat AI Studio (`api.aistudio.giga.chat`, сервис
+`gigachat_ai_studio`, ключ `SAGAAI_GIGACHAT_AI_STUDIO_KEY`) - оба идут
+общим bearer-путём. Каталог объявляет только те возможности, которые
+провайдер действительно отдаёт: пустой `image_models` означает отсутствие
+генерации изображений, а не забытый список.
 
 ### Web-search модель (search_service/model)
 Отдельная пара service/model для задач с веб-поиском, хранится в

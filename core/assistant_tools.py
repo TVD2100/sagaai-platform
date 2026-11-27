@@ -399,6 +399,189 @@ def _report_usage(usage_callback, data: dict, input_items: list, result_text: st
     usage_callback({"in": int(tokens_in), "out": int(tokens_out), "cache": int(cache)})
 
 
+def _execute_assistant_tool(name: str, arguments: dict, assistant=None) -> str:
+    """Run one local function tool and return its output as a JSON string.
+
+    Unknown tool names answer with a structured error instead of raising, so
+    the model sees the failure and can correct itself on the next round.
+    """
+    if name == RAG_SEARCH_TOOL_NAME:
+        return execute_assistant_rag_search(arguments, assistant=assistant)
+    if name == RAG_CHUNKS_TOOL_NAME:
+        return execute_assistant_rag_chunks(arguments, assistant=assistant)
+    return json.dumps(
+        {"ok": False, "error": f"Unknown function tool: {name}"},
+        ensure_ascii=False,
+    )
+
+
+def _post_chat_completions(url: str, api_key: str, payload: dict,
+                           svc_name: str, retry_callback=None) -> dict:
+    """POST one chat/completions payload and return the decoded JSON body.
+
+    Transport failures are retried through ``retry_call`` with the shared
+    budget; provider HTTP errors are never retried.
+    """
+    from core.api_errors import NetworkError, ProviderHTTPError, RequestTimeoutError
+    from core.api_http import _VERIFY_TLS, MODEL_RESPONSE_TIMEOUT, retry_call
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+
+    def _attempt() -> dict:
+        try:
+            r = requests.post(
+                url, headers=headers, json=payload,
+                timeout=MODEL_RESPONSE_TIMEOUT, verify=_VERIFY_TLS,
+            )
+        except requests.exceptions.Timeout:
+            raise RequestTimeoutError(service=svc_name)
+        except requests.exceptions.RequestException as e:
+            raise NetworkError(str(e), service=svc_name)
+        if r.status_code != 200:
+            try:
+                err = r.json()
+                body = (err.get("error", {}).get("message")
+                        or err.get("message") or str(err))
+            except Exception:
+                body = r.text[:300]
+            raise ProviderHTTPError(r.status_code, body, service=svc_name)
+        return r.json()
+
+    return retry_call(_attempt, retry_callback=retry_callback)
+
+
+def _chat_tool_call_arguments(call: dict) -> tuple:
+    """Return (name, arguments dict) for one chat/completions tool call."""
+    func = call.get("function") or {}
+    name = str(func.get("name") or "")
+    raw = func.get("arguments")
+    if isinstance(raw, dict):
+        return name, dict(raw)
+    try:
+        arguments = json.loads(raw or "{}")
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return name, {}
+    return name, arguments if isinstance(arguments, dict) else {}
+
+
+def _tools_rejected(exc: Exception) -> bool:
+    """True when a provider HTTP error looks like a rejected tools payload."""
+    if getattr(exc, "status_code", None) not in (400, 422):
+        return False
+    body = str(getattr(exc, "body", "") or exc).lower()
+    return "tool" in body or "function" in body
+
+
+def run_bearer_tool_loop(
+    url: str, api_key: str, model: str,
+    sys_text: str, hist_msgs: list, user_content: str,
+    *, temperature: float, max_tokens: Optional[int] = None,
+    tools_list: Optional[list] = None, max_tool_calls=None,
+    cfg: Optional[dict] = None, svc_name: str = "",
+    usage_callback=None, tool_choice=None, json_schema=None,
+    assistant: Optional[dict] = None, extra_payload: Optional[dict] = None,
+    single_system: bool = False,
+    on_tool_call: Optional[Callable[[dict], None]] = None,
+    retry_callback: Optional[Callable[[dict], None]] = None,
+) -> str:
+    """Run a chat/completions conversation with a native function-call loop.
+
+    Mirrors :func:`run_yandex_responses_tool_loop` for the OpenAI-compatible
+    transport: the model decides which tools to invoke, every call is executed
+    locally through :func:`_execute_assistant_tool` and its output is fed back
+    as a ``role: tool`` message. The loop ends when the model answers without
+    tool calls or the iteration limit is reached.
+
+    A gateway that rejects the tools payload outright is retried once without
+    tools, so an assistant degrades to a plain answer instead of failing.
+    Returns the final assistant text.
+    """
+    from core.api_chat import _to_chat_tools, build_chat_payload, report_chat_usage
+    from core.api_layer import _wire_messages
+    from core.api_responses import _prepare_response_content, _unwrap_json_text
+
+    max_rounds = int(max_tool_calls or _DEFAULT_MAX_TOOL_ITERATIONS)
+    max_rounds = max(1, min(max_rounds, _MAX_TOOL_ITERATIONS))
+
+    messages: List[Dict[str, Any]] = []
+    if sys_text and str(sys_text).strip():
+        messages.append({"role": "system", "content": str(sys_text)})
+    messages.extend(_wire_messages(hist_msgs or []))
+    if user_content and str(user_content).strip():
+        messages.append({"role": "user", "content": user_content})
+
+    chat_tools = _to_chat_tools(tools_list) if tools_list else []
+    last_text = ""
+
+    for round_index in range(max_rounds + 1):
+        payload, json_format = build_chat_payload(
+            model, messages, temperature,
+            max_tokens=max_tokens, tools=tools_list, tool_choice=tool_choice,
+            json_schema=json_schema, extra_payload=extra_payload,
+            single_system=single_system,
+        )
+
+        try:
+            data = _post_chat_completions(url, api_key, payload, svc_name,
+                                          retry_callback)
+        except Exception as exc:
+            # Degrade to a plain answer when the gateway cannot accept tools at
+            # all - an assistant that never calls tools still answers.
+            if round_index != 0 or not chat_tools or not _tools_rejected(exc):
+                raise
+            payload.pop("tools", None)
+            payload.pop("tool_choice", None)
+            data = _post_chat_completions(url, api_key, payload, svc_name,
+                                          retry_callback)
+
+        choices = data.get("choices") or []
+        if not choices:
+            break
+        message = choices[0].get("message") or {}
+        calls = message.get("tool_calls") or []
+        # Only real assistant text counts as an answer. When the model asks for
+        # tools, its fenced-JSON call must never become the visible reply.
+        text = ""
+        if not calls:
+            text = _prepare_response_content(message)
+        if text.strip():
+            last_text = _unwrap_json_text(text) if json_format else text
+        report_chat_usage(usage_callback, data, messages, text)
+
+        if not calls:
+            break
+
+        # Keep the model's turn (with its tool calls) in the conversation so
+        # the provider can match each tool result to its call id.
+        messages.append({
+            "role": "assistant",
+            "content": message.get("content") or "",
+            "tool_calls": calls,
+        })
+        for call in calls:
+            name, arguments = _chat_tool_call_arguments(call)
+            output = _execute_assistant_tool(name, arguments, assistant)
+            if on_tool_call:
+                try:
+                    on_tool_call({
+                        "name": name,
+                        "arguments": arguments,
+                        "output": output,
+                    })
+                except Exception:
+                    pass
+            messages.append({
+                "role": "tool",
+                "tool_call_id": str(call.get("id") or ""),
+                "content": output,
+            })
+
+    return last_text
+
+
 def run_yandex_responses_tool_loop(
     base_url: str, api_key: str, folder_id: str, model: str,
     sys_text: str, hist_msgs: list, user_content: str,

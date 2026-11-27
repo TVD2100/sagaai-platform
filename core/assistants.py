@@ -18,6 +18,7 @@ import os
 import shutil
 import uuid
 from datetime import datetime
+from typing import Optional
 
 from core.assistant_folders import (
     assistant_folder_exists,
@@ -193,9 +194,9 @@ def create_assistant(name: str, service: str, model: str,
 
 def update_assistant(pid: str, name: str, service: str, model: str,
                      temperature, text: str, description: str = "",
-                     tools: list = None, max_tool_calls: int = None,
-                     max_tokens: int = None,
-                     reasoning_effort: str = None,
+                     tools: list = None, max_tool_calls: Optional[int] = None,
+                     max_tokens: Optional[int] = None,
+                     reasoning_effort: Optional[str] = None,
                      name_en: str = None, name_ru: str = None,
                      name_zh: str = None) -> bool:
     """Update an existing assistant. Returns True on success.

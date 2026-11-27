@@ -118,7 +118,7 @@ def test_devagent_search_model_help_does_not_advertise_provider():
     help_text = str(data.get('devagent_search_model_help') or '')
     assert help_text.strip()
     lowered = help_text.lower()
-    for vendor in ('yandex', 'deepseek', 'gigachat', 'openai', 'anthropic'):
+    for vendor in ('yandex', 'deepseek', 'cloud', 'openai', 'anthropic'):
         assert vendor not in lowered, 'advertises ' + vendor + ': ' + repr(help_text)
 
 

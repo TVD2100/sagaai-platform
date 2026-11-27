@@ -189,7 +189,7 @@ _CFG = {
     "deepseek_key": "sk-test-key",
     "yandex_iam_token": "iam-token",
     "yandex_cloud_id": "folder-id",
-    "gigachat_creds": "creds-base64",
+    "CLOUD_API_KEY": "cloud-key",
 }
 
 _SKILL = {

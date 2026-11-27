@@ -77,7 +77,7 @@ def _format_function_call_item(item: dict) -> str:
 def _unwrap_json_text(text) -> str:
     """Best-effort extraction of a JSON payload from a provider response.
 
-    Some providers (GigaChat) return structured outputs wrapped in markdown
+    Some providers return structured outputs wrapped in markdown
     fences, ``<unk>`` control tokens and an outer ``{schema_name: {...}}``
     envelope. This helper strips that noise, unwraps the single-key envelope
     and returns the bare JSON text, so structured-output consumers receive

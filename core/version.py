@@ -842,7 +842,74 @@
 # file. The map is byte-stable now, the generator has a real --check mode,
 # and the manifest matches the published tree.
 
-__version__ = "3.1.1"
+# 3.2.0 replaces the GigaChat provider with Cloud.ru Foundation Models. The
+# transport module, the service definition, the bundled Russian Trusted Root
+# CA certificate, the request and connection-test branches, the payload
+# format, the tests and the documentation that served GigaChat are removed:
+# the service is an OpenAI-compatible gateway with a plain Bearer key, so it
+# needs no transport of its own. Its catalog keeps the GigaChat line next to
+# the verified models of the major vendors. Retired-service migration
+# (core/service_migration.py) moves stored orchestrator models, assistants and
+# orchestrators over to the replacement on cold start and is idempotent. The
+# retired API key is deleted rather than copied: a key authenticates only
+# against the gateway that issued it, so handing it to the replacement would
+# turn an honest "key not set" into an authorization failure. The
+# chat/completions request body is now built by _wire_messages
+# (core/api_payload.py), which drops the fields such an endpoint does not
+# accept. A custom CA bundle is set with the standard REQUESTS_CA_BUNDLE
+# variable instead of a provider-specific one.
+
+# 3.2.1 fixes tool calling through the Cloud gateway. Native function tools
+# left the platform in the Responses API shape - the function fields at the
+# top level of the tool object - while a chat/completions endpoint expects
+# them nested under a ``function`` key. GigaChat therefore saw no tools at
+# all and imitated a call in plain text, and the OpenAI and DeepSeek routes
+# rejected the request with HTTP 400. An assistant also had no loop to feed a
+# tool result back: the transport returned the first response as the answer.
+# Both are closed now. core/api_chat.py assembles the chat/completions body
+# for the single-request transport and the function-calling loop alike: it
+# nests the tools, merges the provider-specific fields a service catalog
+# declares while protecting the platform's own request keys, and reports
+# token usage. run_bearer_tool_loop executes every call the model asks for
+# and returns the final answer; a gateway that rejects tools outright is
+# retried once without them, so the assistant degrades to a plain reply
+# instead of failing. The Cloud catalog declares one such field -
+# ``chat_template_kwargs.enable_thinking`` - verified against all twenty
+# models of the catalog.
+
+# 3.3.0 adds GigaChat AI Studio as a provider of its own. The service is
+# an OpenAI-compatible gateway (api.aistudio.giga.chat) with a plain Bearer
+# key, so it reuses the chat/completions transport and the nested tool shape
+# that Cloud already goes through; no code of its own is needed. The catalog
+# carries the seven chat models the gateway serves with the context window
+# each one actually enforces - the limits differ per checkpoint and were read
+# from the provider's own CONTEXT_TOO_LONG answers - and offers as vision
+# models only the four that accept an image. Image generation and
+# vectorization stay empty rather than promised: the gateway serves no image
+# endpoint, and RAG vectorization is still bound to the Yandex embedding
+# client. The service is named gigachat_ai_studio because the API-key
+# environment variable is derived from the service name
+# (SAGAAI_GIGACHAT_AI_STUDIO_KEY).
+
+# 3.3.1 fixes GigaChat answers on both channels. GigaChat (Cloud.ru and AI
+# Studio alike) keeps only the last ``system`` message of a request and drops
+# every earlier one. The platform sends the orchestrator prompt first and its
+# hidden state snapshots (task journal, thread artefacts folder, the economy
+# header) after it, so the provider saw a short snapshot instead of the prompt
+# and lost the role, the tools and the rules - measured on AI Studio, one
+# ``system`` message gave 28599 prompt tokens and a correct answer, three gave
+# 43 tokens and an empty reply. A service catalog now declares the trait as
+# ``single_system_message`` (true for the whole service or a list of model
+# prefixes) and only the matched models go through
+# ``collapse_system_messages``: every ``system`` text is merged into the
+# leading message in arrival order, a snapshot behind a ``[PLATFORM CONTEXT]``
+# marker, while the user and assistant turns travel unchanged. The flag
+# reaches the body through both bearer paths - the single request and the
+# function-calling loop. DeepSeek, Yandex and the OpenAI, Anthropic and Google
+# models of Cloud keep the full system chain: the normalisation is switched on
+# by a catalog, not by the transport protocol.
+
+__version__ = "3.3.1"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

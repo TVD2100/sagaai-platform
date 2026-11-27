@@ -2,16 +2,11 @@
 tests.test_core_api_layer - unit tests for core.api_layer.
 
 Tests for pure functions that do NOT require network mocking:
-_normalise_tools, _extract_responses_text, _prepare_response_content,
-_gigachat_verify.
+_normalise_tools, _extract_responses_text, _prepare_response_content.
 
 Tests requiring network mocks (send_request, _bearer_request, etc.)
 are in test_core_api_send.py.
 """
-
-import json
-
-import pytest
 
 # ─── _normalise_tools ──────────────────────────────────────────────────────
 
@@ -53,6 +48,111 @@ def test_normalise_tools_empty():
     from core.api_layer import _normalise_tools
     assert _normalise_tools([]) == []
     assert _normalise_tools(None) == []
+
+
+# ─── _to_chat_tools ────────────────────────────────────────────────────────
+
+def test_to_chat_tools_nests_flat_function_tool():
+    """A Responses-shape function tool is wrapped one level deeper."""
+    from core.api_chat import _to_chat_tools
+    flat = {
+        "type": "function",
+        "name": "calculate",
+        "description": "Evaluate arithmetic",
+        "parameters": {"type": "object", "properties": {}},
+    }
+    converted = _to_chat_tools([flat])
+    assert converted == [{
+        "type": "function",
+        "function": {
+            "name": "calculate",
+            "description": "Evaluate arithmetic",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    }]
+    # The source tool must not be mutated in place.
+    assert flat["name"] == "calculate"
+    assert "function" not in flat
+
+
+def test_to_chat_tools_passes_nested_function_tool_through():
+    """An already-nested tool is left untouched, making the call idempotent."""
+    from core.api_chat import _to_chat_tools
+    nested = {"type": "function", "function": {"name": "calculate"}}
+    assert _to_chat_tools([nested]) == [nested]
+    assert _to_chat_tools(_to_chat_tools([nested])) == [nested]
+
+
+def test_to_chat_tools_passes_server_tools_through():
+    """Non-function tools keep their shape - only function tools are nested."""
+    from core.api_chat import _to_chat_tools
+    tools = [
+        {"type": "web_search", "filters": {"allowed_domains": ["python.org"]}},
+        {"type": "code_interpreter"},
+    ]
+    assert _to_chat_tools(tools) == tools
+
+
+def test_to_chat_tools_converts_strings_and_drops_unknown():
+    from core.api_chat import _to_chat_tools
+    converted = _to_chat_tools(["web_search", 42, None, {"type": "function", "name": "x"}])
+    assert converted[0] == {"type": "web_search"}
+    assert converted[1] == {"type": "function", "function": {"name": "x"}}
+    assert len(converted) == 2
+
+
+def test_to_chat_tools_empty():
+    from core.api_chat import _to_chat_tools
+    assert _to_chat_tools([]) == []
+    assert _to_chat_tools(None) == []
+
+
+# ─── _merge_extra_payload ──────────────────────────────────────────────────
+
+def test_merge_extra_payload_adds_new_keys():
+    """Provider-specific fields land in the body next to the platform keys."""
+    from core.api_chat import _merge_extra_payload
+    payload = {"model": "m", "messages": []}
+    _merge_extra_payload(payload, {"chat_template_kwargs": {"enable_thinking": True}})
+    assert payload["chat_template_kwargs"] == {"enable_thinking": True}
+    assert payload["model"] == "m"
+
+
+def test_merge_extra_payload_never_overrides_platform_keys():
+    """A catalog entry cannot replace the model, the conversation or tools."""
+    from core.api_chat import _merge_extra_payload
+    payload = {
+        "model": "real-model",
+        "messages": [{"role": "user", "content": "q"}],
+        "tools": [{"type": "web_search"}],
+        "temperature": 0.3,
+        "max_tokens": 900,
+    }
+    _merge_extra_payload(payload, {
+        "model": "hijacked",
+        "messages": [],
+        "tools": [],
+        "temperature": 2.0,
+        "max_tokens": 1,
+        "response_format": {"type": "text"},
+        "reasoning": {"effort": "high"},
+    })
+    assert payload["model"] == "real-model"
+    assert payload["messages"] == [{"role": "user", "content": "q"}]
+    assert payload["tools"] == [{"type": "web_search"}]
+    assert payload["temperature"] == 0.3
+    assert payload["max_tokens"] == 900
+    assert "response_format" not in payload
+    # A genuinely provider-specific key still gets through.
+    assert payload["reasoning"] == {"effort": "high"}
+
+
+def test_merge_extra_payload_empty_is_noop():
+    from core.api_chat import _merge_extra_payload
+    payload = {"model": "m"}
+    _merge_extra_payload(payload, None)
+    _merge_extra_payload(payload, {})
+    assert payload == {"model": "m"}
 
 
 # ─── _extract_responses_text ───────────────────────────────────────────────
@@ -175,39 +275,3 @@ def test_prepare_response_content_broken_tool_args():
     result = _prepare_response_content(msg)
     assert "bad_tool" in result
     assert "args" in result
-
-
-# ─── _gigachat_verify ──────────────────────────────────────────────────────
-
-def test_gigachat_verify_honours_global_disable(monkeypatch):
-    from core import api_layer
-    monkeypatch.setattr(api_layer, "_VERIFY_TLS", False)
-    assert api_layer._gigachat_verify() is False
-
-
-def test_gigachat_verify_returns_default_bundle_when_present(monkeypatch, tmp_path):
-    from core import api_layer
-    bundle = tmp_path / "ca.pem"
-    bundle.write_text("-----BEGIN CERTIFICATE-----\n", encoding="utf-8")
-    monkeypatch.setattr(api_layer, "_VERIFY_TLS", True)
-    monkeypatch.setattr(api_layer, "_GIGACHAT_DEFAULT_CA_BUNDLE", str(bundle))
-    monkeypatch.delenv("SAGAAI_GIGACHAT_CA_BUNDLE", raising=False)
-    assert api_layer._gigachat_verify() == str(bundle)
-
-
-def test_gigachat_verify_honours_env_bundle(monkeypatch, tmp_path):
-    from core import api_layer
-    bundle = tmp_path / "env.pem"
-    bundle.write_text("-----BEGIN CERTIFICATE-----\n", encoding="utf-8")
-    monkeypatch.setattr(api_layer, "_VERIFY_TLS", True)
-    monkeypatch.setenv("SAGAAI_GIGACHAT_CA_BUNDLE", str(bundle))
-    assert api_layer._gigachat_verify() == str(bundle)
-
-
-def test_gigachat_verify_falls_back_when_bundle_missing(monkeypatch, tmp_path):
-    from core import api_layer
-    missing = str(tmp_path / "missing.pem")
-    monkeypatch.setattr(api_layer, "_VERIFY_TLS", True)
-    monkeypatch.setattr(api_layer, "_GIGACHAT_DEFAULT_CA_BUNDLE", missing)
-    monkeypatch.delenv("SAGAAI_GIGACHAT_CA_BUNDLE", raising=False)
-    assert api_layer._gigachat_verify() is True

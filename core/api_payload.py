@@ -44,8 +44,7 @@ def _clamp_max_tokens(max_tokens, svc: dict, model_id: str):
 
     A value saved in the orchestrator config for one model (e.g. 384000 for
     a DeepSeek model) must not be forwarded verbatim after the service or
-    model was switched: providers with a lower cap reject such requests
-    (GigaChat allows at most 32768 output tokens).
+    model was switched: providers with a lower cap reject such requests.
 
     Only limits declared explicitly in the service definition are enforced
     (the model entry's "max_tokens" or the service-level
@@ -71,7 +70,7 @@ def _clamp_max_tokens(max_tokens, svc: dict, model_id: str):
 # option (a bare JSON Schema dict, or {"name": ..., "schema": ...}) to an
 # assistant dict. Each transport renders it in the shape the provider accepts;
 # verified live for YandexAI / DeepSeek (Responses API ``text.format``) and
-# GigaChat (``response_format``), see .dev_agent/scratch/probe_structured_output.py.
+# bearer OpenAI-compatible services (``response_format``).
 
 
 def _normalise_json_schema(json_schema, default_name: str = "structured_output"):
@@ -88,8 +87,8 @@ def _normalise_json_schema(json_schema, default_name: str = "structured_output")
         schema = json_schema
     if not isinstance(schema, dict):
         return None
-    raw_name = str(json_schema.get("name") or default_name).strip() or default_name
-    name = "".join(c if (c.isalnum() or c in "_-") else "_" for c in raw_name)
+    raw = str(json_schema.get("name") or default_name).strip() or default_name
+    name = "".join(c if (c.isalnum() or c in "_-") else "_" for c in raw)
     return {"name": name, "schema": schema}
 
 
@@ -111,30 +110,8 @@ def _openai_response_format(json_schema):
     norm = _normalise_json_schema(json_schema)
     if not norm:
         return None
-    return {
-        "type": "json_schema",
-        "json_schema": {
-            "name": norm["name"],
-            "schema": norm["schema"],
-        },
-    }
-
-
-def _gigachat_response_format(json_schema):
-    """Return the GigaChat ``response_format`` block.
-
-    GigaChat accepts ``{type, schema, strict}`` (no ``name`` field) but
-    wraps the produced JSON in a ``{schema_name: {...}}`` envelope, so
-    the result is unwrapped with :func:`_unwrap_json_text`.
-    """
-    norm = _normalise_json_schema(json_schema)
-    if not norm:
-        return None
-    return {
-        "type": "json_schema",
-        "schema": norm["schema"],
-        "strict": True,
-    }
+    inner = {"name": norm["name"], "schema": norm["schema"]}
+    return {"type": "json_schema", "json_schema": inner}
 
 
 def _content_has_material(content) -> bool:
@@ -172,13 +149,8 @@ def _normalise_tools(tools: list) -> list:
     """
     if not tools:
         return []
-    result = []
-    for t in tools:
-        if isinstance(t, dict):
-            result.append(t)
-        elif isinstance(t, str):
-            result.append({"type": t})
-    return result
+    return [t if isinstance(t, dict) else {"type": t}
+            for t in tools if isinstance(t, (dict, str))]
 
 
 def _has_native_function_tools(tools: list) -> bool:
@@ -194,6 +166,32 @@ def _has_native_function_tools(tools: list) -> bool:
         if isinstance(t, dict) and t.get("type") == "function":
             return True
     return False
+
+
+#: Message fields a chat/completions provider accepts. Everything else on a
+#: history message is platform bookkeeping (timestamps, indexes, rendered
+#: events) and has no meaning on the wire.
+_WIRE_MESSAGE_FIELDS = ("role", "content", "name", "tool_calls", "tool_call_id")
+
+
+def _wire_messages(messages: list) -> list:
+    """Return the chat messages carrying only provider-recognised fields.
+
+    The UI and the agent loop decorate history entries with their own keys
+    (``ts``, ``_index``, ``_events``, ``hidden``) so the dialog can be
+    rendered and replayed. A chat/completions endpoint has no use for them,
+    and a strict gateway may reject an unknown key outright - so the wire
+    copy keeps the known fields and drops the rest. Non-dict entries are
+    passed through untouched, exactly as the caller built them.
+    """
+    wire: list = []
+    for message in messages or []:
+        if not isinstance(message, dict):
+            wire.append(message)
+            continue
+        wire.append({key: value for key, value in message.items()
+                     if key in _WIRE_MESSAGE_FIELDS})
+    return wire
 
 
 def _estimate_tokens_in(messages: list) -> int:

@@ -37,14 +37,12 @@ def _make_svc(name="DeepSeek", auth_type="bearer", base_url="https://api.deepsee
     }
 
 
-def _make_cfg(deepseek_key="sk-test-key", yandex_iam_token="iam-token", yandex_folder_id="folder-id",
-              gigachat_creds="creds-base64"):
+def _make_cfg(deepseek_key="sk-test-key", yandex_iam_token="iam-token", yandex_folder_id="folder-id"):
     """Helper: build a minimal config dict."""
     return {
         "deepseek_key": deepseek_key,
         "yandex_iam_token": yandex_iam_token,
         "yandex_cloud_id": yandex_folder_id,
-        "gigachat_creds": gigachat_creds,
     }
 
 
@@ -133,32 +131,6 @@ def test_bearer_request_with_tools():
         )
         sent_json = mock_post.call_args[1]["json"]
         assert sent_json["tools"] == [{"type": "web_search"}]
-
-
-# ─── _gigachat_token ────────────────────────────────────────────────────────
-
-def test_gigachat_token_success():
-    from core.api_layer import _gigachat_token
-    with patch("core.api_layer.requests.post") as mock_post:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {"access_token": "test-token-123"}
-        mock_post.return_value = mock_resp
-
-        token = _gigachat_token("creds-base64")
-        assert token == "test-token-123"
-
-
-def test_gigachat_token_http_error():
-    from core.api_layer import _gigachat_token
-    with patch("core.api_layer.requests.post") as mock_post:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 400
-        mock_resp.text = "Bad Request"
-        mock_post.return_value = mock_resp
-
-        with pytest.raises(ProviderHTTPError, match="Bad Request"):
-            _gigachat_token("bad-creds")
 
 
 # ─── send_request success/failure per auth_type ─────────────────────────────
@@ -303,69 +275,6 @@ def test_send_request_yandex_iam_missing_folder_id():
 
         with pytest.raises(ApiKeyMissingError):
             send_request("Привет", _make_skill(service="YandexAI"))
-
-
-def test_send_request_gigachat_success():
-    from core.api_layer import send_request
-    with patch("core.api_layer.get_services") as mock_svc, \
-         patch("core.api_layer.load_config") as mock_cfg, \
-         patch("core.api_layer.load_skill_files_context", return_value=""), \
-         patch("core.api_layer._gigachat_token", return_value="giga-token"), \
-         patch("core.api_layer.requests.Session") as mock_session_cls:
-        mock_cfg.return_value = _make_cfg()
-        svc = _make_svc(
-            name="GigaChat",
-            auth_type="gigachat_oauth",
-            base_url="https://api.giga.chat/v1/chat/completions",
-            config_key="gigachat_creds",
-        )
-        svc["GigaChat"]["config_key2"] = "gigachat_scope"
-        mock_svc.return_value = svc
-
-        mock_session = MagicMock()
-        mock_resp = MagicMock()
-        mock_resp.ok = True
-        mock_resp.json.return_value = {"choices": [{"message": {"content": "Ответ GigaChat"}}]}
-        mock_session.post.return_value = mock_resp
-        mock_session.headers = {}
-        mock_session.verify = True
-        mock_session_cls.return_value = mock_session
-
-        result = send_request("Привет", _make_skill(service="GigaChat", model="GigaChat"))
-        assert result == "Ответ GigaChat"
-
-
-def test_send_request_gigachat_http_error():
-    from core.api_layer import send_request
-    with patch("core.api_layer.get_services") as mock_svc, \
-         patch("core.api_layer.load_config") as mock_cfg, \
-         patch("core.api_layer.load_skill_files_context", return_value=""), \
-         patch("core.api_layer._gigachat_token", return_value="giga-token"), \
-         patch("core.api_layer.requests.Session") as mock_session_cls:
-        mock_cfg.return_value = _make_cfg()
-        svc = _make_svc(
-            name="GigaChat",
-            auth_type="gigachat_oauth",
-            base_url="https://api.giga.chat/v1/chat/completions",
-            config_key="gigachat_creds",
-        )
-        svc["GigaChat"]["config_key2"] = "gigachat_scope"
-        mock_svc.return_value = svc
-
-        mock_session = MagicMock()
-        mock_resp = MagicMock()
-        mock_resp.ok = False
-        mock_resp.status_code = 500
-        mock_resp.json.return_value = {"message": "Internal error"}
-        mock_session.post.return_value = mock_resp
-        mock_session.headers = {}
-        mock_session.verify = True
-        mock_session_cls.return_value = mock_session
-
-        with pytest.raises(ProviderHTTPError) as exc_info:
-            send_request("Привет", _make_skill(service="GigaChat", model="GigaChat"))
-        assert "500" in str(exc_info.value)
-        assert "Internal error" in str(exc_info.value)
 
 
 def test_send_request_unknown_auth_type():
@@ -533,60 +442,6 @@ def test_test_connection_yandex_iam_missing_folder_id():
         assert "folder" in msg.lower()
 
 
-def test_test_connection_gigachat_success():
-    from core.api_layer import test_connection
-    with patch("core.api_layer.get_services") as mock_svc, \
-         patch("core.api_layer._gigachat_token", return_value="giga-token"), \
-         patch("core.api_layer.requests.Session") as mock_session_cls:
-        svc = _make_svc(
-            name="GigaChat",
-            auth_type="gigachat_oauth",
-            base_url="https://api.giga.chat/v1/chat/completions",
-            config_key="gigachat_creds",
-        )
-        svc["GigaChat"]["config_key2"] = "gigachat_scope"
-        mock_svc.return_value = svc
-
-        mock_session = MagicMock()
-        mock_get_resp = MagicMock()
-        mock_get_resp.status_code = 200
-        mock_session.get.return_value = mock_get_resp
-        mock_session.headers = {}
-        mock_session.verify = True
-        mock_session_cls.return_value = mock_session
-
-        ok, msg = test_connection("GigaChat", _make_cfg())
-        assert ok is True
-        assert "OK" in msg or "token" in msg.lower()
-
-
-def test_test_connection_gigachat_models_failure():
-    from core.api_layer import test_connection
-    with patch("core.api_layer.get_services") as mock_svc, \
-         patch("core.api_layer._gigachat_token", return_value="giga-token"), \
-         patch("core.api_layer.requests.Session") as mock_session_cls:
-        svc = _make_svc(
-            name="GigaChat",
-            auth_type="gigachat_oauth",
-            base_url="https://api.giga.chat/v1/chat/completions",
-            config_key="gigachat_creds",
-        )
-        svc["GigaChat"]["config_key2"] = "gigachat_scope"
-        mock_svc.return_value = svc
-
-        mock_session = MagicMock()
-        mock_get_resp = MagicMock()
-        mock_get_resp.status_code = 500
-        mock_session.get.return_value = mock_get_resp
-        mock_session.headers = {}
-        mock_session.verify = True
-        mock_session_cls.return_value = mock_session
-
-        ok, msg = test_connection("GigaChat", _make_cfg())
-        assert ok is True
-        assert "Token OK" in msg
-
-
 def test_test_connection_missing_service():
     from core.api_layer import test_connection
     with patch("core.api_layer.get_services") as mock_svc:
@@ -623,48 +478,6 @@ def test_test_connection_truly_unknown_auth():
         ok, msg = test_connection("TestSvc", {"k": "v"})
         assert ok is False
         assert "Unknown auth_type" in msg
-
-
-def test_gigachat_models_url_derivation():
-    """_gigachat_models_url derives /models from the chat-completions URL."""
-    from core.api_layer import _gigachat_models_url
-    assert _gigachat_models_url("https://api.giga.chat/v1/chat/completions") == \
-        "https://api.giga.chat/v1/models"
-    assert _gigachat_models_url("https://api.giga.chat/v1/chat/completions/") == \
-        "https://api.giga.chat/v1/models"
-    assert _gigachat_models_url("https://api.giga.chat/v1/models") == \
-        "https://api.giga.chat/v1/models"
-    assert _gigachat_models_url("") == "https://api.giga.chat/v1/models"
-    assert _gigachat_models_url("https://example.com/custom") == \
-        "https://api.giga.chat/v1/models"
-
-
-def test_test_connection_gigachat_uses_derived_models_url():
-    """test_connection hits the /models URL derived from the service base_url."""
-    from core.api_layer import test_connection
-    with patch("core.api_layer.get_services") as mock_svc, \
-         patch("core.api_layer._gigachat_token", return_value="giga-token"), \
-         patch("core.api_layer.requests.Session") as mock_session_cls:
-        svc = _make_svc(
-            name="GigaChat",
-            auth_type="gigachat_oauth",
-            base_url="https://api.giga.chat/v1/chat/completions",
-            config_key="gigachat_creds",
-        )
-        svc["GigaChat"]["config_key2"] = "gigachat_scope"
-        mock_svc.return_value = svc
-
-        mock_session = MagicMock()
-        mock_get_resp = MagicMock()
-        mock_get_resp.status_code = 200
-        mock_session.get.return_value = mock_get_resp
-        mock_session.headers = {}
-        mock_session.verify = True
-        mock_session_cls.return_value = mock_session
-
-        ok, msg = test_connection("GigaChat", _make_cfg())
-        assert ok is True
-        assert mock_session.get.call_args[0][0] == "https://api.giga.chat/v1/models"
 
 
 def test_bearer_request_reports_openai_cached_tokens():
@@ -745,47 +558,3 @@ def test_bearer_request_cache_zero_when_not_reported():
             usage_callback=lambda u: usage.update(u),
         )
         assert usage == {"in": 40, "out": 2, "cache": 0}
-
-
-def test_send_request_gigachat_reports_precached_tokens():
-    """GigaChat: usage.precached_prompt_tokens becomes the cache bucket."""
-    from core.api_layer import send_request
-    with patch("core.api_layer.get_services") as mock_svc, \
-         patch("core.api_layer.load_config") as mock_cfg, \
-         patch("core.api_layer.load_skill_files_context", return_value=""), \
-         patch("core.api_layer._gigachat_token", return_value="giga-token"), \
-         patch("core.api_layer.requests.Session") as mock_session_cls:
-        mock_cfg.return_value = _make_cfg()
-        svc = _make_svc(
-            name="GigaChat",
-            auth_type="gigachat_oauth",
-            base_url="https://api.giga.chat/v1/chat/completions",
-            config_key="gigachat_creds",
-        )
-        svc["GigaChat"]["config_key2"] = "gigachat_scope"
-        mock_svc.return_value = svc
-
-        mock_session = MagicMock()
-        mock_resp = MagicMock()
-        mock_resp.ok = True
-        mock_resp.json.return_value = {
-            "choices": [{"message": {"content": "ok"}}],
-            "usage": {
-                "prompt_tokens": 100,
-                "completion_tokens": 5,
-                "precached_prompt_tokens": 60,
-            },
-        }
-        mock_session.post.return_value = mock_resp
-        mock_session.headers = {}
-        mock_session.verify = True
-        mock_session_cls.return_value = mock_session
-
-        usage = {}
-        result = send_request(
-            "Привет",
-            _make_skill(service="GigaChat", model="GigaChat"),
-            usage_callback=lambda u: usage.update(u),
-        )
-        assert result == "ok"
-        assert usage == {"in": 100, "out": 5, "cache": 60}

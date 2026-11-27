@@ -126,7 +126,7 @@ def env_key_fields_for_service(svc_name: str) -> tuple:
 
     Both ``config_key`` and ``config_key2`` participate by default. A service
     may narrow this via the ``env_key_fields`` list in its JSON definition
-    (e.g. GigaChat, whose second field is a scope rather than a second key):
+    (when the second field is a scope rather than a second key):
     only the listed fields are used to build/check ``SAGAAI_<SVC>_KEY``
     variables and to fill empty config values.
     """

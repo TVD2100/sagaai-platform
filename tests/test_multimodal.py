@@ -285,7 +285,7 @@ class TestSendVisionRequest:
                                     [{"mime": "image/jpeg", "data": "x"}])
 
     def test_unknown_auth_type(self):
-        svc = {"auth_type": "gigachat_oauth", "config_key": "K"}
+        svc = {"auth_type": "unknown_auth", "config_key": "K"}
         with patch("core.api_layer.get_services", return_value={"S": svc}):
             from core.api_layer import send_vision_request
             with pytest.raises(AuthTypeUnknownError):

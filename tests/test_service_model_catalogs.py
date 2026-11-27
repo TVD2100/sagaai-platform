@@ -20,7 +20,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from core.services import get_image_models, get_services, get_vision_models
+from core.services import (
+    get_embedding_models,
+    get_image_models,
+    get_services,
+    get_vision_models,
+)
 
 
 def _repo_root() -> str:
@@ -63,10 +68,50 @@ def test_deepseek_declares_vision_catalog_with_dedicated_endpoint():
     assert get_image_models(svc) == []
 
 
+def test_gigachat_ai_studio_declares_the_live_catalog():
+    """GigaChat AI Studio ships the seven chat models of its gateway.
+
+    The context windows were read from the provider's CONTEXT_TOO_LONG
+    answers, so every model carries its own measured window; only the four
+    models that accepted an image are declared as vision models, and the
+    gateway serves no image generation, so that catalog stays empty.
+    """
+    svc = get_services().get("gigachat_ai_studio") or {}
+    assert svc, "the GigaChat AI Studio catalog is missing"
+    assert svc.get("auth_type") == "bearer"
+    assert svc.get("base_url") == "https://api.aistudio.giga.chat/v1/chat/completions"
+    assert "config_key2" not in svc
+
+    windows = {m.get("id"): m.get("context_window") for m in svc.get("models") or []}
+    assert windows == {
+        "GigaChat-4-708B-A41B": 524288,
+        "GigaChat-3.5-432B-A28B": 523264,
+        "GigaChat-3.5-Ultra-Reasoning": 1047552,
+        "GigaChat-4-37B-A4B": 1047552,
+        "GigaChat-3-Ultra": 523264,
+        "GigaChat-3-Pro": 130048,
+        "GigaChat-3-Lightning": 261120,
+    }
+
+    vision_ids = [m.get("id") for m in get_vision_models(svc)]
+    assert vision_ids == [
+        "GigaChat-4-708B-A41B",
+        "GigaChat-3.5-432B-A28B",
+        "GigaChat-3-Ultra",
+        "GigaChat-3-Pro",
+    ]
+    for entry in get_vision_models(svc):
+        label = entry.get("label") or {}
+        assert label.get("ru"), entry
+        assert label.get("en"), entry
+    # Generation and vectorization are not part of this gateway.
+    assert get_image_models(svc) == []
+    assert get_embedding_models(svc) == []
+
+
 def test_services_without_a_catalog_return_empty_lists():
-    """GigaChat does not declare vision/image catalogs."""
-    svc = get_services().get("GigaChat") or {}
-    assert get_vision_models(svc) == []
+    """A service that declares no image catalog returns an empty list."""
+    svc = get_services().get("DeepSeek") or {}
     assert get_image_models(svc) == []
 
 
@@ -82,7 +127,7 @@ def test_defaults_and_legacy_service_files_stay_in_sync():
     """defaults/services/*.json and the legacy services/*.json copies carry
     identical content, so both layouts expose the same model catalogs."""
     root = _repo_root()
-    for fname in ("yandex.json", "deepseek.json", "gigachat.json"):
+    for fname in ("yandex.json", "deepseek.json", "cloud.json", "gigachat_ai_studio.json"):
         path_defaults = os.path.join(root, "defaults", "services", fname)
         path_legacy = os.path.join(root, "services", fname)
         with open(path_defaults, encoding="utf-8") as f:

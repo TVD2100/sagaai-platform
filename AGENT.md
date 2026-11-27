@@ -163,7 +163,7 @@ file_versions.json --key <ключ>` -> проверка `--check` и подпи
 
 SagaAI - универсальный AI-ассистент с веб-интерфейсом на базе Streamlit.
 Приложение позволяет:
-- вести диалог с большими языковыми моделями (OpenAI-совместимые API и GigaChat);
+- вести диалог с большими языковыми моделями (OpenAI-совместимые API);
 - управлять **помощниками** (system-промптами) - создавать, редактировать,
   удалять, прикреплять к ним файлы;
 - переключаться между несколькими языками интерфейса;
@@ -460,7 +460,7 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   messages, кэш-режим).
 - Строка токенов в ленте чата собирает честный кэш-бакет провайдера на
   всех транспортах (bearer/DeepSeek - `prompt_tokens_details.cached_tokens`
-  с фолбэком `prompt_cache_hit_tokens`, GigaChat - `precached_prompt_tokens`,
+  с фолбэком `prompt_cache_hit_tokens`,
   Responses - `input_tokens_details.cached_tokens`); метки строки
   локализованы (`token_line_*` во всех языковых файлах), а кэш строки
   учитывает язык интерфейса.
@@ -1127,19 +1127,71 @@ SagaAI - универсальный AI-ассистент с веб-интерф
   провайдеру; новый диалог не предлагается. Объявленные в каталогах
   сервисов лимиты вывода делают резерв реалистичным.
 
-### FR16 - Совместимость GigaChat (payload, лимиты, видимость ошибок)
-- GigaChat принимает ровно один system-промпт и только первым сообщением:
-  `_gigachat_messages` (`core/api_layer.py`) фолдит в ведущее
-  system-сообщение только ВЕДУЩИЕ system-блоки (системный промпт,
-  эконом-мета) - в исходном порядке, а system-блок середины истории
-  (task state, thread context) сохраняет позицию и отдаётся с ролью
-  `user` (служебный контекст, не речь ассистента); префикс запроса при
-  этом остаётся байтово стабильным от шага к шагу.
-- Подряд идущие сообщения одинаковых ролей в GigaChat-payload
-  схлопываются (склейка через пустую строку).
+### FR16 - Подключение провайдеров и миграция сервисов
+- Провайдеры моделей делятся на два вида: собственный транспорт
+  (`core/api_responses.py`, `core/api_deepseek.py`, `core/api_yandex.py` для
+  Responses API и вендорских расширений) и OpenAI-совместимый шлюз,
+  подключаемый декларативно через `services/<name>.json` с
+  `auth_type=bearer`. К второму виду относятся Cloud.ru Foundation Models
+  (`services/cloud.json`) и GigaChat AI Studio
+  (`services/gigachat_ai_studio.json`): обычный Bearer API-ключ, без
+  OAuth-обмена, без `x-project-id` и без внешнего CA-бандла.
+- Ключ доступа такого сервиса берётся из переменной окружения
+  `SAGAAI_<SERVICE>_KEY` (`_env_key_for_service`), поэтому новый
+  bearer-провайдер не требует изменений в коде транспорта. Имя сервиса тем
+  самым задаёт имя переменной окружения: GigaChat AI Studio читает ключ из
+  `SAGAAI_GIGACHAT_AI_STUDIO_KEY`.
+- Каталог объявляет только те возможности, которые провайдер действительно
+  отдаёт. Пустой `image_models` или `rag_models` означает их отсутствие у
+  сервиса, а не забытый список: у GigaChat AI Studio заполнены `models`
+  (семь чатовых моделей с их реальными контекстными окнами) и
+  `vision_models` (четыре модели, принимающие изображение), а генерация
+  изображений и векторизация не объявлены.
+- Выведенные из обслуживания сервисы мигрируются на холодном старте
+  (`core/service_migration.py`, `migrate_retired_services`): настройки
+  моделей оркестраторов, помощники и оркестраторы, привязанные к снятому
+  сервису, переводятся на его преемника с сохранением выбранной модели при
+  совпадении идентификатора. Сохранённый ключ снятого сервиса и его
+  companion-поля удаляются, а не переносятся: ключ выпущен одним провайдером
+  для своего шлюза и не аутентифицирует запрос к преемнику, поэтому владелец
+  вводит ключ нового сервиса сам. Повторный прогон идемпотентен и возвращает
+  `unchanged`.
 - `max_tokens` клампится по лимиту модели, при его отсутствии - по
-  сервисному дефолту (`_clamp_max_tokens` в `core/api_layer.py`, до
+  сервисному дефолту (`_clamp_max_tokens` в `core/api_payload.py`, до
   pre-flight guard); сервисы без объявленного лимита не затрагиваются.
+- Формат нативных инструментов зависит от протокола, а не от объявления в
+  карточке: Responses API (`auth_type=yandex_iam`, `deepseek_responses`)
+  принимает плоский `{type, name, description, parameters}`, а
+  chat/completions - вложенный `{type: function, function: {...}}`. Плоский
+  элемент, отправленный в chat/completions, не отвергается: шлюз молча его
+  игнорирует, и модель имитирует вызов текстом. Поэтому bearer-путь всегда
+  прогоняет объявление через `_to_chat_tools` (`core/api_chat.py`); сборка
+  тела запроса живёт в том же модуле (`build_chat_payload`), общем для
+  одиночного транспорта и цикла вызова инструментов.
+- Каталог сервиса может объявить поля, которые понимает только он сам
+  (`extra_payload` в `services/<name>.json`). Они вливаются в тело запроса
+  через `_merge_extra_payload`, но не могут перетереть ключи платформы
+  (`model`, `messages`, `tools`, `tool_choice`, `temperature`, `max_tokens`,
+  `response_format`, `input`, `instructions`): каталог расширяет запрос, а не
+  управляет им.
+- Каталог сервиса может объявить, что провайдер учитывает только последнее
+  `system`-сообщение (`single_system_message`: `true` для всех моделей или
+  `{"models": ["<префикс>", ...]}` для отдельных). Это свойство GigaChat на
+  Cloud.ru (`GigaChat/`, `ai-sage/GigaChat`) и в AI Studio (`GigaChat`):
+  остальные `system` он молча отбрасывает, поэтому короткий снимок состояния
+  вытесняет промпт оркестратора, и модель теряет роль, инструменты и правила.
+  Для совпавших моделей `build_chat_payload` сливает все тексты `system` в
+  ведущее сообщение (`collapse_system_messages`, снимки под маркером
+  `[PLATFORM CONTEXT]`), ходы `user` и `assistant` не меняются. Флаг решает
+  `needs_single_system` и передаётся по обоим bearer-путям; каталоги без
+  поля и прочие провайдеры шлют запрос как раньше.
+- Вспомогательный помощник без оркестратора исполняет вызовы инструментов
+  сам (`run_bearer_tool_loop` в `core/assistant_tools.py` для
+  chat/completions, `run_yandex_responses_tool_loop` для Responses): каждый
+  запрошенный вызов выполняется локально, результат возвращается сообщением
+  `role: tool` с `tool_call_id`, цикл завершается ответом без вызовов или
+  исчерпанием `max_tool_calls`. Шлюз, отвергший tools с 400/422, получает
+  один повтор без инструментов, чтобы помощник ответил обычным текстом.
 - Ошибки LLM на первом шаге агентного цикла видны в ленте чата
   оркестратора: события шага (включая `error`) крепятся к сообщению
   пользователя текущего хода, если ответа ассистента ещё нет
@@ -2146,10 +2198,10 @@ JSON и до скачивания пакета.
     # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
     # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
-- Список базовых файлов (352):
+- Список базовых файлов (353):
   - Корень (2): __init__.py, app.py
   - UI (44): ui/__init__.py, ui/app.py, ui/app_restore.py, ui/components/__init__.py, ui/components/flash.py, ui/components/name_fields.py, ui/components/workspace_picker.py, ui/pages/__init__.py, ui/pages/access.py, ui/pages/assistants.py, ui/pages/assistants_helpers.py, ui/pages/assistants_nav.py, ui/pages/chat.py, ui/pages/connectors.py, ui/pages/history.py, ui/pages/marketplace.py, ui/pages/orchestrator.py, ui/pages/orchestrator_chat.py, ui/pages/orchestrator_chat_input.py, ui/pages/orchestrator_feed.py, ui/pages/orchestrator_flags.py, ui/pages/orchestrator_folder.py, ui/pages/orchestrator_loop.py, ui/pages/orchestrator_sandbox.py, ui/pages/orchestrator_settings.py, ui/pages/orchestrator_settings_delegation.py, ui/pages/orchestrator_settings_economy.py, ui/pages/orchestrator_settings_models.py, ui/pages/orchestrator_settings_orch.py, ui/pages/orchestrator_settings_other.py, ui/pages/orchestrator_settings_save.py, ui/pages/orchestrator_shared.py, ui/pages/orchestrator_state.py, ui/pages/orchestrator_text.py, ui/pages/orchestrators.py, ui/pages/schedules.py, ui/pages/settings.py, ui/pages/skills.py, ui/pages/skills_library.py, ui/pages/stats.py, ui/pages/storage.py, ui/pages/updates.py, ui/pages/updates_marketplace.py, ui/pages/welcome.py
-  - Core (104): core/__init__.py, core/api_bearer.py, core/api_deepseek.py, core/api_errors.py, core/api_gigachat.py, core/api_history_guard.py, core/api_http.py, core/api_layer.py, core/api_payload.py, core/api_responses.py, core/api_token_store.py, core/api_yandex.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/builtin_config_defaults.py, core/chat_db_archive.py, core/chat_turn.py, core/config.py, core/connector_presets.py, core/connectors.py, core/context_guard.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/dependency_check.py, core/devagent_db_archive.py, core/document_images.py, core/document_text.py, core/entity_sync.py, core/env_loader.py, core/feed_autoscroll.py, core/files.py, core/folder_dialog.py, core/fs.py, core/gateway_launcher.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/mcp_client.py, core/mcp_tools.py, core/memory_migration.py, core/memory_profile.py, core/multimodal.py, core/naming.py, core/naming_backfill.py, core/naming_runtime.py, core/ooxml.py, core/orchestrator_builtin.py, core/orchestrator_defaults.py, core/orchestrator_folders.py, core/orchestrator_import_files.py, core/orchestrator_instr.py, core/orchestrator_links.py, core/orchestrator_models.py, core/orchestrator_nav.py, core/orchestrator_prompt.py, core/orchestrator_reload.py, core/orchestrator_shared.py, core/orchestrator_strong.py, core/orchestrator_step.py, core/orchestrator_steps_migration.py, core/orchestrator_store.py, core/orchestrator_tools.py, core/orchestrator_transfer.py, core/orchestrators.py, core/paths.py, core/personal_memory.py, core/prompt_blocks.py, core/prompt_dialog.py, core/prompt_guard.py, core/prompt_improver.py, core/prompt_memory.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_workspaces.py, core/render.py, core/services.py, core/signing.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/thread_mirror.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py, core/updater.py, core/updater_apply.py, core/url_fetch.py, core/version.py
+  - Core (105): core/__init__.py, core/api_bearer.py, core/api_chat.py, core/api_deepseek.py, core/api_errors.py, core/api_history_guard.py, core/api_http.py, core/api_layer.py, core/api_payload.py, core/api_responses.py, core/api_token_store.py, core/api_yandex.py, core/assistant_creator.py, core/assistant_folders.py, core/assistant_nav.py, core/assistant_tools.py, core/assistants.py, core/auth.py, core/bootstrap.py, core/builtin_config_defaults.py, core/chat_db_archive.py, core/chat_turn.py, core/config.py, core/connector_presets.py, core/connectors.py, core/context_guard.py, core/crypto.py, core/dangerous.py, core/default_imports.py, core/defaults.py, core/dependency_check.py, core/devagent_db_archive.py, core/document_images.py, core/document_text.py, core/entity_sync.py, core/env_loader.py, core/feed_autoscroll.py, core/files.py, core/folder_dialog.py, core/fs.py, core/gateway_launcher.py, core/github_connector_rest.py, core/github_tools_rest.py, core/i18n.py, core/instructions.py, core/mcp_client.py, core/mcp_tools.py, core/memory_migration.py, core/memory_profile.py, core/multimodal.py, core/naming.py, core/naming_backfill.py, core/naming_runtime.py, core/ooxml.py, core/orchestrator_builtin.py, core/orchestrator_defaults.py, core/orchestrator_folders.py, core/orchestrator_import_files.py, core/orchestrator_instr.py, core/orchestrator_links.py, core/orchestrator_models.py, core/orchestrator_nav.py, core/orchestrator_prompt.py, core/orchestrator_reload.py, core/orchestrator_shared.py, core/orchestrator_strong.py, core/orchestrator_step.py, core/orchestrator_steps_migration.py, core/orchestrator_store.py, core/orchestrator_tools.py, core/orchestrator_transfer.py, core/orchestrators.py, core/paths.py, core/personal_memory.py, core/prompt_blocks.py, core/prompt_dialog.py, core/prompt_guard.py, core/prompt_improver.py, core/prompt_memory.py, core/rag.py, core/rag_bm25.py, core/rag_chunker.py, core/rag_embeddings.py, core/rag_index.py, core/rag_indexer.py, core/rag_search.py, core/recent_assistants.py, core/recent_workspaces.py, core/render.py, core/service_migration.py, core/services.py, core/signing.py, core/skills.py, core/skills_library.py, core/ssh_connector.py, core/ssh_tools.py, core/statistics.py, core/thread_mirror.py, core/threads.py, core/threads_devagent.py, core/tools_utils.py, core/updater.py, core/updater_apply.py, core/url_fetch.py, core/version.py
   - Marketplace (35): core/marketplace/__init__.py, core/marketplace/agent_areas.py, core/marketplace/agent_assistant.py, core/marketplace/agent_installer.py, core/marketplace/agent_merge.py, core/marketplace/agent_orchestrator.py, core/marketplace/agent_package.py, core/marketplace/agent_preflight.py, core/marketplace/agent_run.py, core/marketplace/attest.py, core/marketplace/bootstrap.py, core/marketplace/bundle_catalog.py, core/marketplace/bundles.py, core/marketplace/catalog.py, core/marketplace/config.py, core/marketplace/conflict_fork.py, core/marketplace/conflict_state.py, core/marketplace/conflicts.py, core/marketplace/install_seed.py, core/marketplace/installer.py, core/marketplace/mcp_installer.py, core/marketplace/mcp_removal.py, core/marketplace/migration.py, core/marketplace/names.py, core/marketplace/package_pin.py, core/marketplace/publish.py, core/marketplace/rag_area.py, core/marketplace/rag_installer.py, core/marketplace/registry.py, core/marketplace/rollback.py, core/marketplace/semver.py, core/marketplace/source.py, core/marketplace/store.py, core/marketplace/updates.py, core/marketplace/verify.py
   - Orchestration (26): core/orchestration/__init__.py, core/orchestration/child_runner.py, core/orchestration/child_text.py, core/orchestration/contracts.py, core/orchestration/dialog_runner.py, core/orchestration/invoke.py, core/orchestration/resume.py, core/orchestration/runs.py, core/orchestration/service.py, core/orchestration/tool_classes.py, core/orchestration/tools.py, core/orchestration/tools_catalog.py, core/orchestration/tools_clock.py, core/orchestration/tools_constants.py, core/orchestration/tools_control.py, core/orchestration/tools_dialog.py, core/orchestration/tools_journal.py, core/orchestration/tools_notes.py, core/orchestration/tools_records.py, core/orchestration/tools_rights.py, core/orchestration/tools_spawn.py, core/orchestration/tools_status.py, core/orchestration/tools_wait.py, core/orchestration/transcript_reader.py, core/orchestration/transcript_sink.py, core/orchestration/verify.py
   - Schedules (7): core/schedules/__init__.py, core/schedules/calc.py, core/schedules/daemon.py, core/schedules/form.py, core/schedules/model.py, core/schedules/runner.py, core/schedules/store.py

@@ -23,7 +23,7 @@ SagaAI 是一个基于大语言模型的通用 AI 平台，您可以在其中创
 
 首先连接 AI 服务 - 否则平台无法响应。
 
-- 为所需服务添加 API 密钥（兼容 OpenAI、YandexAI、GigaChat 等）。
+- 为所需服务添加 API 密钥（兼容 OpenAI、YandexAI、Cloud.ru 等）。
 - 点击«🔍 测试连接»按钮测试连接。
 - 选择默认模型。
 

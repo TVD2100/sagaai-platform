@@ -86,8 +86,8 @@ def test_assistant_form_shows_only_provider_tools(env):
 def test_assistant_form_hides_tools_unsupported_provider(env):
     """A provider without tools_options must not render the tools multiselect."""
     services = {
-        "GigaChat": {
-            "auth_type": "gigachat_oauth",
+        "Cloud": {
+            "auth_type": "bearer",
             "base_url": "https://mock",
             "config_key": "k",
             "models": [{"id": "g1"}],

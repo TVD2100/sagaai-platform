@@ -5,9 +5,6 @@ Holds the TLS verification policy, the connection-retry budget and the
 HTTP error-body extractors that every provider in core.api_layer uses.
 No provider module is imported here, so the dependency graph stays acyclic:
 providers depend on this module, never the other way round.
-
-GigaChat keeps a dedicated CA bundle because its endpoints are signed by the
-Russian Trusted Root CA, which is not part of the default trust store.
 """
 import os as _os
 import time
@@ -26,34 +23,6 @@ MODEL_RESPONSE_TIMEOUT = MODEL_REQUEST_TIMEOUT
 # discouraged: disabling verification allows man-in-the-middle attacks that
 # can expose API keys and conversation data.
 _VERIFY_TLS = _os.environ.get("SAGAAI_VERIFY_TLS", "true").strip().lower() not in ("0", "false", "no", "off")
-
-# GigaChat endpoints are signed by the Russian Trusted Root CA (Минцифры),
-# which is not part of the default trust bundle used by requests/certifi.
-# Instead of disabling TLS verification globally, requests to GigaChat use a
-# dedicated CA bundle that contains this official root certificate. The path
-# can be overridden with SAGAAI_GIGACHAT_CA_BUNDLE.
-_GIGACHAT_DEFAULT_CA_BUNDLE = _os.path.abspath(_os.path.join(
-    _os.path.dirname(__file__), "..", "certs", "russian_trusted_root_ca.pem",
-))
-
-
-def gigachat_verify_impl(verify_tls, default_bundle):
-    """Return the ``verify`` argument for GigaChat requests.
-
-    Receives the global TLS policy and the bundled CA path as arguments so the
-    caller keeps ownership of those values (they are patchable there). If
-    global TLS verification is disabled, honour that setting for backward
-    compatibility. Otherwise use the bundled Russian Trusted Root CA bundle,
-    falling back to the normal global policy if the bundle is absent.
-    """
-    if not verify_tls:
-        return False
-    bundle = _os.environ.get("SAGAAI_GIGACHAT_CA_BUNDLE", "").strip()
-    if not bundle:
-        bundle = default_bundle
-    if _os.path.isfile(bundle):
-        return bundle
-    return verify_tls
 
 
 # ─── Connection-resilience retries ──────────────────────────────────────────
@@ -143,18 +112,6 @@ def _extract_error_body(r) -> str:
         return (
             err_body.get("message", "")
             or err_body.get("detail", "")
-            or r.text[:300]
-        )
-    except Exception:
-        return r.text[:300]
-
-
-def _extract_gigachat_error(r) -> str:
-    try:
-        err_body = r.json()
-        return (
-            err_body.get("message")
-            or err_body.get("error", {}).get("message")
             or r.text[:300]
         )
     except Exception:

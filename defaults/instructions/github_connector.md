@@ -49,7 +49,7 @@ publish: an approved batch can still leak a key or expose someone's
 personal data.
 
 What to scan for (the actual content of every file in the outgoing payload):
-- API keys and access tokens (OpenAI / Yandex / GigaChat / DeepSeek keys,
+- API keys and access tokens (OpenAI / Yandex / Cloud.ru / DeepSeek keys,
   GitHub PATs `ghp_...` / `github_pat_...`, AWS `AKIA...`, Telegram bot
   tokens, and similar);
 - OAuth client secrets, service-account JSON, connection strings with

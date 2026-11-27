@@ -11,6 +11,7 @@ from typing import Optional
 import requests
 
 from core.api_bearer import bearer_request_impl  # noqa: F401 - delegation target
+from core.api_chat import needs_single_system  # noqa: F401 - used by _request_bearer
 from core.api_deepseek import (  # noqa: F401 - re-export surface
     _ANTHROPIC_VERSION,
     _DEEPSEEK_REASONING_EFFORTS,
@@ -36,13 +37,6 @@ from core.api_errors import (
     RequestTimeoutError,
     ServiceNotFoundError,
 )
-from core.api_gigachat import (  # noqa: F401 - re-export surface
-    _gigachat_messages,
-    gigachat_token,
-)
-from core.api_gigachat import (
-    gigachat_models_url as _gigachat_models_url,
-)
 from core.api_history_guard import (  # noqa: F401 - re-export surface
     _SANITIZED_REASON,
     _parse_sanitized_info,
@@ -51,14 +45,11 @@ from core.api_history_guard import (  # noqa: F401 - re-export surface
 from core.api_http import (  # noqa: F401 - re-export surface
     _DEFAULT_RETRY_ATTEMPTS,
     _DEFAULT_RETRY_DELAY,
-    _GIGACHAT_DEFAULT_CA_BUNDLE,
     _VERIFY_TLS,
     MODEL_REQUEST_TIMEOUT,
     MODEL_RESPONSE_TIMEOUT,
     _extract_error_body,
-    _extract_gigachat_error,
     _retry_params,
-    gigachat_verify_impl,
     retry_call,
 )
 from core.api_payload import (  # noqa: F401 - re-export surface
@@ -67,12 +58,12 @@ from core.api_payload import (  # noqa: F401 - re-export surface
     _content_has_material,
     _estimate_tokens_in,
     _get_model_max_tokens,
-    _gigachat_response_format,
     _has_native_function_tools,
     _normalise_json_schema,
     _normalise_tools,
     _openai_response_format,
     _responses_json_format,
+    _wire_messages,
 )
 from core.api_responses import (  # noqa: F401 - re-export surface
     _extract_deepseek_responses_text,
@@ -115,19 +106,6 @@ load_skill_files_context = load_assistant_files_context
 # Timeouts for a model request; defined in core.api_http and re-exported.
 
 
-# ─── TLS verification policy ────────────────────────────────────────────────
-# The policy itself and the GigaChat CA bundle live in core.api_http; they are
-# re-exported below so existing readers and tests keep addressing them here.
-def _gigachat_verify():
-    """Return the ``verify`` argument for GigaChat requests.
-
-    Delegates to core.api_http with the values held on this module, so a caller
-    that replaces ``_VERIFY_TLS`` or ``_GIGACHAT_DEFAULT_CA_BUNDLE`` here still
-    changes the outcome.
-    """
-    return gigachat_verify_impl(_VERIFY_TLS, _GIGACHAT_DEFAULT_CA_BUNDLE)
-
-
 # ─── history sanitising (moved to core.api_history_guard) ───────────────────
 
 # ─── structured output (native JSON Schema) ─────────────────────────────────
@@ -142,13 +120,15 @@ def _gigachat_verify():
 # ─── token estimation (moved to core.api_payload) ───────────────────────────
 
 def _bearer_request(url: str, api_key: str, model: str, messages: list, temperature: float,
-                    tools: Optional[list] = None, usage_callback=None, max_tokens: Optional[int] = None,
-                    service: str = "", json_schema=None) -> str:
+                     tools: Optional[list] = None, usage_callback=None, max_tokens: Optional[int] = None,
+                     service: str = "", json_schema=None, extra_payload=None,
+                     single_system: bool = False) -> str:
     """Send one chat/completions request; delegates to core.api_bearer."""
     return bearer_request_impl(
         url, api_key, model, messages, temperature,
         tools=tools, usage_callback=usage_callback, max_tokens=max_tokens,
-        service=service, json_schema=json_schema,
+        service=service, json_schema=json_schema, extra_payload=extra_payload,
+        single_system=single_system,
     )
 
 
@@ -237,15 +217,6 @@ def _yandex_responses_request(base_url: str, api_key: str, folder_id: str,
         svc=svc, assistant=assistant, json_schema=json_schema,
         assistant_web_search_config=_assistant_web_search_config,
     )
-
-
-def _gigachat_token(credentials: str, scope: str = "GIGACHAT_API_PERS") -> str:
-    """Obtain an OAuth token for GigaChat; delegates to core.api_gigachat.
-
-    The TLS policy is read here so a caller that replaces ``_gigachat_verify``
-    or ``_VERIFY_TLS`` on this module keeps control over the request.
-    """
-    return gigachat_token(credentials, scope, verify=_gigachat_verify())
 
 
 # ─── multimodal requests (vision / image generation) ────────────────────────
@@ -530,8 +501,8 @@ def _resolve_generation_settings(assistant: dict, svc: dict) -> tuple:
     model = assistant["model"]
     temp = float(assistant.get("temperature", svc.get("temp_default", 0.7)))
     sys_text = assistant.get("text", "")
-    # Clamp to the model's explicit output limit (e.g. GigaChat <= 32768)
-    # so a value saved for another model is not rejected by the provider.
+    # Clamp to the model's explicit output limit so a value saved for
+    # another model is not rejected by the provider.
     max_tokens = _clamp_max_tokens(
         assistant.get("max_tokens") or _get_model_max_tokens(svc, model),
         svc, model,
@@ -757,12 +728,36 @@ def _svc_folder(cfg: dict, svc: dict, svc_name: str,
 
 
 def _request_bearer(req: dict) -> str:
-    """Send the OpenAI-compatible chat/completions request."""
+    """Send the OpenAI-compatible chat/completions request, direct or through tools."""
     svc, cfg, svc_name = req["svc"], req["cfg"], req["svc_name"]
     api_key = _svc_key(cfg, svc, svc_name)
+    # Some providers keep only the last `system` message of a request, so the
+    # hidden platform snapshots would replace the orchestrator prompt. The
+    # catalog declares which models behave that way; nothing else changes.
+    single_system = needs_single_system(svc, req["model"])
+    if req["native_function_tools"]:
+        from core.assistant_tools import run_bearer_tool_loop
+        return run_bearer_tool_loop(
+            req["base_url"], api_key, req["model"],
+            req["sys_text"], req["hist_msgs"], req["user_content"],
+            temperature=req["temp"],
+            max_tokens=req["max_tokens"],
+            tools_list=req["tools_list"],
+            max_tool_calls=req["max_tool_calls"],
+            cfg=cfg,
+            svc_name=svc_name,
+            usage_callback=req["usage_callback"],
+            tool_choice=req["tool_choice"],
+            json_schema=req["json_schema"],
+            assistant=req["assistant"],
+            extra_payload=svc.get("extra_payload"),
+            on_tool_call=req["on_tool_call"],
+            retry_callback=req["retry_callback"],
+            single_system=single_system,
+        )
     messages = (
         [{"role": "system", "content": req["sys_text"]}]
-        + req["hist_msgs"]
+        + _wire_messages(req["hist_msgs"])
         + [{"role": "user", "content": req["user_content"]}]
     )
     return _bearer_request(
@@ -770,6 +765,8 @@ def _request_bearer(req: dict) -> str:
         tools=req["tools_list"], usage_callback=req["usage_callback"],
         max_tokens=req["max_tokens"], service=svc_name,
         json_schema=req["json_schema"],
+        extra_payload=svc.get("extra_payload"),
+        single_system=single_system,
     )
 
 
@@ -836,73 +833,10 @@ def _request_yandex(req: dict) -> str:
     )
 
 
-def _request_gigachat(req: dict) -> str:
-    """Send the GigaChat chat/completions request over an OAuth session."""
-    svc, cfg, svc_name = req["svc"], req["cfg"], req["svc_name"]
-    creds = _svc_key(cfg, svc, svc_name)
-    scope = cfg.get(svc.get("config_key2", ""), "GIGACHAT_API_PERS")
-    if isinstance(scope, str):
-        scope = scope.strip() or "GIGACHAT_API_PERS"
-    else:
-        scope = "GIGACHAT_API_PERS"
-    token = _gigachat_token(creds, scope)
-    session = requests.Session()
-    session.headers.update({
-        "Authorization": f"Bearer {token}",
-        "Content-Type":  "application/json",
-        "Accept":        "application/json",
-    })
-    messages = _gigachat_messages(req["sys_text"], req["hist_msgs"],
-                                  req["user_content"])
-    payload = {
-        "model":    req["model"],
-        "messages": messages,
-        "temperature":     float(req["temp"]),
-        "max_tokens":      int(req["max_tokens"]),
-        "stream":          False,
-        "update_interval": 0,
-    }
-    json_schema = req["json_schema"]
-    giga_format = _gigachat_response_format(json_schema) if json_schema else None
-    if giga_format:
-        payload["response_format"] = giga_format
-    r = session.post(
-        req["base_url"], json=payload,
-        timeout=MODEL_RESPONSE_TIMEOUT, verify=_gigachat_verify(),
-    )
-    if not r.ok:
-        body = _extract_gigachat_error(r)
-        raise ProviderHTTPError(r.status_code, body, service=svc_name)
-    response_body = r.json()
-    message = response_body["choices"][0]["message"]
-    result_text = _prepare_response_content(message)
-    if giga_format and result_text.strip():
-        result_text = _unwrap_json_text(result_text)
-
-    if req["usage_callback"]:
-        usage = response_body.get("usage")
-        cache = 0
-        if usage and isinstance(usage, dict):
-            tokens_in = usage.get("prompt_tokens") or 0
-            tokens_out = usage.get("completion_tokens") or 0
-            # GigaChat reports cached prompt tokens (a subset of
-            # prompt_tokens) as precached_prompt_tokens.
-            cache = usage.get("precached_prompt_tokens") or 0
-        else:
-            tokens_in = _estimate_tokens_in(messages)
-            from core.files import estimate_tokens
-            tokens_out = estimate_tokens(result_text)
-        req["usage_callback"]({"in": int(tokens_in), "out": int(tokens_out),
-                               "cache": int(cache)})
-
-    return result_text
-
-
 _AUTH_HANDLERS = {
     "bearer": _request_bearer,
     "deepseek_responses": _request_deepseek,
     "yandex_iam": _request_yandex,
-    "gigachat_oauth": _request_gigachat,
 }
 
 
@@ -954,12 +888,14 @@ def _probe_bearer(svc: dict, cfg: dict, base_url: str) -> tuple:
     if not key:
         return False, "API key not set"
     test_model = _first_test_model(svc, "gpt-3.5-turbo")
+    # Large and reasoning models regularly need more than 30 s on a cold
+    # start, so the probe keeps a wider read budget than a plain ping.
     r = requests.post(
         base_url,
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
         json={"model": test_model, "messages": [{"role": "user", "content": "Hi"}],
               "max_tokens": 5},
-        timeout=30,
+        timeout=(30, 120),
         verify=_VERIFY_TLS,
     )
     return (
@@ -1052,45 +988,10 @@ def _probe_responses_yandex(base_url: str, key: str, folder_id: str,
     return True, f"OK (HTTP {r.status_code})"
 
 
-def _probe_gigachat(svc: dict, cfg: dict, base_url: str) -> tuple:
-    """Probe GigaChat: fetch a token, then check that /models answers.
-
-    A token is the real check here: an unreachable /models still counts as a
-    working configuration because the chat endpoint may be routed elsewhere.
-    """
-    key = cfg.get(svc.get("config_key", ""), "")
-    if isinstance(key, str):
-        key = key.strip()
-    if not key:
-        return False, "API key not set"
-    scope = cfg.get(svc.get("config_key2", ""), "GIGACHAT_API_PERS")
-    if isinstance(scope, str):
-        scope = scope.strip() or "GIGACHAT_API_PERS"
-    else:
-        scope = "GIGACHAT_API_PERS"
-    token = _gigachat_token(key, scope)
-    if not token:
-        return False, "Failed to get token"
-    session = requests.Session()
-    session.headers.update({
-        "Authorization": f"Bearer {token}",
-        "Content-Type":  "application/json",
-        "Accept":        "application/json",
-    })
-    r2 = session.get(
-        _gigachat_models_url(base_url),
-        timeout=15, verify=_gigachat_verify(),
-    )
-    if r2.status_code == 200:
-        return True, "OK - token received, /models available"
-    return True, f"Token OK, but /models returned {r2.status_code}"
-
-
 _PROBES = {
     "bearer": _probe_bearer,
     "deepseek_responses": _probe_deepseek,
     "yandex_iam": _probe_yandex,
-    "gigachat_oauth": _probe_gigachat,
 }
 
 

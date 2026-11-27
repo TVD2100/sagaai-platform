@@ -37,7 +37,7 @@ def _cfg(**overrides):
         "deepseek_key": "sk-test",
         "yandex_iam_token": "iam-token",
         "yandex_cloud_id": "folder-id",
-        "gigachat_creds": "creds",
+        "CLOUD_API_KEY": "cloud-key",
     }
     cfg.update(overrides)
     return cfg
@@ -146,35 +146,31 @@ def test_send_request_deepseek_payload_contains_text_format():
         assert sent["text"]["format"]["type"] == "json_schema"
 
 
-def test_send_request_gigachat_payload_contains_response_format():
+def test_send_request_cloud_payload_contains_response_format():
+    """Cloud (bearer) receives the schema as an OpenAI json_schema block."""
     from core.api_layer import send_request
     with patch("core.api_layer.get_services") as mock_svc, \
          patch("core.api_layer.load_config") as mock_cfg, \
          patch("core.api_layer.load_skill_files_context", return_value=""), \
-         patch("core.api_layer._gigachat_token", return_value="giga-token"), \
-         patch("core.api_layer.requests.Session") as mock_session_cls:
+         patch("core.api_layer.requests.post") as mock_post:
         mock_cfg.return_value = _cfg()
         mock_svc.return_value = _svc(
-            "GigaChat", "gigachat_oauth",
-            "https://api.giga.chat/v1/chat/completions",
-            "gigachat_creds",
+            "Cloud", "bearer",
+            "https://foundation-models.api.cloud.ru/v1/chat/completions",
+            "CLOUD_API_KEY",
         )
-        mock_session = MagicMock()
         mock_resp = MagicMock()
-        mock_resp.ok = True
+        mock_resp.status_code = 200
         mock_resp.json.return_value = {"choices": [{"message": {"content": "{}"}}]}
-        mock_session.post.return_value = mock_resp
-        mock_session.headers = {}
-        mock_session.verify = True
-        mock_session_cls.return_value = mock_session
+        mock_post.return_value = mock_resp
 
-        send_request("Привет", _skill("GigaChat", "GigaChat", json_schema=SCHEMA))
+        send_request("Привет", _skill("Cloud", "openai/gpt-5.4", json_schema=SCHEMA))
 
-        sent = mock_session.post.call_args[1]["json"]
+        sent = mock_post.call_args[1]["json"]
         fmt = sent["response_format"]
         assert fmt["type"] == "json_schema"
-        assert fmt["schema"] == SCHEMA
-        assert "name" not in fmt
+        assert fmt["json_schema"]["schema"] == SCHEMA
+        assert fmt["json_schema"]["name"] == "structured_output"
 
 
 # --- unwrapping -----------------------------------------------------------
@@ -192,7 +188,8 @@ def test_unwrap_json_text_strips_unk_token():
     assert json.loads(out) == {"answer": 42}
 
 
-def test_bearer_unwraps_gigachat_style_envelope():
+def test_bearer_unwraps_fenced_envelope():
+    """A fenced JSON envelope from a chat/completions reply is unwrapped."""
     from core.api_layer import _bearer_request
     with patch("core.api_layer.requests.post") as mock_post:
         mock_resp = MagicMock()
