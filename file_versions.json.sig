@@ -2,7 +2,7 @@
   "algorithm": "ed25519",
   "key_id": "75579089d2cb61b3",
   "schema": "sagaai.marketplace.signature/1",
-  "signature": "SbYw6SLLao4McbmESW6ME4LpWZYY0O5ul8fx4ssRaBRaiiC2MdxC3xGygXsX2rb4gyxmQG9L3oIYfi8QKKYNAQ==",
-  "signed_at": "2026-11-27T18:49:40Z",
-  "signed_sha256": "4cd4dbcb0139a2e035c25f3a9047c5b9eedc8f023a7b438306e22adb7eb6970d"
+  "signature": "NxlZW52QY8Az95+UTSst41UJXQhBZuHwlYxw9ui1I+JzejWdLHfqB2ub99toQ2HtO2HNk3fvo5TCzmerU1UrBw==",
+  "signed_at": "2026-11-27T20:07:04Z",
+  "signed_sha256": "97c52e846e7ced260a3d6c70e37bd3c109e758128086cac6592acf60910ab10a"
 }

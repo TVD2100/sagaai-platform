@@ -117,6 +117,20 @@ def _coerce_dsml_param(value: str, attrs: str) -> Any:
 # vertical bars), so a parser expecting a bare ``<parameter`` sees nothing.
 _DSML_MARK = r"(?:[\s\u2502\uFF5C|:]*DSML[\s\u2502\uFF5C|:]*)?"
 
+# The same marker, but mandatory. It identifies a tag that carries no element
+# name of its own, such as the bare closing tag ``</｜｜DSML｜｜>``.
+_DSML_MARK_REQUIRED = r"[\s\u2502\uFF5C|:]*DSML[\s\u2502\uFF5C|:]*"
+
+# Closing tag of a DSML parameter. Models routinely drop the element name
+# from the closing tag (``</｜｜DSML｜｜>`` instead of ``</｜｜DSML｜｜ parameter>``),
+# and a pattern that insists on the name then swallows the whole argument
+# block, so the call arrives with empty args and is rejected.
+_DSML_PARAM_CLOSE = (
+    r"<\s*/\s*(?:"
+    + _DSML_MARK + r"\s*parameter\b[^<>]*"
+    + r"|" + _DSML_MARK_REQUIRED + r")\s*>"
+)
+
 # Parameter names models use to wrap the whole argument object as JSON.
 _DSML_ARGS_WRAPPERS = ("args", "arguments", "parameters", "kwargs")
 
@@ -230,7 +244,7 @@ def _extract_dsml_calls(text: str) -> List[Dict[str, Any]]:
         re.IGNORECASE,
     )
     param_pat = re.compile(
-        rf"<\s*{_DSML_MARK}\s*parameter\s+([^>]*)>(.*?)<\s*/\s*{_DSML_MARK}\s*parameter\s*>",
+        rf"<\s*{_DSML_MARK}\s*parameter\s+([^>]*)>(.*?){_DSML_PARAM_CLOSE}",
         re.IGNORECASE | re.DOTALL,
     )
     attr_pat = re.compile(
@@ -240,8 +254,18 @@ def _extract_dsml_calls(text: str) -> List[Dict[str, Any]]:
     for m in invoke_pat.finditer(text):
         tool_name = m.group(1)
         tail = text[m.end():]
+        # The call ends at its own closing invoke tag, or - when the model
+        # dropped the element name from that tag - at the next invoke
+        # opener. Without the second bound the arguments of the following
+        # call get attributed to this one.
+        limit = len(tail)
         close_match = re.search(r"</[^>]*invoke[^>]*>", tail, re.IGNORECASE)
-        scope = tail[: close_match.start()] if close_match else tail[:2000]
+        if close_match:
+            limit = min(limit, close_match.start())
+        next_invoke = invoke_pat.search(tail)
+        if next_invoke:
+            limit = min(limit, next_invoke.start())
+        scope = tail[:limit]
         args: Dict[str, Any] = {}
         for pm in param_pat.finditer(scope):
             attrs = pm.group(1)

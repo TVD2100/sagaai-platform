@@ -16,6 +16,7 @@ import os
 import re
 from typing import Any, Dict
 
+from core.api_reasoning import strip_reasoning
 from core.threads_devagent import save_thread_workspace
 from dev_agent import config as dagent_config
 from dev_agent import workspace_binding as wb
@@ -111,6 +112,10 @@ def _strip_tool_calls(text: str) -> str:
     if not text:
         return ""
     text = _strip_html_details_tags(text)
+    # Chain-of-thought a thinking model inlines in the reply is not an answer:
+    # drop it before the tool payloads, so the markers it leaves behind do
+    # not glue to the prose.
+    text = strip_reasoning(text)
 
     # Remove balanced JSON objects (bare or inside fences): tool payloads.
     for obj in _extract_balanced_json_objects(text):

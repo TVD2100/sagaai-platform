@@ -949,7 +949,21 @@
 # another overstated fourfold - so a single source has to win, and the
 # published catalog is the one a reader can verify.
 
-__version__ = "3.4.2"
+# 3.4.3 fixes three regressions of the GigaChat family. The Cloud.ru catalog no
+# longer switches ``enable_thinking`` on: the models then inline their
+# chain-of-thought into the answer text, and it reached the chat feed as part of
+# the reply. The ``single_system_message`` rule covers the whole GigaChat family
+# again - ``GigaChat/`` and ``ai-sage/GigaChat`` on Cloud.ru, the ``GigaChat``
+# prefix in AI Studio - because a model that loses the system prompt falls back
+# to the DSML dialect and stops closing its argument tags. That dialect is now
+# parsed in the shape those models actually emit: a closing parameter tag with
+# no element name is accepted, and the arguments of one call are bounded by the
+# next ``invoke`` opener so a call never absorbs its neighbour's arguments.
+# Reasoning is stripped in one place, ``core.api_reasoning``, shared by the
+# transport layer and the chat feed, so prose before the reasoning survives
+# while an unfinished block never truncates a real answer.
+
+__version__ = "3.4.3"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

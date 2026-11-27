@@ -450,6 +450,37 @@ def test_strip_tool_calls_removes_dsml_blocks():
         ) == "Text  more"
 
 
+def test_strip_tool_calls_removes_inlined_reasoning():
+    """Chain-of-thought a thinking model inlines into the reply never shows.
+
+    The model opens <think> again for each reasoning block instead of closing
+    the previous one, so the visible text must drop every such block up to
+    the following tool payload, and the prose of an answer without a payload
+    must survive.
+    """
+    from tests._st_mock import install_streamlit_mock
+    with install_streamlit_mock():
+        from ui.pages.orchestrator import _strip_tool_calls
+
+        fence = "```"
+        payload = fence + 'json\n{"tool": "run_code", "args": {}}\n' + fence
+        sample = (
+            "<think>\n\nfirst reasoning block\n\n"
+            "<think>\n\nsecond reasoning block\n\n"
+            + payload
+        )
+        assert _strip_tool_calls(sample) == ""
+
+        closed = "<think>reasoning</think>\n\nVisible answer."
+        assert _strip_tool_calls(closed) == "Visible answer."
+
+        unfinished = "<think>\n\ninternal\n\nstill thinking"
+        assert _strip_tool_calls(unfinished) == ""
+        assert _strip_tool_calls("Visible answer.\n\n<think>\n\ninternal") == (
+            "Visible answer."
+        )
+
+
 def test_protect_history_still_honors_flags():
     # Guard: earlier sanitization fix remains intact alongside these changes.
     payload = json.dumps(

@@ -14,6 +14,7 @@ value or raises ProviderResponseError.
 import json
 
 from core.api_errors import ProviderResponseError
+from core.api_reasoning import strip_reasoning
 
 
 def _prepare_response_content(message: dict) -> str:
@@ -23,14 +24,14 @@ def _prepare_response_content(message: dict) -> str:
     - 'content' field (standard)
     - 'tool_calls' field (serialised as JSON)
 
-    'reasoning_content' (DeepSeek thinking mode) is ignored on purpose:
-    chain-of-thought is internal and must never be shown to the user, fed
-    to parse_tool_calls, or persisted.
+    'reasoning_content' (DeepSeek thinking mode) is ignored on purpose, and
+    chain-of-thought inlined into 'content' is stripped: reasoning is
+    internal and must never be shown, parsed or persisted.
     """
     parts = []
     content = message.get("content")
     if content and str(content).strip():
-        parts.append(str(content))
+        parts.append(strip_reasoning(str(content)))
 
     tool_calls = message.get("tool_calls")
     if tool_calls:
@@ -71,7 +72,6 @@ def _format_function_call_item(item: dict) -> str:
     ) + "\n```"
 
 
-# ─── structured output (native JSON Schema) ─────────────────────────────────
 # ─── structured-output formats (moved to core.api_payload) ──────────────────
 
 def _unwrap_json_text(text) -> str:

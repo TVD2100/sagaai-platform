@@ -50,7 +50,8 @@ SagaAI построена по модульной архитектуре с чё
 | `api_layer` | **Фасад транспорта LLM**: `send_request` (фазы подготовки вынесены в `_resolve_chat_service`, `_resolve_generation_settings`, `_compose_user_content`, `_resolve_tool_options`, `_run_with_retry`), `_do_request` (таблица обработчиков `_AUTH_HANDLERS` по `auth_type`), `test_connection` (таблица проб `_PROBES`), транспорты изображений `send_vision_request` и `send_image_generation_request`, авто-RAG `_assistant_rag_context` и обёртка патчимой поверхности (`_assistant_web_search_config`); реэкспортирует имена провайдерных модулей, поэтому существующие точки monkeypatch продолжают работать |
 | `api_http` | TLS-политика (`_VERIFY_TLS`), бюджет ретраев (`retry_call`, `_retry_params`), разбор тел ошибок (`_extract_error_body`) и константы таймаутов |
 | `api_payload` | Сборка запроса: лимиты вывода (`_get_model_max_tokens`, `_clamp_max_tokens`), нормализация tools (`_normalise_tools`, `_has_native_function_tools`, `_content_has_material`), оценка токенов (`_estimate_tokens_in`), формы структурированного вывода для Responses и chat/completions, а также `_wire_messages` - отбор полей сообщения, которые понимает chat/completions-эндпоинт |
-| `api_responses` | Разбор тела Responses API: сборка видимого текста (`_extract_responses_text`, `_extract_deepseek_responses_text`, `_extract_openai_message_text`), диагностика отказов и усечения (`_responses_failure_details`, `_responses_incomplete_details`, `_raise_responses_failure`), снятие JSON-обёртки и распознавание отказа схемы |
+| `api_responses` | Разбор тела Responses API: сборка видимого текста (`_extract_responses_text`, `_extract_deepseek_responses_text`, `_extract_openai_message_text`), диагностика отказов и усечения (`_responses_failure_details`, `_responses_incomplete_details`, `_raise_responses_failure`), снятие JSON-обёртки и распознавание отказа схемы; текст сообщения очищается от встроенной цепочки рассуждений через `api_reasoning` |
+| `api_reasoning` | Снятие цепочки рассуждений, которую думающая модель встраивает в сам текст ответа: `strip_reasoning` убирает закрытые блоки целиком, незакрытый открыватель съедает рассуждение до следующего fenced-payload (модель чередует рассуждение и вывод), а без payload остаётся только проза перед ним |
 | `api_history_guard` | Защита истории от prompt-injection: `_protect_history` размечает tool-результаты как данные, `_parse_sanitized_info` разбирает пометку |
 | `api_bearer` | OpenAI-совместимый chat/completions: один POST с сообщениями как есть, тело запроса собирает `api_chat` |
 | `api_chat` | Сборка тела chat/completions: `_to_chat_tools` вкладывает нативные функции во вложенный OpenAI-формат, `_merge_extra_payload` добавляет поля каталога сервиса, не давая перетереть ключи платформы, `build_chat_payload` собирает запрос, `collapse_system_messages` сливает цепочку system в ведущее сообщение для провайдеров, оставляющих только одно system-сообщение, `needs_single_system` решает это по каталогу сервиса, `report_chat_usage` отчитывается о токенах - общий код одиночного транспорта и цикла вызова инструментов |
@@ -1011,10 +1012,11 @@ GigaChat на обоих каналах (Cloud.ru Foundation Models и
 конкретных моделей, а не по вендору: поле `single_system_message` равно
 `true` для всех моделей сервиса либо `{"models": ["<префикс>", ...]}`
 для отдельных моделей по префиксу id. В облачном каталоге под правило
-попадает только `GigaChat/GigaChat-4-708B-A41`, в каталоге AI Studio -
-префикс `GigaChat`; `ai-sage/GigaChat3.5-432B-A28B` объявлен вне правила,
-потому что на живом замере отрабатывает несколько `system`-сообщений
-корректно. Поле читает `needs_single_system`, и только для совпавших
+попадают префиксы `GigaChat/` и `ai-sage/GigaChat` (все модели семейства),
+в каталоге AI Studio - префикс `GigaChat`. Широкое правило выбрано потому,
+что потеря системного промпта проявляется как откат модели к резервному
+DSML-диалекту: без инструкции о формате вызова инструментов модель
+перестаёт закрывать теги аргументов. Поле читает `needs_single_system`, и только для совпавших
 моделей `build_chat_payload` пропускает сообщения через
 `collapse_system_messages`.
 

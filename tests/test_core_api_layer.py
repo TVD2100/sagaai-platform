@@ -217,6 +217,54 @@ def test_prepare_response_content_ignores_reasoning_when_content_present():
     assert "internal thought" not in result
 
 
+def test_prepare_response_content_strips_closed_thinking_block():
+    """Chain-of-thought inside 'content' never reaches the visible answer."""
+    from core.api_layer import _prepare_response_content
+    msg = {"content": "<think>internal reasoning</think>\n\nFinal answer."}
+    result = _prepare_response_content(msg)
+    assert "internal reasoning" not in result
+    assert "<think" not in result.lower()
+    assert result.strip() == "Final answer."
+
+
+def test_prepare_response_content_strips_unclosed_thinking_prefix():
+    """A thinking model need not close the tag: it opens a new one instead.
+
+    Regression: GigaChat-4 with enable_thinking inlined its reasoning into
+    'content', opened <think> again per block and never emitted a closing
+    tag, so the whole chain-of-thought was shown in the chat.
+    """
+    from core.api_layer import _prepare_response_content
+    fence = "```"
+    payload = fence + 'json\n{"tool": "run_code", "args": {}}\n' + fence
+    msg = {"content": "<think>\n\nfirst block\n\n<think>\n\nsecond block\n\n" + payload}
+    result = _prepare_response_content(msg)
+    assert "first block" not in result
+    assert "second block" not in result
+    assert "<think" not in result.lower()
+    assert payload in result
+
+
+def test_prepare_response_content_drops_unfinished_reasoning():
+    """An opener with no payload is an unfinished reasoning block.
+
+    The model never reached an answer in such a message, so nothing of the
+    reasoning may stay visible.
+    """
+    from core.api_layer import _prepare_response_content
+    msg = {"content": "<think>\n\ninternal\n\nstill thinking"}
+    assert _prepare_response_content(msg) == ""
+
+
+def test_prepare_response_content_keeps_prose_before_thinking():
+    """Prose that precedes the reasoning block is a real answer and stays."""
+    from core.api_layer import _prepare_response_content
+    msg = {"content": "Here is the answer.\n\n<think>\n\ninternal"}
+    result = _prepare_response_content(msg)
+    assert result.strip() == "Here is the answer."
+    assert "internal" not in result
+
+
 def test_prepare_response_content_tool_calls_only():
     from core.api_layer import _prepare_response_content
     msg = {

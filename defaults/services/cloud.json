@@ -16,12 +16,7 @@
     "X-Session-ID": "{session_id}"
   },
   "single_system_message": {
-    "models": ["GigaChat/GigaChat-4-708B-A41"]
-  },
-  "extra_payload": {
-    "chat_template_kwargs": {
-      "enable_thinking": true
-    }
+    "models": ["GigaChat/", "ai-sage/GigaChat"]
   },
   "models": [
     {

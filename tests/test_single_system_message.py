@@ -228,11 +228,12 @@ def _service(name):
     return json.loads((root / "services" / name).read_text(encoding="utf-8"))
 
 
-def test_cloud_collapses_only_the_model_that_drops_system_messages():
+def test_cloud_collapses_the_whole_gigachat_line():
     svc = _service("cloud.json")
-    assert needs_single_system(svc, "GigaChat/GigaChat-4-708B-A41") is True
-    for model in ("ai-sage/GigaChat3.5-432B-A28B", "GigaChat/GigaChat-3-Pro",
-                  "openai/gpt-5.4", "openai/gpt-5.4-mini",
+    for model in ("GigaChat/GigaChat-4-708B-A41", "GigaChat/GigaChat-3-Pro",
+                  "ai-sage/GigaChat3.5-432B-A28B", "ai-sage/GigaChat3-10B-A1.8B"):
+        assert needs_single_system(svc, model) is True, model
+    for model in ("openai/gpt-5.4", "openai/gpt-5.4-mini",
                   "anthropic/claude-opus-4.8", "anthropic/claude-sonnet-4.6",
                   "google/gemini-2.5-flash", "meta-llama/llama-3.3-70b-instruct"):
         assert needs_single_system(svc, model) is False, model

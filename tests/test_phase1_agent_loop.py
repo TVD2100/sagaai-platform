@@ -593,6 +593,46 @@ class TestDSML:
         assert calls[0]["tool"] == "read_file"
         assert calls[0]["args"] == {"path": "a.py"}
 
+    def test_marker_dialect_closing_tag_without_element_name(self):
+        # Real shape from a dialog: the model closes with a bare
+        # ``</｜｜DSML｜｜>`` that carries no element name, and a parser
+        # insisting on ``</...parameter>`` swallowed the whole argument
+        # block, so the call arrived empty and was rejected.
+        from dev_agent.agent_loop import _extract_dsml_calls
+
+        m = self._MARK
+        text = (
+            f'<{m} calls>\n'
+            f'<{m} invoke name="read_file">\n'
+            f'<{m} parameter name="path" string="true">a.py</{m}>\n'
+            f'</{m}>\n'
+            f'</{m}>'
+        )
+        calls = _extract_dsml_calls(text)
+        assert len(calls) == 1
+        assert calls[0]["tool"] == "read_file"
+        assert calls[0]["args"] == {"path": "a.py"}
+
+    def test_marker_dialect_nameless_close_keeps_calls_separate(self):
+        # With a nameless closing tag the argument scope must end at the
+        # next invoke opener; otherwise the arguments of the following
+        # call are attributed to the previous one.
+        from dev_agent.agent_loop import _extract_dsml_calls
+
+        m = self._MARK
+        text = (
+            f'<{m} invoke name="read_file">\n'
+            f'<{m} parameter name="path" string="true">a.py</{m}>\n'
+            f'</{m}>\n'
+            f'<{m} invoke name="list_files">\n'
+            f'<{m} parameter name="subdir" string="true">.</{m}>\n'
+            f'</{m}>'
+        )
+        calls = _extract_dsml_calls(text)
+        assert [c["tool"] for c in calls] == ["read_file", "list_files"]
+        assert calls[0]["args"] == {"path": "a.py"}
+        assert calls[1]["args"] == {"subdir": "."}
+
     def test_parse_dsml_with_tool_calls_wrapper(self):
         from dev_agent.agent_loop import _extract_dsml_calls
         text = (

@@ -211,8 +211,9 @@ def test_scenario_assistant_calls_a_tool_on_cloud(cloud):
     sent_tool = first["tools"][0]
     assert sent_tool["function"]["name"] == "rag_search"
     assert "name" not in sent_tool
-    # The catalog declares enable_thinking for every Cloud model.
-    assert first["chat_template_kwargs"] == {"enable_thinking": True}
+    # The catalog sends no provider-specific body fields: reasoning stays
+    # server-side and never reaches the visible content of a reply.
+    assert "chat_template_kwargs" not in first
     assert first["messages"][0]["role"] == "system"
     assert first["messages"][0]["content"].startswith(ASSISTANT_PROMPT)
     assert first["messages"][-1]["content"] == "What replaced GigaChat?"

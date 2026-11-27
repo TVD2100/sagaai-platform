@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "3.4.2",
+  "app_version": "3.4.3",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Контекстные окна моделей GigaChat AI Studio приведены к официальному каталогу провайдера. Шесть моделей получили опубликованные значения: GigaChat-4-708B-A41B - 1 000 000 токенов; GigaChat-3.5-432B-A28B, GigaChat-3.5-Ultra-Reasoning, GigaChat-4-37B-A4B и GigaChat-3-Pro - по 262 144; GigaChat-3-Ultra - 131 072. Прежние числа расходились с каталогом в обе стороны: у GigaChat-3-Pro окно было занижено вдвое, у GigaChat-3.5-Ultra-Reasoning, GigaChat-3-Ultra и GigaChat-4-37B-A4B завышено вчетверо. GigaChat-3-Lightning сохранил окно 261 120, установленное пробами шлюза. Лимит вывода каждой модели остаётся десятой частью её окна.",
-    "en": "GigaChat AI Studio context windows now follow the provider's published catalog. Six models carry the published values: GigaChat-4-708B-A41B 1,000,000 tokens; GigaChat-3.5-432B-A28B, GigaChat-3.5-Ultra-Reasoning, GigaChat-4-37B-A4B and GigaChat-3-Pro 262,144 each; GigaChat-3-Ultra 131,072. The previous numbers disagreed with the catalog in both directions: GigaChat-3-Pro was understated twofold, while GigaChat-3.5-Ultra-Reasoning, GigaChat-3-Ultra and GigaChat-4-37B-A4B were overstated fourfold. GigaChat-3-Lightning keeps the window of 261,120 established by probing the gateway. The output limit of every model remains a tenth of its window."
+    "ru": "Исправлены регрессии GigaChat: рассуждения думающих моделей больше не выводятся в чат, семейство GigaChat снова получает системный промпт целиком и не откатывается к резервному DSML-диалекту, а разбор этого диалекта принимает реальную форму вывода провайдера и не теряет аргументы инструментов.",
+    "en": "GigaChat regressions fixed: chain-of-thought of thinking models no longer reaches the chat, the GigaChat family receives the full system prompt again instead of falling back to the DSML dialect, and that dialect is parsed in the shape the provider actually emits without losing tool arguments."
   },
-  "updated": "2026-11-27T17:31:06Z",
+  "updated": "2026-11-27T20:06:56Z",
   "units": {
     "core": {
-      "version": "3.4.2",
+      "version": "3.4.3",
       "note": {
-        "ru": "Пакет кода 3.4.2: контекстные окна каталога GigaChat AI Studio приведены к официальному каталогу провайдера (шесть моделей); max_tokens каждой модели остаётся десятой частью окна.",
-        "en": "Code package 3.4.2: the GigaChat AI Studio catalog context windows now follow the provider's published catalog (six models); each model's max_tokens remains a tenth of its window."
+        "ru": "Пакет кода 3.4.3: рассуждения думающих моделей больше не попадают в чат (вынесены в core/api_reasoning), правило single_system_message снова покрывает всё семейство GigaChat, DSML-парсер принимает закрывающий тег без имени элемента и не смешивает аргументы соседних вызовов.",
+        "en": "Code package 3.4.3: chain-of-thought no longer reaches the chat (moved to core/api_reasoning), the single_system_message rule covers the whole GigaChat family again, and the DSML parser accepts a closing tag with no element name without mixing up the arguments of neighbouring calls."
       },
       "files": {
         "__init__.py": {
@@ -272,8 +272,8 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "3.4.2",
-          "sha256": "5d90ee78397d470ed29fa2222a1412d997a4d95e27168bfa0e12823de0e1fd32",
+          "version": "3.4.3",
+          "sha256": "17bc5c35a1c89816638f46a3d33cd1ae212697d858c06d857fa5be1e816f0e19",
           "note": {
             "ru": "Версия платформы 3.3.1: GigaChat получает промпт целиком - нормализация system объявлена каталогом сервиса.",
             "en": "Platform version 3.3.1: GigaChat receives the whole prompt - the system normalisation is declared by a service catalog."
@@ -372,8 +372,8 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.13.13",
-          "sha256": "dddf925293725efa5d7b91bd9fc3c8e2d986e5611f4027c622df9ea303f024af",
+          "version": "1.13.14",
+          "sha256": "f0c108bbc2b8fe77f1874b4bfe18835fd5375286514771bf261a76d33db328f0",
           "note": {
             "ru": "Описания каталога GigaChat AI Studio (сервис, defaults-копия, сценарный тест) и уточнённая роль теста каталогов сервисов.",
             "en": "GigaChat AI Studio catalog descriptions (the service, its defaults copy, the scenario test) and a sharper role for the service catalog test."
@@ -764,8 +764,8 @@
           "sha256": "2704d2057e8bc3de5411783cf6a521abc6f11f15522057c0ad23bca3e23c588e"
         },
         "tests/test_core_api_layer.py": {
-          "version": "1.0.3",
-          "sha256": "8251378c1fc4ca9f38e3c2cbb4bd99d848a6115fc9ec78899de9580e82f949fd"
+          "version": "1.0.4",
+          "sha256": "3987e9b8a517fa3162fdb809a0e328dea4bed288f78e7fada165cb2f230a6747"
         },
         "tests/test_core_api_send.py": {
           "version": "1.2.2",
@@ -788,8 +788,8 @@
           "sha256": "b2866c54f239e8424e9230924033077f853b1640146b7f67e7ea0446ce033572"
         },
         "tests/test_deepseek_responses.py": {
-          "version": "1.0.4",
-          "sha256": "11aaea1526a3e9109fb748248b49a38d975370f95328f64711f6a982f6f13b05"
+          "version": "1.0.5",
+          "sha256": "09a4e6725daa04fd4d3919dac993b2d5cf7e2cb81f2dcbb6fffa5e337fecec7f"
         },
         "tests/test_default_imports.py": {
           "version": "1.0.5",
@@ -928,8 +928,8 @@
           "sha256": "044d70b011c05caae9103c6fa545ef033c586984e56b3a017e61762c8cca1666"
         },
         "tests/test_phase1_agent_loop.py": {
-          "version": "1.3.4",
-          "sha256": "9a30acec2a5e4e2b6d03bd4529537015493c3d1fbe7003a76617696267ce4817",
+          "version": "1.3.5",
+          "sha256": "53b165ebd460c885160d9b29d13021a120e828e773d15f562a56b004065f4732",
           "note": {
             "ru": "Тесты маркерного DSML-диалекта: разворачивание args, ремонт скобки, батч, валидация, UI-strip, мусорный префикс перед JSON, двойная обёртка JSON-строкой, напоминание о JSON после успешного DSML-шага.",
             "en": "Marker DSML dialect tests: args unwrapping, brace repair, batch, validation, UI strip, stray prefix before JSON, double wrapping in a JSON string, the JSON-only reminder after a successful DSML step."
@@ -2648,8 +2648,8 @@
           "sha256": "4d71a02fa7c10e2092ef60a28ca2d4459ace0d6a000034f5ffa9e59f8ea3a7ff"
         },
         "dev_agent/loop/parse.py": {
-          "version": "1.0.1",
-          "sha256": "af992aa0d8e6cd26fd425470ac4701914f2c24349b13c5fcabc600a59f0514ed",
+          "version": "1.0.2",
+          "sha256": "dceefd57d206c42e08a45ea9465744cae19a55278bc77960b6d382f470536e3f",
           "note": {
             "ru": "Разбор ответа модели: fenced JSON, DSML-фолбэк, извлечение блоков и имён аргументов. Описание аргументов берётся напрямую из модуля данных каталога.",
             "en": "Parsing of the model reply: fenced JSON, the DSML fallback, block and argument-name extraction. Argument specs come straight from the catalog data module."
@@ -2792,8 +2792,8 @@
           "sha256": "76aff6874698d2bcc16b73b1d5c700158659f67e482710b6e0cbe399b3df0885"
         },
         "ui/pages/orchestrator_text.py": {
-          "version": "1.3.0",
-          "sha256": "d776e82d439a65fdf806a6e5fcbb205f2bc94cbbf3a2b1c186a2a7067064fc4f",
+          "version": "1.3.1",
+          "sha256": "cbebb32668c7c0272bc7069355cbea2d29063e6cb4a0e4cb03a4ebd8b2f300cd",
           "note": {
             "ru": "Добавлена build_state_keys - карта ключей session_state диалога, принимающая настройки и константы страницы аргументами.",
             "en": "Added build_state_keys - the chat session-state key map, taking the page settings and constants as arguments."
@@ -2884,8 +2884,8 @@
           "sha256": "7f2ee6c6a4b5315ec0259764cfcc5b80e90b738bfe20311041a54cb866d38e06"
         },
         "core/api_responses.py": {
-          "version": "1.0.1",
-          "sha256": "542cfaa68c79f51ea28f08be17d84d1e677a499a0222b0b95f5c94b4dc4249fc"
+          "version": "1.0.2",
+          "sha256": "1f4e5ebd26a1eba122243e9932b2560e25fb2c868723b95f9077ba8e898a4fc2"
         },
         "core/api_history_guard.py": {
           "version": "1.0.0",
@@ -3572,8 +3572,8 @@
           "sha256": "0bf2ca8a450f46d77b9e727371a718748c713c7f8e05fed2af6de64560362189"
         },
         "tests/scenarios/test_cloud_tool_loop_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "8611e115b06128496519f5deadfac7bf9db876d64e13f497c8f4372eefb2ec04"
+          "version": "1.0.1",
+          "sha256": "d2de5918ad8250fe5adf80dc98ac0fe49e535008426aebf77ccc71f615b71293"
         },
         "tests/scenarios/test_gigachat_ai_studio_scenario.py": {
           "version": "1.0.1",
@@ -3584,8 +3584,8 @@
           }
         },
         "tests/test_single_system_message.py": {
-          "version": "2.0.0",
-          "sha256": "0d5d3f974b23593854ca79dab6e19bc415ef958bcbd42131576146ed1cda4e9e"
+          "version": "2.1.0",
+          "sha256": "0b7e3d8d7547d4ae2a0ba397a86b3ec93d002e979f7784692d6f310dc4398633"
         },
         "tests/scenarios/test_gigachat_single_system_scenario.py": {
           "version": "1.1.0",
@@ -3598,14 +3598,18 @@
         "tests/scenarios/test_platform_context_cache_scenario.py": {
           "version": "1.1.0",
           "sha256": "ffbfa67a301a46ca74c4a85465f986811926b91e0740c6f27aeaf0409a193bfe"
+        },
+        "core/api_reasoning.py": {
+          "version": "1.0.0",
+          "sha256": "fd06c5fd12bae24d6d99e0a0c029bb8e45796787de2f31fdc171304c38ec44cf"
         }
       }
     }
   },
   "selectable": {
     "ARCHITECTURE.md": {
-      "version": "1.84.0",
-      "sha256": "4baf5d033f1e5f6a9ca0edcd6d42198e8fa3d873938a5d5e1cb6216a95058047",
+      "version": "1.84.1",
+      "sha256": "863fb4e145dba39acf537555f16c2465d4e8b8ee8da2d183f68079ff130be067",
       "note": {
         "ru": "Раздел «Подключение провайдера без кода»: bearer-шлюз подключается каталогом, примеры Cloud.ru и GigaChat AI Studio.",
         "en": "A \"code-free provider\" section: a bearer gateway plugs in as a catalog, with Cloud.ru and GigaChat AI Studio as examples."
@@ -3620,16 +3624,16 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.83.7",
-      "sha256": "4ed767b705c8d577799fc575e92f672974d1727e54afa800b485ae04a030814d",
+      "version": "1.83.8",
+      "sha256": "c5e1519b5f8c59c6400b9b1baa1fa139cea52afa55ac96d482c650dad65ae432",
       "note": {
         "ru": "Перегенерирована: описания новых тестов (extra_headers, сквозной сценарий кеша контекста).",
         "en": "Regenerated: descriptions of the new tests (extra_headers, the context-cache scenario)."
       }
     },
     "README.md": {
-      "version": "1.64.6",
-      "sha256": "fd870dc4f29cfad82d375eeaf85a2ae0cab95a56ca4c8cfaa00ffdae2f5469e6",
+      "version": "1.64.7",
+      "sha256": "23d6fee73d4bbf13bf8ab162ca86568dfc7426d9437f6c0733621215816e09fa",
       "note": {
         "ru": "Строка версии обновлена до 3.4.0.",
         "en": "The version line now reads 3.4.0."
@@ -4028,8 +4032,8 @@
       }
     },
     "AGENT.md": {
-      "version": "1.62.3",
-      "sha256": "cb952fb961febc276fa8bb79a297f824fdb72a72854df8a8fb0dd6f8e28b8b08",
+      "version": "1.62.4",
+      "sha256": "1d9e5ae305f3606918e514cc39d8c5fc5c1a6ffa8d73184c462ebe52166092ee",
       "note": {
         "ru": "FR16: GigaChat AI Studio как второй bearer-провайдер; каталог объявляет только реально доступные возможности.",
         "en": "FR16: GigaChat AI Studio as a second bearer provider; a catalog declares only the capabilities the provider really serves."
@@ -4276,16 +4280,16 @@
       }
     },
     "services/cloud.json": {
-      "version": "1.3.0",
-      "sha256": "afc6848fa01a511cb872faabb744d1d36624692563bb6c20d23490c971f777c8",
+      "version": "1.3.1",
+      "sha256": "d481d2a46d11a38ea869d7581da7a09e163ef8db8ca7715a795b0072d92d236d",
       "note": {
         "ru": "Сервис Cloud.ru Foundation Models: bearer-авторизация, каталоги текстовых, vision- и RAG-моделей, включая линейку GigaChat; лимит вывода каждой модели - десятая часть её контекстного окна.",
         "en": "Cloud.ru Foundation Models service: bearer auth and catalogs of text, vision and RAG models, the GigaChat line included; each model output limit is a tenth of its context window."
       }
     },
     "defaults/services/cloud.json": {
-      "version": "1.3.0",
-      "sha256": "afc6848fa01a511cb872faabb744d1d36624692563bb6c20d23490c971f777c8",
+      "version": "1.3.1",
+      "sha256": "d481d2a46d11a38ea869d7581da7a09e163ef8db8ca7715a795b0072d92d236d",
       "note": {
         "ru": "Сервис Cloud.ru Foundation Models: bearer-авторизация, каталоги текстовых, vision- и RAG-моделей, включая линейку GigaChat; лимит вывода каждой модели - десятая часть её контекстного окна.",
         "en": "Cloud.ru Foundation Models service: bearer auth and catalogs of text, vision and RAG models, the GigaChat line included; each model output limit is a tenth of its context window."
