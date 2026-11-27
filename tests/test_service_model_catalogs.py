@@ -71,10 +71,13 @@ def test_deepseek_declares_vision_catalog_with_dedicated_endpoint():
 def test_gigachat_ai_studio_declares_the_live_catalog():
     """GigaChat AI Studio ships the seven chat models of its gateway.
 
-    The context windows were read from the provider's CONTEXT_TOO_LONG
-    answers, so every model carries its own measured window; only the four
-    models that accepted an image are declared as vision models, and the
-    gateway serves no image generation, so that catalog stays empty.
+    The context windows come from the provider's published catalog for the
+    checkpoints it covers; the three checkpoints that catalog does not list
+    keep the windows established by probing the gateway. Every entry carries
+    a window and an output limit a tenth of it, so the guards always have a
+    limit to read. Only the four models that accepted an image are declared
+    as vision models, and the gateway serves no image generation, so that
+    catalog stays empty.
     """
     svc = get_services().get("gigachat_ai_studio") or {}
     assert svc, "the GigaChat AI Studio catalog is missing"
@@ -84,12 +87,12 @@ def test_gigachat_ai_studio_declares_the_live_catalog():
 
     windows = {m.get("id"): m.get("context_window") for m in svc.get("models") or []}
     assert windows == {
-        "GigaChat-4-708B-A41B": 524288,
-        "GigaChat-3.5-432B-A28B": 523264,
-        "GigaChat-3.5-Ultra-Reasoning": 1047552,
-        "GigaChat-4-37B-A4B": 1047552,
-        "GigaChat-3-Ultra": 523264,
-        "GigaChat-3-Pro": 130048,
+        "GigaChat-4-708B-A41B": 1000000,
+        "GigaChat-3.5-432B-A28B": 262144,
+        "GigaChat-3.5-Ultra-Reasoning": 262144,
+        "GigaChat-4-37B-A4B": 262144,
+        "GigaChat-3-Ultra": 131072,
+        "GigaChat-3-Pro": 262144,
         "GigaChat-3-Lightning": 261120,
     }
 

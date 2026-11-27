@@ -12,7 +12,7 @@ Scenarios (given -> when -> then):
 
   Scenario 1 - both service copies carry the same definition: the bearer
                chat endpoint, the single API key and the seven models of
-               the gateway with their measured context windows.
+               the gateway with the context windows the provider publishes.
   Scenario 2 - only the models that accept an image are offered as vision
                models, and the gateway's missing catalogs stay empty.
   Scenario 3 - sending a message posts to the AI Studio endpoint with a
@@ -89,17 +89,24 @@ def test_service_copies_offer_the_ai_studio_catalog():
         "service copies diverged"
 
 
-def test_every_model_declares_its_measured_limits():
-    """Given the catalog, when a model is picked, then its entry declares the
-    context window and the output limit the guards need. The windows differ
-    per model: the gateway enforces them per checkpoint."""
+def test_every_model_declares_its_limits():
+    """Given the catalog, when a model is picked, then every entry declares
+    a window and an output limit of a tenth of it. Four windows come from the
+    provider's published catalog; the three checkpoints that catalog does not
+    list keep the windows established by probing the gateway."""
     for path in SERVICE_PATHS:
+        svc = _json(path)
+        assert svc.get("context_window_default"), path
+        assert svc.get("max_tokens_default"), path
         windows = set()
-        for model in _json(path)["models"]:
-            assert model.get("context_window"), (path, model)
+        for model in svc["models"]:
+            ctx = model.get("context_window")
+            assert ctx, (path, model)
             assert model.get("max_tokens"), (path, model)
-            windows.add(model["context_window"])
+            assert model["max_tokens"] == ctx // 10, (path, model)
+            windows.add(ctx)
         assert len(windows) > 1, (path, windows)
+        assert svc["max_tokens_default"] == svc["context_window_default"] // 10, path
 
 
 # --- Scenario 2 - the multimodal catalogs ----------------------------------

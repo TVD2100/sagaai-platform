@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "3.4.1",
+  "app_version": "3.4.2",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Лимит вывода каждой модели каталога привязан к её контекстному окну: max_tokens равен десятой части окна, а сервисный max_tokens_default - десятой части context_window_default. Один общий потолок 32768 оставлял под ответ четверть окна у самой маленькой модели и три процента у самой большой; теперь потолок пропорционален тому, что модель реально вмещает. Контекстные окна GigaChat AI Studio перепроверены живыми пробами и не изменились.",
-    "en": "Every catalog model output limit is now tied to its context window: max_tokens is a tenth of the window, and the service-wide max_tokens_default a tenth of context_window_default. A single 32768 ceiling left a quarter of the window for the answer on the smallest model and three percent on the largest; the ceiling is now proportional to what each model can actually hold. The GigaChat AI Studio context windows were re-checked against live probes and did not change."
+    "ru": "Контекстные окна моделей GigaChat AI Studio приведены к официальному каталогу провайдера. Шесть моделей получили опубликованные значения: GigaChat-4-708B-A41B - 1 000 000 токенов; GigaChat-3.5-432B-A28B, GigaChat-3.5-Ultra-Reasoning, GigaChat-4-37B-A4B и GigaChat-3-Pro - по 262 144; GigaChat-3-Ultra - 131 072. Прежние числа расходились с каталогом в обе стороны: у GigaChat-3-Pro окно было занижено вдвое, у GigaChat-3.5-Ultra-Reasoning, GigaChat-3-Ultra и GigaChat-4-37B-A4B завышено вчетверо. GigaChat-3-Lightning сохранил окно 261 120, установленное пробами шлюза. Лимит вывода каждой модели остаётся десятой частью её окна.",
+    "en": "GigaChat AI Studio context windows now follow the provider's published catalog. Six models carry the published values: GigaChat-4-708B-A41B 1,000,000 tokens; GigaChat-3.5-432B-A28B, GigaChat-3.5-Ultra-Reasoning, GigaChat-4-37B-A4B and GigaChat-3-Pro 262,144 each; GigaChat-3-Ultra 131,072. The previous numbers disagreed with the catalog in both directions: GigaChat-3-Pro was understated twofold, while GigaChat-3.5-Ultra-Reasoning, GigaChat-3-Ultra and GigaChat-4-37B-A4B were overstated fourfold. GigaChat-3-Lightning keeps the window of 261,120 established by probing the gateway. The output limit of every model remains a tenth of its window."
   },
   "updated": "2026-11-27T17:31:06Z",
   "units": {
     "core": {
-      "version": "3.4.1",
+      "version": "3.4.2",
       "note": {
-        "ru": "Пакет кода 3.4.1: max_tokens каждой модели каталога равен десятой части её контекстного окна, max_tokens_default - десятой части context_window_default; контекстные окна GigaChat AI Studio подтверждены живыми пробами и не менялись.",
-        "en": "Code package 3.4.1: max_tokens of every catalog model is a tenth of its context window, max_tokens_default a tenth of context_window_default; the GigaChat AI Studio context windows are confirmed by live probes and unchanged."
+        "ru": "Пакет кода 3.4.2: контекстные окна каталога GigaChat AI Studio приведены к официальному каталогу провайдера (шесть моделей); max_tokens каждой модели остаётся десятой частью окна.",
+        "en": "Code package 3.4.2: the GigaChat AI Studio catalog context windows now follow the provider's published catalog (six models); each model's max_tokens remains a tenth of its window."
       },
       "files": {
         "__init__.py": {
@@ -272,8 +272,8 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "3.4.1",
-          "sha256": "6f6c396626dc55d85da8d41f1b5d187a88ea491a4652cee478d29341b35c208a",
+          "version": "3.4.2",
+          "sha256": "5d90ee78397d470ed29fa2222a1412d997a4d95e27168bfa0e12823de0e1fd32",
           "note": {
             "ru": "Версия платформы 3.3.1: GigaChat получает промпт целиком - нормализация system объявлена каталогом сервиса.",
             "en": "Platform version 3.3.1: GigaChat receives the whole prompt - the system normalisation is declared by a service catalog."
@@ -372,8 +372,8 @@
           "sha256": "1cfa1d0cedbf4a75ea5435d566b1d00a145252bc374cd9445eac4bda5bc44103"
         },
         "scripts/regenerate_project_map.py": {
-          "version": "1.13.12",
-          "sha256": "ee7d157a78bb5e5feb3401186b9be6739d0cbf725ab2737a34ae80411bdcfd59",
+          "version": "1.13.13",
+          "sha256": "dddf925293725efa5d7b91bd9fc3c8e2d986e5611f4027c622df9ea303f024af",
           "note": {
             "ru": "Описания каталога GigaChat AI Studio (сервис, defaults-копия, сценарный тест) и уточнённая роль теста каталогов сервисов.",
             "en": "GigaChat AI Studio catalog descriptions (the service, its defaults copy, the scenario test) and a sharper role for the service catalog test."
@@ -1032,8 +1032,8 @@
           "sha256": "e9b886c37c68823bd3fe2b34a4153a9a72ea1a0cfa6c2614e1f4de76d2225ce8"
         },
         "tests/test_service_model_catalogs.py": {
-          "version": "1.5.0",
-          "sha256": "d9345e1e013667db281c7ba9e3ee256963a6d745ad71eea192626ae472a6cd4f",
+          "version": "1.5.2",
+          "sha256": "c449a36075197d24bb096c1929cc7b55094195a4d2e5480c03b7c95531a18da9",
           "note": {
             "ru": "Каталог GigaChat AI Studio под тестом: точные окна моделей, vision-набор, пустые image/embedding; файл добавлен в тест синхронности копий.",
             "en": "The GigaChat AI Studio catalog is under test: exact model windows, the vision set, empty image/embedding; the file joined the copy-sync test."
@@ -3576,8 +3576,8 @@
           "sha256": "8611e115b06128496519f5deadfac7bf9db876d64e13f497c8f4372eefb2ec04"
         },
         "tests/scenarios/test_gigachat_ai_studio_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "c0dd40ed1076ed8a85e4607034677801d6f4d77458804a4994d1a3484b6800c5",
+          "version": "1.0.1",
+          "sha256": "86bd8835667f00ab633ae245c243737dc60b340153d192bf4b1675d58d9fa23e",
           "note": {
             "ru": "Сценарии GigaChat AI Studio: каталог, измеренные окна, vision-набор, bearer-отправка, цикл вызовов инструментов, проверка подключения.",
             "en": "GigaChat AI Studio scenarios: the catalog, the measured windows, the vision set, bearer sending, the tool-call loop, the connection test."
@@ -3620,16 +3620,16 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.83.5",
-      "sha256": "bdecbaa9369f1f3a5d9e338b3bf8e5bc1d5ffe2888c4a55cb34f4c8788d0efd8",
+      "version": "1.83.7",
+      "sha256": "4ed767b705c8d577799fc575e92f672974d1727e54afa800b485ae04a030814d",
       "note": {
         "ru": "Перегенерирована: описания новых тестов (extra_headers, сквозной сценарий кеша контекста).",
         "en": "Regenerated: descriptions of the new tests (extra_headers, the context-cache scenario)."
       }
     },
     "README.md": {
-      "version": "1.64.5",
-      "sha256": "9005386459a88710d72177f685f0750f87393d8006a56abe500047bddd05e019",
+      "version": "1.64.6",
+      "sha256": "fd870dc4f29cfad82d375eeaf85a2ae0cab95a56ca4c8cfaa00ffdae2f5469e6",
       "note": {
         "ru": "Строка версии обновлена до 3.4.0.",
         "en": "The version line now reads 3.4.0."
@@ -4028,8 +4028,8 @@
       }
     },
     "AGENT.md": {
-      "version": "1.62.1",
-      "sha256": "7f9b35c542720e8d526d18c921b018a6ae66f77af17135d2598c3a5fa5ece732",
+      "version": "1.62.3",
+      "sha256": "cb952fb961febc276fa8bb79a297f824fdb72a72854df8a8fb0dd6f8e28b8b08",
       "note": {
         "ru": "FR16: GigaChat AI Studio как второй bearer-провайдер; каталог объявляет только реально доступные возможности.",
         "en": "FR16: GigaChat AI Studio as a second bearer provider; a catalog declares only the capabilities the provider really serves."
@@ -4292,19 +4292,19 @@
       }
     },
     "services/gigachat_ai_studio.json": {
-      "version": "1.2.0",
-      "sha256": "2d6c71076b2ac97148e10775f5554f447655a194320b43aaad1a6d105f95472e",
+      "version": "1.3.1",
+      "sha256": "6eb9880010302746f7799250886cf0190d068b5be448eed842cf311dd604a24e",
       "note": {
-        "ru": "Сервис GigaChat AI Studio: bearer-авторизация, семь чатовых моделей с их реальными контекстными окнами и лимитом вывода в десятую часть окна, четыре vision-модели; генерация изображений и векторизация не объявлены.",
-        "en": "The GigaChat AI Studio service: bearer auth, seven chat models with the context window each really enforces and an output limit of a tenth of that window, four vision models; image generation and vectorization are not declared."
+        "ru": "Каталог GigaChat AI Studio: контекстные окна взяты из официального каталога провайдера (GigaChat-4-708B-A41B - 1000К; GigaChat-3.5-432B-A28B, GigaChat-3.5-Ultra-Reasoning, GigaChat-4-37B-A4B и GigaChat-3-Pro - 256К; GigaChat-3-Ultra - 128К), max_tokens каждой модели - десятая часть окна.",
+        "en": "GigaChat AI Studio catalog: context windows taken from the provider's published catalog (GigaChat-4-708B-A41B 1000K; GigaChat-3.5-432B-A28B, GigaChat-3.5-Ultra-Reasoning, GigaChat-4-37B-A4B and GigaChat-3-Pro 256K; GigaChat-3-Ultra 128K); max_tokens is a tenth of the window."
       }
     },
     "defaults/services/gigachat_ai_studio.json": {
-      "version": "1.2.0",
-      "sha256": "2d6c71076b2ac97148e10775f5554f447655a194320b43aaad1a6d105f95472e",
+      "version": "1.3.1",
+      "sha256": "6eb9880010302746f7799250886cf0190d068b5be448eed842cf311dd604a24e",
       "note": {
-        "ru": "Сервис GigaChat AI Studio: bearer-авторизация, семь чатовых моделей с их реальными контекстными окнами и лимитом вывода в десятую часть окна, четыре vision-модели; генерация изображений и векторизация не объявлены.",
-        "en": "The GigaChat AI Studio service: bearer auth, seven chat models with the context window each really enforces and an output limit of a tenth of that window, four vision models; image generation and vectorization are not declared."
+        "ru": "Каталог GigaChat AI Studio: контекстные окна взяты из официального каталога провайдера (GigaChat-4-708B-A41B - 1000К; GigaChat-3.5-432B-A28B, GigaChat-3.5-Ultra-Reasoning, GigaChat-4-37B-A4B и GigaChat-3-Pro - 256К; GigaChat-3-Ultra - 128К), max_tokens каждой модели - десятая часть окна.",
+        "en": "GigaChat AI Studio catalog: context windows taken from the provider's published catalog (GigaChat-4-708B-A41B 1000K; GigaChat-3.5-432B-A28B, GigaChat-3.5-Ultra-Reasoning, GigaChat-4-37B-A4B and GigaChat-3-Pro 256K; GigaChat-3-Ultra 128K); max_tokens is a tenth of the window."
       }
     }
   }

@@ -1,7 +1,9 @@
 {
   "name": "gigachat_ai_studio",
   "config_key": "GIGACHAT_AI_STUDIO_API_KEY",
-  "env_key_fields": ["config_key"],
+  "env_key_fields": [
+    "config_key"
+  ],
   "key_label": "API Key",
   "base_url": "https://api.aistudio.giga.chat/v1/chat/completions",
   "auth_type": "bearer",
@@ -13,38 +15,40 @@
   "context_window_default": 128000,
   "max_tokens_default": 12800,
   "single_system_message": {
-    "models": ["GigaChat"]
+    "models": [
+      "GigaChat"
+    ]
   },
   "models": [
     {
       "id": "GigaChat-4-708B-A41B",
-      "context_window": 524288,
-      "max_tokens": 52428
+      "context_window": 1000000,
+      "max_tokens": 100000
     },
     {
       "id": "GigaChat-3.5-432B-A28B",
-      "context_window": 523264,
-      "max_tokens": 52326
+      "context_window": 262144,
+      "max_tokens": 26214
     },
     {
       "id": "GigaChat-3.5-Ultra-Reasoning",
-      "context_window": 1047552,
-      "max_tokens": 104755
+      "context_window": 262144,
+      "max_tokens": 26214
     },
     {
       "id": "GigaChat-4-37B-A4B",
-      "context_window": 1047552,
-      "max_tokens": 104755
+      "context_window": 262144,
+      "max_tokens": 26214
     },
     {
       "id": "GigaChat-3-Ultra",
-      "context_window": 523264,
-      "max_tokens": 52326
+      "context_window": 131072,
+      "max_tokens": 13107
     },
     {
       "id": "GigaChat-3-Pro",
-      "context_window": 130048,
-      "max_tokens": 13004
+      "context_window": 262144,
+      "max_tokens": 26214
     },
     {
       "id": "GigaChat-3-Lightning",

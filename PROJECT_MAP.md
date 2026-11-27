@@ -2,11 +2,11 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-27T17:20:05+00:00`
+- Обновлено: `2026-11-27T18:44:47+00:00`
 - Файлов: **872**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
 - Python-символов: **11571**
-- Отпечаток содержимого: `sha256:d5b100c54739cd4d7b31728ce98abfb5b9f547e2aac03d815cbe182d6be451a4` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Отпечаток содержимого: `sha256:9785216e569cfb92a336431ccaa5b2f7a4b0c7221f8d5ec4d7033e697851a66b` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
 - Языки: Config: 2, JSON: 39, Markdown: 42, PEM certificate: 1, Python: 788, TOML: 2, Text: 2
 
 ## Файлы и назначение
@@ -796,7 +796,7 @@
 | `defaults/skills/rag_base_creator/scripts/build_base.py` | Python | Rag Base Creator helper: builds a base offline (default bm25, no embedding calls) or with embeddings for vector/hybrid | - |
 | `defaults/services/cloud.json` | JSON | Cloud.ru Foundation Models service definition (defaults copy; bearer auth, text/vision/RAG catalogs incl. the GigaChat line, which is declared as keeping only the last system message) | - |
 | `defaults/services/deepseek.json` | JSON | DeepSeek service profile (defaults): responses endpoint, the Anthropic web-search endpoint, the vision chat/completions endpoint, the URL-fetch endpoint fetch_base_url (https://api.deepseek.com/v1/tools/fetch) with the fetch_models catalog (deepseek-flash, deepseek-v4-pro), models and reasoning-effort options | - |
-| `defaults/services/gigachat_ai_studio.json` | JSON | GigaChat AI Studio service definition, defaults copy (bearer auth at api.aistudio.giga.chat; seven chat models with their measured context windows, four vision models, no image generation or vectorization; keeps only the last system message) | - |
+| `defaults/services/gigachat_ai_studio.json` | JSON | GigaChat AI Studio service definition, defaults copy (bearer auth at api.aistudio.giga.chat; seven chat models with the context windows the provider publishes, four vision models, no image generation or vectorization; keeps only the last system message) | - |
 | `defaults/services/yandex.json` | JSON | _(описание не задано)_ | - |
 | `langs/en.json` | JSON | English UI strings | - |
 | `langs/en_guide.md` | Markdown | English user guide | - |
@@ -883,7 +883,7 @@
 | `dev_agent/loop/steps/runtime.py` | Python | The runtime object a step receives instead of reaching for module globals: dispatcher, language, event emission, request sending and the context hooks | - |
 | `services/cloud.json` | JSON | Cloud.ru Foundation Models service definition (bearer auth; catalogs of text, vision and RAG models incl. the GigaChat line, which is declared as keeping only the last system message) | - |
 | `services/deepseek.json` | JSON | DeepSeek service definition (vision_base_url + vision_models catalog) | - |
-| `services/gigachat_ai_studio.json` | JSON | GigaChat AI Studio service definition (bearer auth at api.aistudio.giga.chat; seven chat models with their measured context windows, four vision models, no image generation or vectorization; keeps only the last system message) | - |
+| `services/gigachat_ai_studio.json` | JSON | GigaChat AI Studio service definition (bearer auth at api.aistudio.giga.chat; seven chat models with the context windows the provider publishes, four vision models, no image generation or vectorization; keeps only the last system message) | - |
 | `services/yandex.json` | JSON | YandexAI service definition | - |
 
 ## Прочие публикуемые файлы (вне текстового скана)
@@ -9777,10 +9777,10 @@
 - `test_yandex_declares_vision_and_image_catalogs` (func, строка 36)
 - `test_deepseek_declares_vision_catalog_with_dedicated_endpoint` (func, строка 56)
 - `test_gigachat_ai_studio_declares_the_live_catalog` (func, строка 71)
-- `test_services_without_a_catalog_return_empty_lists` (func, строка 112)
-- `test_catalog_helpers_are_defensive` (func, строка 118)
-- `test_defaults_and_legacy_service_files_stay_in_sync` (func, строка 126)
-- `test_every_shipped_model_declares_an_output_limit` (func, строка 140)
+- `test_services_without_a_catalog_return_empty_lists` (func, строка 115)
+- `test_catalog_helpers_are_defensive` (func, строка 121)
+- `test_defaults_and_legacy_service_files_stay_in_sync` (func, строка 129)
+- `test_every_shipped_model_declares_an_output_limit` (func, строка 143)
 
 ### `tests/test_sidebar_employees_nav.py`
 - `isolated_data` (func, строка 25)
@@ -11862,13 +11862,13 @@
 - `_cfg` (func, строка 53)
 - `_ok_response` (func, строка 58)
 - `test_service_copies_offer_the_ai_studio_catalog` (func, строка 69)
-- `test_every_model_declares_its_measured_limits` (func, строка 92)
-- `test_only_image_capable_models_are_offered_as_vision_models` (func, строка 108)
-- `test_sending_with_an_ai_studio_model_uses_the_bearer_endpoint` (func, строка 135)
-- `test_sending_without_a_key_reports_the_missing_credential` (func, строка 161)
-- `test_a_tool_call_runs_through_the_native_chat_loop` (func, строка 183)
-- `test_connection_test_probes_the_chat_endpoint` (func, строка 229)
-- `test_connection_test_reports_a_rejected_key` (func, строка 251)
+- `test_every_model_declares_its_limits` (func, строка 92)
+- `test_only_image_capable_models_are_offered_as_vision_models` (func, строка 115)
+- `test_sending_with_an_ai_studio_model_uses_the_bearer_endpoint` (func, строка 142)
+- `test_sending_without_a_key_reports_the_missing_credential` (func, строка 168)
+- `test_a_tool_call_runs_through_the_native_chat_loop` (func, строка 190)
+- `test_connection_test_probes_the_chat_endpoint` (func, строка 236)
+- `test_connection_test_reports_a_rejected_key` (func, строка 258)
 
 ### `tests/scenarios/test_gigachat_single_system_scenario.py`
 - `_history` (func, строка 26)

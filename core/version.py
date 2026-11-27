@@ -941,7 +941,15 @@
 # smallest model and three percent on the largest, so the ceiling is now
 # proportional to what each model can actually hold.
 
-__version__ = "3.4.1"
+# 3.4.2 brings the GigaChat AI Studio context windows in line with the
+# provider's published catalog: four models carry the published values, while
+# the three checkpoints that catalog does not list keep the windows
+# established by probing the gateway. The probed numbers disagreed with the
+# catalog in both directions - one checkpoint was understated fourfold and
+# another overstated fourfold - so a single source has to win, and the
+# published catalog is the one a reader can verify.
+
+__version__ = "3.4.2"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
