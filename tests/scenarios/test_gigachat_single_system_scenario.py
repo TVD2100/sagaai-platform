@@ -124,13 +124,16 @@ def test_both_snapshots_survive_as_platform_context(captured_post):
     req = _require({}, "GigaChat/GigaChat-4-708B-A41", "Cloud", rule)
     _request_bearer(req)
     messages = captured_post.payloads[0]["messages"]
-    head = messages[0]["content"]
-    assert head.startswith(PROMPT)
-    assert SNAPSHOT_MARKER in head
-    assert "CURRENT TASK STATE" in head
-    assert "CURRENT THREAD ARTIFACTS DIR" in head
-    # The snapshots keep the order they arrived in.
-    assert head.index("CURRENT TASK STATE") < head.index("CURRENT THREAD ARTIFACTS DIR")
+    # The prompt is the ONLY system message and stays byte-identical from
+    # step to step: a prefix cache is reusable only while the opening bytes
+    # do not change.
+    assert messages[0] == {"role": "system", "content": PROMPT}
+    # Snapshots travel in their own marked messages, in arrival order.
+    snapshots = [m for m in messages[1:] if m.get("role") == "user"
+                 and SNAPSHOT_MARKER in (m.get("content") or "")]
+    assert len(snapshots) == 2
+    assert "CURRENT TASK STATE" in snapshots[0]["content"]
+    assert "CURRENT THREAD ARTIFACTS DIR" in snapshots[1]["content"]
     # The user's own turn is passed through untouched.
     assert messages[-1] == {"role": "user", "content": "Кто ты?"}
 
@@ -165,7 +168,7 @@ def test_service_without_the_rule_keeps_every_system(captured_post):
 
 def _record_post(records):
     """Build a stand-in for _post_chat_completions that records the payload."""
-    def _post(url, api_key, payload, svc_name, retry_callback):
+    def _post(url, api_key, payload, svc_name, retry_callback, extra_headers=None):
         records.append(payload)
         return {"choices": [{"message": {"role": "assistant", "content": "ok"}}]}
     return _post

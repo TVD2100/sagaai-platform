@@ -388,6 +388,7 @@ def _handle_send(lang: str, assistant: dict, sel_id: str, sel_name: str,
                 user_input, assistant, file_context,
                 history=history_msgs, lang=lang,
                 usage_callback=on_tokens,
+                session_id=str(active_tid or ""),
             )
         except APIError as e:
             st.error(api_error_message(e, lang=lang))

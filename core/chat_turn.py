@@ -38,7 +38,7 @@ def turn_history(thread_id: Optional[str]) -> List[Dict[str, str]]:
 def run_chat_turn(user_message: str, assistant: Dict[str, Any],
                   file_context: str = "", history: Optional[List[Dict[str, str]]] = None,
                   lang: Optional[str] = None,
-                  usage_callback: Optional[Callable] = None) -> str:
+                  usage_callback: Optional[Callable] = None, session_id: str = "") -> str:
     """Run one chat turn through the provider layer and return the answer.
 
     Assistants with a native function tool run their own function-calling loop
@@ -51,7 +51,7 @@ def run_chat_turn(user_message: str, assistant: Dict[str, Any],
     return send_request(
         user_message, assistant, file_context,
         history=history or [], lang=lang,
-        usage_callback=usage_callback,
+        usage_callback=usage_callback, session_id=session_id,
     )
 
 

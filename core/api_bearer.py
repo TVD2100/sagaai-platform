@@ -24,6 +24,7 @@ def bearer_request_impl(url: str, api_key: str, model: str, messages: list, temp
                         *, tools: Optional[list] = None, usage_callback=None,
                         max_tokens: Optional[int] = None, service: str = "", json_schema=None,
                         extra_payload: Optional[dict] = None,
+                        extra_headers: Optional[dict] = None,
                         single_system: bool = False) -> str:
     """Send a standard Bearer-token chat completion request.
 
@@ -36,6 +37,8 @@ def bearer_request_impl(url: str, api_key: str, model: str, messages: list, temp
     *service*: optional service name for error reporting.
     *extra_payload*: optional provider-specific fields declared by the service
         catalog; merged into the request body after the platform's own keys.
+    *extra_headers*: optional provider-specific HTTP headers declared by the
+        service catalog (a per-conversation cache identifier and the like).
 
     Raises ProviderHTTPError on non-200 responses.
     Returns the extracted text on success.
@@ -46,12 +49,18 @@ def bearer_request_impl(url: str, api_key: str, model: str, messages: list, temp
         extra_payload=extra_payload,
         single_system=single_system,
     )
+    request_headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type":  "application/json",
+    }
+    # Provider-declared headers come last: a catalog may add a cache-binding
+    # identifier, but it must never be able to override the credentials.
+    for name, value in (extra_headers or {}).items():
+        if name not in ("Authorization", "Content-Type"):
+            request_headers[name] = value
     r = requests.post(
         url, json=payload, timeout=MODEL_RESPONSE_TIMEOUT, verify=_VERIFY_TLS,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type":  "application/json",
-        },
+        headers=request_headers,
     )
     if r.status_code != 200:
         try:

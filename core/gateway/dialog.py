@@ -384,7 +384,8 @@ def _prepare_step(handle: DialogHandle, req: DialogRequest, *,
         workspace=req.workspace, target_file=req.target_file,
         web_search=bool(req.web_search), safety=bool(req.safety),
     )
-    runner.attach_sender(dispatcher, runner.send_adapter(card, safety=bool(req.safety)))
+    runner.attach_sender(dispatcher, runner.send_adapter(
+        card, safety=bool(req.safety), session_id=str(handle.thread_id or "")))
 
     live = _LiveDialog()
     live.state = state

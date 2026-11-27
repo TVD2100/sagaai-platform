@@ -2,12 +2,12 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-27T10:15:28+00:00`
-- Файлов: **870**
+- Обновлено: `2026-11-27T16:24:27+00:00`
+- Файлов: **872**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
-- Python-символов: **11541**
-- Отпечаток содержимого: `sha256:86d58d1aca40f4bd726580e084ba215ac6c607444dfbcedc21595b728234497b` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
-- Языки: Config: 2, JSON: 39, Markdown: 42, PEM certificate: 1, Python: 786, TOML: 2, Text: 2
+- Python-символов: **11571**
+- Отпечаток содержимого: `sha256:c9bb61a3e2bfc3e76e983bed8b2c89e726c657c82a805550074b55565d12d71e` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Языки: Config: 2, JSON: 39, Markdown: 42, PEM certificate: 1, Python: 788, TOML: 2, Text: 2
 
 ## Файлы и назначение
 
@@ -363,6 +363,7 @@
 | `tests/test_document_text.py` | Python | Unit tests for core.document_text: per-format extraction, line window, warnings for unknown formats and missing libraries | - |
 | `tests/test_economy_history_budget.py` | Python | Economy budget tests: unified (B4) input budget, tail reset on token overflow, low-watermark fallback, economy_anchor hysteresis (frozen front) | - |
 | `tests/test_employee_management_ui.py` | Python | UI regression tests: employee management pages render and expose no export/import employee UI | ui |
+| `tests/test_extra_headers.py` | Python | Unit: provider-declared HTTP headers (extra_headers_for fills the session placeholder, drops a template that needs an id when none is given, ignores a catalog without the field) | - |
 | `tests/test_feed_autoscroll.py` | Python | Unit + integration tests for core.feed_autoscroll and its wiring into _render_chat_tab: JS markers, force flag, st.html emission with a changing render id, scroll-container selectors, idle/active/send behaviour | ui |
 | `tests/test_folder_dialog.py` | Python | Unit tests for core.folder_dialog: availability probe, tkinter/osascript backends, timeout and cancel handling, non-ASCII paths, disable switch | - |
 | `tests/test_gateway_dto.py` | Python | Unit tests of the gateway dataclasses and their constructors from the orchestration records | - |
@@ -651,6 +652,7 @@
 | `tests/scenarios/test_orchestrator_thread_files.py` | Python | Scenario tests: uploads land in thread files; legacy workspace manifests still re-announced | storage, ui |
 | `tests/scenarios/test_orchestrator_tool_gating.py` | Python | Gating scenarios: system-prompt version pins (v3.33/v2.12), empty-state prompt invariants, generated-document rule, Stage 0 recent-folders menu, the subagent stop/transcript rules and thread-search tool invariants | storage |
 | `tests/scenarios/test_personal_memory_scenario.py` | Python | Scenario tests for the two-store memory model (given->when->then): note survives the dialog and reaches the prompt, append vs replace with recoverable versions, size limit and credential refusal, MEMORY_DIR marker wins with relocation warnings, scopes stay isolated with write rights, deletion archives the notes | - |
+| `tests/scenarios/test_platform_context_cache_scenario.py` | Python | Scenario: a multi-step dialog on a one-system-message provider keeps the opening prompt byte-identical while the journal grows, still delivers every snapshot, and books the provider's cached tokens once | - |
 | `tests/scenarios/test_project_map_freshness_scenario.py` | Python | Scenario: PROJECT_MAP regeneration - GitHub-published scope only, recorded fingerprint and staleness detection, reproducible output | storage |
 | `tests/scenarios/test_provider_economy_settings_scenario.py` | Python | _(описание не задано)_ | ui |
 | `tests/scenarios/test_rag_assistant_dialog.py` | Python | _(описание не задано)_ | - |
@@ -1019,7 +1021,7 @@
 - `_render_form_file_badge` (func, строка 332)
 - `_render_token_indicator` (func, строка 350)
 - `_handle_send` (func, строка 367)
-- `_context_is_acceptable` (func, строка 407)
+- `_context_is_acceptable` (func, строка 408)
 
 ### `ui/pages/connectors.py`
 - `_conn_tab_labels` (func, строка 80)
@@ -1504,8 +1506,9 @@
 - `_snapshot_block` (func, строка 81)
 - `collapse_system_messages` (func, строка 86)
 - `needs_single_system` (func, строка 128)
-- `report_chat_usage` (func, строка 158)
-- `build_chat_payload` (func, строка 188)
+- `extra_headers_for` (func, строка 158)
+- `report_chat_usage` (func, строка 197)
+- `build_chat_payload` (func, строка 227)
 
 ### `core/api_deepseek.py`
 - `_deepseek_reasoning_effort` (func, строка 56)
@@ -1547,34 +1550,34 @@
 
 ### `core/api_layer.py`
 - `_bearer_request` (func, строка 122)
-- `_deepseek_responses_request` (func, строка 135)
-- `_deepseek_anthropic_web_search` (func, строка 152)
-- `_assistant_web_search_config` (func, строка 168)
-- `_yandex_responses_request` (func, строка 197)
-- `send_vision_request` (func, строка 233)
-- `send_image_generation_request` (func, строка 342)
-- `_assistant_rag_context` (func, строка 426)
-- `_resolve_chat_service` (func, строка 480)
-- `_resolve_generation_settings` (func, строка 495)
-- `_compose_user_content` (func, строка 513)
-- `_resolve_tool_options` (func, строка 561)
-- `_run_with_retry` (func, строка 588)
-- `_run_with_retry._send_once` (func, строка 597)
-- `_run_with_retry._call` (func, строка 615)
-- `send_request` (func, строка 637)
-- `_svc_key` (func, строка 707)
-- `_svc_folder` (func, строка 719)
-- `_request_bearer` (func, строка 730)
-- `_request_deepseek` (func, строка 773)
-- `_request_yandex` (func, строка 793)
-- `_do_request` (func, строка 843)
-- `_first_test_model` (func, строка 874)
-- `_probe_bearer` (func, строка 883)
-- `_probe_responses` (func, строка 908)
-- `_probe_deepseek` (func, строка 936)
-- `_probe_yandex` (func, строка 949)
-- `_probe_responses_yandex` (func, строка 965)
-- `test_connection` (func, строка 998)
+- `_deepseek_responses_request` (func, строка 137)
+- `_deepseek_anthropic_web_search` (func, строка 154)
+- `_assistant_web_search_config` (func, строка 170)
+- `_yandex_responses_request` (func, строка 199)
+- `send_vision_request` (func, строка 235)
+- `send_image_generation_request` (func, строка 344)
+- `_assistant_rag_context` (func, строка 428)
+- `_resolve_chat_service` (func, строка 482)
+- `_resolve_generation_settings` (func, строка 497)
+- `_compose_user_content` (func, строка 515)
+- `_resolve_tool_options` (func, строка 563)
+- `_run_with_retry` (func, строка 590)
+- `_run_with_retry._send_once` (func, строка 599)
+- `_run_with_retry._call` (func, строка 617)
+- `send_request` (func, строка 639)
+- `_svc_key` (func, строка 714)
+- `_svc_folder` (func, строка 726)
+- `_request_bearer` (func, строка 737)
+- `_request_deepseek` (func, строка 785)
+- `_request_yandex` (func, строка 805)
+- `_do_request` (func, строка 855)
+- `_first_test_model` (func, строка 887)
+- `_probe_bearer` (func, строка 896)
+- `_probe_responses` (func, строка 921)
+- `_probe_deepseek` (func, строка 949)
+- `_probe_yandex` (func, строка 962)
+- `_probe_responses_yandex` (func, строка 978)
+- `test_connection` (func, строка 1011)
 
 ### `core/api_payload.py`
 - `_get_model_max_tokens` (func, строка 21)
@@ -1682,11 +1685,11 @@
 - `_report_usage` (func, строка 381)
 - `_execute_assistant_tool` (func, строка 402)
 - `_post_chat_completions` (func, строка 418)
-- `_post_chat_completions._attempt` (func, строка 433)
-- `_chat_tool_call_arguments` (func, строка 456)
-- `_tools_rejected` (func, строка 470)
-- `run_bearer_tool_loop` (func, строка 478)
-- `run_yandex_responses_tool_loop` (func, строка 585)
+- `_post_chat_completions._attempt` (func, строка 438)
+- `_chat_tool_call_arguments` (func, строка 461)
+- `_tools_rejected` (func, строка 475)
+- `run_bearer_tool_loop` (func, строка 483)
+- `run_yandex_responses_tool_loop` (func, строка 591)
 
 ### `core/assistants.py`
 - `_get_user_data_dir` (func, строка 60)
@@ -2822,8 +2825,8 @@
 - `_md_to_txt` (func, строка 248)
 - `_token_label` (func, строка 271)
 - `format_token_line` (func, строка 291)
-- `_iter_md_blocks` (func, строка 338)
-- `format_ts_label` (func, строка 418)
+- `_iter_md_blocks` (func, строка 339)
+- `format_ts_label` (func, строка 419)
 
 ### `core/service_migration.py`
 - `migrated_model` (func, строка 61)
@@ -3924,17 +3927,17 @@
 - `build_state` (func, строка 53)
 - `build_dispatcher` (func, строка 123)
 - `send_adapter` (func, строка 172)
-- `send_adapter._send` (func, строка 186)
-- `attach_sender` (func, строка 203)
-- `run_step` (func, строка 214)
-- `run_loop` (func, строка 225)
-- `persist_step` (func, строка 293)
-- `final_triple` (func, строка 323)
-- `final_summary` (func, строка 335)
-- `register_root` (func, строка 344)
-- `close_root` (func, строка 364)
-- `release_root` (func, строка 373)
-- `cancel_report` (func, строка 387)
+- `send_adapter._send` (func, строка 187)
+- `attach_sender` (func, строка 205)
+- `run_step` (func, строка 216)
+- `run_loop` (func, строка 227)
+- `persist_step` (func, строка 295)
+- `final_triple` (func, строка 325)
+- `final_summary` (func, строка 337)
+- `register_root` (func, строка 346)
+- `close_root` (func, строка 366)
+- `release_root` (func, строка 375)
+- `cancel_report` (func, строка 389)
 
 ### `core/orchestration/invoke.py`
 - `_read_document_bytes` (func, строка 53)
@@ -4264,22 +4267,22 @@
 - `_unbind_workspace` (func, строка 329)
 - `_assistant_dicts` (func, строка 342)
 - `_prepare_step` (func, строка 355)
-- `_limits_for` (func, строка 403)
-- `_result_of` (func, строка 421)
-- `advance_dialog` (func, строка 461)
-- `_close` (func, строка 503)
-- `start_dialog` (func, строка 549)
-- `_remember_placeholder` (func, строка 575)
-- `_drive` (func, строка 586)
-- `_drive_state` (func, строка 614)
-- `_drive_state._cancelled` (func, строка 625)
-- `_drive_state._persist` (func, строка 633)
-- `decide_pending` (func, строка 656)
-- `decide_pending._resume` (func, строка 690)
-- `submit_message` (func, строка 704)
-- `get_dialog` (func, строка 788)
-- `list_dialog_runs` (func, строка 813)
-- `run_dialog` (func, строка 820)
+- `_limits_for` (func, строка 404)
+- `_result_of` (func, строка 422)
+- `advance_dialog` (func, строка 462)
+- `_close` (func, строка 504)
+- `start_dialog` (func, строка 550)
+- `_remember_placeholder` (func, строка 576)
+- `_drive` (func, строка 587)
+- `_drive_state` (func, строка 615)
+- `_drive_state._cancelled` (func, строка 626)
+- `_drive_state._persist` (func, строка 634)
+- `decide_pending` (func, строка 657)
+- `decide_pending._resume` (func, строка 691)
+- `submit_message` (func, строка 705)
+- `get_dialog` (func, строка 789)
+- `list_dialog_runs` (func, строка 814)
+- `run_dialog` (func, строка 821)
 
 ### `core/gateway/dto.py`
 - `EconomyOptions` (class, строка 27)
@@ -6106,6 +6109,27 @@
 - `test_orchestrators_management_page_renders` (func, строка 54)
 - `test_orchestrator_settings_page_has_no_export_import_tab` (func, строка 74)
 - `test_no_export_import_employee_ui_in_code` (func, строка 106)
+
+### `tests/test_extra_headers.py`
+- `test_template_is_filled_with_the_session_id` (func, строка 24)
+- `test_template_without_a_session_is_dropped` (func, строка 29)
+- `test_blank_session_counts_as_missing` (func, строка 34)
+- `test_static_header_needs_no_session` (func, строка 39)
+- `test_placeholder_inside_a_longer_template_is_replaced` (func, строка 44)
+- `test_service_without_declaration_yields_nothing` (func, строка 49)
+- `test_blank_header_name_is_skipped` (func, строка 54)
+- `test_non_dict_declaration_is_ignored` (func, строка 59)
+- `test_none_value_becomes_an_empty_string` (func, строка 63)
+- `_FakeResponse` (class, строка 71)
+- `_FakeResponse.__init__` (func, строка 76)
+- `_FakeResponse.json` (func, строка 83)
+- `_CapturingPost` (class, строка 87)
+- `_CapturingPost.__init__` (func, строка 90)
+- `_CapturingPost.__call__` (func, строка 93)
+- `test_bearer_request_sends_declared_headers` (func, строка 98)
+- `test_declared_headers_cannot_override_credentials` (func, строка 113)
+- `test_no_headers_means_the_default_set` (func, строка 129)
+- `test_cloud_catalog_declares_the_session_header` (func, строка 148)
 
 ### `tests/test_feed_autoscroll.py`
 - `test_autoscroll_js_has_required_markers` (func, строка 20)
@@ -9132,16 +9156,17 @@
 - `test_format_token_line_custom_color` (func, строка 30)
 - `test_format_token_line_with_cache` (func, строка 35)
 - `test_format_token_line_cache_zero_hidden` (func, строка 40)
-- `test_format_token_line_cache_clamped_at_100` (func, строка 46)
-- `test_format_token_line_cache_ignored_when_in_zero` (func, строка 51)
-- `_html_calls` (func, строка 56)
-- `_attr_value` (func, строка 61)
-- `_call_payload` (func, строка 67)
-- `test_clipboard_button_with_html_and_newlines` (func, строка 74)
-- `test_clipboard_button_with_quotes_and_html_label` (func, строка 91)
-- `test_clipboard_button_uses_theme_css_variables` (func, строка 107)
-- `test_clipboard_button_copy_url_params_mode` (func, строка 126)
-- `test_format_token_line_localized_labels` (func, строка 141)
+- `test_format_token_line_cache_pct_matches_statistics` (func, строка 46)
+- `test_format_token_line_cache_clamped_at_100` (func, строка 61)
+- `test_format_token_line_cache_ignored_when_in_zero` (func, строка 66)
+- `_html_calls` (func, строка 71)
+- `_attr_value` (func, строка 76)
+- `_call_payload` (func, строка 82)
+- `test_clipboard_button_with_html_and_newlines` (func, строка 89)
+- `test_clipboard_button_with_quotes_and_html_label` (func, строка 106)
+- `test_clipboard_button_uses_theme_css_variables` (func, строка 122)
+- `test_clipboard_button_copy_url_params_mode` (func, строка 141)
+- `test_format_token_line_localized_labels` (func, строка 156)
 
 ### `tests/test_resume_checkpoint.py`
 - `_record` (func, строка 23)
@@ -9856,24 +9881,28 @@
 ### `tests/test_single_system_message.py`
 - `_roles` (func, строка 24)
 - `test_one_system_message_is_unchanged` (func, строка 30)
-- `test_two_system_messages_merge_into_the_leading_one` (func, строка 40)
-- `test_three_system_messages_keep_their_order` (func, строка 54)
-- `test_the_leading_prompt_is_kept_verbatim` (func, строка 67)
-- `test_the_user_turn_is_never_rewritten` (func, строка 78)
-- `test_a_late_system_message_is_absorbed_and_the_turns_stay_put` (func, строка 88)
-- `test_trailing_snapshot_joins_the_head` (func, строка 101)
-- `test_no_user_message_at_all_still_yields_one_system` (func, строка 112)
-- `test_empty_list_and_garbage_entries` (func, строка 122)
-- `test_input_is_not_mutated` (func, строка 128)
-- `test_empty_snapshot_text_is_dropped` (func, строка 140)
-- `test_no_declaration_means_no_collapse` (func, строка 154)
-- `test_true_applies_to_every_model` (func, строка 160)
-- `test_prefix_list_matches_only_its_models` (func, строка 166)
-- `test_single_string_prefix_is_accepted` (func, строка 175)
-- `test_malformed_rule_is_false` (func, строка 181)
-- `test_payload_keeps_every_system_without_the_flag` (func, строка 189)
-- `test_payload_merges_with_the_flag` (func, строка 199)
-- `test_the_flag_does_not_alias_the_caller_list` (func, строка 212)
+- `test_a_second_system_becomes_a_marked_user_message` (func, строка 40)
+- `test_snapshots_keep_their_arrival_order` (func, строка 56)
+- `test_the_leading_prompt_is_kept_verbatim` (func, строка 69)
+- `test_the_user_turn_is_never_rewritten` (func, строка 80)
+- `test_a_late_system_message_keeps_its_place` (func, строка 90)
+- `test_trailing_snapshot_stays_trailing` (func, строка 106)
+- `test_no_user_message_at_all_still_yields_one_system` (func, строка 118)
+- `test_the_head_is_byte_identical_when_a_snapshot_changes` (func, строка 129)
+- `test_empty_list_and_garbage_entries` (func, строка 151)
+- `test_input_is_not_mutated` (func, строка 157)
+- `test_empty_snapshot_text_is_dropped` (func, строка 169)
+- `test_no_declaration_means_no_collapse` (func, строка 183)
+- `test_true_applies_to_every_model` (func, строка 189)
+- `test_prefix_list_matches_only_its_models` (func, строка 195)
+- `test_single_string_prefix_is_accepted` (func, строка 204)
+- `test_malformed_rule_is_false` (func, строка 210)
+- `_service` (func, строка 224)
+- `test_cloud_collapses_only_the_model_that_drops_system_messages` (func, строка 231)
+- `test_ai_studio_collapses_every_chat_model` (func, строка 241)
+- `test_payload_keeps_every_system_without_the_flag` (func, строка 250)
+- `test_payload_keeps_one_system_with_the_flag` (func, строка 260)
+- `test_the_flag_does_not_alias_the_caller_list` (func, строка 274)
 
 ### `tests/test_skill_build_base.py`
 - `isolated_data_dir` (func, строка 35)
@@ -11854,12 +11883,12 @@
 - `test_cloud_gigachat_sends_exactly_one_system` (func, строка 104)
 - `test_gigachat_ai_studio_sends_exactly_one_system` (func, строка 113)
 - `test_both_snapshots_survive_as_platform_context` (func, строка 122)
-- `test_cloud_non_gigachat_keeps_every_system` (func, строка 147)
-- `test_service_without_the_rule_keeps_every_system` (func, строка 158)
-- `_record_post` (func, строка 166)
-- `_record_post._post` (func, строка 168)
-- `test_tool_loop_collapses_for_gigachat` (func, строка 174)
-- `test_tool_loop_keeps_every_system_by_default` (func, строка 188)
+- `test_cloud_non_gigachat_keeps_every_system` (func, строка 150)
+- `test_service_without_the_rule_keeps_every_system` (func, строка 161)
+- `_record_post` (func, строка 169)
+- `_record_post._post` (func, строка 171)
+- `test_tool_loop_collapses_for_gigachat` (func, строка 177)
+- `test_tool_loop_keeps_every_system_by_default` (func, строка 191)
 
 ### `tests/scenarios/test_github_read_retry_scenario.py`
 - `isolated_connector` (func, строка 28)
@@ -12166,6 +12195,13 @@
 - `test_scenario_deletion_archives_memory_instead_of_destroying` (func, строка 261)
 - `test_scenario_fresh_employee_learns_to_keep_notes` (func, строка 285)
 - `test_scenario_owner_profile_is_shared_and_guarded` (func, строка 313)
+
+### `tests/scenarios/test_platform_context_cache_scenario.py`
+- `_journal` (func, строка 25)
+- `_dialog_step` (func, строка 32)
+- `test_the_opening_bytes_survive_a_growing_journal` (func, строка 45)
+- `test_every_snapshot_still_reaches_the_model` (func, строка 68)
+- `test_a_cached_answer_is_accounted_once` (func, строка 93)
 
 ### `tests/scenarios/test_project_map_freshness_scenario.py`
 - `_load_script` (func, строка 37)

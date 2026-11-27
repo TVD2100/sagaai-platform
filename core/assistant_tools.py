@@ -416,7 +416,8 @@ def _execute_assistant_tool(name: str, arguments: dict, assistant=None) -> str:
 
 
 def _post_chat_completions(url: str, api_key: str, payload: dict,
-                           svc_name: str, retry_callback=None) -> dict:
+                           svc_name: str, retry_callback=None,
+                           extra_headers: Optional[dict] = None) -> dict:
     """POST one chat/completions payload and return the decoded JSON body.
 
     Transport failures are retried through ``retry_call`` with the shared
@@ -429,6 +430,10 @@ def _post_chat_completions(url: str, api_key: str, payload: dict,
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
+    # Provider-declared headers, credentials never overridable.
+    for name, value in (extra_headers or {}).items():
+        if name not in ("Authorization", "Content-Type"):
+            headers[name] = value
 
     def _attempt() -> dict:
         try:
@@ -483,6 +488,7 @@ def run_bearer_tool_loop(
     cfg: Optional[dict] = None, svc_name: str = "",
     usage_callback=None, tool_choice=None, json_schema=None,
     assistant: Optional[dict] = None, extra_payload: Optional[dict] = None,
+    extra_headers: Optional[dict] = None,
     single_system: bool = False,
     on_tool_call: Optional[Callable[[dict], None]] = None,
     retry_callback: Optional[Callable[[dict], None]] = None,
@@ -526,7 +532,7 @@ def run_bearer_tool_loop(
 
         try:
             data = _post_chat_completions(url, api_key, payload, svc_name,
-                                          retry_callback)
+                                          retry_callback, extra_headers)
         except Exception as exc:
             # Degrade to a plain answer when the gateway cannot accept tools at
             # all - an assistant that never calls tools still answers.
@@ -535,7 +541,7 @@ def run_bearer_tool_loop(
             payload.pop("tools", None)
             payload.pop("tool_choice", None)
             data = _post_chat_completions(url, api_key, payload, svc_name,
-                                          retry_callback)
+                                          retry_callback, extra_headers)
 
         choices = data.get("choices") or []
         if not choices:

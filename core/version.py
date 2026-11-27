@@ -909,7 +909,32 @@
 # models of Cloud keep the full system chain: the normalisation is switched on
 # by a catalog, not by the transport protocol.
 
-__version__ = "3.3.1"
+# 3.4.0 keeps the provider-side prompt cache usable on a long dialogue and
+# corrects the one-system-message rule to what the models actually do. A
+# service catalog may now declare HTTP headers that bind the provider's cache
+# to one conversation (``extra_headers``, for example
+# ``{"X-Session-ID": "{session_id}"}``): the placeholder is filled from the
+# current dialogue, and a template that needs an identifier is dropped rather
+# than sent with a literal placeholder, because a bogus identity would put
+# unrelated dialogues into one cache slot. The identifier is read on every
+# send, so switching the dialogue never binds the new conversation to the
+# previous slot. ``collapse_system_messages`` no longer merges the snapshots
+# into the leading message: the leading ``system`` keeps the orchestrator
+# prompt alone and every later ``system`` text becomes a ``user`` message
+# behind a ``[PLATFORM CONTEXT]`` marker in its own place. Merging rewrote the
+# first bytes of every request, so a prefix cache had nothing to reuse no
+# matter how long the dialogue ran; the prompt is now byte-identical from one
+# step to the next while every snapshot still reaches the model. The
+# ``single_system_message`` rule is narrowed to the models that were measured
+# to keep one ``system`` message - ``GigaChat/GigaChat-4-708B-A41`` on Cloud
+# and the ``GigaChat`` prefix in AI Studio - while
+# ``ai-sage/GigaChat3.5-432B-A28B``, which handles several correctly, is
+# declared outside it. The cached-token share is computed by one function,
+# ``core.statistics.cache_pct``: the token line in the chat used to divide the
+# same numbers on its own, and two independent counters of one share drift
+# apart at the first edit.
+
+__version__ = "3.4.0"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0

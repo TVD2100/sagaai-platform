@@ -170,7 +170,8 @@ def build_dispatcher(slug: str, thread_id: str, *, workspace: str = "",
 
 
 def send_adapter(assistant_card: Dict[str, Any], *, safety: bool = True,
-                 lang: Optional[str] = None) -> Callable[..., str]:
+                 lang: Optional[str] = None,
+                 session_id: str = "") -> Callable[..., str]:
     """Return the provider call the loop uses for this dialog.
 
     A ``system`` argument replaces the orchestrator prompt for that one
@@ -195,6 +196,7 @@ def send_adapter(assistant_card: Dict[str, Any], *, safety: bool = True,
             history=history or [],
             lang=lang,
             enable_injection_protection=bool(safety),
+            session_id=session_id,
         )
 
     return _send

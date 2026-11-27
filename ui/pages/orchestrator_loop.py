@@ -117,7 +117,7 @@ def _make_send_adapter_impl(lang: str, slug: str) -> Callable:
             file_context="",
             history=history or [],
             lang=lang,
-            enable_injection_protection=bool(injection_protection),
+            enable_injection_protection=bool(injection_protection), session_id=str(_ss(slug, "thread_id") or ""),
         )
 
     return _adapter

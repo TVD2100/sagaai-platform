@@ -228,6 +228,8 @@ roles = {
     "tests/test_protect_history.py": "History protection tests",
     "tests/test_recent_workspaces.py": "Recent workspaces tests",
     "tests/test_render_token_line.py": "Token line renderer tests",
+    "tests/test_extra_headers.py": "Unit: provider-declared HTTP headers (extra_headers_for fills the session placeholder, drops a template that needs an id when none is given, ignores a catalog without the field)",
+    "tests/scenarios/test_platform_context_cache_scenario.py": "Scenario: a multi-step dialog on a one-system-message provider keeps the opening prompt byte-identical while the journal grows, still delivers every snapshot, and books the provider's cached tokens once",
     "tests/test_safety_mode.py": "Safety-mode gate tests",
     "tests/test_sanitized_approval_flow.py": "Sanitized-content approval flow tests (loop stops, user approves, protected payload not re-triggered)",
     "tests/test_skills_library.py": "Skills library tests",

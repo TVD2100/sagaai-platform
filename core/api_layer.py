@@ -11,7 +11,7 @@ from typing import Optional
 import requests
 
 from core.api_bearer import bearer_request_impl  # noqa: F401 - delegation target
-from core.api_chat import needs_single_system  # noqa: F401 - used by _request_bearer
+from core.api_chat import extra_headers_for, needs_single_system  # noqa: F401 - used by _request_bearer
 from core.api_deepseek import (  # noqa: F401 - re-export surface
     _ANTHROPIC_VERSION,
     _DEEPSEEK_REASONING_EFFORTS,
@@ -122,12 +122,14 @@ load_skill_files_context = load_assistant_files_context
 def _bearer_request(url: str, api_key: str, model: str, messages: list, temperature: float,
                      tools: Optional[list] = None, usage_callback=None, max_tokens: Optional[int] = None,
                      service: str = "", json_schema=None, extra_payload=None,
+                     extra_headers=None,
                      single_system: bool = False) -> str:
     """Send one chat/completions request; delegates to core.api_bearer."""
     return bearer_request_impl(
         url, api_key, model, messages, temperature,
         tools=tools, usage_callback=usage_callback, max_tokens=max_tokens,
         service=service, json_schema=json_schema, extra_payload=extra_payload,
+        extra_headers=extra_headers,
         single_system=single_system,
     )
 
@@ -637,7 +639,8 @@ def _run_with_retry(request_kwargs: dict, native_function_tools: bool,
 def send_request(user_message: str, assistant: Optional[dict] = None, file_context: str = "",
                  history: Optional[list] = None, lang: Optional[str] = None, usage_callback=None,
                  incomplete_callback=None, enable_injection_protection: bool = True,
-                 sanitized_callback=None, sanitized_approved_paths=None, **kwargs) -> str:
+                 sanitized_callback=None, sanitized_approved_paths=None,
+                 session_id: str = "", **kwargs) -> str:
     """Send a chat-completion request and return the text response.
 
     Args:
@@ -649,6 +652,9 @@ def send_request(user_message: str, assistant: Optional[dict] = None, file_conte
         usage_callback: optional callable invoked with
             {"in": N, "out": M, "cache": C} where C is the number of cached
             input tokens reported by the provider (0 when not available).
+        session_id: stable identifier of the current conversation. A provider
+            whose prompt cache is bound to a session uses it to keep one
+            cache slot per dialogue; an empty value disables such a header.
 
     Raises:
         ServiceNotFoundError  - assistant's service is not registered.
@@ -695,6 +701,7 @@ def send_request(user_message: str, assistant: Optional[dict] = None, file_conte
         incomplete_callback=incomplete_callback,
         native_function_tools=native_function_tools,
         assistant=assistant,
+        session_id=session_id,
         on_tool_call=kwargs.get("on_tool_call"),
     )
     return _run_with_retry(request_kwargs, native_function_tools, json_schema,
@@ -735,6 +742,9 @@ def _request_bearer(req: dict) -> str:
     # hidden platform snapshots would replace the orchestrator prompt. The
     # catalog declares which models behave that way; nothing else changes.
     single_system = needs_single_system(svc, req["model"])
+    # A provider may bind its prompt cache to a conversation identity; the
+    # catalog declares such headers and the dialogue supplies the value.
+    extra_headers = extra_headers_for(svc, req.get("session_id", ""))
     if req["native_function_tools"]:
         from core.assistant_tools import run_bearer_tool_loop
         return run_bearer_tool_loop(
@@ -751,6 +761,7 @@ def _request_bearer(req: dict) -> str:
             json_schema=req["json_schema"],
             assistant=req["assistant"],
             extra_payload=svc.get("extra_payload"),
+            extra_headers=extra_headers,
             on_tool_call=req["on_tool_call"],
             retry_callback=req["retry_callback"],
             single_system=single_system,
@@ -766,6 +777,7 @@ def _request_bearer(req: dict) -> str:
         max_tokens=req["max_tokens"], service=svc_name,
         json_schema=req["json_schema"],
         extra_payload=svc.get("extra_payload"),
+        extra_headers=extra_headers,
         single_system=single_system,
     )
 
@@ -845,7 +857,7 @@ def _do_request(auth_type: str, svc_name: str, svc: dict, cfg: dict, base_url: s
                 tools_list: list, max_tool_calls, usage_callback, tool_choice=None, reasoning_effort=None,
                 incomplete_callback=None, native_function_tools: bool = False,
                 assistant: Optional[dict] = None, on_tool_call=None, json_schema=None,
-                retry_callback=None) -> str:
+                session_id: str = "", retry_callback=None) -> str:
     """Dispatch to the appropriate auth-handler. Internal helper of send_request."""
     handler = _AUTH_HANDLERS.get(auth_type)
     if handler is None:
@@ -862,6 +874,7 @@ def _do_request(auth_type: str, svc_name: str, svc: dict, cfg: dict, base_url: s
         "native_function_tools": native_function_tools,
         "assistant": assistant, "on_tool_call": on_tool_call,
         "json_schema": json_schema, "retry_callback": retry_callback,
+        "session_id": session_id,
     })
 
 

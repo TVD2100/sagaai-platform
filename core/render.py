@@ -306,7 +306,10 @@ def format_token_line(current_tokens: int, tokens_in: int = 0, tokens_out: int =
         color: CSS color for the "current" number (default green).
         tokens_cache: cumulative cached input tokens reported by the provider.
             When > 0, a ``cache <pct>%`` part is shown between ``in`` and
-            ``out``, where pct = tokens_cache / tokens_in * 100.
+            ``out``, where pct = tokens_cache / tokens_in * 100 (the cached
+            tokens are a subset of the input tokens, as the providers count
+            them). The percentage comes from :func:`core.statistics.cache_pct`,
+            so the chat line and the statistics page always agree.
         lang: UI language for the labels (None uses the built-in English ones).
     """
     total = int(tokens_in or 0) + int(tokens_out or 0)
@@ -319,10 +322,8 @@ def format_token_line(current_tokens: int, tokens_in: int = 0, tokens_out: int =
     label_out = _token_label("token_line_out", "out", lang)
     parts = f"{label_in} {in_val:,}"
     if cache_val > 0 and in_val > 0:
-        cache_pct = int(round(cache_val * 100.0 / in_val))
-        if cache_pct > 100:
-            cache_pct = 100
-        parts += f" / {label_cache} {cache_pct}%"
+        from core.statistics import cache_pct as _cache_pct
+        parts += f" / {label_cache} {_cache_pct(cache_val, in_val)}%"
     parts += f" / {label_out} {int(tokens_out or 0):,}"
     html = (
         f"{label_ctx} <span style=\"color:{color};font-weight:600\">"

@@ -43,6 +43,21 @@ def test_format_token_line_cache_zero_hidden():
     assert "(in 50 / out 10)" in html
 
 
+def test_format_token_line_cache_pct_matches_statistics():
+    """The chat line and the statistics page share one percentage.
+
+    Two independent implementations of the same formula drift apart: one
+    page would then report a cache hit rate the other contradicts. Both
+    must come from ``core.statistics.cache_pct``.
+    """
+    from core.statistics import cache_pct
+
+    # A real measurement: 5248 cached of 5444 input tokens.
+    for cached, total in ((20221, 24362), (5248, 5444), (1, 3), (999, 1000)):
+        html = format_token_line(100, total, 10, tokens_cache=cached)
+        assert f"cache {cache_pct(cached, total)}%" in html
+
+
 def test_format_token_line_cache_clamped_at_100():
     html = format_token_line(100, 30, 10, tokens_cache=90)
     assert "cache 100%" in html

@@ -37,21 +37,23 @@ def test_one_system_message_is_unchanged():
     assert _roles(out) == ["system", "user"]
 
 
-def test_two_system_messages_merge_into_the_leading_one():
+def test_a_second_system_becomes_a_marked_user_message():
     messages = [
         {"role": "system", "content": "PROMPT"},
         {"role": "system", "content": "CURRENT TASK STATE: x"},
         {"role": "user", "content": "hello"},
     ]
     out = collapse_system_messages(messages)
-    assert _roles(out) == ["system", "user"]
-    head = out[0]["content"]
-    assert head.startswith("PROMPT")
-    assert SNAPSHOT_MARKER in head
-    assert "CURRENT TASK STATE: x" in head
+    assert _roles(out) == ["system", "user", "user"]
+    # The prompt is untouched, so the opening bytes stay the same on every
+    # request and a prefix cache can reuse them.
+    assert out[0] == {"role": "system", "content": "PROMPT"}
+    assert out[1]["content"].startswith(SNAPSHOT_MARKER)
+    assert "CURRENT TASK STATE: x" in out[1]["content"]
+    assert out[2] == {"role": "user", "content": "hello"}
 
 
-def test_three_system_messages_keep_their_order():
+def test_snapshots_keep_their_arrival_order():
     messages = [
         {"role": "system", "content": "PROMPT"},
         {"role": "system", "content": "SNAP-1"},
@@ -59,9 +61,9 @@ def test_three_system_messages_keep_their_order():
         {"role": "user", "content": "hello"},
     ]
     out = collapse_system_messages(messages)
-    assert _roles(out) == ["system", "user"]
-    head = out[0]["content"]
-    assert head.index("PROMPT") < head.index("SNAP-1") < head.index("SNAP-2")
+    assert _roles(out) == ["system", "user", "user", "user"]
+    assert "SNAP-1" in out[1]["content"]
+    assert "SNAP-2" in out[2]["content"]
 
 
 def test_the_leading_prompt_is_kept_verbatim():
@@ -85,7 +87,7 @@ def test_the_user_turn_is_never_rewritten():
     assert out[-1] == {"role": "user", "content": "hello"}
 
 
-def test_a_late_system_message_is_absorbed_and_the_turns_stay_put():
+def test_a_late_system_message_keeps_its_place():
     messages = [
         {"role": "system", "content": "PROMPT"},
         {"role": "user", "content": "first"},
@@ -93,20 +95,24 @@ def test_a_late_system_message_is_absorbed_and_the_turns_stay_put():
         {"role": "assistant", "content": "answer"},
     ]
     out = collapse_system_messages(messages)
-    assert _roles(out) == ["system", "user", "assistant"]
-    assert "late snapshot" in out[0]["content"]
+    # Chronology is preserved: the snapshot stays between the turns it
+    # actually sat between.
+    assert _roles(out) == ["system", "user", "user", "assistant"]
     assert out[1]["content"] == "first"
+    assert "late snapshot" in out[2]["content"]
+    assert out[3]["content"] == "answer"
 
 
-def test_trailing_snapshot_joins_the_head():
+def test_trailing_snapshot_stays_trailing():
     messages = [
         {"role": "system", "content": "PROMPT"},
         {"role": "user", "content": "hello"},
         {"role": "system", "content": "trailing"},
     ]
     out = collapse_system_messages(messages)
-    assert _roles(out) == ["system", "user"]
-    assert "trailing" in out[0]["content"]
+    assert _roles(out) == ["system", "user", "user"]
+    assert out[0] == {"role": "system", "content": "PROMPT"}
+    assert "trailing" in out[2]["content"]
 
 
 def test_no_user_message_at_all_still_yields_one_system():
@@ -115,8 +121,31 @@ def test_no_user_message_at_all_still_yields_one_system():
         {"role": "system", "content": "snapshot"},
     ]
     out = collapse_system_messages(messages)
-    assert _roles(out) == ["system"]
-    assert "snapshot" in out[0]["content"]
+    assert _roles(out) == ["system", "user"]
+    assert out[0] == {"role": "system", "content": "PROMPT"}
+    assert "snapshot" in out[1]["content"]
+
+
+def test_the_head_is_byte_identical_when_a_snapshot_changes():
+    # The point of moving snapshots out of the prompt: a prefix cache reuses
+    # the opening bytes only while they do not change. Two consecutive steps
+    # with a DIFFERENT journal must still produce the same leading bytes.
+    step_one = [
+        {"role": "system", "content": "PROMPT"},
+        {"role": "system", "content": "CURRENT TASK STATE: step 1"},
+        {"role": "user", "content": "go"},
+    ]
+    step_two = [
+        {"role": "system", "content": "PROMPT"},
+        {"role": "system", "content": "CURRENT TASK STATE: step 2, much longer now"},
+        {"role": "user", "content": "go"},
+    ]
+    first = collapse_system_messages(step_one)
+    second = collapse_system_messages(step_two)
+    assert first[0] == second[0]
+    assert first[0]["content"] == "PROMPT"
+    # The snapshot text itself still differs - only the head is stable.
+    assert first[1]["content"] != second[1]["content"]
 
 
 def test_empty_list_and_garbage_entries():
@@ -184,6 +213,38 @@ def test_malformed_rule_is_false():
     assert needs_single_system({"single_system_message": {"models": []}}, "m") is False
 
 
+# ─── the shipped catalogs match the measured behaviour ──────────────────────
+# Collapsing is a lossy workaround, so the catalog may claim it only for the
+# models that really keep a single system message. A wider claim silently
+# degrades every other model of the service: its prompt gets merged with the
+# platform snapshots and loses the byte stability that makes a prefix cache
+# reusable.
+
+
+def _service(name):
+    import json
+    from pathlib import Path
+    root = Path(__file__).resolve().parent.parent
+    return json.loads((root / "services" / name).read_text(encoding="utf-8"))
+
+
+def test_cloud_collapses_only_the_model_that_drops_system_messages():
+    svc = _service("cloud.json")
+    assert needs_single_system(svc, "GigaChat/GigaChat-4-708B-A41") is True
+    for model in ("ai-sage/GigaChat3.5-432B-A28B", "GigaChat/GigaChat-3-Pro",
+                  "openai/gpt-5.4", "openai/gpt-5.4-mini",
+                  "anthropic/claude-opus-4.8", "anthropic/claude-sonnet-4.6",
+                  "google/gemini-2.5-flash", "meta-llama/llama-3.3-70b-instruct"):
+        assert needs_single_system(svc, model) is False, model
+
+
+def test_ai_studio_collapses_every_chat_model():
+    svc = _service("gigachat_ai_studio.json")
+    for model in ("GigaChat-4-708B-A41B", "GigaChat-3.5-432B-A28B",
+                  "GigaChat-3-Ultra", "GigaChat-3-Lightning"):
+        assert needs_single_system(svc, model) is True, model
+
+
 # ─── build_chat_payload ─────────────────────────────────────────────────────
 
 def test_payload_keeps_every_system_without_the_flag():
@@ -196,17 +257,18 @@ def test_payload_keeps_every_system_without_the_flag():
     assert _roles(payload["messages"]) == ["system", "system", "user"]
 
 
-def test_payload_merges_with_the_flag():
+def test_payload_keeps_one_system_with_the_flag():
     messages = [
         {"role": "system", "content": "PROMPT"},
         {"role": "system", "content": "snapshot"},
         {"role": "user", "content": "hello"},
     ]
     payload, _ = build_chat_payload("m", messages, 0.5, single_system=True)
-    assert _roles(payload["messages"]) == ["system", "user"]
-    assert payload["messages"][0]["content"].startswith("PROMPT")
-    assert "snapshot" in payload["messages"][0]["content"]
-    assert payload["messages"][1]["content"] == "hello"
+    wire = payload["messages"]
+    assert _roles(wire).count("system") == 1
+    assert wire[0] == {"role": "system", "content": "PROMPT"}
+    assert SNAPSHOT_MARKER in wire[1]["content"]
+    assert wire[-1] == {"role": "user", "content": "hello"}
 
 
 def test_the_flag_does_not_alias_the_caller_list():

@@ -12,8 +12,11 @@
   "temp_step": 0.1,
   "context_window_default": 128000,
   "max_tokens_default": 32768,
+  "extra_headers": {
+    "X-Session-ID": "{session_id}"
+  },
   "single_system_message": {
-    "models": ["GigaChat/", "ai-sage/GigaChat"]
+    "models": ["GigaChat/GigaChat-4-708B-A41"]
   },
   "extra_payload": {
     "chat_template_kwargs": {

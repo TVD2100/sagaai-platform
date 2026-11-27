@@ -92,37 +92,37 @@ def collapse_system_messages(messages: list) -> list:
     after it, so on such a provider the short snapshot wins and the prompt is
     lost - the model answers without its role, its tools and its rules.
 
-    Every ``system`` text is therefore merged into the first ``system``
-    message, in the order it arrived, each snapshot behind a marker so the
-    model can tell the agent prompt from platform context. The user and
-    assistant turns are left exactly as they were: the user's own words are
-    never rewritten. The input is never mutated.
+    The leading ``system`` message keeps the orchestrator prompt alone, and
+    every later ``system`` text becomes a marked ``user`` message in its own
+    place. The prompt therefore stays byte-identical from one step to the next
+    even while the snapshots around it change, which is what a prefix cache
+    reuses: merging the snapshots INTO the prompt would rewrite the very first
+    bytes on every step and leave nothing to reuse. Chronology is preserved, so
+    a snapshot still precedes the turn that follows it, and the marker lets the
+    model tell platform context from the user's own words. The user and
+    assistant turns are passed through untouched. The input is never mutated.
 
     :param messages: the message list of one request.
-    :return: a list with at most one ``system`` message.
+    :return: a list with exactly one ``system`` message.
     """
     result = [dict(m) for m in messages if isinstance(m, dict)]
     system_ids = [i for i, m in enumerate(result) if m.get("role") == "system"]
     if len(system_ids) <= 1:
         return result
-    blocks = []
-    for position, index in enumerate(system_ids):
-        text = result[index].get("content") or ""
-        if not str(text).strip():
+    head_index = system_ids[0]
+    out: list = []
+    for index, message in enumerate(result):
+        if message.get("role") != "system" or index == head_index:
+            out.append(message)
             continue
-        blocks.append(str(text).strip() if position == 0 else _snapshot_block(text))
-    head = dict(result[system_ids[0]])
-    head["content"] = "\n\n".join(blocks)
-    merged: list = []
-    placed = False
-    for message in result:
-        if message.get("role") == "system":
-            if not placed:
-                merged.append(head)
-                placed = True
+        text = str(message.get("content") or "").strip()
+        if not text:
             continue
-        merged.append(message)
-    return merged
+        folded = dict(message)
+        folded["role"] = "user"
+        folded["content"] = _snapshot_block(text)
+        out.append(folded)
+    return out
 
 
 def needs_single_system(service: Optional[dict], model: str = "") -> bool:
@@ -153,6 +153,45 @@ def needs_single_system(service: Optional[dict], model: str = "") -> bool:
     name = str(model or "")
     return any(name.startswith(str(prefix))
                for prefix in prefixes if str(prefix))
+
+
+def extra_headers_for(service: Optional[dict], session_id: str = "") -> dict:
+    """Return provider-specific HTTP headers declared by a service catalog.
+
+    A provider may need a stable per-conversation identifier to bind its
+    server-side prompt cache to one dialogue: the cache is a short-lived
+    prefix cache, and without the identifier every request starts cold, so
+    nothing is ever reused. The catalog declares the header names and their
+    templates, and the ``{session_id}`` placeholder is filled at request
+    time.
+
+    A template that still needs a session id when none is available is
+    dropped instead of being sent with a literal placeholder - a bogus
+    identity is worse than none, because the provider would keep one shared
+    cache slot across unrelated conversations.
+
+    :param service: the service catalog entry.
+    :param session_id: stable identifier of the current conversation.
+    :return: header dict, empty when the catalog declares none.
+    """
+    if not isinstance(service, dict):
+        return {}
+    declared = service.get("extra_headers")
+    if not isinstance(declared, dict):
+        return {}
+    sid = str(session_id or "").strip()
+    headers: dict = {}
+    for name, value in declared.items():
+        key = str(name or "").strip()
+        if not key:
+            continue
+        text = str(value if value is not None else "")
+        if "{session_id}" in text:
+            if not sid:
+                continue
+            text = text.replace("{session_id}", sid)
+        headers[key] = text
+    return headers
 
 
 def report_chat_usage(usage_callback, data: dict, messages: list, result_text: str) -> None:

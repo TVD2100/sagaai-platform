@@ -49,7 +49,7 @@ def test_the_turn_passes_every_option_to_the_provider():
     send.assert_called_once_with(
         "question", {"model": "m"}, "file text",
         history=[{"role": "user", "content": "old"}], lang="ru",
-        usage_callback=callback,
+        usage_callback=callback, session_id="",
     )
 
 
