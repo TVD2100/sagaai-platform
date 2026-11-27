@@ -5,7 +5,7 @@ tests for running an employee (orchestrator) on the Cloud provider.
 Cloud is a plain OpenAI-compatible gateway: the transport assembles
 ``[system prompt] + history + [question]`` and posts it with a bearer key.
 The employee config may carry max_tokens saved for another model (384000),
-which must be clamped to the Cloud cap (32768).
+which must be clamped to the model's declared output limit.
 
 Scenarios (given -> when -> then), driven through the real UI entry point
 ``ui.pages.orchestrator._do_step`` (one call per Streamlit rerun) with the
@@ -195,7 +195,8 @@ def test_scenario_orchestrator_turn_on_cloud_sends_valid_payload(monkeypatch, ui
     when  the user sends the first message,
     then  the request goes to the Cloud endpoint with a bearer header, the
           employee prompt opens the messages, max_tokens is clamped from
-          384000 to the Cloud cap 32768, and the reply lands in history."""
+          384000 to the model's declared limit, and the reply lands in
+          history."""
     orch_page = _setup_page(monkeypatch)
     session = _make_session()
     _patch_transport(monkeypatch, session)
@@ -211,8 +212,9 @@ def test_scenario_orchestrator_turn_on_cloud_sends_valid_payload(monkeypatch, ui
     assert headers["Authorization"] == "Bearer cloud-key"
     payload = session.post.call_args[1]["json"]
     assert payload["model"] == CLOUD_MODEL
-    # 384000 saved in the employee config is clamped to the Cloud cap.
-    assert payload["max_tokens"] == 32768
+    # 384000 saved in the employee config is clamped to the model limit
+    # (10% of the GigaChat 4 context window).
+    assert payload["max_tokens"] == 100000
 
     msgs = payload["messages"]
     assert msgs[0]["role"] == "system"

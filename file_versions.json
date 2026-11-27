@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "app_version": "3.4.0",
+  "app_version": "3.4.1",
   "channel": "https://raw.githubusercontent.com/TVD2100/sagaai-platform/main",
   "release_note": {
-    "ru": "Кеш промпта у провайдера снова работает на длинном диалоге. Снимки состояния (журнал задачи, папка артефактов диалога, заголовок экономии контекста) больше не вливаются в системный промпт: ведущее system-сообщение остаётся промптом оркестратора байт в байт от шага к шагу, а каждый снимок идёт отдельным сообщением под маркером [PLATFORM CONTEXT] и до модели доходит целиком. Каталог сервиса может объявить HTTP-заголовки, привязывающие серверный кеш к текущему диалогу (extra_headers, например X-Session-ID). Правило single_system_message сужено до моделей, у которых одно system-сообщение действительно проверено замером: GigaChat-4 на Cloud.ru и модели GigaChat в AI Studio; ai-sage/GigaChat3.5-432B-A28B объявлен вне правила. Доля кешированных токенов считается одной функцией, поэтому строка токенов в чате и страница статистики больше не могут разойтись.",
-    "en": "The provider-side prompt cache works again on a long dialogue. The state snapshots (task journal, thread artefacts folder, economy header) are no longer merged into the system prompt: the leading system message keeps the orchestrator prompt byte-identical from one step to the next, while every snapshot travels as its own message behind a [PLATFORM CONTEXT] marker and still reaches the model in full. A service catalog may declare HTTP headers that bind the provider cache to the current dialogue (extra_headers, for example X-Session-ID). The single_system_message rule is narrowed to the models where one system message was actually measured: GigaChat-4 on Cloud.ru and the GigaChat models in AI Studio; ai-sage/GigaChat3.5-432B-A28B is declared outside it. The cached-token share is computed by one function, so the token line in the chat and the statistics page can no longer drift apart."
+    "ru": "Лимит вывода каждой модели каталога привязан к её контекстному окну: max_tokens равен десятой части окна, а сервисный max_tokens_default - десятой части context_window_default. Один общий потолок 32768 оставлял под ответ четверть окна у самой маленькой модели и три процента у самой большой; теперь потолок пропорционален тому, что модель реально вмещает. Контекстные окна GigaChat AI Studio перепроверены живыми пробами и не изменились.",
+    "en": "Every catalog model output limit is now tied to its context window: max_tokens is a tenth of the window, and the service-wide max_tokens_default a tenth of context_window_default. A single 32768 ceiling left a quarter of the window for the answer on the smallest model and three percent on the largest; the ceiling is now proportional to what each model can actually hold. The GigaChat AI Studio context windows were re-checked against live probes and did not change."
   },
-  "updated": "2026-11-27T16:24:31Z",
+  "updated": "2026-11-27T17:31:06Z",
   "units": {
     "core": {
-      "version": "3.4.0",
+      "version": "3.4.1",
       "note": {
-        "ru": "Пакет кода 3.4.0: ведущее system-сообщение остаётся промптом байт в байт, снимки идут отдельными сообщениями под маркером [PLATFORM CONTEXT]; каталог сервиса объявляет HTTP-заголовки привязки кеша к диалогу; правило single_system_message сужено по живому замеру; доля кеша считается одной функцией.",
-        "en": "Code package 3.4.0: the leading system message stays byte-identical, the snapshots travel as their own marked messages; a service catalog declares cache-binding HTTP headers; the single_system_message rule is narrowed to the measured models; the cached-token share is computed in one place."
+        "ru": "Пакет кода 3.4.1: max_tokens каждой модели каталога равен десятой части её контекстного окна, max_tokens_default - десятой части context_window_default; контекстные окна GigaChat AI Studio подтверждены живыми пробами и не менялись.",
+        "en": "Code package 3.4.1: max_tokens of every catalog model is a tenth of its context window, max_tokens_default a tenth of context_window_default; the GigaChat AI Studio context windows are confirmed by live probes and unchanged."
       },
       "files": {
         "__init__.py": {
@@ -272,8 +272,8 @@
           "sha256": "9ae8ea5d08921be75d8146deb2d01ecdb20401544fa5cc5279266b544b6b445e"
         },
         "core/version.py": {
-          "version": "3.4.0",
-          "sha256": "0b0b76a7f6d3640d8294452ca91e00e85b612ffb90f9633812423dcc3209819c",
+          "version": "3.4.1",
+          "sha256": "6f6c396626dc55d85da8d41f1b5d187a88ea491a4652cee478d29341b35c208a",
           "note": {
             "ru": "Версия платформы 3.3.1: GigaChat получает промпт целиком - нормализация system объявлена каталогом сервиса.",
             "en": "Platform version 3.3.1: GigaChat receives the whole prompt - the system normalisation is declared by a service catalog."
@@ -3564,8 +3564,8 @@
           "sha256": "61bef9ddc282d29c9b9af3f84cd3a907002b8a72be18093ecebd5aff46bff300"
         },
         "tests/scenarios/test_cloud_orchestrator_scenario.py": {
-          "version": "1.0.0",
-          "sha256": "16fbf0ca232379dbfcb4ff24fb7bec85a7d26bb33b23296ebfdfb9cf142257d8"
+          "version": "1.0.1",
+          "sha256": "b6c83af2f84132dc508948f514cd85527d65c9aa1d9f1472c505bfd55c4bcd06"
         },
         "core/api_chat.py": {
           "version": "1.2.0",
@@ -3620,16 +3620,16 @@
       }
     },
     "PROJECT_MAP.md": {
-      "version": "1.83.4",
-      "sha256": "b3fc6ae8a13e314bdca864f35caf6575a4ce9e26ed9088ee2f8bd9f1edfc245c",
+      "version": "1.83.5",
+      "sha256": "bdecbaa9369f1f3a5d9e338b3bf8e5bc1d5ffe2888c4a55cb34f4c8788d0efd8",
       "note": {
         "ru": "Перегенерирована: описания новых тестов (extra_headers, сквозной сценарий кеша контекста).",
         "en": "Regenerated: descriptions of the new tests (extra_headers, the context-cache scenario)."
       }
     },
     "README.md": {
-      "version": "1.64.4",
-      "sha256": "491710c544da23fa131e99eaddbde397b1212ad5ff94e0655710c72175035bc6",
+      "version": "1.64.5",
+      "sha256": "9005386459a88710d72177f685f0750f87393d8006a56abe500047bddd05e019",
       "note": {
         "ru": "Строка версии обновлена до 3.4.0.",
         "en": "The version line now reads 3.4.0."
@@ -4028,8 +4028,8 @@
       }
     },
     "AGENT.md": {
-      "version": "1.62.0",
-      "sha256": "45aa5fe1a4db8ac59be443ee3950c1c656216a0c0b21cce64a9df12174b4d793",
+      "version": "1.62.1",
+      "sha256": "7f9b35c542720e8d526d18c921b018a6ae66f77af17135d2598c3a5fa5ece732",
       "note": {
         "ru": "FR16: GigaChat AI Studio как второй bearer-провайдер; каталог объявляет только реально доступные возможности.",
         "en": "FR16: GigaChat AI Studio as a second bearer provider; a catalog declares only the capabilities the provider really serves."
@@ -4276,35 +4276,35 @@
       }
     },
     "services/cloud.json": {
-      "version": "1.2.1",
-      "sha256": "7583cfab012f34f4ffef8670b4b964d24b7c8f5ad1f4e43dbf7c98e13b10ab34",
+      "version": "1.3.0",
+      "sha256": "afc6848fa01a511cb872faabb744d1d36624692563bb6c20d23490c971f777c8",
       "note": {
-        "ru": "Сервис Cloud.ru Foundation Models: bearer-авторизация, каталоги текстовых, vision- и RAG-моделей, включая линейку GigaChat.",
-        "en": "Cloud.ru Foundation Models service: bearer auth and catalogs of text, vision and RAG models, the GigaChat line included."
+        "ru": "Сервис Cloud.ru Foundation Models: bearer-авторизация, каталоги текстовых, vision- и RAG-моделей, включая линейку GigaChat; лимит вывода каждой модели - десятая часть её контекстного окна.",
+        "en": "Cloud.ru Foundation Models service: bearer auth and catalogs of text, vision and RAG models, the GigaChat line included; each model output limit is a tenth of its context window."
       }
     },
     "defaults/services/cloud.json": {
-      "version": "1.2.1",
-      "sha256": "7583cfab012f34f4ffef8670b4b964d24b7c8f5ad1f4e43dbf7c98e13b10ab34",
+      "version": "1.3.0",
+      "sha256": "afc6848fa01a511cb872faabb744d1d36624692563bb6c20d23490c971f777c8",
       "note": {
-        "ru": "Поставляемая копия сервиса Cloud.ru Foundation Models (bearer-авторизация, каталоги текстовых, vision- и RAG-моделей).",
-        "en": "Shipped copy of the Cloud.ru Foundation Models service (bearer auth; text, vision and RAG model catalogs)."
+        "ru": "Сервис Cloud.ru Foundation Models: bearer-авторизация, каталоги текстовых, vision- и RAG-моделей, включая линейку GigaChat; лимит вывода каждой модели - десятая часть её контекстного окна.",
+        "en": "Cloud.ru Foundation Models service: bearer auth and catalogs of text, vision and RAG models, the GigaChat line included; each model output limit is a tenth of its context window."
       }
     },
     "services/gigachat_ai_studio.json": {
-      "version": "1.1.0",
-      "sha256": "13f444baf434f79da00f18ed2424e4ee32db19158a440e004087216d04674ed7",
+      "version": "1.2.0",
+      "sha256": "2d6c71076b2ac97148e10775f5554f447655a194320b43aaad1a6d105f95472e",
       "note": {
-        "ru": "Сервис GigaChat AI Studio: bearer-авторизация, семь чатовых моделей с их реальными контекстными окнами, четыре vision-модели; генерация изображений и векторизация не объявлены.",
-        "en": "The GigaChat AI Studio service: bearer auth, seven chat models with the context window each really enforces, four vision models; image generation and vectorization are not declared."
+        "ru": "Сервис GigaChat AI Studio: bearer-авторизация, семь чатовых моделей с их реальными контекстными окнами и лимитом вывода в десятую часть окна, четыре vision-модели; генерация изображений и векторизация не объявлены.",
+        "en": "The GigaChat AI Studio service: bearer auth, seven chat models with the context window each really enforces and an output limit of a tenth of that window, four vision models; image generation and vectorization are not declared."
       }
     },
     "defaults/services/gigachat_ai_studio.json": {
-      "version": "1.1.0",
-      "sha256": "13f444baf434f79da00f18ed2424e4ee32db19158a440e004087216d04674ed7",
+      "version": "1.2.0",
+      "sha256": "2d6c71076b2ac97148e10775f5554f447655a194320b43aaad1a6d105f95472e",
       "note": {
-        "ru": "Сервис GigaChat AI Studio: bearer-авторизация, семь чатовых моделей с их реальными контекстными окнами, четыре vision-модели; генерация изображений и векторизация не объявлены.",
-        "en": "The GigaChat AI Studio service: bearer auth, seven chat models with the context window each really enforces, four vision models; image generation and vectorization are not declared."
+        "ru": "Сервис GigaChat AI Studio: bearer-авторизация, семь чатовых моделей с их реальными контекстными окнами и лимитом вывода в десятую часть окна, четыре vision-модели; генерация изображений и векторизация не объявлены.",
+        "en": "The GigaChat AI Studio service: bearer auth, seven chat models with the context window each really enforces and an output limit of a tenth of that window, four vision models; image generation and vectorization are not declared."
       }
     }
   }

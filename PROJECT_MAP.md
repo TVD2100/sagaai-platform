@@ -2,11 +2,11 @@
 
 Автоматически поддерживается DevAgent. Структура - детерминированная, описания назначения файлов - генерируются моделью. Файл генерируемый: не правьте его вручную - для обновления выполните регенерацию (генератор проекта или write_project_map с полным словарём описаний).
 
-- Обновлено: `2026-11-27T16:24:27+00:00`
+- Обновлено: `2026-11-27T17:20:05+00:00`
 - Файлов: **872**
 - Состав: только файлы, публикуемые на GitHub (units + selectable из file_versions.json)
 - Python-символов: **11571**
-- Отпечаток содержимого: `sha256:c9bb61a3e2bfc3e76e983bed8b2c89e726c657c82a805550074b55565d12d71e` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
+- Отпечаток содержимого: `sha256:d5b100c54739cd4d7b31728ce98abfb5b9f547e2aac03d815cbe182d6be451a4` - если он не совпадает с `build_project_map()['fingerprint']`, карта устарела: пересоберите её.
 - Языки: Config: 2, JSON: 39, Markdown: 42, PEM certificate: 1, Python: 788, TOML: 2, Text: 2
 
 ## Файлы и назначение
@@ -11554,7 +11554,7 @@
 - `_seed` (func, строка 166)
 - `_drive` (func, строка 176)
 - `test_scenario_orchestrator_turn_on_cloud_sends_valid_payload` (func, строка 193)
-- `test_scenario_provider_error_is_visible_in_feed_and_next_turn_recovers` (func, строка 233)
+- `test_scenario_provider_error_is_visible_in_feed_and_next_turn_recovers` (func, строка 235)
 
 ### `tests/scenarios/test_cloud_tool_loop_scenario.py`
 - `_cloud_service` (func, строка 58)

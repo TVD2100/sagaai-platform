@@ -934,7 +934,14 @@
 # same numbers on its own, and two independent counters of one share drift
 # apart at the first edit.
 
-__version__ = "3.4.0"
+# 3.4.1 ties the declared output limit of every catalog model to its context
+# window: max_tokens is a tenth of context_window, and the service-wide
+# max_tokens_default a tenth of context_window_default. One constant of 32768
+# for the whole catalog left a quarter of the window for the answer on the
+# smallest model and three percent on the largest, so the ceiling is now
+# proportional to what each model can actually hold.
+
+__version__ = "3.4.1"
 
 # SPDX-FileCopyrightText: 2026 SagaAI Platform, Deinekin T.V.
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
